@@ -36,11 +36,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
     error: null,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({
-  loadMoreProjects: vi.fn(() =>
-    Promise.resolve({ projects: [], nextCursor: null }),
-  ),
-  loadPinnedProjects: vi.fn(() => Promise.resolve([])),
+vi.mock("@/lib/project-scope-list.client", () => ({
+  fetchScopeList: (path: string) =>
+    path.startsWith("/api/project-scope/pinned")
+      ? Promise.resolve([])
+      : Promise.resolve({ projects: [], nextCursor: null }),
 }));
 // The wizard pulls in the whole Create flow. The stub keeps the props, so a
 // test can finish or cancel Create the way the real dialog does.

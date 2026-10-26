@@ -1,0 +1,82 @@
+/// Jev's reading of one human chat message (chat signals): a probability per
+/// tag, never a verdict. Tags sort, highlight and suggest; they never hide or
+/// block a message. Written once after the message is sent, by a debounced
+/// batch (`waitUntil`) or the `/sync/chat-message-signals` sweep behind it.
+model ChatMessageSignal {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  messageId String          @unique @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  roomId    String          @db.Uuid
+  room      ChatRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  /// `pending` | `running` | `tagged` | `failed`.
+  state            String    @default("pending")
+  attempts         Int       @default(0)
+  /// Owner token of the batch that claimed the row; null when unclaimed.
+  lease            String?
+  availableAt      DateTime  @default(now())
+  /// `ChatSignalProbabilities`: tag → probability in 0..1, as Jev answered.
+  probabilities    Json?
+  /// Humans the message asks something of: its @mentions, the other person
+  /// in a pair, or the one person Jev read it as addressed to.
+  addressedUserIds String[]  @default([])
+  /// When a commitment said it would be done (end of that UTC day).
+  commitmentDueAt  DateTime?
+  /// An open loop (unanswered question, commitment) a reader closed: by
+  /// making a Task of it, or by dismissing it.
+  loopClosedAt     DateTime?
+  loopTaskId       String?   @db.Uuid
+  model            String?
+  version          String?
+  taggedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  corrections ChatMessageSignalCorrection[]
+
+  @@index([state, availableAt])
+  @@index([roomId, taggedAt])
+  @@map("chat_message_signal")
+}
+
+/// A reader's one-click correction of a tag. The newest correction of a tag
+/// wins for every reader; Jev's original probability stays on the signal, so
+/// the pair is tuning data.
+model ChatMessageSignalCorrection {
+  id       String            @id @default(uuid(7)) @db.Uuid
+  signalId String            @db.Uuid
+  signal   ChatMessageSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tag       String
+  /// What the reader says: the tag applies, or it does not.
+  applies   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([signalId, userId, tag])
+  @@index([userId])
+  @@map("chat_message_signal_correction")
+}
+
+/// The written part of a reader's "while you were away" summary, cached until
+/// a tagged message arrives that it has not read. `scope` is `all` or a room
+/// id, so the unique key needs no nullable column.
+model ChatCatchUpSummary {
+  id     String @id @default(uuid(7)) @db.Uuid
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope  String
+
+  /// The tagged message ids the text was written from.
+  messageIds  String[]
+  /// `ChatCatchUpSummaryText`: a headline and one line per room.
+  content     Json
+  model       String
+  costUsd     Float?
+  generatedAt DateTime @default(now())
+
+  @@unique([userId, scope])
+  @@map("chat_catch_up_summary")
+}

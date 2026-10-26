@@ -1,7 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ProjectWorkspaceShell } from "@/app/projects/components/project-workspace-shell";
+import {
+  getProjectWorkspaceLabels,
+  ProjectWorkspaceShell,
+} from "@/app/projects/components/project-workspace-shell";
 import {
   TASK_DETAIL_GRID_CLASS,
   TASK_DETAIL_SHELL_CLASS,
@@ -15,6 +18,21 @@ import {
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/projects/p1/memory",
+}));
+
+const { listSharedMock, activeOrganizationMock } = vi.hoisted(() => ({
+  listSharedMock: vi.fn(),
+  activeOrganizationMock: vi.fn(),
+}));
+
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
+}));
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: { listShared: listSharedMock },
+}));
+vi.mock("@/lib/services/user.service", () => ({
+  userService: { getActiveOrganizationId: activeOrganizationMock },
 }));
 
 const LABELS = {
@@ -31,12 +49,12 @@ const LABELS = {
   },
 };
 
-function renderShell() {
+function renderShell(labels: typeof LABELS & { bots?: string } = LABELS) {
   return render(
     <ProjectWorkspaceShell
       createdAt="Yesterday"
       identifier="SOK"
-      labels={LABELS}
+      labels={labels}
       projectId="p1"
       projectName="Example project"
       updatedAt="Today"
@@ -145,5 +163,41 @@ describe("the project detail layout", () => {
       ["Memory", "/projects/p1/memory"],
     ]);
     expect(screen.queryByRole("link", { name: "Social" })).toBeNull();
+  });
+
+  it("adds the Bots tab when the labels carry one", () => {
+    renderShell({ ...LABELS, bots: "Bots" });
+
+    expect(tabLinks().at(-1)?.getAttribute("href")).toBe("/projects/p1/bots");
+  });
+});
+
+describe("getProjectWorkspaceLabels", () => {
+  it("offers the Bots tab when Core lists shared bots in an organization", async () => {
+    listSharedMock.mockResolvedValue([]);
+    activeOrganizationMock.mockResolvedValue("org-1");
+
+    expect((await getProjectWorkspaceLabels()).bots).toBe("tabs.bots");
+  });
+
+  it("hides the Bots tab while Core sends no shared bots", async () => {
+    listSharedMock.mockResolvedValue(null);
+    activeOrganizationMock.mockResolvedValue("org-1");
+
+    expect((await getProjectWorkspaceLabels()).bots).toBeUndefined();
+  });
+
+  it("hides the Bots tab when the shared-bot read fails", async () => {
+    listSharedMock.mockRejectedValue(new Error("Core down"));
+    activeOrganizationMock.mockResolvedValue("org-1");
+
+    expect((await getProjectWorkspaceLabels()).bots).toBeUndefined();
+  });
+
+  it("hides the Bots tab in a personal workspace", async () => {
+    listSharedMock.mockResolvedValue([]);
+    activeOrganizationMock.mockResolvedValue(null);
+
+    expect((await getProjectWorkspaceLabels()).bots).toBeUndefined();
   });
 });

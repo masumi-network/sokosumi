@@ -1,12 +1,15 @@
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import {
   ACTIVE_TURN_STATUSES,
+  FOREGROUND_TURN,
   SokoBotTurnInProgressError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 
 import {
+  buildDirectMessagePrompt,
   buildRoomMentionPrompt,
   loadRoomContextMessages,
   roomMessagePromptText,
@@ -57,7 +60,11 @@ export async function acceptOnceIdle<T>(
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, pollMs));
       const running = await prisma.sokoBotTurn.findFirst({
-        where: { sokoBotId, status: { in: [...ACTIVE_TURN_STATUSES] } },
+        where: {
+          sokoBotId,
+          ...FOREGROUND_TURN,
+          status: { in: [...ACTIVE_TURN_STATUSES] },
+        },
         select: { id: true },
       });
       if (!running) break;
@@ -91,7 +98,7 @@ export async function runSokoBotMentionDispatch(params: {
     responseMessageId: string | null;
     sokoBot: {
       id: string;
-      userId: string;
+      userId: string | null;
       workspaceId: string;
       archivedAt: Date | null;
     } | null;
@@ -112,7 +119,9 @@ export async function runSokoBotMentionDispatch(params: {
   // Teammates may talk to the bot in organization rooms, direct chats
   // included; the turn runs as the owner (their bot, their credits, their
   // tools), and the console shows who asked. Personal rooms stay owner-only.
-  const isOwner = bot.userId === userId && !askedByBot;
+  // A shared bot has no owner: its turn runs as the member who asked.
+  const isOwner =
+    isPersonalSokoBot(bot) && bot.userId === userId && !askedByBot;
   if (!isOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");
     return;
@@ -183,9 +192,9 @@ export async function runSokoBotMentionDispatch(params: {
       error,
     });
 
-  // Directs are the bot's own conversation: the control plane already
-  // rehydrates recent turns, so the message goes through as typed. Channel
-  // mentions carry the surrounding room context like coworker mentions do.
+  // Every mention carries the conversation right above it, as coworker
+  // mentions do. In a direct chat that is the bot's own posts too: inbox
+  // checks and briefings are messages there, not turns the owner started.
   const threadRootId = mention.message.parentMessageId;
   // Inside the guard: this reads the room, and a read that throws once left
   // the placeholder above streaming for ever while the mention was marked
@@ -199,20 +208,21 @@ export async function runSokoBotMentionDispatch(params: {
       ),
       mention.message.content,
     );
+    const contextMessages = await loadRoomContextMessages({
+      roomId: mention.message.roomId,
+      messageId: mention.message.id,
+      createdAt: mention.message.createdAt,
+      threadRootId,
+    });
     message =
       mention.message.room.kind === "direct"
-        ? said
+        ? buildDirectMessagePrompt({ content: said, contextMessages })
         : buildRoomMentionPrompt({
             roomName: mention.message.room.name ?? "chat",
             senderName: mention.message.senderUser?.name ?? "A teammate",
             content: said,
             isThreadReply: threadRootId != null,
-            contextMessages: await loadRoomContextMessages({
-              roomId: mention.message.roomId,
-              messageId: mention.message.id,
-              createdAt: mention.message.createdAt,
-              threadRootId,
-            }),
+            contextMessages,
           });
   } catch (error) {
     await failPlaceholder(error);
@@ -221,7 +231,9 @@ export async function runSokoBotMentionDispatch(params: {
 
   const accept = async () => {
     const accepted = sokoBotControlPlane.startTurn({
-      userId: bot.userId,
+      ...(isPersonalSokoBot(bot)
+        ? { userId: bot.userId }
+        : { userId, sokoBotId: bot.id }),
       // The mentioned bot runs in its own workspace, whatever room it was
       // asked in. The room's workspace ran a different bot of the same owner
       // (their personal one) and put its Tasks there.
@@ -229,13 +241,13 @@ export async function runSokoBotMentionDispatch(params: {
       clientTurnId: `chat:${mentionId}`,
       message: isOwner
         ? message
-        : `${mention.message.senderUser?.name ?? "A teammate"} (a teammate, not your owner) asked:\n${message}`,
+        : `${mention.message.senderUser?.name ?? "A teammate"} (${isPersonalSokoBot(bot) ? "a teammate, not your owner" : "a member of the team"}) asked:\n${message}`,
       source: "CHAT",
       chat: {
         mentionId,
         responseMessageId: placeholderId,
         classifyMessage: message,
-        requestedByUserId: isOwner && !askedByBot ? null : userId,
+        askedByUserId: isOwner && !askedByBot ? null : userId,
         askedByBot,
         chainDepth,
       },

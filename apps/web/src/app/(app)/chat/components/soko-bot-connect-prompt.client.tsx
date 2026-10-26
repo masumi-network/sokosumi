@@ -13,12 +13,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
 import type {
   SokoBotConnectOffer,
   SokoBotConnectPromptState,
 } from "@/lib/soko-bot/connect-prompt";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 
 const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
 
@@ -42,8 +41,8 @@ async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
 }
 
 /**
- * Above the composer in the owner's own bot DM, while mail or calendar is
- * not connected: most of what the bot does on its own needs them.
+ * Above the composer in the owner's own bot DM, until anything is
+ * connected: most of what the bot does on its own needs a connection.
  */
 export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
   const { data } = useQuery({
@@ -94,17 +93,12 @@ export function SokoBotConnectCard({
   function connect(provider: string) {
     setBusy(provider);
     startTransition(async () => {
-      const returnUrl = `${window.location.origin}${SOKO_BOT_ROUTE}/integrations/return?provider=${encodeURIComponent(provider)}`;
-      const result = await connectSokoBotIntegrationAction({
-        provider,
-        returnUrl,
-      });
-      if (!result.ok) {
+      // The DM prompt always connects the caller's own bot.
+      const error = await startSokoBotConnect(provider);
+      if (error) {
         setBusy(null);
-        toast.error(result.error.message ?? t("connectError"));
-        return;
+        toast.error(error.message ?? t("connectError"));
       }
-      window.location.assign(result.value.redirectUrl);
     });
   }
 

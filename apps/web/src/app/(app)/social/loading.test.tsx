@@ -41,9 +41,12 @@ describe("SocialLoading", () => {
     expect(
       container.querySelectorAll('[data-slot="skeleton"]').length,
     ).toBeGreaterThan(20);
+    expect(
+      screen.getAllByTestId("social-loading-platform-mark").length,
+    ).toBeGreaterThan(0);
   });
 
-  it("draws a post list when the tab is drafts", async () => {
+  it("draws preview cards when the tab is drafts", async () => {
     search.get.mockReturnValue("drafts");
     const { default: SocialLoading } = await import("./loading");
     render(await SocialLoading());
@@ -52,7 +55,12 @@ describe("SocialLoading", () => {
       "data-loading-tab",
       "drafts",
     );
-    expect(screen.getByRole("list", { hidden: true }).children).toHaveLength(4);
+    const list = screen.getByRole("list", { hidden: true });
+    expect(list.children).toHaveLength(4);
+    expect(list).toHaveClass("sm:grid-cols-2", "xl:grid-cols-3");
+    expect(screen.getAllByTestId("social-loading-platform-mark")).toHaveLength(
+      4,
+    );
   });
 
   it("draws account rows when the tab is accounts", async () => {
@@ -65,6 +73,9 @@ describe("SocialLoading", () => {
       "accounts",
     );
     expect(screen.getByRole("list", { hidden: true }).children).toHaveLength(3);
+    expect(
+      screen.queryByTestId("social-loading-platform-mark"),
+    ).not.toBeInTheDocument();
   });
 
   it("draws a post list when the tab is attention", async () => {
@@ -77,6 +88,9 @@ describe("SocialLoading", () => {
       "attention",
     );
     expect(screen.getByRole("list", { hidden: true }).children).toHaveLength(4);
+    expect(screen.getAllByTestId("social-loading-platform-mark")).toHaveLength(
+      4,
+    );
   });
 
   it("draws statistic cards when the tab is statistics", async () => {

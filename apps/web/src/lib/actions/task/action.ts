@@ -27,7 +27,6 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
-import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   TASK_MUTATION_ERROR_KINDS,
   type TaskMutationErrorKind,
@@ -128,10 +127,6 @@ interface SetTaskPriorityParameters extends AuthenticatedRequest {
   priority: TaskPriority;
 }
 
-interface DeleteTaskParameters extends AuthenticatedRequest {
-  taskId: string;
-}
-
 interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
   taskId: string;
   organizationId: string | null;
@@ -224,6 +219,17 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
 
   const trimmedNote = note?.trim();
   return trimmedNote ? trimmedNote : null;
+}
+
+function normalizeOptionalProjectId(
+  projectId?: string | null,
+): string | null | undefined {
+  if (typeof projectId === "undefined") {
+    return undefined;
+  }
+
+  const trimmedProjectId = projectId?.trim();
+  return trimmedProjectId ? trimmedProjectId : null;
 }
 
 /**
@@ -718,22 +724,6 @@ export const setTaskPriority = withSession<
     );
   }
 });
-
-export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
-  async ({ taskId }) => {
-    try {
-      await taskService.deleteTask(taskId);
-      revalidateTaskMutationRoutes();
-      return { taskId };
-    } catch (error) {
-      rethrowTaskActionError(
-        error,
-        "Failed to delete task",
-        "Failed to delete task",
-      );
-    }
-  },
-);
 
 export const moveTaskToWorkspace = withSession<
   MoveTaskToWorkspaceParameters,

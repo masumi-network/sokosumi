@@ -336,5 +336,5 @@ private actor MarkAllTransport: ClientTransport {
 }
 
 private func makeMarkAllClient(_ transport: MarkAllTransport) throws -> Client {
-  try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
 }

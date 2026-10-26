@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createDataTableSchema } from "@sokosumi/utils";
+import { createDataTableSchema, tableBatchSchema } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import {
@@ -10,6 +10,7 @@ import {
   queryTableRows,
   saveTableView,
   type TableActor,
+  undoTableBatch,
 } from "./data-table";
 
 // Bounds and fences that the other table suites do not reach: the saved-view
@@ -278,6 +279,189 @@ describe.runIf(enabled)("table bounds and fences", () => {
     expect(foreign.total).toBe(0);
     await prisma.workspace.delete({ where: { id: other.id } });
     await prisma.user.delete({ where: { id: otherUser.id } });
+  });
+
+  it("listing: most recently changed first, with a column count instead of the schema", async () => {
+    const older = await createDataTable(actor, input(randomUUID(), "Older"));
+    const newer = await createDataTable(actor, input(randomUUID(), "Newer"));
+    let page = await listDataTables(actor, { limit: 100 });
+    expect(page.items.map((item) => item.id).slice(0, 2)).toEqual([
+      newer.id,
+      older.id,
+    ]);
+    expect(page.items[0]).toMatchObject({ title: "Newer", columnCount: 1 });
+    expect(page.items[0]).not.toHaveProperty("columns");
+    expect(page.items[0]).not.toHaveProperty("views");
+    await batchTableRows(
+      actor,
+      older.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ values: { [older.columns[0].id]: "Acme" } }],
+      }),
+    );
+    page = await listDataTables(actor, { limit: 1 });
+    expect(page.items.map((item) => item.id)).toEqual([older.id]);
+    const next = await listDataTables(actor, {
+      limit: 1,
+      cursor: page.nextCursor ?? undefined,
+    });
+    expect(next.items.map((item) => item.id)).toEqual([newer.id]);
+    const found = await listDataTables(actor, { search: "oLDe", limit: 100 });
+    expect(found.items.map((item) => item.id)).toContain(older.id);
+    expect(found.items.map((item) => item.id)).not.toContain(newer.id);
+    await expect(
+      listDataTables(actor, { cursor: randomUUID() }),
+    ).rejects.toThrow("Invalid table cursor");
+  });
+
+  it("row order: moves rows, pages by position, renumbers and undoes a move", async () => {
+    const table = await createDataTable(actor, {
+      ...input(randomUUID(), "Ordered"),
+      rows: ["a", "b", "c", "d"].map((name) => ({
+        values: { [nameId]: name },
+        evidence: {},
+      })),
+    });
+    const columnId = table.columns[0].id;
+    async function order() {
+      const names: unknown[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await queryTableRows(actor, table.id, {
+          limit: 2,
+          cursor,
+        });
+        names.push(...page.rows.map((row) => row.values[columnId]));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return names;
+    }
+    async function rows() {
+      const { rows } = await queryTableRows(actor, table.id, { limit: 100 });
+      return Object.fromEntries(
+        rows.map((row) => [row.values[columnId] as string, row]),
+      );
+    }
+    async function move(name: string, after: string | null) {
+      const byName = await rows();
+      return batchTableRows(
+        actor,
+        table.id,
+        tableBatchSchema.parse({
+          key: randomUUID(),
+          patch: [
+            {
+              id: byName[name].id,
+              version: byName[name].version,
+              afterRowId: after ? byName[after].id : null,
+            },
+          ],
+        }),
+      );
+    }
+    expect(await order()).toEqual(["a", "b", "c", "d"]);
+    await move("d", null);
+    expect(await order()).toEqual(["d", "a", "b", "c"]);
+    const moved = await move("a", "c");
+    expect(await order()).toEqual(["d", "b", "c", "a"]);
+    await expect(move("b", "b")).rejects.toThrow(
+      "A row cannot move after itself",
+    );
+    // Equal neighbours leave no room in between, so the table is renumbered.
+    await prisma.tableRow.updateMany({
+      where: { tableId: table.id },
+      data: { position: 7 },
+    });
+    await move("a", "b");
+    const after = await order();
+    expect(after.indexOf("a")).toBe(after.indexOf("b") + 1);
+    const byName = await rows();
+    for (const [index, name] of ["d", "b", "c", "a"].entries())
+      await prisma.tableRow.update({
+        where: { id: byName[name].id },
+        data: { position: index + 1 },
+      });
+    expect(await order()).toEqual(["d", "b", "c", "a"]);
+    // A later move of the same row blocks the undo, like any later edit.
+    await expect(
+      undoTableBatch(actor, table.id, {
+        key: randomUUID(),
+        batchId: moved.batchId,
+      }),
+    ).rejects.toThrow("changed later");
+    const undoable = await move("b", null);
+    expect(await order()).toEqual(["b", "d", "c", "a"]);
+    // Positions get rewritten by a renumber; undo re-places the row after its
+    // previous neighbour instead of restoring a stale position.
+    await prisma.tableRow.updateMany({
+      where: { tableId: table.id },
+      data: { position: 7 },
+    });
+    // Equal positions fall back to id order; a and b leave no room, so this
+    // move renumbers the table.
+    await move("c", "a");
+    expect(await order()).toEqual(["a", "c", "b", "d"]);
+    await undoTableBatch(actor, table.id, {
+      key: randomUUID(),
+      batchId: undoable.batchId,
+    });
+    // b was after d before it moved to the top.
+    expect(await order()).toEqual(["a", "c", "d", "b"]);
+
+    // A later move changes no values, so it does not block undoing an edit.
+    const byNameNow = await rows();
+    const edit = await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [
+          {
+            id: byNameNow.a.id,
+            version: byNameNow.a.version,
+            values: { [columnId]: "a2" },
+          },
+        ],
+      }),
+    );
+    const edited = (await rows()).a2;
+    await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [
+          {
+            id: edited.id,
+            version: edited.version,
+            afterRowId: byNameNow.d.id,
+          },
+        ],
+      }),
+    );
+    await undoTableBatch(actor, table.id, {
+      key: randomUUID(),
+      batchId: edit.batchId,
+    });
+    expect(await order()).toEqual(["c", "d", "a", "b"]);
+
+    // A row moved after one inserted just now (whose position is its insert
+    // time) still sits above the next insert.
+    async function insert(name: string) {
+      await batchTableRows(
+        actor,
+        table.id,
+        tableBatchSchema.parse({
+          key: randomUUID(),
+          insert: [{ values: { [columnId]: name } }],
+        }),
+      );
+    }
+    await insert("e");
+    await move("a", "e");
+    await insert("f");
+    expect(await order()).toEqual(["c", "d", "b", "e", "a", "f"]);
   });
 });
 

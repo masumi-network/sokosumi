@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { failOpenChatRoomMentions } from "@/helpers/chat-room-mention-status";
-import { forbidden, notFound } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -44,7 +44,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "delete",
     path: "/{id}/soko-bots/{sokoBotId}",
     description:
-      "Remove your own Soko Bot from a Channel. Only its owner may remove it; it also leaves when its owner leaves or is removed.",
+      "Remove a Soko Bot from a Channel. Only its owner may remove a personal Soko Bot; it also leaves when its owner leaves or is removed. Any member may remove a shared Soko Bot, except from its own shared room.",
     tags: ["Chat Rooms"],
     request: { params: paramsSchema },
     responses: {
@@ -77,7 +77,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!member) {
           throw notFound("Soko Bot is not a member of this room");
         }
-        if (member.sokoBot.userId !== userContext.userId) {
+        if (isSharedSokoBot(member.sokoBot)) {
+          if (member.sokoBot.sharedRoomId === existing.id) {
+            throw badRequest("A shared Soko Bot cannot leave its own room");
+          }
+        } else if (member.sokoBot.userId !== userContext.userId) {
           throw forbidden("Only the owner can remove this personal assistant");
         }
 

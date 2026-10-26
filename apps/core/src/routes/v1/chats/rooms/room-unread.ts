@@ -5,7 +5,7 @@ import {
   CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
   chatRoomSchema,
 } from "@/schemas/chat-room.schema";
-
+import { getChatRoomNeedsYouCounts } from "@/services/chat-signal-views.service";
 import {
   type ChatRoomWithMembers,
   chatRoomMessageInclude,
@@ -142,13 +142,14 @@ function sqlUnreadThreadReplies(
  * must see its mark go quiet, and folding the two made that impossible.
  * `total` is the sum, which is what `unreadCount` has always meant on the wire.
  */
-export interface ChatRoomUnreadBreakdown {
+interface ChatRoomUnreadBreakdown {
   channel: number;
   thread: number;
   total: number;
 }
 
-export function emptyChatRoomUnreadBreakdown(): ChatRoomUnreadBreakdown {
+/** Zero unread on both legs. Rooms missing from a count map read as this. */
+function emptyChatRoomUnreadBreakdown(): ChatRoomUnreadBreakdown {
   return { channel: 0, thread: 0, total: 0 };
 }
 
@@ -253,7 +254,7 @@ export async function getChatRoomUnreadCounts(
   return byRoom;
 }
 
-export interface ChatRoomUnreadThreadPreview {
+interface ChatRoomUnreadThreadPreview {
   parentMessageId: string;
   /** Where opening the Thread lands: the oldest reply still unread. */
   firstUnreadReplyId: string;
@@ -279,7 +280,8 @@ export interface ChatRoomUnreadThreads {
   unreadThreadMentionCount: number;
 }
 
-export function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
+/** Empty unread-Thread bag. Rooms with no Thread unread, or a miss in the map. */
+function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
   return { threads: [], unreadThreadCount: 0, unreadThreadMentionCount: 0 };
 }
 
@@ -412,7 +414,7 @@ export async function listChatRoomUnreadThreads(
 }
 
 /** An unread Thread with the room it is in, for the cross-room list. */
-export interface UnreadThreadInRoom extends ChatRoomUnreadThreadPreview {
+interface UnreadThreadInRoom extends ChatRoomUnreadThreadPreview {
   roomId: string;
 }
 
@@ -534,7 +536,7 @@ export async function listUnreadThreadsOfRoomsWithThreadUnread(
  * so an answer without the Threads would empty the row's inset list. The
  * Threads are read only when the room has Thread unread, which most do not.
  */
-export async function roomUnreadFields(
+async function roomUnreadFields(
   breakdown: ChatRoomUnreadBreakdown | undefined,
   roomId: string,
   userId: string,
@@ -576,18 +578,23 @@ export async function roomSidebarPayload(
   tx: Prisma.TransactionClient,
   extras: RoomSidebarPayloadExtras = {},
 ) {
-  const [unreadCounts, unreadMentionCounts, organization] = await Promise.all([
-    getChatRoomUnreadCounts([room.id], userId, tx),
-    extras.unreadMentionCount === undefined
-      ? getChatRoomUnreadMentionCounts([room.id], userId, tx)
-      : Promise.resolve(undefined),
-    extras.loadOrganizationName && room.organizationId
-      ? tx.organization.findUnique({
-          where: { id: room.organizationId },
-          select: { name: true },
-        })
-      : Promise.resolve(null),
-  ]);
+  const [unreadCounts, unreadMentionCounts, needsYouCounts, organization] =
+    await Promise.all([
+      getChatRoomUnreadCounts([room.id], userId, tx),
+      extras.unreadMentionCount === undefined
+        ? getChatRoomUnreadMentionCounts([room.id], userId, tx)
+        : Promise.resolve(undefined),
+      // A room just read answers with zero, like its mention badge.
+      extras.unreadMentionCount === 0
+        ? Promise.resolve(new Map<string, number>())
+        : getChatRoomNeedsYouCounts([room.id], userId, tx),
+      extras.loadOrganizationName && room.organizationId
+        ? tx.organization.findUnique({
+            where: { id: room.organizationId },
+            select: { name: true },
+          })
+        : Promise.resolve(null),
+    ]);
 
   return chatRoomSchema.parse(
     await mapChatRoomWithSidebarFlags(room, userId, tx, {
@@ -599,6 +606,7 @@ export async function roomSidebarPayload(
       )),
       unreadMentionCount:
         extras.unreadMentionCount ?? unreadMentionCounts?.get(room.id) ?? 0,
+      unreadNeedsYouCount: needsYouCounts.get(room.id) ?? 0,
       activeOrganizationId: extras.activeOrganizationId,
       organizationName: extras.loadOrganizationName
         ? (organization?.name ?? null)
@@ -740,7 +748,7 @@ export async function listEarlierThreadsAcrossRooms(
   };
 }
 
-export interface ChatRoomThreadAggregate {
+interface ChatRoomThreadAggregate {
   parentMessageId: string;
   replyCount: number;
   lastReplyAt: Date;
@@ -952,7 +960,7 @@ export async function listChatRoomThreads(
   return mapThreadAggregates(roomId, userId, tx, aggregates);
 }
 
-export interface ChatRoomThreadListPage {
+interface ChatRoomThreadListPage {
   items: Awaited<ReturnType<typeof mapThreadAggregates>>;
   nextCursor: string | null;
   total: number;

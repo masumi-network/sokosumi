@@ -11,8 +11,10 @@ const {
   memoryFindFirstMock,
   nudgeFindManyMock,
   taskFindManyMock,
+  triageMailMock,
   turnCountMock,
 } = vi.hoisted(() => ({
+  triageMailMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   getEnvMock: vi.fn(),
@@ -47,6 +49,13 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   fetchCalendarEvents: vi.fn(),
   fetchInboxMessages: vi.fn(),
 }));
+vi.mock("@/services/contacts-context.service", () => ({
+  calendarPeopleBlock: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/mail-triage")>()),
+  triageMail: triageMailMock,
+}));
 
 import {
   buildSystemBeatMessage,
@@ -59,7 +68,7 @@ describe("followUpsBlock", () => {
   const ARCHIVED = "01a0efbb-778c-7669-86b6-d50d81e74287";
   const OPEN = "01a0efbb-778c-7669-86b6-d50d81e74288";
   const KEANUS = "01a08162-3b3b-7099-825a-8a9b987034dc";
-  const owner = { id: "bot-1", userId: "andreas" };
+  const owner = { id: "bot-1", userId: "andreas", workspaceId: "ws-1" };
   const task = (id: string, extra: Record<string, unknown>) => ({
     id,
     name: "A task",
@@ -151,7 +160,7 @@ describe("proactiveGate", () => {
     ]);
     // A teammate mentioning the bot is a person asking a question, not work
     // the bot decided to do; it must not draw on the unprompted allowance.
-    expect(JSON.stringify(where)).not.toContain("requestedByUserId");
+    expect(JSON.stringify(where)).not.toContain("askedByUserId");
   });
 
   it("refuses once the daily allowance is spent", async () => {
@@ -235,7 +244,7 @@ describe("buildSystemBeatMessage private Task visibility", () => {
 });
 
 describe("buildSystemBeatMessage stand-up board", () => {
-  it("lists only the owner's open Tasks and adds a short team note", async () => {
+  it("lists only the Owner's open Tasks and adds a short team note", async () => {
     const integrations = await import(
       "@/services/soko-bot-integrations.service"
     );
@@ -257,13 +266,19 @@ describe("buildSystemBeatMessage stand-up board", () => {
             },
           ];
         }
-        if (args.where?.NOT) {
+        if (args.where?.AND) {
           return [
             {
               name: "Pricing research",
               status: "RUNNING",
               owner: { name: "Albina" },
               assignee: { name: "Hannah" },
+            },
+            {
+              name: "Weekly digest",
+              status: "COMPLETED",
+              owner: null,
+              assignee: null,
             },
           ];
         }
@@ -291,10 +306,16 @@ describe("buildSystemBeatMessage stand-up board", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          NOT: own,
-          AND: expect.arrayContaining([
+          AND: [
             buildSokoBotOwnerTaskVisibilityWhere(ALICE_USER_ID),
-          ]),
+            { OR: [{ ownerId: { not: ALICE_USER_ID } }, { ownerId: null }] },
+            {
+              OR: [
+                { assigneeSokoBotId: null },
+                { assigneeSokoBotId: { not: ALICE_BOT_ID } },
+              ],
+            },
+          ],
         }),
       }),
     );
@@ -304,11 +325,161 @@ describe("buildSystemBeatMessage stand-up board", () => {
     expect(beat.message).toContain(
       'Albina · RUNNING · "Pricing research" · with Hannah',
     );
+    // Work without an Owner is still the team's.
+    expect(beat.message).toContain('A teammate · COMPLETED · "Weekly digest"');
+  });
+});
+
+describe("buildSystemBeatMessage stand-up people", () => {
+  it("adds who the owner meets today from Contacts, right after the calendar", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    const context = await import("@/services/contacts-context.service");
+    vi.mocked(integrations.activeIntegrationsForBot).mockImplementation(
+      async (_botId, kind) =>
+        kind === "calendar"
+          ? [
+              {
+                id: "int-1",
+                sokoBotId: ALICE_BOT_ID,
+                provider: {
+                  id: "googlecalendar",
+                  name: "Google Calendar",
+                  kinds: ["calendar"],
+                  tools: {},
+                  logoUrl: "",
+                },
+                composioAccountId: "ca",
+                connectorUserId: null,
+                cursor: null,
+              },
+            ]
+          : [],
+    );
+    vi.mocked(integrations.fetchCalendarEvents).mockResolvedValue([
+      {
+        provider: "googlecalendar",
+        id: "e1",
+        title: "Pilot kickoff",
+        startsAt: "2026-09-16T08:00:00.000Z",
+        endsAt: null,
+        allDay: false,
+        location: null,
+        attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
+        organizer: null,
+        description: null,
+        link: null,
+      },
+    ]);
+    vi.mocked(context.calendarPeopleBlock).mockResolvedValue([
+      "## People on your calendar (from Contacts)",
+      "- Nina Keller — Head of Partnerships @ Acme · known by Bob (2)",
+      "",
+    ]);
+    taskFindManyMock.mockResolvedValue([]);
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    expect(context.calendarPeopleBlock).toHaveBeenCalledWith({
+      workspaceId: ALICE_WORKSPACE_ID,
+      attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
+      timeZone: "Europe/Vienna",
+    });
+    const calendarAt = beat.message.indexOf("## Calendar");
+    const peopleAt = beat.message.indexOf("## People on your calendar");
+    expect(calendarAt).toBeGreaterThanOrEqual(0);
+    expect(peopleAt).toBeGreaterThan(calendarAt);
+    expect(beat.message).toContain("Nina Keller — Head of Partnerships @ Acme");
+  });
+});
+
+describe("buildSystemBeatMessage stand-up mail", () => {
+  it("shows the last day's mail triaged by Jev: urgent in full, bulk as a count", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    vi.mocked(integrations.activeIntegrationsForBot).mockImplementation(
+      async (_botId, kind) =>
+        kind === "email"
+          ? [
+              {
+                id: "int-2",
+                sokoBotId: ALICE_BOT_ID,
+                provider: {
+                  id: "gmail",
+                  name: "Gmail",
+                  kinds: ["email"],
+                  tools: {},
+                  logoUrl: "",
+                },
+                composioAccountId: "ca",
+                connectorUserId: null,
+                cursor: null,
+              },
+            ]
+          : [],
+    );
+    const inbox = ["Payout failed", "Weekly digest"].map((subject, index) => ({
+      provider: "gmail",
+      id: `m${index}`,
+      threadId: null,
+      from: "Stripe <support@stripe.com>",
+      to: [],
+      subject,
+      snippet: subject,
+      receivedAt: "2026-09-16T05:00:00.000Z",
+      unread: true,
+      labels: [],
+    }));
+    vi.mocked(integrations.fetchInboxMessages).mockResolvedValue(inbox);
+    const emit = vi.fn();
+    triageMailMock.mockResolvedValue({
+      mail: [
+        { message: inbox[0], tag: "URGENT", probability: 0.97 },
+        { message: inbox[1], tag: "BULK", probability: 0.9 },
+      ],
+      failed: false,
+      log: { set: vi.fn(), emit },
+    });
+    taskFindManyMock.mockResolvedValue([]);
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    expect(triageMailMock).toHaveBeenCalledWith({
+      sokoBotId: ALICE_BOT_ID,
+      mail: inbox,
+      source: "standup",
+    });
+    expect(emit).toHaveBeenCalledOnce();
+    expect(beat.message).toContain("a guide, not a fact");
+    expect(beat.message).toContain("### Urgent (1)");
+    expect(beat.message).toContain("**Payout failed**");
+    expect(beat.message).toContain("### Bulk (1)\n- Stripe");
+    expect(beat.message).not.toContain("Weekly digest");
   });
 });
 
 describe("findAttentionItems ownership", () => {
-  it("only chases the owner's Tasks from turns the owner asked for or the bot started", async () => {
+  it("only chases the Owner's Tasks from turns they asked for or the bot started", async () => {
     delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
     taskFindManyMock.mockResolvedValue([]);
     await findAttentionItems({
@@ -323,7 +494,7 @@ describe("findAttentionItems ownership", () => {
         where: expect.objectContaining({
           turn: {
             sokoBotId: "bot-1",
-            OR: [{ requestedByUserId: null }, { requestedByUserId: "andreas" }],
+            OR: [{ askedByUserId: null }, { askedByUserId: "andreas" }],
           },
         }),
       }),
@@ -333,5 +504,66 @@ describe("findAttentionItems ownership", () => {
         where: expect.objectContaining({ ownerId: "andreas" }),
       }),
     );
+  });
+
+  it("raises an unchanged failure once, not every day", async () => {
+    const now = new Date("2026-10-19T17:00:00Z");
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "t1",
+        name: "YC import",
+        status: "FAILED",
+        assigneeId: "hannah",
+        assigneeSokoBotId: null,
+        assignee: { name: "Hannah" },
+        assigneeSokoBot: null,
+        events: [
+          {
+            id: "e1",
+            createdAt: new Date("2026-10-15T12:00:00Z"),
+            status: "FAILED",
+            sokoBotId: null,
+          },
+        ],
+      },
+    ]);
+    nudgeFindManyMock.mockResolvedValue([{ key: "failed:t1:e1" }]);
+    const items = await findAttentionItems({
+      id: "bot-1",
+      userId: "faizan",
+      workspaceId: "ws",
+      followWholeBoard: false,
+      now,
+    });
+    expect(items).toEqual([]);
+    expect(nudgeFindManyMock.mock.calls.at(-1)?.[0].where.OR).toContainEqual({
+      lastDeliveredAt: { not: null },
+    });
+  });
+
+  it("chases every shared bot delegation inside its scope", async () => {
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([]);
+    await findAttentionItems({
+      id: "bot-1",
+      userId: null,
+      projectId: "project-1",
+      workspaceId: "ws",
+      followWholeBoard: false,
+      now: new Date("2026-10-01T08:00:00Z"),
+    });
+    expect(delegationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ turn: { sokoBotId: "bot-1" } }),
+      }),
+    );
+    const where = taskFindManyMock.mock.calls[0]?.[0].where;
+    expect(where).toMatchObject({
+      workspaceId: "ws",
+      visibility: "PUBLIC",
+      projectId: "project-1",
+    });
+    expect(where).not.toHaveProperty("ownerId");
   });
 });

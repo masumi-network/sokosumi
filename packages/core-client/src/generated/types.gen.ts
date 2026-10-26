@@ -243,7 +243,7 @@ export type AdminSokoBotListItem = {
     turnCount: number;
     pendingDecisionCount: number;
     scheduleCount: number;
-    owner: AdminSokoBotOwner;
+    owner: AdminSokoBotOwner | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -443,6 +443,7 @@ export type SokoBotDeletionResult = {
         chatMessages: number;
         uploadedTaskFiles: number;
         taskSchedules: number;
+        jobs: number;
     };
 };
 
@@ -523,6 +524,10 @@ export type ChatRoomMessage = {
      * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
      */
     skills?: Array<ChatRoomMessageSkill>;
+    /**
+     * Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.
+     */
+    signal?: ChatMessageSignal | null;
 };
 
 export type ChatResultDescriptor = {
@@ -590,11 +595,30 @@ export type ChatRoomSokoBotParticipant = {
     image: string | null;
     avatarSeed: string | null;
     /**
-     * The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.
+     * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
-    ownerUserId: string;
+    ownerUserId: string | null;
+    scope: ChatRoomSokoBotScope;
+    /**
+     * The shared Soko Bot's own room. The bot stays in it and nobody can remove it there. Null for a personal Soko Bot, or before the room exists.
+     */
+    sharedRoomId: string | null;
     presence: ChatRoomPresence;
 };
+
+/**
+ * Who the Soko Bot belongs to: one person, a Project, or the whole workspace.
+ */
+export const ChatRoomSokoBotScope = {
+    PERSONAL: 'personal',
+    PROJECT: 'project',
+    WORKSPACE: 'workspace'
+} as const;
+
+/**
+ * Who the Soko Bot belongs to: one person, a Project, or the whole workspace.
+ */
+export type ChatRoomSokoBotScope = typeof ChatRoomSokoBotScope[keyof typeof ChatRoomSokoBotScope];
 
 export type ChatRoomMessageMention = {
     id: string;
@@ -701,6 +725,66 @@ export type ChatRoomMessageSkill = {
     url: string;
 };
 
+export type ChatMessageSignal = {
+    /**
+     * Tags that apply: Jev's probability at or above the threshold, with readers' corrections on top. A guide for sorting and highlighting; it never hides a message.
+     */
+    tags: Array<ChatSignalTag>;
+    /**
+     * Jev's probability per tag, as it answered.
+     */
+    probabilities: {
+        question?: number;
+        needsDecision?: number;
+        commitment?: number;
+        blocker?: number;
+        decisionMade?: number;
+        fyi?: number;
+        urgent?: number;
+        chitChat?: number;
+        workRequest?: number;
+        escalation?: number;
+    };
+    /**
+     * Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.
+     */
+    addressedUserIds: Array<string>;
+    /**
+     * When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.
+     */
+    commitmentDueAt: Date | null;
+    /**
+     * When a reader closed this open loop, by making a Task of it or dismissing it.
+     */
+    loopClosedAt: Date | null;
+    loopTaskId: string | null;
+    /**
+     * Tags a reader corrected by hand.
+     */
+    correctedTags: Array<ChatSignalTag>;
+};
+
+/**
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ */
+export const ChatSignalTag = {
+    QUESTION: 'question',
+    NEEDS_DECISION: 'needsDecision',
+    COMMITMENT: 'commitment',
+    BLOCKER: 'blocker',
+    DECISION_MADE: 'decisionMade',
+    FYI: 'fyi',
+    URGENT: 'urgent',
+    CHIT_CHAT: 'chitChat',
+    WORK_REQUEST: 'workRequest',
+    ESCALATION: 'escalation'
+} as const;
+
+/**
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ */
+export type ChatSignalTag = typeof ChatSignalTag[keyof typeof ChatSignalTag];
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -708,7 +792,7 @@ export type AdminSokoBotDetail = SokoBot & {
     runtimeDeployment: string | null;
     lastSandboxId: string | null;
     archivedAt: Date | null;
-    owner: AdminSokoBotOwner;
+    owner: AdminSokoBotOwner | null;
     turns: Array<AdminSokoBotTurn>;
     memoryRevisions: Array<SokoBotMemory>;
     adminActions: Array<SokoBotAdminAction>;
@@ -858,6 +942,8 @@ export type SokoBotDelegation = {
     error: string | null;
     taskId: string | null;
     jobId: string | null;
+    followUp?: string | null;
+    followUpTurnId?: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -998,7 +1084,9 @@ export type SokoBotUsage = {
 
 export type SokoBot = {
     id: string;
-    userId: string;
+    userId: string | null;
+    projectId?: string | null;
+    viewerCanManage?: boolean;
     name: string | null;
     avatarSeed: string | null;
     personalityTone: number | null;
@@ -1021,6 +1109,7 @@ export type SokoBot = {
     avatarImageUrl?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
+    mailAutoRead?: boolean;
     ingestTimezone?: string;
     proactivePaused?: boolean;
     proactiveDailyLimit?: number;
@@ -1368,11 +1457,14 @@ export type AdminTaskListItem = {
     name: string;
     status: TaskStatus;
     createdAt: Date;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1401,11 +1493,14 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1418,17 +1513,25 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -1468,7 +1571,10 @@ export type Task = {
      * @deprecated
      */
     coworker: CoworkerSummary | null;
-    creator: TaskCreator;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -1579,7 +1685,7 @@ export type SokoBotSummary = {
     name: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
-    owner: UserSummary;
+    owner: UserSummary | null;
 };
 
 export type TaskParticipant = {
@@ -1590,30 +1696,19 @@ export type TaskParticipant = {
     addedAt: Date;
 };
 
-/**
- * Actor that created the task. Exactly one of user, coworker, or sokoBot.
- */
-export type TaskCreator = ({
-    type: 'user';
-} & TaskCreatorUser) | ({
-    type: 'coworker';
-} & TaskCreatorCoworker) | ({
-    type: 'sokoBot';
-} & TaskCreatorSokoBot);
-
-export type TaskCreatorUser = {
+export type WorkCreatorUser = {
     type: 'user';
     id: string;
     user: UserSummary;
 };
 
-export type TaskCreatorCoworker = {
+export type WorkCreatorCoworker = {
     type: 'coworker';
     id: string;
     coworker: CoworkerSummary;
 };
 
-export type TaskCreatorSokoBot = {
+export type WorkCreatorSokoBot = {
     type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
@@ -1635,7 +1730,14 @@ export const TaskTagId = {
     MARKETING: 'marketing',
     SOCIAL: 'social',
     SEO: 'seo',
-    OPERATIONS: 'operations'
+    OPERATIONS: 'operations',
+    PRESENTATIONS: 'presentations',
+    DASHBOARDS: 'dashboards',
+    MONITORING: 'monitoring',
+    MEDIA: 'media',
+    COMMUNICATION: 'communication',
+    FINANCE: 'finance',
+    QA: 'qa'
 } as const;
 
 export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
@@ -1721,7 +1823,7 @@ export type TaskEvent = {
         name: string | null;
         avatarSeed: string | null;
         avatarImageUrl: string | null;
-        owner: UserSummary;
+        owner: UserSummary | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;
@@ -1806,17 +1908,29 @@ export type JobSummary = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId?: string | null;
@@ -2660,7 +2774,7 @@ export type ChatRoom = {
      */
     isGroupDirect: boolean;
     /**
-     * Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.
+     * Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.
      */
     isReadOnly: boolean;
     /**
@@ -2718,6 +2832,10 @@ export type ChatRoom = {
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
      */
     unreadMentionCount: number;
+    /**
+     * Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.
+     */
+    unreadNeedsYouCount?: number;
     /**
      * Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.
      */
@@ -2960,6 +3078,10 @@ export type ChatRoomPinnedMessageListItem = {
          * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
          */
         skills?: Array<ChatRoomMessageSkill>;
+        /**
+         * Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.
+         */
+        signal?: ChatMessageSignal | null;
     } | null;
 };
 
@@ -3121,6 +3243,10 @@ export type ChatResultAvailable = {
     timezone?: string | null;
     recurrence?: string | null;
     question?: string | null;
+    details?: Array<{
+        label: string;
+        value: string;
+    }>;
     outputs?: Array<ChatResultOutput>;
     task?: {
         id: string;
@@ -3218,6 +3344,11 @@ export type ChatResultOutput = {
 export type ChatResultUnavailable = {
     id: string;
     state: 'unavailable';
+};
+
+export type ChatRoomMessageResults = {
+    messageId: string;
+    results: Array<ChatResultPreview>;
 };
 
 export type CreateChatRoomMessageRequest = {
@@ -3329,6 +3460,129 @@ export type CreateChatRoomFileUploadSessionRequest = {
     size: number;
 };
 
+export type ChatSignalListItem = {
+    /**
+     * `needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.
+     */
+    kind: 'needsYou' | 'question' | 'decision' | 'commitment';
+    room: {
+        id: string;
+        name: string;
+        kind: 'channel' | 'direct';
+    };
+    message: ChatRoomMessage;
+    dueAt: Date | null;
+};
+
+export type ChatCatchUpSummary = {
+    /**
+     * `all` or the room id.
+     */
+    scope: string;
+    unreadTaggedCount: number;
+    counts: Array<{
+        bucket: ChatCatchUpBucket;
+        count: number;
+    }>;
+    /**
+     * A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.
+     */
+    headline: string | null;
+    rooms: Array<{
+        roomId: string;
+        roomName: string;
+        line: string;
+    }>;
+    generatedAt: Date | null;
+    needsYou: Array<ChatCatchUpItem>;
+    decisions: Array<ChatCatchUpItem>;
+    openLoops: Array<ChatCatchUpItem>;
+    highlights: Array<ChatCatchUpItem>;
+};
+
+/**
+ * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
+ */
+export const ChatCatchUpBucket = {
+    NEEDS_YOU: 'needsYou',
+    ESCALATION: 'escalation',
+    URGENT: 'urgent',
+    BLOCKER: 'blocker',
+    DECISION_MADE: 'decisionMade',
+    NEEDS_DECISION: 'needsDecision',
+    COMMITMENT: 'commitment',
+    WORK_REQUEST: 'workRequest',
+    QUESTION: 'question',
+    FYI: 'fyi',
+    CHIT_CHAT: 'chitChat'
+} as const;
+
+/**
+ * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
+ */
+export type ChatCatchUpBucket = typeof ChatCatchUpBucket[keyof typeof ChatCatchUpBucket];
+
+export type ChatCatchUpItem = {
+    messageId: string;
+    roomId: string;
+    roomName: string;
+    roomKind: 'channel' | 'direct';
+    parentMessageId: string | null;
+    senderName: string;
+    excerpt: string;
+    bucket: ChatCatchUpBucket;
+    createdAt: Date;
+    dueAt: Date | null;
+};
+
+export type ChatRoomCatchUp = {
+    /**
+     * Unread top-level messages from others, tagged or not.
+     */
+    unreadCount: number;
+    /**
+     * How many of those Jev has read; the rest are too short or still waiting.
+     */
+    taggedCount: number;
+    buckets: Array<{
+        bucket: ChatCatchUpBucket;
+        count: number;
+        /**
+         * Oldest first, so a jump lands on the first one.
+         */
+        messageIds: Array<string>;
+    }>;
+};
+
+export type ChatSignalCorrectionRequest = {
+    tag: ChatSignalTag;
+    /**
+     * Whether the tag applies to the message, as the reader sees it.
+     */
+    applies: boolean;
+};
+
+export type ChatSignalLoopRequest = {
+    /**
+     * True closes the open loop; false reopens it.
+     */
+    closed: boolean;
+    /**
+     * The Task the loop was made into, when closing it so.
+     */
+    taskId?: string | null;
+};
+
+export type ChatSignalRoutingSuggestion = {
+    coworkerId: string;
+    name: string;
+    caption: string | null;
+    /**
+     * Jev's probability that this Coworker can do the request.
+     */
+    fit: number;
+};
+
 export type ChatSkillCatalogItem = {
     /**
      * skills.sh id: owner/repo/skill.
@@ -3414,6 +3668,302 @@ export type CompleteComposioCallbackRequest = {
     sessionUri: string;
 };
 
+export type ContactList = {
+    id: string;
+    name: string;
+    color: ContactListColor;
+    description: string | null;
+    kind: 'manual' | 'smart';
+    smartFilter: {
+        search?: string;
+        stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+        kind?: 'PERSON' | 'ORGANIZATION';
+        replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
+        listIds?: Array<string>;
+        knownByUserId?: string;
+        knownByMe?: boolean;
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: boolean;
+        hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+        hasInteractions?: boolean;
+    } | null;
+    count: number;
+    createdByUserId: string | null;
+    createdBySokoBotId: string | null;
+    createdAutomatically: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export const ContactListColor = {
+    GRAY: 'gray',
+    RED: 'red',
+    ORANGE: 'orange',
+    AMBER: 'amber',
+    GREEN: 'green',
+    TEAL: 'teal',
+    BLUE: 'blue',
+    INDIGO: 'indigo',
+    VIOLET: 'violet',
+    PINK: 'pink'
+} as const;
+
+export type ContactListColor = typeof ContactListColor[keyof typeof ContactListColor];
+
+export type Contact = {
+    id: string;
+    score: ContactScore | null;
+    name: string;
+    organization: string | null;
+    role: string | null;
+    location: string | null;
+    summary: string | null;
+    whyInteresting: string | null;
+    stage: ContactStage;
+    kind: ContactKind;
+    nextStep: string | null;
+    followUpAt: string | null;
+    avatarUrl: string | null;
+    customFields: {
+        [key: string]: unknown;
+    };
+    firstContactAt: Date | null;
+    lastContactAt: Date | null;
+    interactionCount: number;
+    lastInboundAt: Date | null;
+    awaitingReplySince: Date | null;
+    /**
+     * Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.
+     */
+    replyState: ContactReplyState | null;
+    createdByUserId: string | null;
+    createdBySokoBotId: string | null;
+    mergedIntoId: string | null;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    channels: Array<ContactChannel>;
+    lists: Array<ContactListRef>;
+    knownBy: Array<ContactKnownBy>;
+};
+
+export type ContactScore = {
+    /**
+     * How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent.
+     */
+    familiarity: number;
+    /**
+     * How much they matter to the reader, 0–100; null until judged.
+     */
+    importance: number | null;
+    importanceSource: 'JEV' | 'SOKO_BOT' | 'MANUAL' | null;
+    /**
+     * Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.
+     */
+    importanceReason: string | null;
+};
+
+export const ContactStage = {
+    CONTACT: 'CONTACT',
+    PROSPECT: 'PROSPECT',
+    LEAD: 'LEAD',
+    ACTIVE: 'ACTIVE',
+    CUSTOMER: 'CUSTOMER',
+    PARTNER: 'PARTNER',
+    INVESTOR: 'INVESTOR',
+    VENDOR: 'VENDOR',
+    ADVISOR: 'ADVISOR',
+    COMMUNITY: 'COMMUNITY',
+    PRESS: 'PRESS',
+    FRIEND: 'FRIEND',
+    DORMANT: 'DORMANT'
+} as const;
+
+export type ContactStage = typeof ContactStage[keyof typeof ContactStage];
+
+export const ContactKind = { PERSON: 'PERSON', ORGANIZATION: 'ORGANIZATION' } as const;
+
+export type ContactKind = typeof ContactKind[keyof typeof ContactKind];
+
+export const ContactReplyState = {
+    AWAITING_REPLY: 'AWAITING_REPLY',
+    NO_REPLY: 'NO_REPLY',
+    IN_CONVERSATION: 'IN_CONVERSATION',
+    REPLIED: 'REPLIED'
+} as const;
+
+export type ContactReplyState = typeof ContactReplyState[keyof typeof ContactReplyState];
+
+export type ContactChannel = {
+    id: string;
+    type: ContactChannelType;
+    value: string;
+    label: string | null;
+    isPrimary: boolean;
+    source: ContactChannelSource;
+    sourceUrl: string | null;
+    verified: boolean;
+    createdAt: Date;
+};
+
+export const ContactChannelType = {
+    EMAIL: 'EMAIL',
+    PHONE: 'PHONE',
+    SLACK: 'SLACK',
+    LINKEDIN: 'LINKEDIN',
+    X: 'X',
+    WEBSITE: 'WEBSITE',
+    TELEGRAM: 'TELEGRAM',
+    WHATSAPP: 'WHATSAPP',
+    GITHUB: 'GITHUB',
+    OTHER: 'OTHER'
+} as const;
+
+export type ContactChannelType = typeof ContactChannelType[keyof typeof ContactChannelType];
+
+export const ContactChannelSource = {
+    MANUAL: 'MANUAL',
+    EMAIL: 'EMAIL',
+    CALENDAR: 'CALENDAR',
+    SLACK: 'SLACK',
+    WEB_RESEARCH: 'WEB_RESEARCH',
+    IMPORT: 'IMPORT',
+    OTHER: 'OTHER'
+} as const;
+
+export type ContactChannelSource = typeof ContactChannelSource[keyof typeof ContactChannelSource];
+
+export type ContactListRef = {
+    id: string;
+    name: string;
+    color: ContactListColor;
+    addedAutomatically: boolean;
+};
+
+export type ContactKnownBy = ContactPerson & {
+    interactionCount: number;
+    lastInteractionAt: Date | null;
+};
+
+export type ContactPerson = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
+export type ContactUpsertResult = {
+    contact: Contact;
+    created: boolean;
+    changed: boolean;
+    mergeSuggestion: ContactMergeSuggestion | null;
+};
+
+export type ContactMergeSuggestion = {
+    reason: 'shared_channel' | 'same_name';
+    contactIds: Array<string>;
+};
+
+export type ContactDuplicateGroup = {
+    name: string;
+    contacts: Array<Contact>;
+};
+
+export type ContactImportResult = {
+    rows: number;
+    created: number;
+    updated: number;
+    unchanged: number;
+    skipped: number;
+    listsCreated: number;
+    mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactOrganization = {
+    name: string;
+    /**
+     * Live contacts
+     */
+    count: number;
+};
+
+export type ContactDetail = Contact & {
+    recentInteractions: Array<ContactInteraction>;
+    mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactInteraction = {
+    id: string;
+    contactId: string;
+    occurredAt: Date;
+    channel: ContactInteractionChannel;
+    direction: ContactInteractionDirection | null;
+    summary: string;
+    sourceRef: string | null;
+    sourceUrl: string | null;
+    user: ContactPerson | null;
+    sokoBot: ContactSokoBot | null;
+    createdAt: Date;
+};
+
+export const ContactInteractionChannel = {
+    EMAIL: 'EMAIL',
+    MEETING: 'MEETING',
+    SLACK: 'SLACK',
+    CALL: 'CALL',
+    MANUAL: 'MANUAL',
+    OTHER: 'OTHER'
+} as const;
+
+export type ContactInteractionChannel = typeof ContactInteractionChannel[keyof typeof ContactInteractionChannel];
+
+export const ContactInteractionDirection = {
+    IN: 'IN',
+    OUT: 'OUT',
+    BOTH: 'BOTH'
+} as const;
+
+export type ContactInteractionDirection = typeof ContactInteractionDirection[keyof typeof ContactInteractionDirection];
+
+export type ContactSokoBot = {
+    id: string;
+    name: string | null;
+};
+
+export type ContactInteractionResult = {
+    interaction: ContactInteraction;
+    created: boolean;
+};
+
+export type ContactActivity = {
+    id: string;
+    kind: ContactActivityKind;
+    changes: {
+        [key: string]: unknown;
+    };
+    user: ContactPerson | null;
+    sokoBot: {
+        id: string;
+        name: string | null;
+    } | null;
+    createdAt: Date;
+};
+
+export const ContactActivityKind = {
+    CREATED: 'CREATED',
+    UPDATED: 'UPDATED',
+    CHANNEL_ADDED: 'CHANNEL_ADDED',
+    CHANNEL_REMOVED: 'CHANNEL_REMOVED',
+    MERGED: 'MERGED',
+    ARCHIVED: 'ARCHIVED',
+    UNARCHIVED: 'UNARCHIVED'
+} as const;
+
+export type ContactActivityKind = typeof ContactActivityKind[keyof typeof ContactActivityKind];
+
 export type CouponDetails = {
     id: string;
     percentOff: number;
@@ -3461,11 +4011,14 @@ export type DeveloperTaskListItem = {
     updatedAt: Date;
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -3481,11 +4034,14 @@ export type DeveloperCoworkerRef = {
 
 export type DeveloperTaskDetail = {
     task: Task;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -3743,7 +4299,9 @@ export type DriveRecentsItem = ({
     kind: 'drive-file';
 } & DriveRecentsDriveFileItem) | ({
     kind: 'task-output';
-} & DriveRecentsTaskOutputItem);
+} & DriveRecentsTaskOutputItem) | ({
+    kind: 'table';
+} & DriveRecentsTableItem);
 
 export type DriveRecentsDriveFileItem = {
     /**
@@ -3770,6 +4328,24 @@ export type DriveRecentsDriveFileItem = {
      * Latest activity timestamp (blob uploadedAt)
      */
     activityAt: Date;
+    /**
+     * Files catalog id, for the file detail view. Null until the catalog has adopted this blob.
+     */
+    resourceId: string | null;
+    /**
+     * What kind of document this is, when one is known.
+     */
+    category: {
+        labelId: string;
+        displayName: string;
+    } | null;
+    /**
+     * Tags on this file, automatic or confirmed. Labels a person removed are never listed.
+     */
+    tags: Array<{
+        labelId: string;
+        displayName: string;
+    }>;
 };
 
 export type DriveRecentsTaskOutputItem = {
@@ -3815,6 +4391,29 @@ export type DriveRecentsTaskOutputItem = {
     projectName: string | null;
 };
 
+export type DriveRecentsTableItem = {
+    /**
+     * Live Files table
+     */
+    kind: 'table';
+    /**
+     * Table ID
+     */
+    tableId: string;
+    /**
+     * Table title
+     */
+    name: string;
+    /**
+     * Latest activity timestamp (table updatedAt)
+     */
+    activityAt: Date;
+    /**
+     * Parent project ID, or null
+     */
+    projectId: string | null;
+};
+
 export type FileSelectionTokenResponse = {
     token: string;
     /**
@@ -3855,6 +4454,10 @@ export type FileResource = {
      * Canonical source this document comes from
      */
     sourceKind: 'DRIVE_UPLOAD' | 'TASK_OUTPUT' | 'PROJECT_DOCUMENT' | 'NATIVE_TABLE' | 'STUDIO_ASSET';
+    /**
+     * The Drive pathname of an uploaded file, for `DELETE /v1/drive/files/delete`. Null for every other source.
+     */
+    pathname: string | null;
     sourceTaskId: string | null;
     sourceProjectId: string | null;
     updatedAt: Date;
@@ -4017,6 +4620,38 @@ export type FileSearchMeta = {
     };
 };
 
+export type DriveShareResponse = {
+    share: DriveShare | null;
+};
+
+export type DriveShare = {
+    id: string;
+    token: string;
+    kind: 'file' | 'folder';
+    hasPassword: boolean;
+    createdAt: string;
+};
+
+export type UpsertDriveShareRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    /**
+     * Catalog id of the uploaded file to share.
+     */
+    resourceId?: string;
+    /**
+     * Folder to share, e.g. "Masumi Fundraising".
+     */
+    folderPath?: string;
+    /**
+     * Set or change the password; null removes it; omit to keep the current one.
+     */
+    password?: string | null;
+};
+
 export type DataTable = {
     id: string;
     workspaceId: string;
@@ -4036,8 +4671,10 @@ export type TableColumn = {
     id: string;
     name: string;
     description?: string;
-    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
     options?: Array<string>;
+    width: number | null;
+    wrap: boolean | null;
     tableId: string;
     position: number;
     version: number;
@@ -4060,6 +4697,20 @@ export type TableView = {
         } | null;
         visibleColumnIds?: Array<string>;
     };
+};
+
+export type DataTableSummary = {
+    id: string;
+    workspaceId: string;
+    projectId: string | null;
+    title: string;
+    description: string;
+    createdBy: string;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    columnCount: number;
 };
 
 export type TableRow = {
@@ -4573,6 +5224,9 @@ export type HistoryImageItem = {
 export type ProjectImageStudioCatalog = {
     defaultModelId: string;
     models: Array<ProjectImageStudioCatalogModel>;
+    defaultVideoModelId: string;
+    defaultAnimateModelId: string;
+    videoModels: Array<ProjectImageStudioVideoCatalogModel>;
     snapshotDate: string;
     refreshedAt: string | null;
 };
@@ -4608,6 +5262,29 @@ export type ProjectImageStudioCatalogModel = {
     verifiedAt: string;
 };
 
+export type ProjectImageStudioVideoCatalogModel = {
+    id: string;
+    label: string;
+    description: string;
+    endpoint: string;
+    input: 'text' | 'image';
+    aspectRatios: Array<string>;
+    durations: Array<number>;
+    resolutions: Array<string>;
+    curatedRank: number | null;
+    notes: string;
+    price: {
+        unit: string;
+        unitPriceUsd: number;
+        perSecondUsd: {
+            [key: string]: number;
+        };
+        basis: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    };
+};
+
 export type ImageStudioWorkspaceState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
@@ -4630,10 +5307,18 @@ export type ProjectImageAsset = {
     height: number;
     bytes: number;
     contentType: string;
+    mediaType: 'IMAGE' | 'VIDEO';
+    video: ProjectVideoSettings | null;
     createdAt: Date;
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
+};
+
+export type ProjectVideoSettings = {
+    aspectRatio: string;
+    durationSeconds: number;
+    resolution: string;
 };
 
 export type ProjectImageSettings = {
@@ -4647,10 +5332,11 @@ export type ProjectImageJob = {
     id: string;
     projectId: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT';
+    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
     model: string;
     prompt: string;
     settings: ProjectImageSettings;
+    video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
     error: string | null;
     failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
@@ -5552,6 +6238,10 @@ export type Project = {
      */
     projectRevision?: number;
     /**
+     * Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.
+     */
+    scheduledSocialPostCount?: number;
+    /**
      * Exclusive release cutoff while the Project is closing
      */
     closingAt?: Date | null;
@@ -5670,9 +6360,9 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
-     * User who owns the Task Schedule and the Tasks it creates
+     * Owner of the Task Schedule and the Tasks it creates; null when it has none
      */
-    taskOwnerId: string;
+    taskOwnerId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */
@@ -5706,8 +6396,13 @@ export type SocialPostCalendarItem = {
     postId: string;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
-    status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    status: 'DRAFT' | 'NEEDS_APPROVAL' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    revision: number;
     externalHandle: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     projectName: string;
     scheduledByName: string | null;
     scheduledByImage: string | null;
@@ -5872,6 +6567,8 @@ export type SocialAccountPost = {
     metrics: SocialPostMetrics;
     additionalMetrics: Array<SocialAccountMetric>;
     fetchedAt: Date;
+    strong?: boolean;
+    canRecycle?: boolean;
 };
 
 export type SocialPostMetrics = {
@@ -5930,6 +6627,10 @@ export type RefreshSocialAccountStatisticsRequest = {
     continueHistory?: boolean;
 };
 
+export type SocialConnectionSuggestedTimes = {
+    hours: Array<number>;
+};
+
 export type InitiateProjectSocialConnectionResponse = {
     connectionId: string;
     redirectUrl: string;
@@ -5954,11 +6655,658 @@ export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection 
     providerRevocation: 'succeeded' | 'failed' | 'skipped';
 };
 
+export type ProjectAdAccount = {
+    id: string;
+    connectionId: string;
+    provider: ProjectAdProvider;
+    /**
+     * Google customer id or Meta `act_…` id
+     */
+    externalAccountId: string;
+    name: string;
+    /**
+     * ISO 4217 code; money is a decimal in this currency
+     */
+    currency: string;
+    timeZone: string | null;
+    /**
+     * Google manager account reaching this account, if any
+     */
+    loginCustomerId: string | null;
+    createdAt: Date;
+};
+
+export const ProjectAdProvider = { GOOGLE_ADS: 'google_ads', META_ADS: 'meta_ads' } as const;
+
+export type ProjectAdProvider = typeof ProjectAdProvider[keyof typeof ProjectAdProvider];
+
+export type InitiateProjectAdConnectionRequest = {
+    provider: ProjectAdProvider;
+};
+
+export type FinalizeProjectAdConnectionResponse = {
+    /**
+     * Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked
+     */
+    connection: ProjectAdConnection | null;
+    availableAccounts: Array<AvailableAdAccount>;
+};
+
+export type ProjectAdConnection = {
+    /**
+     * Pass this as `adConnectionId` when attaching accounts
+     */
+    id: string;
+    provider: ProjectAdProvider;
+    status: 'active' | 'reauthorization_required' | 'disconnected';
+    createdAt: Date;
+};
+
+export type AvailableAdAccount = {
+    /**
+     * Google customer id or Meta `act_…` id
+     */
+    externalAccountId: string;
+    name: string;
+    /**
+     * ISO 4217 code; money is a decimal in this currency
+     */
+    currency: string;
+    timeZone: string | null;
+};
+
+export type AttachProjectAdAccountsRequest = {
+    /**
+     * The connection `id` returned by finalize
+     */
+    adConnectionId: string;
+    externalAccountIds: Array<string>;
+};
+
+export type ListAdCampaignsResponse = {
+    campaigns: Array<AdCampaign>;
+    range: AdRange;
+    /**
+     * ISO 4217 code of the ad account; money is in this currency
+     */
+    currency: string;
+};
+
+export type AdCampaign = {
+    /**
+     * Provider campaign id
+     */
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'PAUSED' | 'ENDED' | 'OTHER';
+    /**
+     * Google channel type or Meta objective
+     */
+    objective: string | null;
+    /**
+     * Decimal in the account currency
+     */
+    dailyBudget: number | null;
+    /**
+     * Over the range, decimal
+     */
+    spend: number;
+    impressions: number;
+    clicks: number;
+    /**
+     * clicks / impressions; null without impressions
+     */
+    ctr: number | null;
+    /**
+     * spend / clicks; null without clicks
+     */
+    cpc: number | null;
+    /**
+     * Over the range; null only when the provider omits the metric
+     */
+    conversions: number | null;
+};
+
+export const AdRange = { LAST_7_DAYS: 'LAST_7_DAYS', LAST_30_DAYS: 'LAST_30_DAYS' } as const;
+
+export type AdRange = typeof AdRange[keyof typeof AdRange];
+
+export type AdCampaignDetails = {
+    campaign: AdCampaignDetailsCampaign;
+    targeting: AdCampaignTargeting;
+    keywords: Array<AdCampaignKeyword>;
+    /**
+     * The campaign's only ad; null when it has none or several
+     */
+    ad: AdCampaignAd | null;
+    sitelinks: Array<AdCampaignSitelink>;
+    callouts: Array<AdCampaignCallout>;
+    performance: AdCampaignPerformance;
+};
+
+export type AdCampaignDetailsCampaign = {
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'PAUSED' | 'ENDED' | 'OTHER';
+    type: 'SEARCH' | 'DISPLAY' | 'OTHER';
+    /**
+     * Google advertising channel type
+     */
+    channelType: string;
+    /**
+     * Decimal in the account currency
+     */
+    dailyBudget: number;
+    currency: string;
+    biddingStrategyType: string;
+    /**
+     * YYYY-MM-DD in the account time zone; null when not set
+     */
+    startDate: string | null;
+    /**
+     * YYYY-MM-DD in the account time zone; null when not set
+     */
+    endDate: string | null;
+    /**
+     * The start date is today or earlier in the account time zone
+     */
+    started: boolean;
+    /**
+     * One ad group with one ad of the campaign type's responsive format
+     */
+    editable: boolean;
+    notEditableReason: 'TYPE' | 'AD_GROUPS' | 'AD_TYPE' | null;
+};
+
+export type AdCampaignTargeting = {
+    /**
+     * Empty targets all countries
+     */
+    locations: Array<GoogleLocation>;
+    /**
+     * Empty targets all languages
+     */
+    languages: Array<GoogleLanguage>;
+};
+
+export type GoogleLocation = {
+    /**
+     * Geo target constant id; pass it in `google.locationIds`
+     */
+    id: string;
+    name: string;
+    canonicalName: string;
+    /**
+     * Null when Google omits it
+     */
+    targetType: string | null;
+    /**
+     * Null when Google omits it
+     */
+    countryCode: string | null;
+};
+
+export type GoogleLanguage = {
+    /**
+     * Language constant id; pass it in `google.languageIds`
+     */
+    id: string;
+    code: string;
+    name: string;
+};
+
+export type AdCampaignKeyword = {
+    id: string;
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+    status: string;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignAd = {
+    id: string;
+    status: string;
+    approvalStatus: string | null;
+    reviewStatus: string | null;
+    adStrength: string | null;
+    /**
+     * The first final URL; empty without one
+     */
+    finalUrl: string;
+    search?: AdCampaignSearchAd;
+    display?: AdCampaignDisplayAd;
+};
+
+/**
+ * Set for a responsive search ad
+ */
+export type AdCampaignSearchAd = {
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1: string | null;
+    path2: string | null;
+};
+
+/**
+ * Set for a responsive display ad
+ */
+export type AdCampaignDisplayAd = {
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    images: Array<AdCampaignDisplayImage>;
+};
+
+export type AdCampaignDisplayImage = {
+    assetId: string;
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+    url: string;
+    width: number;
+    height: number;
+};
+
+export type AdCampaignSitelink = {
+    assetId: string;
+    text: string;
+    finalUrl: string;
+    description1: string | null;
+    description2: string | null;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignCallout = {
+    assetId: string;
+    text: string;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignPerformance = {
+    totals: AdCampaignTotals;
+    /**
+     * Every day of the range, oldest first; days without data are zero
+     */
+    daily: Array<AdCampaignDailyMetrics>;
+};
+
+export type AdCampaignTotals = {
+    /**
+     * Over the range, decimal
+     */
+    spend: number;
+    impressions: number;
+    clicks: number;
+    /**
+     * clicks / impressions; null without impressions
+     */
+    ctr: number | null;
+    /**
+     * spend / clicks; null without clicks
+     */
+    cpc: number | null;
+    /**
+     * Over the range; null only when the provider omits the metric
+     */
+    conversions: number | null;
+};
+
+export type AdCampaignDailyMetrics = {
+    date: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+};
+
+export type UpdateAdCampaignRequest = {
+    status?: 'ACTIVE' | 'PAUSED';
+    /**
+     * Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422
+     */
+    dailyBudget?: number;
+};
+
+/**
+ * Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update
+ */
+export type EditAdCampaignRequest = {
+    name: string;
+    /**
+     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
+     */
+    dailyBudget: number;
+    google: GoogleCampaignEditSpec;
+};
+
+/**
+ * The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type. Omit `startDate` to keep the start date (it cannot change once the campaign started); omit `endDate` to remove the end date
+ */
+export type GoogleCampaignEditSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignEditSpec);
+
+export type GoogleSearchCampaignSpec = {
+    type: 'SEARCH';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    /**
+     * Repeats of a keyword with the same match type (ignoring case) are dropped
+     */
+    keywords: Array<GoogleKeyword>;
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1?: string;
+    /**
+     * Requires path1
+     */
+    path2?: string;
+    sitelinks?: Array<GoogleSitelink>;
+    callouts?: Array<string>;
+};
+
+export type GoogleKeyword = {
+    /**
+     * Plain text, without quotes or brackets
+     */
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+};
+
+export type GoogleSitelink = {
+    text: string;
+    finalUrl: string;
+    description1?: string;
+    description2?: string;
+};
+
+export type GoogleDisplayCampaignEditSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * The ad's images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once
+     */
+    images: Array<GoogleDisplayImage | GoogleKeptDisplayImage>;
+};
+
+export type GoogleDisplayImage = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    /**
+     * Bytes; at most 5120 KB
+     */
+    size: number;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
+    /**
+     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type GoogleKeptDisplayImage = {
+    /**
+     * Asset id of one of the ad's current images, as the campaign details report it
+     */
+    assetId: string;
+    /**
+     * The slot the image fills; see GoogleDisplayImage
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type CreateAdCampaignResponse = {
+    /**
+     * Provider campaign id
+     */
+    id: string;
+};
+
+/**
+ * There is no status: a new campaign is always created paused
+ */
+export type CreateAdCampaignRequest = {
+    name: string;
+    /**
+     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
+     */
+    dailyBudget: number;
+    /**
+     * Required for Meta ad accounts; 422 for Google
+     */
+    objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
+    google?: GoogleCampaignSpec;
+};
+
+/**
+ * Required for Google ad accounts; 422 for Meta
+ */
+export type GoogleCampaignSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignSpec);
+
+export type GoogleDisplayCampaignSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once
+     */
+    images: Array<GoogleDisplayImage>;
+};
+
+export type ListGoogleLocationsResponse = {
+    locations: Array<GoogleLocation>;
+};
+
+export type ListGoogleLanguagesResponse = {
+    languages: Array<GoogleLanguage>;
+};
+
+export type GetAdMarketProfileResponse = {
+    /**
+     * Null until a market profile is saved
+     */
+    profile: AdMarketProfile | null;
+};
+
+export type AdMarketProfile = {
+    keywords: Array<string>;
+    countryCode: AdMarketCountryCode;
+    /**
+     * Google geo target constant id of the country, for campaign targeting
+     */
+    locationId: string;
+    languageCode: AdMarketLanguageCode;
+    updatedAt: Date;
+};
+
+/**
+ * ISO 3166-1 alpha-2 code of a supported market
+ */
+export const AdMarketCountryCode = {
+    US: 'US',
+    GB: 'GB',
+    DE: 'DE',
+    FR: 'FR',
+    ES: 'ES',
+    IT: 'IT',
+    NL: 'NL',
+    CH: 'CH',
+    AT: 'AT',
+    BE: 'BE',
+    IE: 'IE',
+    CA: 'CA',
+    AU: 'AU',
+    BR: 'BR',
+    MX: 'MX',
+    IN: 'IN',
+    JP: 'JP'
+} as const;
+
+/**
+ * ISO 3166-1 alpha-2 code of a supported market
+ */
+export type AdMarketCountryCode = typeof AdMarketCountryCode[keyof typeof AdMarketCountryCode];
+
+export const AdMarketLanguageCode = {
+    EN: 'en',
+    DE: 'de',
+    FR: 'fr',
+    ES: 'es',
+    IT: 'it',
+    NL: 'nl',
+    PT: 'pt',
+    JA: 'ja'
+} as const;
+
+export type AdMarketLanguageCode = typeof AdMarketLanguageCode[keyof typeof AdMarketLanguageCode];
+
+export type PutAdMarketProfileResponse = {
+    profile: AdMarketProfile;
+};
+
+export type PutAdMarketProfileRequest = {
+    /**
+     * 1 to 10 keywords of at most 80 characters; duplicates (ignoring case) are dropped
+     */
+    keywords: Array<string>;
+    countryCode: AdMarketCountryCode;
+    languageCode: AdMarketLanguageCode;
+};
+
+export type ListAdMarketKeywordsResponse = {
+    /**
+     * At most 50, by search volume descending, nulls last
+     */
+    keywords: Array<AdMarketKeyword>;
+    /**
+     * When DataForSEO was last asked; results are cached for 24h
+     */
+    fetchedAt: Date;
+};
+
+/**
+ * Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.
+ */
+export type AdMarketKeyword = {
+    keyword: string;
+    searchVolume: number | null;
+    trend: Array<{
+        year: number;
+        month: number;
+        searchVolume: number | null;
+    }>;
+    competition: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+    competitionIndex: number | null;
+    cpc: number | null;
+    lowTopOfPageBid: number | null;
+    highTopOfPageBid: number | null;
+};
+
+export type ListAdMarketAdsResponse = {
+    /**
+     * ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot's, if any.
+     */
+    status: 'ready' | 'gathering' | 'failed';
+    /**
+     * At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first
+     */
+    ads: Array<AdMarketAd>;
+    /**
+     * When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet
+     */
+    fetchedAt: Date | null;
+};
+
+/**
+ * A recent Google ad of a search competitor (a domain ranking organically for the profile keywords). previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.
+ */
+export type AdMarketAd = {
+    creativeId: string;
+    advertiserId: string;
+    advertiserName: string;
+    format: 'text' | 'image' | 'video' | 'other';
+    previewImage: {
+        url: string;
+        width: number | null;
+        height: number | null;
+    } | null;
+    previewUrl: string | null;
+    firstShown: Date | null;
+    lastShown: Date | null;
+    verified: boolean;
+};
+
 export type SocialPost = {
     id: string;
     projectId: string;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
+    firstComment: string | null;
     media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
     scheduledAt: Date | null;
@@ -5987,6 +7335,12 @@ export type SocialPost = {
     canSchedule: boolean;
     canCancel: boolean;
     canPublishNow: boolean;
+    canApprove: boolean;
+    canReject: boolean;
+    /**
+     * True when the post can be copied into a new draft (published, failed, or missed)
+     */
+    canDuplicate: boolean;
     /**
      * The linked connection exists but is not active, so the post cannot go out until someone reconnects
      */
@@ -6010,6 +7364,7 @@ export type SocialPostMediaRef = {
 
 export const SocialPostStatus = {
     DRAFT: 'DRAFT',
+    NEEDS_APPROVAL: 'NEEDS_APPROVAL',
     SCHEDULED: 'SCHEDULED',
     PUBLISHING: 'PUBLISHING',
     PUBLISHED: 'PUBLISHED',
@@ -6047,7 +7402,7 @@ export type SocialPostStatistics = {
 export type SocialPostLastAttempt = {
     attempt: number;
     trigger: 'scheduler' | 'publish_now';
-    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | null;
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | 'project_closed' | null;
     errorKind: string | null;
     providerOutcome: string | null;
     finishedAt: Date | null;
@@ -6062,6 +7417,7 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
@@ -6086,6 +7442,7 @@ export type SocialPostStatisticsSummary = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
@@ -6107,11 +7464,30 @@ export type ScheduleSocialPostRequest = {
     revision: number;
 };
 
+export type ApproveSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
+export type RejectSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
 export type CancelSocialPostRequest = {
     /**
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+};
+
+export type RecycleSocialAccountPostRequest = {
+    delayDays?: 7 | 14 | 30;
+    timezone?: string;
 };
 
 export type ProjectImageStudioState = {
@@ -6139,6 +7515,19 @@ export type CreateProjectImageJobRequest = {
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     parentAssetId?: string | null;
+    sessionId?: string | null;
+    idempotencyKey: string;
+};
+
+export type CreateProjectVideoJobRequest = {
+    modelId?: string;
+    prompt: string;
+    settings?: {
+        aspectRatio?: '9:16' | '16:9' | '1:1' | '4:3' | '3:4';
+        durationSeconds?: number;
+        resolution?: string;
+    };
+    sourceAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
 };
@@ -6175,17 +7564,29 @@ export type Job = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId: string | null;
@@ -6519,6 +7920,32 @@ export type GetInvitationResult = {
     kind: 'inviter_not_found';
 };
 
+export type PublicDriveShare = {
+    kind: 'file' | 'folder';
+    name: string;
+    locked: boolean;
+    items?: Array<PublicDriveShareItem>;
+    truncated?: boolean;
+};
+
+export type PublicDriveShareItem = {
+    path: string;
+    size: number;
+    uploadedAt: string;
+};
+
+export type UnlockDriveShareResponse = {
+    proof: string;
+};
+
+export type UnlockDriveShareRequest = {
+    password: string;
+};
+
+export type DriveShareDownload = {
+    url: string;
+};
+
 export type PublicSharedResourceResponse = ({
     kind: 'job';
 } & PublicSharedJobResource) | ({
@@ -6634,7 +8061,9 @@ export type CompleteSokoBotIntegrationAuthRequest = {
 export type SokoBotState = {
     sokoBot: {
         id: string;
-        userId: string;
+        userId: string | null;
+        projectId?: string | null;
+        viewerCanManage?: boolean;
         name: string | null;
         avatarSeed: string | null;
         personalityTone: number | null;
@@ -6657,12 +8086,27 @@ export type SokoBotState = {
         avatarImageUrl?: string | null;
         versionId?: string | null;
         followWholeBoard?: boolean;
+        mailAutoRead?: boolean;
         ingestTimezone?: string;
         proactivePaused?: boolean;
         proactiveDailyLimit?: number;
         createdAt: Date;
         updatedAt: Date;
     } | null;
+    sharedBots?: Array<SharedSokoBotSummary>;
+};
+
+export type SharedSokoBotSummary = {
+    id: string;
+    name: string | null;
+    scope: 'project' | 'workspace';
+    projectId: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    status: SokoBotStatus;
+    archivedAt: Date | null;
+    sharedRoomId: string | null;
+    viewerCanManage: boolean;
 };
 
 export type SokoBotActivity = {
@@ -6786,6 +8230,7 @@ export type UpdateSokoBotProactiveRequest = {
     paused?: boolean;
     dailyLimit?: number;
     timezone?: string;
+    mailAutoRead?: boolean;
 };
 
 export type SokoBotTurnFeedbackRequest = {
@@ -6978,6 +8423,26 @@ export type JudgeSokoBotLabTurnRequest = {
     };
 };
 
+export type CreateScopedSokoBotRequest = {
+    name: string;
+    avatarSeed?: string | null;
+    avatarId?: string | null;
+    personalityTone?: number | null;
+    personalityDetail?: number | null;
+    personalityStyle?: number | null;
+    scope: SokoBotScope;
+    projectId?: string | null;
+    timezone?: string;
+};
+
+export const SokoBotScope = {
+    PERSONAL: 'personal',
+    PROJECT: 'project',
+    WORKSPACE: 'workspace'
+} as const;
+
+export type SokoBotScope = typeof SokoBotScope[keyof typeof SokoBotScope];
+
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -7112,17 +8577,25 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -7162,7 +8635,10 @@ export type TaskListItem = {
      * @deprecated
      */
     coworker: CoworkerSummary | null;
-    creator: TaskCreator;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -7250,10 +8726,17 @@ export type TaskSchedule = {
     id: string;
     workspaceId: string;
     organizationId: string | null;
-    ownerId: string;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    ownerId: string | null;
     creatorUserId: string | null;
     creatorCoworkerId: string | null;
     creatorSokoBotId: string | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     state: TaskScheduleState;
     rule: {
         expr: string;
@@ -7844,6 +9327,10 @@ export type TransactionHistoryTaskItem = {
      * Task event that carries the charge
      */
     taskEventId: string;
+    /**
+     * Whether the task is archived. An archived task cannot be opened, so clients should not link to it.
+     */
+    taskArchived: boolean;
 };
 
 export type TransactionHistoryCoworkerItem = {
@@ -7952,6 +9439,18 @@ export type TransactionHistoryTopUpItem = {
      * `CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.
      */
     bucketSource: string | null;
+    /**
+     * Job this refund top up refunded, for deep-linking. Null for any other top up, or when the job no longer exists.
+     */
+    refundedJobId: string | null;
+    /**
+     * Agent that ran the refunded job, for deep-linking. Null when `refundedJobId` is null.
+     */
+    refundedAgentId: string | null;
+    /**
+     * Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.
+     */
+    refundedTaskId: string | null;
 };
 
 export type TransactionHistoryUnattributedItem = {
@@ -8257,6 +9756,10 @@ export type WorkspaceCalendarSource = {
      * Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.
      */
     isSchedulable: boolean;
+    /**
+     * Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.
+     */
+    latestScheduledSocialPostAt?: Date | null;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
@@ -22747,6 +24250,107 @@ export type GetChatRoomMessageResultsResponses = {
 
 export type GetChatRoomMessageResultsResponse = GetChatRoomMessageResultsResponses[keyof GetChatRoomMessageResultsResponses];
 
+export type GetChatRoomMessageResultsBatchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Comma-separated message ids, at most 50.
+         */
+        messageIds: string;
+    };
+    url: '/chats/rooms/{id}/message-results';
+};
+
+export type GetChatRoomMessageResultsBatchErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid message ids
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsBatchError = GetChatRoomMessageResultsBatchErrors[keyof GetChatRoomMessageResultsBatchErrors];
+
+export type GetChatRoomMessageResultsBatchResponses = {
+    /**
+     * Authorized recorded results for each live message; missing, deleted or unhydratable messages are omitted
+     */
+    200: {
+        data: Array<ChatRoomMessageResults>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsBatchResponse = GetChatRoomMessageResultsBatchResponses[keyof GetChatRoomMessageResultsBatchResponses];
+
 export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
     body?: never;
     headers?: {
@@ -23711,6 +25315,662 @@ export type PostChatsRoomsByIdFilesResponses = {
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
 
+export type GetChatsSignalsNeedsYouData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/signals/needs-you';
+};
+
+export type GetChatsSignalsNeedsYouErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsNeedsYouError = GetChatsSignalsNeedsYouErrors[keyof GetChatsSignalsNeedsYouErrors];
+
+export type GetChatsSignalsNeedsYouResponses = {
+    /**
+     * Unread messages that need the viewer
+     */
+    200: {
+        data: Array<ChatSignalListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsNeedsYouResponse = GetChatsSignalsNeedsYouResponses[keyof GetChatsSignalsNeedsYouResponses];
+
+export type GetChatsSignalsOpenLoopsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/signals/open-loops';
+};
+
+export type GetChatsSignalsOpenLoopsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsOpenLoopsError = GetChatsSignalsOpenLoopsErrors[keyof GetChatsSignalsOpenLoopsErrors];
+
+export type GetChatsSignalsOpenLoopsResponses = {
+    /**
+     * The viewer's open loops
+     */
+    200: {
+        data: Array<ChatSignalListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsOpenLoopsResponse = GetChatsSignalsOpenLoopsResponses[keyof GetChatsSignalsOpenLoopsResponses];
+
+export type GetChatsSignalsSummaryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * One room's summary; across every unmuted room without it.
+         */
+        roomId?: string;
+    };
+    url: '/chats/signals/summary';
+};
+
+export type GetChatsSignalsSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsSummaryError = GetChatsSignalsSummaryErrors[keyof GetChatsSignalsSummaryErrors];
+
+export type GetChatsSignalsSummaryResponses = {
+    /**
+     * Catch-up summary
+     */
+    200: {
+        data: ChatCatchUpSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsSummaryResponse = GetChatsSignalsSummaryResponses[keyof GetChatsSignalsSummaryResponses];
+
+export type GetChatsSignalsRoomsByIdCatchUpData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/signals/rooms/{id}/catch-up';
+};
+
+export type GetChatsSignalsRoomsByIdCatchUpErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdCatchUpError = GetChatsSignalsRoomsByIdCatchUpErrors[keyof GetChatsSignalsRoomsByIdCatchUpErrors];
+
+export type GetChatsSignalsRoomsByIdCatchUpResponses = {
+    /**
+     * Room catch-up
+     */
+    200: {
+        data: ChatRoomCatchUp;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdCatchUpResponse = GetChatsSignalsRoomsByIdCatchUpResponses[keyof GetChatsSignalsRoomsByIdCatchUpResponses];
+
+export type GetChatsSignalsRoomsByIdDecisionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * The last message id of the previous page (`nextCursor`).
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/signals/rooms/{id}/decisions';
+};
+
+export type GetChatsSignalsRoomsByIdDecisionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdDecisionsError = GetChatsSignalsRoomsByIdDecisionsErrors[keyof GetChatsSignalsRoomsByIdDecisionsErrors];
+
+export type GetChatsSignalsRoomsByIdDecisionsResponses = {
+    /**
+     * Decisions in the room
+     */
+    200: {
+        data: Array<ChatRoomMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdDecisionsResponse = GetChatsSignalsRoomsByIdDecisionsResponses[keyof GetChatsSignalsRoomsByIdDecisionsResponses];
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsData = {
+    body?: ChatSignalCorrectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/signals/messages/{messageId}/corrections';
+};
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message has no signal
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsError = PutChatsSignalsMessagesByMessageIdCorrectionsErrors[keyof PutChatsSignalsMessagesByMessageIdCorrectionsErrors];
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsResponses = {
+    /**
+     * Corrected message
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsResponse = PutChatsSignalsMessagesByMessageIdCorrectionsResponses[keyof PutChatsSignalsMessagesByMessageIdCorrectionsResponses];
+
+export type PutChatsSignalsMessagesByMessageIdLoopData = {
+    body?: ChatSignalLoopRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/signals/messages/{messageId}/loop';
+};
+
+export type PutChatsSignalsMessagesByMessageIdLoopErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message has no signal, or Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdLoopError = PutChatsSignalsMessagesByMessageIdLoopErrors[keyof PutChatsSignalsMessagesByMessageIdLoopErrors];
+
+export type PutChatsSignalsMessagesByMessageIdLoopResponses = {
+    /**
+     * Updated message
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdLoopResponse = PutChatsSignalsMessagesByMessageIdLoopResponses[keyof PutChatsSignalsMessagesByMessageIdLoopResponses];
+
+export type GetChatsSignalsMessagesByMessageIdRoutingData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/signals/messages/{messageId}/routing';
+};
+
+export type GetChatsSignalsMessagesByMessageIdRoutingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsMessagesByMessageIdRoutingError = GetChatsSignalsMessagesByMessageIdRoutingErrors[keyof GetChatsSignalsMessagesByMessageIdRoutingErrors];
+
+export type GetChatsSignalsMessagesByMessageIdRoutingResponses = {
+    /**
+     * Routing suggestions
+     */
+    200: {
+        data: Array<ChatSignalRoutingSuggestion>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsMessagesByMessageIdRoutingResponse = GetChatsSignalsMessagesByMessageIdRoutingResponses[keyof GetChatsSignalsMessagesByMessageIdRoutingResponses];
+
 export type SearchChatSkillsData = {
     body?: never;
     path?: never;
@@ -24266,6 +26526,3071 @@ export type PostComposioCallbackCompleteResponses = {
 };
 
 export type PostComposioCallbackCompleteResponse = PostComposioCallbackCompleteResponses[keyof PostComposioCallbackCompleteResponses];
+
+export type GetContactListsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contact-lists';
+};
+
+export type GetContactListsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactListsError = GetContactListsErrors[keyof GetContactListsErrors];
+
+export type GetContactListsResponses = {
+    /**
+     * Lists
+     */
+    200: {
+        data: Array<ContactList>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactListsResponse = GetContactListsResponses[keyof GetContactListsResponses];
+
+export type PostContactListsData = {
+    body?: {
+        name: string;
+        color?: 'gray' | 'red' | 'orange' | 'amber' | 'green' | 'teal' | 'blue' | 'indigo' | 'violet' | 'pink';
+        description?: string | null;
+        smartFilter?: {
+            search?: string;
+            stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+            kind?: 'PERSON' | 'ORGANIZATION';
+            replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
+            listIds?: Array<string>;
+            knownByUserId?: string;
+            knownByMe?: boolean;
+            lastContactAfter?: Date;
+            lastContactBefore?: Date;
+            lastContactOlderThanDays?: number;
+            createdWithinDays?: number;
+            followUpDue?: boolean;
+            hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+            hasInteractions?: boolean;
+        } | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contact-lists';
+};
+
+export type PostContactListsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactListsError = PostContactListsErrors[keyof PostContactListsErrors];
+
+export type PostContactListsResponses = {
+    /**
+     * List created
+     */
+    201: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactListsResponse = PostContactListsResponses[keyof PostContactListsResponses];
+
+export type DeleteContactListsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}';
+};
+
+export type DeleteContactListsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteContactListsByIdError = DeleteContactListsByIdErrors[keyof DeleteContactListsByIdErrors];
+
+export type DeleteContactListsByIdResponses = {
+    /**
+     * List deleted
+     */
+    204: void;
+};
+
+export type DeleteContactListsByIdResponse = DeleteContactListsByIdResponses[keyof DeleteContactListsByIdResponses];
+
+export type PatchContactListsByIdData = {
+    body?: {
+        name?: string;
+        color?: 'gray' | 'red' | 'orange' | 'amber' | 'green' | 'teal' | 'blue' | 'indigo' | 'violet' | 'pink';
+        description?: string | null;
+        smartFilter?: {
+            search?: string;
+            stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+            kind?: 'PERSON' | 'ORGANIZATION';
+            replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
+            listIds?: Array<string>;
+            knownByUserId?: string;
+            knownByMe?: boolean;
+            lastContactAfter?: Date;
+            lastContactBefore?: Date;
+            lastContactOlderThanDays?: number;
+            createdWithinDays?: number;
+            followUpDue?: boolean;
+            hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+            hasInteractions?: boolean;
+        } | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}';
+};
+
+export type PatchContactListsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchContactListsByIdError = PatchContactListsByIdErrors[keyof PatchContactListsByIdErrors];
+
+export type PatchContactListsByIdResponses = {
+    /**
+     * List updated
+     */
+    200: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchContactListsByIdResponse = PatchContactListsByIdResponses[keyof PatchContactListsByIdResponses];
+
+export type PostContactListsByIdMembersData = {
+    body?: {
+        add?: Array<string>;
+        remove?: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}/members';
+};
+
+export type PostContactListsByIdMembersErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactListsByIdMembersError = PostContactListsByIdMembersErrors[keyof PostContactListsByIdMembersErrors];
+
+export type PostContactListsByIdMembersResponses = {
+    /**
+     * List
+     */
+    200: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactListsByIdMembersResponse = PostContactListsByIdMembersResponses[keyof PostContactListsByIdMembersResponses];
+
+export type GetContactsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
+        stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        archived?: 'true' | 'false';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
+        direction?: 'asc' | 'desc';
+    };
+    url: '/contacts';
+};
+
+export type GetContactsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsError = GetContactsErrors[keyof GetContactsErrors];
+
+export type GetContactsResponses = {
+    /**
+     * Contacts
+     */
+    200: {
+        data: Array<Contact>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsResponse = GetContactsResponses[keyof GetContactsResponses];
+
+export type PostContactsData = {
+    body?: {
+        name?: string;
+        organization?: string | null;
+        role?: string | null;
+        location?: string | null;
+        summary?: string | null;
+        whyInteresting?: string | null;
+        stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+        kind?: 'PERSON' | 'ORGANIZATION';
+        nextStep?: string | null;
+        followUpAt?: string | null;
+        avatarUrl?: string | null;
+        customFields?: {
+            [key: string]: string | number | boolean | null;
+        };
+        channels?: Array<{
+            type: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+            value: string;
+            label?: string | null;
+            isPrimary?: boolean;
+            source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+            sourceUrl?: string | null;
+            verified?: boolean;
+        }>;
+        upsert?: boolean;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts';
+};
+
+export type PostContactsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel already taken, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid contact
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsError = PostContactsErrors[keyof PostContactsErrors];
+
+export type PostContactsResponses = {
+    /**
+     * Existing contact updated (upsert)
+     */
+    200: {
+        data: ContactUpsertResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Contact created
+     */
+    201: {
+        data: ContactUpsertResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsResponse = PostContactsResponses[keyof PostContactsResponses];
+
+export type GetContactsExportCsvData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
+        stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        archived?: 'true' | 'false';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
+        direction?: 'asc' | 'desc';
+    };
+    url: '/contacts/export.csv';
+};
+
+export type GetContactsExportCsvErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsExportCsvError = GetContactsExportCsvErrors[keyof GetContactsExportCsvErrors];
+
+export type GetContactsExportCsvResponses = {
+    /**
+     * Contacts as CSV
+     */
+    200: string;
+};
+
+export type GetContactsExportCsvResponse = GetContactsExportCsvResponses[keyof GetContactsExportCsvResponses];
+
+export type PostContactsMergeData = {
+    body?: {
+        winnerId: string;
+        loserIds: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/merge';
+};
+
+export type PostContactsMergeErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already merged, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid merge
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsMergeError = PostContactsMergeErrors[keyof PostContactsMergeErrors];
+
+export type PostContactsMergeResponses = {
+    /**
+     * The merged contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsMergeResponse = PostContactsMergeResponses[keyof PostContactsMergeResponses];
+
+export type GetContactsDuplicatesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        contactId?: string;
+    };
+    url: '/contacts/duplicates';
+};
+
+export type GetContactsDuplicatesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsDuplicatesError = GetContactsDuplicatesErrors[keyof GetContactsDuplicatesErrors];
+
+export type GetContactsDuplicatesResponses = {
+    /**
+     * Duplicate groups
+     */
+    200: {
+        data: Array<ContactDuplicateGroup>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsDuplicatesResponse = GetContactsDuplicatesResponses[keyof GetContactsDuplicatesResponses];
+
+export type PostContactsImportData = {
+    body?: {
+        tableId: string;
+        mapping: {
+            name: string;
+            organization?: string;
+            role?: string;
+            location?: string;
+            summary?: string;
+            whyInteresting?: string;
+            nextStep?: string;
+            firstContactAt?: string;
+            email?: string;
+            phone?: string;
+            linkedin?: string;
+            x?: string;
+            website?: string;
+            github?: string;
+            telegram?: string;
+            lists?: string;
+        };
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/import';
+};
+
+export type PostContactsImportErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Table not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid mapping
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsImportError = PostContactsImportErrors[keyof PostContactsImportErrors];
+
+export type PostContactsImportResponses = {
+    /**
+     * Import summary
+     */
+    200: {
+        data: ContactImportResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
+
+export type GetContactsOrganizationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        limit?: number;
+    };
+    url: '/contacts/organizations';
+};
+
+export type GetContactsOrganizationsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsOrganizationsError = GetContactsOrganizationsErrors[keyof GetContactsOrganizationsErrors];
+
+export type GetContactsOrganizationsResponses = {
+    /**
+     * Organizations
+     */
+    200: {
+        data: Array<ContactOrganization>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsOrganizationsResponse = GetContactsOrganizationsResponses[keyof GetContactsOrganizationsResponses];
+
+export type GetContactsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}';
+};
+
+export type GetContactsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsByIdError = GetContactsByIdErrors[keyof GetContactsByIdErrors];
+
+export type GetContactsByIdResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: ContactDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsByIdResponse = GetContactsByIdResponses[keyof GetContactsByIdResponses];
+
+export type PatchContactsByIdData = {
+    body?: {
+        name?: string;
+        organization?: string | null;
+        role?: string | null;
+        location?: string | null;
+        summary?: string | null;
+        whyInteresting?: string | null;
+        stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+        kind?: 'PERSON' | 'ORGANIZATION';
+        nextStep?: string | null;
+        followUpAt?: string | null;
+        avatarUrl?: string | null;
+        customFields?: {
+            [key: string]: string | number | boolean | null;
+        };
+        version: number;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}';
+};
+
+export type PatchContactsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Version conflict or merged contact
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid contact
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchContactsByIdError = PatchContactsByIdErrors[keyof PatchContactsByIdErrors];
+
+export type PatchContactsByIdResponses = {
+    /**
+     * Contact updated
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchContactsByIdResponse = PatchContactsByIdResponses[keyof PatchContactsByIdResponses];
+
+export type PostContactsByIdArchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/archive';
+};
+
+export type PostContactsByIdArchiveErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdArchiveError = PostContactsByIdArchiveErrors[keyof PostContactsByIdArchiveErrors];
+
+export type PostContactsByIdArchiveResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdArchiveResponse = PostContactsByIdArchiveResponses[keyof PostContactsByIdArchiveResponses];
+
+export type PostContactsByIdUnarchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/unarchive';
+};
+
+export type PostContactsByIdUnarchiveErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdUnarchiveError = PostContactsByIdUnarchiveErrors[keyof PostContactsByIdUnarchiveErrors];
+
+export type PostContactsByIdUnarchiveResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdUnarchiveResponse = PostContactsByIdUnarchiveResponses[keyof PostContactsByIdUnarchiveResponses];
+
+export type PostContactsByIdChannelsData = {
+    body?: {
+        type: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+        value: string;
+        label?: string | null;
+        isPrimary?: boolean;
+        source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+        sourceUrl?: string | null;
+        verified?: boolean;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/channels';
+};
+
+export type PostContactsByIdChannelsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel taken by another contact, or merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid channel
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdChannelsError = PostContactsByIdChannelsErrors[keyof PostContactsByIdChannelsErrors];
+
+export type PostContactsByIdChannelsResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdChannelsResponse = PostContactsByIdChannelsResponses[keyof PostContactsByIdChannelsResponses];
+
+export type DeleteContactsByIdChannelsByChannelIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        channelId: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/channels/{channelId}';
+};
+
+export type DeleteContactsByIdChannelsByChannelIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel taken by another contact, or merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid channel
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteContactsByIdChannelsByChannelIdError = DeleteContactsByIdChannelsByChannelIdErrors[keyof DeleteContactsByIdChannelsByChannelIdErrors];
+
+export type DeleteContactsByIdChannelsByChannelIdResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteContactsByIdChannelsByChannelIdResponse = DeleteContactsByIdChannelsByChannelIdResponses[keyof DeleteContactsByIdChannelsByChannelIdResponses];
+
+export type GetContactsByIdInteractionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/contacts/{id}/interactions';
+};
+
+export type GetContactsByIdInteractionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsByIdInteractionsError = GetContactsByIdInteractionsErrors[keyof GetContactsByIdInteractionsErrors];
+
+export type GetContactsByIdInteractionsResponses = {
+    /**
+     * Interactions
+     */
+    200: {
+        data: Array<ContactInteraction>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsByIdInteractionsResponse = GetContactsByIdInteractionsResponses[keyof GetContactsByIdInteractionsResponses];
+
+export type PostContactsByIdInteractionsData = {
+    body?: {
+        occurredAt: Date;
+        channel: 'EMAIL' | 'MEETING' | 'SLACK' | 'CALL' | 'MANUAL' | 'OTHER';
+        direction?: 'IN' | 'OUT' | 'BOTH' | null;
+        summary: string;
+        sourceRef?: string | null;
+        sourceUrl?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/interactions';
+};
+
+export type PostContactsByIdInteractionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdInteractionsError = PostContactsByIdInteractionsErrors[keyof PostContactsByIdInteractionsErrors];
+
+export type PostContactsByIdInteractionsResponses = {
+    /**
+     * Already recorded
+     */
+    200: {
+        data: ContactInteractionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Recorded
+     */
+    201: {
+        data: ContactInteractionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdInteractionsResponse = PostContactsByIdInteractionsResponses[keyof PostContactsByIdInteractionsResponses];
+
+export type DeleteContactsByIdInteractionsByInteractionIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        interactionId: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/interactions/{interactionId}';
+};
+
+export type DeleteContactsByIdInteractionsByInteractionIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteContactsByIdInteractionsByInteractionIdError = DeleteContactsByIdInteractionsByInteractionIdErrors[keyof DeleteContactsByIdInteractionsByInteractionIdErrors];
+
+export type DeleteContactsByIdInteractionsByInteractionIdResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteContactsByIdInteractionsByInteractionIdResponse = DeleteContactsByIdInteractionsByInteractionIdResponses[keyof DeleteContactsByIdInteractionsByInteractionIdResponses];
+
+export type PutContactsByIdImportanceData = {
+    body?: {
+        importance: number | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/importance';
+};
+
+export type PutContactsByIdImportanceErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid importance
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutContactsByIdImportanceError = PutContactsByIdImportanceErrors[keyof PutContactsByIdImportanceErrors];
+
+export type PutContactsByIdImportanceResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
+
+export type GetContactsByIdActivityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/contacts/{id}/activity';
+};
+
+export type GetContactsByIdActivityErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsByIdActivityError = GetContactsByIdActivityErrors[keyof GetContactsByIdActivityErrors];
+
+export type GetContactsByIdActivityResponses = {
+    /**
+     * Activity
+     */
+    200: {
+        data: Array<ContactActivity>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsByIdActivityResponse = GetContactsByIdActivityResponses[keyof GetContactsByIdActivityResponses];
 
 export type GetCouponDetailsData = {
     body?: never;
@@ -27204,9 +32529,13 @@ export type GetDriveRecentsData = {
          */
         organizationId?: string;
         /**
-         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
+         * Search recents by file name (Drive blobs), task/file name and task description (task outputs) or title (tables). Case-insensitive substring.
          */
         q?: string;
+        /**
+         * Comma-separated label ids. Only Drive files carrying any of them are listed; task outputs and tables have no labels and are left out.
+         */
+        tags?: string;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -27254,6 +32583,21 @@ export type GetDriveRecentsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -28378,6 +33722,312 @@ export type GetDriveSearchResponses = {
 
 export type GetDriveSearchResponse = GetDriveSearchResponses[keyof GetDriveSearchResponses];
 
+export type GetDriveSharesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        /**
+         * Catalog id of the uploaded file to share.
+         */
+        resourceId?: string;
+        /**
+         * Folder to share, e.g. "Masumi Fundraising".
+         */
+        folderPath?: string;
+    };
+    url: '/drive/shares';
+};
+
+export type GetDriveSharesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveSharesError = GetDriveSharesErrors[keyof GetDriveSharesErrors];
+
+export type GetDriveSharesResponses = {
+    /**
+     * Share
+     */
+    200: {
+        data: DriveShareResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveSharesResponse = GetDriveSharesResponses[keyof GetDriveSharesResponses];
+
+export type PutDriveSharesData = {
+    body: UpsertDriveShareRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/shares';
+};
+
+export type PutDriveSharesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutDriveSharesError = PutDriveSharesErrors[keyof PutDriveSharesErrors];
+
+export type PutDriveSharesResponses = {
+    /**
+     * Share
+     */
+    200: {
+        data: DriveShare;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutDriveSharesResponse = PutDriveSharesResponses[keyof PutDriveSharesResponses];
+
+export type DeleteDriveSharesByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/shares/{id}';
+};
+
+export type DeleteDriveSharesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveSharesByIdError = DeleteDriveSharesByIdErrors[keyof DeleteDriveSharesByIdErrors];
+
+export type DeleteDriveSharesByIdResponses = {
+    /**
+     * Link revoked
+     */
+    204: void;
+};
+
+export type DeleteDriveSharesByIdResponse = DeleteDriveSharesByIdResponses[keyof DeleteDriveSharesByIdResponses];
+
 export type GetDriveTablesData = {
     body?: never;
     headers?: {
@@ -28508,10 +34158,10 @@ export type GetDriveTablesError = GetDriveTablesErrors[keyof GetDriveTablesError
 
 export type GetDriveTablesResponses = {
     /**
-     * Table operation completed
+     * Tables, most recently changed first
      */
     200: {
-        data: Array<DataTable>;
+        data: Array<DataTableSummary>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28532,8 +34182,10 @@ export type PostDriveTablesData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
+            width?: number | null;
+            wrap?: boolean | null;
         }>;
         rows?: Array<{
             id?: string;
@@ -28831,8 +34483,10 @@ export type PatchDriveTablesByIdData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
+            width?: number | null;
+            wrap?: boolean | null;
         }>;
     };
     headers?: {
@@ -29153,6 +34807,7 @@ export type PostDriveTablesByIdRowsData = {
                 }>;
             };
             archived?: boolean;
+            afterRowId?: string | null;
         }>;
     };
     headers?: {
@@ -32644,6 +38299,10 @@ export type GetUsersByIdPreferencesResponses = {
              */
             showRoomUnreadCount: boolean;
             /**
+             * Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.
+             */
+            tagDirectMessages?: boolean;
+            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -32672,6 +38331,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
          */
         showRoomUnreadCount?: boolean;
+        /**
+         * Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.
+         */
+        tagDirectMessages?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -32776,6 +38439,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
+            /**
+             * Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.
+             */
+            tagDirectMessages?: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
@@ -40494,7 +46161,7 @@ export type GetProjectsByIdCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         * Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
          */
         agendaOnly?: 'true' | 'false';
         /**
@@ -41645,6 +47312,139 @@ export type GetProjectsByIdSocialConnectionsStatisticsResponses = {
 
 export type GetProjectsByIdSocialConnectionsStatisticsResponse = GetProjectsByIdSocialConnectionsStatisticsResponses[keyof GetProjectsByIdSocialConnectionsStatisticsResponses];
 
+export type GetProjectsByIdSocialConnectionsStatisticsExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        provider?: ProjectSocialProvider;
+        connectionId?: string;
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        format?: 'csv' | 'xlsx';
+    };
+    url: '/projects/{id}/social-connections/statistics/export';
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportError = GetProjectsByIdSocialConnectionsStatisticsExportErrors[keyof GetProjectsByIdSocialConnectionsStatisticsExportErrors];
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportResponses = {
+    /**
+     * Statistics export
+     */
+    200: string;
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportResponse = GetProjectsByIdSocialConnectionsStatisticsExportResponses[keyof GetProjectsByIdSocialConnectionsStatisticsExportResponses];
+
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData = {
     body: RefreshSocialAccountStatisticsRequest;
     headers?: {
@@ -41794,6 +47594,158 @@ export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResp
 };
 
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponse = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query: {
+        timezone: string;
+    };
+    url: '/projects/{id}/social-connections/{connectionId}/suggested-times';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesError = GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses = {
+    /**
+     * Suggested posting hours
+     */
+    200: {
+        data: SocialConnectionSuggestedTimes;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponse = GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses];
 
 export type PostProjectsByIdSocialConnectionsInitiateData = {
     body: InitiateProjectSocialConnectionRequest;
@@ -42248,6 +48200,2535 @@ export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponses = {
 };
 
 export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponse = DeleteProjectsByIdSocialConnectionsByConnectionIdResponses[keyof DeleteProjectsByIdSocialConnectionsByConnectionIdResponses];
+
+export type GetProjectsByIdAdsAccountsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts';
+};
+
+export type GetProjectsByIdAdsAccountsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsError = GetProjectsByIdAdsAccountsErrors[keyof GetProjectsByIdAdsAccountsErrors];
+
+export type GetProjectsByIdAdsAccountsResponses = {
+    /**
+     * Project ad accounts
+     */
+    200: {
+        data: Array<ProjectAdAccount>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsResponse = GetProjectsByIdAdsAccountsResponses[keyof GetProjectsByIdAdsAccountsResponses];
+
+export type PostProjectsByIdAdsAccountsData = {
+    body: AttachProjectAdAccountsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts';
+};
+
+export type PostProjectsByIdAdsAccountsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsError = PostProjectsByIdAdsAccountsErrors[keyof PostProjectsByIdAdsAccountsErrors];
+
+export type PostProjectsByIdAdsAccountsResponses = {
+    /**
+     * Attached Project ad accounts
+     */
+    200: {
+        data: Array<ProjectAdAccount>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsResponse = PostProjectsByIdAdsAccountsResponses[keyof PostProjectsByIdAdsAccountsResponses];
+
+export type PostProjectsByIdAdsConnectionsInitiateData = {
+    body: InitiateProjectAdConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/initiate';
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateError = PostProjectsByIdAdsConnectionsInitiateErrors[keyof PostProjectsByIdAdsConnectionsInitiateErrors];
+
+export type PostProjectsByIdAdsConnectionsInitiateResponses = {
+    /**
+     * Project ad connection initiated
+     */
+    201: {
+        data: InitiateProjectSocialConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateResponse = PostProjectsByIdAdsConnectionsInitiateResponses[keyof PostProjectsByIdAdsConnectionsInitiateResponses];
+
+export type PostProjectsByIdAdsConnectionsFinalizeData = {
+    body: FinalizeProjectSocialConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/finalize';
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeError = PostProjectsByIdAdsConnectionsFinalizeErrors[keyof PostProjectsByIdAdsConnectionsFinalizeErrors];
+
+export type PostProjectsByIdAdsConnectionsFinalizeResponses = {
+    /**
+     * Project ad connection and its available ad accounts
+     */
+    200: {
+        data: FinalizeProjectAdConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeResponse = PostProjectsByIdAdsConnectionsFinalizeResponses[keyof PostProjectsByIdAdsConnectionsFinalizeResponses];
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}';
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdError = DeleteProjectsByIdAdsAccountsByAccountIdErrors[keyof DeleteProjectsByIdAdsAccountsByAccountIdErrors];
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdResponses = {
+    /**
+     * Ad account detached
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdResponse = DeleteProjectsByIdAdsAccountsByAccountIdResponses[keyof DeleteProjectsByIdAdsAccountsByAccountIdResponses];
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        adConnectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/{adConnectionId}';
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdError = DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors[keyof DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors];
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses = {
+    /**
+     * Ad connection discarded
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponse = DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses[keyof DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: {
+        /**
+         * Metrics window: the last 7 or 30 complete days, excluding today
+         */
+        range?: AdRange & unknown;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsError = GetProjectsByIdAdsAccountsByAccountIdCampaignsErrors[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses = {
+    /**
+     * Ad account campaigns
+     */
+    200: {
+        data: ListAdCampaignsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsResponse = GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses];
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsData = {
+    body: CreateAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns';
+};
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsError = PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors[keyof PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors];
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses = {
+    /**
+     * Campaign created (paused)
+     */
+    201: {
+        data: CreateAdCampaignResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsResponse = PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses[keyof PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: {
+        /**
+         * Metrics window: the last 7 or 30 complete days, excluding today
+         */
+        range?: AdRange & unknown;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign details
+     */
+    200: {
+        data: AdCampaignDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body: UpdateAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign updated
+     */
+    204: void;
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body: EditAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign edited, or nothing to change
+     */
+    204: void;
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: {
+        /**
+         * Place name to find, in any case (1-80 characters); send either `q` or `ids`
+         */
+        q?: string;
+        /**
+         * Comma-separated geo target constant ids (1-25); send either `q` or `ids`
+         */
+        ids?: string;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/locations';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsError = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses = {
+    /**
+     * Matching Google locations
+     */
+    200: {
+        data: ListGoogleLocationsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/languages';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesError = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses = {
+    /**
+     * Targetable Google languages
+     */
+    200: {
+        data: ListGoogleLanguagesResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses];
+
+export type GetProjectsByIdAdsMarketData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market';
+};
+
+export type GetProjectsByIdAdsMarketErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketError = GetProjectsByIdAdsMarketErrors[keyof GetProjectsByIdAdsMarketErrors];
+
+export type GetProjectsByIdAdsMarketResponses = {
+    /**
+     * Project ads market profile
+     */
+    200: {
+        data: GetAdMarketProfileResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketResponse = GetProjectsByIdAdsMarketResponses[keyof GetProjectsByIdAdsMarketResponses];
+
+export type PutProjectsByIdAdsMarketData = {
+    body: PutAdMarketProfileRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market';
+};
+
+export type PutProjectsByIdAdsMarketErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsMarketError = PutProjectsByIdAdsMarketErrors[keyof PutProjectsByIdAdsMarketErrors];
+
+export type PutProjectsByIdAdsMarketResponses = {
+    /**
+     * Saved Project ads market profile
+     */
+    200: {
+        data: PutAdMarketProfileResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsMarketResponse = PutProjectsByIdAdsMarketResponses[keyof PutProjectsByIdAdsMarketResponses];
+
+export type GetProjectsByIdAdsMarketKeywordsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market/keywords';
+};
+
+export type GetProjectsByIdAdsMarketKeywordsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketKeywordsError = GetProjectsByIdAdsMarketKeywordsErrors[keyof GetProjectsByIdAdsMarketKeywordsErrors];
+
+export type GetProjectsByIdAdsMarketKeywordsResponses = {
+    /**
+     * Market keywords
+     */
+    200: {
+        data: ListAdMarketKeywordsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketKeywordsResponse = GetProjectsByIdAdsMarketKeywordsResponses[keyof GetProjectsByIdAdsMarketKeywordsResponses];
+
+export type GetProjectsByIdAdsMarketAdsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market/ads';
+};
+
+export type GetProjectsByIdAdsMarketAdsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketAdsError = GetProjectsByIdAdsMarketAdsErrors[keyof GetProjectsByIdAdsMarketAdsErrors];
+
+export type GetProjectsByIdAdsMarketAdsResponses = {
+    /**
+     * Market ads
+     */
+    200: {
+        data: ListAdMarketAdsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketAdsResponse = GetProjectsByIdAdsMarketAdsResponses[keyof GetProjectsByIdAdsMarketAdsResponses];
 
 export type GetProjectsByIdSocialPostsData = {
     body?: never;
@@ -43418,6 +51899,275 @@ export type PostProjectsByIdSocialPostsByPostIdScheduleResponses = {
 
 export type PostProjectsByIdSocialPostsByPostIdScheduleResponse = PostProjectsByIdSocialPostsByPostIdScheduleResponses[keyof PostProjectsByIdSocialPostsByPostIdScheduleResponses];
 
+export type PostProjectsByIdSocialPostsByPostIdApproveData = {
+    body: ApproveSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/approve';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdApproveError = PostProjectsByIdSocialPostsByPostIdApproveErrors[keyof PostProjectsByIdSocialPostsByPostIdApproveErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdApproveResponses = {
+    /**
+     * Social post approved
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdApproveResponse = PostProjectsByIdSocialPostsByPostIdApproveResponses[keyof PostProjectsByIdSocialPostsByPostIdApproveResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdRejectData = {
+    body: RejectSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/reject';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdRejectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdRejectError = PostProjectsByIdSocialPostsByPostIdRejectErrors[keyof PostProjectsByIdSocialPostsByPostIdRejectErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdRejectResponses = {
+    /**
+     * Social post rejected
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdRejectResponse = PostProjectsByIdSocialPostsByPostIdRejectResponses[keyof PostProjectsByIdSocialPostsByPostIdRejectResponses];
+
 export type PostProjectsByIdSocialPostsByPostIdCancelData = {
     body: CancelSocialPostRequest;
     headers?: {
@@ -43567,6 +52317,306 @@ export type PostProjectsByIdSocialPostsByPostIdCancelResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdCancelResponse = PostProjectsByIdSocialPostsByPostIdCancelResponses[keyof PostProjectsByIdSocialPostsByPostIdCancelResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/duplicate';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateError = PostProjectsByIdSocialPostsByPostIdDuplicateErrors[keyof PostProjectsByIdSocialPostsByPostIdDuplicateErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateResponses = {
+    /**
+     * Social post duplicated
+     */
+    201: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateResponse = PostProjectsByIdSocialPostsByPostIdDuplicateResponses[keyof PostProjectsByIdSocialPostsByPostIdDuplicateResponses];
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData = {
+    body: RecycleSocialAccountPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        accountPostId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-account-posts/{accountPostId}/recycle';
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleError = PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors[keyof PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors];
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses = {
+    /**
+     * Social post recycled
+     */
+    201: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponse = PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses[keyof PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses];
 
 export type GetProjectsByIdImageStudioData = {
     body?: never;
@@ -43794,6 +52844,162 @@ export type PostProjectsByIdImageStudioJobsResponses = {
 
 export type PostProjectsByIdImageStudioJobsResponse = PostProjectsByIdImageStudioJobsResponses[keyof PostProjectsByIdImageStudioJobsResponses];
 
+export type PostProjectsByIdImageStudioVideoJobsData = {
+    body: CreateProjectVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/video-jobs';
+};
+
+export type PostProjectsByIdImageStudioVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioVideoJobsError = PostProjectsByIdImageStudioVideoJobsErrors[keyof PostProjectsByIdImageStudioVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioVideoJobsResponses = {
+    /**
+     * Video generation started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioVideoJobsResponse = PostProjectsByIdImageStudioVideoJobsResponses[keyof PostProjectsByIdImageStudioVideoJobsResponses];
+
 export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
     body?: never;
     headers?: {
@@ -43974,9 +53180,13 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentError = GetProjectsB
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
     /**
-     * Image bytes
+     * Image or video bytes
      */
     200: Blob | File;
+    /**
+     * The requested byte range of a video
+     */
+    206: Blob | File;
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
@@ -47221,6 +56431,173 @@ export type GetInvitationsByIdResponses = {
 
 export type GetInvitationsByIdResponse = GetInvitationsByIdResponses[keyof GetInvitationsByIdResponses];
 
+export type GetShareDriveByTokenData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/drive/{token}';
+};
+
+export type GetShareDriveByTokenErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareDriveByTokenError = GetShareDriveByTokenErrors[keyof GetShareDriveByTokenErrors];
+
+export type GetShareDriveByTokenResponses = {
+    /**
+     * Shared file or folder
+     */
+    200: {
+        data: PublicDriveShare;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareDriveByTokenResponse = GetShareDriveByTokenResponses[keyof GetShareDriveByTokenResponses];
+
+export type PostShareDriveByTokenUnlockData = {
+    body: UnlockDriveShareRequest;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/drive/{token}/unlock';
+};
+
+export type PostShareDriveByTokenUnlockErrors = {
+    /**
+     * Wrong password
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too many wrong passwords
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostShareDriveByTokenUnlockError = PostShareDriveByTokenUnlockErrors[keyof PostShareDriveByTokenUnlockErrors];
+
+export type PostShareDriveByTokenUnlockResponses = {
+    /**
+     * Unlocked
+     */
+    200: {
+        data: UnlockDriveShareResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostShareDriveByTokenUnlockResponse = PostShareDriveByTokenUnlockResponses[keyof PostShareDriveByTokenUnlockResponses];
+
+export type GetShareDriveByTokenDownloadData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: {
+        path?: string;
+    };
+    url: '/share/drive/{token}/download';
+};
+
+export type GetShareDriveByTokenDownloadErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareDriveByTokenDownloadError = GetShareDriveByTokenDownloadErrors[keyof GetShareDriveByTokenDownloadErrors];
+
+export type GetShareDriveByTokenDownloadResponses = {
+    /**
+     * Download
+     */
+    200: {
+        data: DriveShareDownload;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareDriveByTokenDownloadResponse = GetShareDriveByTokenDownloadResponses[keyof GetShareDriveByTokenDownloadResponses];
+
 export type GetShareByTokenData = {
     body?: never;
     path: {
@@ -47738,7 +57115,7 @@ export type ArchiveMySokoBotErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
      */
     403: {
         error: string;
@@ -47824,7 +57201,7 @@ export type GetMySokoBotError = GetMySokoBotErrors[keyof GetMySokoBotErrors];
 
 export type GetMySokoBotResponses = {
     /**
-     * Current user's Soko Bot state
+     * Current user's Soko Bot state, and the shared bots they can reach
      */
     200: {
         data: SokoBotState;
@@ -48081,7 +57458,7 @@ export type DeleteMySokoBotPermanentlyErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
      */
     403: {
         error: string;
@@ -48473,7 +57850,7 @@ export type CancelMySokoBotTurnErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden: on a shared Soko Bot, only the member who asked or an organization owner or admin
      */
     403: {
         error: string;
@@ -48548,7 +57925,7 @@ export type ResetMySokoBotMemoryErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
      */
     403: {
         error: string;
@@ -48893,7 +58270,7 @@ export type ResolveMySokoBotDecisionErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden: on a shared Soko Bot, only the member who asked or an organization owner or admin
      */
     403: {
         error: string;
@@ -50632,6 +60009,2012 @@ export type JudgeMySokoBotLabTurnResponses = {
 };
 
 export type JudgeMySokoBotLabTurnResponse = JudgeMySokoBotLabTurnResponses[keyof JudgeMySokoBotLabTurnResponses];
+
+export type CreateSokoBotData = {
+    body?: CreateScopedSokoBotRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots';
+};
+
+export type CreateSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateSokoBotError = CreateSokoBotErrors[keyof CreateSokoBotErrors];
+
+export type CreateSokoBotResponses = {
+    /**
+     * Created Soko Bot
+     */
+    201: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateSokoBotResponse = CreateSokoBotResponses[keyof CreateSokoBotResponses];
+
+export type GetSokoBotActivityData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/activity';
+};
+
+export type GetSokoBotActivityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotActivityError = GetSokoBotActivityErrors[keyof GetSokoBotActivityErrors];
+
+export type GetSokoBotActivityResponses = {
+    /**
+     * Whether the assistant is working right now
+     */
+    200: {
+        data: SokoBotActivity;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotActivityResponse = GetSokoBotActivityResponses[keyof GetSokoBotActivityResponses];
+
+export type ArchiveSokoBotData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}';
+};
+
+export type ArchiveSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ArchiveSokoBotError = ArchiveSokoBotErrors[keyof ArchiveSokoBotErrors];
+
+export type ArchiveSokoBotResponses = {
+    /**
+     * Archive Soko Bot
+     */
+    200: {
+        data: {
+            archived: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ArchiveSokoBotResponse = ArchiveSokoBotResponses[keyof ArchiveSokoBotResponses];
+
+export type GetSokoBotData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}';
+};
+
+export type GetSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotError = GetSokoBotErrors[keyof GetSokoBotErrors];
+
+export type GetSokoBotResponses = {
+    /**
+     * Soko Bot state
+     */
+    200: {
+        data: SokoBotState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotResponse = GetSokoBotResponses[keyof GetSokoBotResponses];
+
+export type ReactivateSokoBotData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}';
+};
+
+export type ReactivateSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReactivateSokoBotError = ReactivateSokoBotErrors[keyof ReactivateSokoBotErrors];
+
+export type ReactivateSokoBotResponses = {
+    /**
+     * Reactivated Soko Bot
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReactivateSokoBotResponse = ReactivateSokoBotResponses[keyof ReactivateSokoBotResponses];
+
+export type ResetSokoBotMemoryData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/memory/reset';
+};
+
+export type ResetSokoBotMemoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResetSokoBotMemoryError = ResetSokoBotMemoryErrors[keyof ResetSokoBotMemoryErrors];
+
+export type ResetSokoBotMemoryResponses = {
+    /**
+     * Reset Soko Bot memory
+     */
+    200: {
+        data: SokoBotMemory;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResetSokoBotMemoryResponse = ResetSokoBotMemoryResponses[keyof ResetSokoBotMemoryResponses];
+
+export type DeleteSokoBotPermanentlyData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/permanent';
+};
+
+export type DeleteSokoBotPermanentlyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotPermanentlyError = DeleteSokoBotPermanentlyErrors[keyof DeleteSokoBotPermanentlyErrors];
+
+export type DeleteSokoBotPermanentlyResponses = {
+    /**
+     * Soko Bot deleted; the owner may create a new one immediately
+     */
+    200: {
+        data: SokoBotDeletionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotPermanentlyResponse = DeleteSokoBotPermanentlyResponses[keyof DeleteSokoBotPermanentlyResponses];
+
+export type UpdateSokoBotProactiveData = {
+    body?: UpdateSokoBotProactiveRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/proactive';
+};
+
+export type UpdateSokoBotProactiveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateSokoBotProactiveError = UpdateSokoBotProactiveErrors[keyof UpdateSokoBotProactiveErrors];
+
+export type UpdateSokoBotProactiveResponses = {
+    /**
+     * Bot with the new settings
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateSokoBotProactiveResponse = UpdateSokoBotProactiveResponses[keyof UpdateSokoBotProactiveResponses];
+
+export type UpdateSokoBotBoardFollowingData = {
+    body?: UpdateSokoBotBoardFollowingRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/board-following';
+};
+
+export type UpdateSokoBotBoardFollowingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateSokoBotBoardFollowingError = UpdateSokoBotBoardFollowingErrors[keyof UpdateSokoBotBoardFollowingErrors];
+
+export type UpdateSokoBotBoardFollowingResponses = {
+    /**
+     * Bot with the new setting
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateSokoBotBoardFollowingResponse = UpdateSokoBotBoardFollowingResponses[keyof UpdateSokoBotBoardFollowingResponses];
+
+export type ResolveSokoBotDecisionData = {
+    body?: ResolveSokoBotDecisionRequest;
+    path: {
+        decisionId: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/decisions/{decisionId}';
+};
+
+export type ResolveSokoBotDecisionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: on a shared Soko Bot, only the member who asked or an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResolveSokoBotDecisionError = ResolveSokoBotDecisionErrors[keyof ResolveSokoBotDecisionErrors];
+
+export type ResolveSokoBotDecisionResponses = {
+    /**
+     * Resolve Soko Bot decision
+     */
+    200: {
+        data: SokoBotPendingDecision;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResolveSokoBotDecisionResponse = ResolveSokoBotDecisionResponses[keyof ResolveSokoBotDecisionResponses];
+
+export type CancelSokoBotTurnData = {
+    body?: never;
+    path: {
+        turnId: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/turns/{turnId}/cancel';
+};
+
+export type CancelSokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: on a shared Soko Bot, only the member who asked or an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CancelSokoBotTurnError = CancelSokoBotTurnErrors[keyof CancelSokoBotTurnErrors];
+
+export type CancelSokoBotTurnResponses = {
+    /**
+     * Cancel requested
+     */
+    200: {
+        data: {
+            cancellationRequested: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CancelSokoBotTurnResponse = CancelSokoBotTurnResponses[keyof CancelSokoBotTurnResponses];
+
+export type GetSokoBotTurnData = {
+    body?: never;
+    path: {
+        turnId: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/turns/{turnId}';
+};
+
+export type GetSokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotTurnError = GetSokoBotTurnErrors[keyof GetSokoBotTurnErrors];
+
+export type GetSokoBotTurnResponses = {
+    /**
+     * Get Soko Bot turn
+     */
+    200: {
+        data: SokoBotTurn;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotTurnResponse = GetSokoBotTurnResponses[keyof GetSokoBotTurnResponses];
+
+export type GetSokoBotTurnResultsData = {
+    body?: never;
+    path: {
+        turnId: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/turns/{turnId}/results';
+};
+
+export type GetSokoBotTurnResultsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotTurnResultsError = GetSokoBotTurnResultsErrors[keyof GetSokoBotTurnResultsErrors];
+
+export type GetSokoBotTurnResultsResponses = {
+    /**
+     * Authorized recorded turn results
+     */
+    200: {
+        data: Array<ChatResultPreview>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotTurnResultsResponse = GetSokoBotTurnResultsResponses[keyof GetSokoBotTurnResultsResponses];
+
+export type ListSokoBotTurnsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/soko-bots/{sokoBotId}/turns';
+};
+
+export type ListSokoBotTurnsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotTurnsError = ListSokoBotTurnsErrors[keyof ListSokoBotTurnsErrors];
+
+export type ListSokoBotTurnsResponses = {
+    /**
+     * List Soko Bot turns
+     */
+    200: {
+        data: Array<SokoBotTurn>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotTurnsResponse = ListSokoBotTurnsResponses[keyof ListSokoBotTurnsResponses];
+
+export type StartSokoBotTurnData = {
+    body?: StartSokoBotTurnRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/turns';
+};
+
+export type StartSokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartSokoBotTurnError = StartSokoBotTurnErrors[keyof StartSokoBotTurnErrors];
+
+export type StartSokoBotTurnResponses = {
+    /**
+     * Soko Bot turn accepted
+     */
+    201: {
+        data: StartSokoBotTurnResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartSokoBotTurnResponse2 = StartSokoBotTurnResponses[keyof StartSokoBotTurnResponses];
+
+export type GetSokoBotUsageData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/usage';
+};
+
+export type GetSokoBotUsageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotUsageError = GetSokoBotUsageErrors[keyof GetSokoBotUsageErrors];
+
+export type GetSokoBotUsageResponses = {
+    /**
+     * Lifetime usage and cost
+     */
+    200: {
+        data: SokoBotUsage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotUsageResponse = GetSokoBotUsageResponses[keyof GetSokoBotUsageResponses];
+
+export type UpdateSokoBotVersionData = {
+    body?: UpdateSokoBotVersionRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/version';
+};
+
+export type UpdateSokoBotVersionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateSokoBotVersionError = UpdateSokoBotVersionErrors[keyof UpdateSokoBotVersionErrors];
+
+export type UpdateSokoBotVersionResponses = {
+    /**
+     * Bot with the new version
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateSokoBotVersionResponse = UpdateSokoBotVersionResponses[keyof UpdateSokoBotVersionResponses];
+
+export type ListSokoBotIntegrationsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/integrations';
+};
+
+export type ListSokoBotIntegrationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotIntegrationsError = ListSokoBotIntegrationsErrors[keyof ListSokoBotIntegrationsErrors];
+
+export type ListSokoBotIntegrationsResponses = {
+    /**
+     * Every provider with the bot's connection state
+     */
+    200: {
+        data: SokoBotIntegrations;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotIntegrationsResponse = ListSokoBotIntegrationsResponses[keyof ListSokoBotIntegrationsResponses];
+
+export type ConnectSokoBotIntegrationData = {
+    body?: ConnectSokoBotIntegrationRequest;
+    path: {
+        provider: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/integrations/{provider}/connect';
+};
+
+export type ConnectSokoBotIntegrationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: replacing another member's account needs that member or an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConnectSokoBotIntegrationError = ConnectSokoBotIntegrationErrors[keyof ConnectSokoBotIntegrationErrors];
+
+export type ConnectSokoBotIntegrationResponses = {
+    /**
+     * Where to send the member to authorise the account
+     */
+    200: {
+        data: ConnectSokoBotIntegrationResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConnectSokoBotIntegrationResponse2 = ConnectSokoBotIntegrationResponses[keyof ConnectSokoBotIntegrationResponses];
+
+export type CompleteSokoBotIntegrationAuthData = {
+    body?: CompleteSokoBotIntegrationAuthRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/integrations/complete-auth';
+};
+
+export type CompleteSokoBotIntegrationAuthErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteSokoBotIntegrationAuthError = CompleteSokoBotIntegrationAuthErrors[keyof CompleteSokoBotIntegrationAuthErrors];
+
+export type CompleteSokoBotIntegrationAuthResponses = {
+    /**
+     * Connection state after Composio verified the returning member
+     */
+    200: {
+        data: CompleteSokoBotIntegrationAuthResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CompleteSokoBotIntegrationAuthResponse2 = CompleteSokoBotIntegrationAuthResponses[keyof CompleteSokoBotIntegrationAuthResponses];
+
+export type DisconnectSokoBotIntegrationData = {
+    body?: never;
+    path: {
+        provider: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/integrations/{provider}';
+};
+
+export type DisconnectSokoBotIntegrationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DisconnectSokoBotIntegrationError = DisconnectSokoBotIntegrationErrors[keyof DisconnectSokoBotIntegrationErrors];
+
+export type DisconnectSokoBotIntegrationResponses = {
+    /**
+     * Disconnected
+     */
+    200: {
+        data: {
+            disconnected: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DisconnectSokoBotIntegrationResponse = DisconnectSokoBotIntegrationResponses[keyof DisconnectSokoBotIntegrationResponses];
+
+export type CreateSokoBotScheduleData = {
+    body?: CreateSokoBotScheduleRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/schedules';
+};
+
+export type CreateSokoBotScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateSokoBotScheduleError = CreateSokoBotScheduleErrors[keyof CreateSokoBotScheduleErrors];
+
+export type CreateSokoBotScheduleResponses = {
+    /**
+     * Create Soko Bot schedule
+     */
+    201: {
+        data: SokoBotSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateSokoBotScheduleResponse = CreateSokoBotScheduleResponses[keyof CreateSokoBotScheduleResponses];
+
+export type DeleteSokoBotScheduleData = {
+    body?: never;
+    path: {
+        scheduleId: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/schedules/{scheduleId}';
+};
+
+export type DeleteSokoBotScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotScheduleError = DeleteSokoBotScheduleErrors[keyof DeleteSokoBotScheduleErrors];
+
+export type DeleteSokoBotScheduleResponses = {
+    /**
+     * Delete Soko Bot schedule
+     */
+    200: {
+        data: {
+            deleted: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotScheduleResponse = DeleteSokoBotScheduleResponses[keyof DeleteSokoBotScheduleResponses];
+
+export type UpdateSokoBotScheduleData = {
+    body?: UpdateSokoBotScheduleRequest;
+    path: {
+        scheduleId: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/schedules/{scheduleId}';
+};
+
+export type UpdateSokoBotScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateSokoBotScheduleError = UpdateSokoBotScheduleErrors[keyof UpdateSokoBotScheduleErrors];
+
+export type UpdateSokoBotScheduleResponses = {
+    /**
+     * Update Soko Bot schedule
+     */
+    200: {
+        data: SokoBotSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateSokoBotScheduleResponse = UpdateSokoBotScheduleResponses[keyof UpdateSokoBotScheduleResponses];
+
+export type GetSokoBotStatsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/stats';
+};
+
+export type GetSokoBotStatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotStatsError = GetSokoBotStatsErrors[keyof GetSokoBotStatsErrors];
+
+export type GetSokoBotStatsResponses = {
+    /**
+     * What the bot did per day over the last 30 days
+     */
+    200: {
+        data: SokoBotDailyStats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotStatsResponse = GetSokoBotStatsResponses[keyof GetSokoBotStatsResponses];
 
 export type GetCoworkersData = {
     body?: never;
@@ -60142,7 +71525,7 @@ export type GetWorkspacesCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         * Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
          */
         agendaOnly?: 'true' | 'false';
         /**
@@ -60294,7 +71677,16 @@ export type GetWorkspacesCalendarSourcesData = {
         'X-Context-Organization-Id'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+    };
     url: '/workspaces/calendar/sources';
 };
 
@@ -60348,6 +71740,21 @@ export type GetWorkspacesCalendarSourcesErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -60572,3 +71979,280 @@ export type GetWorkspacesByIdResponses = {
 };
 
 export type GetWorkspacesByIdResponse = GetWorkspacesByIdResponses[keyof GetWorkspacesByIdResponses];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        connectionId?: string;
+    };
+    url: '/workspaces/{id}/social-connections/statistics';
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsError = GetWorkspacesByIdSocialConnectionsStatisticsErrors[keyof GetWorkspacesByIdSocialConnectionsStatisticsErrors];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsResponses = {
+    /**
+     * Workspace social account statistics
+     */
+    200: {
+        data: SocialAccountStatisticsPage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsResponse = GetWorkspacesByIdSocialConnectionsStatisticsResponses[keyof GetWorkspacesByIdSocialConnectionsStatisticsResponses];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        provider?: ProjectSocialProvider;
+        connectionId?: string;
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        format?: 'csv' | 'xlsx';
+    };
+    url: '/workspaces/{id}/social-connections/statistics/export';
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportError = GetWorkspacesByIdSocialConnectionsStatisticsExportErrors[keyof GetWorkspacesByIdSocialConnectionsStatisticsExportErrors];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportResponses = {
+    /**
+     * Statistics export
+     */
+    200: string;
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportResponse = GetWorkspacesByIdSocialConnectionsStatisticsExportResponses[keyof GetWorkspacesByIdSocialConnectionsStatisticsExportResponses];

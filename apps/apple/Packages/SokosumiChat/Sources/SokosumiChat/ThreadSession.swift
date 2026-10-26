@@ -2,44 +2,25 @@ import Combine
 import CoreAPI
 import Foundation
 
-/// One open thread. The parent is separate from replies so parent edits never
-/// duplicate the root below the divider. Closing drops only local send state.
+/// One open thread: its parent, the reader's mute and the replies' Transcript. The parent is separate from replies so
+/// parent edits never duplicate the root below the divider. Closing drops only local send state.
 @MainActor
 public final class ThreadSession: ObservableObject {
   public typealias Message = Components.Schemas.ChatRoomMessage
 
-  public struct JumpTarget: Equatable, Sendable {
-    public let requestId = UUID()
-    public let messageId: String
-    /// Nil until the prepared reply is ready to land. Its hold must not consume a pending jump.
-    public fileprivate(set) var mark: JumpMark?
-  }
-
-  @Published public private(set) var jumpTarget: JumpTarget?
   @Published public private(set) var parent: Message?
   /// The reader's mute on this thread; nil while no thread is open.
   @Published public private(set) var mute: ThreadMuteState?
-  public let timeline = RoomTimeline()
-  public let outbox: RoomOutbox
-  public let recovery: ChatRefreshScheduler
-  public private(set) var loadTask: Task<Void, Never>?
-  private var transcriptObservation: AnyCancellable?
+  /// The replies below the parent.
+  public let transcript: TranscriptSession
   private let service = ChatService()
   private let now: () -> Date
-  private let makeId: () -> String
 
-  /// `recoverySleep` paces the recovery timer.
+  /// `sleep` paces the recovery timer and the Send queue's timers.
   public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString },
-              recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+              sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
     self.now = now
-    self.makeId = makeId
-    recovery = ChatRefreshScheduler(sleep: recoverySleep)
-    outbox = RoomOutbox(now: now)
-    transcriptObservation = timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
-  }
-
-  public var displayedReplies: [Message] {
-    displayedTranscript(messages: timeline.messages, shells: outbox.shells)
+    transcript = TranscriptSession(now: now, makeId: makeId, sleep: sleep)
   }
 
   @discardableResult
@@ -49,54 +30,14 @@ public final class ThreadSession: ObservableObject {
       parent = message
       return true
     }
-    close()
+    transcript.open(roomId: message.roomId, parentMessageId: message.id)
     parent = message
     mute = ThreadMuteState(roomId: message.roomId, parentMessageId: message.id)
-    timeline.reset(roomId: message.roomId, parentMessageId: message.id)
     return true
   }
 
-  public func requestJump(to messageId: String) {
-    guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
-    jumpTarget = JumpTarget(messageId: messageId)
-  }
-
-  /// Start the hold only after the view has issued the scroll to the prepared row. A late acknowledgement
-  /// cannot mark a replacement request, and another layout pass cannot restart an existing hold.
-  public func landJump(_ requestId: UUID) {
-    guard let target = jumpTarget, target.requestId == requestId, target.mark == nil else { return }
-    jumpTarget?.mark = JumpMark(messageId: target.messageId, landedAt: now())
-  }
-
-  /// A reader scroll in the thread (web `fadeOutHighlight`): the mark fades out, or ends outright outside its
-  /// full-strength stretch. The room transcript's mark is its own.
-  public func readerScrolled() {
-    guard let target = jumpTarget, let currentMark = target.mark else { return }
-    guard let mark = currentMark.readerScrolled(at: now()) else { return clearJump() }
-    if mark != target.mark {
-      jumpTarget?.mark = mark
-    }
-  }
-
-  /// Drop the jump once its mark has run out (web `landOn`'s timer).
-  public func endJumpIfMarkEnded() {
-    if jumpTarget?.mark?.stage(at: now()) == .ended {
-      clearJump()
-    }
-  }
-
-  public func clearJump() {
-    guard jumpTarget != nil else { return }
-    jumpTarget = nil
-  }
-
   public func close() {
-    jumpTarget = nil
-    loadTask?.cancel()
-    loadTask = nil
-    recovery.stop()
-    outbox.reset()
-    timeline.reset()
+    transcript.close()
     parent = nil
     mute = nil
   }
@@ -105,11 +46,11 @@ public final class ThreadSession: ObservableObject {
   /// caller reads again when the first reply lands.
   public func readMute(client: Client, organizationSlug: String?) async throws {
     guard let parent, mute?.needsRead == true else { return }
-    let generation = timeline.generation
+    let generation = transcript.timeline.generation
     let thread = try await service.getThread(
       client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug
     )
-    guard generation == timeline.generation else { return }
+    guard generation == transcript.timeline.generation else { return }
     mute?.read(mutedAt: thread.mutedAt)
   }
 
@@ -118,19 +59,19 @@ public final class ThreadSession: ObservableObject {
   @discardableResult
   public func toggleMute(client: Client, organizationSlug: String?) async throws -> Bool {
     guard let parent, let muted = mute?.beginToggle() else { return false }
-    let generation = timeline.generation
+    let generation = transcript.timeline.generation
     do {
       let thread = if muted {
         try await service.muteThread(client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug)
       } else {
         try await service.unmuteThread(client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug)
       }
-      if generation == timeline.generation {
+      if generation == transcript.timeline.generation {
         mute?.settle(mutedAt: thread.mutedAt)
       }
       return true
     } catch {
-      if generation == timeline.generation {
+      if generation == transcript.timeline.generation {
         mute?.fail()
       }
       throw error
@@ -141,49 +82,19 @@ public final class ThreadSession: ObservableObject {
     mute?.dismissFailure()
   }
 
-  /// Serialize page reads. Initial thread attention precedes the first GET;
-  /// subsequent reads update attention after the new content is available.
-  public func loadPage(
-    _ page: RoomTimeline.Page, client: Client, organizationSlug: String?,
-    syncAttention: @escaping () async -> Void, failed: @escaping (Error) -> Void
-  ) {
-    guard parent != nil, loadTask == nil else { return }
-    let generation = timeline.generation
-    loadTask = Task { [weak self] in
-      guard let self, timeline.generation == generation else { return }
-      defer {
-        if timeline.generation == generation {
-          loadTask = nil
-        }
-      }
-      if page == .initial {
-        await syncAttention()
-      }
-      guard timeline.generation == generation, !Task.isCancelled else { return }
-      do {
-        let loaded = try await timeline.loadPage(page, client: client, organizationSlug: organizationSlug, generation: generation)
-        if loaded, page != .initial {
-          await syncAttention()
-        }
-      } catch {
-        guard timeline.generation == generation, !Task.isCancelled else { return }
-        failed(error)
-      }
-    }
-  }
-
   /// The caller performs its visibility-gated room read after this succeeds,
   /// before fetching replies, matching web's thread-look then room-read order.
   public func markLooked(client: Client, organizationSlug: String?) async throws -> Bool {
     guard let parent else { return false }
-    let generation = timeline.generation
-    _ = try await ChatService().markThreadRead(
+    let generation = transcript.timeline.generation
+    _ = try await service.markThreadRead(
       client: client, roomId: parent.roomId, parentMessageId: parent.id,
       organizationSlug: organizationSlug
     )
-    return generation == timeline.generation && !Task.isCancelled
+    return generation == transcript.timeline.generation && !Task.isCancelled
   }
 
+  /// A reply, sent through the Transcript; once Core confirms it the parent's reply bar counts it.
   @discardableResult
   public func send(
     _ content: String, client: Client, organizationSlug: String?,
@@ -193,30 +104,16 @@ public final class ThreadSession: ObservableObject {
     skills: [Components.Schemas.ChatRoomMessageSkill] = [],
     settled: @escaping (Result<Message, Error>) -> Void
   ) -> Bool {
-    let draft = ComposerContent(content)
-    guard let parent, draft.canSend(quoted: quote != nil) else { return false }
-    let id = makeId()
-    let shell = OutboundShell(
-      clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
-      content: draft.text, quote: quote, skills: skills, createdAt: now(), sender: sender
-    )
-    outbox.enqueue(shell, send: { [service] in
-      try await service.createMessage(
-        client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
-        parentMessageId: parent.id, mentions: mentions, quote: quote, skillIds: skills.map(\.id),
-        organizationSlug: organizationSlug
-      )
-    }, confirmed: { [weak self] message in
-      guard let self else { return }
-      timeline.messages = confirmOutbound(
-        messages: timeline.messages, shells: [], confirmed: message, clientTurnId: id
-      ).messages
-      if let parent = self.parent {
+    guard parent != nil else { return false }
+    return transcript.send(
+      content, client: client, organizationSlug: organizationSlug, sender: sender,
+      mentions: mentions, quote: quote, skills: skills
+    ) { [weak self] result in
+      if case let .success(message) = result, let self, let parent {
         self.parent = applyingReplyToParentThreadPreview(parent, reply: message)
       }
-      settled(.success(message))
-    }, failed: { settled(.failure($0)) })
-    return true
+      settled(result)
+    }
   }
 
   public func apply(eventType: ChatRoomMessageRealtimeEventType, message: Message) {
@@ -229,12 +126,7 @@ public final class ThreadSession: ObservableObject {
       }
       return
     }
-    let result = applyRealtimeFullEvent(
-      messages: timeline.messages, shells: outbox.shells,
-      eventType: eventType, message: message, parentMessageId: parent.id
-    )
-    timeline.messages = result.messages
-    outbox.reconcile(result.shells, confirmed: message)
+    transcript.apply(eventType: eventType, message: message)
   }
 
   public func apply(_ patch: RealtimeMessagePatch) {
@@ -242,7 +134,7 @@ public final class ThreadSession: ObservableObject {
     if patch.messageId == parent.id, patch.parentMessageId == nil {
       self.parent = applyRealtimePatch(patch, messages: [parent]).first
     } else {
-      timeline.messages = applyRealtimePatch(patch, messages: timeline.messages, parentMessageId: parent.id)
+      transcript.apply(patch)
     }
   }
 
@@ -258,13 +150,7 @@ public final class ThreadSession: ObservableObject {
       }
       return true
     }
-    switch resolveRealtimeEnvelope(envelope, focusedRoomId: parent.roomId, parentMessageId: parent.id) {
-    case let .tombstone(id):
-      timeline.messages = applyRealtimeTombstone(messages: timeline.messages, messageId: id, now: now())
-    case .needsRefetch:
-      recovery.requestRefresh()
-    case .ignore: break
-    }
+    transcript.apply(envelope)
     return false
   }
 }

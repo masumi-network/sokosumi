@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { LIMITS } from "@/config/constants";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -23,13 +23,12 @@ import {
   chatRoomSchema,
 } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-
+import { getChatRoomNeedsYouCounts } from "@/services/chat-signal-views.service";
 import {
   chatRoomInclude,
   getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
   getPeerInActiveOrganizationFlags,
-  isOrganizationOwnerOrAdmin,
   loadFormerDirectUserMembers,
   mapChatRoom,
   membershipVisibleActiveRoomWhere,
@@ -184,6 +183,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       unreadCounts,
       unreadThreads,
       unreadMentionCounts,
+      needsYouCounts,
       sidebarFlags,
       pinnedMessageCounts,
       peerInActiveOrganizationFlags,
@@ -195,6 +195,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         listUnreadThreadsOfRoomsWithThreadUnread(counts, userId, prisma),
       ),
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
+      getChatRoomNeedsYouCounts(roomIds, userId, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),
       getPeerInActiveOrganizationFlags(rooms, userId, organizationId, prisma),
@@ -229,6 +230,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...unreadCountFields(unreadCounts.get(room.id)),
             unreadThreads: unreadThreads.get(room.id),
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
+            unreadNeedsYouCount: needsYouCounts.get(room.id) ?? 0,
             starredAt: flags?.starredAt ?? null,
             pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
             mutedAt: flags?.mutedAt ?? null,

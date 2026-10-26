@@ -116,6 +116,8 @@ const GUEST_ID = "user_guest";
 const COWORKER_ID = "cow_soupie";
 const OWN_BOT_ID = "01960001-0001-7001-8001-000000000001";
 const FRANCIS_BOT_ID = "01960001-0001-7001-8001-000000000002";
+const SHARED_BOT_ID = "01960001-0001-7001-8001-000000000003";
+const OTHER_ROOM_ID = "550e8400-e29b-41d4-a716-446655440001";
 
 function person(userId: string, name: string, access = "member") {
   return {
@@ -125,7 +127,12 @@ function person(userId: string, name: string, access = "member") {
   };
 }
 
-function bot(id: string, ownerUserId: string, name: string) {
+function bot(
+  id: string,
+  ownerUserId: string | null,
+  name: string,
+  shared: { projectId?: string | null; sharedRoomId?: string | null } = {},
+) {
   return {
     sokoBot: {
       id,
@@ -133,7 +140,9 @@ function bot(id: string, ownerUserId: string, name: string) {
       avatarImageUrl: null,
       avatarSeed: null,
       userId: ownerUserId,
-      user: { name: "Owner" },
+      projectId: shared.projectId ?? null,
+      sharedRoomId: shared.sharedRoomId ?? null,
+      user: ownerUserId === null ? null : { name: "Owner" },
     },
   };
 }
@@ -301,6 +310,83 @@ describe("POST /chats/rooms/{id}/members", () => {
     expect(mocks.sokoBotMemberCreateMany).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["project", "project_1"],
+    ["workspace", null],
+  ] as const)(
+    "lets any host member add a shared %s Soko Bot",
+    async (_scope, projectId) => {
+      mocks.roomFindFirst.mockResolvedValue(
+        channel({ discoverability: "public", sokoBotMembers: [] }),
+      );
+      mocks.sokoBotFindMany.mockResolvedValue([
+        {
+          id: SHARED_BOT_ID,
+          userId: null,
+          projectId,
+          name: "Team Bot",
+          workspace: { organizationId: "org_1" },
+        },
+      ]);
+
+      const response = await request(MEMBER_ID, "POST", "/members", {
+        sokoBotIds: [SHARED_BOT_ID],
+      });
+
+      expect(response.status).toBe(200);
+      expect(mocks.sokoBotMemberCreateMany).toHaveBeenCalledWith({
+        data: [{ roomId: ROOM_ID, sokoBotId: SHARED_BOT_ID }],
+        skipDuplicates: true,
+      });
+      expect(statusContents()).toEqual(["Francis added Team Bot"]);
+    },
+  );
+
+  it.each(["private", "external"])(
+    "refuses a shared Soko Bot in a %s Channel",
+    async (discoverability) => {
+      mocks.roomFindFirst.mockResolvedValue(
+        channel({ discoverability, sokoBotMembers: [] }),
+      );
+      mocks.sokoBotFindMany.mockResolvedValue([
+        {
+          id: SHARED_BOT_ID,
+          userId: null,
+          projectId: null,
+          name: "Team Bot",
+          workspace: { organizationId: "org_1" },
+        },
+      ]);
+
+      const response = await request(MEMBER_ID, "POST", "/members", {
+        sokoBotIds: [SHARED_BOT_ID],
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("only join a public channel");
+      expect(mocks.sokoBotMemberCreateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses a shared Soko Bot whose workspace has no organization", async () => {
+    mocks.roomFindFirst.mockResolvedValue(channel({ sokoBotMembers: [] }));
+    mocks.sokoBotFindMany.mockResolvedValue([
+      {
+        id: SHARED_BOT_ID,
+        userId: null,
+        workspace: { organizationId: null },
+      },
+    ]);
+
+    const response = await request(MEMBER_ID, "POST", "/members", {
+      sokoBotIds: [SHARED_BOT_ID],
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("only join an organization room");
+    expect(mocks.sokoBotMemberCreateMany).not.toHaveBeenCalled();
+  });
+
   it("leaves members already in the Channel as they are", async () => {
     const response = await request(MEMBER_ID, "POST", "/members", {
       userIds: [ADMIN_ID],
@@ -357,6 +443,24 @@ describe("DELETE /chats/rooms/{id}/members/{userId}", () => {
       [MEMBER_ID],
       "removed",
     );
+  });
+
+  it("keeps a shared Soko Bot when a member is removed", async () => {
+    asRole("admin");
+    const room = channel({
+      sokoBotMembers: [
+        bot(FRANCIS_BOT_ID, MEMBER_ID, "Francis's Bot"),
+        bot(SHARED_BOT_ID, null, "Team Bot"),
+      ],
+    });
+    mocks.roomFindFirst.mockResolvedValue(room);
+
+    const response = await request(ADMIN_ID, "DELETE", `/members/${MEMBER_ID}`);
+
+    expect(response.status).toBe(200);
+    expect(mocks.sokoBotMemberDeleteMany).toHaveBeenCalledExactlyOnceWith({
+      where: { roomId: ROOM_ID, sokoBotId: { in: [FRANCIS_BOT_ID] } },
+    });
   });
 
   it("forbids a plain member from removing a host member", async () => {
@@ -452,6 +556,51 @@ describe("DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}", () => {
       where: { roomId: ROOM_ID, sokoBotId: OWN_BOT_ID },
     });
     expect(statusContents()).toEqual(["Andreas removed Andreas's Bot"]);
+  });
+
+  it("lets any host member remove a shared Soko Bot", async () => {
+    mocks.roomFindFirst.mockResolvedValue(
+      channel({
+        sokoBotMembers: [
+          bot(SHARED_BOT_ID, null, "Team Bot", {
+            projectId: "project_1",
+            sharedRoomId: OTHER_ROOM_ID,
+          }),
+        ],
+      }),
+    );
+
+    const response = await request(
+      MEMBER_ID,
+      "DELETE",
+      `/soko-bots/${SHARED_BOT_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.sokoBotMemberDeleteMany).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, sokoBotId: SHARED_BOT_ID },
+    });
+    expect(statusContents()).toEqual(["Francis removed Team Bot"]);
+  });
+
+  it("keeps a shared Soko Bot in its own shared room", async () => {
+    asRole("admin");
+    mocks.roomFindFirst.mockResolvedValue(
+      channel({
+        sokoBotMembers: [
+          bot(SHARED_BOT_ID, null, "Team Bot", { sharedRoomId: ROOM_ID }),
+        ],
+      }),
+    );
+
+    const response = await request(
+      ADMIN_ID,
+      "DELETE",
+      `/soko-bots/${SHARED_BOT_ID}`,
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.sokoBotMemberDeleteMany).not.toHaveBeenCalled();
   });
 
   it("forbids removing someone else's Soko Bot, even for an admin", async () => {
@@ -729,7 +878,11 @@ it("scopes new bots to the active workspace and rejects unavailable bots", async
       archivedAt: null,
       deletedAt: null,
     },
-    select: { id: true, userId: true },
+    select: {
+      id: true,
+      userId: true,
+      workspace: { select: { organizationId: true } },
+    },
   });
   expect(mocks.sokoBotMemberCreateMany).not.toHaveBeenCalled();
 });

@@ -6,13 +6,13 @@ import {
   ComposioToolkitNotFoundError,
   ComposioToolNotFoundError,
 } from "@composio/core";
-import { Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
-  SOKO_BOT_INTEGRATION_PROVIDERS,
   SOKO_BOT_POPULAR_TOOLKITS,
   type SokoBotCalendarEvent,
+  type SokoBotInboxAttachment,
   type SokoBotInboxMessage,
   type SokoBotInboxMessageDetail,
   type SokoBotIntegrationProvider,
@@ -20,7 +20,6 @@ import {
 
 import { getComposio } from "@/clients/composio.client";
 import { getEnv } from "@/config/env";
-import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 export class SokoBotIntegrationError extends Error {
@@ -77,7 +76,7 @@ export async function withComposio<T>(
   }
 }
 
-function requireComposio() {
+export function requireComposio() {
   const composio = getComposio();
   if (!composio) {
     throw new SokoBotIntegrationError(
@@ -91,7 +90,7 @@ function requireComposio() {
 const SLUG_PATTERN = /^[a-z0-9_-]{1,64}$/;
 
 /** Known providers carry ingest kinds; any other Composio toolkit is generic. */
-function resolveProvider(id: string): SokoBotIntegrationProvider {
+export function resolveProvider(id: string): SokoBotIntegrationProvider {
   const slug = id.trim().toLowerCase();
   const known = getSokoBotIntegrationProvider(slug);
   if (known) return known;
@@ -161,7 +160,7 @@ export async function searchSokoBotIntegrationCatalog(
 }
 
 /** Toolkit logos by slug from the cached catalog; empty when unreachable. */
-async function catalogLogos(): Promise<Map<string, string>> {
+export async function catalogLogos(): Promise<Map<string, string>> {
   const entries = await searchSokoBotIntegrationCatalog("", 500).catch(
     () => [] as SokoBotIntegrationCatalogEntry[],
   );
@@ -191,345 +190,6 @@ function curatedCatalog(
       logoUrl: null,
       kinds: [],
     }));
-}
-
-async function lookupToolkit(
-  slug: string,
-): Promise<{ name: string; logoUrl: string | null }> {
-  const composio = requireComposio();
-  try {
-    const toolkit = await withComposio("toolkit", () =>
-      composio.toolkits.get(slug),
-    );
-    return { name: toolkit.name, logoUrl: toolkit.meta?.logo ?? null };
-  } catch (error) {
-    if (
-      error instanceof SokoBotIntegrationError &&
-      error.kind === "NOT_FOUND"
-    ) {
-      return {
-        name: getSokoBotIntegrationProvider(slug)?.name ?? slug,
-        logoUrl: null,
-      };
-    }
-    throw error;
-  }
-}
-
-export async function requireBot(userId: string, workspaceId: string) {
-  const bot = await prisma.sokoBot.findFirst({
-    where: { userId, workspaceId, archivedAt: null },
-    select: { id: true },
-  });
-  if (!bot)
-    throw new SokoBotIntegrationError("Soko Bot not found", "NOT_FOUND");
-  return bot;
-}
-
-const INTEGRATION_SELECT = {
-  id: true,
-  provider: true,
-  name: true,
-  logoUrl: true,
-  status: true,
-  connectedAt: true,
-  lastIngestAt: true,
-  lastError: true,
-} satisfies Prisma.SokoBotIntegrationSelect;
-
-export interface SokoBotIntegrationView {
-  provider: string;
-  name: string;
-  logoUrl: string | null;
-  kinds: readonly string[];
-  status: "DISCONNECTED" | "PENDING" | "ACTIVE" | "FAILED" | "REVOKED";
-  connectedAt: Date | null;
-  lastIngestAt: Date | null;
-  lastError: string | null;
-}
-
-/** Every provider, with the bot's connection state; disconnected ones too. */
-export async function listSokoBotIntegrations(
-  userId: string,
-  workspaceId: string,
-): Promise<{ configured: boolean; integrations: SokoBotIntegrationView[] }> {
-  const bot = await requireBot(userId, workspaceId);
-  const rows = await prisma.sokoBotIntegration.findMany({
-    where: { sokoBotId: bot.id },
-    select: INTEGRATION_SELECT,
-  });
-  const logos = await catalogLogos();
-  const connected: SokoBotIntegrationView[] = rows.map((row) => {
-    const known = getSokoBotIntegrationProvider(row.provider);
-    return {
-      provider: row.provider,
-      name: row.name ?? known?.name ?? row.provider,
-      logoUrl: row.logoUrl ?? known?.logoUrl ?? logos.get(row.provider) ?? null,
-      kinds: known?.kinds ?? [],
-      status: row.status,
-      connectedAt: row.connectedAt,
-      lastIngestAt: row.lastIngestAt,
-      lastError: row.lastError,
-    };
-  });
-  // Mail and calendar providers are always offered; everything else comes
-  // from the catalog search.
-  const featured: SokoBotIntegrationView[] =
-    SOKO_BOT_INTEGRATION_PROVIDERS.filter(
-      (provider) => !rows.some((row) => row.provider === provider.id),
-    ).map((provider) => ({
-      provider: provider.id,
-      name: provider.name,
-      logoUrl: provider.logoUrl || logos.get(provider.id) || null,
-      kinds: provider.kinds,
-      status: "DISCONNECTED",
-      connectedAt: null,
-      lastIngestAt: null,
-      lastError: null,
-    }));
-  return {
-    configured: getComposio() !== null,
-    integrations: [...connected, ...featured],
-  };
-}
-
-/** Composio-managed auth config per toolkit, created on first use. */
-async function ensureAuthConfigId(toolkit: string): Promise<string> {
-  const composio = requireComposio();
-  const existing = await composio.authConfigs.list({ toolkit });
-  const managed = existing.items.find(
-    (item) =>
-      item.toolkit.slug.toLowerCase() === toolkit && item.isComposioManaged,
-  );
-  if (managed) return managed.id;
-  const created = await composio.authConfigs.create(toolkit, {
-    type: "use_composio_managed_auth",
-    name: `sokosumi-${toolkit}`,
-  });
-  return created.id;
-}
-
-/** Starts OAuth; the owner is sent to `redirectUrl` and comes back to `returnUrl`. */
-export async function connectSokoBotIntegration(input: {
-  userId: string;
-  workspaceId: string;
-  provider: string;
-  returnUrl: string;
-}): Promise<{ redirectUrl: string }> {
-  const provider = resolveProvider(input.provider);
-  const bot = await requireBot(input.userId, input.workspaceId);
-  const composio = requireComposio();
-  const toolkit = await lookupToolkit(provider.id);
-  const authConfigId = await withComposio("auth config", () =>
-    ensureAuthConfigId(provider.id),
-  );
-  const request = await withComposio("start OAuth", () =>
-    composio.connectedAccounts.link(composioEntityId(bot.id), authConfigId, {
-      callbackUrl: input.returnUrl,
-      // Replacement authorization must coexist with the selected account.
-      // Execution always pins the locally stored connected_account_id.
-      allowMultiple: true,
-    }),
-  );
-  try {
-    if (!request.redirectUrl) {
-      throw new SokoBotIntegrationError("Composio returned no redirect URL");
-    }
-    const supersededAccountId = await prisma.$transaction(async (tx) => {
-      // Serialize persistence with bot deletion, then recheck ownership and
-      // liveness. No remote calls run while this row lock is held.
-      await tx.sokoBot.update({
-        where: {
-          id: bot.id,
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          archivedAt: null,
-          deletedAt: null,
-        },
-        data: { updatedAt: new Date() },
-        select: { id: true },
-      });
-      // Finalization and disconnect write this row too. Lock it before
-      // deciding which pending account the committed replacement supersedes.
-      await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_integration"
-        WHERE "sokoBotId" = ${bot.id}::uuid AND "provider" = ${provider.id}
-        FOR UPDATE
-      `;
-      const previous = await tx.sokoBotIntegration.findUnique({
-        where: {
-          sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id },
-        },
-        select: { composioAccountId: true, pendingComposioAccountId: true },
-      });
-      await tx.sokoBotIntegration.upsert({
-        where: {
-          sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id },
-        },
-        create: {
-          sokoBotId: bot.id,
-          provider: provider.id,
-          name: toolkit.name,
-          logoUrl: toolkit.logoUrl,
-          composioAccountId: request.id,
-          status: "PENDING",
-        },
-        update: {
-          // The latest persisted attempt wins. Until it succeeds, keep the selected
-          // account and its status usable, even if the owner abandons this flow.
-          pendingComposioAccountId: request.id,
-          name: toolkit.name,
-          logoUrl: toolkit.logoUrl,
-        },
-      });
-      const pending = previous?.pendingComposioAccountId;
-      return pending &&
-        pending !== previous.composioAccountId &&
-        pending !== request.id
-        ? pending
-        : null;
-    });
-    if (supersededAccountId) {
-      await composio.connectedAccounts
-        .delete(supersededAccountId)
-        .catch(() => undefined);
-    }
-    return { redirectUrl: request.redirectUrl };
-  } catch (error) {
-    // Clean up this new authorization if its response is unusable or its
-    // persistence fails, including when bot deletion wins the race.
-    await composio.connectedAccounts.delete(request.id).catch(() => undefined);
-    throw error;
-  }
-}
-
-/** After the OAuth round-trip: ask Composio whether the account is live. */
-export async function finalizeSokoBotIntegration(input: {
-  userId: string;
-  workspaceId: string;
-  provider: string;
-  /**
-   * The account Composio just verified for this caller. When set, only that
-   * account may be promoted, so a connect attempt that raced in after the
-   * verification cannot be promoted on its behalf.
-   */
-  expectedComposioAccountId?: string;
-}): Promise<SokoBotIntegrationView["status"]> {
-  const provider = resolveProvider(input.provider);
-  const bot = await requireBot(input.userId, input.workspaceId);
-  const row = await prisma.sokoBotIntegration.findUnique({
-    where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
-    select: {
-      id: true,
-      composioAccountId: true,
-      pendingComposioAccountId: true,
-    },
-  });
-  if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
-  const composio = requireComposio();
-  const accountId = row.pendingComposioAccountId ?? row.composioAccountId;
-  if (
-    input.expectedComposioAccountId &&
-    input.expectedComposioAccountId !== accountId
-  ) {
-    throw new SokoBotIntegrationError(
-      "Connection changed; retry finalizing OAuth",
-    );
-  }
-  const account = await withComposio("account status", () =>
-    composio.connectedAccounts.get(accountId),
-  );
-  if (
-    account.id !== accountId ||
-    account.toolkit.slug.toLowerCase() !== provider.id
-  ) {
-    throw new SokoBotIntegrationError(
-      "Composio account does not match the provider",
-    );
-  }
-  const status =
-    account.status === "ACTIVE" && !account.isDisabled
-      ? "ACTIVE"
-      : account.status === "INITIALIZING" || account.status === "INITIATED"
-        ? "PENDING"
-        : account.status === "REVOKED"
-          ? "REVOKED"
-          : "FAILED";
-  // A failed/pending replacement must not disable the working selection.
-  if (row.pendingComposioAccountId && status !== "ACTIVE") return status;
-  const replacing = accountId !== row.composioAccountId;
-  const updated = await prisma.sokoBotIntegration.updateMany({
-    where: {
-      id: row.id,
-      composioAccountId: row.composioAccountId,
-      pendingComposioAccountId: row.pendingComposioAccountId,
-    },
-    data: {
-      status,
-      connectedAt: status === "ACTIVE" ? new Date() : undefined,
-      lastError:
-        status === "FAILED" || status === "REVOKED"
-          ? (account.statusReason ?? account.status)
-          : null,
-      ...(status === "ACTIVE" ? { lastErrorAt: null } : {}),
-      ...(replacing
-        ? {
-            composioAccountId: accountId,
-            pendingComposioAccountId: null,
-            cursor: Prisma.DbNull,
-            lastIngestAt: null,
-          }
-        : {}),
-    },
-  });
-  if (updated.count === 0) {
-    throw new SokoBotIntegrationError(
-      "Connection changed; retry finalizing OAuth",
-    );
-  }
-  // Preserve the existing replacement policy, but only revoke after the new
-  // account is active and persisted. Never delete unrelated upstream accounts.
-  if (replacing) {
-    await composio.connectedAccounts
-      .delete(row.composioAccountId)
-      .catch(() => undefined);
-  }
-  return status;
-}
-
-export async function disconnectSokoBotIntegration(input: {
-  userId: string;
-  workspaceId: string;
-  provider: string;
-}): Promise<void> {
-  const provider = resolveProvider(input.provider);
-  const bot = await requireBot(input.userId, input.workspaceId);
-  // Delete-and-return captures the latest IDs atomically. A later connect
-  // creates a new row, which this disconnect must not erase after remote I/O.
-  const row = await prisma.sokoBotIntegration
-    .delete({
-      where: {
-        sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id },
-      },
-      select: { composioAccountId: true, pendingComposioAccountId: true },
-    })
-    .catch((error: unknown) => {
-      if (isPrismaRecordNotFoundError(error)) return null;
-      throw error;
-    });
-  if (!row) return;
-  const composio = getComposio();
-  if (composio) {
-    for (const accountId of new Set([
-      row.composioAccountId,
-      row.pendingComposioAccountId,
-    ])) {
-      if (accountId)
-        await composio.connectedAccounts
-          .delete(accountId)
-          .catch(() => undefined);
-    }
-  }
 }
 
 /** Revoke the account snapshot captured atomically during bot deletion. */
@@ -571,11 +231,13 @@ export async function revokeSokoBotIntegrationAccounts(
 // Reading data through Composio tools, normalised per provider.
 // ---------------------------------------------------------------------------
 
-interface ActiveIntegration {
+export interface ActiveIntegration {
   id: string;
   sokoBotId: string;
   provider: SokoBotIntegrationProvider;
   composioAccountId: string;
+  /** The member who connected it; `null` on a personal bot means its owner. */
+  connectorUserId: string | null;
   cursor: Prisma.JsonValue | null;
 }
 
@@ -595,6 +257,7 @@ export async function activeIntegrationsForBot(
       sokoBotId: true,
       provider: true,
       composioAccountId: true,
+      connectorUserId: true,
       cursor: true,
     },
   });
@@ -926,6 +589,86 @@ function normaliseEvent(
   };
 }
 
+/** Gmail's label ids for what the inbox tools change. */
+const GMAIL_LABEL = { unread: "UNREAD", inbox: "INBOX" } as const;
+
+function requireMailTool(
+  integration: ActiveIntegration,
+  tool: "modifyMessages" | "createDraft" | "sendDraft" | "getAttachment",
+): string {
+  const slug = integration.provider.tools[tool];
+  if (!slug)
+    throw new SokoBotIntegrationError(
+      `${integration.provider.name} mail can only be read for now`,
+    );
+  return slug;
+}
+
+/**
+ * Marks mail read or unread and archives it, in the owner's mailbox. Only
+ * the changes asked for are made; nothing is sent or deleted.
+ */
+export async function modifyInboxMessages(
+  integration: ActiveIntegration,
+  messageIds: readonly string[],
+  change: { read?: boolean; archive?: boolean },
+): Promise<void> {
+  if (messageIds.length === 0) return;
+  const slug = requireMailTool(integration, "modifyMessages");
+  const addLabelIds: string[] = [];
+  const removeLabelIds: string[] = [];
+  if (change.read === true) removeLabelIds.push(GMAIL_LABEL.unread);
+  if (change.read === false) addLabelIds.push(GMAIL_LABEL.unread);
+  if (change.archive) removeLabelIds.push(GMAIL_LABEL.inbox);
+  if (addLabelIds.length === 0 && removeLabelIds.length === 0) return;
+  await execute(integration, slug, {
+    messageIds: [...messageIds],
+    ...(addLabelIds.length ? { addLabelIds } : {}),
+    ...(removeLabelIds.length ? { removeLabelIds } : {}),
+  });
+}
+
+/** Writes a draft in the owner's mailbox; nothing is sent. Returns its id. */
+export async function createInboxDraft(
+  integration: ActiveIntegration,
+  draft: {
+    to: readonly string[];
+    cc?: readonly string[];
+    subject: string;
+    body: string;
+    threadId?: string;
+  },
+): Promise<string> {
+  const slug = requireMailTool(integration, "createDraft");
+  const [first, ...rest] = draft.to;
+  const data = await execute(integration, slug, {
+    ...(first ? { recipient_email: first } : {}),
+    ...(rest.length ? { extra_recipients: rest } : {}),
+    ...(draft.cc?.length ? { cc: [...draft.cc] } : {}),
+    // A reply keeps the thread's subject; a subject would start a new one.
+    ...(draft.threadId
+      ? { thread_id: draft.threadId }
+      : { subject: draft.subject }),
+    body: draft.body,
+  });
+  const draftId =
+    str(pick(data, "draft_id", "id")) ||
+    str(pick(pick(data, "draft", "data"), "id"));
+  if (!draftId)
+    throw new SokoBotIntegrationError("The mailbox did not return a draft id");
+  return draftId;
+}
+
+/** Sends a draft that is already in the owner's mailbox. */
+export async function sendInboxDraft(
+  integration: ActiveIntegration,
+  draftId: string,
+): Promise<void> {
+  await execute(integration, requireMailTool(integration, "sendDraft"), {
+    draft_id: draftId,
+  });
+}
+
 export async function fetchInboxMessages(
   integration: ActiveIntegration,
   options: {
@@ -935,17 +678,49 @@ export async function fetchInboxMessages(
     limit: number;
   },
 ): Promise<SokoBotInboxMessage[]> {
+  return (await fetchInboxPage(integration, options)).messages;
+}
+
+/**
+ * One page of mail, newest first. Gmail hands back a page token; Outlook
+ * pages by offset, so its token is the next `skip`. `raw` is the provider's
+ * own items, for readers that need headers or recipients the normalised
+ * shape leaves out (contact capture).
+ */
+export async function fetchInboxPage(
+  integration: ActiveIntegration,
+  options: {
+    since?: Date;
+    before?: Date;
+    query?: string;
+    unreadOnly?: boolean;
+    /** Outlook folder; Gmail selects folders in `query` (`in:sent`). */
+    folder?: "sentitems";
+    /** Gmail: include the headers (List-Unsubscribe, Cc, …). */
+    includePayload?: boolean;
+    limit: number;
+    pageToken?: string;
+  },
+): Promise<{
+  messages: SokoBotInboxMessage[];
+  raw: unknown[];
+  nextPageToken: string | null;
+}> {
   const slug = integration.provider.tools.listMessages;
-  if (!slug) return [];
+  if (!slug) return { messages: [], raw: [], nextPageToken: null };
+  const gmail = integration.provider.id === "gmail";
   const args: Record<string, unknown> = { max_results: options.limit };
-  if (integration.provider.id === "gmail") {
+  if (gmail) {
     const parts = [options.query ?? ""];
     if (options.since)
       parts.push(`after:${Math.floor(options.since.getTime() / 1000)}`);
+    if (options.before)
+      parts.push(`before:${Math.floor(options.before.getTime() / 1000)}`);
     if (options.unreadOnly) parts.push("is:unread");
     args.query = parts.filter(Boolean).join(" ");
-    args.include_payload = false;
+    args.include_payload = options.includePayload ?? false;
     args.verbose = false;
+    if (options.pageToken) args.page_token = options.pageToken;
   } else if (options.query) {
     // Graph refuses $search next to $filter or $orderby, and wants it quoted;
     // results come newest first, and since/unread are applied below.
@@ -955,15 +730,19 @@ export async function fetchInboxMessages(
     const filters: string[] = [];
     if (options.since)
       filters.push(`receivedDateTime ge ${options.since.toISOString()}`);
+    if (options.before)
+      filters.push(`receivedDateTime lt ${options.before.toISOString()}`);
     if (options.unreadOnly) filters.push("isRead eq false");
     if (filters.length) args.filter = filters.join(" and ");
     args.top = options.limit;
     args.orderby = "receivedDateTime desc";
+    if (options.folder) args.folder = options.folder;
+    if (options.pageToken) args.skip = Number(options.pageToken) || 0;
   }
   const data = await execute(integration, slug, args);
   const items = asList(pick(data, "messages", "value", "items", "data"));
-  const searched = integration.provider.id !== "gmail" && !!options.query;
-  return items
+  const searched = !gmail && !!options.query;
+  const messages = items
     .map((item) => normaliseMessage(integration.provider.id, item))
     .filter(
       (message) =>
@@ -973,6 +752,12 @@ export async function fetchInboxMessages(
             message.receivedAt >= options.since.toISOString()) &&
             (!options.unreadOnly || message.unread))),
     );
+  const nextPageToken = gmail
+    ? str(pick(data, "nextPageToken", "next_page_token")) || null
+    : !searched && items.length >= options.limit
+      ? String((Number(options.pageToken) || 0) + items.length)
+      : null;
+  return { messages, raw: items, nextPageToken };
 }
 
 export async function fetchInboxMessage(
@@ -994,31 +779,108 @@ export async function fetchInboxMessage(
   return {
     ...normaliseMessage(integration.provider.id, raw),
     body: body.slice(0, 20_000),
+    attachments: messageAttachments(raw),
   };
+}
+
+function attachmentOf(entry: unknown): SokoBotInboxAttachment | null {
+  const id = str(
+    pick(entry, "attachmentId", "attachment_id") ??
+      pick(pick(entry, "body"), "attachmentId"),
+  );
+  const filename = str(pick(entry, "filename", "fileName", "name"));
+  if (!id || !filename) return null;
+  const size = Number(pick(entry, "size") ?? pick(pick(entry, "body"), "size"));
+  return {
+    id,
+    filename,
+    mimeType:
+      str(pick(entry, "mimeType", "mimetype", "contentType")) ||
+      "application/octet-stream",
+    size: Number.isFinite(size) && size > 0 ? size : null,
+  };
+}
+
+/** Gmail lists attachments in `attachmentList`, and always in the payload's parts. */
+function messageAttachments(raw: unknown): SokoBotInboxAttachment[] {
+  const found = new Map<string, SokoBotInboxAttachment>();
+  const add = (entry: unknown) => {
+    const attachment = attachmentOf(entry);
+    if (attachment && !found.has(attachment.id))
+      found.set(attachment.id, attachment);
+  };
+  asList(pick(raw, "attachmentList", "attachments")).forEach(add);
+  const walk = (part: unknown, depth: number) => {
+    if (depth > 8) return;
+    add(part);
+    for (const child of asList(pick(part, "parts"))) walk(child, depth + 1);
+  };
+  walk(pick(raw, "payload"), 0);
+  return [...found.values()];
+}
+
+/** Mail attachments a bot may save; Gmail's own limit is 25 MB. */
+export const INBOX_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+
+function base64Bytes(value: string): Buffer | null {
+  const text = value.replace(/^data:[^,]*,/, "").trim();
+  if (!text || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(text)) return null;
+  return Buffer.from(text.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+}
+
+async function downloadBytes(url: string): Promise<Buffer> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  if (!response.ok)
+    throw new SokoBotIntegrationError(
+      `The attachment download failed (HTTP ${response.status})`,
+    );
+  const declared = Number(response.headers.get("content-length"));
+  if (declared > INBOX_ATTACHMENT_MAX_BYTES)
+    throw new SokoBotIntegrationError("The attachment is larger than 25 MB");
+  return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * The bytes of one attachment. Composio documents the result only as
+ * `data`, so a file link (`s3url`/`url`) and inline base64 are both read.
+ */
+export async function fetchInboxAttachment(
+  integration: ActiveIntegration,
+  input: { messageId: string; attachmentId: string; filename: string },
+): Promise<Buffer> {
+  const slug = requireMailTool(integration, "getAttachment");
+  const data = await execute(integration, slug, {
+    message_id: input.messageId,
+    attachment_id: input.attachmentId,
+    file_name: input.filename,
+  });
+  const candidates = [data, pick(data, "file", "data", "attachment")];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      if (/^https:\/\//.test(candidate)) return downloadBytes(candidate);
+      const bytes = base64Bytes(candidate);
+      if (bytes) return bytes;
+      continue;
+    }
+    const url = str(pick(candidate, "s3url", "s3_url", "url", "downloadUrl"));
+    if (/^https:\/\//.test(url)) return downloadBytes(url);
+    const inline = str(pick(candidate, "data", "content", "base64"));
+    const bytes = inline ? base64Bytes(inline) : null;
+    if (bytes) return bytes;
+  }
+  console.warn("[soko-bot-mail] unreadable attachment result", {
+    keys: data && typeof data === "object" ? Object.keys(data) : typeof data,
+  });
+  throw new SokoBotIntegrationError(
+    "The mailbox returned the attachment in a form Sokosumi cannot read",
+  );
 }
 
 export async function fetchCalendarEvents(
   integration: ActiveIntegration,
   options: { from: Date; to: Date; limit: number },
 ): Promise<SokoBotCalendarEvent[]> {
-  const slug = integration.provider.tools.listEvents;
-  if (!slug) return [];
-  const args: Record<string, unknown> =
-    integration.provider.id === "googlecalendar"
-      ? {
-          calendar_id: "primary",
-          timeMin: options.from.toISOString(),
-          timeMax: options.to.toISOString(),
-          single_events: true,
-          order_by: "startTime",
-          max_results: options.limit,
-        }
-      : {
-          start_datetime: options.from.toISOString(),
-          end_datetime: options.to.toISOString(),
-          top: options.limit,
-        };
-  const data = await execute(integration, slug, args);
+  const { events } = await fetchCalendarPage(integration, options);
   // A calendar is read inside the stand-up, meeting prep and briefings, not
   // by the hourly mail ingest, so the read itself records that it worked.
   try {
@@ -1029,10 +891,51 @@ export async function fetchCalendarEvents(
   } catch {
     // A missed stamp only affects the console tile, never the read itself.
   }
+  return events;
+}
+
+/**
+ * One page of events between `from` and `to`, in start order. Google hands
+ * back a page token; Outlook pages by offset. `raw` keeps the provider's
+ * attendee details (responses, rooms) for contact capture.
+ */
+export async function fetchCalendarPage(
+  integration: ActiveIntegration,
+  options: { from: Date; to: Date; limit: number; pageToken?: string },
+): Promise<{
+  events: SokoBotCalendarEvent[];
+  raw: unknown[];
+  nextPageToken: string | null;
+}> {
+  const slug = integration.provider.tools.listEvents;
+  if (!slug) return { events: [], raw: [], nextPageToken: null };
+  const google = integration.provider.id === "googlecalendar";
+  const args: Record<string, unknown> = google
+    ? {
+        calendar_id: "primary",
+        timeMin: options.from.toISOString(),
+        timeMax: options.to.toISOString(),
+        single_events: true,
+        order_by: "startTime",
+        max_results: options.limit,
+        ...(options.pageToken ? { page_token: options.pageToken } : {}),
+      }
+    : {
+        start_datetime: options.from.toISOString(),
+        end_datetime: options.to.toISOString(),
+        top: options.limit,
+        ...(options.pageToken ? { skip: Number(options.pageToken) || 0 } : {}),
+      };
+  const data = await execute(integration, slug, args);
   const items = asList(pick(data, "event_data", "events", "items", "value"));
   const events = items
     .map((item) => normaliseEvent(integration.provider.id, item))
     .filter((event) => event.id && event.startsAt);
   events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  return events;
+  const nextPageToken = google
+    ? str(pick(data, "nextPageToken", "next_page_token")) || null
+    : items.length >= options.limit
+      ? String((Number(options.pageToken) || 0) + items.length)
+      : null;
+  return { events, raw: items, nextPageToken };
 }

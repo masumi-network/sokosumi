@@ -1,6 +1,7 @@
 import { Prisma, ProjectCloseOperationState } from "@sokosumi/database";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
+import { publishChatRoomMentionStatuses } from "@/helpers/chat-room-mention-status";
 import { conflict, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -11,6 +12,7 @@ import type {
 } from "@/schemas/project-close.schema";
 
 import { retireProjectSocialConnectionsForClose } from "@/services/project-social-connections.service";
+import { archiveProjectSokoBotsForClose } from "@/services/project-soko-bots-close.service";
 
 interface ProjectCloseScope {
   projectId: string;
@@ -130,6 +132,29 @@ function recoveryEventKey(operationId: string): string {
   return `project-close:recovery:${operationId}`;
 }
 
+export const SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE = {
+  OR: [
+    { status: "SCHEDULED" },
+    { status: "NEEDS_APPROVAL", scheduledAt: { not: null } },
+  ],
+} satisfies Prisma.SocialPostWhereInput;
+
+/** Scheduled posts would still publish after connections retire. Drafts stay. */
+async function cancelScheduledSocialPostsForClose(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  canceledAt: Date,
+): Promise<void> {
+  await tx.socialPost.updateMany({
+    where: { projectId, ...SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE },
+    data: {
+      status: "CANCELED",
+      canceledAt,
+      revision: { increment: 1 },
+    },
+  });
+}
+
 async function isRecoveryReplay(
   tx: Prisma.TransactionClient,
   input: {
@@ -163,7 +188,9 @@ export async function requestProjectClose(
   scope: ProjectCloseScope,
   input: ProjectCloseRequest,
 ): Promise<ProjectCloseStatus> {
-  return await serializableTransaction(async (tx) => {
+  let mentionMessageIds: string[] = [];
+  const status = await serializableTransaction(async (tx) => {
+    mentionMessageIds = [];
     const project = await requireLockedProject(tx, scope);
     const reason = normalizeOptionalReason(input.reason);
     if (project.closeOperation) {
@@ -204,11 +231,13 @@ export async function requestProjectClose(
       },
       select: { projectRevision: true },
     });
+    await cancelScheduledSocialPostsForClose(tx, project.id, cutoffAt);
     await retireProjectSocialConnectionsForClose(
       tx,
       project.id,
       scope.actorUserId,
     );
+    mentionMessageIds = await archiveProjectSokoBotsForClose(tx, project.id);
     const operation = await tx.projectCloseOperation.create({
       data: {
         id: input.operationId,
@@ -233,6 +262,10 @@ export async function requestProjectClose(
 
     return await mapStatus(tx, operation, updated.projectRevision);
   }, "Project changed during close request");
+  if (mentionMessageIds.length > 0) {
+    await publishChatRoomMentionStatuses(mentionMessageIds);
+  }
+  return status;
 }
 
 export async function getProjectCloseStatus(

@@ -63,11 +63,10 @@ vi.mock("./use-studio-state", () => ({
 
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
+    failed: [],
     queued: [],
     enqueue: vi.fn(),
     waitingForSlot: false,
-    lastError: null,
-    clearError: vi.fn(),
   }),
 }));
 
@@ -199,6 +198,9 @@ describe("a gallery with work in it", () => {
       const box = tile.querySelector("button[aria-pressed]");
       expect(box).not.toBeNull();
       expect(box?.className).not.toContain("opacity-0");
+      expect(tile.className).toContain("border-border");
+      expect(tile.className).not.toMatch(/\bshadow(?:-lg|-md|-sm)?\b/);
+      expect(box?.className).not.toMatch(/\bshadow(?:-lg|-md|-sm)?\b/);
     }
     // Decisions are gone entirely.
     expect(screen.queryByRole("button", { name: "filterApproved" })).toBeNull();

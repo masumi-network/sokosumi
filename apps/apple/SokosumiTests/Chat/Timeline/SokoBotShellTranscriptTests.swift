@@ -16,7 +16,7 @@
     @MainActor struct SokoBotShellTranscriptTests {
       private static let reader = Components.Schemas.ChatRoomUserParticipant(id: "user_1", name: "Ada Lovelace", email: "ada@example.com", presence: .online)
       private static let sokoBot = Components.Schemas.ChatRoomMessageSender.case3(.init(_type: .sokoBot, sokoBot: .init(
-        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_1", ownerUserId: "user_1", presence: .online
+        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_1", ownerUserId: "user_1", scope: .personal, presence: .online
       )))
 
       private static func message(_ id: String, content: String, sender: Components.Schemas.ChatRoomMessageSender,
@@ -70,8 +70,8 @@
         let rows = try displayedTranscript(messages: Self.persisted(), shells: [])
         let content = VStack(alignment: .leading, spacing: 12) {
           ForEach(rows, id: \.id) { row in
-            MessageRowView(message: row, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                           onRetryMention: row.id == "failed" ? {} : nil, horizontalInset: 12)
+            MessageRowView(message: row, row: transcriptRow(row), outbound: nil,
+                           perform: { _ in nil }, canRetryMention: row.id == "failed", horizontalInset: 12)
           }
         }
         .padding(.vertical, 12)

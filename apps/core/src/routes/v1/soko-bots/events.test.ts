@@ -28,7 +28,9 @@ vi.mock("@/lib/db/prisma", () => ({
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";
 
-function createApp(actor: "sokoBot" | "user") {
+const PROJECT_ID = "01960001-0001-7001-8001-000000000020";
+
+function createApp(actor: "sokoBot" | "user" | "project" | "workspace") {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -37,17 +39,28 @@ function createApp(actor: "sokoBot" | "user") {
       actor === "sokoBot"
         ? {
             actor,
+            scope: "personal",
             sokoBotId: BOT_ID,
             userId: "owner_1",
             workspaceId: WORKSPACE_ID,
             organizationId: null,
           }
-        : {
-            actor,
-            userId: "owner_1",
-            organizationId: null,
-            role: "user",
-          },
+        : actor === "user"
+          ? {
+              actor,
+              userId: "owner_1",
+              organizationId: null,
+              role: "user",
+            }
+          : {
+              actor: "sokoBot",
+              scope: actor,
+              sokoBotId: BOT_ID,
+              userId: null,
+              workspaceId: WORKSPACE_ID,
+              organizationId: "org_1",
+              projectId: actor === "project" ? PROJECT_ID : null,
+            },
     );
     return await next();
   });
@@ -79,6 +92,52 @@ describe("Soko Bot task events", () => {
           },
         },
         take: 11,
+      }),
+    );
+  });
+
+  it("limits a project bot to PUBLIC Tasks of its Project", async () => {
+    const response = await createApp("project").request(
+      "http://localhost/me/events",
+    );
+
+    expect(response.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          task: {
+            assigneeSokoBotId: BOT_ID,
+            workspaceId: WORKSPACE_ID,
+            status: { not: "DRAFT" },
+            visibility: "PUBLIC",
+            projectId: PROJECT_ID,
+          },
+        },
+      }),
+    );
+    expect(countMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        task: expect.objectContaining({ visibility: "PUBLIC" }),
+      }),
+    });
+  });
+
+  it("limits a workspace bot to PUBLIC Tasks in its workspace", async () => {
+    const response = await createApp("workspace").request(
+      "http://localhost/me/events",
+    );
+
+    expect(response.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          task: {
+            assigneeSokoBotId: BOT_ID,
+            workspaceId: WORKSPACE_ID,
+            status: { not: "DRAFT" },
+            visibility: "PUBLIC",
+          },
+        },
       }),
     );
   });

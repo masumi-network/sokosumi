@@ -6,16 +6,16 @@ import {
   HardDrive,
   ImagePlus,
   ListTodo,
+  Megaphone,
   Plus,
   Repeat,
-  Search,
   Share2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
-import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
@@ -48,51 +48,41 @@ interface MenuItemConfig {
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   onClick?: () => void;
-  shortcutLabel?: string;
-  ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
-  feature: AnnouncedFeature;
+  /** The Badge campaign row this is, when the feature has one. */
+  feature?: AnnouncedFeature;
 }
 
 /**
- * `socialMenuEnabled` is off by default so the Instant Nav shell, which has
- * not resolved the reader's beta membership yet, leaves the row out rather
- * than guessing it: a row that appears once is cheaper than one that appears
- * and then goes away.
+ * `socialBetaEnabled` (the Social beta, which Ads shares) is off by default so
+ * the Instant Nav shell, which has not resolved the reader's beta membership
+ * yet, leaves the rows out rather than guessing them: a row that appears once
+ * is cheaper than one that appears and then goes away.
  */
 export default function MenuItems({
-  socialMenuEnabled = false,
+  socialBetaEnabled = false,
 }: {
-  socialMenuEnabled?: boolean;
+  socialBetaEnabled?: boolean;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <ScopedMenuItems socialMenuEnabled={socialMenuEnabled} />
+      <ScopedMenuItems socialBetaEnabled={socialBetaEnabled} />
     </Suspense>
   );
 }
 
 function ScopedMenuItems({
-  socialMenuEnabled,
+  socialBetaEnabled,
 }: {
-  socialMenuEnabled: boolean;
+  socialBetaEnabled: boolean;
 }) {
   const { hrefFor, projectId } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
-  const historySearch = useOptionalHistorySearch();
   const newTaskWizard = useOptionalNewTaskWizard();
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-
-  function handleSearchClick() {
-    historySearch?.openHistorySearch();
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -127,15 +117,6 @@ function ScopedMenuItems({
       feature: AnnouncedFeature.NEW_TASK,
     },
     {
-      key: "search",
-      label: t("search"),
-      Icon: Search,
-      onClick: handleSearchClick,
-      shortcutLabel: historySearch?.searchShortcutLabel,
-      ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
-      feature: AnnouncedFeature.SEARCH,
-    },
-    {
       key: "explore-agents",
       href: "/agents",
       label: t("exploreAgents"),
@@ -156,6 +137,13 @@ function ScopedMenuItems({
       Icon: Repeat,
       feature: AnnouncedFeature.SCHEDULES,
     },
+    // Workspace-wide like Files, so it is not scoped to the reader's project.
+    {
+      key: "contacts",
+      href: "/contacts",
+      label: t("contacts"),
+      Icon: Users,
+    },
     // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
     // reader's project across without the studio knowing about the switcher.
     {
@@ -168,13 +156,21 @@ function ScopedMenuItems({
     // Social used to be a tab inside a project. It is a destination of its
     // own now, scoped the same way the studio is, and it is still behind the
     // beta so the row only exists where the surface does.
-    ...(socialMenuEnabled
+    ...(socialBetaEnabled
       ? [
           {
             key: "social",
             href: "/social",
             label: t("social"),
             Icon: Share2,
+            feature: AnnouncedFeature.SOCIAL,
+          },
+          // Ads rides the same beta and the same project scope.
+          {
+            key: "ads",
+            href: "/ads",
+            label: t("ads"),
+            Icon: Megaphone,
             feature: AnnouncedFeature.SOCIAL,
           },
         ]
@@ -210,8 +206,6 @@ function ScopedMenuItems({
                 label,
                 Icon,
                 onClick,
-                shortcutLabel,
-                ariaKeyshortcuts,
                 separatorAfter,
                 feature,
               }) => {
@@ -225,18 +219,7 @@ function ScopedMenuItems({
                     : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
-                const tooltip = shortcutLabel
-                  ? {
-                      children: (
-                        <span className="flex items-center gap-2">
-                          <span>{label}</span>
-                          <span className="text-muted-foreground text-xs tracking-widest">
-                            {shortcutLabel}
-                          </span>
-                        </span>
-                      ),
-                    }
-                  : label;
+                const tooltip = label;
 
                 const content = (
                   <>
@@ -250,7 +233,11 @@ function ScopedMenuItems({
                         SIDEBAR_FEATURE_LABEL_CLASS,
                       )}
                     >
-                      <SidebarFeatureLabel label={label} feature={feature} />
+                      {feature ? (
+                        <SidebarFeatureLabel label={label} feature={feature} />
+                      ) : (
+                        <span className="min-w-0 truncate">{label}</span>
+                      )}
                     </span>
                   </>
                 );
@@ -271,7 +258,9 @@ function ScopedMenuItems({
                           <SheetClose asChild>
                             <Link
                               href={hrefFor(href)}
-                              onClick={() => markFeatureSeen(feature)}
+                              onClick={() =>
+                                feature && markFeatureSeen(feature)
+                              }
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
                                 key === "new-task"
@@ -289,13 +278,12 @@ function ScopedMenuItems({
                         <SidebarMenuButton
                           type="button"
                           onClick={() => {
-                            markFeatureSeen(feature);
+                            if (feature) markFeatureSeen(feature);
                             onClick?.();
                           }}
                           data-sidebar-new-task={
                             key === "new-task" ? "" : undefined
                           }
-                          aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
                             newTaskClassName ??
@@ -303,14 +291,6 @@ function ScopedMenuItems({
                           )}
                         >
                           {content}
-                          {shortcutLabel ? (
-                            <span
-                              aria-hidden
-                              className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
-                            >
-                              {shortcutLabel}
-                            </span>
-                          ) : null}
                         </SidebarMenuButton>
                       )}
                       {/* Collapsed, the rail's fill belongs to hover alone, so

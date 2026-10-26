@@ -20,7 +20,6 @@ import {
   type CreateTaskResult,
   createTaskAndLink,
   createTaskLink,
-  deleteTask,
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
@@ -353,9 +352,13 @@ vi.mock("@/components/ui/dropdown-menu", () => {
   };
 });
 
+const archiveMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/services/task.client", () => ({
+  taskClientService: { archive: archiveMock },
+}));
+
 vi.mock("@/lib/actions/task/action", () => ({
   setTaskStatusFromDrag: vi.fn(),
-  deleteTask: vi.fn(),
   moveTaskToWorkspace: vi.fn(),
   createTaskLink: vi.fn(),
   createTaskAndLink: vi.fn(),
@@ -541,8 +544,6 @@ function buildTaskListItem(
 const labels = {
   edit: "Edit",
   archive: "Archive",
-  confirmArchive: "Confirm archive",
-  confirmArchiveDescription: "Are you sure?",
   archiveError: "Archive error",
   reopenToReady: "Reopen to Ready",
   reopenToReadyTitle: "Reopen task",
@@ -569,6 +570,22 @@ const personalWorkspaceLabel = "Test User";
 const sampleOrganizations = [
   { organization: { id: "org-2", name: "Other Org" } },
 ] as unknown as MemberWithOrganization[];
+
+function organizationMembership(
+  role: "admin" | "member" | "owner",
+  organization: { id: string; name: string } = {
+    id: "org-2",
+    name: "Other Org",
+  },
+): MemberWithOrganization[] {
+  return [
+    {
+      organizationId: "org-1",
+      role,
+      organization,
+    },
+  ] as unknown as MemberWithOrganization[];
+}
 
 const defaultTaskLinks = [
   {
@@ -673,6 +690,7 @@ function renderActions(
       personalWorkspaceLabel={personalWorkspaceLabel}
       isReadOnly={false}
       isTaskOwner
+      taskOwnerId="owner-1"
       {...props}
     />,
   );
@@ -687,7 +705,7 @@ describe("TaskDetailActions", () => {
     vi.mocked(setTaskStatusFromDrag).mockReset();
     vi.mocked(createTaskLink).mockReset();
     vi.mocked(createTaskAndLink).mockReset();
-    vi.mocked(deleteTask).mockReset();
+    archiveMock.mockReset().mockResolvedValue(undefined);
     vi.mocked(deleteTaskLink).mockReset();
   });
 
@@ -849,7 +867,6 @@ describe("TaskDetailActions", () => {
 
   it("marks the task archived for the board before leaving", async () => {
     const user = userEvent.setup();
-    vi.mocked(deleteTask).mockResolvedValue({ taskId: "task-1" });
     renderActions({
       status: "GRANT_PENDING" as TaskStatus,
       organizations: undefined,
@@ -857,12 +874,22 @@ describe("TaskDetailActions", () => {
       isReadOnly: true,
     });
 
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: labels.archive }));
     await user.click(screen.getByRole("button", { name: labels.archive }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
     expect(isTaskArchived("task-1")).toBe(true);
+  });
+
+  it("shows the task again on the board when the archive fails", async () => {
+    const user = userEvent.setup();
+    archiveMock.mockRejectedValueOnce(new Error("nope"));
+    renderActions({ organizations: undefined });
+
+    await user.click(screen.getByRole("button", { name: labels.archive }));
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks");
+    await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
+    expect(toast.error).toHaveBeenCalledWith(labels.archiveError);
   });
 
   it("reports a stale status list instead of opening the upgrade modal", async () => {
@@ -1195,6 +1222,73 @@ describe("TaskDetailActions", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Move to workspace" }),
     ).toBeNull();
+  });
+
+  it("hides archive and move on a task without an owner from a plain member", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      taskOwnerId: null,
+      isTaskOwner: false,
+      currentOrganizationId: "org-1",
+      organizations: organizationMembership("member"),
+      hasAssignedSeat: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: labels.archive }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows archive and move on a task without an owner to an organization admin", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      taskOwnerId: null,
+      isTaskOwner: false,
+      currentOrganizationId: "org-1",
+      organizations: organizationMembership("admin"),
+      hasAssignedSeat: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides a personal workspace as a move target for a task without an owner", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      taskOwnerId: null,
+      isTaskOwner: false,
+      currentOrganizationId: "org-1",
+      organizations: organizationMembership("admin", {
+        id: "org-1",
+        name: "Org",
+      }),
+      hasPersonalWorkspace: true,
+      hasAssignedSeat: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows archive while grant approval is pending to a member of an organization task", async () => {
@@ -1869,28 +1963,18 @@ describe("TaskDetailActions", () => {
     ).toBe(3);
   });
 
-  it("archives the task from the confirmation dialog", async () => {
+  it("archives straight from the overflow menu without confirming", async () => {
     const user = userEvent.setup();
-    const deleteTaskMock = vi.mocked(deleteTask);
-    deleteTaskMock.mockResolvedValue({ taskId: "task-1" });
-
     renderActions({ organizations: undefined });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: labels.archive }));
 
-    expect(
-      await screen.findByRole("heading", { name: labels.confirmArchive }),
-    ).toBeVisible();
-
-    await user.click(
-      screen.getAllByRole("button", { name: labels.archive }).at(-1)!,
-    );
-
     await waitFor(() => {
-      expect(deleteTaskMock).toHaveBeenCalledWith({ taskId: "task-1" });
+      expect(archiveMock).toHaveBeenCalledWith("task-1");
       expect(pushMock).toHaveBeenCalledWith("/tasks");
     });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it("keeps desktop submenu behavior for mark as actions", async () => {
@@ -2079,7 +2163,7 @@ describe("TaskDetailActions", () => {
       expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
       expect(createTaskLink).not.toHaveBeenCalled();
       expect(createTaskAndLink).not.toHaveBeenCalled();
-      expect(deleteTask).not.toHaveBeenCalled();
+      expect(archiveMock).not.toHaveBeenCalled();
     });
 
     it("is not offered where no schedule can be created", async () => {

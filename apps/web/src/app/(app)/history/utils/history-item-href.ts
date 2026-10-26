@@ -2,6 +2,7 @@ import {
   NotificationKind,
   type TransactionHistoryItem,
 } from "@sokosumi/core-client";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 /**
@@ -16,17 +17,10 @@ export function getHistoryItemHref(
 ): string | null {
   switch (item.kind) {
     case "job":
-      return getNotificationHref({
-        kind: NotificationKind.JOB,
-        referenceId: item.jobId,
-        metadata: { agentId: item.agentId },
-      });
+      return jobHref(item.jobId, item.agentId);
+    // An archived task is a 404 everywhere, so its charge opens nothing.
     case "task":
-      return getNotificationHref({
-        kind: NotificationKind.TASK,
-        referenceId: item.taskId,
-        metadata: null,
-      });
+      return item.taskArchived ? null : taskHref(item.taskId);
     // Content Studio, not a notification destination. The ledger row is about
     // the generation that was charged, not one version of it, so this opens the
     // studio scoped to that project rather than deep-linking a single image.
@@ -36,13 +30,46 @@ export function getHistoryItemHref(
       return item.projectId
         ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
         : "/studio";
-    // History lists the owner's own spend, so a Soko Bot row is always their
-    // own assistant, whose page shows what it did.
+    // A Soko Bot row is the viewer's own bot or a shared bot they asked, which
+    // bills the asking member. Open that bot's console; the by-id page sends
+    // the viewer's own personal bot on to their assistant page.
     case "sokoBot":
-      return "/personal-assistant";
-    // Coworker seats, top ups and unattributed spends are ledger entries with
-    // no page behind them. A link to nowhere is worse than no link.
+      return sokoBotConsoleRoute(item.sokoBotId);
+    // A refund opens what it refunded, the same page as the spend it undid.
+    // Other top ups have no page behind them. Legacy studio refunds carry
+    // projectId from the refunded image job (no job/task id).
+    case "topUp":
+      if (item.refundedJobId) {
+        return jobHref(item.refundedJobId, item.refundedAgentId);
+      }
+      if (item.refundedTaskId) {
+        return taskHref(item.refundedTaskId);
+      }
+      return item.projectId
+        ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
+        : null;
+    // Coworker seats and unattributed spends are ledger entries with no page
+    // behind them. A link to nowhere is worse than no link.
     default:
       return null;
   }
+}
+
+function jobHref(jobId: string, agentId: string | null): string | null {
+  // Without an agent id, getNotificationHref falls back to /tasks — wrong for
+  // a job. Prefer no link over a false destination.
+  if (!agentId) return null;
+  return getNotificationHref({
+    kind: NotificationKind.JOB,
+    referenceId: jobId,
+    metadata: { agentId },
+  });
+}
+
+function taskHref(taskId: string): string | null {
+  return getNotificationHref({
+    kind: NotificationKind.TASK,
+    referenceId: taskId,
+    metadata: null,
+  });
 }

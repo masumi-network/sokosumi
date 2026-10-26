@@ -24,7 +24,9 @@ const {
   coworkerMemberFindUniqueMock,
   workspaceFindUniqueMock,
   coworkerFindFirstMock,
+  turnFindFirstMock,
 } = vi.hoisted(() => ({
+  turnFindFirstMock: vi.fn(),
   findUniqueMock: vi.fn(),
   findManyMentionMock: vi.fn(),
   updateManyMock: vi.fn(),
@@ -83,6 +85,7 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findFirst: coworkerFindFirstMock,
     },
+    sokoBotTurn: { findFirst: turnFindFirstMock },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         chatRoomMessage: {
@@ -517,6 +520,80 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+  });
+
+  describe("a shared Soko Bot asking", () => {
+    const TURN_ID = "01a0efbb-778c-7669-86b6-d50d81e74299";
+    // The shape `post_chat` writes: the turn rides in the client key, and
+    // the metadata carries only the chain counters.
+    function askedBySharedBot(
+      clientMessageId: string | null,
+      metadata: unknown = {
+        soko_bot_chain: {
+          depth: 1,
+          max_depth: 3,
+          room_messages_this_hour: 1,
+          room_messages_per_hour: 30,
+        },
+      },
+    ) {
+      const mention = pendingMention();
+      return {
+        ...mention,
+        message: {
+          ...mention.message,
+          senderUserId: null,
+          senderUser: null,
+          clientMessageId,
+          metadata,
+          senderSokoBot: { id: "shared_bot", userId: null, archivedAt: null },
+        },
+      };
+    }
+
+    it("runs for the member whose turn wrote the message", async () => {
+      findUniqueMock.mockResolvedValue(
+        askedBySharedBot(`soko-bot-tool:${TURN_ID}:call_1`),
+      );
+      turnFindFirstMock.mockResolvedValue({ requestedByUserId: "member_1" });
+
+      await dispatchChatRoomMention(MENTION_ID);
+
+      expect(turnFindFirstMock).toHaveBeenCalledWith({
+        where: { id: TURN_ID, sokoBotId: "shared_bot" },
+        select: { requestedByUserId: true },
+      });
+      // The Coworker is told an assistant is asking, not "a teammate".
+      expect(streamTextMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: [
+            {
+              role: "user",
+              content: expect.stringContaining("Soko Bot (personal assistant)"),
+            },
+          ],
+        }),
+      );
+    });
+
+    it.each([
+      ["no turn of that bot", `soko-bot-tool:${TURN_ID}:call_1`],
+      ["no turn id", null],
+    ])("fails closed when the message carries %s", async (_label, key) => {
+      findUniqueMock.mockResolvedValue(askedBySharedBot(key));
+      turnFindFirstMock.mockResolvedValue(null);
+
+      await dispatchChatRoomMention(MENTION_ID);
+
+      expect(updateManyMock).toHaveBeenCalledWith({
+        where: { id: MENTION_ID, status: { not: "responded" } },
+        data: {
+          status: "failed",
+          error: "Mention sender is no longer available",
+        },
+      });
+      expect(streamTextMock).not.toHaveBeenCalled();
+    });
   });
 
   it("fails closed when the coworker is no longer a room member", async () => {

@@ -325,7 +325,10 @@
       "design-md": "Design",
       "memory": "Gedächtnis",
       "social": "Social-Planung",
-      "evaluations": "Modellvergleiche"
+      "ads": "Ads",
+      "evaluations": "Modellvergleiche",
+      "catch-up": "Aufholen",
+      "contacts": "Kontakte"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1019,6 +1022,16 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openJob": "Job öffnen",
+      "jobHint": {
+        "started": "Der Job wird gestartet.",
+        "payment_pending": "Die Zahlung wird bestätigt, bevor der Agent startet.",
+        "processing": "Der Agent arbeitet daran.",
+        "input_required": "Der Agent braucht weitere Angaben, um weiterzumachen.",
+        "result_pending": "Der Agent ist fertig. Das Ergebnis ist unterwegs.",
+        "failed": "Der Agent konnte diesen Job nicht abschließen.",
+        "payment_failed": "Die Zahlung ist fehlgeschlagen, daher hat der Agent nicht begonnen."
+      },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
@@ -1026,7 +1039,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
@@ -1239,10 +1251,19 @@
             "message": "Noch kein Konto?",
             "link": "Registrieren"
           },
+          "RegisterOnWebsite": {
+            "message": "Noch kein Konto? Konten werden auf der Website erstellt, nicht in der App.",
+            "link": "Auf der Website erstellen"
+          },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
             "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "NoAccountOnWebsite": {
+            "title": "Kein Konto für diese Adresse",
+            "description": "Prüfe sie auf Tippfehler oder erstelle ein Konto auf der Website und melde dich dann hier an.",
+            "createAccount": "Konto auf der Website erstellen"
           },
           "Handover": {
             "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
@@ -1445,7 +1466,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Aufladung",
           "unattributed": "Sonstige"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# Interaktion} other {# Interaktionen}}",
+        "sokoBotTurnsList": "Interaktionen von {name}"
       },
       "Export": {
         "button": "CSV exportieren",
@@ -1590,7 +1613,8 @@
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
           "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden"
+          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
+          "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1600,6 +1624,19 @@
         "searchAgents": {
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "heading": "Was steht als Nächstes an?",
+          "headingWithName": "Was steht als Nächstes an, {name}?",
+          "placeholder": "Frag {name}…",
+          "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
+          "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "suggestions": {
+            "catchUp": "Bring mich auf den Stand",
+            "teamWins": "Was haben wir geschafft?",
+            "planTomorrow": "Morgen planen"
+          }
         }
       },
       "SokoBot": {
@@ -1623,6 +1660,7 @@
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",
+          "background": "Hintergrundauftrag: {name}",
           "taskUpdate": "Task-Update"
         }
       }
@@ -1691,7 +1729,8 @@
         "emptyResults": "Keine Treffer.",
         "all": "Alle",
         "scopeLabel": "Bereich",
-        "scopeOwned": "Meine Tasks",
+        "scopeOwned": "Von mir erstellt",
+        "assignedToMe": "Meine Tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "humanLabel": "Mensch",
@@ -1792,8 +1831,6 @@
         "actions": {
           "edit": "Bearbeiten",
           "archive": "Archivieren",
-          "confirmArchive": "Diesen Task archivieren?",
-          "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet, inklusive verknüpfter geplanter Läufe. Laufende Läufe müssen zuerst enden oder abgebrochen werden. Er wird nicht dauerhaft aus der Datenbank gelöscht.",
           "archiveError": "Task konnte nicht archiviert werden",
           "reopenToReady": "Als Bereit wiedereröffnen",
           "reopenToReadyTitle": "Aufgabe wiedereröffnen",
@@ -2152,6 +2189,7 @@
           "resume": "Fortsetzen",
           "end": "Beenden",
           "delete": "Löschen",
+          "more": "Weitere Aktionen",
           "paused": "Zeitplan pausiert",
           "resumed": "Zeitplan fortgesetzt",
           "ended": "Zeitplan beendet",
@@ -2230,7 +2268,14 @@
           "marketing": "Marketing",
           "social": "Social Media",
           "seo": "SEO",
-          "operations": "Betrieb"
+          "operations": "Betrieb",
+          "presentations": "Präsentationen",
+          "dashboards": "Dashboards",
+          "monitoring": "Monitoring",
+          "media": "Medienbearbeitung",
+          "communication": "Kommunikation",
+          "finance": "Finanzen",
+          "qa": "Review & QA"
         }
       }
     },
@@ -2369,8 +2414,11 @@
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
         "connectAccount": "Konto verbinden",
+        "projectClosed": "Dieses Projekt ist geschlossen.",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
+        "startOver": "Neu starten",
+        "syncNow": "Jetzt synchronisieren",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
         "unknownHandle": "Unbekanntes Konto",
@@ -2382,7 +2430,7 @@
         },
         "replaceDialog": {
           "title": "{account} ersetzen?",
-          "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
+          "description": "Entwürfe und geplante Beiträge wandern auf das neue Konto.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
@@ -2393,17 +2441,18 @@
         "cancel": "Abbrechen",
         "success": {
           "connected": "{account} verbunden.",
-          "disconnected": "{account} getrennt."
+          "disconnected": "{account} getrennt.",
+          "syncStarted": "Synchronisierung gestartet."
         },
         "warning": {
-          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
+          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Für das Veröffentlichen auf Facebook braucht das Konto genau eine verwaltete Seite. Verwende ein Konto mit einer einzigen verwaltbaren Seite.",
+          "facebookPage": "Facebook braucht ein Konto, das genau eine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
-          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
+          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Versuche es erneut.",
           "legacyCallback": "Mit dieser Rückmeldung kann dein Konto nicht verifiziert werden. Wende dich an den Support und versuche es erneut.",
           "verifier": "Dein Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
           "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
@@ -2411,7 +2460,8 @@
           "reconnectMismatch": "Verbinde dasselbe Konto erneut, das bereits mit diesem Projekt verknüpft ist.",
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
-          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
+          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
+          "sync": "Synchronisierung konnte nicht gestartet werden."
         },
         "comingSoon": "Bald verfügbar",
         "connectComingSoon": "{provider} (bald verfügbar)",
@@ -2419,11 +2469,28 @@
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Erneut versuchen",
+          "help": "Alles andere funktioniert weiterhin. Prüfe deine Verbindung und versuche es erneut.",
+          "projectHelp": "Vorerst werden alle Projekte angezeigt. Versuche es erneut oder wähle ein anderes Projekt.",
+          "title": {
+            "drafts": "Entwürfe konnten nicht geladen werden",
+            "attention": "Beiträge, die Aufmerksamkeit brauchen, konnten nicht geladen werden",
+            "accounts": "Konten konnten nicht geladen werden",
+            "calendar": "Der Kalender konnte nicht geladen werden",
+            "post": "Dieser Beitrag konnte nicht geöffnet werden",
+            "project": "Dieses Projekt konnte nicht geladen werden"
+          }
+        },
         "loadMore": "Mehr laden",
+        "loadMoreError": "Mehr konnte nicht geladen werden.",
+        "loadMoreOffline": "Du bist offline.",
+        "loadMoreTimeout": "Zeitüberschreitung.",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
-        "moreActions": "Beitragsaktionen",
+        "moreActionsNamed": "Beitragsaktionen für {handle}",
+        "thisDraft": "diesen Entwurf",
         "noAccount": "Kein Konto",
         "outcomes": {
           "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
@@ -2447,14 +2514,19 @@
           "accounts": "Konten",
           "statistics": "Leistung"
         },
+        "filters": {
+          "platform": "Plattform"
+        },
         "empty": {
-          "drafts": "Noch keine Entwürfe."
+          "drafts": "Noch keine Entwürfe.",
+          "more": "Weitere Beiträge sind verfügbar."
         },
         "emptyHint": {
-          "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
+          "drafts": "Speichere einen Entwurf für später."
         },
         "status": {
           "DRAFT": "Entwurf",
+          "NEEDS_APPROVAL": "Freigabe nötig",
           "SCHEDULED": "Geplant",
           "PUBLISHING": "Wird veröffentlicht",
           "PUBLISHED": "Veröffentlicht",
@@ -2474,9 +2546,14 @@
           "rescheduleTitle": "Beitrag neu planen",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
+          "firstComment": "Erster Kommentar",
+          "firstCommentPlaceholder": "Hashtags oder ein Aufruf",
+          "firstCommentTooLong": "Der erste Kommentar ist zu lang.",
+          "textForAccount": "Text für dieses Konto",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
+            "drop": "Dateien zum Anhängen ablegen",
             "upload": "Hochladen",
             "remove": "{name} entfernen",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
@@ -2523,7 +2600,9 @@
             "dateSelected": "Datum: {date}",
             "timeSelected": "Uhrzeit: {time}",
             "times": "Uhrzeiten",
-            "now": "Jetzt"
+            "now": "Jetzt",
+            "suggestedTimes": "Vorgeschlagene Zeiten",
+            "suggested": "Beste {time}"
           },
           "timezone": {
             "yours": "Deine Zeitzone: {zone}",
@@ -2545,6 +2624,10 @@
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
+          "discardTitle": "Änderungen verwerfen?",
+          "discardDescription": "Deine Änderungen gehen verloren.",
+          "discard": "Verwerfen",
+          "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
           "tooLong": "Die Textlänge überschreitet das Limit."
@@ -2554,20 +2637,29 @@
           "description": "Der Beitrag wird nicht veröffentlicht. Das lässt sich nicht rückgängig machen.",
           "confirm": "Beitrag abbrechen"
         },
+        "dismissDialog": {
+          "title": "Diesen Beitrag verwerfen?",
+          "description": "Er verschwindet aus Braucht Aufmerksamkeit.",
+          "confirm": "Verwerfen"
+        },
         "toasts": {
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
+          "dismissed": "Beitrag verworfen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
           "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "missingPost": "Beitrag konnte nicht geöffnet werden.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
-          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}"
+          "publishFailedItem": "{account} — {error}",
+          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
+          "duplicated": "Entwurf erstellt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2576,23 +2668,36 @@
         "failedAt": "Fehlgeschlagen {date}",
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
-          "publishNow": "Jetzt veröffentlichen",
-          "retry": "Erneut versuchen"
+          "publishNow": "Jetzt posten",
+          "retry": "Erneut versuchen",
+          "dismiss": "Verwerfen",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "publishDialog": {
-          "title": "Diesen Beitrag jetzt veröffentlichen?",
+          "title": "Diesen Beitrag jetzt posten?",
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
-          "confirm": "Jetzt veröffentlichen"
+          "confirm": "Jetzt posten"
         },
         "retryDialog": {
           "title": "Diesen Beitrag erneut versuchen?",
           "description": "Der Beitrag wird jetzt veröffentlicht.",
           "confirm": "Erneut versuchen"
         },
+        "bulkRetry": {
+          "selectPost": "Diesen Beitrag auswählen",
+          "selectAll": "Alle erneut versuchbaren Beiträge auswählen",
+          "selected": "{count} ausgewählt",
+          "retrySelected": "Auswahl erneut versuchen",
+          "title": "Diese Beiträge jetzt erneut versuchen?",
+          "description": "Jeder ausgewählte Beitrag wird sofort veröffentlicht. Du siehst danach, welche veröffentlicht wurden und welche noch Aufmerksamkeit brauchen.",
+          "confirm": "Auswahl erneut versuchen",
+          "resultsTitle": "Ergebnis",
+          "published": "Veröffentlicht"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge gehen von den Konten dieses Projekts.",
-          "action": "X, YouTube, LinkedIn … verbinden"
+          "action": "Konto verbinden"
         },
         "reconnectPrompt": {
           "title": "Erneut verbinden, um zu posten",
@@ -2604,12 +2709,14 @@
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "openNamed": "Vorschau für {handle}",
           "accounts": "Vorschaukonto",
-          "as": "Vorschau als {handle}",
+          "as": "Vorschau als {provider} {handle}",
           "dialogTitle": "Beitragsvorschau",
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
+          "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -2620,7 +2727,9 @@
           },
           "instagram": {
             "more": "mehr",
-            "mediaRequired": "Instagram braucht ein Bild oder Video."
+            "mediaRequired": "Instagram braucht ein Bild oder Video.",
+            "slide": "{current} von {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Gefällt mir",
@@ -2636,6 +2745,9 @@
           "tiktok": {
             "more": "mehr",
             "videoRequired": "TikTok braucht ein Video."
+          },
+          "x": {
+            "more": "Mehr anzeigen"
           }
         },
         "statistics": {
@@ -2648,15 +2760,17 @@
           "clearFilters": "Filter zurücksetzen",
           "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
           "loading": "Statistiken werden geladen…",
-          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "loadFailed": "Statistiken nicht geladen.",
           "retry": "Erneut versuchen",
-          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "refreshFailed": "Aktualisieren nicht möglich.",
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
+          "loadMoreError": "Mehr konnte nicht geladen werden.",
           "unavailable": "Nicht verfügbar",
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
-          "updatedAt": "Aktualisiert am {date}",
+          "updatedAt": "Aktualisiert {date}",
+          "updating": "Aktualisiere…",
           "metrics": {
             "views": "Aufrufe",
             "impressions": "Impressionen",
@@ -2690,11 +2804,27 @@
             "dayEngagementUnavailable": "{date}: Interaktionen nicht verfügbar",
             "dayOutside": "{date}: außerhalb der erfassten Historie",
             "legendNone": "Keine",
-            "legendMore": "Mehr"
+            "legendMore": "Mehr",
+            "moreActions": "Weitere Aktionen",
+            "exportCsv": "CSV exportieren",
+            "exportXlsx": "Tabelle exportieren",
+            "legendUnknown": "Unbekannt"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
-          "postsHint": "Schreibgeschützter Verlauf aus verbundenen Plattformen. Beitragsfilter ändern die Kontoübersicht nicht.",
+          "postsHint": "Importiert von verbundenen Plattformen. Teile einen starken Beitrag erneut.",
+          "recycle": {
+            "action": "Erneut teilen",
+            "strong": "Stark",
+            "title": "Beitrag erneut teilen?",
+            "description": "Kopiert den Text in einen neuen Entwurf. Es wird nichts von allein veröffentlicht.",
+            "saveDraft": "Als Entwurf speichern",
+            "inDays": "In {days} Tagen",
+            "drafted": "Entwurf erstellt.",
+            "scheduled": "Erneut geplant.",
+            "failed": "Teilen fehlgeschlagen.",
+            "cancel": "Abbrechen"
+          },
           "account": "Konto",
           "allAccounts": "Alle Konten",
           "syncAll": "Alle Konten synchronisieren",
@@ -2716,8 +2846,8 @@
           "historyNotFetched": "Der Kontoverlauf wurde noch nicht importiert.",
           "historyLimited": "Der Verlauf ist unvollständig oder durch die Plattform eingeschränkt. Prüfe die Kontoberechtigungen und synchronisiere erneut.",
           "dateUnavailable": "Veröffentlichungsdatum nicht verfügbar",
-          "mediaPost": "Medienbeitrag",
-          "openPost": "Beitrag auf der Plattform öffnen",
+          "noPostMetrics": "Für diesen Beitrag wurden noch keine Kennzahlen gemeldet.",
+          "openPost": "Beitrag auf der Plattform ansehen",
           "accountMetrics": {
             "followers": "Follower",
             "following": "Gefolgte Konten",
@@ -2760,7 +2890,13 @@
             "linkClicks": "Linkklicks",
             "replies": "Antworten",
             "reposts": "Erneut geteilte Beiträge",
-            "dislikes": "Negative Bewertungen"
+            "dislikes": "Negative Bewertungen",
+            "quotes": "Zitate",
+            "totalWatchTime": "Gesamte Wiedergabezeit",
+            "averageWatchTime": "Durchschnittliche Wiedergabezeit",
+            "skipRate": "Überspringrate",
+            "facebookViews": "Facebook-Aufrufe",
+            "crosspostedViews": "Aufrufe durch Crossposting"
           },
           "periods": {
             "lifetime": "Gesamter Zeitraum",
@@ -2779,7 +2915,16 @@
             "minutes": "Minuten",
             "hours": "Stunden"
           }
-        }
+        },
+        "reconnection": {
+          "accounts": "Konten mit Handlungsbedarf",
+          "title": "{account} muss erneut verbunden werden",
+          "affected": "{count, plural, one {# Beitrag betroffen} other {# Beiträge betroffen}}",
+          "retryTitle": "Fehlgeschlagene Beiträge erneut versuchen?",
+          "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
+          "later": "Später"
+        },
+        "moreActions": "Beitragsaktionen"
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -2876,6 +3021,7 @@
           "dialog": {
             "title": "Projekt schließen?",
             "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "scheduledPostsWarning": "{count, plural, one {# geplanter Beitrag wird abgebrochen.} other {# geplante Beiträge werden abgebrochen.}}",
             "reasonLabel": "Grund (optional)",
             "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
             "confirm": "Projekt schließen",
@@ -2931,10 +3077,14 @@
           "overview": "Übersicht",
           "design": "Design",
           "memory": "Gedächtnis",
-          "ariaLabel": "Projektbereiche"
+          "ariaLabel": "Projektbereiche",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots für dieses Projekt"
         }
       }
     },
@@ -3026,7 +3176,6 @@
       "modelCount": "{count, plural, one {# Modell} other {# Modelle}}",
       "copyCount": "{count, plural, one {# Kopie} other {# Kopien}}",
       "pickTitle": "Projekt auswählen",
-      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen.",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
@@ -3040,10 +3189,28 @@
       "noModelSelected": "Wähle mindestens ein Modell. Format, Auflösung und Dateiformat werden nur angeboten, wenn jedes gewählte Modell sie unterstützt.",
       "generationTime": "Generierungsdauer",
       "runPlan": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}",
+      "modelSelectionLimit": "Wähle bis zu {count} Modelle pro Durchlauf. Wähle ein Modell ab, um ein anderes hinzuzufügen.",
+      "selectModelsUpToLimit": "Bis zu {count} auswählen",
+      "mixedSettings": "Je nach Modell unterschiedlich",
+      "modelChoosesFormat": "Modell wählt",
       "copiesOverCeiling": "{models, plural, one {# Modell} other {# Modelle}} x {copies} Kopien sind {images} Bilder, das Limit ist {limit}.",
       "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat.",
-      "errorUnreachable": "Das Studio war nicht erreichbar. Es wurde nichts generiert. Versuche es erneut.",
-      "errorInsufficientCredits": "Nicht genügend Credits. Es wurde nichts generiert und nichts berechnet. Lade Credits auf und versuche es erneut.",
+      "savedSubmission": "Gespeicherte Anfrage für {model}",
+      "submissionUnconfirmed": "Übermittlung nicht bestätigt",
+      "submissionNotStarted": "Bildgenerierung konnte nicht gestartet werden",
+      "viewSavedBrief": "Gespeicherten Entwurf ansehen",
+      "retrySubmission": "Übermittlung erneut versuchen",
+      "editSavedBrief": "Gespeicherten Entwurf bearbeiten",
+      "dismissSubmission": "Verwerfen",
+      "recoveryEditBlocked": "Im Eingabebereich befindet sich ein neuerer Entwurf. Schließe ihn ab, bevor du diesen gespeicherten Entwurf bearbeitest.",
+      "savedRequestsInTab": "Gespeicherte Anfragen bleiben in diesem Tab. Beim Verlassen oder Neuladen werden sie gelöscht.",
+      "promptShortcut": "Strg oder ⌘ + Eingabetaste zum Generieren. Eingabetaste oder Umschalt + Eingabetaste für eine neue Zeile.",
+      "promptCharacterCount": "{count, number} / {limit, number} Zeichen",
+      "promptTooLong": "Kürze den Entwurf vor dem Generieren auf {limit, number} Zeichen.",
+      "templateReplacedBrief": "Die Vorlage hat deinen Entwurf ersetzt.",
+      "undoTemplate": "Vorlage rückgängig machen",
+      "errorUnreachable": "Die Übermittlung konnte nicht bestätigt werden. Die ursprüngliche Anfrage kann noch abgeschlossen und berechnet werden. Ein erneuter Versuch prüft dieselbe Anfrage, ohne eine weitere Generierung zu erstellen.",
+      "errorInsufficientCredits": "Nicht genügend Credits, um die verbleibenden Bilder zu starten. Deine Anfragen bleiben hier gespeichert, damit du sie nach dem Aufladen erneut versuchen kannst.",
       "credits": "Credits",
       "creditsTitle": "Credits für diesen Stapel",
       "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
@@ -3066,6 +3233,18 @@
         "unknown": "Diese Generierung wurde nicht abgeschlossen."
       },
       "failedDetails": "Meldung des Anbieters",
+      "studioMode": "Erstellen",
+      "modeImage": "Bild",
+      "modeVideo": "Video",
+      "videoComposerTitle": "Video beschreiben",
+      "videoPromptPlaceholder": "Beschreibe das gewünschte Video …",
+      "generateVideo": "Video erstellen",
+      "videoLength": "Länge",
+      "videoFollowsImage": "Das Video übernimmt das Format des Bildes.",
+      "videoNeedsProject": "Öffne ein Projekt, um darin ein Video zu erstellen.",
+      "animate": "Animieren",
+      "animating": "Wird animiert",
+      "stopAnimating": "Dieses Bild nicht animieren",
       "runPlanCredits": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}, {credits, plural, one {# Credit} other {# Credits}}",
       "creditsEach": "{credits, plural, one {# Credit} other {# Credits}} x {count}",
       "creditsCount": "{count, plural, one {# Credit} other {# Credits}}",
@@ -3076,7 +3255,579 @@
         "megapixels": "Megapixel",
         "processedMegapixels": "verarbeitetes Megapixel"
       },
-      "creditsCheckedOn": "Preis geprüft am {date}"
+      "creditsCheckedOn": "Preis geprüft am {date}",
+      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen."
+    },
+    "Ads": {
+      "title": "Ads",
+      "pickTitle": "Projekt auswählen",
+      "pickBody": "Ads gehören zu einem Projekt: Werbekonten und Kampagnen werden dort verwaltet. Wähle ein Projekt aus, um seine Ads zu öffnen.",
+      "pickAction": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
+      "tabsLabel": "Ads-Bereiche",
+      "loading": "Ads werden geladen…",
+      "updated": "Aktualisiert {time}",
+      "loadError": {
+        "unavailableDescription": "Es ist für Sokosumi noch nicht eingerichtet.",
+        "failedDescription": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      },
+      "tabs": {
+        "campaigns": "Kampagnen",
+        "market": "Markt",
+        "accounts": "Konten"
+      },
+      "campaigns": {
+        "emptyTitle": "Verbinde ein Werbekonto, um Kampagnen zu sehen",
+        "emptyBody": "Kampagnen aus Google Ads und Meta Ads erscheinen hier, sobald ein Konto verbunden ist.",
+        "emptyAction": "Zu den Konten",
+        "noCampaignsTitle": "Noch keine Kampagnen in diesem Konto",
+        "noCampaignsBody": "Erstelle eine mit „Neue Kampagne“. Sie startet pausiert.",
+        "account": "Werbekonto",
+        "rangeLabel": "Zeitraum",
+        "range": {
+          "7d": "7 Tage",
+          "30d": "30 Tage"
+        },
+        "tableLabel": "Kampagnen",
+        "columns": {
+          "name": "Kampagne",
+          "status": "Status",
+          "dailyBudget": "Tagesbudget",
+          "spend": "Ausgaben",
+          "impressions": "Impressionen",
+          "clicks": "Klicks",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversions",
+          "actions": "Aktionen"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "PAUSED": "Pausiert",
+          "ENDED": "Beendet",
+          "OTHER": "Sonstige"
+        },
+        "actions": {
+          "label": "Aktionen für {name}",
+          "pause": "Pausieren",
+          "resume": "Fortsetzen",
+          "budget": "Tagesbudget ändern"
+        },
+        "cancel": "Abbrechen",
+        "pauseDialog": {
+          "title": "{name} pausieren?",
+          "description": "Die Kampagne gibt kein Geld mehr aus, bis du sie fortsetzt.",
+          "confirm": "Pausieren"
+        },
+        "resumeDialog": {
+          "title": "{name} fortsetzen?",
+          "description": "Die Kampagne gibt wieder Geld aus, bis zu ihrem Tagesbudget.",
+          "confirm": "Fortsetzen"
+        },
+        "budget": {
+          "label": "Tagesbudget ({currency})",
+          "required": "Gib ein Tagesbudget über 0 ein.",
+          "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
+          "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}.",
+          "managedElsewhere": "Das Budget dieser Kampagne wird in {provider} verwaltet (gemeinsames oder Anzeigengruppen-Budget). Ändere es dort."
+        },
+        "budgetDialog": {
+          "title": "Tagesbudget ändern",
+          "description": "{name} gibt pro Tag höchstens diesen Betrag aus.",
+          "save": "Budget speichern",
+          "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
+          "notSet": "nicht festgelegt"
+        },
+        "success": {
+          "updated": "Kampagne erfolgreich aktualisiert"
+        },
+        "errors": {
+          "update": "Kampagne konnte nicht aktualisiert werden",
+          "notActive": {
+            "title": "Verbinde dieses Konto unter Konten neu",
+            "description": "Die Verbindung zu diesem Werbekonto ist nicht mehr aktiv.",
+            "action": "Zu den Konten"
+          },
+          "unavailable": {
+            "title": "{provider} ist noch nicht verfügbar"
+          },
+          "failed": {
+            "title": "Kampagnen konnten nicht geladen werden"
+          }
+        },
+        "new": "Neue Kampagne",
+        "budgetPerDay": "{budget}/Tag"
+      },
+      "newCampaign": {
+        "title": "Neue Kampagne",
+        "inAccount": "{provider}-Konto {name}",
+        "note": {
+          "google_ads": "Kampagnen werden pausiert erstellt. Setze sie hier fort, wenn sie bereit sind.",
+          "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
+        },
+        "sections": {
+          "type": "Kampagnentyp",
+          "basics": "Grundlagen",
+          "targeting": "Targeting",
+          "ad": "Anzeige"
+        },
+        "types": {
+          "SEARCH": "Suche",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Textanzeigen in den Google-Suchergebnissen.",
+          "DISPLAY": "Bildanzeigen auf Websites und in Apps im Google Displaynetzwerk."
+        },
+        "name": "Name",
+        "objective": "Ziel",
+        "objectivePlaceholder": "Ziel auswählen",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Traffic",
+          "OUTCOME_AWARENESS": "Bekanntheit",
+          "OUTCOME_ENGAGEMENT": "Interaktion",
+          "OUTCOME_LEADS": "Leads",
+          "OUTCOME_SALES": "Verkäufe"
+        },
+        "startDate": "Startdatum",
+        "endDate": "Enddatum",
+        "datesHelp": "Optional. Es gilt die Zeitzone des Anzeigenkontos.",
+        "targeting": {
+          "locations": {
+            "label": "Standorte",
+            "help": "Wo Ihre Anzeigen erscheinen können. Bis zu {max}.",
+            "full": "Standortlimit erreicht ({max}).",
+            "placeholder": "Nach Land, Region oder Stadt suchen",
+            "search": "Standorte suchen",
+            "loading": "Suche läuft…",
+            "idle": "Tippen Sie, um einen Ort zu finden.",
+            "empty": "Keine Standorte gefunden.",
+            "error": "Standorte konnten nicht gesucht werden.",
+            "all": "Alle Länder",
+            "remove": "{name} entfernen"
+          },
+          "languages": {
+            "label": "Sprachen",
+            "help": "Zeigen Sie Anzeigen für Personen, die diese Sprachen verwenden.",
+            "placeholder": "Sprachen auswählen",
+            "search": "Sprachen suchen",
+            "empty": "Keine Sprachen gefunden.",
+            "unavailable": "Die Sprachen konnten nicht geladen werden. Die Kampagne richtet sich an alle Sprachen.",
+            "all": "Alle Sprachen",
+            "remove": "{name} entfernen"
+          }
+        },
+        "keywords": {
+          "label": "Keywords",
+          "help": "Ein Keyword pro Zeile. Mit \"Anführungszeichen\" für passende Wortgruppe und [eckigen Klammern] für genau passend.",
+          "placeholder": "laufschuhe\n\"trailrunning schuhe\"\n[laufschuhe kaufen]",
+          "count": "{count, plural, one {# Keyword} other {# Keywords}}",
+          "addFromMarket": "Aus Markt hinzufügen",
+          "marketNone": "Keine neuen Markt-Keywords zum Hinzufügen",
+          "marketFailed": "Markt-Keywords konnten nicht geladen werden",
+          "errors": {
+            "required": "Füge mindestens ein Keyword hinzu.",
+            "tooMany": "Verwende höchstens {max} Keywords.",
+            "syntax": "Zeile {line}: Prüfe die Anführungszeichen und Klammern.",
+            "tooLong": "Zeile {line}: Verwende höchstens {max} Zeichen.",
+            "tooManyWords": "Zeile {line}: Verwende höchstens {max} Wörter."
+          }
+        },
+        "ad": {
+          "finalUrl": "Ziel-URL",
+          "finalUrlHelp": "Die Seite, auf der Personen nach dem Klick auf deine Anzeige landen.",
+          "finalUrlPlaceholder": "https://example.com/schuhe",
+          "businessName": "Firmenname",
+          "longHeadline": "Lange Überschrift",
+          "displayPath": "Anzeigepfad",
+          "displayPathHelp": "Optional. Zwei kurze Pfade, die in der Anzeige nach deiner Domain stehen.",
+          "path1": "Pfad 1",
+          "path2": "Pfad 2",
+          "pathPreview": "Angezeigt als {url}",
+          "headlines": {
+            "label": "Überschriften",
+            "help": "{min} bis {max} Überschriften mit je höchstens {length} Zeichen. Google kombiniert sie, um herauszufinden, was funktioniert.",
+            "item": "Überschrift {number}",
+            "add": "Überschrift hinzufügen",
+            "remove": "Überschrift {number} entfernen"
+          },
+          "descriptions": {
+            "label": "Beschreibungen",
+            "help": "{min} bis {max} Beschreibungen mit je höchstens {length} Zeichen.",
+            "item": "Beschreibung {number}",
+            "add": "Beschreibung hinzufügen",
+            "remove": "Beschreibung {number} entfernen"
+          },
+          "sitelinks": {
+            "title": "Sitelinks (optional)",
+            "summary": "{count, plural, one {# Sitelink} other {# Sitelinks}}",
+            "help": "Zusätzliche Links unter deiner Anzeige. Bis zu {max}. Fülle beide Beschreibungszeilen aus oder keine.",
+            "item": "Sitelink {number}",
+            "text": "Linktext",
+            "finalUrl": "URL",
+            "description1": "Beschreibungszeile 1",
+            "description2": "Beschreibungszeile 2",
+            "add": "Sitelink hinzufügen",
+            "remove": "Sitelink {number} entfernen"
+          },
+          "callouts": {
+            "title": "Zusatzinformationen (optional)",
+            "summary": "{count, plural, one {# Zusatzinformation} other {# Zusatzinformationen}}",
+            "label": "Zusatzinformationen",
+            "help": "Kurze Highlights wie „Kostenloser Versand“. Bis zu {max} mit je höchstens {length} Zeichen.",
+            "item": "Zusatzinformation {number}",
+            "add": "Zusatzinformation hinzufügen",
+            "remove": "Zusatzinformation {number} entfernen"
+          },
+          "images": {
+            "label": "Bilder",
+            "help": "JPEG, PNG oder GIF, je höchstens {maxMb} MB. Bilder im Querformat haben 1,91:1 (mindestens {landscape} px), quadratische Bilder 1:1 (mindestens {square} px). Insgesamt höchstens {maxImages}.",
+            "counts": "Querformat {landscape} · Quadrat {square} · {total} von {max} Bildern",
+            "missing": {
+              "both": "Füge mindestens ein Bild im Querformat und ein quadratisches Bild hinzu.",
+              "landscape": "Füge mindestens ein Bild im Querformat hinzu.",
+              "square": "Füge mindestens ein quadratisches Bild hinzu."
+            },
+            "logoLabel": "Logo",
+            "logoHelp": "Optional. Quadratische Bilder, 1:1, mindestens {logo} px. Höchstens {maxLogos}.",
+            "logoCounts": "{count} von {max} Logos",
+            "roles": {
+              "LANDSCAPE": "Querformat",
+              "SQUARE": "Quadrat",
+              "LOGO": "Logo"
+            },
+            "slots": {
+              "images": {
+                "files": "Bilddateien"
+              },
+              "logo": {
+                "files": "Logodateien"
+              }
+            },
+            "upload": "Hochladen",
+            "choose": "Aus Drive wählen",
+            "remove": "{name} entfernen",
+            "uploadFailed": "Das Bild konnte nicht hochgeladen werden",
+            "uploadDuplicate": "Eine Datei mit diesem Namen gibt es in deinem Drive schon. Wähle sie stattdessen aus Drive.",
+            "errors": {
+              "unreadable": "{name}: Das Bild konnte nicht gelesen werden.",
+              "type": "{name}: Verwende ein JPEG-, PNG- oder GIF-Bild.",
+              "tooLarge": "{name}: Verwende ein Bild mit höchstens {maxMb} MB.",
+              "duplicate": "{name} ist schon hinzugefügt.",
+              "full": "Verwende höchstens {maxImages} Bilder im Querformat und quadratische Bilder.",
+              "fullLogo": "Verwende höchstens {maxLogos} Logos.",
+              "ratio": "{name}: Verwende ein Bild im Querformat (1,91:1, mindestens {landscape} px) oder ein quadratisches Bild (1:1, mindestens {square} px).",
+              "landscapeTooSmall": "{name}: Bilder im Querformat brauchen mindestens {landscape} px.",
+              "squareTooSmall": "{name}: Quadratische Bilder brauchen mindestens {square} px.",
+              "logoRatio": "{name}: Logos müssen quadratisch sein (1:1).",
+              "logoTooSmall": "{name}: Logos brauchen mindestens {logo} px.",
+              "repeated": "Verwende jede Bilddatei nur einmal."
+            },
+            "kept": "Aktuelles Bild ({role})"
+          }
+        },
+        "submit": "Kampagne erstellen",
+        "uploadingImages": "Bilder werden hochgeladen …",
+        "success": "Kampagne erstellt (pausiert)",
+        "errors": {
+          "nameRequired": "Gib einen Namen ein.",
+          "nameTooLong": "Verwende höchstens {max} Zeichen.",
+          "objectiveRequired": "Wähle ein Ziel.",
+          "finalUrl": "Gib eine vollständige Adresse ein, die mit http:// oder https:// beginnt.",
+          "headlineRequired": "Gib eine Überschrift ein oder entferne diese.",
+          "headlineTooLong": "Verwende höchstens {max} Zeichen.",
+          "headlineDuplicate": "Jede Überschrift muss sich unterscheiden.",
+          "descriptionRequired": "Gib eine Beschreibung ein oder entferne diese.",
+          "descriptionTooLong": "Verwende höchstens {max} Zeichen.",
+          "tooLong": "Verwende höchstens {max} Zeichen.",
+          "pathNeedsFirst": "Fülle zuerst Pfad 1 aus.",
+          "endBeforeStart": "Das Enddatum darf nicht vor dem Startdatum liegen.",
+          "sitelinkTextRequired": "Gib den Linktext ein oder entferne diesen Sitelink.",
+          "sitelinkDescriptionsPair": "Fülle beide Beschreibungszeilen aus oder keine.",
+          "sitelinkDuplicate": "Jeder Sitelink muss sich unterscheiden.",
+          "calloutDuplicate": "Jede Zusatzinformation muss sich unterscheiden.",
+          "businessNameRequired": "Gib den Firmennamen ein.",
+          "longHeadlineRequired": "Gib eine lange Überschrift ein.",
+          "failed": "Kampagne konnte nicht erstellt werden"
+        },
+        "steps": {
+          "type": "Kampagnentyp",
+          "basics": "Grundlagen",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Anzeige",
+          "review": "Überprüfen"
+        },
+        "wizard": {
+          "stepsLabel": "Schritte",
+          "stepOf": "Schritt {current} von {total}: {step}",
+          "backTo": "Zurück zu {step}",
+          "goTo": "Zu {step}",
+          "back": "Zurück",
+          "next": "Weiter"
+        },
+        "typeTitle": "Wo sollen deine Anzeigen erscheinen?",
+        "typeIntro": "Wähle eine Option. Sie lässt sich nach dem Erstellen der Kampagne nicht mehr ändern.",
+        "needs": {
+          "title": "Das brauchst du",
+          "keywords": "Keywords, nach denen Menschen suchen",
+          "searchTexts": "{minHeadlines} bis {maxHeadlines} Überschriften und {minDescriptions} bis {maxDescriptions} Beschreibungen",
+          "displayTexts": "Bis zu {maxHeadlines} Überschriften, eine lange Überschrift und bis zu {maxDescriptions} Beschreibungen",
+          "businessName": "Den Namen deines Unternehmens",
+          "images": "Ein Querformat- und ein quadratisches Bild",
+          "finalUrl": "Die Seite, auf der Menschen landen"
+        },
+        "preview": {
+          "title": "Vorschau",
+          "searchLabel": "Vorschau der Suchanzeige",
+          "displayLabel": "Vorschau der Displayanzeige",
+          "sponsored": "Gesponsert",
+          "note": "Google kombiniert deine Texte und Bilder, um herauszufinden, was funktioniert. Die echte Anzeige kann daher anders aussehen.",
+          "another": "Andere Kombination zeigen",
+          "noImage": "Noch kein Bild",
+          "open": "Öffnen"
+        },
+        "review": {
+          "title": "Zusammenfassung",
+          "dailyBudget": "Tagesbudget",
+          "edit": "Bearbeiten",
+          "editLabel": "{section} bearbeiten",
+          "schedule": {
+            "label": "Zeitraum",
+            "range": "{start} bis {end}",
+            "from": "Ab {start}",
+            "until": "Bis {end}",
+            "none": "Kein Start- oder Enddatum"
+          }
+        },
+        "setupFailed": {
+          "title": "Das Kampagnenformular konnte nicht geladen werden",
+          "body": "Prüfe deine Verbindung und versuche es erneut.",
+          "retry": "Erneut versuchen"
+        }
+      },
+      "campaignDetails": {
+        "back": "Zurück zu den Kampagnen",
+        "title": "Kampagne",
+        "types": {
+          "SEARCH": "Suche",
+          "DISPLAY": "Display"
+        },
+        "perDay": "{amount} pro Tag",
+        "noEndDate": "Kein Enddatum",
+        "sections": {
+          "performance": "Performance",
+          "settings": "Einstellungen",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Anzeige",
+          "sitelinks": "Sitelinks",
+          "callouts": "Zusatzinformationen"
+        },
+        "performance": {
+          "chartMetric": "Kennzahl im Diagramm",
+          "chartLabel": "{metric} pro Tag",
+          "empty": "Keine Aktivität in diesem Zeitraum",
+          "tableCaption": "Tägliche Performance",
+          "date": "Datum",
+          "chartHint": "Mit den Pfeiltasten nach links und rechts wechselst du zwischen den Tagen."
+        },
+        "settings": {
+          "bidding": "Gebotsstrategie",
+          "networks": "Netzwerke"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Klicks maximieren",
+          "MANUAL_CPC": "Manueller CPC",
+          "ENHANCED_CPC": "Optimierter CPC",
+          "MANUAL_CPM": "Manueller CPM",
+          "TARGET_CPM": "Ziel-CPM",
+          "MAXIMIZE_CONVERSIONS": "Conversions maximieren",
+          "MAXIMIZE_CONVERSION_VALUE": "Conversion-Wert maximieren",
+          "TARGET_CPA": "Ziel-CPA",
+          "TARGET_ROAS": "Ziel-ROAS",
+          "TARGET_IMPRESSION_SHARE": "Ziel-Impressionsanteil"
+        },
+        "matchTypes": {
+          "BROAD": "Weitgehend passend",
+          "PHRASE": "Passende Wortgruppe",
+          "EXACT": "Genau passend"
+        },
+        "approval": {
+          "APPROVED": "Genehmigt",
+          "APPROVED_LIMITED": "Eingeschränkt genehmigt",
+          "DISAPPROVED": "Abgelehnt",
+          "PENDING_REVIEW": "Prüfung ausstehend",
+          "UNDER_REVIEW": "In Prüfung",
+          "AREA_OF_INTEREST_ONLY": "Nur in einigen Regionen ausgespielt"
+        },
+        "ad": {
+          "displayUrl": "Angezeigte URL",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Prüfung läuft",
+            "UNDER_APPEAL": "Einspruch eingelegt",
+            "REVIEWED": "Geprüft",
+            "ELIGIBLE_MAY_SERVE": "Auslieferung möglich"
+          },
+          "strength": "Anzeigeneffektivität: {strength}",
+          "strengths": {
+            "PENDING": "Ausstehend",
+            "NO_ADS": "Keine Anzeigen",
+            "POOR": "Schwach",
+            "AVERAGE": "Durchschnittlich",
+            "GOOD": "Gut",
+            "EXCELLENT": "Ausgezeichnet"
+          },
+          "imageAlt": "{role}-Bild {number}"
+        },
+        "notEditable": {
+          "TYPE": "Sokosumi erstellt diesen Kampagnentyp nicht. Verwalte ihn in Google Ads.",
+          "AD_GROUPS": "Diese Kampagne hat mehrere Anzeigengruppen. Verwalte sie in Google Ads.",
+          "AD_TYPE": "Diese Kampagne hat keine einzelne responsive Anzeige. Verwalte ihre Anzeigen in Google Ads."
+        },
+        "errors": {
+          "failed": "Diese Kampagne konnte nicht geladen werden"
+        },
+        "networks": {
+          "SEARCH": "Google Suche",
+          "DISPLAY": "Displaynetzwerk"
+        },
+        "edit": "Bearbeiten"
+      },
+      "editCampaign": {
+        "title": "Kampagne bearbeiten",
+        "submit": "Änderungen speichern",
+        "reviewNote": "Beim Speichern wird die Anzeige erneut von Google geprüft.",
+        "startDateLocked": "Das Startdatum lässt sich nicht mehr ändern, sobald die Kampagne gestartet ist.",
+        "success": "Kampagne aktualisiert",
+        "errors": {
+          "conflict": "Diese Kampagne kann hier nicht bearbeitet werden.",
+          "failed": "Änderungen konnten nicht gespeichert werden"
+        }
+      },
+      "market": {
+        "setupTitle": "Richte deinen Markt ein",
+        "setupBody": "Füge die Keywords hinzu, nach denen deine Kundschaft sucht, und wo. Dann siehst du, was im Trend liegt und welche Anzeigen deine Suchkonkurrenten schalten.",
+        "edit": "Markt bearbeiten",
+        "editBody": "Trend-Keywords und Anzeigen richten sich nach diesen Keywords, diesem Land und dieser Sprache.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Mit Enter oder Komma hinzufügen. Bis zu {max}.",
+          "keywordsPlaceholder": "Zum Beispiel Laufschuhe",
+          "keywordsFull": "Keyword-Limit erreicht",
+          "removeKeyword": "{keyword} entfernen",
+          "country": "Land",
+          "countryPlaceholder": "Land wählen",
+          "language": "Sprache",
+          "languagePlaceholder": "Sprache wählen",
+          "submit": "Markt speichern",
+          "cancel": "Abbrechen",
+          "success": "Markt erfolgreich gespeichert",
+          "errors": {
+            "keywordsRequired": "Füge mindestens ein Keyword hinzu.",
+            "keywordsTooMany": "Nutze bis zu {max} Keywords.",
+            "countryRequired": "Wähle ein Land.",
+            "languageRequired": "Wähle eine Sprache.",
+            "failed": "Markt konnte nicht gespeichert werden"
+          }
+        },
+        "keywords": {
+          "title": "Trend-Keywords",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Suchen pro Monat",
+            "trend": "12 Monate",
+            "competition": "Wettbewerb",
+            "bidRange": "Gebot für Top-Platzierung"
+          },
+          "competition": {
+            "LOW": "Niedrig",
+            "MEDIUM": "Mittel",
+            "HIGH": "Hoch"
+          },
+          "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
+          "searchesPerMonth": "{count} Suchen pro Monat",
+          "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
+          "emptyBody": "Probiere andere Keywords oder ein anderes Land."
+        },
+        "ads": {
+          "title": "Anzeigen deiner Suchkonkurrenten",
+          "previewAlt": "Anzeige von {advertiser}",
+          "textAd": "Textanzeige",
+          "noPreview": "Keine Vorschau",
+          "format": {
+            "text": "Text",
+            "image": "Bild",
+            "video": "Video",
+            "other": "Sonstige"
+          },
+          "lastShown": "Zuletzt gezeigt {time}",
+          "viewAd": "Anzeige ansehen",
+          "emptyTitle": "Keine Konkurrenzanzeigen gefunden",
+          "emptyBody": "Anzeigen von Websites, die für deine Keywords ranken, erscheinen hier, sobald sie laufen.",
+          "gatheringTitle": "Anzeigen deiner Suchkonkurrenten werden gesammelt",
+          "gatheringBody": "Das dauert einige Minuten. Du kannst diese Seite verlassen.",
+          "refreshing": "Wird aktualisiert…",
+          "failedTitle": "Konkurrenzanzeigen konnten nicht gesammelt werden",
+          "failedBody": "Wir versuchen es innerhalb der nächsten Stunde erneut.",
+          "failedNotice": "Aktualisierung fehlgeschlagen, wir versuchen es innerhalb der nächsten Stunde erneut"
+        },
+        "errors": {
+          "unavailable": "Marktdaten sind noch nicht verfügbar",
+          "failed": {
+            "profile": "Dein Markt konnte nicht geladen werden",
+            "keywords": "Keywords konnten nicht geladen werden",
+            "ads": "Anzeigen konnten nicht geladen werden"
+          }
+        }
+      },
+      "accounts": {
+        "emptyTitle": "Noch keine Werbekonten verbunden",
+        "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten.",
+        "connect": "{provider} verbinden",
+        "comingSoon": "Demnächst verfügbar",
+        "unavailable": "{provider} ist noch nicht verfügbar",
+        "noAccountsFound": "Für diesen Login wurden keine Werbekonten gefunden",
+        "sectionLabel": "Werbekonten",
+        "listLabel": "Verbundene Werbekonten",
+        "disconnect": "Trennen",
+        "disconnectLabel": "{name} trennen",
+        "cancel": "Abbrechen",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "{name} trennen?",
+          "description": "Die Kampagnen erscheinen hier nicht mehr. Ist dies das letzte Konto dieses Logins, trennt Sokosumi auch den Login. Du kannst das Konto jederzeit wieder verbinden.",
+          "confirm": "Trennen"
+        },
+        "picker": {
+          "title": "Werbekonten auswählen",
+          "description": "Wähle die {provider}-Konten, die in diesem Projekt verwaltet werden sollen.",
+          "listLabel": "Verfügbare Werbekonten",
+          "confirm": "Auswahl verbinden"
+        },
+        "success": {
+          "connected": "Werbekonten erfolgreich verbunden",
+          "disconnected": "Werbekonto erfolgreich getrennt"
+        },
+        "errors": {
+          "connect": "{provider} konnte nicht verbunden werden",
+          "attach": "Werbekonten konnten nicht verbunden werden",
+          "disconnect": "Werbekonto konnte nicht getrennt werden",
+          "discard": "Verbindung konnte nicht verworfen werden",
+          "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
+          "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
+          "inFlight": "Es läuft bereits eine Verbindung."
+        }
+      },
+      "error": {
+        "title": "Ads konnten nicht geladen werden",
+        "description": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      }
     },
     "Social": {
       "title": "Social-Planung",
@@ -3096,17 +3847,22 @@
         "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
-        "title": "Verbinde deine Social-Media-Konten",
-        "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
+        "title": "Wähle ein Projekt",
+        "body": "Dann verbinde Konten."
+      },
+      "attentionNeedProject": {
+        "title": "Braucht Aufmerksamkeit",
+        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
-      "loading": "Social wird geladen…",
+      "loading": "Wird geladen…",
       "pickProject": "Projekt auswählen",
       "platforms": {
-        "label": "Social-Media-Plattformen"
+        "label": "Social-Media-Plattformen",
+        "pause": "Plattformen pausieren"
       },
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
@@ -3156,7 +3912,9 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social-Planung"
+          "social": "Social-Planung",
+          "ads": "Ads",
+          "contacts": "Kontakte"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -4118,7 +4876,8 @@
             "delete": "Soko Bot löschen",
             "deleted": "Soko Bot gelöscht.",
             "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
-            "error": "Dieser Soko Bot konnte nicht gelöscht werden."
+            "error": "Dieser Soko Bot konnte nicht gelöscht werden.",
+            "confirmLabelShared": "Dieser Bot ist geteilt und hat keinen Besitzer. Zur Bestätigung seine ID eingeben ({id})"
           },
           "chat": {
             "readOnly": "Nur lesen",
@@ -4982,12 +5741,14 @@
         }
       },
       "SocialAccounts": {
-        "connected": "ist verbunden",
-        "notConnected": "ist nicht verbunden",
+        "title": "Anmeldung",
+        "description": "Mit diesen Konten kannst du dich anmelden.",
+        "connected": "{provider} ist verbunden",
+        "notConnected": "{provider} ist nicht verbunden",
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
         "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
-        "loadError": "Deine verbundenen Konten konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen",
         "DisconnectModal": {
           "title": "{provider} trennen",
@@ -5002,7 +5763,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
-        "loadError": "Deine verknüpften Kontodetails konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen"
       },
       "Notifications": {
@@ -5155,7 +5916,11 @@
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
-        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert"
+        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
+        "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
+        "tagDirectMessagesDescription": "Jev darf Direktnachrichten zwischen Personen lesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
+        "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
@@ -6244,6 +7009,10 @@
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
       "reorderPinnedDone": "Sortieren beenden",
+      "SectionLimit": {
+        "showMore": "{count} weitere anzeigen",
+        "showLess": "Weniger anzeigen"
+      },
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
@@ -6258,7 +7027,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Starte den Channel mit einer Nachricht oder erwähne einen KI-Coworker.",
+        "noDirectMessagesDescription": "Schreib eine Nachricht, um das Gespräch zu beginnen.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
@@ -6395,11 +7165,9 @@
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
-        "filterOn": "Nur ungelesene werden angezeigt",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "allThreads": "Alle Threads",
         "justRead": "Gerade gelesen"
       },
       "ThreadsView": {
@@ -6762,6 +7530,92 @@
         "you": "Du",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
+      },
+      "Signals": {
+        "error": "Das konnte nicht geladen werden. Versuche es erneut.",
+        "retry": "Erneut versuchen",
+        "needsYouCount": "{count, plural, one {# Nachricht wartet auf dich} other {# Nachrichten warten auf dich}}",
+        "needsYouSection": "Wartet auf dich",
+        "catchUp": "Aufholen",
+        "whileYouWereAway": "Während du weg warst:",
+        "whileYouWereAwayTitle": "Während du weg warst",
+        "dismissCatchUp": "Zusammenfassung ausblenden",
+        "summarize": "Zusammenfassung",
+        "summarizing": "Deine Zusammenfassung wird geschrieben…",
+        "writtenByAi": "Von KI geschrieben {time}",
+        "byRoom": "Nach Raum",
+        "due": "Fällig {date}",
+        "caughtUpTitle": "Du bist auf dem Laufenden",
+        "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
+        "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
+        "removeTag": "Tag entfernen: {tag}",
+        "taskMade": "Task erstellt",
+        "loopClosed": "Erledigt",
+        "makeTask": "Task erstellen",
+        "handOff": "Übergeben",
+        "findingCoworkers": "Coworker wird gesucht…",
+        "fit": "{fit} passend",
+        "noCoworkerFits": "Noch passt kein Coworker dazu.",
+        "createTask": "Task erstellen",
+        "editTags": "Tags bearbeiten",
+        "editTagsTitle": "Was diese Nachricht ist",
+        "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
+        "taskDue": "Fällig {date}",
+        "taskSource": "Aus dem Chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# Frage an dich} other {# Fragen an dich}}",
+          "escalation": "{count, plural, one {# Eskalation} other {# Eskalationen}}",
+          "urgent": "{count, plural, one {# dringend} other {# dringend}}",
+          "blocker": "{count, plural, one {# Blocker} other {# Blocker}}",
+          "decisionMade": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+          "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
+          "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
+          "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
+          "question": "{count, plural, one {# Frage} other {# Fragen}}",
+          "fyi": "{count, plural, one {# Info} other {# Infos}}",
+          "chitChat": "{count, plural, one {# Plauderei} other {# Plaudereien}}"
+        },
+        "Sections": {
+          "needsYou": "Wartet auf dich",
+          "decisions": "Entscheidungen",
+          "openLoops": "Offene Punkte",
+          "highlights": "Wichtiges"
+        },
+        "Chips": {
+          "needsYou": "Wartet auf dich",
+          "escalation": "Eskalation",
+          "urgent": "Dringend",
+          "blocker": "Blocker",
+          "decisionMade": "Entscheidung",
+          "needsDecision": "Braucht eine Entscheidung",
+          "commitment": "Zusage",
+          "commitmentDue": "Zusage · fällig {date}",
+          "workRequest": "Arbeitsauftrag"
+        },
+        "Tags": {
+          "question": "Stellt jemandem eine Frage",
+          "needsDecision": "Braucht eine Entscheidung",
+          "decisionMade": "Entscheidung getroffen",
+          "commitment": "Zusage",
+          "blocker": "Blocker",
+          "urgent": "Dringend",
+          "escalation": "Eskalation",
+          "workRequest": "Arbeitsauftrag",
+          "fyi": "Info",
+          "chitChat": "Plauderei"
+        },
+        "Decisions": {
+          "open": "Entscheidungen",
+          "title": "Entscheidungen",
+          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "loadOlder": "Ältere laden",
+          "note": "Von Jev gesammelt. Entferne eine falsche an ihrer Nachricht."
+        },
+        "CatchUpTabs": {
+          "label": "Bereiche von Aufholen",
+          "overview": "Überblick",
+          "threads": "Threads"
+        }
       }
     },
     "Drive": {
@@ -6815,6 +7669,13 @@
       "deleteFolderAction": "Ordner löschen",
       "deleteFolderDialogDescription": "Möchtest du wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "moveAction": "Verschieben",
+      "moveFilesDialogTitle": "{count, plural, one {# Datei} other {# Dateien}} verschieben",
+      "movedFiles": "{count, plural, one {# Datei verschoben} other {# Dateien verschoben}}",
+      "moveFilesPartialError": "{count, plural, one {# Datei konnte nicht verschoben werden} other {# Dateien konnten nicht verschoben werden}}",
+      "moveNewFolderLabel": "Neuer Ordner",
+      "moveNewFolderPlaceholder": "Oder neuen Ordnernamen eingeben",
+      "shareAction": "Teilen",
+      "shareFolderAction": "„{name}“ teilen",
       "moveDialogTitle": "{itemName} verschieben",
       "moveDialogDescription": "Wähle den Zielordner aus",
       "moveHere": "Hierher verschieben",
@@ -6849,6 +7710,13 @@
       "filterProjectLabel": "Projekt",
       "filterTaskLabel": "Aufgabe",
       "recentsTab": "Zuletzt verwendet",
+      "recentsTagFilter": "Tags",
+      "recentsTagFilterWithCount": "Tags ({count})",
+      "recentsTagFilterHeading": "Dateien mit diesen Tags zeigen",
+      "recentsTagFilterClear": "Tags zurücksetzen",
+      "recentsTagFilterLoading": "Tags werden geladen",
+      "recentsTagFilterUnavailable": "Tags konnten nicht geladen werden.",
+      "recentsTagFilterEmpty": "Noch keine Tags. Dateien werden bei der Verarbeitung getaggt.",
       "recentsEmptyTitle": "Keine kürzlichen Dateien",
       "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
       "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
@@ -6900,15 +7768,16 @@
         "suggestedChip": "Vorschlag: {name}",
         "selectFile": "{name} auswählen",
         "bulkSelected": "{count} ausgewählt",
-        "bulkWindowSelected": "{count} Dateien aus diesem Ergebnisfenster ausgewählt",
-        "bulkWindowChanged": "Dieses Fenster hat sich geändert – {count} Dateien passen noch. Bitte erneut bestätigen.",
-        "bulkSelectionExpired": "Dieses Ergebnisfenster ist abgelaufen. Bitte erneut suchen.",
-        "bulkSetCategory": "{name} setzen",
         "bulkClear": "Auswahl aufheben",
-        "bulkApplied": "{count} Dateien aktualisiert",
-        "bulkPartial": "{applied} aktualisiert, {failed} fehlgeschlagen und weiterhin ausgewählt",
-        "bulkSelectAllMatches": "Alle {count} Treffer auswählen",
-        "bulkError": "Diese Änderungen konnten nicht angewendet werden.",
+        "bulkDelete": "Löschen",
+        "bulkMove": "Verschieben",
+        "bulkShare": "Teilen",
+        "bulkDeleteTitle": "{count, plural, one {# Datei} other {# Dateien}} löschen?",
+        "bulkDeleteDescription": "Sie werden für alle in diesem Dateibereich entfernt. Das kann nicht rückgängig gemacht werden.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "Sie werden für alle in diesem Dateibereich entfernt. Dateien aus Tasks bleiben bei ihrem Task. Das kann nicht rückgängig gemacht werden.",
+        "bulkDeleteCancel": "Abbrechen",
+        "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
+        "bulkDeletePartial": "{deleted} gelöscht, {failed} fehlgeschlagen und weiterhin ausgewählt",
         "detailLoading": "Datei wird geladen",
         "detailProcessing": "Verarbeitung",
         "detailCategory": "Kategorie",
@@ -6986,9 +7855,6 @@
         "addTagUnavailable": "Tags konnten nicht geladen werden",
         "tagAdded": "Tag hinzugefügt. Eine frühere Entfernung gilt nicht mehr.",
         "suggestionExcerpt": "Aus diesem Dokument",
-        "bulkMoreCategories": "{count} weitere…",
-        "bulkCategorySearch": "Kategorien durchsuchen",
-        "bulkCategoryEmpty": "Keine passenden Kategorien",
         "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text.",
         "processingPartialCoverage": "Nur ein Teil dieser Datei ist indexiert. Etwa {percent}% des Textes wurden gelesen.",
         "sheetOpenAsPage": "Als Seite öffnen",
@@ -6996,6 +7862,7 @@
         "viewerDetails": "Details",
         "viewerClose": "Schließen",
         "viewerNoPreview": "Für diesen Dateityp gibt es keine Vorschau. Lade die Datei herunter, um sie zu öffnen.",
+        "viewerDownloadWithSize": "Herunterladen ({size})",
         "searchButton": "Suchen",
         "searchClear": "Suche löschen",
         "typeAll": "Alle",
@@ -7006,6 +7873,34 @@
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
+      },
+      "tableKind": "Tabelle",
+      "Share": {
+        "title": "„{name}“ teilen",
+        "fileDescription": "Alle mit dem Link können diese Datei ansehen und herunterladen.",
+        "folderDescription": "Alle mit dem Link sehen alles in diesem Ordner, auch später hinzugefügte Dateien, und können es herunterladen.",
+        "loading": "Link wird geladen",
+        "passwordOptional": "Passwort (optional)",
+        "passwordPlaceholder": "Leer lassen für kein Passwort",
+        "newPasswordPlaceholder": "Neues Passwort",
+        "passwordTooShort": "Mindestens 4 Zeichen",
+        "create": "Link erstellen",
+        "created": "Link erstellt",
+        "linkLabel": "Freigabelink",
+        "copy": "Kopieren",
+        "copied": "Link kopiert",
+        "copyFailed": "Link konnte nicht kopiert werden",
+        "passwordOn": "Passwortgeschützt",
+        "passwordOff": "Kein Passwort",
+        "setPassword": "Passwort setzen",
+        "changePassword": "Ändern",
+        "passwordSaved": "Passwort gespeichert",
+        "removePassword": "Passwort entfernen",
+        "passwordRemoved": "Passwort entfernt",
+        "revoke": "Freigabe beenden",
+        "revoked": "Link deaktiviert",
+        "loadFailed": "Link konnte nicht geladen werden",
+        "saveFailed": "Link konnte nicht gespeichert werden"
       }
     },
     "SokoBot": {
@@ -7018,18 +7913,23 @@
         "description": "Der Persönliche Assistent ist in dieser Umgebung nicht aktiviert. Bitte später erneut versuchen."
       },
       "Create": {
-        "title": "Lern deinen Soko Bot kennen",
+        "title": "Dein eigener Assistent",
         "successTitle": "Das ist {name}",
         "successHint": "Chat wird geöffnet…",
-        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agenten mit Jobs. Gib ihm einen Namen und ein Bild.",
+        "description": "Ein Soko Bot ist ein KI-Assistent, der in Sokosumi für dich arbeitet. Sag ihm in einfachen Worten, was du brauchst, und er kümmert sich darum.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
-        "submit": "Soko Bot erstellen",
+        "submit": "Meinen Soko Bot erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
-        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Verbraucht deine Credits. Ein Tageslimit setzt du in den Einstellungen.",
+        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen.",
+        "exampleDelegate": "Macht aus „recherchiere unsere fünf wichtigsten Wettbewerber“ eine Aufgabe für den passenden Coworker und bleibt dran, bis sie erledigt ist.",
+        "exampleBrief": "Schickt dir morgens eine kurze Übersicht aus Postfach und Kalender.",
+        "exampleMemory": "Merkt sich deine Ziele und Vorlieben, damit du dich nicht wiederholen musst.",
+        "examplesLabel": "Was er für dich tun kann",
+        "nameIntro": "Gib ihm zuerst einen Namen."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -7059,7 +7959,7 @@
         "connectFailed": "Die Verbindung wurde nicht abgeschlossen. Bitte erneut versuchen.",
         "lastError": "Braucht Aufmerksamkeit: {error}",
         "title": "Verbundene Konten",
-        "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
+        "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest.",
         "connect": "Verbinden",
         "reconnect": "Neu verbinden",
         "disconnect": "Trennen",
@@ -7138,6 +8038,9 @@
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
         "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar ihn beim Namen nennt.",
+        "mailAutoReadTitle": "Routine-Mails erledigen",
+        "mailAutoReadDescription": "Markiert nach jeder Prüfung Mails als gelesen, die weder dringend noch wichtig sind. Wichtige Mails bleiben für dich ungelesen.",
+        "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -7155,7 +8058,12 @@
         "deleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden gelöscht. Erstellte Aufgaben bleiben auf deinem Board. Du kannst sofort einen neuen Assistenten anlegen.",
         "deleteConfirmLabel": "Zur Bestätigung {name} eingeben",
         "deleteError": "Dein Soko Bot konnte nicht gelöscht werden.",
-        "deleted": "Soko Bot gelöscht."
+        "deleted": "Soko Bot gelöscht.",
+        "sharedArchiveDescription": "Stoppt alle Turns und Zeitpläne für alle. Ein Owner oder Admin kann ihn wieder aktivieren; der Verlauf bleibt erhalten.",
+        "sharedArchiveConfirmTitle": "Diesen geteilten Bot archivieren?",
+        "sharedArchiveConfirmDescription": "Er stoppt für alle: Laufende Turns werden abgebrochen und Zeitpläne gestoppt. Der Verlauf bleibt erhalten.",
+        "sharedDeleteConfirmTitle": "Diesen geteilten Bot löschen?",
+        "sharedDeleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden für alle gelöscht. Erstellte Aufgaben bleiben, wo sie sind."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -7214,6 +8122,8 @@
           "read_file": "Datei wird gelesen",
           "generate_image": "Bild wird erstellt",
           "get_image": "Bild wird geprüft",
+          "generate_video": "Video wird erstellt",
+          "get_video": "Video wird geprüft",
           "preview_result": "Ergebnisvorschau vorbereiten"
         },
         "composer": {
@@ -7360,7 +8270,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps, die er für dich nutzen kann. Mail und Kalender werden nur gelesen; andere Apps handeln in deinem Namen, wenn du darum bittest."
+          "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest."
         }
       },
       "Avatar": {
@@ -7436,7 +8346,53 @@
       "chatWith": "Mit {name} chatten",
       "yourAssistantTitle": "Dein Assistent",
       "teamTitle": "Die Assistenten deines Teams",
-      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält."
+      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält.",
+      "Shared": {
+        "title": "Geteilte Bots",
+        "count": "{count, plural, one {# Bot} other {# Bots}}",
+        "empty": "Noch keine geteilten Bots. Ein geteilter Bot arbeitet für ein Projekt oder den ganzen Workspace, und alle sprechen in einem Raum mit ihm.",
+        "scopeWorkspace": "Arbeitet für den ganzen Workspace",
+        "scopeProject": "Arbeitet für ein Projekt",
+        "scopeProjectNamed": "Arbeitet für {project}",
+        "archived": "Archiviert",
+        "fallbackName": "Geteilter Assistent",
+        "openBot": "Einstellungen für {name}",
+        "Create": {
+          "trigger": "Neuer Soko Bot",
+          "title": "Soko Bot erstellen",
+          "description": "Wähle, für wen er arbeitet. Alle Mitglieder teilen einen Projekt- oder Workspace-Bot und sehen seinen Chatverlauf, sein Gedächtnis und seine Einstellungen.",
+          "nameLabel": "Name",
+          "scopeLabel": "Arbeitet für",
+          "scopes": {
+            "personal": {
+              "label": "Nur dich",
+              "hint": "Dein eigener Assistent. Niemand sonst kann ihn verwalten."
+            },
+            "project": {
+              "label": "Ein Projekt",
+              "hint": "Sieht die öffentlichen Tasks des Projekts. Alle sprechen in seinem Raum mit ihm."
+            },
+            "workspace": {
+              "label": "Den ganzen Workspace",
+              "hint": "Sieht jeden öffentlichen Task und jedes Projekt. Alle sprechen in seinem Raum mit ihm."
+            }
+          },
+          "projectLabel": "Projekt",
+          "projectPlaceholder": "Projekt wählen",
+          "cancel": "Abbrechen",
+          "submit": "Erstellen",
+          "error": "Der Soko Bot konnte nicht erstellt werden.",
+          "created": "Soko Bot erstellt."
+        },
+        "Archived": {
+          "title": "{name} ist archiviert",
+          "description": "Ein archivierter Bot liest nichts mehr, führt keine Zeitpläne aus und antwortet nicht mehr in seinem Raum. Sein Verlauf bleibt erhalten.",
+          "back": "Zurück zu Soko Bots",
+          "reactivate": "Reaktivieren",
+          "reactivated": "Soko Bot reaktiviert.",
+          "reactivateError": "Der Soko Bot konnte nicht reaktiviert werden."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
@@ -7527,7 +8483,8 @@
         "scheduledBy": "Geplant von {name}",
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
+        "platform": "Plattform"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
@@ -7576,10 +8533,16 @@
       "yes": "Ja",
       "no": "Nein",
       "cellHistory": "Verlauf und Quellen: {column}",
+      "openLink": "Link öffnen: {column}",
+      "wrapText": "Text umbrechen",
+      "fitColumn": "Breite an Inhalt anpassen",
+      "resizeColumn": "Breite von {column} ändern. Ziehen oder Pfeiltasten nach links und rechts drücken. Doppelklicken passt die Breite an den Inhalt an.",
+      "gridKeys": "Pfeiltasten und Tab wechseln zwischen Zellen. Enter oder Tippen bearbeitet eine Zelle, Escape bricht ab und Enter speichert. Alt+Enter öffnet einen Link, Alt+Umschalt+H zeigt den Verlauf der Zelle.",
       "discard": "Entwurf verwerfen",
       "editColumn": "Spalte bearbeiten",
       "addColumn": "Spalte hinzufügen",
       "columnDescription": "Beschreibungen helfen Menschen und Agenten, Werte zu verstehen. Spalten-IDs bleiben stabil.",
+      "lastUpdatedHint": "Füllt sich selbst mit dem Zeitpunkt der letzten Änderung jeder Zeile.",
       "columnConflictReview": "Diese Tabelle wurde während des Speicherns geändert. Prüfe die neuesten Spalten, bevor du erneut speicherst.",
       "reloadLatest": "Neueste laden",
       "reviewLatest": "Prüfung abgeschlossen",
@@ -7648,7 +8611,8 @@
         "url": "URL",
         "email": "E-Mail",
         "single_select": "Einfachauswahl",
-        "multiple_select": "Mehrfachauswahl"
+        "multiple_select": "Mehrfachauswahl",
+        "last_updated": "Zuletzt aktualisiert"
       },
       "archived": "Archiviert",
       "active": "Aktiv",
@@ -7675,8 +8639,26 @@
         "csvRows": "CSV-Dateien dürfen bis zu 10.000 Datenzeilen enthalten.",
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
-        "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
-      }
+        "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
+      },
+      "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
+      "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "previousPosition": "Vorherige Position",
+      "newPosition": "Neue Position",
+      "anyOption": "Beliebige Option",
+      "dnd": {
+        "instructions": "Um eine Zeile oder Spalte zu verschieben, den Griff ziehen oder ihn fokussieren und die Pfeiltasten drücken.",
+        "pickedUp": "{item} aufgenommen.",
+        "over": "{item} ist über {target}.",
+        "dropped": "{item} an die Stelle von {target} verschoben.",
+        "cancelled": "Verschieben von {item} abgebrochen."
+      },
+      "contactsName": "Kontakte",
+      "contactsPinned": "Angeheftet",
+      "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
@@ -7697,6 +8679,404 @@
       "manage": "Projekte verwalten",
       "current": "(aktuell)",
       "searching": "Projekte werden gesucht..."
+    },
+    "Contacts": {
+      "Metadata": {
+        "title": "Kontakte",
+        "description": "Alle, die dein Team kennt, mit jedem Weg, sie zu erreichen."
+      },
+      "stages": {
+        "CONTACT": "Kontakt",
+        "FRIEND": "Freund",
+        "PROSPECT": "Interessent",
+        "LEAD": "Lead",
+        "ACTIVE": "Aktiv",
+        "CUSTOMER": "Kunde",
+        "PARTNER": "Partner",
+        "INVESTOR": "Investor",
+        "VENDOR": "Dienstleister",
+        "ADVISOR": "Berater",
+        "COMMUNITY": "Community",
+        "PRESS": "Presse",
+        "DORMANT": "Ruhend"
+      },
+      "channelTypes": {
+        "EMAIL": "E-Mail",
+        "PHONE": "Telefon",
+        "SLACK": "Slack",
+        "LINKEDIN": "LinkedIn",
+        "X": "X",
+        "WEBSITE": "Website",
+        "TELEGRAM": "Telegram",
+        "WHATSAPP": "WhatsApp",
+        "GITHUB": "GitHub",
+        "OTHER": "Sonstiges"
+      },
+      "sources": {
+        "MANUAL": "Von Hand hinzugefügt",
+        "EMAIL": "Aus E-Mails",
+        "CALENDAR": "Aus dem Kalender",
+        "SLACK": "Aus Slack",
+        "WEB_RESEARCH": "Aus Webrecherche",
+        "IMPORT": "Importiert",
+        "OTHER": "Andere Quelle"
+      },
+      "presets": {
+        "all": "Alle Kontakte",
+        "mine": "Meine Kontakte",
+        "recent": "Neu hinzugefügt"
+      },
+      "emptyViews": {
+        "all": "Noch keine Kontakte.",
+        "mine": "Noch niemand, mit dem du gesprochen hast. Alle, denen du schreibst oder die du triffst, erscheinen hier.",
+        "recent": "In den letzten zwei Wochen kam niemand dazu.",
+        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
+      },
+      "views": {
+        "label": "Kontaktansichten",
+        "lists": "Listen",
+        "newList": "Neue Liste",
+        "smartList": "Intelligente Liste",
+        "editList": "Liste bearbeiten",
+        "deleteList": "Liste löschen",
+        "noLists": "Noch keine Listen.",
+        "import": "Aus einer Tabelle importieren",
+        "autoList": "Automatisch aus deinen Kontakten erstellt",
+        "companies": "Firmen",
+        "findCompany": "Firma suchen …",
+        "noCompanies": "Keine Firmen gefunden.",
+        "clearCompany": "Alle Firmen zeigen"
+      },
+      "columns": {
+        "name": "Name",
+        "organization": "Organisation",
+        "role": "Rolle",
+        "stage": "Beziehung",
+        "lists": "Listen",
+        "channels": "Kanäle",
+        "firstContact": "Erster Kontakt",
+        "lastContact": "Letzter Kontakt",
+        "knownBy": "Bekannt mit",
+        "followUp": "Follow-up",
+        "email": "E-Mail",
+        "reply": "Antwort",
+        "importance": "Wichtigkeit",
+        "familiarity": "Vertrautheit"
+      },
+      "grid": {
+        "label": "Kontakte",
+        "openContact": "{name} öffnen",
+        "knownByLabel": "Bekannt mit {names}",
+        "due": "Fällig",
+        "selectAll": "Alle Kontakte auswählen",
+        "selectRow": "{name} auswählen",
+        "resizeColumn": "Breite von {column} ändern",
+        "keys": "Pfeiltasten wechseln die Zelle. Enter auf einem Namen öffnet die Person, auf anderen Zellen bearbeitet es. F2 bearbeitet den Namen. Escape bricht ab.",
+        "loadMore": "Mehr laden",
+        "copyEmail": "{email} kopieren",
+        "emailCopied": "E-Mail-Adresse kopiert",
+        "waitingDays": "{days, plural, =0 {heute} other {# T.}}",
+        "addedAutomatically": "Automatisch zu {list} hinzugefügt",
+        "filterCompany": "Personen bei {name} zeigen"
+      },
+      "toolbar": {
+        "search": "Kontakte durchsuchen",
+        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "me": "Ich",
+        "clearFilter": "Filter {filter} entfernen",
+        "export": "CSV exportieren",
+        "add": "Kontakt hinzufügen",
+        "more": "Weitere Aktionen",
+        "filter": "Filter",
+        "kind": "Art"
+      },
+      "bulk": {
+        "label": "Ausgewählte Kontakte",
+        "selected": "{count} ausgewählt",
+        "addToList": "Zu Liste hinzufügen",
+        "removeFromList": "Aus Liste entfernen",
+        "merge": "Zusammenführen",
+        "clear": "Auswahl aufheben",
+        "updated": "{count, plural, =1 {1 Kontakt aktualisiert} other {# Kontakte aktualisiert}}",
+        "addedToList": "{count, plural, =1 {1 Kontakt zu {list} hinzugefügt} other {# Kontakte zu {list} hinzugefügt}}",
+        "removedFromList": "{count, plural, =1 {1 Kontakt aus {list} entfernt} other {# Kontakte aus {list} entfernt}}"
+      },
+      "errors": {
+        "versionConflict": "Jemand hat diesen Kontakt gerade geändert. Wir haben die neue Version geladen; versuch deine Änderung noch einmal.",
+        "saveFailed": "Das wurde nicht gespeichert. Versuch es noch einmal.",
+        "exportFailed": "Der Export wurde nicht abgeschlossen. Versuch es noch einmal.",
+        "loadTitle": "Kontakte wurden nicht geladen",
+        "load": "Prüfe deine Verbindung und versuch es noch einmal."
+      },
+      "count": "{count, plural, =0 {Keine Personen} =1 {1 Person} other {# Personen}}",
+      "showing": "{shown} von {total} angezeigt",
+      "loading": "Kontakte werden geladen",
+      "retry": "Erneut versuchen",
+      "noMatchesTitle": "Niemand hier",
+      "noMatches": "Keine Kontakte passen zu diesen Filtern.",
+      "clearFilters": "Filter entfernen",
+      "merged": "Zusammengeführt in {name}",
+      "deleteList": {
+        "title": "{name} löschen?",
+        "description": "Die Liste verschwindet für das ganze Team. Die Menschen darauf bleiben in den Kontakten.",
+        "cancel": "Abbrechen",
+        "confirm": "Liste löschen"
+      },
+      "listDialog": {
+        "createTitle": "Neue Liste",
+        "editTitle": "Liste bearbeiten",
+        "description": "Listen teilst du mit deinem ganzen Team. Eine Person kann auf beliebig vielen stehen.",
+        "name": "Name",
+        "namePlaceholder": "Investoren, Berlin-Meetup…",
+        "nameRequired": "Gib der Liste einen Namen.",
+        "color": "Farbe",
+        "colors": {
+          "gray": "Grau",
+          "red": "Rot",
+          "orange": "Orange",
+          "amber": "Bernstein",
+          "green": "Grün",
+          "teal": "Petrol",
+          "blue": "Blau",
+          "indigo": "Indigo",
+          "violet": "Violett",
+          "pink": "Pink"
+        },
+        "descriptionLabel": "Beschreibung",
+        "descriptionPlaceholder": "Optional. Wofür die Liste da ist.",
+        "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "create": "Liste erstellen"
+      },
+      "addDialog": {
+        "title": "Kontakt hinzufügen",
+        "description": "Ein Name, ein Weg, die Person zu erreichen, oder beides. Kennt dein Team sie schon, zeigen wir dir diesen Kontakt.",
+        "name": "Name",
+        "organization": "Organisation",
+        "role": "Rolle",
+        "channels": "Erreichbar über",
+        "channelType": "Art von Kanal {index}",
+        "channelValue": "Kanal {index}",
+        "removeChannel": "Kanal {index} entfernen",
+        "addChannel": "Weiteren hinzufügen",
+        "placeholders": {
+          "EMAIL": "name@firma.de",
+          "PHONE": "+49 151 2345678",
+          "SLACK": "TEAMID:USERID",
+          "LINKEDIN": "linkedin.com/in/name",
+          "X": "@handle",
+          "WEBSITE": "firma.de",
+          "TELEGRAM": "@handle",
+          "WHATSAPP": "+49 151 2345678",
+          "GITHUB": "github.com/name",
+          "OTHER": "Alles andere"
+        },
+        "prospect": "Das ist ein Interessent",
+        "prospectHint": "Jemand, mit dem ihr noch nicht gesprochen habt, aber gern würdet.",
+        "whyInteresting": "Warum interessant",
+        "whyPlaceholder": "Was macht diese Person interessant?",
+        "nameOrChannel": "Gib einen Namen oder einen Weg an, die Person zu erreichen.",
+        "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
+        "openExisting": "Kontakt öffnen",
+        "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "submit": "Kontakt hinzufügen"
+      },
+      "mergeDialog": {
+        "title": "{count, plural, =2 {2 Kontakte zusammenführen} other {# Kontakte zusammenführen}}",
+        "description": "Wähle den Kontakt, der bleibt. Alles von den anderen wandert dorthin: Kanäle, Verlauf und Listen. Leere Felder werden aus ihnen ergänzt.",
+        "keep": "Behalten",
+        "noDetails": "Keine Rolle oder Organisation",
+        "interactions": "{count, plural, =0 {Keine Interaktionen} =1 {1 Interaktion} other {# Interaktionen}}",
+        "failed": "Das Zusammenführen wurde nicht abgeschlossen. Nichts wurde geändert.",
+        "cancel": "Abbrechen",
+        "submit": "Zusammenführen"
+      },
+      "importDialog": {
+        "title": "Aus einer Tabelle importieren",
+        "description": "Hol Menschen aus einer Tabelle in Dateien. Zeilen, die per E-Mail oder Name zu jemandem passen, aktualisieren diesen Kontakt.",
+        "doneDescription": "Deine Kontakte sind auf dem neuesten Stand.",
+        "chooseTable": "Tabelle",
+        "columnCount": "{count, plural, =1 {1 Spalte} other {# Spalten}}",
+        "noTables": "In Dateien gibt es noch keine Tabellen.",
+        "mapColumns": "Spalten zuordnen",
+        "mapHint": "Wir haben anhand der Spaltennamen geraten. Überspring alles, was du nicht brauchst.",
+        "required": "(Pflichtfeld)",
+        "skipColumn": "Überspringen",
+        "fields": {
+          "name": "Name",
+          "organization": "Organisation",
+          "role": "Rolle",
+          "location": "Ort",
+          "email": "E-Mail",
+          "phone": "Telefon",
+          "linkedin": "LinkedIn",
+          "x": "X",
+          "website": "Website",
+          "github": "GitHub",
+          "telegram": "Telegram",
+          "summary": "Über die Person",
+          "whyInteresting": "Warum interessant",
+          "nextStep": "Nächster Schritt",
+          "firstContactAt": "Erster Kontakt",
+          "lists": "Listen"
+        },
+        "result": {
+          "created": "Hinzugefügt",
+          "updated": "Aktualisiert",
+          "unchanged": "Bereits aktuell",
+          "skipped": "Übersprungen",
+          "listsCreated": "{count, plural, =1 {1 Liste aus den Tags erstellt} other {# Listen aus den Tags erstellt}}"
+        },
+        "importing": "Wird importiert… Bei großen Tabellen kann das eine Minute dauern.",
+        "nameRequired": "Wähle die Spalte mit den Namen.",
+        "failed": "Der Import wurde nicht abgeschlossen. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "submit": "Importieren",
+        "done": "Fertig"
+      },
+      "empty": {
+        "title": "Hier leben die Kontakte deines Teams",
+        "description": "Menschen kommen automatisch aus den E-Mails, Kalendern und Slack-Konten dazu, mit denen eure Soko Bots verbunden sind, samt der Info, wer im Team sie kennt. Keine Newsletter, keine automatischen Absender.",
+        "connect": "{name} verbinden",
+        "connected": "{name} verbunden",
+        "connectFailed": "Die Verbindung wurde nicht gestartet. Versuch es noch einmal.",
+        "manageConnections": "Verbindungen verwalten",
+        "addByHand": "Jemanden hinzufügen",
+        "import": "Aus einer Tabelle importieren"
+      },
+      "panel": {
+        "loading": "Kontakt wird geladen",
+        "notFoundTitle": "Kontakt nicht gefunden",
+        "notFound": "Er wurde vielleicht zusammengeführt oder archiviert.",
+        "retry": "Erneut versuchen",
+        "name": "Name",
+        "roleAt": " bei ",
+        "noRole": "Noch keine Rolle oder Organisation",
+        "addedBy": "Hinzugefügt von {name} {when}",
+        "addedByBot": "Hinzugefügt von Soko Bot {when}",
+        "someone": "einem Teammitglied",
+        "menu": "Kontaktoptionen",
+        "copyLink": "Link kopieren",
+        "linkCopied": "Link kopiert",
+        "archive": "Kontakt archivieren",
+        "archived": "{name} archiviert",
+        "changeStage": "Phase: {stage}. Phase ändern",
+        "changeLists": "Listen ändern",
+        "addToList": "Zu einer Liste hinzufügen",
+        "manualLists": "Listen",
+        "noManualLists": "Noch keine Listen.",
+        "empty": "Hinzufügen…",
+        "location": "Ort",
+        "nextStepTitle": "Nächster Schritt",
+        "nextStep": "Nächster Schritt",
+        "nextStepPlaceholder": "Was passiert als Nächstes?",
+        "noFollowUp": "Kein Datum",
+        "about": "Über die Person",
+        "summary": "Zusammenfassung",
+        "summaryPlaceholder": "Wer die Person ist und woher ihr euch kennt.",
+        "whyInteresting": "Warum interessant",
+        "whyPlaceholder": "Warum das Team sie im Blick haben sollte.",
+        "duplicate": "Das scheint dieselbe Person zu sein wie",
+        "reviewMerge": "Prüfen und zusammenführen",
+        "channels": "Kanäle",
+        "addChannel": "Kanal hinzufügen",
+        "channelSource": "{type}, {source}",
+        "verified": "bestätigt",
+        "primary": "Hauptkanal",
+        "openSource": "Fundstelle öffnen",
+        "copyChannel": "{value} kopieren",
+        "removeChannel": "{value} entfernen",
+        "noChannels": "Noch kein Weg, die Person zu erreichen.",
+        "channelType": "Kanalart",
+        "channelValue": "Adresse",
+        "add": "Hinzufügen",
+        "timeline": "Verlauf",
+        "interactionCount": "{count, plural, =1 {1 Interaktion} other {# Interaktionen}}",
+        "noInteractions": "Noch keine Interaktionen. E-Mails, Meetings und Slack-Nachrichten mit dieser Person erscheinen hier.",
+        "sokoBot": "Soko Bot",
+        "interactionChannels": {
+          "EMAIL": "E-Mail",
+          "MEETING": "Meeting",
+          "SLACK": "Slack",
+          "CALL": "Anruf",
+          "MANUAL": "Notiz",
+          "OTHER": "Sonstiges"
+        },
+        "source": "Quelle",
+        "showMore": "Mehr anzeigen",
+        "activityTitle": "Aktivität",
+        "activity": {
+          "CREATED": "{who} hat diesen Kontakt hinzugefügt",
+          "UPDATED": "{who} hat {fields} geändert",
+          "CHANNEL_ADDED": "{who} hat einen Kanal hinzugefügt",
+          "CHANNEL_REMOVED": "{who} hat einen Kanal entfernt",
+          "MERGED": "{who} hat {names} in diesen Kontakt zusammengeführt",
+          "ARCHIVED": "{who} hat diesen Kontakt archiviert",
+          "UNARCHIVED": "{who} hat diesen Kontakt wiederhergestellt"
+        },
+        "fields": {
+          "name": "Name",
+          "organization": "Organisation",
+          "role": "Rolle",
+          "location": "Ort",
+          "summary": "Zusammenfassung",
+          "whyInteresting": "Warum interessant",
+          "stage": "Phase",
+          "ownerUserId": "Zuständigkeit",
+          "nextStep": "nächsten Schritt",
+          "followUpAt": "Follow-up",
+          "avatarUrl": "Foto",
+          "customFields": "eigene Felder",
+          "kind": "Art"
+        },
+        "markOrganization": "Als Organisation markieren",
+        "markPerson": "Als Person markieren",
+        "waitingSince": "Seit {date} noch keine Antwort",
+        "heardFrom": "Zuletzt von ihnen gehört: {when}",
+        "automatic": "Automatisch",
+        "classifier": "Automatische Einordnung"
+      },
+      "stageGroups": {
+        "general": "Allgemein",
+        "sales": "Vertrieb",
+        "relationships": "Beziehungen",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "Keine Antwort",
+        "AWAITING_REPLY": "Antwort ausstehend",
+        "IN_CONVERSATION": "Im Gespräch",
+        "REPLIED": "Hat geantwortet"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organisation oder Sammelpostfach"
+      },
+      "title": "Kontakte",
+      "importance": {
+        "veryHigh": "Sehr wichtig",
+        "high": "Wichtig",
+        "medium": "Etwas wichtig",
+        "low": "Weniger wichtig",
+        "minimal": "Nicht wichtig",
+        "auto": "Jev entscheiden lassen",
+        "change": "Ändern, wie wichtig die Person für dich ist",
+        "byJev": "Von Jev eingeschätzt",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Von dir gesetzt",
+        "byBot": "Von deinem Soko Bot gesetzt",
+        "notYet": "Noch nicht eingeschätzt",
+        "familiarityHint": "Aus deinen eigenen E-Mails und Meetings mit der Person",
+        "reasons": {
+          "decides": "entscheidet mit",
+          "value": "kann deine Arbeit voranbringen",
+          "active": "laufendes Geschäft",
+          "close": "enge Beziehung",
+          "noise": "wirkt automatisiert oder unpersönlich"
+        }
+      }
     }
   },
   "Share": {
@@ -7733,6 +9113,22 @@
       "title": "KI-Agents auf Abruf",
       "description": "Wähle einen vertrauenswürdigen Agent, definiere deine Anforderungen und erhalte umsetzbare Ergebnisse – ohne Abonnement.",
       "buttonText": "Agents entdecken"
+    },
+    "Files": {
+      "sharedFile": "Geteilte Datei",
+      "sharedFolder": "Geteilter Ordner",
+      "notFoundTitle": "Link nicht gefunden",
+      "passwordLabel": "Dieser Link ist geschützt. Passwort eingeben",
+      "open": "Öffnen",
+      "download": "Herunterladen",
+      "downloadFile": "{name} herunterladen",
+      "truncated": "Es werden die ersten 2.000 Dateien dieses Ordners angezeigt.",
+      "emptyFolder": "Dieser Ordner ist leer.",
+      "errors": {
+        "wrong": "Falsches Passwort.",
+        "locked": "Zu viele falsche Passwörter. Versuche es in 15 Minuten erneut.",
+        "failed": "Etwas ist schiefgelaufen. Versuche es erneut."
+      }
     }
   },
   "NotFound": {
@@ -7982,6 +9378,12 @@
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
       "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "activateRetry": "Wechsel erneut versuchen"
+    },
+    "Assistant": {
+      "metadataTitle": "Assistenten einrichten",
+      "later": "Später",
+      "skip": "Überspringen",
+      "continue": "Weiter"
     }
   }
 }

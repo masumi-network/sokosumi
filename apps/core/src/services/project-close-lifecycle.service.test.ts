@@ -12,6 +12,7 @@ const {
   projectFindFirstMock,
   projectUpdateMock,
   serializableTransactionMock,
+  socialPostUpdateManyMock,
   taskScheduleRunCountMock,
   taskScheduleRunUpdateManyMock,
 } = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const {
   projectFindFirstMock: vi.fn(),
   projectUpdateMock: vi.fn(),
   serializableTransactionMock: vi.fn(),
+  socialPostUpdateManyMock: vi.fn(),
   taskScheduleRunCountMock: vi.fn(),
   taskScheduleRunUpdateManyMock: vi.fn(),
 }));
@@ -35,6 +37,19 @@ const {
 const retireSocialConnectionsMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/project-social-connections.service", () => ({
   retireProjectSocialConnectionsForClose: retireSocialConnectionsMock,
+}));
+
+const { archiveProjectSokoBotsMock, publishMentionStatusesMock } = vi.hoisted(
+  () => ({
+    archiveProjectSokoBotsMock: vi.fn(),
+    publishMentionStatusesMock: vi.fn(),
+  }),
+);
+vi.mock("@/services/project-soko-bots-close.service", () => ({
+  archiveProjectSokoBotsForClose: archiveProjectSokoBotsMock,
+}));
+vi.mock("@/helpers/chat-room-mention-status", () => ({
+  publishChatRoomMentionStatuses: publishMentionStatusesMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -99,6 +114,9 @@ function transactionClient() {
       create: projectEventCreateMock,
       findUnique: projectEventFindUniqueMock,
     },
+    socialPost: {
+      updateMany: socialPostUpdateManyMock,
+    },
     taskScheduleRun: {
       count: taskScheduleRunCountMock,
       updateMany: taskScheduleRunUpdateManyMock,
@@ -131,7 +149,10 @@ function recoverableProject(
 describe("project close lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    socialPostUpdateManyMock.mockReset().mockResolvedValue({ count: 0 });
     lockCalendarScopeMock.mockResolvedValue(true);
+    archiveProjectSokoBotsMock.mockResolvedValue([]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
     taskScheduleRunCountMock.mockResolvedValue(0);
     projectCloseOperationFindUniqueMock.mockResolvedValue(null);
     prismaMock.taskScheduleRun.count = taskScheduleRunCountMock;
@@ -164,15 +185,32 @@ describe("project close lifecycle", () => {
       reason: " Campaign completed ",
     });
 
+    const created = projectCloseOperationCreateMock.mock.calls[0][0].data;
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        OR: [
+          { status: "SCHEDULED" },
+          { status: "NEEDS_APPROVAL", scheduledAt: { not: null } },
+        ],
+      },
+      data: {
+        status: "CANCELED",
+        canceledAt: created.cutoffAt,
+        revision: { increment: 1 },
+      },
+    });
     expect(retireSocialConnectionsMock).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       scope.actorUserId,
     );
+    expect(socialPostUpdateManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retireSocialConnectionsMock.mock.invocationCallOrder[0],
+    );
     expect(
       retireSocialConnectionsMock.mock.invocationCallOrder[0],
     ).toBeLessThan(projectCloseOperationCreateMock.mock.invocationCallOrder[0]);
-    const created = projectCloseOperationCreateMock.mock.calls[0][0].data;
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID },
       data: {
@@ -187,6 +225,170 @@ describe("project close lifecycle", () => {
       cutoffAt: created.cutoffAt.toISOString(),
       projectRevision: 5,
     });
+  });
+
+  it("cancels scheduled and timed approval posts while preserving all other posts", async () => {
+    const future = new Date(CUTOFF.getTime() + 60_000);
+    const posts = [
+      { status: "SCHEDULED", scheduledAt: future, cancel: true },
+      { status: "SCHEDULED", scheduledAt: CUTOFF, cancel: true },
+      { status: "NEEDS_APPROVAL", scheduledAt: future, cancel: true },
+      { status: "NEEDS_APPROVAL", scheduledAt: CUTOFF, cancel: true },
+      { status: "NEEDS_APPROVAL", scheduledAt: null, cancel: false },
+      { status: "DRAFT", scheduledAt: null, cancel: false },
+      { status: "DRAFT", scheduledAt: future, cancel: false },
+      { status: "PUBLISHED", scheduledAt: CUTOFF, cancel: false },
+      { status: "PUBLISHING", scheduledAt: CUTOFF, cancel: false },
+      { status: "FAILED", scheduledAt: CUTOFF, cancel: false },
+      { status: "MISSED", scheduledAt: CUTOFF, cancel: false },
+      { status: "CANCELED", scheduledAt: CUTOFF, cancel: false },
+    ].map((post) => ({
+      ...post,
+      originalStatus: post.status,
+      projectId: PROJECT_ID,
+      revision: 2,
+      canceledAt: null as Date | null,
+    }));
+    posts.push({
+      status: "SCHEDULED",
+      originalStatus: "SCHEDULED",
+      scheduledAt: future,
+      cancel: false,
+      projectId: "another-project",
+      revision: 2,
+      canceledAt: null,
+    });
+    socialPostUpdateManyMock.mockImplementation(async ({ where, data }) => {
+      let count = 0;
+      for (const post of posts) {
+        if (
+          post.projectId !== where.projectId ||
+          !where.OR.some(
+            (condition: { status: string; scheduledAt?: { not: null } }) =>
+              post.status === condition.status &&
+              (!condition.scheduledAt || post.scheduledAt !== null),
+          )
+        )
+          continue;
+        post.status = data.status;
+        post.canceledAt = data.canceledAt;
+        post.revision += data.revision.increment;
+        count += 1;
+      }
+      return { count };
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    projectCloseOperationCreateMock.mockImplementation(async ({ data }) => ({
+      ...operation,
+      ...data,
+    }));
+
+    const result = await requestProjectClose(scope, {
+      operationId: CLOSE_ID,
+      expectedProjectRevision: 4,
+    });
+
+    for (const post of posts) {
+      expect(post.status).toBe(post.cancel ? "CANCELED" : post.originalStatus);
+      expect(post.revision).toBe(post.cancel ? 3 : 2);
+      expect(post.canceledAt).toEqual(
+        post.cancel ? new Date(result.cutoffAt) : null,
+      );
+    }
+    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not continue close when bulk cancellation fails", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    socialPostUpdateManyMock.mockRejectedValueOnce(
+      new Error("cancellation failed"),
+    );
+
+    await expect(
+      requestProjectClose(scope, {
+        operationId: CLOSE_ID,
+        expectedProjectRevision: 4,
+      }),
+    ).rejects.toThrow("cancellation failed");
+    expect(retireSocialConnectionsMock).not.toHaveBeenCalled();
+    expect(projectCloseOperationCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("archives the Project's Soko Bots in the close and republishes their mentions after it", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    projectCloseOperationCreateMock.mockImplementation(async ({ data }) => ({
+      ...operation,
+      ...data,
+      state: ProjectCloseOperationState.CLOSING,
+      attempts: 0,
+      failureSummary: null,
+    }));
+    archiveProjectSokoBotsMock.mockResolvedValue(["mention-message-1"]);
+    let committed = false;
+    serializableTransactionMock.mockImplementation(async (callback) => {
+      const result = await callback(transactionClient());
+      committed = true;
+      return result;
+    });
+    publishMentionStatusesMock.mockImplementation(async () => {
+      expect(committed).toBe(true);
+    });
+
+    await requestProjectClose(scope, {
+      operationId: CLOSE_ID,
+      expectedProjectRevision: 4,
+    });
+
+    expect(archiveProjectSokoBotsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+    );
+    expect(archiveProjectSokoBotsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      projectCloseOperationCreateMock.mock.invocationCallOrder[0],
+    );
+    expect(publishMentionStatusesMock).toHaveBeenCalledWith([
+      "mention-message-1",
+    ]);
+  });
+
+  it("archives nothing when a close is replayed", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 8,
+      closingAt: CUTOFF,
+      closedAt: null,
+      closeOperation: operation,
+    });
+
+    await requestProjectClose(scope, {
+      operationId: CLOSE_ID,
+      expectedProjectRevision: 8,
+      reason: "Campaign completed",
+    });
+
+    expect(archiveProjectSokoBotsMock).not.toHaveBeenCalled();
+    expect(publishMentionStatusesMock).not.toHaveBeenCalled();
   });
 
   it("counts the owed Runs of Active Task Schedules and names the failure", async () => {
@@ -233,6 +435,7 @@ describe("project close lifecycle", () => {
     expect(status.projectRevision).toBe(8);
     expect(projectUpdateMock).not.toHaveBeenCalled();
     expect(projectCloseOperationCreateMock).not.toHaveBeenCalled();
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects reuse of the close key with a changed reason", async () => {

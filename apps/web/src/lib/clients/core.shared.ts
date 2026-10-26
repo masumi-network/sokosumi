@@ -1,6 +1,6 @@
 import {
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
-  getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
+  getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   suggestTaskTags as coreSuggestTaskTags,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
@@ -10,8 +10,6 @@ export type TaskScheduleStateAction = "pause" | "resume" | "end";
 
 import type {
   ActivateEnterpriseContractRequest,
-  AdminSokoBotActionRequest,
-  AdminSokoBotVersionMigrationRequest,
   AgentStatus,
   AggregateAdminTaskX402PaymentsByAgentData,
   CreateAdminBadgeCampaignData,
@@ -19,12 +17,12 @@ import type {
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   CreateEnterpriseContractRequest,
-  CreateSokoBotRequest,
-  CreateSokoBotScheduleRequest,
   CreateTaskScheduleRequest,
   CreateTaskScheduleRunRequest,
   CreateUserWorkspace,
   DeleteJobsByIdShareError,
+  DeleteProjectsByIdAdsAccountsByAccountIdData,
+  DeleteProjectsByIdAdsConnectionsByAdConnectionIdData,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
@@ -41,6 +39,7 @@ import type {
   GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
+  GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
   GetCoworkersData,
@@ -49,8 +48,13 @@ import type {
   GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
+  GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
+  GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData,
+  GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData,
   GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
   GetProjectsByIdSocialPostsStatisticsData,
@@ -65,7 +69,7 @@ import type {
   GetTransactionsDailyData,
   GetTransactionsData,
   GetWorkspacesCalendarData,
-  JudgeSokoBotLabTurnRequest,
+  GetWorkspacesCalendarSourcesData,
   ListAdminTaskX402PaymentsData,
   Notice,
   PaginationMetadata,
@@ -77,6 +81,7 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
+  PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   PatchProjectsByIdData,
   PatchProjectsByIdSocialPostsByPostIdData,
   PatchTasksByIdData,
@@ -95,11 +100,17 @@ import type {
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
+  PostProjectsByIdAdsAccountsByAccountIdCampaignsData,
+  PostProjectsByIdAdsAccountsData,
+  PostProjectsByIdAdsConnectionsFinalizeData,
+  PostProjectsByIdAdsConnectionsInitiateData,
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
+  PostProjectsByIdImageStudioVideoJobsData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
   PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -116,19 +127,18 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  PutChatsSignalsMessagesByMessageIdCorrectionsData,
+  PutChatsSignalsMessagesByMessageIdLoopData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
+  PutProjectsByIdAdsMarketData,
   PutProjectsByIdDesignMdData,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
-  ResolveSokoBotDecisionRequest,
-  SokoBotLabIngestRequest,
-  SokoBotVersionWrite,
-  StartSokoBotTurnRequest,
   UpdateAdminBadgeCampaignData,
-  UpdateSokoBotScheduleRequest,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
 } from "@sokosumi/core-client";
@@ -138,30 +148,20 @@ import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   archiveAdminMatchedChannel as coreArchiveAdminMatchedChannel,
-  archiveAdminSokoBotVersion as coreArchiveAdminSokoBotVersion,
-  archiveMySokoBot as coreArchiveMySokoBot,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
-  browseSokoBotSkills as coreBrowseSokoBotSkills,
-  cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
-  completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
-  connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminBadgeCampaign as coreCreateAdminBadgeCampaign,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createAdminMatchedChannel as coreCreateAdminMatchedChannel,
-  createAdminSokoBotVersion as coreCreateAdminSokoBotVersion,
   createAdminVendor as coreCreateAdminVendor,
   createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
-  createMySokoBot as coreCreateMySokoBot,
-  createMySokoBotSchedule as coreCreateMySokoBotSchedule,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminBadgeCampaign as coreDeleteAdminBadgeCampaign,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
-  deleteAdminSokoBot as coreDeleteAdminSokoBot,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdCoworkersByCoworkerId as coreDeleteChatsRoomsByIdCoworkersByCoworkerId,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
@@ -178,10 +178,10 @@ import {
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
-  deleteMySokoBotPermanently as coreDeleteMySokoBotPermanently,
-  deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
+  deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
+  deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
@@ -194,18 +194,11 @@ import {
   deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdWorkspacesByWorkspaceId as coreDeleteUsersByIdWorkspacesByWorkspaceId,
-  disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
   endAdminBadgeCampaign as coreEndAdminBadgeCampaign,
-  finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminMatchedChannel as coreGetAdminMatchedChannel,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
-  getAdminSokoBot as coreGetAdminSokoBot,
-  getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
-  getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
-  getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
-  getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -231,6 +224,12 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
+  getChatsSignalsNeedsYou as coreGetChatsSignalsNeedsYou,
+  getChatsSignalsOpenLoops as coreGetChatsSignalsOpenLoops,
+  getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
+  getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
+  getChatsSignalsSummary as coreGetChatsSignalsSummary,
   getChatsThreadsEarlier as coreGetChatsThreadsEarlier,
   getChatsThreadsUnread as coreGetChatsThreadsUnread,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
@@ -248,11 +247,6 @@ import {
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
-  getMySokoBot as coreGetMySokoBot,
-  getMySokoBotActivity as coreGetMySokoBotActivity,
-  getMySokoBotStats as coreGetMySokoBotStats,
-  getMySokoBotTurn as coreGetMySokoBotTurn,
-  getMySokoBotUsage as coreGetMySokoBotUsage,
   getNotifications as coreGetNotifications,
   getNotificationsCounts as coreGetNotificationsCounts,
   getOrganizationBySlug as coreGetOrganizationBySlug,
@@ -273,6 +267,14 @@ import {
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
+  getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
+  getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
+  getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as coreGetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+  getProjectsByIdAdsAccountsByAccountIdTargetingLanguages as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+  getProjectsByIdAdsAccountsByAccountIdTargetingLocations as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations,
+  getProjectsByIdAdsMarket as coreGetProjectsByIdAdsMarket,
+  getProjectsByIdAdsMarketAds as coreGetProjectsByIdAdsMarketAds,
+  getProjectsByIdAdsMarketKeywords as coreGetProjectsByIdAdsMarketKeywords,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -280,6 +282,7 @@ import {
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -287,7 +290,6 @@ import {
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
-  getSokoBotTeam as coreGetSokoBotTeam,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
@@ -323,20 +325,12 @@ import {
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
-  installMySokoBotSkill as coreInstallMySokoBotSkill,
-  introduceMySokoBot as coreIntroduceMySokoBot,
-  judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
   listAdminAgents as coreListAdminAgents,
   listAdminBadgeCampaigns as coreListAdminBadgeCampaigns,
   listAdminInvoices as coreListAdminInvoices,
   listAdminMatchedChannels as coreListAdminMatchedChannels,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
-  listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
-  listAdminSokoBotChats as coreListAdminSokoBotChats,
-  listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
-  listAdminSokoBots as coreListAdminSokoBots,
-  listAdminSokoBotVersions as coreListAdminSokoBotVersions,
   listAdminTasks as coreListAdminTasks,
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
@@ -345,17 +339,11 @@ import {
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
-  listMySokoBotIntegrations as coreListMySokoBotIntegrations,
-  listMySokoBotLabRuns as coreListMySokoBotLabRuns,
-  listMySokoBotSkills as coreListMySokoBotSkills,
-  listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
-  listSokoBotVersions as coreListSokoBotVersions,
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   markUserBadgeCampaignSeen as coreMarkUserBadgeCampaignSeen,
-  migrateAdminSokoBotVersions as coreMigrateAdminSokoBotVersions,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
@@ -367,12 +355,12 @@ import {
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
+  patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
   patchTasksSchedulesById as corePatchTasksSchedulesById,
   patchTasksSchedulesByIdRunsByRunId as corePatchTasksSchedulesByIdRunsByRunId,
   patchVendor as corePatchVendor,
-  performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
@@ -419,18 +407,25 @@ import {
   postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
   postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
+  postProjectsByIdAdsAccounts as corePostProjectsByIdAdsAccounts,
+  postProjectsByIdAdsAccountsByAccountIdCampaigns as corePostProjectsByIdAdsAccountsByAccountIdCampaigns,
+  postProjectsByIdAdsConnectionsFinalize as corePostProjectsByIdAdsConnectionsFinalize,
+  postProjectsByIdAdsConnectionsInitiate as corePostProjectsByIdAdsConnectionsInitiate,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
+  postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdDuplicate as corePostProjectsByIdSocialPostsByPostIdDuplicate,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
@@ -460,14 +455,17 @@ import {
   postVendorsByIdFiles as corePostVendorsByIdFiles,
   postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
-  promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
   putChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   putChatsRoomsStarred as corePutChatsRoomsStarred,
+  putChatsSignalsMessagesByMessageIdCorrections as corePutChatsSignalsMessagesByMessageIdCorrections,
+  putChatsSignalsMessagesByMessageIdLoop as corePutChatsSignalsMessagesByMessageIdLoop,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+  putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -476,35 +474,19 @@ import {
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
   removeAdminMatchedChannelParticipant as coreRemoveAdminMatchedChannelParticipant,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
-  removeMySokoBotSkill as coreRemoveMySokoBotSkill,
-  resetMySokoBotMemory as coreResetMySokoBotMemory,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
-  resolveMySokoBotDecision as coreResolveMySokoBotDecision,
   restoreAdminMatchedChannel as coreRestoreAdminMatchedChannel,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
-  runMySokoBotLabIngest as coreRunMySokoBotLabIngest,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   searchChatSkills as coreSearchChatSkills,
-  searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
-  searchSokoBotSkills as coreSearchSokoBotSkills,
-  sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
-  setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
-  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
-  simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
-  startMySokoBotTurn as coreStartMySokoBotTurn,
   stopAdminImpersonation as coreStopAdminImpersonation,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminBadgeCampaign as coreUpdateAdminBadgeCampaign,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
-  updateAdminSokoBotVersion as coreUpdateAdminSokoBotVersion,
-  updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
-  updateMySokoBotProactive as coreUpdateMySokoBotProactive,
-  updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
-  updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   NoticeKind,
 } from "@sokosumi/core-client";
 import {
@@ -513,6 +495,7 @@ import {
   executeCoreOperationWithResponse,
   type GetCoreClient,
 } from "./core.request";
+import { createSokoBotClient } from "./core.soko-bot";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
 
 export type CoreApiPagination = PaginationMetadata;
@@ -836,12 +819,13 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   /**
    * Creates a chat room. A `direct` room is create-or-get: Core returns the
-   * existing room for the same participant set instead of a duplicate.
+   * existing room for the same participant set instead of a duplicate
+   * (200 found, 201 created).
    */
   async function createChatRoom(
     body: CreateChatRoomRequest & NonNullable<PostChatsRoomsData["body"]>,
   ) {
-    return executeCoreOperation(
+    return executeCoreOperationWithResponse(
       getClient,
       (client) =>
         corePostChatsRooms({
@@ -1112,6 +1096,110 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatNeedsYou() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetChatsSignalsNeedsYou({ client, cache: "no-store" }),
+      "Failed to fetch messages that need you",
+    );
+  }
+
+  async function getChatOpenLoops() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetChatsSignalsOpenLoops({ client, cache: "no-store" }),
+      "Failed to fetch open loops",
+    );
+  }
+
+  async function getChatCatchUpSummary(roomId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsSummary({
+          client,
+          query: roomId ? { roomId } : undefined,
+          cache: "no-store",
+        }),
+      "Failed to fetch the catch-up summary",
+    );
+  }
+
+  async function getChatRoomCatchUp(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsRoomsByIdCatchUp({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch the room catch-up",
+    );
+  }
+
+  async function getChatRoomDecisions(
+    id: string,
+    query?: GetChatsSignalsRoomsByIdDecisionsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsRoomsByIdDecisions({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch decisions",
+    );
+  }
+
+  async function correctChatMessageSignal(
+    messageId: string,
+    body: PutChatsSignalsMessagesByMessageIdCorrectionsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsSignalsMessagesByMessageIdCorrections({
+          client,
+          path: { messageId },
+          body,
+        }),
+      "Failed to correct the message tag",
+    );
+  }
+
+  async function setChatMessageSignalLoop(
+    messageId: string,
+    body: PutChatsSignalsMessagesByMessageIdLoopData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsSignalsMessagesByMessageIdLoop({
+          client,
+          path: { messageId },
+          body,
+        }),
+      "Failed to update the open loop",
+    );
+  }
+
+  async function getChatMessageRoutingSuggestions(messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsMessagesByMessageIdRouting({
+          client,
+          path: { messageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch routing suggestions",
+    );
+  }
+
   async function pinChatRoomMessage(roomId: string, messageId: string) {
     return executeCoreOperation(
       getClient,
@@ -1220,16 +1308,20 @@ export function createCoreClient(getClient: GetCoreClient) {
       "Failed to fetch message results",
     );
   }
-  async function getMySokoBotTurnResults(turnId: string) {
+  async function getChatRoomMessageResultsBatch(
+    id: string,
+    messageIds: string[],
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetMySokoBotTurnResults({
+        coreGetChatRoomMessageResultsBatch({
           client,
-          path: { turnId },
+          path: { id },
+          query: { messageIds: messageIds.join(",") },
           cache: "no-store",
         }),
-      "Failed to fetch turn results",
+      "Failed to fetch message results",
     );
   }
   async function getChatRoomMessage(id: string, messageId: string) {
@@ -3347,6 +3439,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioVideoJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioVideoJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioVideoJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start video generation",
+    );
+  }
+
   async function postProjectsByIdImageStudioJobsByJobIdCancel(
     id: string,
     jobId: string,
@@ -3376,6 +3484,24 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
+    id: string,
+    connectionId: string,
+    query: GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch suggested posting times",
     );
   }
 
@@ -3530,6 +3656,40 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdSocialPostsByPostIdDuplicate(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdDuplicate({
+          client,
+          path: { id, postId },
+        }),
+      "Failed to duplicate Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialAccountPostsByAccountPostIdRecycle(
+    id: string,
+    accountPostId: string,
+    body: NonNullable<
+      PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle({
+          client,
+          path: { id, accountPostId },
+          body,
+        }),
+      "Failed to recycle Performance post",
+    );
+  }
+
   async function postProjectsByIdSocialPostsByPostIdPublish(
     id: string,
     postId: string,
@@ -3598,6 +3758,253 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to remove project DESIGN.md",
+    );
+  }
+
+  async function getProjectsByIdAdsAccounts(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccounts({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project ad accounts",
+    );
+  }
+
+  async function postProjectsByIdAdsConnectionsInitiate(
+    id: string,
+    body: PostProjectsByIdAdsConnectionsInitiateData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsConnectionsInitiate({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to initiate Project ad connection",
+    );
+  }
+
+  async function postProjectsByIdAdsConnectionsFinalize(
+    id: string,
+    body: PostProjectsByIdAdsConnectionsFinalizeData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsConnectionsFinalize({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to finalize Project ad connection",
+    );
+  }
+
+  async function postProjectsByIdAdsAccounts(
+    id: string,
+    body: PostProjectsByIdAdsAccountsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsAccounts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to attach Project ad accounts",
+    );
+  }
+
+  async function deleteProjectsByIdAdsAccountsByAccountId(
+    path: DeleteProjectsByIdAdsAccountsByAccountIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsAccountsByAccountId({ client, path }),
+      "Failed to disconnect Project ad account",
+    );
+  }
+
+  async function deleteProjectsByIdAdsConnectionsByAdConnectionId(
+    path: DeleteProjectsByIdAdsConnectionsByAdConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsConnectionsByAdConnectionId({ client, path }),
+      "Failed to discard Project ad connection",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdCampaigns(
+    path: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdCampaigns({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad campaigns",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad campaign details",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
+    path: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to look up ad locations",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdTargetingLanguages(
+    path: GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages({
+          client,
+          path,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad languages",
+    );
+  }
+
+  async function patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    body: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          body,
+        }),
+      "Failed to update ad campaign",
+    );
+  }
+
+  async function postProjectsByIdAdsAccountsByAccountIdCampaigns(
+    path: PostProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
+    body: PostProjectsByIdAdsAccountsByAccountIdCampaignsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsAccountsByAccountIdCampaigns({
+          client,
+          path,
+          body,
+        }),
+      "Failed to create ad campaign",
+    );
+  }
+
+  async function getProjectsByIdAdsMarket(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarket({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project ad market",
+    );
+  }
+
+  async function putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    body: PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          body,
+        }),
+      "Failed to edit ad campaign",
+    );
+  }
+
+  async function putProjectsByIdAdsMarket(
+    id: string,
+    body: PutProjectsByIdAdsMarketData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePutProjectsByIdAdsMarket({ client, path: { id }, body }),
+      "Failed to save Project ad market",
+    );
+  }
+
+  async function getProjectsByIdAdsMarketKeywords(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarketKeywords({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch market keywords",
+    );
+  }
+
+  async function getProjectsByIdAdsMarketAds(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarketAds({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch market ads",
     );
   }
 
@@ -4776,12 +5183,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getWorkspaceCalendarSources() {
+  async function getWorkspaceCalendarSources(
+    query?: GetWorkspacesCalendarSourcesData["query"],
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetWorkspacesCalendarSources({
           client,
+          query,
           cache: "no-store",
         }),
       "Failed to fetch workspace calendar sources",
@@ -5022,560 +5432,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     ).catch(nullWhenNotFound);
   }
 
-  async function getMySokoBot() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetMySokoBot({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot",
-    );
-  }
-
-  async function getMySokoBotActivity() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetMySokoBotActivity({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot activity",
-    );
-  }
-
-  async function createMySokoBot(body: CreateSokoBotRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreCreateMySokoBot({ client, body }),
-      "Failed to create Soko Bot",
-    );
-  }
-
-  async function archiveMySokoBot() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreArchiveMySokoBot({ client }),
-      "Failed to archive Soko Bot",
-    );
-  }
-
-  async function deleteMySokoBotPermanently() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreDeleteMySokoBotPermanently({ client }),
-      "Failed to delete Soko Bot",
-    );
-  }
-
-  async function getAdminSokoBotAvailability() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBotAvailability({ client, cache: "no-store" }),
-      "Failed to read Soko Bot availability",
-    );
-  }
-
-  async function setAdminSokoBotAvailability(body: {
-    disabled: boolean;
-    reason?: string;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreSetAdminSokoBotAvailability({ client, body }),
-      "Failed to update Soko Bot availability",
-    );
-  }
-
-  async function deleteAdminSokoBot(sokoBotId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreDeleteAdminSokoBot({ client, path: { sokoBotId } }),
-      "Failed to delete Soko Bot",
-    );
-  }
-
-  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreSetAdminSokoBotAvatar({
-          client,
-          path: { sokoBotId },
-          body: { avatarId },
-        }),
-      "Failed to set Soko Bot avatar",
-    );
-  }
-
-  async function introduceMySokoBot(body: { roomId: string }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreIntroduceMySokoBot({ client, body }),
-      "Failed to introduce Soko Bot",
-    );
-  }
-
-  async function listSokoBotVersions() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListSokoBotVersions({ client }),
-      "Failed to list Soko Bot versions",
-    );
-  }
-
-  async function updateMySokoBotProactive(body: {
-    paused?: boolean;
-    dailyLimit?: number;
-    timezone?: string;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreUpdateMySokoBotProactive({ client, body }),
-      "Failed to update assistant settings",
-    );
-  }
-
-  async function sendMySokoBotTurnFeedback(
-    turnId: string,
-    body: { useful: boolean },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreSendMySokoBotTurnFeedback({ client, path: { id: turnId }, body }),
-      "Failed to send feedback",
-    );
-  }
-
-  async function updateMySokoBotBoardFollowing(body: { enabled: boolean }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreUpdateMySokoBotBoardFollowing({ client, body }),
-      "Failed to update board following",
-    );
-  }
-
-  async function updateMySokoBotVersion(body: { versionId: string }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreUpdateMySokoBotVersion({ client, body }),
-      "Failed to update Soko Bot version",
-    );
-  }
-
-  async function getSokoBotTeam() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetSokoBotTeam({ client, cache: "no-store" }),
-      "Failed to load the Soko Bot team",
-    );
-  }
-
-  async function listMySokoBotIntegrations() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListMySokoBotIntegrations({ client, cache: "no-store" }),
-      "Failed to load Soko Bot integrations",
-    );
-  }
-
-  async function searchSokoBotIntegrationCatalog(query: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreSearchSokoBotIntegrationCatalog({
-          client,
-          query: { query },
-          cache: "no-store",
-        }),
-      "Failed to search integrations",
-    );
-  }
-
-  async function connectMySokoBotIntegration(
-    provider: string,
-    body: { returnUrl: string },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreConnectMySokoBotIntegration({
-          client,
-          path: { provider },
-          body,
-        }),
-      "Failed to start the integration",
-    );
-  }
-
-  async function finalizeMySokoBotIntegration(provider: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreFinalizeMySokoBotIntegration({ client, path: { provider } }),
-      "Failed to finish the integration",
-    );
-  }
-
-  async function completeMySokoBotIntegrationAuth(sessionUri: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreCompleteMySokoBotIntegrationAuth({ client, body: { sessionUri } }),
-      "Failed to verify the integration",
-    );
-  }
-
-  async function disconnectMySokoBotIntegration(provider: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDisconnectMySokoBotIntegration({ client, path: { provider } }),
-      "Failed to disconnect the integration",
-    );
-  }
-
-  async function runMySokoBotLabIngest(body: SokoBotLabIngestRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreRunMySokoBotLabIngest({ client, body }),
-      "Failed to run the scenario",
-    );
-  }
-
-  async function getMySokoBotStats() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetMySokoBotStats({ client }),
-      "Failed to load Soko Bot stats",
-    );
-  }
-
-  async function getMySokoBotUsage() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetMySokoBotUsage({ client }),
-      "Failed to load Soko Bot usage",
-    );
-  }
-
-  async function listMySokoBotSkills() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListMySokoBotSkills({ client, cache: "no-store" }),
-      "Failed to list Soko Bot skills",
-    );
-  }
-
-  async function installMySokoBotSkill(body: {
-    source: string;
-    skillName?: string | null;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreInstallMySokoBotSkill({ client, body }),
-      "Failed to install Soko Bot skill",
-    );
-  }
-
-  async function removeMySokoBotSkill(skillId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreRemoveMySokoBotSkill({ client, path: { skillId } }),
-      "Failed to remove Soko Bot skill",
-    );
-  }
-
-  async function browseSokoBotSkills(page: number) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreBrowseSokoBotSkills({ client, query: { page } }),
-      "Failed to browse skills",
-    );
-  }
-
-  async function searchSokoBotSkills(q: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreSearchSokoBotSkills({ client, query: { q } }),
-      "Failed to search skills",
-    );
-  }
-
   async function searchChatSkills(q: string) {
     return executeCoreOperation(
       getClient,
       (client) => coreSearchChatSkills({ client, query: q ? { q } : {} }),
       "Failed to search skills",
-    );
-  }
-
-  async function listMySokoBotLabRuns(query?: {
-    versionId?: string;
-    limit?: number;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListMySokoBotLabRuns({ client, query, cache: "no-store" }),
-      "Failed to list Soko Bot lab runs",
-    );
-  }
-
-  async function judgeMySokoBotLabTurn(body: JudgeSokoBotLabTurnRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreJudgeMySokoBotLabTurn({ client, body }),
-      "Failed to judge Soko Bot lab turn",
-    );
-  }
-
-  async function simulateMySokoBotTaskEvent(body: {
-    taskId?: string;
-    status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
-    comment: string;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreSimulateMySokoBotTaskEvent({ client, body }),
-      "Failed to simulate Soko Bot task event",
-    );
-  }
-
-  async function listMySokoBotTurns(query?: {
-    cursor?: string;
-    limit?: number;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListMySokoBotTurns({ client, query, cache: "no-store" }),
-      "Failed to fetch Soko Bot turns",
-    );
-  }
-
-  async function getMySokoBotTurn(turnId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetMySokoBotTurn({ client, path: { turnId }, cache: "no-store" }),
-      "Failed to fetch Soko Bot turn",
-    );
-  }
-
-  async function startMySokoBotTurn(body: StartSokoBotTurnRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreStartMySokoBotTurn({ client, body }),
-      "Failed to start Soko Bot turn",
-    );
-  }
-
-  async function cancelMySokoBotTurn(turnId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreCancelMySokoBotTurn({ client, path: { turnId } }),
-      "Failed to cancel Soko Bot turn",
-    );
-  }
-
-  async function resetMySokoBotMemory() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreResetMySokoBotMemory({ client }),
-      "Failed to reset Soko Bot memory",
-    );
-  }
-
-  async function createMySokoBotSchedule(body: CreateSokoBotScheduleRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreCreateMySokoBotSchedule({ client, body }),
-      "Failed to create Soko Bot schedule",
-    );
-  }
-
-  async function updateMySokoBotSchedule(
-    scheduleId: string,
-    body: UpdateSokoBotScheduleRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreUpdateMySokoBotSchedule({ client, path: { scheduleId }, body }),
-      "Failed to update Soko Bot schedule",
-    );
-  }
-
-  async function deleteMySokoBotSchedule(scheduleId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreDeleteMySokoBotSchedule({ client, path: { scheduleId } }),
-      "Failed to delete Soko Bot schedule",
-    );
-  }
-
-  async function resolveMySokoBotDecision(
-    decisionId: string,
-    body: ResolveSokoBotDecisionRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreResolveMySokoBotDecision({ client, path: { decisionId }, body }),
-      "Failed to resolve Soko Bot decision",
-    );
-  }
-
-  async function listAdminSokoBots(query?: {
-    cursor?: string;
-    query?: string;
-    limit?: number;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListAdminSokoBots({ client, query, cache: "no-store" }),
-      "Failed to fetch Soko Bots",
-    );
-  }
-
-  async function getAdminSokoBotQuality(query?: {
-    versionId?: string;
-    sokoBotId?: string;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBotQuality({ client, query, cache: "no-store" }),
-      "Failed to fetch Soko Bot quality",
-    );
-  }
-
-  async function getAdminSokoBotModelEvaluations() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBotModelEvaluations({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot model evaluations",
-    );
-  }
-
-  async function getAdminSokoBot(sokoBotId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
-      "Failed to fetch Soko Bot",
-    );
-  }
-
-  async function listAdminSokoBotChats(sokoBotId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListAdminSokoBotChats({
-          client,
-          path: { sokoBotId },
-          cache: "no-store",
-        }),
-      "Failed to fetch Soko Bot chats",
-    );
-  }
-
-  async function listAdminSokoBotChatMessages(
-    sokoBotId: string,
-    roomId: string,
-    query?: { cursor?: string; limit?: number },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListAdminSokoBotChatMessages({
-          client,
-          path: { sokoBotId, roomId },
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch Soko Bot chat messages",
-    );
-  }
-
-  async function performAdminSokoBotAction(
-    sokoBotId: string,
-    body: AdminSokoBotActionRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePerformAdminSokoBotAction({ client, path: { sokoBotId }, body }),
-      "Failed to perform Soko Bot action",
-    );
-  }
-
-  async function listAdminSokoBotVersions() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListAdminSokoBotVersions({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot versions",
-    );
-  }
-
-  async function listAdminSokoBotGatewayModels() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListAdminSokoBotGatewayModels({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot gateway models",
-    );
-  }
-
-  async function createAdminSokoBotVersion(body: SokoBotVersionWrite) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreCreateAdminSokoBotVersion({ client, body }),
-      "Failed to create Soko Bot version",
-    );
-  }
-
-  async function updateAdminSokoBotVersion(
-    slug: string,
-    body: Omit<SokoBotVersionWrite, "slug">,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreUpdateAdminSokoBotVersion({ client, path: { slug }, body }),
-      "Failed to update Soko Bot version",
-    );
-  }
-
-  async function archiveAdminSokoBotVersion(slug: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreArchiveAdminSokoBotVersion({ client, path: { slug } }),
-      "Failed to archive Soko Bot version",
-    );
-  }
-
-  async function promoteAdminSokoBotVersion(slug: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => corePromoteAdminSokoBotVersion({ client, path: { slug } }),
-      "Failed to promote Soko Bot version",
-    );
-  }
-
-  async function getAdminSokoBotVersionUsage() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBotVersionUsage({ client, cache: "no-store" }),
-      "Failed to load Soko Bot version usage",
-    );
-  }
-
-  async function migrateAdminSokoBotVersions(
-    body: AdminSokoBotVersionMigrationRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreMigrateAdminSokoBotVersions({ client, body }),
-      "Failed to migrate Soko Bot versions",
     );
   }
 
@@ -6031,6 +5892,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskEvent,
     deleteJobShare,
     deleteProjectsByIdDesignMd,
+    deleteProjectsByIdAdsAccountsByAccountId,
+    deleteProjectsByIdAdsConnectionsByAdConnectionId,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdSocialConnectionsByConnectionId,
     deleteProjectsByIdTasksByTaskId,
@@ -6044,7 +5907,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomMessages,
     getChatRoomMessage,
     getChatRoomMessageResults,
-    getMySokoBotTurnResults,
+    getChatRoomMessageResultsBatch,
     getChatRoomThread,
     getChatRoomThreadMessages,
     getChatRoomThreads,
@@ -6063,6 +5926,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     unpinChatRoom,
     reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
+    getChatNeedsYou,
+    getChatOpenLoops,
+    getChatCatchUpSummary,
+    getChatRoomCatchUp,
+    getChatRoomDecisions,
+    correctChatMessageSignal,
+    setChatMessageSignalLoop,
+    getChatMessageRoutingSuggestions,
     pinChatRoomMessage,
     unpinChatRoomMessage,
     sendChatRoomMessageToSelf,
@@ -6246,6 +6117,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
+    getProjectsByIdAdsAccounts,
+    getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    getProjectsByIdAdsAccountsByAccountIdTargetingLocations,
+    getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+    getProjectsByIdAdsMarket,
+    putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    putProjectsByIdAdsMarket,
+    getProjectsByIdAdsMarketKeywords,
+    getProjectsByIdAdsMarketAds,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getImageStudioState,
@@ -6254,15 +6135,20 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioAssetsByAssetIdCaption,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
+    postProjectsByIdImageStudioVideoJobs,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
+    getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
+    postProjectsByIdSocialPostsByPostIdDuplicate,
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
@@ -6279,6 +6165,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdCloseCancelOwed,
     postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
+    postProjectsByIdAdsAccounts,
+    postProjectsByIdAdsAccountsByAccountIdCampaigns,
+    postProjectsByIdAdsConnectionsFinalize,
+    postProjectsByIdAdsConnectionsInitiate,
     postProjectsByIdSocialConnectionsFinalize,
     postProjectsByIdSocialConnectionsInitiate,
     postProjectsByIdTasks,
@@ -6306,65 +6196,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     changeTaskScheduleRun,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
-    getMySokoBot,
-    getMySokoBotActivity,
-    createMySokoBot,
-    archiveMySokoBot,
-    deleteAdminSokoBot,
-    setAdminSokoBotAvatar,
-    getAdminSokoBotAvailability,
-    setAdminSokoBotAvailability,
-    deleteMySokoBotPermanently,
     ...createSokoBotAvatarClient(getClient),
-    introduceMySokoBot,
-    simulateMySokoBotTaskEvent,
-    listSokoBotVersions,
-    judgeMySokoBotLabTurn,
-    listMySokoBotLabRuns,
-    getMySokoBotStats,
-    runMySokoBotLabIngest,
-    getMySokoBotUsage,
-    listMySokoBotIntegrations,
-    searchSokoBotIntegrationCatalog,
-    connectMySokoBotIntegration,
-    finalizeMySokoBotIntegration,
-    completeMySokoBotIntegrationAuth,
-    disconnectMySokoBotIntegration,
-    listMySokoBotSkills,
-    getSokoBotTeam,
-    installMySokoBotSkill,
-    removeMySokoBotSkill,
-    searchSokoBotSkills,
+    ...createSokoBotClient(getClient),
     searchChatSkills,
-    browseSokoBotSkills,
-    updateMySokoBotVersion,
-    updateMySokoBotBoardFollowing,
-    updateMySokoBotProactive,
-    sendMySokoBotTurnFeedback,
-    listMySokoBotTurns,
-    getMySokoBotTurn,
-    startMySokoBotTurn,
-    cancelMySokoBotTurn,
-    resetMySokoBotMemory,
-    createMySokoBotSchedule,
-    updateMySokoBotSchedule,
-    deleteMySokoBotSchedule,
-    resolveMySokoBotDecision,
-    listAdminSokoBots,
-    listAdminSokoBotVersions,
-    listAdminSokoBotGatewayModels,
-    createAdminSokoBotVersion,
-    updateAdminSokoBotVersion,
-    archiveAdminSokoBotVersion,
-    getAdminSokoBotVersionUsage,
-    migrateAdminSokoBotVersions,
-    promoteAdminSokoBotVersion,
-    getAdminSokoBot,
-    listAdminSokoBotChats,
-    listAdminSokoBotChatMessages,
-    getAdminSokoBotQuality,
-    getAdminSokoBotModelEvaluations,
-    performAdminSokoBotAction,
   };
 }
 

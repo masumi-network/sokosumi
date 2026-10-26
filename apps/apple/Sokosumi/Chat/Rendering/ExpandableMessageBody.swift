@@ -85,8 +85,8 @@ struct ExpandableMessageBody<Content: View>: View {
   }
 }
 
-/// Height inside a body that web's `line-clamp` does not count as lines: a block that draws no line box of its own
-/// (row 10d's Mermaid figure: its flex caption, scrolling preview and padding). The body adds it to its sixteen lines
+/// Height inside a body that the sixteen-line clamp does not count as lines: a block that draws no line box of its own
+/// (row 10d's Mermaid figure: its caption row, scrolling preview and padding). The body adds it to its sixteen lines
 /// when the block starts above the cut.
 struct MessageClampAllowance: Equatable {
   static let space = "MessageClampBody"

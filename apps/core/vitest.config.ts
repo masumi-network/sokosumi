@@ -22,6 +22,7 @@ const optInPostgresFiles = [
   "src/services/file-search.postgres.test.ts",
   "src/services/file-suggestions.postgres.test.ts",
   "src/services/file-suggestion-backfill.postgres.test.ts",
+  "src/services/file-metadata-labels.postgres.test.ts",
   "src/services/file-table-index.postgres.test.ts",
   "src/services/file-collections.postgres.test.ts",
   "src/services/file-related.postgres.test.ts",
@@ -29,6 +30,7 @@ const optInPostgresFiles = [
   "src/services/file-curated-vocabulary.postgres.test.ts",
   "src/helpers/transaction-history.postgres.test.ts",
   "src/helpers/history-sort-at.postgres.test.ts",
+  "src/helpers/soko-bot-owner-scope.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

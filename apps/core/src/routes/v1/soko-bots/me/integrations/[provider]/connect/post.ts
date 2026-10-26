@@ -8,7 +8,7 @@ import {
   connectSokoBotIntegrationRequestSchema,
   connectSokoBotIntegrationResponseSchema,
 } from "@/schemas/soko-bot.schema";
-import { connectSokoBotIntegration } from "@/services/soko-bot-integrations.service";
+import { connectSokoBotIntegration } from "@/services/soko-bot-integration-connection.service";
 import {
   mapIntegrationError,
   providerParamSchema,

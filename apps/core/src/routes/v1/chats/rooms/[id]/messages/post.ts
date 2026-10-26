@@ -24,6 +24,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isSharedSokoBotAuthContext,
   isSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -31,6 +32,7 @@ import {
   chatRoomMessageSchema,
   createChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
+import { enqueueChatMessageSignal } from "@/services/chat-message-signals.service";
 import {
   resolveAttachedSkills,
   skillMetadata,
@@ -45,7 +47,6 @@ import {
   quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireWritableChatRoom,
   resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
@@ -54,6 +55,7 @@ import {
   resolveThreadParentMessageId,
 } from "../../helpers";
 import { markChatRoomThreadRead } from "../../room-unread";
+import { requireWritableChatRoom } from "../../writable-chat-room";
 
 const paramsSchema = z.object({
   id: z
@@ -143,6 +145,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           messageId: message.id,
           roomId: room.id,
           content: body.content,
+          // A shared bot's room holds the whole organization.
+          expandAll: !isSharedSokoBotAuthContext(authContext),
         });
 
         await tx.chatRoom.update({
@@ -600,6 +604,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+      // Jev reads it once the room goes quiet; never in front of the send.
+      waitUntil(enqueueChatMessageSignal(message.id));
     }
 
     await publishChatRoomMessageRealtime(message, "create");

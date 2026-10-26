@@ -49,7 +49,7 @@ If no owned Coworker supports Tasks, suggest organizer provisioning. Give the or
 
 ### Platform admin: prepare membership and Seats
 
-[VERIFIED: `apps/cli/src/auth/oauth.ts`, `apps/cli/src/auth/auth-manager.ts`; Core `apps/core/src/routes/v1/coworkers/post.ts:79`] Sign in as the platform admin and confirm the account with `auth whoami`. Before switching browser accounts, clear `SOKOSUMI_API_KEY` and `SOKOSUMI_AUTH_TOKEN` from the shell. These credentials override saved OAuth credentials. Switch the browser's actual Web session, then run CLI login again. CLI logout only clears local credentials.
+[VERIFIED: `apps/cli/src/auth/oauth.ts`, `apps/cli/src/auth/auth-manager.ts`; Core `apps/core/src/routes/v1/coworkers/post.ts:85-89`] Sign in as the platform admin and confirm the account with `auth whoami`. Before switching browser accounts, clear `SOKOSUMI_API_KEY` and `SOKOSUMI_AUTH_TOKEN` from the shell. These credentials override saved OAuth credentials. Switch the browser's actual Web session, then run CLI login again. CLI logout only clears local credentials.
 
 [VERIFIED: `apps/cli/src/cli/commands/admin.ts`, `apps/cli/src/api/services/admin-workspace-service.ts`] The admin commands work only on Preprod and require a live platform-admin identity. An organization admin role alone does not satisfy this check. Core still authorizes each request. Use the selected organization's slug and the existing developer account's exact email:
 

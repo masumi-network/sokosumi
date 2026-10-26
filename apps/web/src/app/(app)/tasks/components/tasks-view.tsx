@@ -30,11 +30,8 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { useDebouncedCallback } from "use-debounce";
-import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
-import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -55,6 +52,7 @@ import {
   TASKS_TAB_PARAM,
   type TasksTabValue,
 } from "@/app/tasks/utils/tasks-tab";
+import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +64,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { type TaskEventData, taskEventDataSchema } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -79,11 +79,7 @@ import {
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
-import {
-  CreateTaskModal,
-  CreateTaskModalProvider,
-  useCreateTaskModal,
-} from "./create-task-modal";
+import { CreateTaskModal, CreateTaskModalProvider } from "./create-task-modal";
 import { KanbanBoard } from "./kanban-board";
 import { shouldRollbackBoardReopenOnDismiss } from "./task-board-reopen";
 import { TaskCard } from "./task-card";
@@ -99,8 +95,8 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { TasksViewFilters } from "./tasks-view-filters";
-import { ViewModeSwitch } from "./view-mode-switch";
+import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
+import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 
 interface PendingBoardReopen {
   taskId: string;
@@ -109,19 +105,6 @@ interface PendingBoardReopen {
   previousStatus: TaskStatus;
   desiredStatus: TaskStatus;
   moveVersion: number;
-}
-
-function TasksMobileCreateFabSlot() {
-  const { handleOpen } = useCreateTaskModal();
-  const t = useTranslations("App.Tasks");
-
-  return (
-    <ListMobileCreateFab
-      ariaLabel={t("createTaskFab")}
-      className="bg-secondary text-secondary-foreground hover:bg-secondary-hover"
-      onOpen={handleOpen}
-    />
-  );
 }
 
 const hydrationStore = (() => {
@@ -166,18 +149,21 @@ function TasksRealtimeListener({
   userId,
   onEvent,
 }: TasksRealtimeListenerProps) {
-  useChannel(makeUserTasksChannelName(userId), (message) => {
-    const parsedResult = taskEventDataSchema.safeParse(message.data);
-    if (parsedResult.success) {
-      onEvent(parsedResult.data);
-    } else {
-      console.error(
-        "Failed to parse TaskEventData from message",
-        message,
-        parsedResult.error,
-      );
-    }
-  });
+  useChannel(
+    makeUserTasksChannelName(userId, getRealtimeChannelEnvironment()),
+    (message) => {
+      const parsedResult = taskEventDataSchema.safeParse(message.data);
+      if (parsedResult.success) {
+        onEvent(parsedResult.data);
+      } else {
+        console.error(
+          "Failed to parse TaskEventData from message",
+          message,
+          parsedResult.error,
+        );
+      }
+    },
+  );
 
   return null;
 }
@@ -186,6 +172,8 @@ interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
   columnNextCursorById: Record<KanbanColumnId, string | null>;
+  /** Tasks past the loaded pages of each column, counted in its header. */
+  columnHiddenCountById: Record<KanbanColumnId, number>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -213,6 +201,7 @@ interface TasksViewProps {
       all: string;
       scopeLabel: string;
       scopeOwned: string;
+      assignedToMe: string;
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;
@@ -243,6 +232,7 @@ export function TasksView({
   tasks,
   listNextCursor: initialListNextCursor,
   columnNextCursorById: initialColumnNextCursorById,
+  columnHiddenCountById: initialColumnHiddenCountById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
   projectOptions,
@@ -305,6 +295,9 @@ export function TasksView({
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
   >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
+  const [columnHiddenById, setColumnHiddenById] = useState(
+    initialColumnHiddenCountById,
+  );
   const [listCursor, setListCursor] = useState<string | null>(
     initialListNextCursor,
   );
@@ -338,10 +331,7 @@ export function TasksView({
   const isLoadingListMoreRef = useRef(isLoadingListMore);
   const loadingColumnIdsRef = useRef(loadingColumnIds);
   loadingColumnIdsRef.current = loadingColumnIds;
-  const refreshRoute = useDebouncedCallback(
-    () => router.refresh(),
-    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
-  );
+  const refreshRoute = useRefreshWhenShown(() => router.refresh());
 
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
@@ -361,12 +351,6 @@ export function TasksView({
     refreshRoute();
   };
 
-  useEffect(() => {
-    return () => {
-      refreshRoute.cancel();
-    };
-  }, [refreshRoute]);
-
   useLayoutEffect(() => {
     if (
       previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
@@ -383,6 +367,7 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setColumnHiddenById(initialColumnHiddenCountById);
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -411,6 +396,7 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setColumnHiddenById(initialColumnHiddenCountById);
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -443,6 +429,7 @@ export function TasksView({
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
+      setColumnHiddenById(initialColumnHiddenCountById);
       setListCursor(initialListNextCursor);
       listCursorRef.current = initialListNextCursor;
       setLoadingColumnIds(new Set());
@@ -685,6 +672,12 @@ export function TasksView({
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
+        setColumnHiddenById((prev) => ({
+          ...prev,
+          [columnId]: nextCursor
+            ? Math.max(0, (prev[columnId] ?? 0) - result.tasks.length)
+            : 0,
+        }));
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: nextCursor,
@@ -881,20 +874,21 @@ export function TasksView({
 
         <div className="flex items-center gap-2 sm:gap-3">
           {activeTab === "tasks" ? (
-            <TasksViewFilters
-              activeOrganizationId={activeOrganizationId}
-              coworkerOptions={coworkerOptions}
-              projectOptions={projectOptions}
-              labels={labels.filters}
-            />
-          ) : null}
-          {activeTab === "tasks" ? (
-            <ViewModeSwitch
-              value={viewMode}
-              onChange={handleViewModeChange}
-              density={density}
-              onDensityChange={handleDensityChange}
-              labels={labels.display}
+            <TasksViewToolbarActions
+              filters={{
+                activeOrganizationId,
+                userId,
+                coworkerOptions,
+                projectOptions,
+                labels: labels.filters,
+              }}
+              display={{
+                value: viewMode,
+                onChange: handleViewModeChange,
+                density,
+                onDensityChange: handleDensityChange,
+                labels: labels.display,
+              }}
             />
           ) : null}
         </div>
@@ -924,6 +918,7 @@ export function TasksView({
                   <KanbanBoard
                     tasks={items}
                     columns={columns}
+                    columnHiddenCountById={columnHiddenById}
                     columnFooterById={columnFooterById}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
@@ -977,6 +972,7 @@ export function TasksView({
               <KanbanBoard
                 tasks={items}
                 columns={columns}
+                columnHiddenCountById={columnHiddenById}
                 columnFooterById={columnFooterById}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
@@ -1016,7 +1012,12 @@ export function TasksView({
     >
       {userId ? (
         <LazyAblyProvider>
-          <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
+          <ChannelProvider
+            channelName={makeUserTasksChannelName(
+              userId,
+              getRealtimeChannelEnvironment(),
+            )}
+          >
             <TasksRealtimeListener
               userId={userId}
               onEvent={handleEventUpdate}
@@ -1024,7 +1025,10 @@ export function TasksView({
           </ChannelProvider>
         </LazyAblyProvider>
       ) : null}
-      {tabsContent}
+      {/* The page's seat check is fresher than the layout's after a soft navigation. */}
+      <OrganizationSeatContext value={canCreateTask}>
+        {tabsContent}
+      </OrganizationSeatContext>
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
       ) : null}

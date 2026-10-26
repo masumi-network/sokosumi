@@ -35,8 +35,17 @@ vi.mock("./chat-room-mention-stream", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   ACTIVE_TURN_STATUSES: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"],
+  FOREGROUND_TURN: { parentTurnId: null },
   SokoBotTurnInProgressError: TurnInProgress,
   sokoBotControlPlane: { startTurn, reconcileTurn },
+}));
+
+const { loadRoomContextMessages } = vi.hoisted(() => ({
+  loadRoomContextMessages: vi.fn(),
+}));
+vi.mock("./chat-room-mention-context", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./chat-room-mention-context")>()),
+  loadRoomContextMessages,
 }));
 
 import {
@@ -85,6 +94,7 @@ function input(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  loadRoomContextMessages.mockResolvedValue([]);
   findMember.mockResolvedValue({ id: "member-a" });
   claim.mockResolvedValue(true);
   placeholder.mockResolvedValue("response-a");
@@ -104,6 +114,25 @@ describe("Soko Bot mention dispatch", () => {
           mentionId: "mention-a",
           responseMessageId: "response-a",
         }),
+      }),
+    );
+  });
+  it("shows the bot what was said in a direct chat before the new message", async () => {
+    loadRoomContextMessages.mockResolvedValue([
+      {
+        senderName: "Joseph",
+        isCoworker: false,
+        isSokoBot: true,
+        content: "Make — s_New_Registration: two recent errors.",
+      },
+    ]);
+    await runSokoBotMentionDispatch(
+      input({ content: "stop messaging me about these", metadata: null }),
+    );
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "CONTEXT (last 1 messages in this chat):\n- Joseph (personal assistant): Make — s_New_Registration: two recent errors.\n\nNew message:\nstop messaging me about these",
       }),
     );
   });
@@ -155,6 +184,91 @@ describe("Soko Bot mention dispatch", () => {
     );
     expect(claim).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("a shared Soko Bot mention", () => {
+  function sharedInput(organizationId: string | null = "org-a") {
+    const base = input();
+    return {
+      ...base,
+      mention: {
+        ...base.mention,
+        message: {
+          ...base.mention.message,
+          senderUser: { id: "user-b", name: "Ben" },
+          room: {
+            id: "room-a",
+            kind: "channel",
+            name: "team",
+            organizationId,
+          },
+        },
+        sokoBot: { ...base.mention.sokoBot, id: "bot-s", userId: null },
+        sokoBotId: "bot-s",
+      },
+      userId: "user-b",
+    };
+  }
+
+  it("runs the turn as the member who asked, by the bot's id", async () => {
+    await runSokoBotMentionDispatch(sharedInput());
+    const [turn] = startTurn.mock.calls[0];
+    expect(turn).toMatchObject({
+      userId: "user-b",
+      sokoBotId: "bot-s",
+      workspaceId: "workspace-a",
+      chat: expect.objectContaining({ askedByUserId: "user-b" }),
+    });
+    expect(turn.message).toMatch(/^Ben \(a member of the team\) asked:/);
+    expect(turn.message).not.toContain("your owner");
+  });
+
+  it("refuses a room outside any organization", async () => {
+    await runSokoBotMentionDispatch(sharedInput(null));
+    expect(fail).toHaveBeenCalledWith(
+      "Only the owner can message this assistant here",
+    );
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("runs a turn another bot asked for as that bot's owner", async () => {
+    const base = sharedInput();
+    await runSokoBotMentionDispatch({
+      ...base,
+      mention: {
+        ...base.mention,
+        message: { ...base.mention.message, senderUser: null },
+      },
+      userId: "user-c",
+      askedByBot: true,
+      chainDepth: 1,
+    });
+    const [turn] = startTurn.mock.calls[0];
+    expect(turn).toMatchObject({
+      userId: "user-c",
+      sokoBotId: "bot-s",
+      chat: expect.objectContaining({
+        askedByUserId: "user-c",
+        askedByBot: true,
+        chainDepth: 1,
+      }),
+    });
+  });
+
+  it("keeps a personal bot's teammate turn on its owner", async () => {
+    const base = sharedInput();
+    await runSokoBotMentionDispatch({
+      ...base,
+      mention: {
+        ...base.mention,
+        sokoBot: { ...base.mention.sokoBot, userId: "user-a" },
+      },
+    });
+    const [turn] = startTurn.mock.calls[0];
+    expect(turn.userId).toBe("user-a");
+    expect(turn).not.toHaveProperty("sokoBotId");
+    expect(turn.message).toMatch(/^Ben \(a teammate, not your owner\) asked:/);
   });
 });
 

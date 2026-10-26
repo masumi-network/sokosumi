@@ -1,7 +1,7 @@
 import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
 import type { Vendor } from "../api/models/vendor.js";
 
-export const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
+const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
 
 function trimWebBase(webUrl: string | undefined): string {
   return String(webUrl ?? "")
@@ -19,14 +19,7 @@ export function describeRegistrationWorkspaceRequirement(
   return `Registration requires an organization workspace. ${webStep} Then open Workspaces here or run \`sokosumi workspaces list\`.`;
 }
 
-/**
- * How to become a Vendor admin before registration.
- *
- * Primary unblock: create a Vendor (`sokosumi vendors create` / Core
- * `POST /v1/vendors`). Preprod Vendor admins can create private Coworkers.
- * Web Developer → Vendors is hidden unless you already have admin membership
- * (`getDeveloperVendorAdminAccess`); do not send blocked users there.
- */
+/** Vendor-admin gate copy. Unblock with `vendors create`; do not send blocked users to Web Vendors. */
 export function describeRegistrationAdminVendorRequirement(
   webUrl?: string,
 ): string {

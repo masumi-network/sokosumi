@@ -69,9 +69,9 @@ import {
 const GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 const EVALUATION_TIMEOUT_MS = 2_000;
 
-export const JEV_SCORE_MIN = 0;
+const JEV_SCORE_MIN = 0;
 
-export interface JevEvaluationOutcome {
+interface JevEvaluationOutcome {
   ok: boolean;
   /** 0–3 ordinal relevance. Absent when the call failed or was invalid. */
   score: number | null;
@@ -131,7 +131,7 @@ const booleanAnswerSchema = z.object({
   probability: z.number().finite().min(0).max(1),
 });
 
-export type JevBooleanAnswer = z.infer<typeof booleanAnswerSchema>;
+type JevBooleanAnswer = z.infer<typeof booleanAnswerSchema>;
 
 const answersSchema = z.record(z.string(), booleanAnswerSchema);
 
@@ -158,6 +158,18 @@ const RUNG_TRUE_PROBABILITY = 0.5;
  * left for the next reader to trust.
  */
 const LABEL_MIN_PROBABILITY = 0.85;
+
+/**
+ * The bar for a file with no readable text, judged on its name, type, size,
+ * folder and project alone.
+ *
+ * Lower because the evidence is thinner, not because the bar is softer.
+ * Measured on twenty realistic file descriptors, twice: metadata answers sit
+ * between 0.5 and 0.9 and move by under 0.05 between runs. At 0.85 only four
+ * of twenty files got any label; at 0.7 thirteen did, and every label
+ * above 0.7 was one a person would have filed it under.
+ */
+export const METADATA_LABEL_MIN_PROBABILITY = 0.7;
 
 const resultSchema = z.object({
   model: z.string(),
@@ -225,7 +237,7 @@ function readLadder(
   return { ok: true, score: rungs[highestTrue].score };
 }
 
-export interface JevLabelVerdict {
+interface JevLabelVerdict {
   ok: boolean;
   /** Ids the model said the document clearly belongs to. */
   chosen: string[];
@@ -260,6 +272,8 @@ export interface JevLabelEvaluator {
   evaluateLabels(input: {
     request: SerializedJevRequest;
     labels: readonly { id: string; name: string; description: string | null }[];
+    /** Defaults to the text bar, `LABEL_MIN_PROBABILITY`. */
+    minProbability?: number;
     signal?: AbortSignal;
   }): Promise<JevLabelVerdict>;
 }
@@ -451,12 +465,11 @@ export const gatewayJevEvaluator: JevEvaluator & JevLabelEvaluator = {
       }
     }
 
+    const minProbability = input.minProbability ?? LABEL_MIN_PROBABILITY;
     return {
       ok: true,
       chosen: input.labels
-        .filter(
-          (label) => record[label.id].probability >= LABEL_MIN_PROBABILITY,
-        )
+        .filter((label) => record[label.id].probability >= minProbability)
         .map((label) => label.id),
       reason: null,
       latencyMs: result.latencyMs,

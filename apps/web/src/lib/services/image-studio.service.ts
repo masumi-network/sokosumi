@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectVideoJobRequest,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
@@ -57,6 +58,17 @@ export const imageStudioService = {
     input: CreateProjectImageJobRequest,
   ): Promise<ProjectImageJob> {
     const result = await coreClient.postProjectsByIdImageStudioJobs(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
+  async createVideoJob(
+    projectId: string,
+    input: CreateProjectVideoJobRequest,
+  ): Promise<ProjectImageJob> {
+    const result = await coreClient.postProjectsByIdImageStudioVideoJobs(
       projectId,
       input,
     );

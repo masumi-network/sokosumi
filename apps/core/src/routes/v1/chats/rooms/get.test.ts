@@ -367,7 +367,8 @@ describe("GET /chats/rooms", () => {
     const response = await createApp(ORG_ID).request("/");
 
     expect(response.status).toBe(200);
-    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    // The unread count, and the needs-you count beside it; no Threads read.
+    expect(queryRawUnsafeMock).toHaveBeenCalledTimes(2);
   });
 
   it("lists no threads for a room with no Thread unread", async () => {

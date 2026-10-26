@@ -12,6 +12,7 @@ import {
   type SokoBotMemory,
   type SokoBotPendingDecision,
   type SokoBotSchedule,
+  SokoBotScope,
   type SokoBotSkillBrowse,
   type SokoBotSkillSearchResult,
   type StartSokoBotTurnResponse,
@@ -33,7 +34,8 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
-  SOKO_BOT_ROUTE,
+  SOKO_BOTS_ROUTE,
+  sokoBotConsoleRoute,
 } from "@/lib/soko-bot/constants";
 import {
   type AuthenticatedRequest,
@@ -69,6 +71,25 @@ const updateScheduleSchema = z.object({
 
 const idSchema = z.string().trim().min(1);
 
+/** A shared bot's id; absent means the caller's own bot. */
+const botIdSchema = z.string().uuid().optional();
+
+const createScopedSokoBotSchema = createSokoBotSchema
+  .extend({
+    scope: z.enum(SokoBotScope),
+    projectId: z.string().uuid().nullable().optional(),
+    timezone: z.string().trim().min(1).max(64).optional(),
+  })
+  .refine(
+    (input) =>
+      (input.scope === SokoBotScope.PROJECT) === Boolean(input.projectId),
+  );
+
+/** Every action that can act on a shared bot takes its id as `botId`. */
+interface BotScopedParams extends AuthenticatedRequest {
+  botId?: unknown;
+}
+
 function invalidInput(): ActionError {
   return { code: CommonErrorCode.BAD_INPUT, message: "Invalid input" };
 }
@@ -92,8 +113,10 @@ function mapTurnError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
-function revalidate() {
-  revalidatePath(SOKO_BOT_ROUTE);
+function revalidate(botId?: string) {
+  revalidatePath(sokoBotConsoleRoute(botId));
+  // The roster lists shared bots, so a change to one shows there too.
+  if (botId) revalidatePath(SOKO_BOTS_ROUTE);
 }
 
 interface CreateSokoBotParams extends AuthenticatedRequest {
@@ -116,13 +139,46 @@ export const createSokoBotAction = withSession<
   }
 });
 
-export const archiveSokoBotAction = withSession<
-  AuthenticatedRequest,
-  ActionResultDto<void, ActionError>
->(async () => {
+/** Create a personal, project or workspace bot from the roster. */
+export const createScopedSokoBotAction = withSession<
+  CreateSokoBotParams,
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ input }) => {
+  const parsed = createScopedSokoBotSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
-    await sokoBotService.archive();
-    revalidate();
+    const bot = await sokoBotService.createScoped(parsed.data);
+    revalidatePath(SOKO_BOTS_ROUTE);
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const archiveSokoBotAction = withSession<
+  BotScopedParams,
+  ActionResultDto<void, ActionError>
+>(async ({ botId }) => {
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedBot.success) return toActionResult(err(invalidInput()));
+  try {
+    await sokoBotService.archive(parsedBot.data);
+    revalidate(parsedBot.data);
+    return toActionResult(ok());
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const reactivateSokoBotAction = withSession<
+  AuthenticatedRequest & { botId: unknown },
+  ActionResultDto<void, ActionError>
+>(async ({ botId }) => {
+  const parsedBot = z.string().uuid().safeParse(botId);
+  if (!parsedBot.success) return toActionResult(err(invalidInput()));
+  try {
+    await sokoBotService.reactivate(parsedBot.data);
+    revalidate(parsedBot.data);
     return toActionResult(ok());
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
@@ -130,31 +186,35 @@ export const archiveSokoBotAction = withSession<
 });
 
 export const deleteSokoBotAction = withSession<
-  AuthenticatedRequest,
+  BotScopedParams,
   ActionResultDto<SokoBotDeletionResult, ActionError>
->(async () => {
+>(async ({ botId }) => {
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedBot.success) return toActionResult(err(invalidInput()));
   try {
-    const result = await sokoBotService.deletePermanently();
-    revalidate();
+    const result = await sokoBotService.deletePermanently(parsedBot.data);
+    revalidate(parsedBot.data);
     return toActionResult(ok(result));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
-interface StartTurnParams extends AuthenticatedRequest {
+interface StartTurnParams extends BotScopedParams {
   input: unknown;
 }
 
 export const startSokoBotTurnAction = withSession<
   StartTurnParams,
   ActionResultDto<StartSokoBotTurnResponse, ActionError>
->(async ({ input }) => {
+>(async ({ input, botId }) => {
   const parsed = startTurnSchema.safeParse(input);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
-    const result = await sokoBotService.startTurn(parsed.data);
-    revalidate();
+    const result = await sokoBotService.startTurn(parsed.data, parsedBot.data);
+    revalidate(parsedBot.data);
     return toActionResult(ok(result));
   } catch (error) {
     return toActionResult(err(mapTurnError(error)));
@@ -162,79 +222,91 @@ export const startSokoBotTurnAction = withSession<
 });
 
 export const resetSokoBotMemoryAction = withSession<
-  AuthenticatedRequest,
+  BotScopedParams,
   ActionResultDto<SokoBotMemory, ActionError>
->(async () => {
+>(async ({ botId }) => {
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedBot.success) return toActionResult(err(invalidInput()));
   try {
-    const memory = await sokoBotService.resetMemory();
-    revalidate();
+    const memory = await sokoBotService.resetMemory(parsedBot.data);
+    revalidate(parsedBot.data);
     return toActionResult(ok(memory));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
-interface CreateScheduleParams extends AuthenticatedRequest {
+interface CreateScheduleParams extends BotScopedParams {
   input: unknown;
 }
 
 export const createSokoBotScheduleAction = withSession<
   CreateScheduleParams,
   ActionResultDto<SokoBotSchedule, ActionError>
->(async ({ input }) => {
+>(async ({ input, botId }) => {
   const parsed = scheduleSchema.safeParse(input);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
-    const schedule = await sokoBotService.createSchedule(parsed.data);
-    revalidate();
+    const schedule = await sokoBotService.createSchedule(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
     return toActionResult(ok(schedule));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
-interface UpdateScheduleParams extends AuthenticatedRequest {
+interface UpdateScheduleParams extends BotScopedParams {
   input: unknown;
 }
 
 export const updateSokoBotScheduleAction = withSession<
   UpdateScheduleParams,
   ActionResultDto<SokoBotSchedule, ActionError>
->(async ({ input }) => {
+>(async ({ input, botId }) => {
   const parsed = updateScheduleSchema.safeParse(input);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
     const schedule = await sokoBotService.updateSchedule(
       parsed.data.scheduleId,
       parsed.data.patch,
+      parsedBot.data,
     );
-    revalidate();
+    revalidate(parsedBot.data);
     return toActionResult(ok(schedule));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
-interface ScheduleIdParams extends AuthenticatedRequest {
+interface ScheduleIdParams extends BotScopedParams {
   scheduleId: unknown;
 }
 
 export const deleteSokoBotScheduleAction = withSession<
   ScheduleIdParams,
   ActionResultDto<void, ActionError>
->(async ({ scheduleId }) => {
+>(async ({ scheduleId, botId }) => {
   const parsed = idSchema.safeParse(scheduleId);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
-    await sokoBotService.deleteSchedule(parsed.data);
-    revalidate();
+    await sokoBotService.deleteSchedule(parsed.data, parsedBot.data);
+    revalidate(parsedBot.data);
     return toActionResult(ok());
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
-interface ResolveDecisionParams extends AuthenticatedRequest {
+interface ResolveDecisionParams extends BotScopedParams {
   decisionId: unknown;
   resolution: unknown;
 }
@@ -244,17 +316,20 @@ const resolutionSchema = z.enum(["ACCEPT", "REJECT"]);
 export const resolveSokoBotDecisionAction = withSession<
   ResolveDecisionParams,
   ActionResultDto<SokoBotPendingDecision, ActionError>
->(async ({ decisionId, resolution }) => {
+>(async ({ decisionId, resolution, botId }) => {
   const parsedId = idSchema.safeParse(decisionId);
   const parsedResolution = resolutionSchema.safeParse(resolution);
-  if (!parsedId.success || !parsedResolution.success) {
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedId.success || !parsedResolution.success || !parsedBot.success) {
     return toActionResult(err(invalidInput()));
   }
   try {
-    const decision = await sokoBotService.resolveDecision(parsedId.data, {
-      resolution: parsedResolution.data,
-    });
-    revalidate();
+    const decision = await sokoBotService.resolveDecision(
+      parsedId.data,
+      { resolution: parsedResolution.data },
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
     return toActionResult(ok(decision));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
@@ -300,18 +375,24 @@ const proactiveSchema = z
     paused: z.boolean().optional(),
     dailyLimit: z.number().int().min(1).max(200).optional(),
     timezone: z.string().trim().min(1).max(64).optional(),
+    mailAutoRead: z.boolean().optional(),
   })
   .strict();
 
 export const updateSokoBotProactiveAction = withSession<
-  AuthenticatedRequest & { input: unknown },
+  BotScopedParams & { input: unknown },
   ActionResultDto<SokoBot, ActionError>
->(async ({ input }) => {
+>(async ({ input, botId }) => {
   const parsed = proactiveSchema.safeParse(input);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
-    const bot = await sokoBotService.updateProactive(parsed.data);
-    revalidate();
+    const bot = await sokoBotService.updateProactive(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
     return toActionResult(ok(bot));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
@@ -335,14 +416,19 @@ export const sendSokoBotTurnFeedbackAction = withSession<
 });
 
 export const setSokoBotFollowBoardAction = withSession<
-  AuthenticatedRequest & { enabled: unknown },
+  BotScopedParams & { enabled: unknown },
   ActionResultDto<SokoBot, ActionError>
->(async ({ enabled }) => {
+>(async ({ enabled, botId }) => {
   const parsed = z.boolean().safeParse(enabled);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
-    const bot = await sokoBotService.setFollowBoard(parsed.data);
-    revalidate();
+    const bot = await sokoBotService.setFollowBoard(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
     return toActionResult(ok(bot));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
@@ -535,7 +621,7 @@ export const simulateSokoBotTaskEventAction = withSession<
   }
 });
 
-interface IntegrationParams extends AuthenticatedRequest {
+interface IntegrationParams extends BotScopedParams {
   provider: unknown;
 }
 
@@ -566,14 +652,21 @@ export const searchSokoBotIntegrationCatalogAction = withSession<
 export const connectSokoBotIntegrationAction = withSession<
   IntegrationParams & { returnUrl: unknown },
   ActionResultDto<{ redirectUrl: string }, ActionError>
->(async ({ provider, returnUrl }) => {
+>(async ({ provider, returnUrl, botId }) => {
   const parsed = providerSchema.safeParse(provider);
   const parsedUrl = z.string().url().safeParse(returnUrl);
-  if (!parsed.success || !parsedUrl.success)
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedUrl.success || !parsedBot.success)
     return toActionResult(err(invalidInput()));
   try {
     return toActionResult(
-      ok(await sokoBotService.connectIntegration(parsed.data, parsedUrl.data)),
+      ok(
+        await sokoBotService.connectIntegration(
+          parsed.data,
+          parsedUrl.data,
+          parsedBot.data,
+        ),
+      ),
     );
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
@@ -583,12 +676,14 @@ export const connectSokoBotIntegrationAction = withSession<
 export const disconnectSokoBotIntegrationAction = withSession<
   IntegrationParams,
   ActionResultDto<{ disconnected: true }, ActionError>
->(async ({ provider }) => {
+>(async ({ provider, botId }) => {
   const parsed = providerSchema.safeParse(provider);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
   try {
-    await sokoBotService.disconnectIntegration(parsed.data);
-    revalidate();
+    await sokoBotService.disconnectIntegration(parsed.data, parsedBot.data);
+    revalidate(parsedBot.data);
     return toActionResult(ok({ disconnected: true as const }));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));

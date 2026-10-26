@@ -5,6 +5,7 @@ import {
   ComposioToolError,
 } from "@/clients/social-post-providers/tools";
 import { forbidden } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
 
 const {
   publishingAccessMock,
@@ -13,9 +14,13 @@ const {
   attemptCreateMock,
   attemptUpdateMock,
   getSocialPostMock,
+  publishFirstCommentMock,
   publishXPostMock,
   socialPostFindFirstMock,
   socialPostUpdateManyMock,
+  projectFindFirstMock,
+  queryRawMock,
+  transactionMock,
   ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
@@ -24,9 +29,13 @@ const {
   attemptCreateMock: vi.fn(),
   attemptUpdateMock: vi.fn(),
   getSocialPostMock: vi.fn(),
+  publishFirstCommentMock: vi.fn(),
   publishXPostMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
+  projectFindFirstMock: vi.fn(),
+  queryRawMock: vi.fn(),
+  transactionMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
 }));
 
@@ -41,6 +50,9 @@ vi.mock("@/helpers/social-post-access", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    project: { findFirst: projectFindFirstMock },
+    $queryRaw: queryRawMock,
+    $transaction: transactionMock,
     socialPost: {
       findFirst: socialPostFindFirstMock,
       updateMany: socialPostUpdateManyMock,
@@ -57,6 +69,10 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/clients/social-post-providers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/social-post-providers")>()),
   publishSocialPostToProvider: publishXPostMock,
+}));
+
+vi.mock("@/clients/social-post-providers/first-comment", () => ({
+  publishSocialPostFirstComment: publishFirstCommentMock,
 }));
 
 vi.mock("@/services/social-posts.service", () => ({
@@ -116,6 +132,7 @@ const duePost = {
   workspaceId: WORKSPACE_ID,
   provider: "x",
   text: "Hello world",
+  firstComment: null,
   media: [],
   status: "SCHEDULED",
   scheduledAt: SCHEDULED_AT,
@@ -150,6 +167,15 @@ describe("social post publisher service", () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      closingAt: null,
+      closedAt: null,
+    });
+    queryRawMock.mockResolvedValue([{ id: PROJECT_ID }]);
+    transactionMock.mockImplementation(async (callback) =>
+      callback({ ...prisma }),
+    );
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     socialPostFindFirstMock
@@ -165,10 +191,120 @@ describe("social post publisher service", () => {
       publishedUrl: "https://x.com/sokosumi/status/1907",
       toolSlug: "TWITTER_CREATION_OF_A_POST",
     });
+    publishFirstCommentMock.mockResolvedValue(undefined);
     getSocialPostMock.mockResolvedValue({ id: POST_ID, status: "PUBLISHED" });
     ssrfSafeFetchMock.mockImplementation(async () =>
       mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
     );
+  });
+
+  it.each(["closingAt", "closedAt"])(
+    "does not dispatch a claimed post when its Project has %s",
+    async (field) => {
+      projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID, [field]: NOW });
+      const { publishDueSocialPosts } = await loadService();
+
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        claimed: 1,
+        failed: 1,
+        published: 0,
+      });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(settleCall().data).toMatchObject({
+        status: "FAILED",
+        lastError: "Cannot publish Social posts in a closing or closed Project",
+        leaseToken: null,
+        leaseExpiresAt: null,
+        nextAttemptAt: null,
+      });
+    },
+  );
+
+  it("rechecks the Project immediately before dispatch", async () => {
+    projectFindFirstMock
+      .mockResolvedValueOnce({ id: PROJECT_ID })
+      .mockResolvedValue({ id: PROJECT_ID, closingAt: NOW });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(attemptUpdateMock).toHaveBeenCalledWith({
+      where: { id: ATTEMPT_ID },
+      data: { finishedAt: NOW, outcome: "project_closed" },
+    });
+  });
+
+  it("does not requeue a transient failure after its Project closes", async () => {
+    publishXPostMock.mockImplementation(async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        closingAt: NOW,
+      });
+      throw new ComposioApiError(429, undefined, "publish X post failed (429)");
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      retried: 0,
+    });
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      nextAttemptAt: null,
+      leaseToken: null,
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SCHEDULED" }),
+      }),
+    );
+  });
+
+  it("does not recover a transient failure into a schedule after close", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, status: "PUBLISHING" })
+      .mockResolvedValue(null);
+    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID, closedAt: NOW });
+    attemptFindFirstMock.mockResolvedValue({
+      outcome: "failed_transient",
+      finishedAt: NOW,
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      retried: 0,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      nextAttemptAt: null,
+      leaseToken: null,
+    });
+  });
+
+  it("reconciles a recorded success after close without publishing again", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, status: "PUBLISHING" })
+      .mockResolvedValue(null);
+    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID, closedAt: NOW });
+    attemptFindFirstMock.mockResolvedValue({
+      outcome: "succeeded",
+      externalId: "1907",
+      finishedAt: NOW,
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      published: 1,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.status).toBe("PUBLISHED");
   });
 
   it("aborts provider work at the execution deadline and settles before the lease expires", async () => {
@@ -238,6 +374,7 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
+              project: { closingAt: null, closedAt: null },
               AND: {
                 OR: [
                   { scheduledByCoworkerId: { not: null } },
@@ -259,7 +396,12 @@ describe("social post publisher service", () => {
       }),
     );
     expect(claimCall()).toEqual({
-      where: { id: POST_ID, status: "SCHEDULED", revision: 1 },
+      where: {
+        id: POST_ID,
+        status: "SCHEDULED",
+        revision: 1,
+        project: { closingAt: null, closedAt: null },
+      },
       data: {
         status: "PUBLISHING",
         leaseToken: expect.any(String),
@@ -316,6 +458,42 @@ describe("social post publisher service", () => {
         revision: { increment: 1 },
       },
     });
+    expect(publishFirstCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("posts the first comment after the post is live", async () => {
+    socialPostFindFirstMock.mockReset();
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ ...duePost, firstComment: " #launch " })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(publishFirstCommentMock).toHaveBeenCalledWith({
+      provider: "x",
+      connectedAccountId: "ca_123",
+      executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+      externalAccountId: "x_account",
+      externalId: "1907",
+      text: "#launch",
+      signal: expect.any(AbortSignal),
+    });
+    expect(settleCall().data.status).toBe("PUBLISHED");
+  });
+
+  it("keeps the post published when the first comment fails", async () => {
+    socialPostFindFirstMock.mockReset();
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ ...duePost, firstComment: "#launch" })
+      .mockResolvedValue(null);
+    publishFirstCommentMock.mockRejectedValue(new Error("refused"));
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ published: 1, failed: 0 });
+    expect(settleCall().data.status).toBe("PUBLISHED");
   });
 
   it("stores the published URL the adapter returned", async () => {
@@ -421,6 +599,7 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
+              project: { closingAt: null, closedAt: null },
               AND: {
                 OR: [
                   { scheduledByCoworkerId: { not: null } },
@@ -511,6 +690,16 @@ describe("social post publisher service", () => {
       expectedData: {
         status: "MISSED",
         lastError: "Missed: found 65 minutes after the planned time",
+      },
+    },
+    {
+      outcome: "project_closed",
+      providerOutcome: null,
+      post: {},
+      expectedResult: { retried: 0, failed: 1, missed: 0 },
+      expectedData: {
+        status: "FAILED",
+        lastError: "Cannot publish Social posts in a closing or closed Project",
       },
     },
     {
@@ -962,6 +1151,27 @@ describe("social post publisher service", () => {
         }),
       });
     });
+
+    it("fails permanently when a TikTok post has no video", async () => {
+      socialPostFindFirstMock.mockReset();
+      socialPostFindFirstMock
+        .mockResolvedValueOnce({ ...duePost, provider: "tiktok", media: [] })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1, published: 0 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "media_missing",
+          providerOutcome: "TikTok requires a video",
+        }),
+      });
+    });
   });
 
   it("skips a post another worker claimed first", async () => {
@@ -1030,6 +1240,37 @@ describe("social post publisher service", () => {
     beforeEach(() => {
       socialPostFindFirstMock.mockReset();
       socialPostFindFirstMock.mockResolvedValue(failedPost);
+    });
+
+    describe.each(["closingAt", "closedAt"])("a Project with %s", (field) => {
+      it.each(["DRAFT", "SCHEDULED", "FAILED", "MISSED"])(
+        "rejects publishing a %s post",
+        async (status) => {
+          projectFindFirstMock.mockResolvedValue({
+            id: PROJECT_ID,
+            [field]: NOW,
+          });
+          socialPostFindFirstMock.mockResolvedValue({ ...failedPost, status });
+          const { publishSocialPostNow } = await loadService();
+
+          await expect(
+            publishSocialPostNow({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              postId: POST_ID,
+              revision: 4,
+            }),
+          ).rejects.toMatchObject({
+            status: 409,
+            message:
+              "Cannot publish Social posts in a closing or closed Project",
+          });
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+          expect(attemptCreateMock).not.toHaveBeenCalled();
+          expect(publishXPostMock).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it("resets a failed post, claims it, and publishes inline", async () => {
@@ -1172,7 +1413,7 @@ describe("social post publisher service", () => {
       });
     });
 
-    it.each(["PUBLISHING", "PUBLISHED", "CANCELED"])(
+    it.each(["NEEDS_APPROVAL", "PUBLISHING", "PUBLISHED", "CANCELED"])(
       "refuses to publish a %s post now",
       async (status) => {
         socialPostFindFirstMock.mockResolvedValue({ ...failedPost, status });
@@ -1241,6 +1482,37 @@ describe("social post publisher service", () => {
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["tiktok", "TikTok requires a video"],
+      ["youtube", "YouTube requires a video"],
+      ["instagram", "Instagram requires at least one image or video"],
+    ] as const)(
+      "refuses to publish a %s draft now without required media",
+      async (provider, message) => {
+        socialPostFindFirstMock.mockResolvedValue({
+          ...failedPost,
+          status: "DRAFT",
+          provider,
+          media: [],
+          scheduledAt: null,
+          socialConnection: activeConnection,
+        });
+        const { publishSocialPostNow } = await loadService();
+
+        await expect(
+          publishSocialPostNow({
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            userId: USER_ID,
+            postId: POST_ID,
+            revision: 4,
+          }),
+        ).rejects.toMatchObject({ status: 400, message });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        expect(publishXPostMock).not.toHaveBeenCalled();
+      },
+    );
   });
   it("checks delegation immediately before publishing a coworker-scheduled post", async () => {
     socialPostFindFirstMock

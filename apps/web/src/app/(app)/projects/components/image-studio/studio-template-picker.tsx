@@ -1,16 +1,31 @@
 "use client";
 
-import { MousePointer2 } from "lucide-react";
+import { LayoutTemplate, MousePointer2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Carousel,
   type CarouselApi,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  collectStudioCarouselSlides,
+  paintStudioCarouselDepth,
+  STUDIO_SELECT_NONE_CLASS,
+  STUDIO_TOUCH_CALLOUT_NONE_CLASS,
+  type StudioCarouselSlide,
+  setStudioCarouselDragging,
+  studioCarouselRoot,
+} from "./studio-carousel-paint";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
 
@@ -36,8 +51,10 @@ function TemplateButton({
     <button
       className={cn(
         "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
+        STUDIO_SELECT_NONE_CLASS,
+        STUDIO_TOUCH_CALLOUT_NONE_CLASS,
         large
-          ? "border-border flex-col overflow-hidden border p-2 shadow-lg"
+          ? "border-border data-[studio-snap-target]:border-primary flex-col overflow-hidden border p-2"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
         large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}
@@ -59,7 +76,9 @@ function TemplateButton({
         <Image
           alt=""
           className="object-cover"
+          decoding="async"
           fill
+          loading="lazy"
           sizes={
             large
               ? dimensional
@@ -81,26 +100,59 @@ function TemplateButton({
   );
 }
 
-/** The same starting briefs, beside the composer once there are results. */
-export function StudioTemplateStrip({
+/**
+ * The same starting briefs, one toolbar button away once there are results.
+ *
+ * A popover rather than a row above the composer: the row needed a horizontal
+ * scrollbar, and it sat between the gallery and the prompt on every visit.
+ * Picking one closes the menu and leaves the caret in the prompt.
+ */
+export function StudioTemplateMenu({
   labels,
   onApplyTemplate,
-}: TemplatePickerProps) {
+  triggerClassName,
+}: TemplatePickerProps & { triggerClassName?: string }) {
+  const [open, setOpen] = useState(false);
+  const pickedRef = useRef(false);
   return (
-    <div
-      aria-label={labels.templates}
-      className="app-scrollbar flex gap-2 overflow-x-auto p-1"
-      role="group"
-    >
-      {STUDIO_TEMPLATES.map((template) => (
-        <TemplateButton
-          key={template.id}
-          label={labels.templateLabels[template.id]}
-          onApplyTemplate={onApplyTemplate}
-          template={template}
-        />
-      ))}
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          className={triggerClassName}
+          size="sm"
+          variant="ghost"
+        >
+          <LayoutTemplate aria-hidden />
+          <span className="max-sm:sr-only">{labels.templates}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        aria-label={labels.templates}
+        className="app-scrollbar max-h-[min(28rem,var(--radix-popover-content-available-height))] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain p-2"
+        onCloseAutoFocus={(event) => {
+          if (!pickedRef.current) return;
+          pickedRef.current = false;
+          event.preventDefault();
+        }}
+      >
+        <div className="grid grid-cols-2 gap-1" role="group">
+          {STUDIO_TEMPLATES.map((template) => (
+            <TemplateButton
+              key={template.id}
+              label={labels.templateLabels[template.id]}
+              onApplyTemplate={(picked) => {
+                pickedRef.current = true;
+                setOpen(false);
+                onApplyTemplate(picked);
+              }}
+              template={template}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -110,46 +162,80 @@ export function StudioTemplateCarousel({
   onApplyTemplate,
 }: TemplatePickerProps) {
   const [api, setApi] = useState<CarouselApi>();
-  const [dragging, setDragging] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [hoverDirection, setHoverDirection] = useState<
-    "previous" | "next" | null
-  >(null);
   const reduceMotion = useReducedMotion();
-  const scrollingStopped = dragging || focused || !!reduceMotion;
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const reduceMotionRef = useRef(!!reduceMotion);
+  reduceMotionRef.current = !!reduceMotion;
+  const slidesRef = useRef<StudioCarouselSlide[]>([]);
+  const draggingRef = useRef(false);
+  const focusedRef = useRef(false);
+  const hoverDirectionRef = useRef<"previous" | "next" | null>(null);
+  const hoverTimerRef = useRef(0);
+
+  function stopHoverScroll() {
+    if (hoverTimerRef.current) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = 0;
+    }
+  }
+
+  function syncHoverScroll() {
+    stopHoverScroll();
+    const embla = apiRef.current;
+    const direction = hoverDirectionRef.current;
+    if (
+      !embla ||
+      draggingRef.current ||
+      focusedRef.current ||
+      reduceMotionRef.current ||
+      !direction
+    ) {
+      return;
+    }
+    const tick = () => {
+      if (
+        document.hidden ||
+        draggingRef.current ||
+        focusedRef.current ||
+        !hoverDirectionRef.current
+      ) {
+        return;
+      }
+      if (hoverDirectionRef.current === "previous") embla.scrollPrev();
+      else embla.scrollNext();
+      hoverTimerRef.current = window.setTimeout(tick, 1000);
+    };
+    hoverTimerRef.current = window.setTimeout(tick, 300);
+  }
+
+  function setHoverDirection(direction: "previous" | "next" | null) {
+    if (hoverDirectionRef.current === direction) return;
+    hoverDirectionRef.current = direction;
+    syncHoverScroll();
+  }
 
   useEffect(() => {
     if (!api) return;
+    const slides = collectStudioCarouselSlides(api.slideNodes());
+    slidesRef.current = slides;
+    let frame = 0;
     const paintDepth = () => {
-      const viewport = api.rootNode().getBoundingClientRect();
-      const center = viewport.left + viewport.width / 2;
-      for (const slide of api.slideNodes()) {
-        const card = slide.querySelector<HTMLElement>("[data-template-card]");
-        const preview = slide.querySelector<HTMLElement>(
-          "[data-template-preview]",
-        );
-        if (!card || !preview) continue;
-        if (reduceMotion) {
-          card.style.transform = "";
-          preview.style.filter = "";
-          preview.style.opacity = "";
-          slide.style.zIndex = "";
-          continue;
-        }
-        const bounds = slide.getBoundingClientRect();
-        if (!bounds.width) continue;
-        const offset = (bounds.left + bounds.width / 2 - center) / bounds.width;
-        const distance = Math.min(Math.abs(offset), 3);
-        card.style.transform = `translateX(-50%) perspective(1000px) translateZ(${80 - distance * 40}px) rotateY(${-offset * 8}deg) rotateZ(${offset * 3}deg) scale(${1 - distance * 0.1})`;
-        preview.style.filter = `blur(${Math.max(0, distance - 1) * 1.5}px)`;
-        preview.style.opacity = String(1 - distance * 0.15);
-        slide.style.zIndex = String(20 - Math.round(distance * 5));
-      }
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        paintStudioCarouselDepth({
+          viewport: api.rootNode().getBoundingClientRect(),
+          slides,
+          reduceMotion: !!reduceMotion,
+        });
+      });
     };
     paintDepth();
     api.on("scroll", paintDepth);
     api.on("reInit", paintDepth);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       api.off("scroll", paintDepth);
       api.off("reInit", paintDepth);
     };
@@ -157,30 +243,40 @@ export function StudioTemplateCarousel({
 
   useEffect(() => {
     if (!api) return;
-    const startDrag = () => setDragging(true);
-    const endDrag = () => setDragging(false);
+    const root = studioCarouselRoot(api.rootNode());
+    const startDrag = () => {
+      draggingRef.current = true;
+      stopHoverScroll();
+      setStudioCarouselDragging(root, slidesRef.current, true);
+    };
+    const endDrag = () => {
+      draggingRef.current = false;
+      setStudioCarouselDragging(root, slidesRef.current, false);
+      syncHoverScroll();
+    };
+    const suppressNativeSelection = (event: Event) => {
+      event.preventDefault();
+    };
     api.on("pointerDown", startDrag);
     api.on("pointerUp", endDrag);
+    root.addEventListener("pointerdown", suppressNativeSelection, {
+      passive: false,
+    });
+    root.addEventListener("mousedown", suppressNativeSelection, {
+      passive: false,
+    });
+    root.addEventListener("pointercancel", endDrag);
     return () => {
       api.off("pointerDown", startDrag);
       api.off("pointerUp", endDrag);
+      root.removeEventListener("pointerdown", suppressNativeSelection);
+      root.removeEventListener("mousedown", suppressNativeSelection);
+      root.removeEventListener("pointercancel", endDrag);
+      setStudioCarouselDragging(root, slidesRef.current, false);
     };
   }, [api]);
 
-  useEffect(() => {
-    if (!api || scrollingStopped || !hoverDirection) return;
-    // Give a passing pointer time to select a card before starting navigation.
-    let timer: number;
-    const scroll = () => {
-      if (!document.hidden) {
-        if (hoverDirection === "previous") api.scrollPrev();
-        else api.scrollNext();
-      }
-      timer = window.setTimeout(scroll, 1000);
-    };
-    timer = window.setTimeout(scroll, 300);
-    return () => window.clearTimeout(timer);
-  }, [api, scrollingStopped, hoverDirection]);
+  useEffect(() => () => stopHoverScroll(), []);
 
   return (
     <div className="w-full space-y-5 py-4">
@@ -193,16 +289,29 @@ export function StudioTemplateCarousel({
       </div>
       <Carousel
         aria-label={labels.templates}
-        className="flex min-w-0 flex-col"
-        onFocusCapture={() => setFocused(true)}
+        className={cn(
+          "group relative flex min-w-0 flex-col",
+          STUDIO_SELECT_NONE_CLASS,
+          STUDIO_TOUCH_CALLOUT_NONE_CLASS,
+        )}
+        onFocusCapture={() => {
+          focusedRef.current = true;
+          stopHoverScroll();
+        }}
         onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget))
-            setFocused(false);
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            focusedRef.current = false;
+            syncHoverScroll();
+          }
         }}
         onMouseLeave={() => setHoverDirection(null)}
         opts={{ loop: true, align: "center", duration: reduceMotion ? 0 : 25 }}
         setApi={setApi}
       >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-20 hidden bg-overlay-primary group-data-[studio-dragging]:block"
+        />
         <CarouselContent
           className={reduceMotion ? "py-1" : "items-center py-10"}
           onMouseLeave={() => setHoverDirection(null)}
@@ -232,6 +341,8 @@ export function StudioTemplateCarousel({
             <CarouselItem
               className={cn(
                 "relative",
+                STUDIO_SELECT_NONE_CLASS,
+                STUDIO_TOUCH_CALLOUT_NONE_CLASS,
                 reduceMotion
                   ? "basis-3/4 sm:basis-1/2 lg:basis-1/3"
                   : "basis-1/3 pl-0! sm:basis-1/5",

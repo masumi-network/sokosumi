@@ -64,7 +64,7 @@ export function entityTagFor(version: {
  */
 
 /** Never stream a preview larger than this; the UI offers a download instead. */
-export const FILE_PREVIEW_MAX_BYTES = 25 * 1024 * 1024;
+const FILE_PREVIEW_MAX_BYTES = 25 * 1024 * 1024;
 
 const FETCH_TIMEOUT_MS = 10_000;
 

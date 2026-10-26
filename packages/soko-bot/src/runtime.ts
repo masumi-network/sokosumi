@@ -1,7 +1,8 @@
 import type { SokoBotCapability, SokoBotRoute } from "./policy.js";
 
 interface SokoBotActorContext {
-  userId: string;
+  /** Null when a shared Soko Bot acts on its own, for nobody (ADR 0057). */
+  userId: string | null;
   sokoBotId: string;
   workspaceId: string;
 }
@@ -36,6 +37,12 @@ export interface SokoBotContextPacket {
      * toward this route but not enough to grant its writes.
      */
     unsureRoute?: SokoBotRoute;
+    /**
+     * What Core noticed about a typed message, in plain words: a guess the
+     * route is unsure of, a likely reference to earlier messages, a
+     * preference it saved. Context to weigh, never a limit on the turn.
+     */
+    hints?: string[];
     /**
      * Who is on the other side of this turn. The turn always runs as the
      * owner — their bot, their credits — so `actor` is the owner whatever

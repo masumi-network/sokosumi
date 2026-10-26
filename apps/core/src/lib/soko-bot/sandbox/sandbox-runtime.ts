@@ -28,6 +28,7 @@ import {
   closeTurn,
   failTurn,
   RuntimeEventLog,
+  runtimeEvent,
 } from "@/lib/soko-bot/turn-loop";
 import { issueTurnToken } from "./turn-token";
 
@@ -171,14 +172,19 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
   try {
     const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
       where: { id: input.turnId },
-      select: { deadlineAt: true },
+      select: { deadlineAt: true, parentTurnId: true },
     });
     const token = issueTurnToken({
       turnId: input.turnId,
       sessionId,
       expiresAt: turn.deadlineAt.getTime() + 60_000,
     });
-    const drive = await workspaceDrive(input.sokoBotId);
+    // A background run works on its own disk: the Drive attaches to one VM
+    // at a time, and taking it would stop the chat's turn (or be stopped by
+    // the next one). What a run needs goes in its brief; what it makes goes
+    // to Files, tables, Tasks or its answer.
+    const background = Boolean(turn.parentTurnId);
+    const drive = background ? null : await workspaceDrive(input.sokoBotId);
     const sandbox = await Sandbox.create({
       ...credentials(),
       name: turnSandboxName(input.turnId),
@@ -190,9 +196,15 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
         turn.deadlineAt.getTime() - Date.now() + 60_000,
       ),
       networkPolicy: networkPolicy(input.turnId, token),
-      mounts: { [SANDBOX_WORKSPACE]: drive },
+      ...(drive ? { mounts: { [SANDBOX_WORKSPACE]: drive } } : {}),
       tags: { app: "soko-bot", bot: input.sokoBotId },
     });
+    // mkDir is not recursive and its parent may not exist yet.
+    if (!drive)
+      await sandbox.runCommand({
+        cmd: "mkdir",
+        args: ["-p", SANDBOX_WORKSPACE],
+      });
     await sandbox.writeFiles([
       { path: RUNNER_PATH, content: await loadRunner() },
     ]);
@@ -257,7 +269,14 @@ export class SandboxSokoBotRuntime implements SokoBotRuntime {
       where: { eveSessionId: input.sessionId },
       select: { id: true },
     });
-    if (turn) waitUntil(stopTurnSandbox(turn.id));
+    if (!turn) return;
+    waitUntil(stopTurnSandbox(turn.id));
+    // The runner exits without reporting, so nothing else marks the session
+    // idle and the reconciler never settles: a stopped background run stayed
+    // CANCEL_REQUESTED until its six-hour deadline failed it.
+    await new RuntimeEventLog(turn.id, input.sessionId).append(
+      runtimeEvent("session.waiting", {}),
+    );
   }
 
   resetSession(input: RuntimeResetInput): Promise<void> {

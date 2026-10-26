@@ -127,6 +127,19 @@
                                         .driveFile(id: "f2", scope: .personal, organizationId: nil, download: false)])
       }
 
+      /// Web (#6026): a post with no publish time (a draft, or one going out now) reads "now", never the day the
+      /// result was recorded.
+      @Test func anUndatedPostReadsNow() async throws {
+        let undated = Self.card(
+          "7d1f0c2a-0000-4000-8000-000000000049", title: "Launch day #sokosumi", text: Self.xText,
+          social: .init(provider: .x, account: .init(handle: "sokosumi", displayName: "Sokosumi HQ", avatarUrl: Self.hqImage))
+        )
+        let (window, host) = Self.host(undated, recorder: OutputRecorder(image: Self.picture))
+        defer { window.orderOut(nil) }
+        let texts = try await Helpers.waitForText("Sokosumi HQ", in: host)
+        #expect(texts.contains("@sokosumi · now"), "\(texts)")
+      }
+
       /// LinkedIn folds the text after 210 characters behind "…see more", which unfolds it; a missing photo shows
       /// the name's initials and the day carries web's "Visible to anyone" globe.
       @Test func linkedInFoldsLongTextBehindSeeMore() async throws {

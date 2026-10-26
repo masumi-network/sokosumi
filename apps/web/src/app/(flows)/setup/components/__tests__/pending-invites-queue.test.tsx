@@ -55,6 +55,7 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
     activateOrganizationWorkspaceMock(...args),
 }));
 
+import { SETUP_ASSISTANT_PATH, setupAssistantPath } from "@/lib/workspace-gate";
 import type { WorkspaceGateQueueItem } from "@/lib/workspace-gate-queue";
 
 import { PendingInvitesQueue } from "../pending-invites-queue.client";
@@ -168,7 +169,7 @@ describe("PendingInvitesQueue", () => {
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
       organizationSlug: "acme",
     });
-    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
     expect(updateUserMock).not.toHaveBeenCalled();
   });
@@ -285,7 +286,9 @@ describe("PendingInvitesQueue", () => {
     );
 
     await waitFor(() => {
-      expect(routerReplaceMock).toHaveBeenCalledWith("/chat/join/abc?ref=mail");
+      expect(routerReplaceMock).toHaveBeenCalledWith(
+        setupAssistantPath("/chat/join/abc?ref=mail"),
+      );
     });
   });
 
@@ -311,7 +314,7 @@ describe("PendingInvitesQueue", () => {
       organizationSlug: "join-co",
       acceptedJoinToken: "join_token_1",
     });
-    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
   });
 
   it("rejects every invitation and stays on the gate", async () => {
@@ -379,7 +382,7 @@ describe("PendingInvitesQueue", () => {
     await user.click(screen.getByTestId("workspace-gate-retry-activation"));
 
     await waitFor(() => {
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(routerReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
@@ -449,7 +452,7 @@ describe("PendingInvitesQueue", () => {
       organizationSlug: "acme",
       acceptedJoinToken: "join_token_1",
     });
-    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
   });
 
   it("keeps Accept selected disabled until a row is checked", async () => {
@@ -492,7 +495,7 @@ describe("PendingInvitesQueue", () => {
     expect(acceptInvitationMock).toHaveBeenCalledTimes(1);
     expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org_2");
-    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
   });
 
   it("continues the batch after a failure, toasts the failed orgs, and still leaves", async () => {
@@ -522,7 +525,7 @@ describe("PendingInvitesQueue", () => {
       organizationSlug: "join-co",
       acceptedJoinToken: "join_token_1",
     });
-    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
   });
 
   it("stays on the queue when every selected accept fails", async () => {

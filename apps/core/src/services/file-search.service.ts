@@ -3,6 +3,7 @@ import {
   FileLabelKind,
   FileMetadataState,
   FileResultWindowKind,
+  FileSourceKind,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import {
@@ -392,7 +393,7 @@ export function coverageOf(items: FileResourceDto[]): FileIndexCoverage {
  * subquery. Nothing here needs a snippet, and the window is at most
  * `RESULT_WINDOW_LIMIT` ids.
  */
-export async function loadWindowExtractionStates(input: {
+async function loadWindowExtractionStates(input: {
   workspaceId: string;
   actor: FileActor;
   resourceIds: string[];
@@ -647,6 +648,10 @@ export async function hydrateResources(input: {
       sizeBytes:
         resource.sizeBytes === null ? null : Number(resource.sizeBytes),
       sourceKind: resource.sourceKind,
+      pathname:
+        resource.sourceKind === FileSourceKind.DRIVE_UPLOAD
+          ? resource.sourceId
+          : null,
       sourceTaskId: resource.sourceTaskId,
       sourceProjectId: resource.sourceProjectId,
       updatedAt: resource.updatedAt.toISOString(),

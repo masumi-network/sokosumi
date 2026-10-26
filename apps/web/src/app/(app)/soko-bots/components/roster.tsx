@@ -169,7 +169,13 @@ export async function SokoBotsHero({ team }: { team: SokoBotTeam | null }) {
 }
 
 /** A section headline with a muted note beside it, ruled off like Agents. */
-function SectionHeader({ title, note }: { title: string; note?: string }) {
+export function SectionHeader({
+  title,
+  note,
+}: {
+  title: string;
+  note?: string;
+}) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

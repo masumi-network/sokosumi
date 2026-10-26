@@ -9,7 +9,11 @@ import {
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
-import type { FileActor, FileActorKind } from "@/lib/files/actor";
+import {
+  type FileActor,
+  type FileActorKind,
+  sokoBotScopeKey,
+} from "@/lib/files/actor";
 
 /**
  * An evidence scope is an authorization predicate over a canonical source.
@@ -142,9 +146,13 @@ export function buildAuthorizedResourceSql(input: {
 
   const arms: PrismaRaw.Sql[] = [];
 
+  const sharedScope = actor.sokoBotScope ?? null;
+
+  // A personal Drive is private to the member, so a shared bot never reads it.
   if (
     admittedKinds.includes(FileSourceKind.DRIVE_UPLOAD) &&
-    actor.organizationId === null
+    actor.organizationId === null &&
+    sharedScope === null
   ) {
     arms.push(PrismaRaw.sql`(
       fr."sourceKind" = ${FileSourceKind.DRIVE_UPLOAD}::"FileSourceKind"
@@ -170,6 +178,25 @@ export function buildAuthorizedResourceSql(input: {
   }
 
   if (admittedKinds.includes(FileSourceKind.TASK_OUTPUT)) {
+    // A shared bot sees the Tasks its scope shows (buildSokoBotScopeTaskWhere):
+    // public, in its workspace, in its Project when it has one.
+    const taskVisible = sharedScope
+      ? PrismaRaw.sql`(
+          t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+          AND t."workspaceId" = ${sharedScope.workspaceId}::uuid
+          ${
+            sharedScope.projectId === null
+              ? PrismaRaw.empty
+              : PrismaRaw.sql`AND t."projectId" = ${sharedScope.projectId}::uuid`
+          }
+        )`
+      : PrismaRaw.sql`(
+          t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+          OR (
+            t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+            AND t."ownerId" = ${actor.userId}
+          )
+        )`;
     arms.push(PrismaRaw.sql`(
       fr."sourceKind" = ${FileSourceKind.TASK_OUTPUT}::"FileSourceKind"
       AND EXISTS (
@@ -177,13 +204,7 @@ export function buildAuthorizedResourceSql(input: {
         WHERE t.id = fr."sourceTaskId"
           AND t."workspaceId" = fr."workspaceId"
           AND t."archivedAt" IS NULL
-          AND (
-            t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
-            OR (
-              t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
-              AND t."ownerId" = ${actor.userId}
-            )
-          )
+          AND ${taskVisible}
       )
     )`);
   }
@@ -257,6 +278,7 @@ export async function resolveScopeEpoch(input: {
     .update(input.actor.organizationId ?? "")
     .update("\0")
     .update(input.actor.kind)
+    .update(sokoBotScopeKey(input.actor))
     .update("\0")
     .update(String(rows._count._all))
     .update("\0")

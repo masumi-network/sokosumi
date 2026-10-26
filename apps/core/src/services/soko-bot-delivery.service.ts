@@ -1,11 +1,21 @@
 import { randomUUID } from "node:crypto";
-
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
+import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import {
+  isOwnSharedRoom,
+  withNoticeMention,
+} from "@/helpers/soko-bot-notice-room";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
 
@@ -18,6 +28,30 @@ const audienceSchema = z.object({
 const LEASE_MS = 60_000;
 const MAX_AGE_MS = 24 * 60 * 60_000;
 const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000, 7_200_000];
+
+/** What a background run that ended without an answer posts instead. */
+function backgroundStopNote(turn: {
+  backgroundTitle: string | null;
+  status: string;
+  errorKind: string | null;
+  errorDetail: string | null;
+}): string {
+  if (!turn.backgroundTitle) return "";
+  const how =
+    turn.errorKind === "turn_deadline_exceeded" ? "ran out of time" : "failed";
+  return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
+}
+
+/**
+ * A chat turn's answer fills the "Thinking…" message posted when it started.
+ * A background run started from chat has none: its report is a new message.
+ */
+function fillsChatPlaceholder(turn: {
+  source: string;
+  parentTurnId: string | null;
+}): boolean {
+  return turn.source === "CHAT" && !turn.parentTurnId;
+}
 
 /** Called inside the settlement transaction; no historical turn backfill. */
 export async function enqueueSokoBotDelivery(
@@ -32,8 +66,18 @@ export async function enqueueSokoBotDelivery(
     turn.status === "COMPLETED" &&
     isSokoBotSilentAnswer(turn.finalAnswer?.trim() ?? "") &&
     (!isChat || turn.chainDepth > 0);
-  const reason =
-    turn.source === "CHAT" && !isChat
+  // A background run reports wherever it ends, failure included: the owner
+  // was told it would.
+  const background = Boolean(turn.parentTurnId);
+  // A stopped run stays quiet: whoever stopped it already said so, and the
+  // note arrived an hour later when the cancellation finally settled.
+  const reason = background
+    ? !turn.destinationRoomId
+      ? "NO_DESTINATION"
+      : turn.status === "CANCELLED"
+        ? "CANCELLED"
+        : null
+    : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
       : !turn.destinationRoomId
         ? "NO_DESTINATION"
@@ -78,52 +122,78 @@ async function releasePendingNudges(
   });
 }
 
+/**
+ * Whether the room may still receive this turn's output, and whom the post
+ * should @mention: a shared bot's self-started output names its member while
+ * they are in the room. A shared room follows the organization's members, so
+ * neither the recipient leaving nor the audience changing revokes it.
+ */
 async function destinationStillAuthorized(
   tx: Prisma.TransactionClient,
   turn: {
     sokoBotId: string;
-    userId: string;
-    requestedByUserId?: string | null;
+    requestedByUserId: string | null;
+    sokoBot: { userId: string | null };
+    askedByUserId?: string | null;
     workspaceId: string;
     source: string;
     destinationAudience: Prisma.JsonValue;
   },
   roomId: string,
-): Promise<boolean> {
+): Promise<{ mentionUserId: string | null; shared: boolean } | null> {
+  const actingUserId = sokoBotActingUserId(turn);
   // A chat reply goes back to whoever asked: the owner, or a teammate who
   // messaged someone else's bot in their own direct chat with it.
   const recipientId =
     turn.source === "CHAT"
-      ? (turn.requestedByUserId ?? turn.userId)
-      : turn.userId;
-  const bot = await tx.sokoBot.findFirst({
-    where: {
-      id: turn.sokoBotId,
-      userId: turn.userId,
+      ? (turn.askedByUserId ?? actingUserId)
+      : actingUserId;
+  const bot = await sokoBotForTurnMember(
+    {
+      sokoBotId: turn.sokoBotId,
+      actingUserId,
       workspaceId: turn.workspaceId,
-      archivedAt: null,
     },
-    select: { id: true },
-  });
-  if (!bot) return false;
+    "notArchived",
+    tx,
+  );
+  if (!bot) return null;
+  // A shared bot has no direct rooms: its own output goes to its shared room.
+  const shared = isSharedSokoBot(bot);
+  if (turn.source !== "CHAT" && shared && bot.sharedRoomId !== roomId)
+    return null;
+  const sharedRoom = isOwnSharedRoom(bot, roomId);
+  // Only a shared bot's own room takes output that answers nobody.
+  if (recipientId === null && !sharedRoom) return null;
+  // A shared bot acting on its own reads its own workspace, which resolving
+  // the bot already proved.
   const workspace = await tx.workspace.findFirst({
-    where: {
-      id: turn.workspaceId,
-      OR: [
-        { userId: turn.userId },
-        { organization: { members: { some: { userId: turn.userId } } } },
-      ],
-    },
+    where:
+      actingUserId === null
+        ? { id: turn.workspaceId }
+        : {
+            id: turn.workspaceId,
+            OR: [
+              { userId: actingUserId },
+              {
+                organization: {
+                  members: { some: { userId: actingUserId } },
+                },
+              },
+            ],
+          },
     select: { id: true },
   });
-  if (!workspace) return false;
+  if (!workspace) return null;
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
-      archivedAt: null,
-      ...(turn.source === "CHAT" ? {} : { kind: "direct" }),
+      ...writableAssistantRoomWhere,
+      ...(turn.source === "CHAT" || shared ? {} : { kind: "direct" }),
       sokoBotMembers: { some: { sokoBotId: turn.sokoBotId } },
-      userMembers: { some: { userId: recipientId } },
+      ...(sharedRoom || recipientId === null
+        ? {}
+        : { userMembers: { some: { userId: recipientId } } }),
     },
     select: {
       id: true,
@@ -133,18 +203,32 @@ async function destinationStillAuthorized(
     },
   });
   const audience = audienceSchema.safeParse(turn.destinationAudience);
-  if (!room || !audience.success) return false;
+  if (!room) return null;
+  if (sharedRoom) {
+    const present = room.userMembers.some(
+      (member) => member.userId === recipientId,
+    );
+    return {
+      mentionUserId: turn.source !== "CHAT" && present ? actingUserId : null,
+      shared,
+    };
+  }
+  if (!audience.success) return null;
   const current = {
     userIds: room.userMembers.map((member) => member.userId).sort(),
     coworkerIds: room.coworkerMembers.map((member) => member.coworkerId).sort(),
     botIds: room.sokoBotMembers.map((member) => member.sokoBotId).sort(),
   };
-  return (
+  const unchanged =
     JSON.stringify(current.userIds) === JSON.stringify(audience.data.userIds) &&
     JSON.stringify(current.coworkerIds) ===
       JSON.stringify(audience.data.coworkerIds) &&
-    JSON.stringify(current.botIds) === JSON.stringify(audience.data.botIds)
-  );
+    JSON.stringify(current.botIds) === JSON.stringify(audience.data.botIds);
+  if (!unchanged) return null;
+  return {
+    mentionUserId: shared && turn.source !== "CHAT" ? actingUserId : null,
+    shared,
+  };
 }
 
 /** Retries only persistence/transport. Never invokes inference or capabilities. */
@@ -186,6 +270,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         include: {
           turn: {
             include: {
+              sokoBot: { select: { userId: true } },
               scheduleRun: {
                 select: {
                   schedule: { select: { name: true, systemKey: true } },
@@ -196,10 +281,10 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         },
       });
       const turn = delivery.turn;
-      if (
-        !delivery.roomId ||
-        !(await destinationStillAuthorized(tx, turn, delivery.roomId))
-      ) {
+      const destination = delivery.roomId
+        ? await destinationStillAuthorized(tx, turn, delivery.roomId)
+        : null;
+      if (!delivery.roomId || !destination) {
         await tx.sokoBotDelivery.update({
           where: { id },
           data: {
@@ -250,7 +335,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       }
       if (delivery.status === "PERSISTED") return delivery;
       let messageId: string;
-      if (turn.source === "CHAT") {
+      if (fillsChatPlaceholder(turn)) {
         if (!turn.chatResponseMessageId || !turn.chatMentionId)
           throw new Error("CHAT_DESTINATION_MISSING");
         const existing = await tx.chatRoomMessage.findFirst({
@@ -265,6 +350,9 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         await persistSokoBotChatTurn(turn.id, tx);
         messageId = existing.id;
       } else {
+        // A background run's report carries the cards of what it made, as a
+        // chat reply does.
+        const snapshots = await collectTurnResultSnapshots(turn.id, tx);
         const message = await tx.chatRoomMessage.upsert({
           where: {
             roomId_clientMessageId: {
@@ -276,11 +364,20 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             roomId: delivery.roomId,
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
-            content: turn.finalAnswer?.trim() ?? "",
+            content: withNoticeMention(
+              turn.finalAnswer?.trim() || backgroundStopNote(turn),
+              destination.mentionUserId,
+            ),
             metadata: {
+              ...(snapshots.length
+                ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
+                : {}),
               soko_bot: {
                 turn_id: turn.id,
                 source: turn.source,
+                ...(turn.backgroundTitle
+                  ? { background_run_title: turn.backgroundTitle }
+                  : {}),
                 // Lets the chat say where an unprompted message came from.
                 ...(turn.scheduleRun
                   ? {
@@ -309,6 +406,9 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
           messageId,
           roomId: delivery.roomId,
           content: content.content,
+          // A shared room holds the whole organization; a model-written
+          // "@all" (say, quoted from mail) must not page everyone.
+          expandAll: !destination.shared,
         });
       }
       return tx.sokoBotDelivery.update({
@@ -349,7 +449,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       persisted.messageId,
       persisted.reason === "SILENT"
         ? "delete"
-        : persisted.turn.source === "CHAT"
+        : fillsChatPlaceholder(persisted.turn)
           ? "update"
           : "create",
       { throwOnError: true },

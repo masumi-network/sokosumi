@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import { cn } from "@/lib/utils";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
@@ -51,11 +51,13 @@ import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { IntegrationsSection } from "../integrations-section.client";
+import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
 import { ProactiveSettings } from "../proactive-settings.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
 import { SkillsSection } from "../skills-section.client";
+import { SokoBotTargetContext } from "../soko-bot-target";
 
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
@@ -141,6 +143,12 @@ export interface SokoBotConsoleProps {
   integrationOutcome: string | null;
   /** The bot lives in an organization workspace, so the organization pays. */
   paidByOrganization: boolean;
+  /** The project or workspace bot shown; null for the caller's own bot. */
+  botId: string | null;
+  /** Core's `viewerCanManage`: archive, delete and memory reset. */
+  canManage: boolean;
+  /** A shared bot's room, which every member shares; null for one's own. */
+  sharedRoomId: string | null;
 }
 
 /**
@@ -162,7 +170,11 @@ export function SokoBotConsole({
   catalog,
   integrationOutcome,
   paidByOrganization,
+  botId,
+  canManage,
+  sharedRoomId,
 }: SokoBotConsoleProps) {
+  const consoleRoute = sokoBotConsoleRoute(botId);
   const t = useTranslations("App.SokoBot");
   // Status is the default view; everything an owner rarely touches sits behind
   // Advanced so the page opens on what the assistant is actually doing.
@@ -172,18 +184,18 @@ export function SokoBotConsole({
   const isAdvanced = view === "advanced" || focusTurnId !== null;
   const format = useFormatter();
   const router = useRouter();
-  const { state, refresh } = useSokoBotState(initialState);
+  const { state, refresh } = useSokoBotState(initialState, botId);
   useEffect(() => {
     if (!integrationOutcome) return;
     if (integrationOutcome === "active")
       toast.success(t("Integrations.connected"));
     else toast.error(t("Integrations.connectFailed"));
-    router.replace(SOKO_BOT_ROUTE);
-  }, [integrationOutcome, router, t]);
+    router.replace(consoleRoute);
+  }, [integrationOutcome, router, t, consoleRoute]);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
   // Same seed Core hands chat participants, so console and room match.
-  const seed = bot.avatarSeed ?? `orb:${bot.userId}`;
+  const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
@@ -206,6 +218,13 @@ export function SokoBotConsole({
   const turns = useMemo(() => orderedTurns(state).reverse(), [state]);
 
   function openChat() {
+    if (botId) {
+      // A shared bot has no direct room; everyone talks to it in its own.
+      if (sharedRoomId) {
+        router.push(`/chat/rooms/${encodeURIComponent(sharedRoomId)}`);
+      } else toast.error(t("Console.openChatError"));
+      return;
+    }
     startOpeningChat(async () => {
       const result = await ensureSokoBotDirectRoomAction(bot.id);
       if (!result.ok || !result.value) {
@@ -217,375 +236,395 @@ export function SokoBotConsole({
   }
 
   return (
-    <AssistantSeedContext.Provider value={seed}>
-      <AssistantImageContext.Provider value={bot.avatarImageUrl}>
-        <div className="w-full space-y-6 px-4 py-4 lg:px-6">
-          <header className="flex flex-wrap items-center gap-5 py-2">
-            <AssistantAvatar size="lg" className="ring-ring-halo ring-4" />
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-foreground truncate text-2xl font-light md:text-3xl tracking-tight">
-                  {botName}
-                </h1>
-                <SokoBotStatusBadge status={bot.status} />
-                {version ? (
-                  <span
-                    className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
-                    title={`${version.name} · ${version.model}\n${version.summary}`}
-                  >
-                    <span className="text-foreground font-medium">
-                      {version.id}
-                    </span>
-                    <span aria-hidden>·</span>
-                    <span className="max-w-[16rem] truncate">
-                      {version.model.replace(/^[a-z]+\//, "")}
-                    </span>
-                    {version.inferenceRegion ? (
-                      <span className="bg-primary-quinary text-primary rounded px-1">
-                        {version.inferenceRegion}
+    <SokoBotTargetContext.Provider value={botId}>
+      <AssistantSeedContext.Provider value={seed}>
+        <AssistantImageContext.Provider value={bot.avatarImageUrl}>
+          <div className="w-full space-y-6 py-2">
+            <header className="flex flex-wrap items-center gap-5 py-2">
+              <AssistantAvatar size="lg" className="ring-ring-halo ring-4" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-foreground truncate text-2xl font-light md:text-3xl tracking-tight">
+                    {botName}
+                  </h1>
+                  <SokoBotStatusBadge status={bot.status} />
+                  {version ? (
+                    <span
+                      className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
+                      title={`${version.name} · ${version.model}\n${version.summary}`}
+                    >
+                      <span className="text-foreground font-medium">
+                        {version.id}
                       </span>
-                    ) : null}
-                  </span>
-                ) : null}
+                      <span aria-hidden>·</span>
+                      <span className="max-w-[16rem] truncate">
+                        {version.model.replace(/^[a-z]+\//, "")}
+                      </span>
+                      {version.inferenceRegion ? (
+                        <span className="bg-primary-quinary text-primary rounded px-1">
+                          {version.inferenceRegion}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {t("Console.tagline")}
+                  {bot.lastActivityAt ? (
+                    <span
+                      className="ml-2 tabular-nums"
+                      suppressHydrationWarning
+                    >
+                      ·{" "}
+                      {t("Console.lastActivity", {
+                        time: format.relativeTime(
+                          new Date(bot.lastActivityAt),
+                          new Date(),
+                        ),
+                      })}
+                    </span>
+                  ) : null}
+                </p>
               </div>
-              <p className="text-muted-foreground text-sm">
-                {t("Console.tagline")}
-                {bot.lastActivityAt ? (
-                  <span className="ml-2 tabular-nums" suppressHydrationWarning>
-                    ·{" "}
-                    {t("Console.lastActivity", {
-                      time: format.relativeTime(
-                        new Date(bot.lastActivityAt),
-                        new Date(),
-                      ),
-                    })}
-                  </span>
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+                <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+                  <Switch
+                    id="soko-bot-advanced"
+                    checked={isAdvanced}
+                    onCheckedChange={(checked) => {
+                      if (!checked && focusTurnId) router.replace(consoleRoute);
+                      else setView(checked ? "advanced" : null);
+                    }}
+                  />
+                  <Label
+                    htmlFor="soko-bot-advanced"
+                    className="cursor-pointer text-sm whitespace-nowrap"
+                  >
+                    {t("Console.views.advanced")}
+                  </Label>
+                </div>
+                {adminHref ? (
+                  <Button
+                    variant="outline"
+                    asChild
+                    className="flex-1 sm:flex-none"
+                  >
+                    <Link href={adminHref}>
+                      <ShieldCheck aria-hidden className="size-4" />
+                      {t("Console.adminView")}
+                    </Link>
+                  </Button>
                 ) : null}
-              </p>
-            </div>
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-              <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-                <Switch
-                  id="soko-bot-advanced"
-                  checked={isAdvanced}
-                  onCheckedChange={(checked) => {
-                    if (!checked && focusTurnId) router.replace(SOKO_BOT_ROUTE);
-                    else setView(checked ? "advanced" : null);
-                  }}
-                />
-                <Label
-                  htmlFor="soko-bot-advanced"
-                  className="cursor-pointer text-sm whitespace-nowrap"
-                >
-                  {t("Console.views.advanced")}
-                </Label>
-              </div>
-              {adminHref ? (
                 <Button
-                  variant="outline"
-                  asChild
+                  type="button"
                   className="flex-1 sm:flex-none"
+                  onClick={openChat}
+                  loading={isOpeningChat}
                 >
-                  <Link href={adminHref}>
-                    <ShieldCheck aria-hidden className="size-4" />
-                    {t("Console.adminView")}
-                  </Link>
+                  <MessageSquare aria-hidden className="size-4" />
+                  {t("Console.openChat")}
                 </Button>
-              ) : null}
-              <Button
-                type="button"
-                className="flex-1 sm:flex-none"
-                onClick={openChat}
-                loading={isOpeningChat}
-              >
-                <MessageSquare aria-hidden className="size-4" />
-                {t("Console.openChat")}
-              </Button>
-            </div>
-          </header>
-
-          <div
-            className={
-              isAdvanced
-                ? "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
-                : "grid items-start gap-6"
-            }
-          >
-            {isAdvanced ? null : (
-              <div className="min-w-0 space-y-10">
-                {integrations ? (
-                  <HolderSection
-                    title={t("Console.Connectors.title")}
-                    description={t("Console.Connectors.description")}
-                  >
-                    <ToolConnectors
-                      integrations={integrations}
-                      catalog={catalog}
-                      onBrowseAll={() => setView("advanced")}
-                    />
-                  </HolderSection>
-                ) : null}
-                {usage ? (
-                  <HolderSection
-                    title={t("Console.Usage.title")}
-                    description={t("Console.Usage.description")}
-                  >
-                    <HolderPanel>
-                      <UsageSummary usage={usage} />
-                    </HolderPanel>
-                  </HolderSection>
-                ) : null}
-                {stats ? (
-                  <HolderSection
-                    title={t("Console.Stats.title")}
-                    description={t("Console.Stats.description", {
-                      days: stats.days,
-                    })}
-                  >
-                    <HolderPanel>
-                      <DailyStats stats={stats} />
-                    </HolderPanel>
-                  </HolderSection>
-                ) : null}
               </div>
-            )}
-            <div className={isAdvanced ? "min-w-0 space-y-6" : "hidden"}>
-              {isAdvanced ? (
-                <>
+            </header>
+
+            <div
+              className={
+                isAdvanced
+                  ? cn(
+                      HOLDER_CLASS,
+                      "grid items-start gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_24rem]",
+                    )
+                  : "grid items-start gap-6"
+              }
+            >
+              {isAdvanced ? null : (
+                <div className="min-w-0 space-y-10">
+                  {integrations ? (
+                    <HolderSection
+                      title={t("Console.Connectors.title")}
+                      description={t("Console.Connectors.description")}
+                    >
+                      <ToolConnectors
+                        integrations={integrations}
+                        catalog={catalog}
+                        onBrowseAll={() => setView("advanced")}
+                      />
+                    </HolderSection>
+                  ) : null}
+                  {usage ? (
+                    <HolderSection
+                      title={t("Console.Usage.title")}
+                      description={t("Console.Usage.description")}
+                    >
+                      <HolderPanel>
+                        <UsageSummary usage={usage} />
+                      </HolderPanel>
+                    </HolderSection>
+                  ) : null}
                   {stats ? (
-                    <Section
+                    <HolderSection
                       title={t("Console.Stats.title")}
                       description={t("Console.Stats.description", {
                         days: stats.days,
                       })}
                     >
-                      <DailyStats stats={stats} />
-                    </Section>
+                      <HolderPanel>
+                        <DailyStats stats={stats} />
+                      </HolderPanel>
+                    </HolderSection>
                   ) : null}
-                  {usage ? (
+                </div>
+              )}
+              <div className={isAdvanced ? "min-w-0 space-y-6" : "hidden"}>
+                {isAdvanced ? (
+                  <>
+                    {stats ? (
+                      <Section
+                        title={t("Console.Stats.title")}
+                        description={t("Console.Stats.description", {
+                          days: stats.days,
+                        })}
+                      >
+                        <DailyStats stats={stats} />
+                      </Section>
+                    ) : null}
+                    {usage ? (
+                      <Section
+                        title={t("Console.Usage.title")}
+                        description={t("Console.Usage.description")}
+                      >
+                        <UsageSummary usage={usage} detailed />
+                      </Section>
+                    ) : null}
+                    {stats ? (
+                      <Section
+                        title={t("Console.Automation.title")}
+                        description={t("Console.Automation.description")}
+                      >
+                        <AutomationChecks checks={stats.checks} />
+                      </Section>
+                    ) : null}
                     <Section
-                      title={t("Console.Usage.title")}
-                      description={t("Console.Usage.description")}
+                      title={t("Console.activityTitle")}
+                      description={t("Console.activityDescription")}
                     >
-                      <UsageSummary usage={usage} detailed />
+                      {turns.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                          {t("Console.activityEmpty")}
+                        </p>
+                      ) : (
+                        <ActivityList
+                          turns={turns}
+                          focusTurnId={focusTurnId}
+                          userImageUrl={userImageUrl}
+                          userName={userName}
+                          onDecisionResolved={refresh}
+                        />
+                      )}
                     </Section>
-                  ) : null}
-                  {stats ? (
                     <Section
-                      title={t("Console.Automation.title")}
-                      description={t("Console.Automation.description")}
+                      title={t("HowItWorks.title")}
+                      description={t("HowItWorks.description")}
                     >
-                      <AutomationChecks checks={stats.checks} />
+                      <HowItWorks schedules={bot.schedules} />
                     </Section>
-                  ) : null}
+                    {/* Core installs skills on the caller's own bot only. */}
+                    {botId ? null : (
+                      <Section
+                        title={t("Console.skillsTitle")}
+                        description={t("Console.skillsDescription")}
+                      >
+                        <SkillsSection
+                          version={version}
+                          initialInstalled={installedSkills}
+                        />
+                      </Section>
+                    )}
+                    {integrations ? (
+                      <Section
+                        title={t("Integrations.title")}
+                        description={t("Integrations.description")}
+                      >
+                        <IntegrationsSection
+                          initial={integrations}
+                          catalog={catalog}
+                        />
+                      </Section>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+
+              {isAdvanced ? (
+                <aside className="space-y-6">
                   <Section
-                    title={t("Console.activityTitle")}
-                    description={t("Console.activityDescription")}
+                    title={t("Schedules.title")}
+                    description={t("Schedules.description")}
+                    aside={
+                      <span className="text-muted-foreground text-xs tabular-nums">
+                        {t("Schedules.count", { count: bot.schedules.length })}
+                      </span>
+                    }
                   >
-                    {turns.length === 0 ? (
-                      <p className="text-muted-foreground text-sm">
-                        {t("Console.activityEmpty")}
-                      </p>
+                    <div className="space-y-4">
+                      {bot.schedules.length > 0 ? (
+                        <ul className="divide-y rounded-md border">
+                          {bot.schedules.map((schedule) => (
+                            <li
+                              key={schedule.id}
+                              className="space-y-1.5 px-3 py-3"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                                    <span className="truncate">
+                                      {schedule.name}
+                                    </span>
+                                    {schedule.systemKey ? (
+                                      <span className="text-muted-foreground shrink-0 text-2xs">
+                                        {t("Schedules.builtIn")}
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                  <p
+                                    className="text-muted-foreground text-xs"
+                                    title={`${schedule.cronExpression} · ${schedule.timezone}`}
+                                  >
+                                    {describeSchedule(schedule)}
+                                  </p>
+                                </div>
+                                <ScheduleRowActions
+                                  scheduleId={schedule.id}
+                                  enabled={schedule.enabled}
+                                  deletable={!schedule.systemKey}
+                                />
+                              </div>
+                              <p className="text-muted-foreground line-clamp-2 text-xs">
+                                {schedule.prompt}
+                              </p>
+                              <p className="text-muted-foreground text-xs">
+                                {t("Schedules.nextRun")}{" "}
+                                <span className="text-foreground tabular-nums">
+                                  {schedule.enabled
+                                    ? format.dateTime(
+                                        new Date(schedule.nextRunAt),
+                                        "dateTimeShort",
+                                      )
+                                    : t("Schedules.disabled")}
+                                </span>
+                                {schedule.consecutiveFailures > 0 ? (
+                                  <span className="text-semantic-destructive ml-3 tabular-nums">
+                                    {t("Schedules.failures")}{" "}
+                                    {schedule.consecutiveFailures}
+                                  </span>
+                                ) : null}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground text-sm">
+                          {t("Schedules.empty")}
+                        </p>
+                      )}
+                      <ScheduleForm />
+                    </div>
+                  </Section>
+
+                  <Section
+                    title={t("Memory.title")}
+                    description={t("Memory.description")}
+                    aside={canManage ? <ResetMemoryButton /> : null}
+                  >
+                    {bot.memory ? (
+                      <div className="space-y-3">
+                        <p className="text-muted-foreground text-xs">
+                          {t("Memory.updated")}{" "}
+                          <span className="text-foreground tabular-nums">
+                            {format.dateTime(
+                              new Date(bot.memory.createdAt),
+                              "dateTimeMedium",
+                            )}
+                          </span>
+                        </p>
+                        <Markdown className="app-scrollbar prose prose-sm dark:prose-invert max-h-80 max-w-none overflow-y-auto text-sm">
+                          {bot.memory.markdown}
+                        </Markdown>
+                      </div>
                     ) : (
-                      <ActivityList
-                        turns={turns}
-                        focusTurnId={focusTurnId}
-                        userImageUrl={userImageUrl}
-                        userName={userName}
-                        onDecisionResolved={refresh}
-                      />
+                      <p className="text-muted-foreground text-sm">
+                        {t("Memory.empty")}
+                      </p>
                     )}
                   </Section>
-                  <Section
-                    title={t("HowItWorks.title")}
-                    description={t("HowItWorks.description")}
-                  >
-                    <HowItWorks schedules={bot.schedules} />
-                  </Section>
-                  <Section
-                    title={t("Console.skillsTitle")}
-                    description={t("Console.skillsDescription")}
-                  >
-                    <SkillsSection
-                      version={version}
-                      initialInstalled={installedSkills}
-                    />
-                  </Section>
-                  {integrations ? (
+
+                  {botId ? null : (
                     <Section
-                      title={t("Integrations.title")}
-                      description={t("Integrations.description")}
+                      title={t("Avatar.title")}
+                      description={t("Avatar.description")}
+                      aside={
+                        pickedAvatar ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            loading={isSavingAvatar}
+                            onClick={saveAvatar}
+                          >
+                            {t("Avatar.save")}
+                          </Button>
+                        ) : null
+                      }
                     >
-                      <IntegrationsSection
-                        initial={integrations}
-                        catalog={catalog}
+                      <AvatarPicker
+                        value={pickedAvatar?.id ?? null}
+                        onChange={setPickedAvatar}
+                        currentImageUrl={bot.avatarImageUrl}
                       />
                     </Section>
-                  ) : null}
-                </>
+                  )}
+
+                  <Section
+                    title={t("Settings.title")}
+                    description={t("Chat.chips.settingsDescription")}
+                  >
+                    <div className="space-y-5">
+                      <ProactiveSettings
+                        initial={{
+                          paused: bot.proactivePaused,
+                          dailyLimit: bot.proactiveDailyLimit,
+                          timezone: bot.ingestTimezone,
+                        }}
+                        usedToday={stats?.proactive.usedToday ?? null}
+                        paidByOrganization={paidByOrganization}
+                      />
+                      <FollowBoardToggle
+                        initial={bot.followWholeBoard ?? false}
+                      />
+                      <MailAutoReadToggle initial={bot.mailAutoRead ?? false} />
+                      {canManage ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">
+                            {t("Settings.archiveTitle")}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {botId
+                              ? t("Settings.sharedArchiveDescription")
+                              : t("Settings.archiveDescription")}
+                          </p>
+                          <ArchiveSokoBotButton />
+                          <DeleteSokoBotButton
+                            botName={state.bot.name ?? null}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </Section>
+                </aside>
               ) : null}
             </div>
-
-            {isAdvanced ? (
-              <aside className="space-y-6">
-                <Section
-                  title={t("Schedules.title")}
-                  description={t("Schedules.description")}
-                  aside={
-                    <span className="text-muted-foreground text-xs tabular-nums">
-                      {t("Schedules.count", { count: bot.schedules.length })}
-                    </span>
-                  }
-                >
-                  <div className="space-y-4">
-                    {bot.schedules.length > 0 ? (
-                      <ul className="divide-y rounded-md border">
-                        {bot.schedules.map((schedule) => (
-                          <li
-                            key={schedule.id}
-                            className="space-y-1.5 px-3 py-3"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-                                  <span className="truncate">
-                                    {schedule.name}
-                                  </span>
-                                  {schedule.systemKey ? (
-                                    <span className="text-muted-foreground shrink-0 text-2xs">
-                                      {t("Schedules.builtIn")}
-                                    </span>
-                                  ) : null}
-                                </p>
-                                <p
-                                  className="text-muted-foreground text-xs"
-                                  title={`${schedule.cronExpression} · ${schedule.timezone}`}
-                                >
-                                  {describeSchedule(schedule)}
-                                </p>
-                              </div>
-                              <ScheduleRowActions
-                                scheduleId={schedule.id}
-                                enabled={schedule.enabled}
-                                deletable={!schedule.systemKey}
-                              />
-                            </div>
-                            <p className="text-muted-foreground line-clamp-2 text-xs">
-                              {schedule.prompt}
-                            </p>
-                            <p className="text-muted-foreground text-xs">
-                              {t("Schedules.nextRun")}{" "}
-                              <span className="text-foreground tabular-nums">
-                                {schedule.enabled
-                                  ? format.dateTime(
-                                      new Date(schedule.nextRunAt),
-                                      "dateTimeShort",
-                                    )
-                                  : t("Schedules.disabled")}
-                              </span>
-                              {schedule.consecutiveFailures > 0 ? (
-                                <span className="text-semantic-destructive ml-3 tabular-nums">
-                                  {t("Schedules.failures")}{" "}
-                                  {schedule.consecutiveFailures}
-                                </span>
-                              ) : null}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">
-                        {t("Schedules.empty")}
-                      </p>
-                    )}
-                    <ScheduleForm />
-                  </div>
-                </Section>
-
-                <Section
-                  title={t("Memory.title")}
-                  description={t("Memory.description")}
-                  aside={<ResetMemoryButton />}
-                >
-                  {bot.memory ? (
-                    <div className="space-y-3">
-                      <p className="text-muted-foreground text-xs">
-                        {t("Memory.updated")}{" "}
-                        <span className="text-foreground tabular-nums">
-                          {format.dateTime(
-                            new Date(bot.memory.createdAt),
-                            "dateTimeMedium",
-                          )}
-                        </span>
-                      </p>
-                      <Markdown className="app-scrollbar prose prose-sm dark:prose-invert max-h-80 max-w-none overflow-y-auto text-sm">
-                        {bot.memory.markdown}
-                      </Markdown>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      {t("Memory.empty")}
-                    </p>
-                  )}
-                </Section>
-
-                <Section
-                  title={t("Avatar.title")}
-                  description={t("Avatar.description")}
-                  aside={
-                    pickedAvatar ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        loading={isSavingAvatar}
-                        onClick={saveAvatar}
-                      >
-                        {t("Avatar.save")}
-                      </Button>
-                    ) : null
-                  }
-                >
-                  <AvatarPicker
-                    value={pickedAvatar?.id ?? null}
-                    onChange={setPickedAvatar}
-                    currentImageUrl={bot.avatarImageUrl}
-                  />
-                </Section>
-
-                <Section
-                  title={t("Settings.title")}
-                  description={t("Chat.chips.settingsDescription")}
-                >
-                  <div className="space-y-5">
-                    <ProactiveSettings
-                      initial={{
-                        paused: bot.proactivePaused,
-                        dailyLimit: bot.proactiveDailyLimit,
-                        timezone: bot.ingestTimezone,
-                      }}
-                      usedToday={stats?.proactive.usedToday ?? null}
-                      paidByOrganization={paidByOrganization}
-                    />
-                    <FollowBoardToggle
-                      initial={bot.followWholeBoard ?? false}
-                    />
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">
-                        {t("Settings.archiveTitle")}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {t("Settings.archiveDescription")}
-                      </p>
-                      <ArchiveSokoBotButton />
-                      <DeleteSokoBotButton botName={state.bot.name ?? null} />
-                    </div>
-                  </div>
-                </Section>
-              </aside>
-            ) : null}
           </div>
-        </div>
-      </AssistantImageContext.Provider>
-    </AssistantSeedContext.Provider>
+        </AssistantImageContext.Provider>
+      </AssistantSeedContext.Provider>
+    </SokoBotTargetContext.Provider>
   );
 }

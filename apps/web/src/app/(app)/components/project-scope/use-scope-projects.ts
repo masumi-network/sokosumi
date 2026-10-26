@@ -1,16 +1,20 @@
 "use client";
 
+import type { ProjectListItem } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "use-debounce";
 import { orderSidebarProjects } from "@/app/components/sidebar/components/order-sidebar-projects";
-import { loadMoreProjects } from "@/app/projects/actions";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { usePinnedProjects } from "@/hooks/use-pinned-projects";
+import {
+  pinnedProjectsQueryOptions,
+  usePinnedProjects,
+} from "@/hooks/use-pinned-projects";
 import {
   type RecentProjectsScope,
   useRecentProjectIds,
 } from "@/hooks/use-recent-projects";
 import { useSession } from "@/lib/auth/auth.client";
+import { fetchScopeList } from "@/lib/project-scope-list.client";
 
 /** One switcher row. Closed projects never become one. */
 export interface ScopeProject {
@@ -52,6 +56,48 @@ function pageQueryKey(scope: RecentProjectsScope | null, query: string) {
   ] as const;
 }
 
+interface ScopePage {
+  projects: ProjectListItem[];
+  /** Null once this page holds every project the search can match. */
+  nextCursor: string | null;
+}
+
+function pageQueryOptions(scope: RecentProjectsScope | null, query: string) {
+  return {
+    queryKey: pageQueryKey(scope, query),
+    queryFn: ({ signal }: { signal: AbortSignal }) => {
+      if (!scope) throw new Error("No workspace scope");
+      const search = query ? `?q=${encodeURIComponent(query)}` : "";
+      return fetchScopeList<ScopePage>(
+        `/api/project-scope${search}`,
+        scope,
+        signal,
+      );
+    },
+    enabled: scope != null,
+    retry: false,
+    refetchOnWindowFocus: false,
+  };
+}
+
+/**
+ * Starts the menu's reads before it opens, from a hover or focus on the
+ * trigger, so the list is there when it does.
+ */
+export function usePrefetchScopeProjects(): () => void {
+  const queryClient = useQueryClient();
+  const scope = useWorkspaceScope();
+  return () => {
+    if (!scope) return;
+    void queryClient.prefetchQuery(pageQueryOptions(scope, ""));
+    void queryClient.prefetchQuery(pinnedProjectsQueryOptions(scope));
+  };
+}
+
+function matches(project: ScopeProject, needle: string): boolean {
+  return project.name.toLowerCase().includes(needle);
+}
+
 /** Same user and workspace; the search part of the key may differ. */
 function isSameScope(
   previous: readonly unknown[],
@@ -87,9 +133,9 @@ function useSelectedProjectQuery(
 ) {
   const scope = useWorkspaceScope();
   // Rows an open menu already loaded; never a fetch of its own.
-  const cachedPage = useQueryClient().getQueryData<
-    Awaited<ReturnType<typeof loadMoreProjects>>
-  >(pageQueryKey(scope, ""));
+  const cachedPage = useQueryClient().getQueryData<ScopePage>(
+    pageQueryKey(scope, ""),
+  );
   const listed =
     selectedProjectId == null
       ? undefined
@@ -172,60 +218,74 @@ export function useScopeProjects({
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
-  const page = useQuery({
-    queryKey: pageQueryKey(scope, query),
-    queryFn: () => {
-      if (!scope) throw new Error("No workspace scope");
-      return loadMoreProjects({
-        cursor: null,
-        query: query || undefined,
-        expectedScope: scope,
-      });
-    },
-    enabled: scope != null,
+  const firstPage = useQuery(pageQueryOptions(scope, ""));
+  // A workspace whose projects all fit on the first page never asks Core to
+  // search: the rows already here are every possible match.
+  const complete = firstPage.data?.nextCursor === null;
+  const coreQuery = complete ? "" : query;
+  const searchPage = useQuery({
+    ...pageQueryOptions(scope, coreQuery),
+    enabled: scope != null && coreQuery.length > 0,
     // Keep rows while a search refines, never across a workspace switch: an
     // old workspace's project would still be clickable.
     placeholderData: (previous, previousQuery) =>
       previousQuery &&
-      isSameScope(previousQuery.queryKey, pageQueryKey(scope, query))
+      isSameScope(previousQuery.queryKey, pageQueryKey(scope, coreQuery))
         ? previous
         : undefined,
-    retry: false,
-    refetchOnWindowFocus: false,
   });
 
   const pinnedProjects = (pinned.data ?? []).filter(isOpen).map(toRow);
-  const pageProjects = (page.data?.projects ?? []).filter(isOpen).map(toRow);
+  const firstPageProjects = (firstPage.data?.projects ?? [])
+    .filter(isOpen)
+    .map(toRow);
 
   const { rows: shortlist, pinnedCount } = orderSidebarProjects<ScopeProject>({
-    projects: [...pinnedProjects, ...pageProjects],
+    projects: [...pinnedProjects, ...firstPageProjects],
     pinnedIds: pinnedProjects.map((project) => project.id),
     visitedIds,
     cap: SCOPE_SHORTLIST_CAP,
   });
 
-  const selectedProject = useSelectedScopeProject(selectedProjectId, [
-    ...pinnedProjects,
-    ...pageProjects,
-  ]);
+  // Every keystroke filters the rows already loaded at once; Core's answer,
+  // when one is needed, replaces them once it matches what was typed.
+  const needle = typed.toLowerCase();
+  const coreAnswered =
+    coreQuery.length > 0 &&
+    coreQuery === typed &&
+    searchPage.data !== undefined &&
+    !searchPage.isPlaceholderData;
+  const known = [
+    ...new Map(
+      [...firstPageProjects, ...pinnedProjects].map((project) => [
+        project.id,
+        project,
+      ]),
+    ).values(),
+  ];
+  const all = !typed
+    ? firstPageProjects
+    : coreAnswered
+      ? (searchPage.data?.projects ?? []).filter(isOpen).map(toRow)
+      : known.filter((project) => matches(project, needle));
+
+  const selectedProject = useSelectedScopeProject(selectedProjectId, known);
 
   return {
     /** Shown only while the search box is empty. */
     pinned: shortlist.slice(0, pinnedCount),
     recent: shortlist.slice(pinnedCount),
-    /** The workspace page, or Core's matches for the search. */
-    all: pageProjects,
+    /** The workspace page, or the matches for the search. */
+    all,
     selectedProject,
-    isSearching: query.length > 0,
-    /**
-     * The rows do not answer the typed search yet: the pause in typing has
-     * not ended, or the rows are the last search's, kept while Core answers.
-     */
-    isSearchPending: typed !== query || page.isPlaceholderData,
-    isPending: scope == null || page.isPending || pinned.isPending,
-    isError: page.isError || pinned.isError,
+    isSearching: typed.length > 0,
+    /** Core has not answered the typed search yet; local matches show meanwhile. */
+    isSearchPending: typed.length > 0 && !complete && !coreAnswered,
+    isPending: scope == null || firstPage.isPending || pinned.isPending,
+    isError: firstPage.isError || searchPage.isError || pinned.isError,
     refetch() {
-      void page.refetch();
+      void firstPage.refetch();
+      if (coreQuery) void searchPage.refetch();
       void pinned.refetch();
     },
   };

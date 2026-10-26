@@ -76,7 +76,7 @@ const transactionHistoryBaseItemSchema = z.object({
   }),
 });
 
-export const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
+const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("job"),
     jobId: z.string().openapi({
@@ -98,23 +98,22 @@ export const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
   })
   .openapi("TransactionHistoryJobItem");
 
-export const transactionHistoryImageItemSchema =
-  transactionHistoryBaseItemSchema
-    .extend({
-      kind: z.literal("image"),
-      imageJobId: z.string().uuid().openapi({
-        description: "Image studio generation that consumed the credits",
-        example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      }),
-      modelLabel: z.string().openapi({
-        description:
-          "Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.",
-        example: "Gemini 3.1 Flash Image",
-      }),
-    })
-    .openapi("TransactionHistoryImageItem");
+const transactionHistoryImageItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("image"),
+    imageJobId: z.string().uuid().openapi({
+      description: "Image studio generation that consumed the credits",
+      example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }),
+    modelLabel: z.string().openapi({
+      description:
+        "Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.",
+      example: "Gemini 3.1 Flash Image",
+    }),
+  })
+  .openapi("TransactionHistoryImageItem");
 
-export const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
+const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("task"),
     taskId: z.string().openapi({
@@ -125,19 +124,23 @@ export const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
       description: "Task event that carries the charge",
       example: "evt_123",
     }),
+    taskArchived: z.boolean().openapi({
+      description:
+        "Whether the task is archived. An archived task cannot be opened, so clients should not link to it.",
+      example: false,
+    }),
   })
   .openapi("TransactionHistoryTaskItem");
 
-export const transactionHistoryCoworkerItemSchema =
-  transactionHistoryBaseItemSchema
-    .extend({
-      kind: z.literal("coworker"),
-      coworkerId: z.string().openapi({
-        description: "Coworker whose usage consumed the credits",
-        example: "cow_123",
-      }),
-    })
-    .openapi("TransactionHistoryCoworkerItem");
+const transactionHistoryCoworkerItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("coworker"),
+    coworkerId: z.string().openapi({
+      description: "Coworker whose usage consumed the credits",
+      example: "cow_123",
+    }),
+  })
+  .openapi("TransactionHistoryCoworkerItem");
 
 export const transactionHistorySokoBotItemSchema =
   transactionHistoryBaseItemSchema
@@ -150,23 +153,37 @@ export const transactionHistorySokoBotItemSchema =
     })
     .openapi("TransactionHistorySokoBotItem");
 
-export const transactionHistoryTopUpItemSchema =
-  transactionHistoryBaseItemSchema
-    .extend({
-      kind: z.literal("topUp"),
-      /**
-       * A top up is only ever described by the credit bucket it created, so
-       * the bucket's reference type is the source of the row's label.
-       */
-      bucketSource: z.string().nullable().openapi({
-        description:
-          "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
-        example: "STRIPE_TOPUP",
-      }),
-    })
-    .openapi("TransactionHistoryTopUpItem");
+const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("topUp"),
+    /**
+     * A top up is only ever described by the credit bucket it created, so
+     * the bucket's reference type is the source of the row's label.
+     */
+    bucketSource: z.string().nullable().openapi({
+      description:
+        "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
+      example: "STRIPE_TOPUP",
+    }),
+    refundedJobId: z.string().nullable().openapi({
+      description:
+        "Job this refund top up refunded, for deep-linking. Null for any other top up, or when the job no longer exists.",
+      example: "job_123",
+    }),
+    refundedAgentId: z.string().nullable().openapi({
+      description:
+        "Agent that ran the refunded job, for deep-linking. Null when `refundedJobId` is null.",
+      example: "agent_123",
+    }),
+    refundedTaskId: z.string().nullable().openapi({
+      description:
+        "Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.",
+      example: "tsk_123",
+    }),
+  })
+  .openapi("TransactionHistoryTopUpItem");
 
-export const transactionHistoryUnattributedItemSchema =
+const transactionHistoryUnattributedItemSchema =
   transactionHistoryBaseItemSchema
     .extend({
       kind: z.literal("unattributed"),
@@ -183,7 +200,7 @@ export const transactionHistoryUnattributedItemSchema =
     })
     .openapi("TransactionHistoryUnattributedItem");
 
-export const transactionHistoryItemSchema = z
+const transactionHistoryItemSchema = z
   .discriminatedUnion("kind", [
     transactionHistoryJobItemSchema,
     transactionHistoryImageItemSchema,
@@ -228,6 +245,9 @@ export const transactionHistoryListResponseExample = {
       consumedAt: "2026-01-20T08:00:00.000Z",
       projectId: null,
       bucketSource: "STRIPE_TOPUP",
+      refundedJobId: null,
+      refundedAgentId: null,
+      refundedTaskId: null,
       owner: {
         userId: "550e8400-e29b-41d4-a716-446655440002",
         name: "Bob Smith",

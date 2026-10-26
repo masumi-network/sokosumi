@@ -1,10 +1,13 @@
 import { Channel, type TaskStatus } from "@sokosumi/database";
-
+import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
-import { buildEventMessage } from "@/services/soko-bot-events-sync.service";
+import {
+  buildEventMessage,
+  followUpPlans,
+} from "@/services/soko-bot-events-sync.service";
 
 export class SokoBotLabError extends Error {}
 
@@ -28,14 +31,7 @@ export async function simulateSokoBotTaskEvent(input: {
   status: Extract<TaskStatus, "INPUT_REQUIRED" | "FAILED" | "COMPLETED">;
   comment: string;
 }) {
-  const bot = await prisma.sokoBot.findFirst({
-    where: {
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      archivedAt: null,
-    },
-    select: { id: true },
-  });
+  const bot = await memberSokoBot(input.userId, input.workspaceId, ME_SOKO_BOT);
   if (!bot) throw new SokoBotLabError("Soko Bot not found");
   const delegation = await prisma.sokoBotDelegation.findFirst({
     where: {
@@ -83,7 +79,18 @@ export async function simulateSokoBotTaskEvent(input: {
       where: { id: delegation.id },
       data: { lastSeenStatus: input.status },
     });
+    // Plans the bot attached to this Task, handed over as the cron would.
+    const planned = await tx.sokoBotDelegation.findMany({
+      where: {
+        turn: { sokoBotId: bot.id },
+        taskId: task.id,
+        followUp: { not: null },
+        followUpTurnId: null,
+      },
+      select: { id: true, followUp: true },
+    });
     return {
+      planned,
       previousStatus: task.status,
       previousCursor: cursor?.lastSeenStatus ?? null,
       taskId: updated.id,
@@ -99,6 +106,23 @@ export async function simulateSokoBotTaskEvent(input: {
   // that fails would otherwise strand the simulation: no turn, and a cursor
   // that tells the cron there is nothing to retry. Putting the cursor back is
   // what makes a refused start recoverable rather than a silently lost run.
+  const change = {
+    delegationId: simulated.delegationId,
+    kind: "TASK" as const,
+    entityId: simulated.taskId,
+    name: simulated.name ?? "Untitled task",
+    from: simulated.previousStatus,
+    to: simulated.status,
+    note: input.comment,
+  };
+  const plans = followUpPlans(
+    [change],
+    simulated.planned.map((row) => ({
+      ...change,
+      delegationId: row.id,
+      followUp: row.followUp,
+    })),
+  );
   let started: Awaited<ReturnType<typeof sokoBotControlPlane.startTurn>>;
   try {
     started = await sokoBotControlPlane.startTurn({
@@ -107,17 +131,7 @@ export async function simulateSokoBotTaskEvent(input: {
       // `lab:` keeps it out of the owner's proactive allowance, which is for
       // work the bot decided to do by itself.
       clientTurnId: `lab:event:${simulated.taskId}:${Date.now()}`,
-      message: buildEventMessage([
-        {
-          delegationId: simulated.delegationId,
-          kind: "TASK",
-          entityId: simulated.taskId,
-          name: simulated.name ?? "Untitled task",
-          from: simulated.previousStatus,
-          to: simulated.status,
-          note: input.comment,
-        },
-      ]),
+      message: buildEventMessage([change], plans),
       source: "EVENT",
       presetRoute: SYSTEM_TURN_ROUTES.events,
       // The same authority the events cron grants over the event's Task.
@@ -130,6 +144,7 @@ export async function simulateSokoBotTaskEvent(input: {
           designatedHandlerBotId: bot.id,
           delegationEventAt: simulated.eventAt,
           delegationIds: [simulated.delegationId],
+          followUpDelegationIds: plans.find((plan) => plan.due)?.delegationIds,
         },
       ],
     });

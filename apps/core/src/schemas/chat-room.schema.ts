@@ -5,7 +5,12 @@ import {
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { CHAT_SIGNAL_TAGS } from "@/lib/chat-signals/tags";
 import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
+import {
+  chatRoomPresenceSchema,
+  chatRoomSokoBotParticipantSchema,
+} from "@/schemas/chat-room-participant.schema";
 
 /**
  * Roster writes fan out to one row per id, so an unbounded array turns a
@@ -31,10 +36,6 @@ export const CHAT_ROOM_UNREAD_THREAD_CAP = 3;
  */
 export const CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS = 1000;
 
-export const chatRoomPresenceSchema = z
-  .enum(["online", "afk", "offline"])
-  .openapi("ChatRoomPresence");
-
 /**
  * Non-null channel discoverability. Never chain `.nullable()` onto this named
  * schema — that poisons the OpenAPI component with `null` and loosens every
@@ -52,7 +53,7 @@ export const chatRoomDiscoverabilitySchema = z
  * Org-scoped channel create/update discoverability. Excludes `"matched"` —
  * matched channels are admin-created org-less rooms, not org channel writes.
  */
-export const orgChannelDiscoverabilitySchema = z
+const orgChannelDiscoverabilitySchema = z
   .enum(["public", "private", "external"])
   .openapi("OrgChannelDiscoverability", {
     description:
@@ -66,7 +67,7 @@ export const orgChannelDiscoverabilitySchema = z
  * appear for every org member (same as public). Matched is excluded —
  * org-less matched channels never appear in org discoverable lists.
  */
-export const discoverableChannelDiscoverabilitySchema = z
+const discoverableChannelDiscoverabilitySchema = z
   .enum(["public", "private", "external"])
   .openapi("DiscoverableChannelDiscoverability", {
     description:
@@ -84,7 +85,7 @@ export const chatRoomAccessSchema = z
   .enum([CHAT_ROOM_ACCESS.MEMBER, CHAT_ROOM_ACCESS.GUEST])
   .openapi("ChatRoomAccess");
 
-export const chatRoomUserParticipantSchema = z
+const chatRoomUserParticipantSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Jane Doe" }),
@@ -117,7 +118,7 @@ export const chatRoomUserParticipantSchema = z
   .openapi("ChatRoomUserParticipant");
 
 /** A human a Direct was started for who is no longer in it. Not a roster entry. */
-export const chatRoomFormerUserMemberSchema = z
+const chatRoomFormerUserMemberSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Jane Doe" }),
@@ -129,7 +130,7 @@ export const chatRoomFormerUserMemberSchema = z
   })
   .openapi("ChatRoomFormerUserMember");
 
-export const chatRoomCoworkerParticipantSchema = z
+const chatRoomCoworkerParticipantSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
     name: z.string().openapi({ example: "Elena" }),
@@ -142,30 +143,6 @@ export const chatRoomCoworkerParticipantSchema = z
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
   })
   .openapi("ChatRoomCoworkerParticipant");
-
-export const chatRoomSokoBotParticipantSchema = z
-  .object({
-    id: z.string().uuid().openapi({
-      example: "01960001-0001-7001-8001-000000000099",
-    }),
-    name: z.string().openapi({ example: "Soko Bot" }),
-    caption: z
-      .string()
-      .nullable()
-      .openapi({ example: "Jane's personal assistant" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/soko-bot.png" }),
-    avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
-    ownerUserId: z.string().openapi({
-      description:
-        "The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.",
-      example: "user_123",
-    }),
-    presence: chatRoomPresenceSchema.openapi({ example: "online" }),
-  })
-  .openapi("ChatRoomSokoBotParticipant");
 
 /**
  * One unread Thread as a list row carries it: where opening it lands, what
@@ -227,7 +204,7 @@ export const chatRoomSchema = z
     }),
     isReadOnly: z.boolean().openapi({
       description:
-        "Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.",
+        "Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.",
       example: false,
     }),
     groupName: z.string().nullable().openapi({
@@ -284,6 +261,11 @@ export const chatRoomSchema = z
     unreadMentionCount: z.number().int().min(0).openapi({
       description:
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
+      example: 1,
+    }),
+    unreadNeedsYouCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.",
       example: 1,
     }),
     starredAt: dateTimeSchema.nullable().openapi({
@@ -515,11 +497,11 @@ export const discoverableChatRoomSchema = z
   })
   .openapi("DiscoverableChatRoom");
 
-export const chatRoomMentionStatusSchema = z
+const chatRoomMentionStatusSchema = z
   .enum(["pending", "sent", "responded", "failed"])
   .openapi("ChatRoomMentionStatus");
 
-export const chatRoomMessageMentionSchema = z
+const chatRoomMessageMentionSchema = z
   .object({
     id: z.string().uuid(),
     coworkerId: z.string().nullable(),
@@ -529,7 +511,7 @@ export const chatRoomMessageMentionSchema = z
   })
   .openapi("ChatRoomMessageMention");
 
-export const chatRoomMessageSenderSchema = z
+const chatRoomMessageSenderSchema = z
   .discriminatedUnion("type", [
     z.object({
       type: z.literal("user"),
@@ -549,14 +531,14 @@ export const chatRoomMessageSenderSchema = z
   ])
   .openapi("ChatRoomMessageSender");
 
-export const chatRoomMessageReactorSchema = z
+const chatRoomMessageReactorSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Jane Doe" }),
   })
   .openapi("ChatRoomMessageReactor");
 
-export const chatRoomMessageReactionSchema = z
+const chatRoomMessageReactionSchema = z
   .object({
     emoji: z.string().min(1).max(24).openapi({ example: "👍" }),
     count: z.number().int().min(0).openapi({ example: 3 }),
@@ -572,7 +554,7 @@ export const chatRoomMessageReactionSchema = z
   })
   .openapi("ChatRoomMessageReaction");
 
-export const chatRoomMessageQuoteAttachmentSchema = z
+const chatRoomMessageQuoteAttachmentSchema = z
   .object({
     fileName: z.string().openapi({ example: "launch.png" }),
     url: z.string().openapi({ example: "https://blob.example/launch.png" }),
@@ -581,7 +563,7 @@ export const chatRoomMessageQuoteAttachmentSchema = z
   .openapi("ChatRoomMessageQuoteAttachment");
 
 /** Snapshot of a quoted room message, stored under metadata.quote and promoted on the DTO. */
-export const chatRoomMessageQuoteSchema = z
+const chatRoomMessageQuoteSchema = z
   .object({
     messageId: z.string().uuid().openapi({
       example: "550e8400-e29b-41d4-a716-446655440000",
@@ -599,7 +581,7 @@ export const chatRoomMessageQuoteSchema = z
   })
   .openapi("ChatRoomMessageQuote");
 
-export const chatRoomMessageMembershipSubjectSchema = z
+const chatRoomMessageMembershipSubjectSchema = z
   .discriminatedUnion("type", [
     z.object({
       type: z.literal("user"),
@@ -620,7 +602,7 @@ export const chatRoomMessageMembershipSubjectSchema = z
   .openapi("ChatRoomMessageMembershipSubject");
 
 /** Durable Group name change under metadata.groupNameChange, promoted on the DTO. */
-export const chatRoomMessageGroupNameChangeSchema = z
+const chatRoomMessageGroupNameChangeSchema = z
   .object({
     action: z.enum(["named", "cleared"]),
     name: z.string().nullable().openapi({
@@ -632,7 +614,7 @@ export const chatRoomMessageGroupNameChangeSchema = z
   .openapi("ChatRoomMessageGroupNameChange");
 
 /** Durable channel join/leave snapshot under metadata.membership, promoted on the DTO. */
-export const chatRoomMessageMembershipSchema = z
+const chatRoomMessageMembershipSchema = z
   .object({
     action: z.enum(["joined", "left"]),
     subject: chatRoomMessageMembershipSubjectSchema,
@@ -644,7 +626,7 @@ export const chatRoomMessageMembershipSchema = z
   .openapi("ChatRoomMessageMembership");
 
 /** One successful page preview stored under metadata.unfurls and promoted on the DTO. */
-export const chatRoomMessageUnfurlSchema = z
+const chatRoomMessageUnfurlSchema = z
   .object({
     url: z.string().url().openapi({ example: "https://example.com/article" }),
     title: z.string().min(1).openapi({ example: "Example Article" }),
@@ -662,7 +644,7 @@ export const chatRoomMessageUnfurlSchema = z
   .openapi("ChatRoomMessageUnfurl");
 
 /** A skill attached to a message, stored under metadata.skills and promoted on the DTO. The content goes only to the agents the message reaches. */
-export const chatRoomMessageSkillSchema = z
+const chatRoomMessageSkillSchema = z
   .object({
     id: z.string().openapi({
       description: "skills.sh id: owner/repo/skill.",
@@ -700,6 +682,46 @@ export const removeChatRoomMessageUnfurlRequestSchema = z
     url: z.string().url().openapi({ example: "https://example.com/article" }),
   })
   .openapi("RemoveChatRoomMessageUnfurlRequest");
+
+export const chatSignalTagSchema = z
+  .enum(CHAT_SIGNAL_TAGS)
+  .openapi("ChatSignalTag", {
+    description:
+      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
+  });
+
+/**
+ * Viewer-neutral, because it rides on realtime message events every member
+ * receives: a client derives "needs you" from `addressedUserIds` and the
+ * `question` / `needsDecision` tags.
+ */
+export const chatMessageSignalSchema = z
+  .object({
+    tags: z.array(chatSignalTagSchema).openapi({
+      description:
+        "Tags that apply: Jev's probability at or above the threshold, with readers' corrections on top. A guide for sorting and highlighting; it never hides a message.",
+    }),
+    probabilities: z
+      .partialRecord(chatSignalTagSchema, z.number().min(0).max(1))
+      .openapi({ description: "Jev's probability per tag, as it answered." }),
+    addressedUserIds: z.array(z.string()).openapi({
+      description:
+        "Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.",
+    }),
+    commitmentDueAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.",
+    }),
+    loopClosedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a reader closed this open loop, by making a Task of it or dismissing it.",
+    }),
+    loopTaskId: z.string().uuid().nullable(),
+    correctedTags: z.array(chatSignalTagSchema).openapi({
+      description: "Tags a reader corrected by hand.",
+    }),
+  })
+  .openapi("ChatMessageSignal");
 
 export const chatRoomMessageSchema = z
   .object({
@@ -745,6 +767,10 @@ export const chatRoomMessageSchema = z
     skills: z.array(chatRoomMessageSkillSchema).max(3).optional().openapi({
       description:
         "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.",
+    }),
+    signal: z.union([chatMessageSignalSchema, z.null()]).optional().openapi({
+      description:
+        "Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.",
     }),
   })
   .openapi("ChatRoomMessage");
@@ -984,7 +1010,7 @@ export const chatEarlierThreadSchema = z
   .openapi("ChatEarlierThread");
 
 /** One unread Thread's reply count, without the parent message. */
-export const chatRoomThreadUnreadReplyCountSchema = z
+const chatRoomThreadUnreadReplyCountSchema = z
   .object({
     parentMessageId: z.string().uuid(),
     unreadReplyCount: z.number().int().min(1),

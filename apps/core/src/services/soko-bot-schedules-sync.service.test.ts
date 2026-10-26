@@ -1,3 +1,4 @@
+import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -49,18 +50,22 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotScheduleRun: {
       findFirst: runFindFirstMock,
+      update: vi.fn(),
       updateMany: runUpdateManyMock,
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBot: { findUnique: botFindUniqueMock },
+    member: { findMany: memberFindManyMock },
   },
 }));
-const { botFindUniqueMock } = vi.hoisted(() => ({
+const { botFindUniqueMock, memberFindManyMock } = vi.hoisted(() => ({
   botFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class SokoBotBusyError extends Error {},
   SokoBotNoDestinationError: class SokoBotNoDestinationError extends Error {},
+  SokoBotNotFoundError: class SokoBotNotFoundError extends Error {},
   SokoBotRetryableStartError: class SokoBotRetryableStartError extends Error {},
   sokoBotControlPlane: {
     reconcileTurn: reconcileTurnMock,
@@ -77,9 +82,10 @@ import {
   SokoBotRetryableStartError,
 } from "@/services/soko-bot-control-plane.service";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
+import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
 import {
-  MAX_CONSECUTIVE_SCHEDULE_FAILURES,
   SokoBotSchedulesSyncService,
+  scheduleRunPrompt,
   sokoBotScheduleClientTurnId,
 } from "@/services/soko-bot-schedules-sync.service";
 
@@ -91,13 +97,25 @@ function continueFor(maxChecks: number) {
 const scheduledFor = new Date("2026-08-17T12:00:00.000Z");
 const dueSchedule = {
   id: "01960001-0001-7001-8001-000000000001",
-  userId: "user_1",
+  requestedByUserId: "user_1",
+  sokoBot: { userId: "user_1" as string | null },
   workspaceId: "01960001-0001-7001-8001-000000000002",
   cronExpression: "0 * * * * *",
   timezone: "UTC",
+  name: "Hourly review",
   prompt: "Review active work",
   nextRunAt: scheduledFor,
   consecutiveFailures: 0,
+  capabilityNames: [] as string[],
+  systemKey: null as string | null,
+  runOnce: false,
+  taskId: null as string | null,
+  jobId: null as string | null,
+};
+const personalBot = {
+  userId: dueSchedule.requestedByUserId,
+  createdByUserId: dueSchedule.requestedByUserId,
+  workspace: { organizationId: null },
 };
 const claimedRun = {
   id: "01960001-0001-7001-8001-000000000003",
@@ -163,6 +181,7 @@ describe("SokoBotSchedulesSyncService", () => {
             }),
     );
     startTurnMock.mockResolvedValue({ turnId: "turn_1", status: "RUNNING" });
+    botFindUniqueMock.mockResolvedValue(personalBot);
   });
 
   it("immediately enqueues a fresh turn for reconciliation", async () => {
@@ -184,11 +203,12 @@ describe("SokoBotSchedulesSyncService", () => {
       deferred: 1,
     });
     expect(startTurnMock).toHaveBeenCalledWith({
-      userId: dueSchedule.userId,
+      userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
       clientTurnId: sokoBotScheduleClientTurnId(dueSchedule.id, scheduledFor),
       message: dueSchedule.prompt,
       source: "SCHEDULE",
+      ownScheduleId: dueSchedule.id,
       scheduleReservation: {
         runId: claimedRun.id,
         attempt: claimedRun.attempt,
@@ -210,6 +230,63 @@ describe("SokoBotSchedulesSyncService", () => {
       data: { status: "RUNNING" },
     });
   });
+
+  it("runs a follow-up the bot wrote with its writing turn's tools", async () => {
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      capabilityNames: ["create_table", "write_table_rows", "bash"],
+    });
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetRoute: expect.objectContaining({
+          capabilities: ["create_table", "write_table_rows", "bash"],
+          sandbox: true,
+        }),
+      }),
+    );
+  });
+
+  it.each([null, "meeting-prep"])(
+    "runs a shared bot's %s schedule for nobody, whoever asked for it",
+    async (systemKey) => {
+      botFindUniqueMock.mockResolvedValue({
+        id: "bot_1",
+        name: "Team bot",
+        userId: null,
+        createdByUserId: "creator_1",
+        workspaceId: dueSchedule.workspaceId,
+        ingestTimezone: "UTC",
+        followWholeBoard: false,
+        workspace: { organizationId: "org_1" },
+      });
+      vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+        message: "Meeting prep.",
+        nudgeKeys: [],
+        skip: false,
+      });
+      dueScheduleFindFirstMock.mockResolvedValue({
+        ...dueSchedule,
+        sokoBotId: "bot_1",
+        sokoBot: { userId: null },
+        systemKey,
+      });
+
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+
+      expect(startTurnMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: null,
+          sokoBotId: "bot_1",
+          source: "SCHEDULE",
+        }),
+      );
+    },
+  );
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {
     dueScheduleFindFirstMock.mockResolvedValue({
@@ -242,14 +319,66 @@ describe("SokoBotSchedulesSyncService", () => {
     );
   });
 
+  it.each([
+    { userId: "user_1", shared: false },
+    { userId: null, shared: true },
+  ])(
+    "briefs a built-in rhythm with its own prompt (shared: $shared)",
+    async ({ userId, shared }) => {
+      dueScheduleFindFirstMock.mockResolvedValue({
+        ...dueSchedule,
+        sokoBotId: "bot_1",
+        systemKey: "standup",
+      });
+      botFindUniqueMock.mockResolvedValue({
+        id: "bot_1",
+        userId,
+        projectId: null,
+        workspaceId: dueSchedule.workspaceId,
+        ingestTimezone: "UTC",
+        followWholeBoard: false,
+      });
+      vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+        message: "Standup.",
+        nudgeKeys: [],
+        skip: true,
+      });
+
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+
+      const standup = SOKO_BOT_SYSTEM_SCHEDULES.find(
+        (schedule) => schedule.key === "standup",
+      );
+      expect(vi.mocked(buildSystemBeatMessage).mock.calls[0]?.[0].prompt).toBe(
+        shared ? standup?.promptShared : standup?.prompt,
+      );
+    },
+  );
+
   it("snapshots the occurrence prompt when claiming a due schedule", async () => {
     await new SokoBotSchedulesSyncService().syncDueSchedules({
       shouldContinue: continueFor(1),
     });
 
     expect(runCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({ prompt: "Review active work" }),
+      data: expect.objectContaining({ prompt: scheduleRunPrompt(dueSchedule) }),
     });
+  });
+
+  it("tells a run which schedule it is and how to end it", () => {
+    expect(scheduleRunPrompt(dueSchedule)).toBe(
+      `[Schedule "Hourly review" (scheduleId ${dueSchedule.id}). It repeats (cron "0 * * * * *", UTC). When its purpose is done, remove it with delete_schedule and scheduleId ${dueSchedule.id}.]\n\nReview active work`,
+    );
+    expect(
+      scheduleRunPrompt({ ...dueSchedule, runOnce: true, taskId: "task-9" }),
+    ).toContain(
+      "It runs once; Core removes it after this run. It watches Task task-9; Core removes it once that Task finishes.]",
+    );
+    expect(scheduleRunPrompt({ ...dueSchedule, systemKey: "standup" })).toBe(
+      "Review active work",
+    );
   });
 
   it("settles a run when startTurn returns an already-terminal duplicate", async () => {
@@ -761,6 +890,31 @@ describe("SokoBotSchedulesSyncService", () => {
       }),
     );
     expect(scheduleUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("retries when no pool connection was free for a transaction (P2028)", async () => {
+    startTurnMock.mockRejectedValue(
+      Object.assign(
+        new Error("Unable to start a transaction in the given time."),
+        {
+          code: "P2028",
+        },
+      ),
+    );
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(result).toMatchObject({ failed: 0, deferred: 1 });
+    expect(runUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "PENDING",
+          errorKind: "runtime_transient",
+        }),
+      }),
+    );
   });
 
   it("dead-letters a transient Eve failure after bounded attempts", async () => {

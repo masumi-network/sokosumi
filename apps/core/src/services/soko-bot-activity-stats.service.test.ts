@@ -26,7 +26,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { activityStats } from "./soko-bot-activity-stats.service";
+import {
+  activityStats,
+  activityStatsLines,
+} from "./soko-bot-activity-stats.service";
 
 const bot = {
   id: "bot-1",
@@ -63,7 +66,7 @@ beforeEach(() => {
         },
       ];
     }
-    if (where.task?.NOT) {
+    if (where.task?.OR) {
       return [{ taskId: "t1", task: { owner: { name: "Albina" } } }];
     }
     if (where.status === "FAILED") return [{ taskId: "f" }];
@@ -96,10 +99,115 @@ describe("activityStats", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          NOT: { ownerId: "andreas" },
+          OR: [{ ownerId: { not: "andreas" } }, { ownerId: null }],
           AND: [expect.anything()],
         }),
       }),
     );
+  });
+
+  it("counts teammates' work without an Owner as a teammate's", async () => {
+    taskFindManyMock.mockResolvedValue([
+      { owner: { name: "Albina" } },
+      { owner: null },
+    ]);
+    const stats = await activityStats(bot, since, until);
+    expect(stats.team).toEqual([
+      { name: "Albina", completed: 1, created: 1 },
+      { name: "A teammate", completed: 0, created: 1 },
+    ]);
+  });
+});
+
+describe("activityStats for a shared bot", () => {
+  const shared = { ...bot, userId: null, projectId: null };
+
+  it("counts no owner work and reads only public Tasks for the team", async () => {
+    eventFindManyMock.mockResolvedValue([
+      { taskId: "t1", task: { owner: { name: "Albina" } } },
+    ]);
+    const stats = await activityStats(shared, since, until);
+    expect(stats.own).toBeNull();
+    expect(stats.ownerMessages).toBeNull();
+    expect(stats.coworkerCredits).toEqual([]);
+    expect(stats.botMessages).toBe(80);
+    expect(stats.team).toEqual([
+      { name: "Albina", completed: 1, created: 2 },
+      { name: "Keanu Klestil", completed: 0, created: 1 },
+    ]);
+    // Never an owner read, so a null id never reaches a filter.
+    expect(taskCountMock).not.toHaveBeenCalled();
+    expect(messageCountMock).toHaveBeenCalledOnce();
+    expect(messageCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({ senderSokoBotId: "bot-1" }),
+    });
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId: "ws",
+          createdAt: { gte: since, lt: until },
+          AND: [{ workspaceId: "ws", visibility: "PUBLIC" }],
+        },
+      }),
+    );
+    expect(eventFindManyMock).toHaveBeenCalledOnce();
+  });
+
+  it("counts a project bot's team numbers in its Project only", async () => {
+    eventFindManyMock.mockResolvedValue([]);
+    await activityStats({ ...shared, projectId: "project-1" }, since, until);
+    const scope = {
+      workspaceId: "ws",
+      visibility: "PUBLIC",
+      projectId: "project-1",
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ AND: [scope] }),
+      }),
+    );
+    expect(eventFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          task: expect.objectContaining({ AND: [scope] }),
+        }),
+      }),
+    );
+  });
+});
+
+describe("activityStatsLines", () => {
+  const base = {
+    botTurns: 3,
+    botMessages: 4,
+    botCredits: 1,
+    coworkerCredits: [],
+    team: [],
+  };
+
+  it("speaks to the owner about their own work", () => {
+    const lines = activityStatsLines(
+      {
+        ...base,
+        own: { created: 1, completed: 1, failed: 0, viaBot: 1 },
+        ownerMessages: 2,
+      },
+      "This week",
+      "Jarvis",
+    );
+    expect(lines).toContain(
+      "- Chat: you sent 2 messages; Jarvis ran 3 turns and posted 4 messages",
+    );
+    expect(lines.some((line) => line.startsWith("- Your Tasks:"))).toBe(true);
+  });
+
+  it("has no owner lines for a shared bot", () => {
+    const lines = activityStatsLines(
+      { ...base, own: null, ownerMessages: null },
+      "This week",
+      "Scout",
+    );
+    expect(lines).toContain("- Chat: Scout ran 3 turns and posted 4 messages");
+    expect(lines.join("\n")).not.toMatch(/Your Tasks|you sent/);
   });
 });

@@ -3,9 +3,12 @@ import {
   AgentJobStatus,
   Channel,
   FileSourceKind,
+  FileSourceScope,
+  jobInclude,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
@@ -13,10 +16,9 @@ import {
   type ChatResultReference,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
-  exceedsUnattendedHireBudget,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
+  sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
-  sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
   sokoBotJobIdInputSchema as jobIdInputSchema,
@@ -28,6 +30,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
@@ -36,18 +39,29 @@ import {
   sanitizeSokoBotMemoryMarkdown,
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
+  sokoBotAskCoworkerInputSchema,
+  sokoBotDraftEmailInputSchema,
+  sokoBotEvaluateWithJevInputSchema,
+  sokoBotInstallSkillInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotListSkillsInputSchema,
   sokoBotManageReminderInputSchema,
+  sokoBotMoveFileInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
   sokoBotPreviewResultInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
+  sokoBotRemoveSkillInputSchema,
   sokoBotRunIntegrationToolInputSchema,
+  sokoBotSaveEmailAttachmentInputSchema,
   sokoBotSearchInboxInputSchema,
+  sokoBotSendEmailDraftInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
+  sokoBotUpdateEmailsInputSchema,
   sokoBotUploadFileInputSchema,
   sokoBotArchiveTaskInputSchema as taskArchiveInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
@@ -60,11 +74,14 @@ import {
 import {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
+  buildTaskFilePathname,
   buildUserDriveFilePathname,
   buildUserDriveFilePathnameWithFolder,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  clampTaskFileName,
   createDataTableSchema,
   parseChatRoomFileUrl,
+  resolveTaskFileContentType,
   resolveUserUploadContentType,
   socialPostMediaKindForMime,
   tableBatchSchema,
@@ -91,20 +108,33 @@ import {
   resolveTableActor,
   type TableOperationCompletion,
 } from "@/helpers/data-table";
+import { moveDriveFile } from "@/helpers/drive-file-move";
 import { createAgentJobForUser } from "@/helpers/job";
+import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
+import {
+  loadSokoBotPersona,
+  SOKO_BOT_OWNER_NAME_SELECT,
+  sokoBotAuthorLabel,
+  sokoBotTurnAudience,
+  sokoBotTurnReaderOf,
+} from "@/helpers/soko-bot-owner";
+import { loadSokoBotTurnAuthContext } from "@/helpers/soko-bot-turn-auth-context";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
-  buildSokoBotAudienceJobParentTaskWhere,
-  buildSokoBotAudienceTaskVisibilityWhere,
-  readSokoBotPacketAudience,
+  buildSokoBotReaderJobWhere,
+  buildSokoBotReaderTaskWhere,
   type SokoBotPacketAudience,
+  type SokoBotTurnReader,
+  sokoBotSharedScopeOf,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -122,6 +152,19 @@ import {
   creditsPerImage,
   IMAGE_ASPECT_RATIOS,
 } from "@/lib/image-studio/image-model";
+import { videoModel } from "@/lib/image-studio/video-catalog";
+import {
+  creditsPerVideo,
+  DEFAULT_ANIMATE_MODEL_ID,
+  DEFAULT_VIDEO_MODEL_ID,
+  defaultVideoSettings,
+  HIGH_QUALITY_ANIMATE_MODEL_ID,
+  HIGH_QUALITY_VIDEO_MODEL_ID,
+  type VideoModel,
+  type VideoSettings,
+  validateVideoSettings,
+} from "@/lib/image-studio/video-model";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
@@ -148,16 +191,53 @@ import {
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
 import {
+  isContactCapability,
+  runContactTool,
+} from "@/lib/soko-bot/contact-tools";
+import {
+  addressCoworkers,
+  createOrGetCoworkerQuestionRoom,
+} from "@/lib/soko-bot/coworker-question-room";
+import {
+  decisionProposalTargets,
+  describeDecision,
+  parseDecisionProposal,
+  parseHireAgentInput,
+} from "@/lib/soko-bot/decision-proposal";
+import {
+  ambiguousDirectChatTargetMessage,
+  directChatMemberWhere,
+  directChatNeedle,
+  SHARED_SOKO_BOT_NO_DIRECTS,
+} from "@/lib/soko-bot/direct-chat-target";
+import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
+import {
+  mailSendRefusal,
+  ownerAskedToSend,
+} from "@/lib/soko-bot/mail-send-guard";
 import {
   persistedToolResult,
   sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
+import {
+  skillChangeRefusal,
+  sokoBotDriveFolder,
+} from "@/lib/soko-bot/self-config-guards";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
+import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
+import {
+  type SokoBotWriteTargets,
+  sokoBotProjectRefusal,
+  sokoBotWriteScopeRefusal,
+} from "@/lib/soko-bot/write-scope";
 import {
   BEARER_USER_SELECT,
   isActiveUser,
@@ -165,6 +245,7 @@ import {
 import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
+  validateChatCoworkerIds,
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
@@ -189,6 +270,7 @@ import { getJob } from "@/services/image-studio-assets.service";
 import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createVideoJob,
   DEFAULT_SETTINGS,
   type ImageJobSettings,
   reconcileProjectJobs,
@@ -214,19 +296,21 @@ import {
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
+import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
+  createInboxDraft,
   fetchCalendarEvents,
+  fetchInboxAttachment,
   fetchInboxMessage,
-  fetchInboxMessages,
+  fetchInboxPage,
+  INBOX_ATTACHMENT_MAX_BYTES,
   listIntegrationTools,
-  listSokoBotIntegrations,
+  modifyInboxMessages,
   runIntegrationTool,
+  sendInboxDraft,
 } from "@/services/soko-bot-integrations.service";
-import {
-  criteriaForConfirmedSokoBotAction,
-  readSokoBotTaskOutcome,
-} from "@/services/soko-bot-outcome.service";
+import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
 import {
   createSokoBotSchedule,
@@ -236,6 +320,14 @@ import {
   SokoBotScheduleValidationError,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
+import {
+  installSkill,
+  listInstalledSkills,
+  removeInstalledSkill,
+  SokoBotSkillError,
+  searchSkillsSh,
+} from "@/services/soko-bot-skills.service";
+import { readSokoBotTaskOutcome } from "@/services/soko-bot-task-outcome.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   createTaskForActor,
@@ -245,10 +337,23 @@ import {
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
   sokoBotId: string,
+  ownerUserId?: string | null,
 ): {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 } {
+  if (ownerUserId) {
+    if (coworkerId)
+      throw new SokoBotRuntimeValidationError(
+        "Give coworkerId or assignToOwner, not both",
+      );
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: ownerUserId,
+    };
+  }
   if (coworkerId == null) return {};
   if (coworkerId === sokoBotId) {
     return { assigneeId: null, assigneeSokoBotId: sokoBotId };
@@ -256,20 +361,75 @@ function toolAssigneeFields(
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
 }
 
+/** A shared bot works for nobody, so it has no owner to assign. */
+function ownerAssignee(
+  assignToOwner: true | undefined,
+  actingUserId: string | null,
+): string | null {
+  if (!assignToOwner) return null;
+  if (!actingUserId)
+    throw new SokoBotRuntimeValidationError(
+      "A shared assistant has no owner to assign; pick a Coworker",
+    );
+  return actingUserId;
+}
+
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
+/** The longest Task description or comment the tool schemas accept. */
+const TASK_TEXT_MAX_CHARS = 20_000;
 
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
-const TOOL_CALL_LIMIT_PER_TURN = 64;
-/** The limit is on Core's tools; sandbox reads are recorded but not counted. */
-const CORE_TOOL_CALLS = {
-  capability: { notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
+const TOOL_CALLS_PER_FIFTEEN_MINUTES = 64;
+
+/**
+ * Changes a turn may make through Core's tools, in proportion to how long it
+ * may run: a fixed 64 stopped a six-hour background run after eight minutes.
+ * Reads get `READ_CALLS_PER_WRITE_CALL` times as many.
+ */
+export function sokoBotToolCallLimit(turn: {
+  createdAt: Date;
+  deadlineAt: Date;
+}): number {
+  const fifteenMinutes = 15 * 60 * 1_000;
+  const duration = turn.deadlineAt.getTime() - turn.createdAt.getTime();
+  return Math.max(
+    TOOL_CALLS_PER_FIFTEEN_MINUTES,
+    Math.round((duration / fifteenMinutes) * TOOL_CALLS_PER_FIFTEEN_MINUTES),
+  );
+}
+/**
+ * Core tools that only read. They get their own, larger budget: a script
+ * paging three years of mail reads thousands of times, and a six-hour CRM run
+ * hit the shared cap of 1,536 after 97 minutes. Anything else (a change, a
+ * background run, a provider refresh) counts against the turn's limit; sandbox
+ * tools are recorded but not counted.
+ */
+const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
+  SOKO_BOT_CAPABILITIES.filter(
+    (capability) =>
+      /^(get|list|read|search|find)_|^(refresh_context|preview_result|evaluate_with_jev)$/.test(
+        capability,
+      ) && !SOKO_BOT_SANDBOX_CAPABILITIES.some((tool) => tool === capability),
+  );
+const CORE_READ_CALLS = {
+  capability: { in: [...CORE_READ_CAPABILITIES] },
 } satisfies Prisma.SokoBotToolCallWhereInput;
+const CORE_WRITE_CALLS = {
+  capability: {
+    notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES, ...CORE_READ_CAPABILITIES],
+  },
+} satisfies Prisma.SokoBotToolCallWhereInput;
+const READ_CALLS_PER_WRITE_CALL = 10;
 /** Enough for "ask Nina and Tom", far short of an organization. */
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
+/** A few Coworkers sounded out before committing work, not a survey. */
+const MAX_COWORKER_QUESTIONS_PER_TURN = 3;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
+/** A video costs several images and takes minutes; two is a choice, not a batch. */
+const MAX_VIDEOS_PER_TURN = 2;
 
 type SocialMediaInput = NonNullable<
   z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["create_social_post"]>["media"]
@@ -343,120 +503,6 @@ async function readDriveText(file: LiveResource): Promise<string | null> {
   }
 }
 
-function parseHireAgentInput(input: unknown) {
-  const parsed = hireAgentInputSchema.parse(input);
-  return {
-    ...parsed,
-    inputSchema: inputSchemaSchema.parse(parsed.inputSchema),
-  };
-}
-
-function parseDecisionProposal(
-  toolName: SokoBotDecisionTarget,
-  proposal: unknown,
-) {
-  switch (toolName) {
-    case "create_task":
-      return taskCreateInputSchema.parse(proposal);
-    case "update_task":
-      return taskUpdateInputSchema.parse(proposal);
-    case "archive_task":
-      return taskArchiveInputSchema.parse(proposal);
-    case "assign_task":
-      return taskAssignInputSchema.parse(proposal);
-    case "hire_agent":
-      return parseHireAgentInput(proposal);
-    case "provide_job_input":
-      return provideJobInputSchema.parse(proposal);
-  }
-}
-
-function decisionReason(
-  toolName: SokoBotDecisionTarget,
-  proposal: unknown,
-): string {
-  switch (toolName) {
-    case "create_task": {
-      const input = taskCreateInputSchema.parse(proposal);
-      return `Create ${input.status} Task`;
-    }
-    case "update_task": {
-      const input = taskUpdateInputSchema.parse(proposal);
-      return `Update Task ${input.taskId}`;
-    }
-    case "archive_task": {
-      const input = taskArchiveInputSchema.parse(proposal);
-      return `Archive Task ${input.taskId} (retain history)`;
-    }
-    case "assign_task": {
-      const input = taskAssignInputSchema.parse(proposal);
-      return `Assign Task ${input.taskId} to Coworker ${input.coworkerId}`;
-    }
-    case "hire_agent": {
-      const input = parseHireAgentInput(proposal);
-      return `Hire Agent ${input.agentId} with a maximum of ${input.maxCredits} credits`;
-    }
-    case "provide_job_input": {
-      const input = provideJobInputSchema.parse(proposal);
-      return `Send approved input to Agent Job ${input.jobId}`;
-    }
-  }
-}
-
-/**
- * Owner-facing approval text: names instead of ids where they resolve, and
- * the plain id otherwise. Names are display data, never authorization.
- */
-async function describeDecision(
-  toolName: SokoBotDecisionTarget,
-  proposal: unknown,
-): Promise<string> {
-  const quote = (name: string | null | undefined, id: string) =>
-    name?.trim() ? `"${name.trim()}"` : id;
-  try {
-    switch (toolName) {
-      case "assign_task": {
-        const input = taskAssignInputSchema.parse(proposal);
-        const [task, coworker] = await Promise.all([
-          prisma.task.findUnique({
-            where: { id: input.taskId },
-            select: { name: true },
-          }),
-          prisma.coworker.findUnique({
-            where: { id: input.coworkerId },
-            select: { name: true },
-          }),
-        ]);
-        return `Assign Task ${quote(task?.name, input.taskId)} to Coworker ${quote(coworker?.name, input.coworkerId)}${input.ready ? " and start it" : ""}`;
-      }
-      case "archive_task":
-      case "update_task": {
-        const input =
-          toolName === "archive_task"
-            ? taskArchiveInputSchema.parse(proposal)
-            : taskUpdateInputSchema.parse(proposal);
-        const task = await prisma.task.findUnique({
-          where: { id: input.taskId },
-          select: { name: true },
-        });
-        return `${toolName === "archive_task" ? "Archive" : "Update"} Task ${quote(task?.name, input.taskId)}`;
-      }
-      case "hire_agent": {
-        const input = parseHireAgentInput(proposal);
-        const agent = await prisma.agent.findUnique({
-          where: { id: input.agentId },
-          select: { name: true },
-        });
-        return `Hire Agent ${quote(agent?.name, input.agentId)} with a maximum of ${input.maxCredits} credits`;
-      }
-      default:
-        return decisionReason(toolName, proposal);
-    }
-  } catch {
-    return decisionReason(toolName, proposal);
-  }
-}
-
 export interface RuntimeAuthorizationInput {
   sessionId: string;
   turnId: string;
@@ -468,7 +514,10 @@ export interface SokoBotActionContext {
   turn: {
     id: string;
     sokoBotId: string;
-    userId: string;
+    /** Who the turn acts for; see `sokoBotActingUserId`. */
+    actingUserId: string | null;
+    /** The member who asked (ADR 0057); null when the bot started on its own. */
+    requestedByUserId: string | null;
     workspaceId: string;
     eveSessionId: string | null;
     // Required, not optional: both were silently dropped from authorize()'s
@@ -486,7 +535,9 @@ export interface SokoBotActionContext {
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   grant: SokoBotTurnGrantClaims;
+  toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;
+  reader: SokoBotTurnReader;
 }
 
 export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
@@ -494,6 +545,10 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
   toolCallId: string;
   input: unknown;
 }
+
+/** Fields that name a Task by id in tool input. */
+const TASK_ID_FIELDS = ["taskId", "peerTaskId"] as const;
+const TASK_ID_PREFIX = 23;
 
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
@@ -505,6 +560,50 @@ export class SokoBotRuntimeValidationError extends Error {}
 export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
+
+/**
+ * The member a tool runs as. A shared Soko Bot acting on its own acts for
+ * nobody (ADR 0057), so a tool that needs a person refuses before it starts.
+ */
+function actingMemberOf(authorized: {
+  turn: { actingUserId: string | null };
+}): string {
+  const { actingUserId } = authorized.turn;
+  if (actingUserId === null)
+    throw new SokoBotRefusedUnsentError(
+      "This action runs as a member, and nobody asked for this turn. Say what you would do in your chat; a member's request starts a turn that can do it.",
+    );
+  return actingUserId;
+}
+
+/** A Drive folder a tool may write into, normalized; "" is the top level. */
+function driveFolderFor(folder: string | undefined): string {
+  const result = sokoBotDriveFolder(folder);
+  if ("refusal" in result) throw new SokoBotRefusedUnsentError(result.refusal);
+  return result.folder;
+}
+
+/** The member a skill change runs as, once the owner asked for it in chat. */
+function requireOwnerSkillRequest(
+  authorized: AuthorizedSokoBotRuntime,
+): string {
+  const refusal = skillChangeRefusal({
+    source: authorized.turn.source,
+    chainDepth: authorized.turn.chainDepth,
+    askedByAssistant: authorized.askedByKind === "ASSISTANT",
+    shared: Boolean(authorized.reader.sharedScope),
+  });
+  if (refusal) throw new SokoBotRefusedUnsentError(refusal);
+  return actingMemberOf(authorized);
+}
+
+/** Who an action's operation key belongs to: the member, or the bot acting on its own. */
+function actionPrincipalId(turn: {
+  actingUserId: string | null;
+  sokoBotId: string;
+}): string {
+  return turn.actingUserId ?? `soko_bot:${turn.sokoBotId}`;
+}
 
 /** Schedule tools never need approval; their domain errors become tool errors the model can read. */
 async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
@@ -519,6 +618,47 @@ async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
+}
+
+/**
+ * A schedule run gets update/delete for its own schedule even when the turn
+ * that wrote the schedule had no schedule tools (an owner-made one). Those
+ * extra tools reach that schedule only.
+ */
+async function requireOwnScheduleScope(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  capability: SokoBotCapability,
+  rawInput: unknown,
+) {
+  if (
+    !(OWN_SCHEDULE_CAPABILITIES as readonly SokoBotCapability[]).includes(
+      capability,
+    )
+  )
+    return;
+  const run = await tx.sokoBotScheduleRun.findUnique({
+    where: { turnId },
+    select: {
+      schedule: { select: { id: true, name: true, capabilityNames: true } },
+    },
+  });
+  if (!run || run.schedule.capabilityNames.includes(capability)) return;
+  const ref = (
+    capability === "update_schedule"
+      ? updateScheduleInputSchema
+      : scheduleIdInputSchema
+  ).safeParse(rawInput);
+  const own =
+    ref.success &&
+    (ref.data.scheduleId
+      ? ref.data.scheduleId === run.schedule.id
+      : ref.data.scheduleName?.trim().toLowerCase() ===
+        run.schedule.name.trim().toLowerCase());
+  if (!own)
+    throw new SokoBotRuntimeValidationError(
+      `This run may only change its own schedule "${run.schedule.name}" (${run.schedule.id})`,
+    );
 }
 
 function sellerProposalHash(
@@ -575,10 +715,11 @@ function buildTurnGrant(
   turn: {
     id: string;
     sokoBotId: string;
-    userId: string;
     workspaceId: string;
     capabilityNames: string[];
     contextSnapshot: { id: string; packet: Prisma.JsonValue } | null;
+    requestedByUserId: string | null;
+    sokoBot: { userId: string | null };
   },
   sessionId: string,
 ): SokoBotTurnGrantClaims {
@@ -604,7 +745,7 @@ function buildTurnGrant(
     sessionId,
     turnId: turn.id,
     sokoBotId: turn.sokoBotId,
-    userId: turn.userId,
+    userId: sokoBotActingUserId(turn),
     workspaceId: turn.workspaceId,
     contextSnapshotId: turn.contextSnapshot.id,
     memoryRevisionId: null,
@@ -617,7 +758,7 @@ function buildTurnGrant(
 
 async function requireSokoBotWorkspaceAccess(
   client: Pick<Prisma.TransactionClient, "workspace">,
-  userId: string,
+  userId: string | null,
   workspaceId: string,
 ) {
   const workspace = await client.workspace.findFirst({
@@ -641,11 +782,6 @@ export function isSokoBotDecisionTargetAllowed(
     isSokoBotCapability(toolName) &&
     capabilities.includes(toolName)
   );
-}
-
-/** `%` and `_` are wildcards in Prisma's contains/startsWith filters. */
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 /** Where the owner sees a Project's images, or one version of them. */
@@ -727,7 +863,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         sokoBotId: true,
-        userId: true,
+        requestedByUserId: true,
         workspaceId: true,
         eveSessionId: true,
         status: true,
@@ -738,15 +874,19 @@ export class SokoBotRuntimeService {
         chainDepth: true,
         intentId: true,
         intentRevision: true,
+        createdAt: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         capabilityNames: true,
         contextSnapshot: { select: { id: true, packet: true } },
         sokoBot: {
           select: {
+            userId: true,
             adminPausedAt: true,
             archivedAt: true,
             status: true,
+            workspaceId: true,
+            projectId: true,
           },
         },
       },
@@ -777,6 +917,7 @@ export class SokoBotRuntimeService {
     ) {
       throw new SokoBotRuntimeAuthorizationError("Soko Bot turn lease expired");
     }
+    const actingUserId = sokoBotActingUserId(turn);
     const grant = buildTurnGrant(turn, input.sessionId);
     if (input.capability && !grant.capabilities.includes(input.capability)) {
       throw new SokoBotRuntimeAuthorizationError(
@@ -805,7 +946,7 @@ export class SokoBotRuntimeService {
           where: {
             id: turn.id,
             sokoBotId: turn.sokoBotId,
-            userId: turn.userId,
+            requestedByUserId: turn.requestedByUserId,
             workspaceId: turn.workspaceId,
             OR: [{ eveSessionId: null }, { eveSessionId: input.sessionId }],
             status: { in: ["STARTING", "RUNNING"] },
@@ -832,7 +973,7 @@ export class SokoBotRuntimeService {
             "Soko Bot turn session attachment became stale",
           );
         }
-        await requireSokoBotWorkspaceAccess(tx, turn.userId, turn.workspaceId);
+        await requireSokoBotWorkspaceAccess(tx, actingUserId, turn.workspaceId);
         if (attachable.eveSessionId === null) {
           const boundTurn = await tx.sokoBotTurn.updateMany({
             where: {
@@ -855,20 +996,25 @@ export class SokoBotRuntimeService {
             );
           }
         }
-        const boundBot = await tx.sokoBot.updateMany({
-          where: {
-            id: turn.sokoBotId,
-            userId: turn.userId,
-            adminPausedAt: null,
-            archivedAt: null,
-            status: { not: "PAUSED" },
+        const runnable = await sokoBotForTurnMember(
+          {
+            sokoBotId: turn.sokoBotId,
+            workspaceId: turn.workspaceId,
+            actingUserId,
           },
-          // The bot retains the prior completed turn's session for diagnostics.
-          // Bot + turn locks and the attachable active-turn check above provide
-          // the single-flight fence, so the new turn safely replaces that id.
-          data: { eveSessionId: input.sessionId },
-        });
-        if (boundBot.count !== 1) {
+          "runningNotAdminPaused",
+          tx,
+        );
+        // The bot retains the prior completed turn's session for diagnostics.
+        // Bot + turn locks and the attachable active-turn check above provide
+        // the single-flight fence, so the new turn safely replaces that id.
+        const boundBot = runnable
+          ? await tx.sokoBot.updateMany({
+              where: { id: runnable.id },
+              data: { eveSessionId: input.sessionId },
+            })
+          : null;
+        if (boundBot?.count !== 1) {
           throw new SokoBotRuntimeAuthorizationError(
             "Soko Bot runtime session attachment became stale",
           );
@@ -878,7 +1024,7 @@ export class SokoBotRuntimeService {
     } else {
       await requireSokoBotWorkspaceAccess(
         prisma,
-        turn.userId,
+        actingUserId,
         turn.workspaceId,
       );
     }
@@ -888,11 +1034,14 @@ export class SokoBotRuntimeService {
 
     return {
       grant,
-      askedByKind: readSokoBotPacketAudience(turn.contextSnapshot?.packet),
+      toolCallLimit: sokoBotToolCallLimit(turn),
+      askedByKind: sokoBotTurnAudience(turn),
+      reader: sokoBotTurnReaderOf(turn),
       turn: {
         id: turn.id,
         sokoBotId: turn.sokoBotId,
-        userId: turn.userId,
+        actingUserId,
+        requestedByUserId: turn.requestedByUserId,
         workspaceId: turn.workspaceId,
         eveSessionId: storedSessionId,
         versionId: turn.versionId,
@@ -942,20 +1091,14 @@ export class SokoBotRuntimeService {
       );
     }
     const version = await resolveSokoBotVersion(authorized.turn.versionId);
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: authorized.turn.sokoBotId },
-      select: { name: true, user: { select: { name: true } } },
-    });
+    const persona = await loadSokoBotPersona(authorized.turn.sokoBotId);
     return {
       ...snapshot,
       version: {
         id: version.id,
         name: version.name,
         model: version.model,
-        systemPrompt: composeSystemPrompt(version, {
-          name: bot?.name ?? null,
-          ownerName: bot?.user.name ?? null,
-        }),
+        systemPrompt: composeSystemPrompt(version, persona),
         skills: [...version.skills],
       },
     };
@@ -979,7 +1122,7 @@ export class SokoBotRuntimeService {
       toolCallId,
     );
     const resolved = await this.resolveDecision(
-      authorized.turn.userId,
+      authorized.turn.actingUserId,
       decision.id,
       true,
       false,
@@ -1057,11 +1200,14 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     scope: Prisma.ChatRoomWhereInput,
   ) {
+    const ownerId = authorized.turn.actingUserId;
+    // A turn that acts for nobody has no owner whose unread chats to count.
+    if (ownerId === null) return [];
     const rooms = await prisma.chatRoom.findMany({
       where: {
         archivedAt: null,
         organizationId: scope.organizationId,
-        userMembers: { some: { userId: authorized.turn.userId } },
+        userMembers: { some: { userId: ownerId } },
       },
       orderBy: { updatedAt: "desc" },
       take: 200,
@@ -1076,7 +1222,7 @@ export class SokoBotRuntimeService {
           select: { sokoBotId: true },
         },
         userMembers: {
-          where: { userId: authorized.turn.userId },
+          where: { userId: ownerId },
           take: 1,
           select: { mutedAt: true },
         },
@@ -1087,7 +1233,7 @@ export class SokoBotRuntimeService {
     );
     const unread = await getChatRoomUnreadCounts(
       rooms.map((room) => room.id),
-      authorized.turn.userId,
+      ownerId,
       prisma,
     );
     return rooms.flatMap((room) => {
@@ -1211,7 +1357,10 @@ export class SokoBotRuntimeService {
         "Opening a chat with a colleague is for turns your owner asked for. Tell them who you would approach and why instead.",
       );
     }
-    // A turn may make 64 tool calls, so without a bound one instruction could
+    if (authorized.reader.sharedScope) {
+      throw new SokoBotRuntimeValidationError(SHARED_SOKO_BOT_NO_DIRECTS);
+    }
+    // A turn may make 64 tool calls or more, so without a bound one instruction could
     // put the bot in front of every member of the organization at once.
     const opened = await prisma.sokoBotToolCall.count({
       where: {
@@ -1240,9 +1389,7 @@ export class SokoBotRuntimeService {
     // the owner and their coworkers, never the organization's roster, so a
     // tool that demanded a UUID could only ever be called with one that
     // happened to appear in the text — which is to say, almost never.
-    // A leading "@" is how the owner writes a handle — "ping @ben" — not part
-    // of the name, and left on it nothing matches.
-    const needle = input.person.trim().replace(/^@+/, "");
+    const needle = directChatNeedle(input.person);
     // "@" on its own passes the schema and strips to nothing, which would
     // match a member whose display name is blank.
     if (!needle) {
@@ -1250,32 +1397,8 @@ export class SokoBotRuntimeService {
         "Name the person to write to. Ask the owner who they mean.",
       );
     }
-    // An address is matched against addresses and a name against names, never
-    // both: a member who sets their display name to counsel@outside.example
-    // would otherwise be the match when the owner asks to contact counsel.
-    // It has to be a whole address, not merely contain an "@": "@ben" is a
-    // handle, and looked up as an address it can only ever miss.
-    const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(needle);
     const members = await prisma.member.findMany({
-      where: {
-        organizationId,
-        user: looksLikeEmail
-          ? { email: { equals: needle, mode: "insensitive" } }
-          : {
-              OR: [
-                { name: { equals: needle, mode: "insensitive" } },
-                // `%` and `_` are wildcards here, and this string comes from
-                // a model reading untrusted text: unescaped, "%" alone would
-                // match a colleague at random.
-                {
-                  name: {
-                    startsWith: `${escapeLikePattern(needle)} `,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            },
-      },
+      where: directChatMemberWhere(organizationId, needle),
       select: { user: { select: { id: true, name: true, email: true } } },
       take: 5,
     });
@@ -1285,32 +1408,21 @@ export class SokoBotRuntimeService {
       );
     }
     if (members.length > 1) {
-      // Naming the candidates lets the owner disambiguate; picking one for
-      // them would mean approaching the wrong colleague. Full names separate
-      // two Ninas without putting anyone's address into the transcript, and
-      // an address is only offered when the names themselves collide.
-      // Compared the way the lookup matches, or "Nina" and "NINA" read as two
-      // distinguishable names and the owner is asked to choose between two
-      // strings that both match both people, for ever.
-      const namesCollide =
-        new Set(members.map((m) => m.user.name?.trim().toLowerCase())).size < 2;
       throw new SokoBotRuntimeValidationError(
-        `More than one person matches "${needle}": ${members
-          .map((m) => (namesCollide ? m.user.email : m.user.name))
-          .join(", ")}. Ask the owner which they mean.`,
+        ambiguousDirectChatTargetMessage(needle, members),
       );
     }
     const member = members[0]!;
     // The owner is reachable in their own direct room; opening a second one
     // would split the conversation in two. A teammate asking the bot to tell
     // its owner something posts there instead.
-    if (member.user.id === authorized.turn.userId) {
+    if (member.user.id === authorized.turn.actingUserId) {
       const ownerRoom = await prisma.chatRoom.findFirst({
         where: {
           kind: "direct",
           archivedAt: null,
           sokoBotMembers: { some: { sokoBotId } },
-          userMembers: { some: { userId: authorized.turn.userId } },
+          userMembers: { some: { userId: authorized.turn.actingUserId } },
         },
         orderBy: { updatedAt: "desc" },
         select: { id: true },
@@ -1350,7 +1462,7 @@ export class SokoBotRuntimeService {
         memberUserIds: [],
         coworkerIds: [],
         sokoBotIds: [sokoBotId],
-        sokoBotActorUserId: authorized.turn.userId,
+        sokoBotActorUserId: actingMemberOf(authorized),
         viewerUserId: null,
         transaction: tx,
       });
@@ -1360,15 +1472,126 @@ export class SokoBotRuntimeService {
           roomId: room.id,
           content: input.message,
           toolCallId: input.toolCallId,
-          openedDirect: {
-            name: room.name,
-            created,
-            withUserName: member.user.name,
+          via: {
+            capability: "open_direct_chat",
+            result: {
+              name: room.name,
+              created,
+              withUserName: member.user.name,
+            },
           },
         },
         tx,
       );
     }, "Opening the direct chat collided with another operation");
+  }
+
+  /**
+   * Asks Coworkers something in a private channel of the owner, the bot and
+   * them, before the bot commits work to them. The question is an ordinary
+   * mention, so each Coworker answers in the room through the dispatch a
+   * person's mention uses, and the bot reads the answer with `read_chat`.
+   */
+  private async askCoworker(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { coworkerIds: string[]; question: string; toolCallId: string },
+  ) {
+    const ownerUserId = authorized.turn.actingUserId;
+    // The owner is in the room and reads the answer; a teammate or another
+    // assistant asking would put the owner's bot in a room they never see.
+    if (
+      authorized.turn.source !== "CHAT" ||
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind === "TEAMMATE" ||
+      authorized.askedByKind === "ASSISTANT" ||
+      !ownerUserId
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Asking a Coworker is for your owner's own requests. Tell them who you would ask and what.",
+      );
+    }
+    if (authorized.reader.sharedScope) {
+      throw new SokoBotRuntimeValidationError(
+        "A shared Soko Bot has no owner to ask Coworkers with. Create a DRAFT Task with the question instead.",
+      );
+    }
+    const asked = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "ask_coworker",
+        NOT: { toolCallId: input.toolCallId },
+      },
+    });
+    if (asked >= MAX_COWORKER_QUESTIONS_PER_TURN) {
+      throw new SokoBotRuntimeValidationError(
+        `One turn may ask Coworkers at most ${MAX_COWORKER_QUESTIONS_PER_TURN} times. Follow up in the rooms you opened with post_chat.`,
+      );
+    }
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: authorized.turn.workspaceId },
+      select: { organizationId: true },
+    });
+    const organizationId = workspace?.organizationId;
+    if (!organizationId) {
+      throw new SokoBotRuntimeValidationError(
+        "Asking Coworkers in a group chat needs an organization workspace. Create a DRAFT Task with the question instead.",
+      );
+    }
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "ask_coworker",
+      );
+      let coworkerIds: string[];
+      try {
+        coworkerIds = await validateChatCoworkerIds(
+          input.coworkerIds,
+          authorized.turn.workspaceId,
+          tx,
+        );
+      } catch (error) {
+        if (!(error instanceof HTTPException)) throw error;
+        throw new SokoBotRuntimeValidationError(
+          "Every Coworker you ask must be available here and able to chat; check the ids with find_coworkers. For one who cannot chat, put the question in a DRAFT Task.",
+        );
+      }
+      const found = await tx.coworker.findMany({
+        where: { id: { in: coworkerIds } },
+        select: { id: true, name: true, slug: true },
+      });
+      const coworkers = coworkerIds.flatMap(
+        (id) => found.find((coworker) => coworker.id === id) ?? [],
+      );
+      const room = await createOrGetCoworkerQuestionRoom(tx, {
+        organizationId,
+        ownerUserId,
+        sokoBotId: authorized.turn.sokoBotId,
+        coworkers,
+      });
+      return this.postChat(
+        authorized,
+        {
+          roomId: room.id,
+          content: addressCoworkers(
+            input.question,
+            coworkers,
+            (coworker) =>
+              resolveMentionedCoworkerIds({
+                content: input.question,
+                roomCoworkers: [coworker],
+              }).length > 0,
+          ),
+          toolCallId: input.toolCallId,
+          via: {
+            capability: "ask_coworker",
+            result: { name: room.name, created: room.created, coworkers },
+          },
+        },
+        tx,
+      );
+    }, "Asking the Coworker collided with another operation");
   }
 
   /**
@@ -1394,10 +1617,14 @@ export class SokoBotRuntimeService {
     if (authorized.turn.source === "CHAT" || room.kind !== "direct") {
       return;
     }
-    const ownerIsMember = await client.chatRoomUserMember.findFirst({
-      where: { roomId: room.id, userId: authorized.turn.userId },
-      select: { id: true },
-    });
+    // A turn that acts for nobody has no owner in any direct room.
+    const { actingUserId } = authorized.turn;
+    const ownerIsMember =
+      actingUserId !== null &&
+      (await client.chatRoomUserMember.findFirst({
+        where: { roomId: room.id, userId: actingUserId },
+        select: { id: true },
+      }));
     if (!ownerIsMember) {
       throw new SokoBotRuntimeAuthorizationError(
         "Writing to a colleague is for turns your owner asked for. Raise it in your owner's chat instead.",
@@ -1413,7 +1640,11 @@ export class SokoBotRuntimeService {
       content: string;
       toolCallId: string;
       resultReferences?: ChatResultReference[];
-      openedDirect?: { name: string; created: boolean; withUserName: string };
+      /** The tool that posted when it was not post_chat, and what it adds to the result. */
+      via?: {
+        capability: "open_direct_chat" | "ask_coworker";
+        result: Record<string, unknown>;
+      };
       publicationId?: string;
     },
     transaction?: Prisma.TransactionClient,
@@ -1430,7 +1661,7 @@ export class SokoBotRuntimeService {
         await resolveChatResultReference({
           reference,
           actor: {
-            userId: authorized.turn.userId,
+            userId: actingMemberOf(authorized),
             workspaceId: authorized.turn.workspaceId,
             kind: "soko_bot",
           },
@@ -1442,7 +1673,7 @@ export class SokoBotRuntimeService {
         tx,
         authorized,
         false,
-        input.openedDirect ? "open_direct_chat" : "post_chat",
+        input.via?.capability ?? "post_chat",
       );
       // A turn another assistant started may answer only where it was asked.
       // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
@@ -1602,7 +1833,7 @@ export class SokoBotRuntimeService {
         queuedMentions:
           mentionedCoworkerIds.length + mentionedSokoBotIds.length,
         deliveryStatus: "QUEUED",
-        ...input.openedDirect,
+        ...input.via?.result,
       };
       const receipt = await commitActionReceipt(tx, {
         turnId: authorized.turn.id,
@@ -1683,11 +1914,12 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeValidationError(
         `Use one of these aspect ratios: ${IMAGE_ASPECT_RATIOS.join(", ")}.`,
       );
+    this.requireImageProject(authorized, input.projectId);
     try {
       await requireProjectAccess({
         projectId: input.projectId,
         workspaceId: authorized.turn.workspaceId,
-        userId: authorized.turn.userId,
+        userId: actingMemberOf(authorized),
       });
     } catch (error) {
       if (error instanceof HTTPException)
@@ -1743,7 +1975,7 @@ export class SokoBotRuntimeService {
       job = await createImageJob({
         projectId: input.projectId,
         workspaceId: authorized.turn.workspaceId,
-        userId: authorized.turn.userId,
+        userId: actingMemberOf(authorized),
         sessionId: null,
         prompt: input.prompt,
         modelId: model.id,
@@ -1772,13 +2004,177 @@ export class SokoBotRuntimeService {
     };
   }
 
-  /** Where an image started with `generate_image` has got to. */
-  private async getImage(authorized: AuthorizedSokoBotRuntime, raw: unknown) {
-    const input = getImageInputSchema.parse(raw);
+  /**
+   * Everything that can refuse a video before anything is sent, mirroring
+   * {@link checkImageRequest}: an owner chat turn, a Project the owner can
+   * open, a finished image to animate when one is named, and a price within
+   * maxCredits.
+   */
+  private async checkVideoRequest(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+    toolCallId: string,
+  ) {
+    const input = generateVideoInputSchema.parse(raw);
+    if (
+      authorized.turn.source !== "CHAT" ||
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind === "ASSISTANT"
+    )
+      throw new SokoBotRuntimeAuthorizationError(
+        "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
+      );
+    const started = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "generate_video",
+        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        NOT: { toolCallId },
+      },
+    });
+    if (started >= MAX_VIDEOS_PER_TURN)
+      throw new SokoBotRuntimeValidationError(
+        `One turn may start at most ${MAX_VIDEOS_PER_TURN} videos. Show your owner these first.`,
+      );
+    this.requireImageProject(authorized, input.projectId);
     const scope = {
       projectId: input.projectId,
       workspaceId: authorized.turn.workspaceId,
-      userId: authorized.turn.userId,
+      userId: actingMemberOf(authorized),
+    };
+    try {
+      await requireProjectAccess(scope);
+    } catch (error) {
+      if (error instanceof HTTPException)
+        throw new SokoBotRuntimeValidationError(
+          "That Project is not one your owner can open.",
+        );
+      throw error;
+    }
+
+    let sourceAssetId: string | null = null;
+    if (input.imageJobId) {
+      const source = await getJob({ ...scope, jobId: input.imageJobId });
+      if (!source || source.video !== null)
+        throw new SokoBotRuntimeValidationError(
+          "imageJobId must be a generate_image job in this Project.",
+        );
+      if (!source.assetId)
+        throw new SokoBotRuntimeValidationError(
+          "That image is not ready yet. Check it with get_image first.",
+        );
+      sourceAssetId = source.assetId;
+    }
+
+    await ensureImageCatalogFresh();
+    const animate = sourceAssetId !== null;
+    const high = input.quality === "high";
+    let model: VideoModel;
+    let settings: VideoSettings;
+    let credits: number;
+    try {
+      model = videoModel(
+        animate
+          ? high
+            ? HIGH_QUALITY_ANIMATE_MODEL_ID
+            : DEFAULT_ANIMATE_MODEL_ID
+          : high
+            ? HIGH_QUALITY_VIDEO_MODEL_ID
+            : DEFAULT_VIDEO_MODEL_ID,
+      );
+      settings = validateVideoSettings(
+        model,
+        {
+          ...defaultVideoSettings(model),
+          ...(input.aspectRatio && !animate
+            ? { aspectRatio: input.aspectRatio }
+            : {}),
+          ...(input.durationSeconds
+            ? { durationSeconds: input.durationSeconds }
+            : {}),
+        },
+        animate,
+      );
+      credits = creditsPerVideo(model, settings);
+    } catch (error) {
+      throw new SokoBotRuntimeValidationError(
+        error instanceof Error ? error.message : "Invalid video settings",
+      );
+    }
+    if (credits > input.maxCredits)
+      throw new SokoBotRuntimeValidationError(
+        `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+      );
+    return { input, model, settings, credits, sourceAssetId };
+  }
+
+  /** Starts a video in a Project's Content Studio, once checked. */
+  private async generateVideo(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+    toolCallId: string,
+  ) {
+    const { input, model, settings, credits, sourceAssetId } =
+      await this.checkVideoRequest(authorized, raw, toolCallId).catch(
+        (error: unknown) => {
+          throw new SokoBotImageRefusedError(
+            error instanceof Error ? error.message : "Video refused",
+          );
+        },
+      );
+    let job: Awaited<ReturnType<typeof createVideoJob>>;
+    try {
+      job = await createVideoJob({
+        projectId: input.projectId,
+        workspaceId: authorized.turn.workspaceId,
+        userId: actingMemberOf(authorized),
+        sessionId: null,
+        prompt: input.prompt,
+        modelId: model.id,
+        settings,
+        sourceAssetId,
+        idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
+      });
+    } catch (error) {
+      if (error instanceof HTTPException)
+        throw new SokoBotImageRefusedError(error.message);
+      throw error;
+    }
+    return {
+      jobId: job.id,
+      projectId: input.projectId,
+      status: job.status,
+      credits,
+      durationSeconds: settings.durationSeconds,
+      studioUrl: studioLink(input.projectId),
+      note:
+        job.status === "SUBMISSION_UNCERTAIN"
+          ? "The provider did not confirm this request. Do not start it again; tell the owner."
+          : "Started. A video takes a few minutes; check it with get_video.",
+    };
+  }
+
+  /** A project bot makes and reads images in its own Project only. */
+  private requireImageProject(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    const scope = authorized.reader.sharedScope;
+    const refusal = sokoBotProjectRefusal(scope, [projectId]);
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+  }
+
+  /** Where an image or video started with `generate_image` or `generate_video` has got to. */
+  private async getStudioJob(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+  ) {
+    const input = getImageInputSchema.parse(raw);
+    this.requireImageProject(authorized, input.projectId);
+    const scope = {
+      projectId: input.projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: actingMemberOf(authorized),
     };
     try {
       // Access before reconciling: reconciliation calls the provider, and a
@@ -1839,7 +2235,7 @@ export class SokoBotRuntimeService {
       workspaceId: drive.key.workspaceId,
       organizationId:
         drive.key.scope === "organization" ? drive.key.ownerId : null,
-      userId: authorized.turn.userId,
+      userId: drive.actor.userId,
       prompt: image.prompt,
       jobId: image.jobId,
     });
@@ -1873,7 +2269,7 @@ export class SokoBotRuntimeService {
         const file = files.find((candidate) => candidate.id === item.fileId);
         if (!file || file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
           throw new SokoBotRuntimeValidationError(
-            `File ${item.fileId} is not in the owner's Files; use an id from list_files or get_image`,
+            `File ${item.fileId} is not in the owner's Files; use an id from list_files, get_image or get_video`,
           );
         const mimeType = file.mimeType ?? "";
         const kind = socialPostMediaKindForMime(mimeType);
@@ -1900,7 +2296,7 @@ export class SokoBotRuntimeService {
    * invisible where the owner looked, while the bot still found it.
    */
   private async ownerDrive(authorized: AuthorizedSokoBotRuntime) {
-    const userId = authorized.turn.userId;
+    const userId = actingMemberOf(authorized);
     const workspace = await prisma.workspace.findUnique({
       where: { id: authorized.turn.workspaceId },
       select: { id: true, organizationId: true },
@@ -1932,6 +2328,7 @@ export class SokoBotRuntimeService {
         userId,
         organizationId,
         kind: "soko_bot",
+        sokoBotScope: authorized.reader.sharedScope,
       } satisfies FileActor,
     };
   }
@@ -1973,6 +2370,106 @@ export class SokoBotRuntimeService {
   }
 
   /** The text the catalog extracted from one Drive file. */
+  /**
+   * The text of attached files, appended to a brief or comment. A Coworker
+   * works from a Task's text: Hannah saw neither the Task's file list nor
+   * the attachment the bot made, and asked three times for the brief.
+   */
+  private async withInlineFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    text: string,
+    fileIds: readonly string[] | undefined,
+  ): Promise<string> {
+    let room = TASK_TEXT_MAX_CHARS - text.length;
+    const parts = [text];
+    for (const fileId of new Set(fileIds ?? [])) {
+      if (room < 200) break;
+      const file = await this.readFile(authorized, { fileId }).catch(
+        () => null,
+      );
+      if (!file?.text) continue;
+      const header = `\n\n--- ${file.name} ---\n`;
+      const body = file.text.slice(0, room - header.length - 40);
+      parts.push(
+        header +
+          body +
+          (body.length < file.text.length
+            ? "\n[… cut; the full file is attached]"
+            : ""),
+      );
+      room -= header.length + body.length + 40;
+    }
+    return parts.join("");
+  }
+
+  /**
+   * Copies Drive files onto a Task as its inputs. A Coworker reads the Task,
+   * not the owner's Files: "review index.html in your Files" left Hannah
+   * with nothing to open. Called after the action that proved write access.
+   */
+  private async attachDriveFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    taskId: string,
+    fileIds: readonly string[],
+  ) {
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: [...new Set(fileIds)],
+    });
+    const attached: { fileId: string; name: string }[] = [];
+    const skipped: { fileId: string; reason: string }[] = [];
+    for (const fileId of new Set(fileIds)) {
+      const file = files.find((candidate) => candidate.id === fileId);
+      if (!file) {
+        skipped.push({
+          fileId,
+          reason: "not found; use an id from list_files",
+        });
+        continue;
+      }
+      const name = clampTaskFileName(file.displayName);
+      // A page the bot built is attached as its source text: Task files are
+      // public blobs, and served as HTML they would run in a reader's browser.
+      const contentType =
+        resolveTaskFileContentType(name, file.mimeType ?? "") ??
+        (isTextMimeType(file.mimeType)
+          ? resolveTaskFileContentType(name, "text/plain")
+          : null);
+      const bytes =
+        file.sourceKind === "DRIVE_UPLOAD" && contentType
+          ? await downloadBlob(file.sourceId)
+          : null;
+      if (!bytes || !contentType) {
+        skipped.push({
+          fileId,
+          reason: "this kind of file cannot be attached",
+        });
+        continue;
+      }
+      const blob = await put(
+        buildTaskFilePathname(taskId, name),
+        Buffer.from(bytes),
+        { access: "public", contentType, addRandomSuffix: true },
+      );
+      await prisma.taskFile.upsert({
+        where: { taskId_fileUrl: { taskId, fileUrl: blob.url } },
+        create: {
+          taskId,
+          name,
+          fileUrl: blob.url,
+          mimeType: contentType,
+          size: BigInt(bytes.byteLength),
+          uploadedBySokoBotId: authorized.turn.sokoBotId,
+        },
+        update: {},
+      });
+      attached.push({ fileId, name });
+    }
+    return { attached, ...(skipped.length ? { skipped } : {}) };
+  }
+
   private async readFile(
     authorized: AuthorizedSokoBotRuntime,
     input: { fileId: string; maxChars?: number },
@@ -2041,8 +2538,10 @@ export class SokoBotRuntimeService {
       attachmentUrl?: string;
       contentType?: string;
       overwrite?: boolean;
+      folder?: string;
     },
   ) {
+    const folder = driveFolderFor(input.folder);
     if (input.attachmentUrl) {
       if (input.content !== undefined)
         throw new SokoBotRefusedUnsentError(
@@ -2052,6 +2551,7 @@ export class SokoBotRuntimeService {
         filename: input.filename,
         url: input.attachmentUrl,
         overwrite: input.overwrite,
+        folder,
       });
     }
     if (input.content === undefined)
@@ -2059,7 +2559,9 @@ export class SokoBotRuntimeService {
         "Give the file's text as content, or a chat attachment's link as attachmentUrl",
       );
     const drive = await this.ownerDrive(authorized);
-    const pathname = drive.pathname(input.filename);
+    const pathname = folder
+      ? drive.pathnameIn(folder, input.filename)
+      : drive.pathname(input.filename);
     const contentType = input.contentType ?? "text/markdown";
     // Text only: this tool writes what the model composed, never binary.
     if (!isTextMimeType(contentType)) {
@@ -2111,12 +2613,370 @@ export class SokoBotRuntimeService {
       replaced: Boolean(existing),
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
+      folder: folder || null,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
       savedTo:
         drive.key.scope === "organization"
           ? "Files in this organization's workspace, visible to its members"
           : "Files in the owner's personal workspace",
     };
+  }
+
+  /** The receipt for a write that already happened outside a transaction. */
+  private async commitReceipt<T>(
+    authorized: AuthorizedSokoBotRuntime,
+    toolCallId: string,
+    targetId: string,
+    result: T,
+  ): Promise<T> {
+    await prisma.$transaction((tx) =>
+      commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId,
+        result: persistedToolResult(result),
+      }),
+    );
+    return result;
+  }
+
+  private async mailboxFor(
+    authorized: AuthorizedSokoBotRuntime,
+    provider: string | undefined,
+  ) {
+    const integrations = await activeIntegrationsForBot(
+      authorized.turn.sokoBotId,
+      "email",
+      provider,
+    );
+    if (integrations.length === 0)
+      throw new SokoBotRefusedUnsentError("No connected mailbox");
+    if (integrations.length > 1)
+      throw new SokoBotRefusedUnsentError(
+        "Several mailboxes are connected; say which provider",
+      );
+    return integrations[0];
+  }
+
+  /** Marks mail read or unread, or archives it. */
+  private async updateEmails(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      provider?: string;
+      messageIds: string[];
+      read?: boolean;
+      archive?: boolean;
+    },
+    toolCallId: string,
+  ) {
+    if (input.read === undefined && !input.archive)
+      throw new SokoBotRuntimeValidationError("Say read, unread or archive");
+    const integration = await this.mailboxFor(authorized, input.provider);
+    try {
+      await modifyInboxMessages(integration, input.messageIds, input);
+    } catch (error) {
+      throw new SokoBotRuntimeValidationError(
+        `The mailbox refused the change: ${error instanceof Error ? error.message : "unknown error"}. It may need reconnecting with write access.`,
+      );
+    }
+    return this.commitReceipt(authorized, toolCallId, integration.id, {
+      updated: input.messageIds.length,
+      read: input.read,
+      archived: Boolean(input.archive),
+    });
+  }
+
+  /** Writes a draft in the owner's mailbox; nothing is sent. */
+  private async draftEmail(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      provider?: string;
+      to: string[];
+      cc?: string[];
+      subject: string;
+      body: string;
+      replyToMessageId?: string;
+    },
+    toolCallId: string,
+  ) {
+    const integration = await this.mailboxFor(authorized, input.provider);
+    const threadId = input.replyToMessageId
+      ? ((await fetchInboxMessage(integration, input.replyToMessageId))
+          .threadId ?? undefined)
+      : undefined;
+    const draftId = await createInboxDraft(integration, { ...input, threadId });
+    await prisma.sokoBotMailDraft.create({
+      data: {
+        sokoBotId: authorized.turn.sokoBotId,
+        provider: integration.provider.id,
+        draftId,
+        to: input.to,
+        subject: input.subject,
+        turnId: authorized.turn.id,
+      },
+    });
+    return this.commitReceipt(authorized, toolCallId, draftId, {
+      draftId,
+      to: input.to,
+      subject: input.subject,
+      sent: false,
+      note: "Show your owner the draft. Send it only when they explicitly say to in a later message.",
+    });
+  }
+
+  /**
+   * Sends a draft this bot wrote, only when its owner, in their own chat,
+   * saw it in an earlier turn and now explicitly says to send it.
+   */
+  private async sendEmailDraft(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { draftId: string },
+    toolCallId: string,
+  ) {
+    const refusal = mailSendRefusal({
+      source: authorized.turn.source,
+      chainDepth: authorized.turn.chainDepth,
+      askedByAssistant: authorized.askedByKind === "ASSISTANT",
+      shared: Boolean(authorized.reader.sharedScope),
+    });
+    if (refusal) throw new SokoBotRefusedUnsentError(refusal);
+    const draft = await prisma.sokoBotMailDraft.findUnique({
+      where: {
+        sokoBotId_draftId: {
+          sokoBotId: authorized.turn.sokoBotId,
+          draftId: input.draftId,
+        },
+      },
+    });
+    if (!draft)
+      throw new SokoBotRefusedUnsentError("Only drafts you wrote can be sent");
+    if (draft.sentAt)
+      throw new SokoBotRefusedUnsentError("This draft was already sent");
+    if (draft.turnId === authorized.turn.id)
+      throw new SokoBotRefusedUnsentError(
+        "Show your owner the draft first; send it after they say so in a new message",
+      );
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: authorized.turn.id },
+      select: { userMessage: true },
+    });
+    if (!(await ownerAskedToSend(turn.userMessage, draft)))
+      throw new SokoBotRefusedUnsentError(
+        "Your owner has not explicitly said to send this draft. Ask them.",
+      );
+    const [integration] = await activeIntegrationsForBot(
+      authorized.turn.sokoBotId,
+      "email",
+      draft.provider,
+    );
+    if (!integration)
+      throw new SokoBotRefusedUnsentError("The mailbox is no longer connected");
+    await sendInboxDraft(integration, draft.draftId);
+    await prisma.sokoBotMailDraft.update({
+      where: { id: draft.id },
+      data: { sentAt: new Date(), sentByTurnId: authorized.turn.id },
+    });
+    return this.commitReceipt(authorized, toolCallId, draft.draftId, {
+      sent: true,
+      to: draft.to,
+      subject: draft.subject,
+    });
+  }
+
+  /** Saves one mail attachment into the owner's Files. */
+  private async saveEmailAttachment(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      provider?: string;
+      messageId: string;
+      attachmentId: string;
+      filename: string;
+      folder?: string;
+      saveAs?: string;
+    },
+    toolCallId: string,
+  ) {
+    const folder = driveFolderFor(input.folder);
+    const integration = await this.mailboxFor(authorized, input.provider);
+    if (!integration.provider.tools.getAttachment)
+      throw new SokoBotRefusedUnsentError(
+        `${integration.provider.name} attachments cannot be saved yet`,
+      );
+    // Gmail hands out a new attachment id on every read, so a name match on
+    // a fresh read stands in for an id from an earlier one.
+    const message = await fetchInboxMessage(integration, input.messageId);
+    const attachment =
+      message.attachments.find((item) => item.id === input.attachmentId) ??
+      message.attachments.find((item) => item.filename === input.filename);
+    if (!attachment)
+      throw new SokoBotRefusedUnsentError(
+        `That email has no attachment "${input.filename}"; read_email lists its attachments`,
+      );
+    if (attachment.size && attachment.size > INBOX_ATTACHMENT_MAX_BYTES)
+      throw new SokoBotRefusedUnsentError(
+        "That attachment is larger than 25 MB",
+      );
+    const saved = await this.saveFileBytes(authorized, {
+      filename: input.saveAs ?? attachment.filename,
+      folder,
+      contentType: attachment.mimeType,
+      read: async () => {
+        const bytes = await fetchInboxAttachment(integration, {
+          messageId: input.messageId,
+          attachmentId: attachment.id,
+          filename: attachment.filename,
+        });
+        if (bytes.byteLength > INBOX_ATTACHMENT_MAX_BYTES)
+          throw new SokoBotRefusedUnsentError(
+            "That attachment is larger than 25 MB",
+          );
+        return bytes;
+      },
+    });
+    return this.commitReceipt(
+      authorized,
+      toolCallId,
+      saved.id ?? `${input.messageId}:${attachment.id}`,
+      saved,
+    );
+  }
+
+  /** Moves one of the owner's Drive files into a folder of the same Drive. */
+  private async moveFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; folder: string },
+    toolCallId: string,
+  ) {
+    const folder = driveFolderFor(input.folder);
+    const drive = await this.ownerDrive(authorized);
+    const resource = await prisma.fileResource.findFirst({
+      where: {
+        id: input.fileId,
+        workspaceId: drive.key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope:
+          drive.key.scope === "organization"
+            ? FileSourceScope.ORGANIZATION
+            : FileSourceScope.USER,
+        tombstonedAt: null,
+        ...(drive.key.scope === "organization"
+          ? { ownerOrganizationId: drive.key.ownerId }
+          : { ownerUserId: drive.key.ownerId }),
+      },
+      select: { id: true, sourceId: true, displayName: true },
+    });
+    if (!resource)
+      throw new SokoBotRefusedUnsentError(
+        "No file with that id in your owner's Files; files from Tasks stay with their Task",
+      );
+    const token = getEnv().BLOB_READ_WRITE_TOKEN;
+    if (!token)
+      throw new SokoBotRuntimeValidationError("File storage is not configured");
+    try {
+      await moveDriveFile({
+        sourcePathname: resource.sourceId,
+        targetFolderPath: folder,
+        scope: drive.key.scope,
+        ownerId: drive.key.ownerId,
+        workspaceId: drive.key.workspaceId,
+        token,
+      });
+    } catch (error) {
+      if (error instanceof HTTPException && error.status < 500)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+    return this.commitReceipt(authorized, toolCallId, resource.id, {
+      id: resource.id,
+      filename: resource.displayName,
+      folder: folder || null,
+      link: `/drive/files/${resource.id}`,
+    });
+  }
+
+  private async listSkills(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { query?: string },
+  ) {
+    const userId = actingMemberOf(authorized);
+    const [installed, catalog] = await Promise.all([
+      listInstalledSkills(userId, authorized.turn.workspaceId),
+      input.query ? searchSkillsSh(input.query).catch(() => null) : [],
+    ]);
+    return {
+      installed: installed.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        source: skill.slug,
+      })),
+      ...(input.query
+        ? catalog === null
+          ? { catalogUnavailable: true }
+          : { catalog }
+        : {}),
+    };
+  }
+
+  private async installSkill(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { source: string; skillName?: string },
+    toolCallId: string,
+  ) {
+    const userId = requireOwnerSkillRequest(authorized);
+    try {
+      const result = await installSkill({
+        userId,
+        workspaceId: authorized.turn.workspaceId,
+        source: input.source,
+        skillName: input.skillName ?? null,
+      });
+      return result.skill
+        ? await this.commitReceipt(authorized, toolCallId, result.skill.id, {
+            installed: {
+              id: result.skill.id,
+              name: result.skill.name,
+              description: result.skill.description,
+            },
+          })
+        : {
+            installed: null,
+            chooseOne: result.candidates.map((candidate) => ({
+              skillName: candidate.name,
+              description: candidate.description,
+            })),
+          };
+    } catch (error) {
+      if (error instanceof SokoBotSkillError)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+  }
+
+  private async removeSkill(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { skill: string },
+    toolCallId: string,
+  ) {
+    const userId = requireOwnerSkillRequest(authorized);
+    const installed = await listInstalledSkills(
+      userId,
+      authorized.turn.workspaceId,
+    );
+    const wanted = input.skill.toLowerCase();
+    const skill = installed.find(
+      (entry) =>
+        entry.id === input.skill || entry.name.toLowerCase() === wanted,
+    );
+    if (!skill)
+      throw new SokoBotRefusedUnsentError(
+        "No installed skill by that id or name; list_skills shows them",
+      );
+    await removeInstalledSkill(userId, skill.id);
+    return this.commitReceipt(authorized, toolCallId, skill.id, {
+      removed: { id: skill.id, name: skill.name },
+    });
   }
 
   /**
@@ -2128,7 +2988,12 @@ export class SokoBotRuntimeService {
    */
   private async saveChatAttachment(
     authorized: AuthorizedSokoBotRuntime,
-    input: { filename: string; url: string; overwrite?: boolean },
+    input: {
+      filename: string;
+      url: string;
+      overwrite?: boolean;
+      folder: string;
+    },
   ) {
     const file = parseChatRoomFileUrl(input.url);
     if (!file)
@@ -2141,7 +3006,17 @@ export class SokoBotRuntimeService {
         roomId: room.id,
         deletedAt: null,
         content: { contains: input.url },
-        room: { userMembers: { some: { userId: authorized.turn.userId } } },
+        // The owner must be in the room too; acting for nobody, the bot's
+        // own membership above is the whole check.
+        ...(authorized.turn.actingUserId === null
+          ? {}
+          : {
+              room: {
+                userMembers: {
+                  some: { userId: authorized.turn.actingUserId },
+                },
+              },
+            }),
       },
       select: { id: true },
     });
@@ -2152,11 +3027,42 @@ export class SokoBotRuntimeService {
     const meta = await head(input.url);
     if (meta.size > CHAT_ROOM_FILE_MAX_SIZE_BYTES)
       throw new SokoBotRefusedUnsentError("That attachment is too large");
+    return this.saveFileBytes(authorized, {
+      filename: input.filename,
+      folder: input.folder,
+      overwrite: input.overwrite,
+      contentType: meta.contentType,
+      read: async () => {
+        const response = await fetch(meta.url, {
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!response.ok)
+          throw new SokoBotRuntimeValidationError(
+            "The attachment could not be read; try again",
+          );
+        return Buffer.from(await response.arrayBuffer());
+      },
+    });
+  }
+
+  /** Saves a file's bytes into the owner's Files; `read` runs once the name is free. */
+  private async saveFileBytes(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      filename: string;
+      folder: string;
+      overwrite?: boolean;
+      contentType: string;
+      read: () => Promise<Buffer>;
+    },
+  ) {
     const contentType =
-      resolveUserUploadContentType(input.filename, meta.contentType) ??
-      meta.contentType;
+      resolveUserUploadContentType(input.filename, input.contentType) ??
+      input.contentType;
     const drive = await this.ownerDrive(authorized);
-    const pathname = drive.pathname(input.filename);
+    const pathname = input.folder
+      ? drive.pathnameIn(input.folder, input.filename)
+      : drive.pathname(input.filename);
     const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
       (blob) => blob.pathname === pathname,
     );
@@ -2164,14 +3070,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRefusedUnsentError(
         `A file named "${input.filename}" already exists. To replace it, call upload_file again with overwrite: true; to keep it, choose another name.`,
       );
-    const response = await fetch(meta.url, {
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!response.ok)
-      throw new SokoBotRuntimeValidationError(
-        "The attachment could not be read; try again",
-      );
-    const bytes = Buffer.from(await response.arrayBuffer());
+    const bytes = await input.read();
     const key = { ...drive.key, pathname };
     const displayName = pathname.split("/").pop() ?? input.filename;
     await reserveDriveUploadResource({
@@ -2198,6 +3097,7 @@ export class SokoBotRuntimeService {
       replaced: Boolean(existing),
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: bytes.byteLength,
+      folder: input.folder || null,
       savedTo:
         drive.key.scope === "organization"
           ? "Files in this organization's workspace, visible to its members"
@@ -2262,10 +3162,7 @@ export class SokoBotRuntimeService {
     const where: Prisma.TaskWhereInput = {
       AND: [
         { workspaceId: authorized.turn.workspaceId, archivedAt: null },
-        buildSokoBotAudienceTaskVisibilityWhere(
-          authorized.turn.userId,
-          authorized.askedByKind,
-        ),
+        buildSokoBotReaderTaskWhere(authorized.reader),
         // An exact status is the question itself; `state` would only
         // contradict it (FAILED is finished, yet "open" is the default).
         input.status
@@ -2371,13 +3268,11 @@ export class SokoBotRuntimeService {
   }
 
   private async readTask(authorized: AuthorizedSokoBotRuntime, taskId: string) {
+    const ownerId = authorized.turn.actingUserId;
     const visiblePeerTask = {
       workspaceId: authorized.turn.workspaceId,
       archivedAt: null,
-      ...buildSokoBotAudienceTaskVisibilityWhere(
-        authorized.turn.userId,
-        authorized.askedByKind,
-      ),
+      ...buildSokoBotReaderTaskWhere(authorized.reader),
     };
     const task = await prisma.task.findFirst({
       where: {
@@ -2385,22 +3280,13 @@ export class SokoBotRuntimeService {
         workspaceId: authorized.turn.workspaceId,
         // Explicit owner reads may inspect retained archive history; shared
         // audience reads and related-task discovery still exclude archives.
-        ...(authorized.askedByKind === "OWNER"
+        // A turn for nobody has no owner, so it reads no archive.
+        ...(authorized.askedByKind === "OWNER" && ownerId !== null
           ? {
-              AND: [
-                {
-                  OR: [
-                    { archivedAt: null },
-                    { ownerId: authorized.turn.userId },
-                  ],
-                },
-              ],
+              AND: [{ OR: [{ archivedAt: null }, { ownerId }] }],
             }
           : { archivedAt: null }),
-        ...buildSokoBotAudienceTaskVisibilityWhere(
-          authorized.turn.userId,
-          authorized.askedByKind,
-        ),
+        ...buildSokoBotReaderTaskWhere(authorized.reader),
       },
       select: {
         id: true,
@@ -2428,9 +3314,7 @@ export class SokoBotRuntimeService {
             coworkerId: true,
             userId: true,
             sokoBotId: true,
-            sokoBot: {
-              select: { name: true, user: { select: { name: true } } },
-            },
+            sokoBot: { select: SOKO_BOT_OWNER_NAME_SELECT },
           },
         },
         files: {
@@ -2516,7 +3400,7 @@ export class SokoBotRuntimeService {
         // owner, never for yours.
         ...(event.sokoBot && event.sokoBotId !== authorized.turn.sokoBotId
           ? {
-              byName: `${sokoBotDisplayName({ name: event.sokoBot.name })}, ${event.sokoBot.user.name ?? "another person"}'s assistant`,
+              byName: sokoBotAuthorLabel(event.sokoBot),
             }
           : {}),
         status: event.status,
@@ -2527,7 +3411,7 @@ export class SokoBotRuntimeService {
         turnId: authorized.turn.id,
         sokoBotId: authorized.turn.sokoBotId,
         workspaceId: authorized.turn.workspaceId,
-        userId: authorized.turn.userId,
+        userId: authorized.turn.actingUserId,
         intentId: authorized.turn.intentId,
         intentRevision: authorized.turn.intentRevision,
         audience: authorized.askedByKind,
@@ -2582,6 +3466,7 @@ export class SokoBotRuntimeService {
         authorized,
         false,
         "update_assigned_task",
+        { taskIds: [input.taskId] },
       );
       const claim = await claimTaskEventAction(
         tx,
@@ -2610,7 +3495,10 @@ export class SokoBotRuntimeService {
           assigneeSokoBotId: true,
         },
       });
-      if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (!task)
+        throw new SokoBotRuntimeValidationError(
+          "Task not found; copy its id exactly from list_tasks or get_task_status",
+        );
       if (task.assigneeSokoBotId !== authorized.turn.sokoBotId) {
         throw new SokoBotRuntimeValidationError(
           "You are not the assignee of this Task; use reply_to_task to comment",
@@ -2731,10 +3619,7 @@ export class SokoBotRuntimeService {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
-          ...buildSokoBotAudienceTaskVisibilityWhere(
-            authorized.turn.userId,
-            authorized.askedByKind,
-          ),
+          ...buildSokoBotReaderTaskWhere(authorized.reader),
         },
         select: {
           id: true,
@@ -2745,7 +3630,10 @@ export class SokoBotRuntimeService {
           assigneeSokoBotId: true,
         },
       });
-      if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (!task)
+        throw new SokoBotRuntimeValidationError(
+          "Task not found; copy its id exactly from list_tasks or get_task_status",
+        );
       if (!input.status && !options?.publicationId) {
         const events = await tx.taskEvent.findMany({
           where: {
@@ -2778,23 +3666,25 @@ export class SokoBotRuntimeService {
           );
         }
       }
-      const cancel =
-        input.status === "CANCELED" && task.status !== TaskStatus.CANCELED;
-      // Cancelling stops the work for good, so it is the owner's call and
-      // only on the owner's own Tasks; commenting stays open to any visible one.
-      if (cancel && task.ownerId !== authorized.turn.userId)
+      const close =
+        (input.status === "CANCELED" || input.status === "COMPLETED") &&
+        task.status !== input.status
+          ? TaskStatus[input.status]
+          : null;
+      // Cancelling or completing ends the work for good, so it is the owner's
+      // call and only on the owner's own Tasks, as in the app's status picker;
+      // commenting stays open to any visible one. A turn for nobody has no
+      // owner, so it closes nothing.
+      const { actingUserId } = authorized.turn;
+      if (close && (actingUserId === null || task.ownerId !== actingUserId))
         throw new SokoBotRuntimeValidationError(
-          "Only the owner's own Tasks can be canceled; comment instead",
+          "Only the owner's own Tasks can be canceled or completed; comment instead",
         );
       const changeStatus =
         input.status === "READY" &&
         task.status !== TaskStatus.READY &&
         task.status !== TaskStatus.RUNNING;
-      const nextStatus = changeStatus
-        ? TaskStatus.READY
-        : cancel
-          ? TaskStatus.CANCELED
-          : null;
+      const nextStatus = changeStatus ? TaskStatus.READY : close;
       if (changeStatus) {
         if (!resumable.includes(task.status)) {
           throw new SokoBotRuntimeValidationError(
@@ -2903,10 +3793,7 @@ export class SokoBotRuntimeService {
           id: { in: [input.taskId, input.peerTaskId] },
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
-          ...buildSokoBotAudienceTaskVisibilityWhere(
-            authorized.turn.userId,
-            authorized.askedByKind,
-          ),
+          ...buildSokoBotReaderTaskWhere(authorized.reader),
         },
         select: { id: true, name: true },
       });
@@ -2981,7 +3868,13 @@ export class SokoBotRuntimeService {
     const proposalJson = jsonInput(parsedProposal);
     const reason = await describeDecision(toolName, parsedProposal);
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false, toolName);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        toolName,
+        decisionProposalTargets(toolName, parsedProposal),
+      );
       // A model that retries an approval-gated call with the same input must
       // not fan out into several identical approvals for the owner.
       const existing = await tx.sokoBotPendingDecision.findFirst({
@@ -3017,7 +3910,7 @@ export class SokoBotRuntimeService {
           intentId: intentTurn?.intentId,
           sokoBotId: authorized.turn.sokoBotId,
           turnId: authorized.turn.id,
-          userId: authorized.turn.userId,
+          requestedByUserId: authorized.turn.requestedByUserId,
           workspaceId: authorized.turn.workspaceId,
           toolName,
           reason,
@@ -3053,6 +3946,7 @@ export class SokoBotRuntimeService {
         authorized,
         approved,
         "create_task",
+        decisionProposalTargets("create_task", input),
       );
       const triggeringTaskId =
         input.triggeringTaskId ??
@@ -3086,7 +3980,7 @@ export class SokoBotRuntimeService {
             capability: "create_task",
             operationKey: actionOperationKey({
               workspaceId: authorized.turn.workspaceId,
-              principalId: authorized.turn.userId,
+              principalId: actionPrincipalId(authorized.turn),
               intentRevision: toolCallId,
               capability: "create_task",
               inputHash: actionInputHash(rawInput),
@@ -3104,13 +3998,17 @@ export class SokoBotRuntimeService {
             kind: "soko_bot",
             sokoBotId: authorized.turn.sokoBotId,
           },
-          ownerId: authorized.turn.userId,
+          ownerId: authorized.turn.actingUserId,
           organizationId: workspace.organizationId,
           workspaceId: authorized.turn.workspaceId,
           projectId: input.projectId,
           name: input.name,
           description: input.description,
-          ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
+          ...toolAssigneeFields(
+            input.coworkerId,
+            authorized.turn.sokoBotId,
+            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+          ),
           status: input.status,
           channel: Channel.SOKOSUMI,
           effectEventId,
@@ -3132,6 +4030,7 @@ export class SokoBotRuntimeService {
           outcome: result.status,
           lastSeenStatus: result.status,
           taskId: result.id,
+          followUp: input.followUp,
         },
       });
       {
@@ -3157,6 +4056,12 @@ export class SokoBotRuntimeService {
     options: { capability: "update_task" | "archive_task"; approved?: boolean },
   ) {
     const { capability, approved = false } = options;
+    // Archiving is managing the Task (ADR 0057): never for nobody, not even
+    // as a no-op on an archived one.
+    if (capability === "archive_task" && authorized.turn.actingUserId === null)
+      throw new SokoBotRefusedUnsentError(
+        "Archiving a Task needs an Organization owner or admin; suggest it in your chat instead",
+      );
     const input: ReturnType<typeof taskUpdateInputSchema.parse> & {
       archive: boolean;
     } =
@@ -3184,7 +4089,16 @@ export class SokoBotRuntimeService {
     approved: boolean,
   ) {
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, approved, capability);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        approved,
+        capability,
+        {
+          taskIds: [input.taskId],
+          projectIds: input.projectId === undefined ? [] : [input.projectId],
+        },
+      );
       const claim = await claimTaskEventAction(
         tx,
         {
@@ -3210,7 +4124,7 @@ export class SokoBotRuntimeService {
             capability,
             operationKey: actionOperationKey({
               workspaceId: authorized.turn.workspaceId,
-              principalId: authorized.turn.userId,
+              principalId: actionPrincipalId(authorized.turn),
               intentRevision: toolCallId,
               capability,
               inputHash: actionInputHash(rawInput),
@@ -3226,7 +4140,11 @@ export class SokoBotRuntimeService {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
           // What the owner may change in the app, not only what they created.
-          ...buildTaskWriteAccessWhere(authorized.turn.userId),
+          // Acting on its own, a shared bot changes public Tasks only; the
+          // write scope check above already bounded them to its scope.
+          ...(authorized.turn.actingUserId === null
+            ? { visibility: "PUBLIC" as const }
+            : buildTaskWriteAccessWhere(authorized.turn.actingUserId)),
         },
         select: {
           id: true,
@@ -3350,7 +4268,7 @@ export class SokoBotRuntimeService {
             kind: "soko_bot",
             sokoBotId: authorized.turn.sokoBotId,
           },
-          ownerId: authorized.turn.userId,
+          userId: authorized.turn.actingUserId,
           workspaceId: authorized.turn.workspaceId,
           taskId: input.taskId,
           intent: "metadata",
@@ -3419,6 +4337,7 @@ export class SokoBotRuntimeService {
         authorized,
         approved,
         "assign_task",
+        { taskIds: [input.taskId] },
       );
       const status = input.ready ? TaskStatus.READY : TaskStatus.DRAFT;
       const claim = await claimTaskEventAction(
@@ -3446,7 +4365,7 @@ export class SokoBotRuntimeService {
             capability: "assign_task",
             operationKey: actionOperationKey({
               workspaceId: authorized.turn.workspaceId,
-              principalId: authorized.turn.userId,
+              principalId: actionPrincipalId(authorized.turn),
               intentRevision: toolCallId,
               capability: "assign_task",
               inputHash: actionInputHash(rawInput),
@@ -3464,11 +4383,15 @@ export class SokoBotRuntimeService {
             kind: "soko_bot",
             sokoBotId: authorized.turn.sokoBotId,
           },
-          ownerId: authorized.turn.userId,
+          userId: authorized.turn.actingUserId,
           workspaceId: authorized.turn.workspaceId,
           taskId: input.taskId,
           intent: "assignment",
-          ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
+          ...toolAssigneeFields(
+            input.coworkerId,
+            authorized.turn.sokoBotId,
+            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+          ),
           status,
           channel: Channel.SOKOSUMI,
           effectEventId,
@@ -3490,6 +4413,7 @@ export class SokoBotRuntimeService {
           outcome: updated.status,
           lastSeenStatus: updated.status,
           taskId: updated.id,
+          followUp: input.followUp,
         },
       });
       {
@@ -3513,6 +4437,7 @@ export class SokoBotRuntimeService {
     authorized: SokoBotActionContext,
     approved: boolean,
     capability?: SokoBotCapability,
+    targets: SokoBotWriteTargets = {},
   ) {
     const now = new Date();
     if (approved && authorized.confirmationTurnId) {
@@ -3521,7 +4446,7 @@ export class SokoBotRuntimeService {
         where: {
           id: authorized.confirmationTurnId,
           sokoBotId: authorized.turn.sokoBotId,
-          userId: authorized.turn.userId,
+          requestedByUserId: authorized.turn.requestedByUserId,
           workspaceId: authorized.turn.workspaceId,
           source: "CHAT",
           chainDepth: 0,
@@ -3583,25 +4508,21 @@ export class SokoBotRuntimeService {
     }
     const workspace = await requireSokoBotWorkspaceAccess(
       tx,
-      authorized.turn.userId,
+      authorized.turn.actingUserId,
       authorized.turn.workspaceId,
     );
     if (approved) {
-      const activeBot = await tx.sokoBot.findFirst({
-        where: {
-          id: authorized.turn.sokoBotId,
-          userId: authorized.turn.userId,
-          archivedAt: null,
-          adminPausedAt: null,
-          status: { not: "PAUSED" },
-        },
-        select: { id: true },
-      });
+      const activeBot = await sokoBotForTurnMember(
+        authorized.turn,
+        "runningNotAdminPaused",
+        tx,
+      );
       if (!activeBot) {
         throw new SokoBotRuntimeAuthorizationError(
           "Soko Bot is paused or unavailable",
         );
       }
+      await this.requireWriteScope(tx, activeBot, targets);
       return workspace;
     }
 
@@ -3609,7 +4530,7 @@ export class SokoBotRuntimeService {
       where: {
         id: authorized.turn.id,
         sokoBotId: authorized.turn.sokoBotId,
-        userId: authorized.turn.userId,
+        requestedByUserId: authorized.turn.requestedByUserId,
         workspaceId: authorized.turn.workspaceId,
         status: { in: ["STARTING", "RUNNING"] },
         deadlineAt: { gt: now },
@@ -3622,14 +4543,39 @@ export class SokoBotRuntimeService {
           status: { not: "PAUSED" },
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        sokoBot: {
+          select: {
+            id: true,
+            userId: true,
+            workspaceId: true,
+            projectId: true,
+          },
+        },
+      },
     });
     if (!writable) {
       throw new SokoBotRuntimeAuthorizationError(
         "Soko Bot turn is no longer writable",
       );
     }
+    await this.requireWriteScope(tx, writable.sokoBot, targets);
     return workspace;
+  }
+
+  /** A shared bot writes only inside its scope; a personal bot is unchanged. */
+  private async requireWriteScope(
+    tx: Prisma.TransactionClient,
+    bot: Parameters<typeof sokoBotSharedScopeOf>[0] | undefined,
+    targets: SokoBotWriteTargets,
+  ) {
+    const refusal = await sokoBotWriteScopeRefusal(
+      tx,
+      bot ? sokoBotSharedScopeOf(bot) : null,
+      targets,
+    );
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
   }
 
   private async updateMemory(
@@ -3715,6 +4661,7 @@ export class SokoBotRuntimeService {
     const authorized = await this.authorize(input);
     assertEvaluationActor({
       ...authorized.turn,
+      userId: authorized.turn.actingUserId,
       clientTurnId: authorized.turn.id,
     });
     assertEvaluationTool(input.capability, input.input);
@@ -3722,7 +4669,7 @@ export class SokoBotRuntimeService {
     const operationKey = ACTION_CAPABILITIES.has(input.capability)
       ? actionOperationKey({
           workspaceId: authorized.turn.workspaceId,
-          principalId: authorized.turn.userId,
+          principalId: actionPrincipalId(authorized.turn),
           intentRevision: authorized.turn.intentId
             ? `${authorized.turn.intentId}:${authorized.turn.intentRevision}`
             : authorized.turn.id,
@@ -3761,10 +4708,17 @@ export class SokoBotRuntimeService {
           });
           if (operation) return operation;
         }
+        const isRead = CORE_READ_CAPABILITIES.includes(input.capability);
         const callCount = await tx.sokoBotToolCall.count({
-          where: { turnId: input.turnId, ...CORE_TOOL_CALLS },
+          where: {
+            turnId: input.turnId,
+            ...(isRead ? CORE_READ_CALLS : CORE_WRITE_CALLS),
+          },
         });
-        if (callCount >= TOOL_CALL_LIMIT_PER_TURN) {
+        const limit = isRead
+          ? authorized.toolCallLimit * READ_CALLS_PER_WRITE_CALL
+          : authorized.toolCallLimit;
+        if (callCount >= limit) {
           throw new SokoBotRuntimeConflictError(
             "Soko Bot turn tool-call limit reached",
           );
@@ -3807,7 +4761,7 @@ export class SokoBotRuntimeService {
           const snapshot = chatResultSnapshotSchema.parse(existing.result);
           const [preview] = await hydrateChatResultSnapshots(
             [snapshot],
-            authorized.turn.userId,
+            actingMemberOf(authorized),
           );
           if (!preview || preview.state !== "available")
             throw new SokoBotRuntimeAuthorizationError("Result unavailable");
@@ -3909,8 +4863,14 @@ export class SokoBotRuntimeService {
               };
             } else {
               const body = tableMutationSchema.parse(input.input);
+              const { removeColumnIds } =
+                SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(
+                  input.input,
+                );
               key = body.key;
-              request = { id: tableId, metadata: body };
+              request = removeColumnIds?.length
+                ? { id: tableId, metadata: body, removeColumnIds }
+                : { id: tableId, metadata: body };
             }
           }
           const operation = await readTableOperation(actor, key, request);
@@ -4049,9 +5009,23 @@ export class SokoBotRuntimeService {
         input = { ...input, toolCallId: existing.toolCallId };
     }
 
-    if (input.capability === "generate_image") {
+    if (
+      input.capability === "generate_image" ||
+      input.capability === "generate_video"
+    ) {
       try {
-        await this.checkImageRequest(authorized, input.input, input.toolCallId);
+        if (input.capability === "generate_image")
+          await this.checkImageRequest(
+            authorized,
+            input.input,
+            input.toolCallId,
+          );
+        else
+          await this.checkVideoRequest(
+            authorized,
+            input.input,
+            input.toolCallId,
+          );
       } catch (error) {
         // Refused before anything was sent: rejected, and the same request
         // may be made again once whatever refused it has changed.
@@ -4157,19 +5131,10 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
   ) {
-    const workspace = await prisma.workspace.findUniqueOrThrow({
-      where: { id: authorized.turn.workspaceId },
-    });
-    const actor = await resolveTableActor(
-      {
-        actor: "sokoBot",
-        sokoBotId: authorized.turn.sokoBotId,
-        userId: authorized.turn.userId,
-        workspaceId: workspace.id,
-        organizationId: workspace.organizationId,
-      },
-      workspace.id,
-    );
+    const auth = await loadSokoBotTurnAuthContext(authorized.turn);
+    if (!auth)
+      throw new SokoBotRuntimeAuthorizationError("Soko Bot is unavailable");
+    const actor = await resolveTableActor(auth, auth.workspaceId);
     const { taskId } = z
       .object({ taskId: z.string().max(200).optional() })
       .parse(rawInput);
@@ -4182,6 +5147,42 @@ export class SokoBotRuntimeService {
         "Task-driven table operations require an assigned taskId",
       );
     return { ...actor, taskId, ownerChat };
+  }
+
+  /**
+   * Contacts are the workspace's shared set: a bot reads and writes them as
+   * the member its turn acts for, personal and shared bots alike.
+   */
+  private async executeContactTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { capability } = input;
+    if (!isContactCapability(capability))
+      throw new SokoBotRuntimeValidationError("Not a contacts tool");
+    const userId = actingMemberOf(authorized);
+    await requireSokoBotWorkspaceAccess(
+      prisma,
+      userId,
+      authorized.turn.workspaceId,
+    );
+    const actor = {
+      workspaceId: authorized.turn.workspaceId,
+      userId,
+      sokoBotId: authorized.turn.sokoBotId,
+    };
+    return runContactTool(capability, input.input, actor, {
+      authorize: (tx) =>
+        this.requireMutationAuthority(tx, authorized, false, capability),
+      commit: (tx, targetId, result) =>
+        commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId: input.toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId,
+          result: persistedToolResult(result),
+        }),
+    });
   }
 
   /** Social tools use the turn's owner/workspace, never actor fields from model input. */
@@ -4198,8 +5199,9 @@ export class SokoBotRuntimeService {
         "Project social tools are only available for the owner",
       );
     }
+    const userId = actingMemberOf(authorized);
     const owner = await tx.user.findUnique({
-      where: { id: authorized.turn.userId },
+      where: { id: userId },
       select: BEARER_USER_SELECT,
     });
     if (!isActiveUser(owner)) {
@@ -4209,15 +5211,11 @@ export class SokoBotRuntimeService {
     }
     const workspace = await requireSokoBotWorkspaceAccess(
       tx,
-      authorized.turn.userId,
+      userId,
       authorized.turn.workspaceId,
     );
-    await requireAssignedOrganizationSeat(
-      authorized.turn.userId,
-      workspace.organizationId,
-      tx,
-    );
-    await requireSocialBetaAccess(authorized.turn.userId, tx);
+    await requireAssignedOrganizationSeat(userId, workspace.organizationId, tx);
+    await requireSocialBetaAccess(userId, tx);
     return workspace;
   }
 
@@ -4225,7 +5223,8 @@ export class SokoBotRuntimeService {
     input: ExecuteSokoBotToolInput,
     authorized: AuthorizedSokoBotRuntime,
   ) {
-    const { workspaceId, userId } = authorized.turn;
+    const { workspaceId } = authorized.turn;
+    const userId = actingMemberOf(authorized);
     switch (input.capability) {
       case "list_project_social_accounts": {
         const params =
@@ -4429,10 +5428,49 @@ export class SokoBotRuntimeService {
     }
   }
 
-  private async executeAuthorizedTool(
-    input: ExecuteSokoBotToolInput,
+  /**
+   * Cheaper models garble the tail of a long id they copy: Joseph read the
+   * right Task, then sent four reply_to_task calls with `…7facc56a2e6a` for
+   * `…7facc56b861e`. A uuid v7's first 23 characters are its millisecond and
+   * random bits, so one visible Task matching them is the Task meant.
+   */
+  private async resolveTaskIds(
+    authorized: AuthorizedSokoBotRuntime,
+    value: unknown,
   ): Promise<unknown> {
-    const authorized = await this.authorize(input);
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return value;
+    const input = { ...(value as Record<string, unknown>) };
+    const visible = {
+      workspaceId: authorized.turn.workspaceId,
+      ...buildSokoBotReaderTaskWhere(authorized.reader),
+    };
+    for (const field of TASK_ID_FIELDS) {
+      const id = input[field];
+      if (typeof id !== "string" || id.length < TASK_ID_PREFIX) continue;
+      const exact = await prisma.task.findFirst({
+        where: { ...visible, id },
+        select: { id: true },
+      });
+      if (exact) continue;
+      const matches = await prisma.task.findMany({
+        where: { ...visible, id: { startsWith: id.slice(0, TASK_ID_PREFIX) } },
+        select: { id: true },
+        take: 2,
+      });
+      if (matches.length === 1 && matches[0]) input[field] = matches[0].id;
+    }
+    return input;
+  }
+
+  private async executeAuthorizedTool(
+    raw: ExecuteSokoBotToolInput,
+  ): Promise<unknown> {
+    const authorized = await this.authorize(raw);
+    const input = {
+      ...raw,
+      input: await this.resolveTaskIds(authorized, raw.input),
+    };
     switch (input.capability) {
       case "list_project_social_accounts":
       case "list_social_posts":
@@ -4447,6 +5485,35 @@ export class SokoBotRuntimeService {
       case "cancel_social_post":
       case "publish_social_post":
         return this.executeSocialTool(input, authorized);
+      case "start_background_run":
+      case "list_background_runs":
+      case "stop_background_run": {
+        const runs = await import(
+          "@/services/soko-bot-background-runs.service"
+        );
+        if (input.capability === "list_background_runs")
+          return runs.listBackgroundRuns(authorized);
+        if (input.capability === "stop_background_run")
+          return runs.stopBackgroundRun(
+            authorized,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.stop_background_run.parse(input.input)
+              .runId,
+          );
+        return runs.startBackgroundRun(
+          authorized,
+          sokoBotStartBackgroundRunInputSchema.parse(input.input),
+        );
+      }
+      case "search_contacts":
+      case "get_contact":
+      case "list_contact_lists":
+      case "find_contact_duplicates":
+      case "upsert_contact":
+      case "update_contact":
+      case "log_contact_interaction":
+      case "merge_contacts":
+      case "manage_contact_lists":
+        return this.executeContactTool(input, authorized);
       case "list_tables":
       case "read_table":
       case "create_table":
@@ -4471,6 +5538,7 @@ export class SokoBotRuntimeService {
             authorized,
             false,
             input.capability,
+            { taskIds: [taskId] },
           );
           const table =
             input.capability === "create_table"
@@ -4571,8 +5639,8 @@ export class SokoBotRuntimeService {
               if (child.status === "COMPLETED") continue;
               if (
                 (await tx.sokoBotToolCall.count({
-                  where: { turnId: authorized.turn.id, ...CORE_TOOL_CALLS },
-                })) > TOOL_CALL_LIMIT_PER_TURN
+                  where: { turnId: authorized.turn.id, ...CORE_WRITE_CALLS },
+                })) > authorized.toolCallLimit
               ) {
                 throw new SokoBotRuntimeConflictError(
                   "Soko Bot turn tool-call limit reached",
@@ -4642,10 +5710,21 @@ export class SokoBotRuntimeService {
             tableBatchSchema.parse(input.input),
             complete,
           );
+        const { removeColumnIds } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(input.input);
+        // Deleting columns deletes their data: only on the owner's word.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          removeColumnIds?.length &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Columns are only deleted when the owner asks in chat; ask them first",
+          );
         return mutateDataTable(
           scopedActor,
           tableId,
-          tableMutationSchema.parse(input.input),
+          { ...tableMutationSchema.parse(input.input), removeColumnIds },
           complete,
         );
       }
@@ -4660,7 +5739,16 @@ export class SokoBotRuntimeService {
               {
                 OR: [
                   { isWhitelisted: true },
-                  { assignments: { some: { userId: authorized.turn.userId } } },
+                  // A shared bot sees no member's private assignments.
+                  ...(authorized.reader.sharedScope
+                    ? []
+                    : [
+                        {
+                          assignments: {
+                            some: { userId: actingMemberOf(authorized) },
+                          },
+                        },
+                      ]),
                   {
                     workspaceAccess: {
                       some: {
@@ -4703,8 +5791,31 @@ export class SokoBotRuntimeService {
           },
         });
       }
-      case "create_task":
-        return this.createTask(authorized, input.input, input.toolCallId);
+      case "create_task": {
+        const { fileIds, ...task } = taskCreateInputSchema.parse(input.input);
+        const created = await this.createTask(
+          authorized,
+          {
+            ...task,
+            description: await this.withInlineFiles(
+              authorized,
+              task.description ?? "",
+              fileIds,
+            ),
+          },
+          input.toolCallId,
+        );
+        return fileIds?.length
+          ? {
+              ...created,
+              attachedFiles: await this.attachDriveFiles(
+                authorized,
+                created.id,
+                fileIds,
+              ),
+            }
+          : created;
+      }
       case "update_task":
       case "archive_task":
         return this.mutateTask(authorized, input.input, input.toolCallId, {
@@ -4724,8 +5835,37 @@ export class SokoBotRuntimeService {
           input.input,
           input.toolCallId,
         );
-      case "reply_to_task":
-        return this.replyToTask(authorized, input.input, input.toolCallId);
+      case "reply_to_task": {
+        const { fileIds, ...reply } = replyToTaskInputSchema.parse(input.input);
+        const chaseRefusal = await unattendedChaseRefusal({
+          turn: authorized.turn,
+          comment: reply.comment,
+          shared: !!authorized.reader.sharedScope,
+        });
+        if (chaseRefusal) throw new SokoBotRuntimeValidationError(chaseRefusal);
+        const replied = await this.replyToTask(
+          authorized,
+          {
+            ...reply,
+            comment: await this.withInlineFiles(
+              authorized,
+              reply.comment,
+              fileIds,
+            ),
+          },
+          input.toolCallId,
+        );
+        return fileIds?.length
+          ? {
+              ...replied,
+              attachedFiles: await this.attachDriveFiles(
+                authorized,
+                reply.taskId,
+                fileIds,
+              ),
+            }
+          : replied;
+      }
       case "link_tasks":
         return this.linkTasks(authorized, input.input, input.toolCallId);
       case "find_agents": {
@@ -4769,52 +5909,14 @@ export class SokoBotRuntimeService {
       }
       case "hire_agent": {
         const hire = parseHireAgentInput(input.input);
-        // A turn with no owner message is composed from untrusted material —
-        // mail subjects, calendar titles, task comments. Hiring is the one
-        // tool that buys from a marketplace outright, so text that talks its
-        // way onto this route must not be able to commit the whole balance in
-        // a single unattended turn. The owner asking for a hire themselves is
-        // unaffected.
-        const ceiling = getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS;
-        // One hire per unattended turn, and that one under the ceiling.
-        //
-        // Summing what the turn already committed looked more precise and was
-        // not: a tool input over 16KB is persisted as a truncated preview, so
-        // `maxCredits` disappears from the stored row and every prior hire
-        // sums to zero. Counting rows cannot be defeated that way, and it
-        // matches the prompt's own rule of one initiative per turn.
-        const unattended = exceedsUnattendedHireBudget({
-          source: authorized.turn.source,
-          chainDepth: authorized.turn.chainDepth,
-          maxCredits: Number.POSITIVE_INFINITY,
-          ceiling,
+        const refusal = await unattendedHireRefusal({
+          turn: authorized.turn,
+          shared: !!authorized.reader.sharedScope,
+          maxCredits: hire.maxCredits,
+          ceiling: getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS,
+          toolCallId: input.toolCallId,
         });
-        if (unattended) {
-          const priorHires = await prisma.sokoBotToolCall.count({
-            where: {
-              turnId: authorized.turn.id,
-              capability: "hire_agent",
-              NOT: { toolCallId: input.toolCallId },
-            },
-          });
-          if (priorHires > 0) {
-            throw new SokoBotRuntimeValidationError(
-              "A turn nobody asked for may hire once. Report what you found and ask the owner before hiring again.",
-            );
-          }
-        }
-        if (
-          exceedsUnattendedHireBudget({
-            source: authorized.turn.source,
-            chainDepth: authorized.turn.chainDepth,
-            maxCredits: hire.maxCredits,
-            ceiling,
-          })
-        ) {
-          throw new SokoBotRuntimeValidationError(
-            `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
-          );
-        }
+        if (refusal) throw new SokoBotRuntimeValidationError(refusal);
         return this.executeAsAccepted(
           authorized,
           input.capability,
@@ -4824,38 +5926,29 @@ export class SokoBotRuntimeService {
       }
       case "get_job_status": {
         const { jobId } = jobIdInputSchema.parse(input.input);
-        return prisma.job.findFirst({
+        const row = await prisma.job.findFirst({
           where: {
             AND: [
-              {
-                id: jobId,
-                ownerId: authorized.turn.userId,
-                workspaceId: authorized.turn.workspaceId,
-              },
-              buildSokoBotAudienceJobParentTaskWhere(
-                authorized.turn.userId,
-                authorized.askedByKind,
-              ),
+              { id: jobId, workspaceId: authorized.turn.workspaceId },
+              buildSokoBotReaderJobWhere(authorized.reader),
             ],
           },
-          select: {
-            id: true,
-            name: true,
-            agentId: true,
-            jobType: true,
-            updatedAt: true,
-            events: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: {
-                id: true,
-                status: true,
-                result: true,
-                inputSchema: true,
-              },
-            },
-          },
+          include: jobInclude,
         });
+        if (!row) return null;
+        const job = mapJobWithStatus(row);
+        return {
+          id: job.id,
+          name: job.name ?? job.agent.name,
+          agent: { id: job.agentId, name: job.agent.name },
+          url: new URL(
+            `/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`,
+            getEnv().WEB_APP_BASE_URL,
+          ).toString(),
+          updatedAt: job.updatedAt.toISOString(),
+          ...digestJob(job),
+          trust: "untrusted-data",
+        };
       }
       case "provide_job_input":
         provideJobInputSchema.parse(input.input);
@@ -4921,6 +6014,13 @@ export class SokoBotRuntimeService {
           toolCallId: input.toolCallId,
         });
       }
+      case "ask_coworker": {
+        const parsed = sokoBotAskCoworkerInputSchema.parse(input.input);
+        return this.askCoworker(authorized, {
+          ...parsed,
+          toolCallId: input.toolCallId,
+        });
+      }
       case "preview_result": {
         const { reference } = sokoBotPreviewResultInputSchema.parse(
           input.input,
@@ -4934,7 +6034,7 @@ export class SokoBotRuntimeService {
         return resolveChatResultReference({
           reference,
           actor: {
-            userId: authorized.turn.userId,
+            userId: actingMemberOf(authorized),
             workspaceId: authorized.turn.workspaceId,
             kind: "soko_bot",
           },
@@ -4955,21 +6055,46 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotUploadFileInputSchema.parse(input.input);
         return this.uploadFile(authorized, parsed);
       }
+      case "move_file":
+        return this.moveFile(
+          authorized,
+          sokoBotMoveFileInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "list_skills":
+        return this.listSkills(
+          authorized,
+          sokoBotListSkillsInputSchema.parse(input.input),
+        );
+      case "install_skill":
+        return this.installSkill(
+          authorized,
+          sokoBotInstallSkillInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "remove_skill":
+        return this.removeSkill(
+          authorized,
+          sokoBotRemoveSkillInputSchema.parse(input.input),
+          input.toolCallId,
+        );
       case "generate_image":
         return this.generateImage(authorized, input.input, input.toolCallId);
       case "get_image":
-        return this.getImage(authorized, input.input);
+        return this.getStudioJob(authorized, input.input);
+      case "generate_video":
+        return this.generateVideo(authorized, input.input, input.toolCallId);
+      case "get_video":
+        return this.getStudioJob(authorized, input.input);
       case "read_file":
         return this.readFile(
           authorized,
           sokoBotReadFileInputSchema.parse(input.input),
         );
       case "list_integrations":
-        return listSokoBotIntegrations(
-          authorized.turn.userId,
-          authorized.turn.workspaceId,
-        ).then((result) =>
-          result.integrations.filter((i) => i.status !== "DISCONNECTED"),
+        return listSokoBotIntegrationsForBot(authorized.turn.sokoBotId).then(
+          (result) =>
+            result.integrations.filter((i) => i.status !== "DISCONNECTED"),
         );
       case "search_inbox": {
         const parsed = sokoBotSearchInboxInputSchema.parse(input.input);
@@ -4979,6 +6104,13 @@ export class SokoBotRuntimeService {
           parsed.provider,
         );
         const limit = parsed.limit ?? 20;
+        // A token belongs to one mailbox; across several, a merged page cut
+        // to the limit would skip mail the token has already moved past.
+        if (parsed.pageToken && integrations.length !== 1)
+          throw new SokoBotRuntimeValidationError(
+            "pageToken needs the provider of the page it came from",
+          );
+        let nextPageToken: string | null = null;
         const result = await readSokoBotSource({
           source: "MAIL",
           filters: {
@@ -4986,15 +6118,17 @@ export class SokoBotRuntimeService {
             since: parsed.since ?? "",
             unreadOnly: String(parsed.unreadOnly ?? false),
           },
-          queries: integrations.map(
-            (integration) => () =>
-              fetchInboxMessages(integration, {
-                query: parsed.query,
-                since: parsed.since ? new Date(parsed.since) : undefined,
-                unreadOnly: parsed.unreadOnly,
-                limit,
-              }),
-          ),
+          queries: integrations.map((integration) => async () => {
+            const page = await fetchInboxPage(integration, {
+              query: parsed.query,
+              since: parsed.since ? new Date(parsed.since) : undefined,
+              unreadOnly: parsed.unreadOnly,
+              limit,
+              pageToken: parsed.pageToken,
+            });
+            if (integrations.length === 1) nextPageToken = page.nextPageToken;
+            return page.messages;
+          }),
         });
         return {
           coverage: {
@@ -5007,6 +6141,7 @@ export class SokoBotRuntimeService {
           messages: result.rows
             .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
             .slice(0, limit),
+          nextPageToken,
         };
       }
       case "read_email": {
@@ -5022,6 +6157,51 @@ export class SokoBotRuntimeService {
           );
         }
         return fetchInboxMessage(integration, parsed.messageId);
+      }
+      case "update_emails":
+        return this.updateEmails(
+          authorized,
+          sokoBotUpdateEmailsInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "draft_email":
+        return this.draftEmail(
+          authorized,
+          sokoBotDraftEmailInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "save_email_attachment":
+        return this.saveEmailAttachment(
+          authorized,
+          sokoBotSaveEmailAttachmentInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "send_email_draft":
+        return this.sendEmailDraft(
+          authorized,
+          sokoBotSendEmailDraftInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "evaluate_with_jev": {
+        const parsed = sokoBotEvaluateWithJevInputSchema.parse(input.input);
+        let evaluation: Awaited<ReturnType<typeof evaluateWithJevForBot>>;
+        try {
+          evaluation = await evaluateWithJevForBot(parsed);
+        } catch {
+          throw new SokoBotRuntimeValidationError(
+            "Jev is unavailable right now; judge these yourself.",
+          );
+        }
+        // Jev is overhead like routing: on the turn's total, not billed.
+        await prisma.sokoBotTurn.update({
+          where: { id: authorized.turn.id },
+          data: {
+            overheadCostUsdMicros: {
+              increment: BigInt(Math.round(evaluation.costUsd * 1_000_000)),
+            },
+          },
+        });
+        return evaluation.result;
       }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(
@@ -5132,17 +6312,26 @@ export class SokoBotRuntimeService {
               false,
               input.capability,
             );
-            const scope = {
-              userId: authorized.turn.userId,
-              workspaceId: authorized.turn.workspaceId,
-              sokoBotId: authorized.turn.sokoBotId,
-            };
+            if (authorized.turn.source === "SCHEDULE")
+              await requireOwnScheduleScope(
+                tx,
+                authorized.turn.id,
+                input.capability,
+                input.input,
+              );
+            const {
+              actingUserId: userId,
+              workspaceId,
+              sokoBotId,
+            } = authorized.turn;
+            const scope = { userId, workspaceId, sokoBotId };
             const schedule =
               input.capability === "create_schedule"
                 ? await createSokoBotSchedule(
                     {
                       ...scope,
                       ...createScheduleInputSchema.parse(input.input),
+                      capabilityNames: authorized.grant.capabilities,
                     },
                     tx,
                   )
@@ -5177,22 +6366,23 @@ export class SokoBotRuntimeService {
   }
 
   async resolveDecision(
-    userId: string,
+    /** Null only when the bot accepts its own card in a turn for nobody. */
+    resolverUserId: string | null,
     decisionId: string,
     accepted: boolean,
     ownerConfirmed = true,
     confirmationTurnId?: string,
   ) {
-    const decision = await prisma.sokoBotPendingDecision.findFirst({
-      where: {
-        id: decisionId,
-        userId,
-        status: accepted ? { in: ["PENDING", "PROCESSING"] } : "PENDING",
-      },
-      include: { turn: true },
-    });
+    const decision = await findResolvableSokoBotDecision(
+      resolverUserId,
+      decisionId,
+      accepted,
+      ownerConfirmed,
+    );
     if (!decision)
       throw new SokoBotRuntimeValidationError("Pending decision not found");
+    // Whoever answers, the decision acts for the member who asked.
+    const actingUserId = sokoBotActingUserId(decision);
     if (
       decision.status === "PENDING" &&
       decision.expiresAt.getTime() <= Date.now()
@@ -5207,7 +6397,9 @@ export class SokoBotRuntimeService {
       const intent = await prisma.sokoBotIntent.findFirst({
         where: {
           id: decision.intentId,
-          requesterId: userId,
+          ...(decision.requestedByUserId
+            ? { requesterId: decision.requestedByUserId }
+            : {}),
           state: { in: ["AWAITING_CONFIRMATION", "IN_PROGRESS"] },
           expiresAt: { gt: new Date() },
         },
@@ -5228,7 +6420,7 @@ export class SokoBotRuntimeService {
         data: {
           status: "REJECTED",
           resolvedAt: new Date(),
-          resolvedByUserId: userId,
+          resolvedByUserId: resolverUserId,
         },
       });
       if (rejected.count === 0) {
@@ -5250,7 +6442,8 @@ export class SokoBotRuntimeService {
       turn: {
         id: decision.turnId,
         sokoBotId: decision.sokoBotId,
-        userId,
+        actingUserId,
+        requestedByUserId: decision.requestedByUserId,
         workspaceId: decision.workspaceId,
         eveSessionId: decision.turn.eveSessionId,
         versionId: decision.turn.versionId,
@@ -5270,14 +6463,26 @@ export class SokoBotRuntimeService {
       actorBotId: decision.sokoBotId,
       operationKey: actionOperationKey({
         workspaceId: decision.workspaceId,
-        principalId: userId,
+        principalId: actionPrincipalId({
+          actingUserId,
+          sokoBotId: decision.sokoBotId,
+        }),
         intentRevision: decisionToolCallId,
         capability: decision.toolName,
         inputHash: actionInputHash(decision.proposal),
       }),
     };
     const reserveExternalReceipt = async (tx: Prisma.TransactionClient) => {
-      await this.requireMutationAuthority(tx, actionContext, ownerConfirmed);
+      await this.requireMutationAuthority(
+        tx,
+        actionContext,
+        ownerConfirmed,
+        undefined,
+        decision.toolName === "hire_agent" ||
+          decision.toolName === "provide_job_input"
+          ? decisionProposalTargets(decision.toolName, decision.proposal)
+          : {},
+      );
       const receipt = await tx.sokoBotToolCall.findUnique({
         where: { turnId_toolCallId: receiptKey },
       });
@@ -5393,7 +6598,7 @@ export class SokoBotRuntimeService {
             data: {
               status: "ACCEPTED",
               resolvedAt: new Date(),
-              resolvedByUserId: userId,
+              resolvedByUserId: decision.firstResolverUserId,
               resultingEntityId: recoveredEntityId,
             },
           }),
@@ -5436,7 +6641,7 @@ export class SokoBotRuntimeService {
     if (!resumeProcessing) {
       const claimed = await prisma.sokoBotPendingDecision.updateMany({
         where: { id: decision.id, status: "PENDING" },
-        data: { status: "PROCESSING", resolvedByUserId: userId },
+        data: { status: "PROCESSING", resolvedByUserId: resolverUserId },
       });
       if (claimed.count === 0) {
         throw new SokoBotRuntimeConflictError(
@@ -5448,21 +6653,14 @@ export class SokoBotRuntimeService {
     let failureDisposition: "restore" | "retain" = "restore";
     let sellerReservationMarker: SellerReservationMarker | null = null;
     try {
-      const [activeBot, workspace] = await prisma.$transaction([
-        prisma.sokoBot.findFirst({
-          where: {
-            id: decision.sokoBotId,
-            userId,
-            archivedAt: null,
-            status: { not: "PAUSED" },
-          },
-          select: { id: true },
-        }),
-        prisma.workspace.findFirst({
-          where: sokoBotWorkspaceAccessWhere(userId, decision.workspaceId),
-          select: { id: true, organizationId: true },
-        }),
-      ]);
+      const activeBot = await sokoBotForTurnMember(
+        actionContext.turn,
+        "running",
+      );
+      const workspace = await prisma.workspace.findFirst({
+        where: sokoBotWorkspaceAccessWhere(actingUserId, decision.workspaceId),
+        select: { id: true, organizationId: true },
+      });
       if (!activeBot) {
         throw new SokoBotRuntimeAuthorizationError(
           "Soko Bot is paused or unavailable",
@@ -5488,7 +6686,7 @@ export class SokoBotRuntimeService {
       }
       let resultingEntityId: string | null = null;
       if (decision.toolName === "hire_agent") {
-        const hire = parseHireAgentInput(proposal);
+        const { followUp, ...hire } = parseHireAgentInput(proposal);
         const existingDelegation = await prisma.sokoBotDelegation.findUnique({
           where: {
             turnId_toolCallId: {
@@ -5505,7 +6703,7 @@ export class SokoBotRuntimeService {
             data: {
               status: "ACCEPTED",
               resolvedAt: new Date(),
-              resolvedByUserId: userId,
+              resolvedByUserId: decision.firstResolverUserId,
               resultingEntityId: existingDelegation.jobId,
             },
           });
@@ -5518,10 +6716,11 @@ export class SokoBotRuntimeService {
         }
         const job = await createAgentJobForUser({
           owner: {
-            ownerId: userId,
+            ownerId: actingUserId,
             organizationId: workspace.organizationId,
             workspaceId: decision.workspaceId,
           },
+          creator: { kind: "soko_bot", sokoBotId: decision.sokoBotId },
           agentInput: hire,
           beforeSellerStart: async () => {
             sellerReservationMarker = createSellerReservationMarker(
@@ -5540,15 +6739,11 @@ export class SokoBotRuntimeService {
                 WHERE "id" = ${decision.sokoBotId}::uuid
                 FOR UPDATE
               `;
-              const activeBot = await tx.sokoBot.findFirst({
-                where: {
-                  id: decision.sokoBotId,
-                  userId,
-                  archivedAt: null,
-                  status: { not: "PAUSED" },
-                },
-                select: { id: true },
-              });
+              const activeBot = await sokoBotForTurnMember(
+                actionContext.turn,
+                "running",
+                tx,
+              );
               if (!activeBot) {
                 throw new SokoBotRuntimeAuthorizationError(
                   "Soko Bot is paused or unavailable",
@@ -5580,6 +6775,7 @@ export class SokoBotRuntimeService {
                     action: "hire_agent",
                     outcome: "processing",
                     error: marker,
+                    followUp,
                   },
                 });
               }
@@ -5662,7 +6858,11 @@ export class SokoBotRuntimeService {
               id: input.eventId,
               jobId: input.jobId,
               status: AgentJobStatus.AWAITING_INPUT,
-              job: { ownerId: userId, workspaceId: decision.workspaceId },
+              // Job writes belong to the Owner (ADR 0057): never nobody.
+              job: {
+                ownerId: actingMemberOf({ turn: { actingUserId } }),
+                workspaceId: decision.workspaceId,
+              },
             },
             include: {
               input: true,
@@ -5705,15 +6905,11 @@ export class SokoBotRuntimeService {
               WHERE "id" = ${decision.sokoBotId}::uuid
               FOR UPDATE
             `;
-            const activeBot = await tx.sokoBot.findFirst({
-              where: {
-                id: decision.sokoBotId,
-                userId,
-                archivedAt: null,
-                status: { not: "PAUSED" },
-              },
-              select: { id: true },
-            });
+            const activeBot = await sokoBotForTurnMember(
+              actionContext.turn,
+              "running",
+              tx,
+            );
             if (!activeBot) {
               throw new SokoBotRuntimeAuthorizationError(
                 "Soko Bot is paused or unavailable",
@@ -5849,7 +7045,8 @@ export class SokoBotRuntimeService {
           turn: {
             id: decision.turnId,
             sokoBotId: decision.sokoBotId,
-            userId,
+            actingUserId,
+            requestedByUserId: decision.requestedByUserId,
             workspaceId: decision.workspaceId,
             eveSessionId: decision.turn.eveSessionId,
             versionId: decision.turn.versionId,
@@ -5875,7 +7072,8 @@ export class SokoBotRuntimeService {
             turn: {
               id: decision.turnId,
               sokoBotId: decision.sokoBotId,
-              userId,
+              actingUserId,
+              requestedByUserId: decision.requestedByUserId,
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
               versionId: decision.turn.versionId,
@@ -5901,7 +7099,8 @@ export class SokoBotRuntimeService {
             turn: {
               id: decision.turnId,
               sokoBotId: decision.sokoBotId,
-              userId,
+              actingUserId,
+              requestedByUserId: decision.requestedByUserId,
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
               versionId: decision.turn.versionId,
@@ -5932,7 +7131,7 @@ export class SokoBotRuntimeService {
         data: {
           status: "ACCEPTED",
           resolvedAt: new Date(),
-          resolvedByUserId: userId,
+          resolvedByUserId: decision.firstResolverUserId,
           resultingEntityId,
         },
       });

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { resolveSokoBotDecisionAction } from "@/lib/actions/soko-bot/action";
 import type { ChatDecision } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
-
+import { useSokoBotTargetId } from "../soko-bot-target";
 import { useToolLabel } from "./turn-progress";
 
 type Resolution = "ACCEPT" | "REJECT";
@@ -37,6 +37,7 @@ export function DecisionCard({
   const toolLabel = useToolLabel();
   const [isPending, startTransition] = useTransition();
   const [inFlight, setInFlight] = useState<Resolution | null>(null);
+  const botId = useSokoBotTargetId();
 
   const summary = summarizeProposal(decision.toolName, decision.proposal);
   const pending = decision.status === "PENDING";
@@ -46,6 +47,7 @@ export function DecisionCard({
     setInFlight(resolution);
     startTransition(async () => {
       const result = await resolveSokoBotDecisionAction({
+        botId,
         decisionId: decision.id,
         resolution,
       });

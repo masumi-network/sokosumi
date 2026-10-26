@@ -1,3 +1,7 @@
+import type {
+  OnChainJobStatus,
+  TaskX402PaymentRefundKind,
+} from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import type { AgentPreview, UserPreview } from "@/helpers/history";
@@ -29,6 +33,7 @@ export interface TransactionHistoryRow {
   imagePrompt: string | null;
   taskId: string | null;
   taskName: string | null;
+  taskArchived: boolean | null;
   taskEventId: string | null;
   taskEventComment: string | null;
   coworkerId: string | null;
@@ -41,6 +46,17 @@ export interface TransactionHistoryRow {
   bucketSource: string | null;
   topUpSource: string | null;
   topUpNote: string | null;
+  refundedJobId: string | null;
+  refundedJobName: string | null;
+  refundedAgentId: string | null;
+  refundedJobOnChainStatus: OnChainJobStatus | null;
+  refundedTaskId: string | null;
+  refundedTaskName: string | null;
+  refundedTaskArchived: boolean | null;
+  /** Prompt of a legacy studio image job this refund undid. Column is dead for new writes. */
+  refundedImagePrompt: string | null;
+  refundSource: "job" | "taskPaymentClaim" | "taskX402" | "projectImage" | null;
+  refundX402Kind: TaskX402PaymentRefundKind | null;
 }
 
 export interface BuildTransactionHistoryParams {
@@ -149,7 +165,14 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       t."amount",
       t."userId",
       ${KIND_CASE} AS "kind",
-      COALESCE(j."projectId", pij."projectId", tk."projectId") AS "projectId",
+      COALESCE(
+        j."projectId",
+        pij."projectId",
+        tk."projectId",
+        rj."projectId",
+        rpij."projectId",
+        rtk."projectId"
+      ) AS "projectId",
       j."id" AS "jobId",
       j."name" AS "jobName",
       j."agentId" AS "agentId",
@@ -158,6 +181,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       pij."prompt" AS "imagePrompt",
       te."taskId" AS "taskId",
       tk."name" AS "taskName",
+      tk."archivedAt" IS NOT NULL AS "taskArchived",
       te."id" AS "taskEventId",
       te."comment" AS "taskEventComment",
       cu."coworkerId" AS "coworkerId",
@@ -170,6 +194,21 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       bucket."referenceType" AS "bucketSource",
       topup."referenceType"::TEXT AS "topUpSource",
       topup."referenceNote" AS "topUpNote",
+      rj."id" AS "refundedJobId",
+      rj."name" AS "refundedJobName",
+      rj."agentId" AS "refundedAgentId",
+      rjp."onChainStatus"::TEXT AS "refundedJobOnChainStatus",
+      rtk."id" AS "refundedTaskId",
+      rtk."name" AS "refundedTaskName",
+      rtk."archivedAt" IS NOT NULL AS "refundedTaskArchived",
+      rpij."prompt" AS "refundedImagePrompt",
+      CASE
+        WHEN rj."id" IS NOT NULL THEN 'job'
+        WHEN rpc."id" IS NOT NULL THEN 'taskPaymentClaim'
+        WHEN rx."id" IS NOT NULL THEN 'taskX402'
+        WHEN rpij."id" IS NOT NULL THEN 'projectImage'
+      END AS "refundSource",
+      rx."refundKind"::TEXT AS "refundX402Kind",
       CONCAT_WS(
         ' ',
         j."name",
@@ -181,7 +220,10 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         cw."name",
         sb."name",
         topup."referenceType"::TEXT,
-        topup."referenceNote"
+        topup."referenceNote",
+        rj."name",
+        rtk."name",
+        rpij."prompt"
       ) AS "searchText"
     FROM "Transaction" AS t
     LEFT JOIN "Job" AS j ON j."transactionId" = t."id"
@@ -217,6 +259,18 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     -- The bucket a top up created. One-to-one with the transaction that paid
     -- for it, so this is a plain join rather than a lateral pick.
     LEFT JOIN "credit_bucket" AS topup ON topup."sourceTransactionId" = t."id"
+    -- What a refund top up refunded. Each source stores a unique back-reference
+    -- to its refund transaction, so these are plain joins. A refund comes from
+    -- exactly one of them. project_image_job.refundTransactionId is legacy
+    -- (studio no longer writes refunds); keep the join so old rows still name
+    -- and link.
+    LEFT JOIN "Job" AS rj ON rj."refundedTransactionId" = t."id"
+    LEFT JOIN "jobPurchase" AS rjp ON rjp."jobId" = rj."id"
+    LEFT JOIN "task_payment_claim" AS rpc ON rpc."refundTransactionId" = t."id"
+    LEFT JOIN "taskEvent" AS rpce ON rpce."id" = rpc."taskEventId"
+    LEFT JOIN "task_x402_payment" AS rx ON rx."refundTransactionId" = t."id"
+    LEFT JOIN "task" AS rtk ON rtk."id" = COALESCE(rpce."taskId", rx."taskId")
+    LEFT JOIN "project_image_job" AS rpij ON rpij."refundTransactionId" = t."id"
     WHERE ${buildScopeSql(params)}
   `;
 }
@@ -268,6 +322,7 @@ export async function findTransactionHistoryPage(
       ledger."imagePrompt",
       ledger."taskId",
       ledger."taskName",
+      ledger."taskArchived",
       ledger."taskEventId",
       ledger."taskEventComment",
       ledger."coworkerId",
@@ -279,7 +334,17 @@ export async function findTransactionHistoryPage(
       ledger."sokoBotScheduleKey",
       ledger."bucketSource",
       ledger."topUpSource",
-      ledger."topUpNote"
+      ledger."topUpNote",
+      ledger."refundedJobId",
+      ledger."refundedJobName",
+      ledger."refundedAgentId",
+      ledger."refundedJobOnChainStatus",
+      ledger."refundedTaskId",
+      ledger."refundedTaskName",
+      ledger."refundedTaskArchived",
+      ledger."refundedImagePrompt",
+      ledger."refundSource",
+      ledger."refundX402Kind"
     FROM (${buildLedgerSql(params)}) AS ledger
     ${buildWhereSql(filters)}
     ORDER BY ledger."consumedAt" DESC, ledger."id" DESC
@@ -351,6 +416,60 @@ const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
   SIGNUP_BONUS: "Signup bonus",
   FREE: "Free credits",
 };
+
+/**
+ * Why a refund happened, in words a user can act on. Never the raw failure
+ * reason: that is a node or chain error, not something to show a customer.
+ */
+function refundReason(row: TransactionHistoryRow): string | null {
+  switch (row.refundSource) {
+    case "job":
+      return row.refundedJobOnChainStatus === "REFUND_WITHDRAWN"
+        ? "Refund approved"
+        : "Payment could not be completed";
+    case "taskPaymentClaim":
+    case "projectImage":
+      return "Payment could not be completed";
+    case "taskX402":
+      switch (row.refundX402Kind) {
+        case "NODE_REFUSAL":
+          return "Payment was refused";
+        case "OPERATOR_GOODWILL":
+        case "OPERATOR_RESOLVE":
+          return "Refunded by support";
+        default:
+          return null;
+      }
+    default:
+      return null;
+  }
+}
+
+function refundSubjectName(row: TransactionHistoryRow): string | null {
+  switch (row.refundSource) {
+    case "job":
+      return row.refundedJobName;
+    case "projectImage":
+      return row.refundedImagePrompt;
+    case "taskPaymentClaim":
+    case "taskX402":
+      return row.refundedTaskName;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Why and what a refund top up refunded, or null when nothing is known. The
+ * reason leads: it is short, and a long job name would push it off a phone row.
+ * A known reason with no name still shows the reason — the row can link by id.
+ */
+function refundDescription(row: TransactionHistoryRow): string | null {
+  const name = refundSubjectName(row);
+  const reason = refundReason(row);
+  if (!name) return reason;
+  return reason ? `${reason} · ${truncate(name)}` : truncate(name);
+}
 
 /** A prompt is a paragraph; a list row is a line. */
 function truncate(value: string, max = 120): string {
@@ -459,6 +578,7 @@ export function mapTransactionHistoryRow(
           : null,
         taskId: row.taskId ?? "",
         taskEventId: row.taskEventId ?? "",
+        taskArchived: row.taskArchived ?? false,
       };
     case "coworker":
       return {
@@ -481,8 +601,17 @@ export function mapTransactionHistoryRow(
         ...base,
         kind: "topUp",
         title: TOP_UP_TITLE_BY_SOURCE[row.topUpSource ?? ""] ?? "Top up",
-        description: row.topUpNote ? truncate(row.topUpNote) : null,
+        // Refund what/why wins over a free-text note so a REFUND row always
+        // says what it refunded when the ledger knows. Notes still fill gaps
+        // for other top ups and for orphan refunds with no linked entity.
+        description:
+          refundDescription(row) ??
+          (row.topUpNote ? truncate(row.topUpNote) : null),
         bucketSource: row.topUpSource,
+        refundedJobId: row.refundedJobId,
+        refundedAgentId: row.refundedAgentId,
+        // An archived task is a 404 everywhere: name it, but link nowhere.
+        refundedTaskId: row.refundedTaskArchived ? null : row.refundedTaskId,
       };
     case "unattributed":
       // Nothing links this spend to an entity. Say so plainly: the date, the

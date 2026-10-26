@@ -38,19 +38,40 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_chat",
   "post_chat",
   "open_direct_chat",
+  "ask_coworker",
   "list_files",
   "read_file",
   "list_tables",
   "read_table",
   "upload_file",
+  "move_file",
+  "update_emails",
+  "draft_email",
+  "send_email_draft",
+  "save_email_attachment",
   "generate_image",
   "get_image",
+  "generate_video",
+  "get_video",
+  "list_skills",
+  "install_skill",
+  "remove_skill",
   "create_table",
   "write_table_rows",
   "update_table_columns",
+  "search_contacts",
+  "get_contact",
+  "list_contact_lists",
+  "find_contact_duplicates",
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
   "list_integrations",
   "search_inbox",
   "read_email",
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
   "run_integration_tool",
@@ -75,6 +96,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "workspace_search",
   "update_plan",
   "run_subagent",
+  "start_background_run",
+  "list_background_runs",
+  "stop_background_run",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -112,13 +136,22 @@ export function isSokoBotSandboxCapability(
  */
 export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "hire_agent",
+  // Mail leaves the owner's mailbox; a page the bot read must not send it.
+  "send_email_draft",
+  "update_emails",
+  // A skill is instructions the bot follows from then on; a page it read
+  // must not be able to install one.
+  "install_skill",
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
   // Spends credits, and its prompt is the kind of thing a page can inject.
   "generate_image",
+  "generate_video",
   "post_chat",
   "open_direct_chat",
+  // The question is a prompt for a Coworker; a page must not write it.
+  "ask_coworker",
   "reply_to_task",
   "assign_task",
   "update_assigned_task",
@@ -130,7 +163,26 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  // A brief is a prompt for a turn with this one's tools; a page must not write it.
+  "start_background_run",
 ] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * The tainted tools that stay refused even on work the owner asked for: they
+ * reach people or systems beyond the owner's own workspace. The rest — briefing
+ * a Coworker, hiring, saving to Files — is what a chained job the owner set
+ * out ("research, build the site, have it reviewed") is made of.
+ */
+export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
+  "run_integration_tool",
+  "post_chat",
+  "open_direct_chat",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
@@ -145,11 +197,19 @@ const DIRECT_READ_CAPABILITIES = [
   "list_files",
   "read_file",
   "get_image",
+  "get_video",
+  "list_skills",
   "list_tables",
   "read_table",
+  "search_contacts",
+  "get_contact",
+  "list_contact_lists",
+  "find_contact_duplicates",
   "list_integrations",
   "search_inbox",
   "read_email",
+  // Asks Jev typed questions about text the bot passes in; changes nothing.
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
   "list_project_social_accounts",
@@ -159,6 +219,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_social_account_statistics",
   "refresh_social_account_statistics",
   "get_social_post",
+  "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
   // schema stays on the hire route: fetching it calls the seller's server.
@@ -174,6 +235,12 @@ const SOCIAL_WRITE_CAPABILITIES = [
   "publish_social_post",
 ] as const satisfies readonly SokoBotCapability[];
 
+/** Long work the bot hands to itself in the background. */
+const BACKGROUND_RUN_CAPABILITIES = [
+  "start_background_run",
+  "stop_background_run",
+] as const satisfies readonly SokoBotCapability[];
+
 /** Follow-ups the bot sets up for itself; never need owner approval. */
 const SCHEDULE_CAPABILITIES = [
   "create_schedule",
@@ -182,17 +249,51 @@ const SCHEDULE_CAPABILITIES = [
   "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
+/**
+ * The bot's own installed skills. Core allows them only in the owner's own
+ * chat, when the owner asked: a skill is third-party instructions the bot
+ * follows on every later turn.
+ */
+const SKILL_CAPABILITIES = [
+  "install_skill",
+  "remove_skill",
+] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * The workspace's shared contacts: people, their channels, interactions and
+ * lists. Every member sees them, so they are writes, but nothing leaves
+ * Sokosumi — web research may fill them, as the prospects feature asks.
+ */
+const CONTACT_WRITE_CAPABILITIES = [
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
+] as const satisfies readonly SokoBotCapability[];
+
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.
   "open_direct_chat",
+  // Opens a private channel of the owner, the bot and Coworkers and asks them
+  // something. Nobody else is in it, so it is not an outward post.
+  "ask_coworker",
   "upload_file",
+  "move_file",
+  // The owner's mailbox: read state, archive, drafts. Sending is its own
+  // tool, which Core allows only on the owner's word in their chat.
+  "update_emails",
+  "draft_email",
+  "save_email_attachment",
   "generate_image",
+  "generate_video",
   "create_table",
   "write_table_rows",
   "update_table_columns",
+  ...CONTACT_WRITE_CAPABILITIES,
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",
@@ -238,6 +339,25 @@ export function exceedsUnattendedHireBudget(params: {
   return unattended && params.maxCredits > params.ceiling;
 }
 
+/** Who an unattended turn tells the bot to ask: a shared bot has no owner. */
+function unattendedAsk(shared: boolean): string {
+  return shared ? "the team in your shared room" : "the owner";
+}
+
+/** Why a second hire in a turn nobody asked for was refused. */
+export function unattendedSecondHireRefusal(shared: boolean): string {
+  return `A turn nobody asked for may hire once. Report what you found and ask ${unattendedAsk(shared)} before hiring again.`;
+}
+
+/** Why a hire over the unattended ceiling was refused. */
+export function unattendedHireOverCeilingRefusal(
+  shared: boolean,
+  ceiling: number,
+  maxCredits: number,
+): string {
+  return `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${maxCredits}. ${shared ? `Ask ${unattendedAsk(true)} instead.` : "Ask the owner in their chat instead."}`;
+}
+
 /** Reads plus the sandbox: what every owner turn starts from. */
 const OWNER_BASE_CAPABILITIES = [
   ...DIRECT_READ_CAPABILITIES,
@@ -249,7 +369,9 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
     ...OWNER_BASE_CAPABILITIES,
+    ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "find_coworkers",
@@ -263,7 +385,9 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   HIRE_AGENT: [
     ...OWNER_BASE_CAPABILITIES,
+    ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "get_agent_input_schema",
@@ -272,8 +396,10 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   MANAGE_WORK: [
     ...OWNER_BASE_CAPABILITIES,
+    ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "update_task",
@@ -322,18 +448,27 @@ export function capabilitiesForClassification(
     Exclude<NonNullable<TurnClassification["writeScope"]>, "WORK">,
     readonly SokoBotCapability[]
   > = {
-    MEMORY: ["update_memory"],
+    MEMORY: ["update_memory", ...SKILL_CAPABILITIES],
     SCHEDULE: SCHEDULE_CAPABILITIES,
-    CHAT: ["post_chat", "open_direct_chat"],
+    CHAT: ["post_chat", "open_direct_chat", "ask_coworker"],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",
+      "move_file",
+      "save_email_attachment",
       "generate_image",
+      "generate_video",
       "create_table",
       "write_table_rows",
       "update_table_columns",
+      ...CONTACT_WRITE_CAPABILITIES,
     ],
-    INTEGRATION: ["run_integration_tool"],
+    INTEGRATION: [
+      "run_integration_tool",
+      "update_emails",
+      "draft_email",
+      "send_email_draft",
+    ],
     // A post's media must be in Files first; images sent in chat get there
     // through upload_file.
     SOCIAL: [...SOCIAL_WRITE_CAPABILITIES, "upload_file"],
@@ -366,6 +501,16 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
   /** The write route Jev leaned toward but was not sure of; reads only. */
   unsureRoute?: SokoBotRoute;
+  /** Jev's soft reads of a typed message: hints for context, never gates. */
+  signals?: SokoBotTurnSignals;
+}
+
+/** Probabilities, 0–1, that a typed message does each of these. */
+export interface SokoBotTurnSignals {
+  refersToEarlier: number;
+  statesPreference: number;
+  aboutMail: number;
+  aboutTasks: number;
 }
 
 export function isSokoBotCapability(value: string): value is SokoBotCapability {

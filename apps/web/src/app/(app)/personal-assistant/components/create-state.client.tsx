@@ -1,21 +1,19 @@
 "use client";
 
 import type { SokoBotAvatar } from "@sokosumi/core-client";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { type ReactNode, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  createSokoBotAction,
-  introduceSokoBotAction,
-} from "@/lib/actions/soko-bot/action";
+import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 
 import { AvatarPicker } from "./avatar-picker.client";
+import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 
 /**
  * First visit: the bot's orb, what it does, a name, and a picture.
@@ -23,8 +21,17 @@ import { AvatarPicker } from "./avatar-picker.client";
  */
 export function CreateState({
   paidByOrganization,
+  secondaryAction,
+  onCreated,
 }: {
   paidByOrganization: boolean;
+  /** Shown under the submit button, e.g. "Later" in the first-run flow. */
+  secondaryAction?: ReactNode;
+  /**
+   * Takes over once the bot and its room exist, instead of the reveal and
+   * the jump to chat.
+   */
+  onCreated?: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Create");
   const tChat = useTranslations("App.SokoBot.Chat");
@@ -47,16 +54,18 @@ export function CreateState({
         toast.error(result.error.message ?? t("error"));
         return;
       }
+      if (onCreated) {
+        await openNewSokoBotRoom(result.value.id);
+        onCreated();
+        return;
+      }
       setCreated({ name: result.value.name ?? trimmed });
       // Let the reveal play before the chat takes over.
       const reveal = new Promise((resolve) => setTimeout(resolve, 1800));
-      const room = await ensureSokoBotDirectRoomAction(result.value.id);
-      if (room?.ok && room.value) {
-        await introduceSokoBotAction({ roomId: room.value.id });
-      }
+      const roomId = await openNewSokoBotRoom(result.value.id);
       await reveal;
-      if (room?.ok && room.value) {
-        router.push(`/chat/rooms/${encodeURIComponent(room.value.id)}`);
+      if (roomId) {
+        router.push(`/chat/rooms/${encodeURIComponent(roomId)}`);
         return;
       }
       router.refresh();
@@ -99,7 +108,27 @@ export function CreateState({
         {t("description")}
       </p>
 
+      {/* People meet the idea here for the first time: say what it does in
+          their terms before asking them to name one. */}
+      <ul
+        aria-label={t("examplesLabel")}
+        className="mt-8 w-full space-y-3 text-sm leading-relaxed"
+      >
+        {(["exampleDelegate", "exampleBrief", "exampleMemory"] as const).map(
+          (key) => (
+            <li key={key} className="flex gap-3">
+              <Check
+                aria-hidden
+                className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              />
+              <span className="text-foreground text-pretty">{t(key)}</span>
+            </li>
+          ),
+        )}
+      </ul>
+
       <form onSubmit={handleSubmit} className="mt-10 w-full space-y-6">
+        <p className="text-foreground text-sm font-medium">{t("nameIntro")}</p>
         <div className="space-y-2">
           <Label htmlFor={nameId}>{t("nameLabel")}</Label>
           <Input
@@ -131,6 +160,7 @@ export function CreateState({
         >
           {t("submit")}
         </Button>
+        {secondaryAction}
       </form>
     </div>
   );

@@ -34,6 +34,8 @@ interface PersistChatHumanMentionsParams {
   messageId: string;
   roomId: string;
   content: string;
+  /** See `resolveMentionedUserIds`; defaults to expanding `@all`. */
+  expandAll?: boolean;
 }
 
 /**
@@ -58,6 +60,7 @@ export async function persistChatHumanMentions(
       id: member.userId,
       name: member.user.name,
     })),
+    expandAll: params.expandAll,
   });
 
   if (mentionedUserIds.length === 0) {

@@ -59,6 +59,10 @@ test("parseTask maps live Core Task fields onto CLI names", () => {
   assert.deepEqual(
     parseTask({
       id: "tsk-1",
+      identifier: "SOK-12",
+      priority: "HIGH",
+      projectId: "proj-1",
+      assigneeUserId: null,
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:01:00.000Z",
       ownerId: "user-1",
@@ -82,6 +86,7 @@ test("parseTask maps live Core Task fields onto CLI names", () => {
     }),
     {
       id: "tsk-1",
+      identifier: "SOK-12",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:01:00.000Z",
       userId: "user-1",
@@ -89,8 +94,11 @@ test("parseTask maps live Core Task fields onto CLI names", () => {
       name: "Review onboarding",
       description: "Notes",
       status: "READY",
+      priority: "HIGH",
+      projectId: "proj-1",
       coworkerId: "cow-1",
       coworkerName: "Ops Agent",
+      assigneeUserId: null,
       jobs: [
         {
           id: "job-1",

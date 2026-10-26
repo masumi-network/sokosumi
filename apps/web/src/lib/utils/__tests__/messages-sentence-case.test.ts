@@ -22,10 +22,17 @@ const PROPER_PHRASES = [
   "Social Scheduling",
   "Sokosumi Projects",
   "Agent Identities",
+  // Ad platforms.
+  "Google Ads",
+  "Google Search",
+  "Display Network",
+  "Meta Ads",
   // The Files area, named as a destination ("Copy to Files").
   "to Files",
   "from Files",
   "From Files",
+  // The Ads Market tab, named as a destination ("Add from Market").
+  "from Market",
   // Legal documents, capitalised as titles in the sign-up consent copy too.
   "Terms of Service",
   "Terms and Conditions",
@@ -58,8 +65,8 @@ const PROPER_WORDS = new Set([
   "X",
   "Claude",
   "Eve",
+  "Jev",
   "YouTube",
-  "LinkedIn",
   "Slack",
   "Notion",
   "Linear",

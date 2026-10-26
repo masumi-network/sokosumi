@@ -7,11 +7,30 @@ import { describe, expect, it } from "vitest";
 
 import { presetClassificationResult } from "@/lib/soko-bot/classifier";
 import {
+  inheritedScheduleRoute,
   SYSTEM_TURN_ROUTES,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
 
 describe("system turn routes", () => {
+  it("runs a bot-written follow-up with exactly its writing turn's tools", () => {
+    const route = inheritedScheduleRoute([
+      "create_table",
+      "write_table_rows",
+      "search_inbox",
+      "bash",
+      "not_a_tool",
+    ]);
+    expect(route?.capabilities).toEqual([
+      "create_table",
+      "write_table_rows",
+      "search_inbox",
+      "bash",
+    ]);
+    expect(route?.sandbox).toBe(true);
+    expect(inheritedScheduleRoute([])).toBeUndefined();
+  });
+
   it("gives every built-in rhythm a route", () => {
     for (const rhythm of SOKO_BOT_SYSTEM_SCHEDULES)
       expect(systemScheduleRoute(rhythm.key)).toBeDefined();
@@ -46,6 +65,24 @@ describe("system turn routes", () => {
     expect(capabilitiesForClassification(briefing)).not.toContain(
       "create_task",
     );
+  });
+
+  it("lets mail checks file attachments and change nothing else in the mailbox", () => {
+    const delta = SYSTEM_TURN_ROUTES["ingest:delta"].capabilities;
+    const briefing = SYSTEM_TURN_ROUTES["ingest:briefing"].capabilities;
+    for (const capabilities of [delta, briefing]) {
+      expect(capabilities).toContain("save_email_attachment");
+      expect(capabilities).toContain("read_email");
+      for (const capability of [
+        "update_emails",
+        "draft_email",
+        "send_email_draft",
+        "hire_agent",
+      ])
+        expect(capabilities).not.toContain(capability);
+    }
+    expect(delta).not.toContain("update_memory");
+    expect(briefing).toContain("update_memory");
   });
 
   it("lets meeting prep search mail itself without writing anything", () => {

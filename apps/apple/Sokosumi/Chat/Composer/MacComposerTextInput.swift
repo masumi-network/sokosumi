@@ -494,6 +494,38 @@
         pasteText(from: .general)
       }
 
+      /// AppKit enables Paste only for the text types it reads, and a screenshot or a copied image puts image data
+      /// on the pasteboard alone; Paste stays on for what the composer attaches.
+      override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if super.validateUserInterfaceItem(item) {
+          return true
+        }
+        return item.action.map { pastesAttachment($0, from: .general) } ?? false
+      }
+
+      /// Whether `action` is one of the composer's pastes and would attach something from `pasteboard`.
+      func pastesAttachment(_ action: Selector, from pasteboard: NSPasteboard) -> Bool {
+        [#selector(paste(_:)), #selector(pasteAsPlainText(_:)), #selector(pasteAsRichText(_:))].contains(action)
+          && isEditable && pastedAttachment(on: pasteboard) != nil
+      }
+
+      /// What a paste from `pasteboard` attaches, the one rule Paste's validation and the paste itself share: files
+      /// where the composer attaches files, else an image (TIFF converted to PNG) where it attaches images.
+      func pastedAttachment(on pasteboard: NSPasteboard) -> ComposerPastedAttachment? {
+        if attachFiles != nil, let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
+           !files.isEmpty {
+          return .files(files)
+        }
+        guard attachImage != nil else { return nil }
+        if let png = pasteboard.data(forType: .png) {
+          return .image(png)
+        }
+        if let tiff = pasteboard.data(forType: .tiff), let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:]) {
+          return .image(png)
+        }
+        return nil
+      }
+
       /// The composer has one paste: it already inserts plain text, attaches
       /// files and images, and offers the paste as a quote. Paste and Match
       /// Style must not slip past that.
@@ -506,19 +538,15 @@
       }
 
       func pasteText(from pasteboard: NSPasteboard) {
-        if let attachFiles, let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !files.isEmpty {
-          attachFiles(files)
+        switch pastedAttachment(on: pasteboard) {
+        case let .files(files):
+          attachFiles?(files)
           return
-        }
-        if let attachImage {
-          if let png = pasteboard.data(forType: .png) {
-            attachImage(png)
-            return
-          }
-          if let tiff = pasteboard.data(forType: .tiff), let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:]) {
-            attachImage(png)
-            return
-          }
+        case let .image(png):
+          attachImage?(png)
+          return
+        case nil:
+          break
         }
         let plain = pasteboard.string(forType: .string) ?? ""
         let text = plain.isEmpty ? ComposerPaste.plainText(html: pasteboard.string(forType: .html) ?? "") : plain
@@ -684,5 +712,11 @@
         }
       }
     }
+  }
+
+  /// What a paste puts in the composer instead of text: copied files, or an image as PNG.
+  enum ComposerPastedAttachment: Equatable {
+    case files([URL])
+    case image(Data)
   }
 #endif

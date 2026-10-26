@@ -290,6 +290,29 @@ struct RealtimeEventTests {
     #expect(revokedRoomId == roomId)
   }
 
+  /// ADR 0055: a preview or local Core scopes the channels; deliveries on them resolve as on production's.
+  @Test(arguments: ["preview:mainnet:branch_fix%2Fx:", "development:mainnet:"])
+  func scopedChannelsResolveLikeProduction(_ scope: String) {
+    let message = resolveRealtimeDelivery(
+      channel: "chat_rooms:\(scope)room_\(roomId)", event: "chat_room_message",
+      data: ["eventType": "create", "message": messageDict()]
+    )
+    guard case let .message(messageRoomId, _, _) = message else {
+      Issue.record("expected message, got \(message)")
+      return
+    }
+    #expect(messageRoomId == roomId)
+    let revoked = resolveRealtimeDelivery(
+      channel: "chat_control:\(scope)user_user_1", event: "chat_membership_revoked",
+      data: ["roomId": roomId, "reason": "removed", "at": "2026-01-01T00:00:00.000Z"]
+    )
+    guard case let .revoked(revokedRoomId) = revoked else {
+      Issue.record("expected revoked, got \(revoked)")
+      return
+    }
+    #expect(revokedRoomId == roomId)
+  }
+
   /// Row 31b1: Core's `chat_room_read` on the room channel (`chat-room-read-realtime.ts`), web's
   /// `chatRoomReadEventDataSchema`: a room, a user and an ISO date.
   @Test func roomReadResolvesOnTheRoomsOwnChannel() {

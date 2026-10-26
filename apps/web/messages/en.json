@@ -341,7 +341,10 @@
       "design-md": "Design",
       "memory": "Memory",
       "social": "Social Scheduling",
-      "evaluations": "Model evaluations"
+      "ads": "Ads",
+      "evaluations": "Model evaluations",
+      "catch-up": "Catch up",
+      "contacts": "Contacts"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1019,6 +1022,16 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openJob": "Open job",
+      "jobHint": {
+        "started": "Starting the job.",
+        "payment_pending": "Waiting for the payment to confirm before the Agent starts.",
+        "processing": "The Agent is working on it.",
+        "input_required": "The Agent needs more input to continue.",
+        "result_pending": "The Agent finished. The result is on its way.",
+        "failed": "The Agent couldn't finish this Job.",
+        "payment_failed": "The payment didn't go through, so the Agent didn't start."
+      },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
       "assignee": "Assigned to",
@@ -1026,7 +1039,6 @@
       "destination": "Account",
       "scheduled": "Scheduled for",
       "recurrence": "Recurrence",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Task",
         "task_schedule": "Task schedule",
@@ -1239,10 +1251,19 @@
             "message": "Don't have an account?",
             "link": "Register"
           },
+          "RegisterOnWebsite": {
+            "message": "No account yet? Accounts are created on the website, not in the app.",
+            "link": "Create one on the website"
+          },
           "NoAccount": {
             "title": "No account for this address",
             "description": "Check it for typos, or create one now.",
             "createAccount": "Create account"
+          },
+          "NoAccountOnWebsite": {
+            "title": "No account for this address",
+            "description": "Check it for typos, or create an account on the website, then sign in here.",
+            "createAccount": "Create account on the website"
           },
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
@@ -1445,7 +1466,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Top up",
           "unattributed": "Other"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# interaction} other {# interactions}}",
+        "sokoBotTurnsList": "{name}'s interactions"
       },
       "Export": {
         "button": "Export CSV",
@@ -1590,7 +1613,8 @@
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
           "trendUp": "{count} more than the previous 24 hours",
-          "trendDown": "{count} fewer than the previous 24 hours"
+          "trendDown": "{count} fewer than the previous 24 hours",
+          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1600,6 +1624,19 @@
         "searchAgents": {
           "label": "Search",
           "subtitle": "Specialized agents"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "heading": "What's next?",
+          "headingWithName": "What's next, {name}?",
+          "placeholder": "Ask {name}…",
+          "sendFailed": "Could not send your message. Please try again.",
+          "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "suggestions": {
+            "catchUp": "Catch me up",
+            "teamWins": "What did we finish?",
+            "planTomorrow": "Plan tomorrow"
+          }
         }
       },
       "SokoBot": {
@@ -1623,6 +1660,7 @@
           "standup": "Daily stand-up",
           "weeklyWrap": "Weekly wrap",
           "scheduled": "Scheduled: {name}",
+          "background": "Background run: {name}",
           "taskUpdate": "Task update"
         }
       }
@@ -1691,7 +1729,8 @@
         "emptyResults": "No results found.",
         "all": "All",
         "scopeLabel": "Scope",
-        "scopeOwned": "My tasks",
+        "scopeOwned": "Created by me",
+        "assignedToMe": "My tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "humanLabel": "Human",
@@ -1793,8 +1832,6 @@
         "actions": {
           "edit": "Edit",
           "archive": "Archive",
-          "confirmArchive": "Archive this task?",
-          "confirmArchiveDescription": "This hides the task from your list, including any scheduled runs linked to it. In-progress runs must finish or be canceled first. It is not permanently removed from the database.",
           "archiveError": "Failed to archive task",
           "reopenToReady": "Reopen to Ready",
           "reopenToReadyTitle": "Reopen task",
@@ -2152,6 +2189,7 @@
           "resume": "Resume",
           "end": "End",
           "delete": "Delete",
+          "more": "More actions",
           "paused": "Schedule paused",
           "resumed": "Schedule resumed",
           "ended": "Schedule ended",
@@ -2230,7 +2268,14 @@
           "marketing": "Marketing",
           "social": "Social media",
           "seo": "SEO",
-          "operations": "Operations"
+          "operations": "Operations",
+          "presentations": "Presentations",
+          "dashboards": "Dashboards",
+          "monitoring": "Monitoring",
+          "media": "Media editing",
+          "communication": "Communication",
+          "finance": "Finance",
+          "qa": "Review & QA"
         }
       }
     },
@@ -2369,8 +2414,11 @@
         "account": "{provider} account",
         "connect": "Connect {provider} account",
         "connectAccount": "Connect account",
+        "projectClosed": "This project is closed.",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
+        "startOver": "Start over",
+        "syncNow": "Sync now",
         "replace": "Replace",
         "disconnect": "Disconnect",
         "unknownHandle": "Unknown account",
@@ -2382,7 +2430,7 @@
         },
         "replaceDialog": {
           "title": "Replace {account}?",
-          "description": "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+          "description": "Drafts and scheduled posts move to the new account.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
@@ -2393,17 +2441,18 @@
         "cancel": "Cancel",
         "success": {
           "connected": "{account} connected.",
-          "disconnected": "{account} disconnected."
+          "disconnected": "{account} disconnected.",
+          "syncStarted": "Sync started."
         },
         "warning": {
-          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
+          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections."
         },
         "errors": {
-          "facebookPage": "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+          "facebookPage": "Facebook needs an account that manages exactly one Page.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
-          "providerCallback": "Authorization did not complete. Return to the Project’s Social page and try again.",
+          "providerCallback": "Authorization did not complete. Try again.",
           "legacyCallback": "This callback cannot verify your account. Contact support and try again.",
           "verifier": "We could not verify your account. Start the connection again.",
           "intent": "This connection request expired or is no longer valid. Start again.",
@@ -2411,7 +2460,8 @@
           "reconnectMismatch": "Reconnect the same account that is already linked to this project.",
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
-          "notConfigured": "This integration is not configured yet. Contact support to enable it."
+          "notConfigured": "This integration is not configured yet. Contact support to enable it.",
+          "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
         "connectComingSoon": "{provider} (coming soon)",
@@ -2419,11 +2469,28 @@
         "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Try again",
+          "help": "Everything else still works. Check your connection and try again.",
+          "projectHelp": "Showing all projects for now. Try again, or choose another one.",
+          "title": {
+            "drafts": "Couldn't load drafts",
+            "attention": "Couldn't load posts that need attention",
+            "accounts": "Couldn't load accounts",
+            "calendar": "Couldn't load the calendar",
+            "post": "Couldn't open that post",
+            "project": "Couldn't load that project"
+          }
+        },
         "loadMore": "Load more",
+        "loadMoreError": "Couldn't load more.",
+        "loadMoreOffline": "You're offline.",
+        "loadMoreTimeout": "Timed out.",
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",
-        "moreActions": "Post actions",
+        "moreActionsNamed": "Post actions for {handle}",
+        "thisDraft": "this draft",
         "noAccount": "No account",
         "outcomes": {
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -2447,14 +2514,19 @@
           "accounts": "Accounts",
           "statistics": "Performance"
         },
+        "filters": {
+          "platform": "Platform"
+        },
         "empty": {
-          "drafts": "No drafts yet."
+          "drafts": "No drafts yet.",
+          "more": "More posts are available."
         },
         "emptyHint": {
-          "drafts": "Save a post as a draft to finish it later."
+          "drafts": "Save a draft to finish later."
         },
         "status": {
           "DRAFT": "Draft",
+          "NEEDS_APPROVAL": "Needs approval",
           "SCHEDULED": "Scheduled",
           "PUBLISHING": "Publishing",
           "PUBLISHED": "Published",
@@ -2474,9 +2546,14 @@
           "rescheduleTitle": "Reschedule post",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
+          "firstComment": "First comment",
+          "firstCommentPlaceholder": "Hashtags or a call to action",
+          "firstCommentTooLong": "First comment is too long.",
+          "textForAccount": "Text for this account",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",
+            "drop": "Drop files to attach",
             "upload": "Upload",
             "remove": "Remove {name}",
             "unsupported": "Use a file type {provider} accepts.",
@@ -2523,7 +2600,9 @@
             "dateSelected": "Date: {date}",
             "timeSelected": "Time: {time}",
             "times": "Times",
-            "now": "Now"
+            "now": "Now",
+            "suggestedTimes": "Suggested times",
+            "suggested": "Best {time}"
           },
           "timezone": {
             "yours": "Your time zone: {zone}",
@@ -2545,6 +2624,10 @@
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
+          "discardTitle": "Discard changes?",
+          "discardDescription": "Your changes will be lost.",
+          "discard": "Discard",
+          "keepEditing": "Keep editing",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
           "tooLong": "Text length is over the limit."
@@ -2554,20 +2637,29 @@
           "description": "The post will not be published. This cannot be undone.",
           "confirm": "Cancel post"
         },
+        "dismissDialog": {
+          "title": "Dismiss this post?",
+          "description": "It leaves Needs attention.",
+          "confirm": "Dismiss"
+        },
         "toasts": {
           "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
+          "dismissed": "Post dismissed.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
           "timeout": "Timed out. Try again.",
+          "missingPost": "Couldn't open this post.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
-          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
+          "publishFailedItem": "{account} — {error}",
+          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
+          "duplicated": "Draft created."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -2576,23 +2668,36 @@
         "failedAt": "Failed {date}",
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
         "actions": {
-          "publishNow": "Publish now",
-          "retry": "Retry"
+          "publishNow": "Post now",
+          "retry": "Retry",
+          "dismiss": "Dismiss",
+          "duplicate": "Duplicate as draft"
         },
         "publishDialog": {
-          "title": "Publish this post now?",
+          "title": "Post this now?",
           "description": "The post goes out right away instead of waiting for its scheduled time.",
-          "confirm": "Publish now"
+          "confirm": "Post now"
         },
         "retryDialog": {
           "title": "Retry this post?",
           "description": "The post goes out now.",
           "confirm": "Retry"
         },
+        "bulkRetry": {
+          "selectPost": "Select this post",
+          "selectAll": "Select all posts that can be retried",
+          "selected": "{count} selected",
+          "retrySelected": "Retry selected",
+          "title": "Retry these posts now?",
+          "description": "Each selected post goes out right away. You will see which ones published and which still need attention.",
+          "confirm": "Retry selected",
+          "resultsTitle": "Retry results",
+          "published": "Published"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from this project's accounts.",
-          "action": "Connect X, YouTube, LinkedIn…"
+          "action": "Connect account"
         },
         "reconnectPrompt": {
           "title": "Reconnect to post",
@@ -2604,12 +2709,14 @@
           "now": "now",
           "accountFallback": "Your account",
           "open": "Preview",
+          "openNamed": "Preview {handle}",
           "accounts": "Preview account",
-          "as": "Preview as {handle}",
+          "as": "Preview as {provider} {handle}",
           "dialogTitle": "Post preview",
           "offline": "You're offline.",
           "timeout": "Timed out.",
           "missing": "Couldn't open this post.",
+          "mediaUnavailable": "Media isn't included in imported history yet.",
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
@@ -2620,7 +2727,9 @@
           },
           "instagram": {
             "more": "more",
-            "mediaRequired": "Instagram needs an image or video."
+            "mediaRequired": "Instagram needs an image or video.",
+            "slide": "{current} of {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Like",
@@ -2636,6 +2745,9 @@
           "tiktok": {
             "more": "more",
             "videoRequired": "TikTok needs a video."
+          },
+          "x": {
+            "more": "Show more"
           }
         },
         "statistics": {
@@ -2648,15 +2760,17 @@
           "clearFilters": "Clear filters",
           "invalidRange": "End date must be on or after the start date.",
           "loading": "Loading statistics…",
-          "loadFailed": "Failed to load statistics",
+          "loadFailed": "Couldn't load stats.",
           "retry": "Try again",
-          "refreshFailed": "Failed to refresh statistics. Previous results are retained. Check the connected account and permissions, then try again.",
+          "refreshFailed": "Couldn't refresh.",
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
+          "loadMoreError": "Couldn't load more.",
           "unavailable": "Unavailable",
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",
+          "updating": "Updating…",
           "metrics": {
             "views": "Views",
             "impressions": "Impressions",
@@ -2690,11 +2804,27 @@
             "dayEngagementUnavailable": "{date}: engagement unavailable",
             "dayOutside": "{date}: outside collected history",
             "legendNone": "None",
-            "legendMore": "More"
+            "legendMore": "More",
+            "moreActions": "More actions",
+            "exportCsv": "Export CSV",
+            "exportXlsx": "Export spreadsheet",
+            "legendUnknown": "Unknown"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
-          "postsHint": "Read-only history imported from connected platforms. Post filters do not change the account overview.",
+          "postsHint": "Imported from connected platforms. Recycle a strong post to share it again.",
+          "recycle": {
+            "action": "Recycle",
+            "strong": "Strong",
+            "title": "Recycle this post?",
+            "description": "Copies the text into a new draft. Nothing goes out on its own.",
+            "saveDraft": "Save as draft",
+            "inDays": "In {days} days",
+            "drafted": "Draft created.",
+            "scheduled": "Scheduled to go out again.",
+            "failed": "Couldn't recycle this post.",
+            "cancel": "Cancel"
+          },
           "account": "Account",
           "allAccounts": "All accounts",
           "syncAll": "Sync all accounts",
@@ -2716,8 +2846,8 @@
           "historyNotFetched": "Account history has not been imported.",
           "historyLimited": "History is incomplete or limited by the platform. Check the account permissions and try syncing again.",
           "dateUnavailable": "Publication date unavailable",
-          "mediaPost": "Media post",
-          "openPost": "Open post on platform",
+          "noPostMetrics": "No metrics reported for this post yet.",
+          "openPost": "View post on platform",
           "accountMetrics": {
             "followers": "Followers",
             "following": "Following",
@@ -2760,7 +2890,13 @@
             "linkClicks": "Link clicks",
             "replies": "Replies",
             "reposts": "Reposts",
-            "dislikes": "Dislikes"
+            "dislikes": "Dislikes",
+            "quotes": "Quotes",
+            "totalWatchTime": "Total watch time",
+            "averageWatchTime": "Average watch time",
+            "skipRate": "Skip rate",
+            "facebookViews": "Facebook views",
+            "crosspostedViews": "Crossposted views"
           },
           "periods": {
             "lifetime": "Lifetime",
@@ -2779,7 +2915,16 @@
             "minutes": "minutes",
             "hours": "hours"
           }
-        }
+        },
+        "reconnection": {
+          "accounts": "Accounts needing attention",
+          "title": "{account} needs reconnecting",
+          "affected": "{count, plural, one {# post affected} other {# posts affected}}",
+          "retryTitle": "Retry failed posts?",
+          "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
+          "later": "Later"
+        },
+        "moreActions": "Post actions"
       },
       "Detail": {
         "back": "Back to projects",
@@ -2876,6 +3021,7 @@
           "dialog": {
             "title": "Close project?",
             "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "scheduledPostsWarning": "{count, plural, one {# scheduled post will be canceled.} other {# scheduled posts will be canceled.}}",
             "reasonLabel": "Reason (optional)",
             "reasonPlaceholder": "Why is this project closing?",
             "confirm": "Close project",
@@ -2931,10 +3077,14 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "ariaLabel": "Project sections"
+          "ariaLabel": "Project sections",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots for this project"
         }
       }
     },
@@ -3026,7 +3176,6 @@
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
       "pickTitle": "Pick a project",
-      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
@@ -3040,10 +3189,28 @@
       "noModelSelected": "Choose at least one model. The frame, resolution and format on offer are whatever every chosen model can honour.",
       "generationTime": "Generation time",
       "runPlan": "Will run {copies}x on {models, plural, one {# model} other {# models}}",
+      "modelSelectionLimit": "Choose up to {count} models per batch. Unselect a model to add another.",
+      "selectModelsUpToLimit": "Select up to {count}",
+      "mixedSettings": "Varies by model",
+      "modelChoosesFormat": "Model chooses",
       "copiesOverCeiling": "{models, plural, one {# model} other {# models}} x {copies} copies is {images} images, and the limit is {limit}.",
       "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up.",
-      "errorUnreachable": "Could not reach the studio. Nothing was generated. Try again.",
-      "errorInsufficientCredits": "Not enough credits. Nothing was generated and nothing was charged. Top up your credits and try again.",
+      "savedSubmission": "Saved request for {model}",
+      "submissionUnconfirmed": "Submission not confirmed",
+      "submissionNotStarted": "Failed to start image generation",
+      "viewSavedBrief": "View saved brief",
+      "retrySubmission": "Retry submission",
+      "editSavedBrief": "Edit saved brief",
+      "dismissSubmission": "Dismiss",
+      "recoveryEditBlocked": "A newer draft is in the composer. Finish it before editing this saved brief.",
+      "savedRequestsInTab": "Saved requests stay in this tab. Leaving or reloading clears them.",
+      "promptShortcut": "Ctrl or ⌘ + Enter to generate. Enter or Shift + Enter for a new line.",
+      "promptCharacterCount": "{count, number} / {limit, number} characters",
+      "promptTooLong": "Shorten the brief to {limit, number} characters before generating.",
+      "templateReplacedBrief": "Template replaced your brief.",
+      "undoTemplate": "Undo template",
+      "errorUnreachable": "Failed to confirm submission. The original request may still finish and be charged. Retry checks the same request without creating another generation.",
+      "errorInsufficientCredits": "Not enough credits to start the remaining images. Your requests are saved here for retry after adding credits.",
       "credits": "Credits",
       "creditsTitle": "Credits for this batch",
       "creditsCharged": "Added up from each model's own published price, at 1 credit per cent and no markup on it. This is the charge, not an approximation of one: the same figure is taken when the image is delivered. A generation that fails costs nothing.",
@@ -3066,6 +3233,18 @@
         "unknown": "This generation did not finish."
       },
       "failedDetails": "What the provider said",
+      "studioMode": "Make",
+      "modeImage": "Image",
+      "modeVideo": "Video",
+      "videoComposerTitle": "Describe a video",
+      "videoPromptPlaceholder": "Describe the video you want…",
+      "generateVideo": "Generate video",
+      "videoLength": "Length",
+      "videoFollowsImage": "The video keeps the image's frame.",
+      "videoNeedsProject": "Open a project to make a video in it.",
+      "animate": "Animate",
+      "animating": "Animating",
+      "stopAnimating": "Stop animating this image",
       "runPlanCredits": "Will run {copies}x on {models, plural, one {# model} other {# models}}, {credits, plural, one {# credit} other {# credits}}",
       "creditsEach": "{credits, plural, one {# credit} other {# credits}} x {count}",
       "creditsCount": "{count, plural, one {# credit} other {# credits}}",
@@ -3076,7 +3255,579 @@
         "megapixels": "megapixel",
         "processedMegapixels": "processed megapixel"
       },
-      "creditsCheckedOn": "Price checked {date}"
+      "creditsCheckedOn": "Price checked {date}",
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery."
+    },
+    "Ads": {
+      "title": "Ads",
+      "pickTitle": "Pick a project",
+      "pickBody": "Ads belong to one project: its ad accounts and campaigns are managed there. Choose a project to open its ads.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "tabsLabel": "Ads sections",
+      "loading": "Loading ads…",
+      "updated": "Updated {time}",
+      "loadError": {
+        "unavailableDescription": "It is not set up for Sokosumi yet.",
+        "failedDescription": "Try again in a moment.",
+        "retry": "Try again"
+      },
+      "tabs": {
+        "campaigns": "Campaigns",
+        "market": "Market",
+        "accounts": "Accounts"
+      },
+      "campaigns": {
+        "emptyTitle": "Connect an ad account to see campaigns",
+        "emptyBody": "Campaigns from Google Ads and Meta Ads appear here once an account is connected.",
+        "emptyAction": "Go to accounts",
+        "noCampaignsTitle": "No campaigns in this account yet",
+        "noCampaignsBody": "Create one with New campaign. It starts paused.",
+        "account": "Ad account",
+        "rangeLabel": "Date range",
+        "range": {
+          "7d": "7 days",
+          "30d": "30 days"
+        },
+        "tableLabel": "Campaigns",
+        "columns": {
+          "name": "Campaign",
+          "status": "Status",
+          "dailyBudget": "Daily budget",
+          "spend": "Spend",
+          "impressions": "Impressions",
+          "clicks": "Clicks",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversions",
+          "actions": "Actions"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "ENDED": "Ended",
+          "OTHER": "Other"
+        },
+        "actions": {
+          "label": "Actions for {name}",
+          "pause": "Pause",
+          "resume": "Resume",
+          "budget": "Change daily budget"
+        },
+        "cancel": "Cancel",
+        "pauseDialog": {
+          "title": "Pause {name}?",
+          "description": "It stops spending until you resume it.",
+          "confirm": "Pause"
+        },
+        "resumeDialog": {
+          "title": "Resume {name}?",
+          "description": "It starts spending again, up to its daily budget.",
+          "confirm": "Resume"
+        },
+        "budget": {
+          "label": "Daily budget ({currency})",
+          "required": "Enter a daily budget greater than 0.",
+          "wholeNumber": "Use a whole number for {currency}.",
+          "precision": "Use at most {digits} decimal places for {currency}.",
+          "managedElsewhere": "This campaign's budget is managed in {provider} (shared or ad-set budget). Change it there."
+        },
+        "budgetDialog": {
+          "title": "Change daily budget",
+          "description": "{name} spends up to this amount per day.",
+          "save": "Save budget",
+          "change": "Daily budget changes from {old} to {new}.",
+          "notSet": "not set"
+        },
+        "success": {
+          "updated": "Campaign updated successfully"
+        },
+        "errors": {
+          "update": "Failed to update campaign",
+          "notActive": {
+            "title": "Reconnect this account in Accounts",
+            "description": "The connection to this ad account is no longer active.",
+            "action": "Go to accounts"
+          },
+          "unavailable": {
+            "title": "{provider} isn't available yet"
+          },
+          "failed": {
+            "title": "Failed to load campaigns"
+          }
+        },
+        "new": "New campaign",
+        "budgetPerDay": "{budget}/day"
+      },
+      "newCampaign": {
+        "title": "New campaign",
+        "inAccount": "{provider} account {name}",
+        "note": {
+          "google_ads": "Campaigns are created paused. Resume one here when it is ready.",
+          "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
+        },
+        "sections": {
+          "type": "Campaign type",
+          "basics": "Basics",
+          "targeting": "Targeting",
+          "ad": "Ad"
+        },
+        "types": {
+          "SEARCH": "Search",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Text ads on Google Search results.",
+          "DISPLAY": "Image ads on websites and apps across the Google Display Network."
+        },
+        "name": "Name",
+        "objective": "Objective",
+        "objectivePlaceholder": "Select an objective",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Traffic",
+          "OUTCOME_AWARENESS": "Awareness",
+          "OUTCOME_ENGAGEMENT": "Engagement",
+          "OUTCOME_LEADS": "Leads",
+          "OUTCOME_SALES": "Sales"
+        },
+        "startDate": "Start date",
+        "endDate": "End date",
+        "datesHelp": "Optional. Uses the ad account's time zone.",
+        "targeting": {
+          "locations": {
+            "label": "Locations",
+            "help": "Where your ads can show. Up to {max}.",
+            "full": "Location limit reached ({max}).",
+            "placeholder": "Search for a country, region or city",
+            "search": "Search locations",
+            "loading": "Searching…",
+            "idle": "Type to find a place.",
+            "empty": "No locations found.",
+            "error": "Failed to search locations.",
+            "all": "All countries",
+            "remove": "Remove {name}"
+          },
+          "languages": {
+            "label": "Languages",
+            "help": "Show ads to people who use these languages.",
+            "placeholder": "Choose languages",
+            "search": "Search languages",
+            "empty": "No languages found.",
+            "unavailable": "Failed to load languages. The campaign will target all languages.",
+            "all": "All languages",
+            "remove": "Remove {name}"
+          }
+        },
+        "keywords": {
+          "label": "Keywords",
+          "help": "One keyword per line. Use \"quotes\" for phrase match and [brackets] for exact match.",
+          "placeholder": "running shoes\n\"trail running shoes\"\n[buy running shoes]",
+          "count": "{count, plural, one {# keyword} other {# keywords}}",
+          "addFromMarket": "Add from Market",
+          "marketNone": "No new Market keywords to add",
+          "marketFailed": "Failed to load Market keywords",
+          "errors": {
+            "required": "Add at least one keyword.",
+            "tooMany": "Use at most {max} keywords.",
+            "syntax": "Line {line}: check the quotes and brackets.",
+            "tooLong": "Line {line}: use at most {max} characters.",
+            "tooManyWords": "Line {line}: use at most {max} words."
+          }
+        },
+        "ad": {
+          "finalUrl": "Final URL",
+          "finalUrlHelp": "The page people land on after they click your ad.",
+          "finalUrlPlaceholder": "https://example.com/shoes",
+          "businessName": "Business name",
+          "longHeadline": "Long headline",
+          "displayPath": "Display path",
+          "displayPathHelp": "Optional. Two short paths shown after your domain in the ad.",
+          "path1": "Path 1",
+          "path2": "Path 2",
+          "pathPreview": "Shown as {url}",
+          "headlines": {
+            "label": "Headlines",
+            "help": "{min} to {max} headlines of up to {length} characters. Google combines them to find what works.",
+            "item": "Headline {number}",
+            "add": "Add headline",
+            "remove": "Remove headline {number}"
+          },
+          "descriptions": {
+            "label": "Descriptions",
+            "help": "{min} to {max} descriptions of up to {length} characters.",
+            "item": "Description {number}",
+            "add": "Add description",
+            "remove": "Remove description {number}"
+          },
+          "sitelinks": {
+            "title": "Sitelinks (optional)",
+            "summary": "{count, plural, one {# sitelink} other {# sitelinks}}",
+            "help": "Extra links shown under your ad. Up to {max}. Add both description lines or neither.",
+            "item": "Sitelink {number}",
+            "text": "Link text",
+            "finalUrl": "URL",
+            "description1": "Description line 1",
+            "description2": "Description line 2",
+            "add": "Add sitelink",
+            "remove": "Remove sitelink {number}"
+          },
+          "callouts": {
+            "title": "Callouts (optional)",
+            "summary": "{count, plural, one {# callout} other {# callouts}}",
+            "label": "Callouts",
+            "help": "Short highlights such as \"Free shipping\". Up to {max}, with up to {length} characters each.",
+            "item": "Callout {number}",
+            "add": "Add callout",
+            "remove": "Remove callout {number}"
+          },
+          "images": {
+            "label": "Images",
+            "help": "JPEG, PNG or GIF, up to {maxMb} MB each. Landscape images are 1.91:1 (at least {landscape} px), square images 1:1 (at least {square} px). Up to {maxImages} in total.",
+            "counts": "Landscape {landscape} · Square {square} · {total} of {max} images",
+            "missing": {
+              "both": "Add at least one landscape and one square image.",
+              "landscape": "Add at least one landscape image.",
+              "square": "Add at least one square image."
+            },
+            "logoLabel": "Logo",
+            "logoHelp": "Optional. Square images, 1:1, at least {logo} px. Up to {maxLogos}.",
+            "logoCounts": "{count} of {max} logos",
+            "roles": {
+              "LANDSCAPE": "Landscape",
+              "SQUARE": "Square",
+              "LOGO": "Logo"
+            },
+            "slots": {
+              "images": {
+                "files": "Image files"
+              },
+              "logo": {
+                "files": "Logo files"
+              }
+            },
+            "upload": "Upload",
+            "choose": "Choose from Drive",
+            "remove": "Remove {name}",
+            "uploadFailed": "Failed to upload the image",
+            "uploadDuplicate": "A file with this name already exists in your Drive. Choose it from Drive instead.",
+            "errors": {
+              "unreadable": "{name}: failed to read this image.",
+              "type": "{name}: use a JPEG, PNG or GIF image.",
+              "tooLarge": "{name}: use an image of at most {maxMb} MB.",
+              "duplicate": "{name} is already added.",
+              "full": "Use at most {maxImages} landscape and square images.",
+              "fullLogo": "Use at most {maxLogos} logos.",
+              "ratio": "{name}: use a landscape image (1.91:1, at least {landscape} px) or a square image (1:1, at least {square} px).",
+              "landscapeTooSmall": "{name}: landscape images need at least {landscape} px.",
+              "squareTooSmall": "{name}: square images need at least {square} px.",
+              "logoRatio": "{name}: logos must be square (1:1).",
+              "logoTooSmall": "{name}: logos need at least {logo} px.",
+              "repeated": "Use each image file once."
+            },
+            "kept": "Current image ({role})"
+          }
+        },
+        "submit": "Create campaign",
+        "uploadingImages": "Uploading images…",
+        "success": "Campaign created (paused)",
+        "errors": {
+          "nameRequired": "Enter a name.",
+          "nameTooLong": "Use at most {max} characters.",
+          "objectiveRequired": "Choose an objective.",
+          "finalUrl": "Enter a full address starting with http:// or https://.",
+          "headlineRequired": "Enter a headline or remove this one.",
+          "headlineTooLong": "Use at most {max} characters.",
+          "headlineDuplicate": "Each headline must be different.",
+          "descriptionRequired": "Enter a description or remove this one.",
+          "descriptionTooLong": "Use at most {max} characters.",
+          "tooLong": "Use at most {max} characters.",
+          "pathNeedsFirst": "Fill in path 1 first.",
+          "endBeforeStart": "The end date can't be before the start date.",
+          "sitelinkTextRequired": "Enter the link text or remove this sitelink.",
+          "sitelinkDescriptionsPair": "Add both description lines or neither.",
+          "sitelinkDuplicate": "Each sitelink must be different.",
+          "calloutDuplicate": "Each callout must be different.",
+          "businessNameRequired": "Enter the business name.",
+          "longHeadlineRequired": "Enter a long headline.",
+          "failed": "Failed to create campaign"
+        },
+        "steps": {
+          "type": "Campaign type",
+          "basics": "Basics",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad",
+          "review": "Review"
+        },
+        "wizard": {
+          "stepsLabel": "Steps",
+          "stepOf": "Step {current} of {total}: {step}",
+          "backTo": "Back to {step}",
+          "goTo": "Go to {step}",
+          "back": "Back",
+          "next": "Next"
+        },
+        "typeTitle": "Where should your ads show?",
+        "typeIntro": "Pick one. It can't be changed once the campaign is created.",
+        "needs": {
+          "title": "You'll need",
+          "keywords": "Keywords people search for",
+          "searchTexts": "{minHeadlines} to {maxHeadlines} headlines and {minDescriptions} to {maxDescriptions} descriptions",
+          "displayTexts": "Up to {maxHeadlines} headlines, a long headline and up to {maxDescriptions} descriptions",
+          "businessName": "Your business name",
+          "images": "A landscape and a square image",
+          "finalUrl": "The page people land on"
+        },
+        "preview": {
+          "title": "Preview",
+          "searchLabel": "Search ad preview",
+          "displayLabel": "Display ad preview",
+          "sponsored": "Sponsored",
+          "note": "Google mixes your texts and images to find what works, so the real ad can look different.",
+          "another": "Show another combination",
+          "noImage": "No image yet",
+          "open": "Open"
+        },
+        "review": {
+          "title": "Summary",
+          "dailyBudget": "Daily budget",
+          "edit": "Edit",
+          "editLabel": "Edit {section}",
+          "schedule": {
+            "label": "Schedule",
+            "range": "{start} to {end}",
+            "from": "From {start}",
+            "until": "Until {end}",
+            "none": "No start or end date"
+          }
+        },
+        "setupFailed": {
+          "title": "Failed to load the campaign form",
+          "body": "Check your connection and try again.",
+          "retry": "Try again"
+        }
+      },
+      "campaignDetails": {
+        "back": "Back to campaigns",
+        "title": "Campaign",
+        "types": {
+          "SEARCH": "Search",
+          "DISPLAY": "Display"
+        },
+        "perDay": "{amount} a day",
+        "noEndDate": "No end date",
+        "sections": {
+          "performance": "Performance",
+          "settings": "Settings",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad",
+          "sitelinks": "Sitelinks",
+          "callouts": "Callouts"
+        },
+        "performance": {
+          "chartMetric": "Chart metric",
+          "chartLabel": "{metric} per day",
+          "empty": "No activity in this period",
+          "tableCaption": "Daily performance",
+          "date": "Date",
+          "chartHint": "Use the left and right arrow keys to move between days."
+        },
+        "settings": {
+          "bidding": "Bidding",
+          "networks": "Networks"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Maximize clicks",
+          "MANUAL_CPC": "Manual CPC",
+          "ENHANCED_CPC": "Enhanced CPC",
+          "MANUAL_CPM": "Manual CPM",
+          "TARGET_CPM": "Target CPM",
+          "MAXIMIZE_CONVERSIONS": "Maximize conversions",
+          "MAXIMIZE_CONVERSION_VALUE": "Maximize conversion value",
+          "TARGET_CPA": "Target CPA",
+          "TARGET_ROAS": "Target ROAS",
+          "TARGET_IMPRESSION_SHARE": "Target impression share"
+        },
+        "matchTypes": {
+          "BROAD": "Broad match",
+          "PHRASE": "Phrase match",
+          "EXACT": "Exact match"
+        },
+        "approval": {
+          "APPROVED": "Approved",
+          "APPROVED_LIMITED": "Approved (limited)",
+          "DISAPPROVED": "Disapproved",
+          "PENDING_REVIEW": "Pending review",
+          "UNDER_REVIEW": "Under review",
+          "AREA_OF_INTEREST_ONLY": "Shows in some areas only"
+        },
+        "ad": {
+          "displayUrl": "Display URL",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Review in progress",
+            "UNDER_APPEAL": "Under appeal",
+            "REVIEWED": "Reviewed",
+            "ELIGIBLE_MAY_SERVE": "Eligible to serve"
+          },
+          "strength": "Ad strength: {strength}",
+          "strengths": {
+            "PENDING": "Pending",
+            "NO_ADS": "No ads",
+            "POOR": "Poor",
+            "AVERAGE": "Average",
+            "GOOD": "Good",
+            "EXCELLENT": "Excellent"
+          },
+          "imageAlt": "{role} image {number}"
+        },
+        "notEditable": {
+          "TYPE": "Sokosumi doesn't build this campaign type; manage it in Google Ads.",
+          "AD_GROUPS": "This campaign has several ad groups; manage them in Google Ads.",
+          "AD_TYPE": "This campaign doesn't have a single responsive ad; manage its ads in Google Ads."
+        },
+        "errors": {
+          "failed": "Failed to load this campaign"
+        },
+        "networks": {
+          "SEARCH": "Google Search",
+          "DISPLAY": "Display Network"
+        },
+        "edit": "Edit"
+      },
+      "editCampaign": {
+        "title": "Edit campaign",
+        "submit": "Save changes",
+        "reviewNote": "Saving sends the ad back to Google's review.",
+        "startDateLocked": "The start date can't change once a campaign has started.",
+        "success": "Campaign updated",
+        "errors": {
+          "conflict": "This campaign can't be edited here.",
+          "failed": "Failed to save changes"
+        }
+      },
+      "market": {
+        "setupTitle": "Set up your market",
+        "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your search competitors are running.",
+        "edit": "Edit market",
+        "editBody": "Trending keywords and ads follow these keywords, country and language.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Press Enter or comma to add one. Up to {max}.",
+          "keywordsPlaceholder": "For example, running shoes",
+          "keywordsFull": "Keyword limit reached",
+          "removeKeyword": "Remove {keyword}",
+          "country": "Country",
+          "countryPlaceholder": "Choose a country",
+          "language": "Language",
+          "languagePlaceholder": "Choose a language",
+          "submit": "Save market",
+          "cancel": "Cancel",
+          "success": "Market saved successfully",
+          "errors": {
+            "keywordsRequired": "Add at least one keyword.",
+            "keywordsTooMany": "Use up to {max} keywords.",
+            "countryRequired": "Choose a country.",
+            "languageRequired": "Choose a language.",
+            "failed": "Failed to save market"
+          }
+        },
+        "keywords": {
+          "title": "Trending keywords",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Monthly searches",
+            "trend": "12 months",
+            "competition": "Competition",
+            "bidRange": "Top-of-page bid"
+          },
+          "competition": {
+            "LOW": "Low",
+            "MEDIUM": "Medium",
+            "HIGH": "High"
+          },
+          "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
+          "searchesPerMonth": "{count} searches a month",
+          "emptyTitle": "No trending keywords found for this market",
+          "emptyBody": "Try other keywords or another country."
+        },
+        "ads": {
+          "title": "Ads from your search competitors",
+          "previewAlt": "Ad by {advertiser}",
+          "textAd": "Text ad",
+          "noPreview": "No preview",
+          "format": {
+            "text": "Text",
+            "image": "Image",
+            "video": "Video",
+            "other": "Other"
+          },
+          "lastShown": "Last shown {time}",
+          "viewAd": "View ad",
+          "emptyTitle": "No competitor ads found",
+          "emptyBody": "Ads from sites ranking for your keywords appear here once they run.",
+          "gatheringTitle": "Gathering ads from your search competitors",
+          "gatheringBody": "This takes a few minutes. You can leave this page.",
+          "refreshing": "Refreshing…",
+          "failedTitle": "Couldn't gather competitor ads",
+          "failedBody": "We'll try again within the hour.",
+          "failedNotice": "Couldn't refresh, we'll try again within the hour"
+        },
+        "errors": {
+          "unavailable": "Market data isn't available yet",
+          "failed": {
+            "profile": "Failed to load your market",
+            "keywords": "Failed to load keywords",
+            "ads": "Failed to load ads"
+          }
+        }
+      },
+      "accounts": {
+        "emptyTitle": "No ad accounts connected yet",
+        "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns.",
+        "connect": "Connect {provider}",
+        "comingSoon": "Coming soon",
+        "unavailable": "{provider} isn't available yet",
+        "noAccountsFound": "No ad accounts found for this login",
+        "sectionLabel": "Ad accounts",
+        "listLabel": "Connected ad accounts",
+        "disconnect": "Disconnect",
+        "disconnectLabel": "Disconnect {name}",
+        "cancel": "Cancel",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "Disconnect {name}?",
+          "description": "Its campaigns will no longer appear here. If this is the last account from that login, Sokosumi also disconnects the login. You can connect it again at any time.",
+          "confirm": "Disconnect"
+        },
+        "picker": {
+          "title": "Choose ad accounts",
+          "description": "Select the {provider} accounts to manage in this project.",
+          "listLabel": "Available ad accounts",
+          "confirm": "Connect selected"
+        },
+        "success": {
+          "connected": "Ad accounts connected successfully",
+          "disconnected": "Ad account disconnected successfully"
+        },
+        "errors": {
+          "connect": "Failed to connect {provider}",
+          "attach": "Failed to connect ad accounts",
+          "disconnect": "Failed to disconnect ad account",
+          "discard": "Failed to discard ad connection",
+          "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
+          "timeout": "Authorization took too long. Try again.",
+          "inFlight": "Another connection is already in progress."
+        }
+      },
+      "error": {
+        "title": "Failed to load ads",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      }
     },
     "Social": {
       "title": "Social Scheduling",
@@ -3096,17 +3847,22 @@
         "chooseProjectBody": "Posts go out from one project's accounts."
       },
       "accountsNeedProject": {
-        "title": "Connect your social accounts",
-        "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
+        "title": "Choose a project",
+        "body": "Then connect accounts."
+      },
+      "attentionNeedProject": {
+        "title": "Needs attention",
+        "body": "Choose a project to see posts that failed or were missed."
       },
       "draftsNeedProject": {
         "title": "Drafts",
         "body": "Choose a project to see and finish its drafts."
       },
-      "loading": "Loading Social…",
+      "loading": "Loading…",
       "pickProject": "Choose a project",
       "platforms": {
-        "label": "Social platforms"
+        "label": "Social platforms",
+        "pause": "Pause platforms"
       },
       "statisticsNeedProject": {
         "title": "Choose a project to see performance",
@@ -3156,7 +3912,9 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social Scheduling"
+          "social": "Social Scheduling",
+          "ads": "Ads",
+          "contacts": "Contacts"
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -4154,7 +4912,8 @@
             "delete": "Delete Soko Bot",
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
-            "error": "Could not delete this Soko Bot."
+            "error": "Could not delete this Soko Bot.",
+            "confirmLabelShared": "This bot is shared and has no owner. Type its ID ({id}) to confirm"
           },
           "chat": {
             "readOnly": "Read-only",
@@ -5018,12 +5777,14 @@
         }
       },
       "SocialAccounts": {
-        "connected": "is connected",
-        "notConnected": "is not connected",
+        "title": "Sign-in",
+        "description": "Use these accounts to sign in.",
+        "connected": "{provider} is connected",
+        "notConnected": "{provider} is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",
-        "loadError": "We could not load your connected accounts right now.",
+        "loadError": "Check your connection and try again.",
         "retry": "Retry",
         "DisconnectModal": {
           "title": "Disconnect {provider}",
@@ -5038,7 +5799,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
-        "loadError": "We could not load your linked account details right now.",
+        "loadError": "Check your connection and try again.",
         "retry": "Retry"
       },
       "Notifications": {
@@ -5191,7 +5952,11 @@
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
-        "roomUnreadCountDisabledSuccess": "Unread message counts disabled"
+        "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
+        "tagDirectMessagesTitle": "Sort my direct messages",
+        "tagDirectMessagesDescription": "Let Jev read person-to-person Directs to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
+        "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
       "BillingDetails": {
         "title": "Billing information",
@@ -6244,6 +7009,10 @@
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
       "reorderPinnedDone": "Done reordering",
+      "SectionLimit": {
+        "showMore": "Show {count} more",
+        "showLess": "Show less"
+      },
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
@@ -6259,6 +7028,7 @@
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noDirectMessagesDescription": "Send a message to start the conversation.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Members could not be loaded",
@@ -6395,11 +7165,9 @@
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "filterOn": "Showing unread only",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
-        "allThreads": "All threads",
         "justRead": "Read just now"
       },
       "ThreadsView": {
@@ -6762,6 +7530,92 @@
         "you": "You",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
+      },
+      "Signals": {
+        "error": "Couldn't load that. Try again.",
+        "retry": "Try again",
+        "needsYouCount": "{count, plural, one {# message needs you} other {# messages need you}}",
+        "needsYouSection": "Needs you",
+        "catchUp": "Catch up",
+        "whileYouWereAway": "While you were away:",
+        "whileYouWereAwayTitle": "While you were away",
+        "dismissCatchUp": "Hide catch-up",
+        "summarize": "Summary",
+        "summarizing": "Writing your summary…",
+        "writtenByAi": "Summary written by AI {time}",
+        "byRoom": "By room",
+        "due": "Due {date}",
+        "caughtUpTitle": "You're caught up",
+        "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
+        "removeTag": "Remove tag: {tag}",
+        "taskMade": "Task made",
+        "loopClosed": "Done",
+        "makeTask": "Make a task",
+        "handOff": "Hand off",
+        "findingCoworkers": "Finding a coworker…",
+        "fit": "{fit} fit",
+        "noCoworkerFits": "No Coworker fits this yet.",
+        "createTask": "Create a task",
+        "editTags": "Edit tags",
+        "editTagsTitle": "What this message is",
+        "editTagsNote": "Your correction applies for everyone in the room.",
+        "taskDue": "Due {date}",
+        "taskSource": "From the chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
+          "escalation": "{count, plural, one {# escalation} other {# escalations}}",
+          "urgent": "{count, plural, one {# urgent} other {# urgent}}",
+          "blocker": "{count, plural, one {# blocker} other {# blockers}}",
+          "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
+          "commitment": "{count, plural, one {# commitment} other {# commitments}}",
+          "workRequest": "{count, plural, one {# work request} other {# work requests}}",
+          "question": "{count, plural, one {# question} other {# questions}}",
+          "fyi": "{count, plural, one {# FYI} other {# FYI}}",
+          "chitChat": "{count, plural, one {# chat} other {# chats}}"
+        },
+        "Sections": {
+          "needsYou": "Needs you",
+          "decisions": "Decisions",
+          "openLoops": "Open loops",
+          "highlights": "Highlights"
+        },
+        "Chips": {
+          "needsYou": "Needs you",
+          "escalation": "Escalation",
+          "urgent": "Urgent",
+          "blocker": "Blocker",
+          "decisionMade": "Decision",
+          "needsDecision": "Needs a decision",
+          "commitment": "Commitment",
+          "commitmentDue": "Commitment · due {date}",
+          "workRequest": "Work request"
+        },
+        "Tags": {
+          "question": "Asks someone a question",
+          "needsDecision": "Needs a decision",
+          "decisionMade": "Decision made",
+          "commitment": "Commitment",
+          "blocker": "Blocker",
+          "urgent": "Urgent",
+          "escalation": "Escalation",
+          "workRequest": "Work request",
+          "fyi": "FYI",
+          "chitChat": "Chit-chat"
+        },
+        "Decisions": {
+          "open": "Decisions",
+          "title": "Decisions",
+          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "loadOlder": "Load older",
+          "note": "Collected by Jev. Remove a wrong one from its message."
+        },
+        "CatchUpTabs": {
+          "label": "Catch up sections",
+          "overview": "Overview",
+          "threads": "Threads"
+        }
       }
     },
     "Drive": {
@@ -6815,6 +7669,13 @@
       "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
       "moveAction": "Move",
+      "moveFilesDialogTitle": "Move {count, plural, one {# file} other {# files}}",
+      "movedFiles": "{count, plural, one {Moved # file} other {Moved # files}}",
+      "moveFilesPartialError": "{count, plural, one {# file could not be moved} other {# files could not be moved}}",
+      "moveNewFolderLabel": "New folder",
+      "moveNewFolderPlaceholder": "Or type a new folder name",
+      "shareAction": "Share",
+      "shareFolderAction": "Share “{name}”",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
       "moveHere": "Move here",
@@ -6849,6 +7710,13 @@
       "filterProjectLabel": "Project",
       "filterTaskLabel": "Task",
       "recentsTab": "Recents",
+      "recentsTagFilter": "Tags",
+      "recentsTagFilterWithCount": "Tags ({count})",
+      "recentsTagFilterHeading": "Show files tagged",
+      "recentsTagFilterClear": "Clear tags",
+      "recentsTagFilterLoading": "Loading tags",
+      "recentsTagFilterUnavailable": "Tags could not be loaded.",
+      "recentsTagFilterEmpty": "No tags yet. Files are tagged as they are processed.",
       "recentsEmptyTitle": "No recent files",
       "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
       "loadRecentsError": "Failed to load recent files",
@@ -6900,15 +7768,16 @@
         "suggestedChip": "Suggested: {name}",
         "selectFile": "Select {name}",
         "bulkSelected": "{count} selected",
-        "bulkWindowSelected": "{count} files selected from this result window",
-        "bulkWindowChanged": "This window changed — {count} files still match. Confirm again.",
-        "bulkSelectionExpired": "That result window expired. Search again.",
-        "bulkSetCategory": "Set {name}",
         "bulkClear": "Clear selection",
-        "bulkApplied": "Updated {count} files",
-        "bulkPartial": "{applied} updated, {failed} failed and stay selected",
-        "bulkSelectAllMatches": "Select all {count} matches",
-        "bulkError": "Those changes could not be applied.",
+        "bulkDelete": "Delete",
+        "bulkMove": "Move",
+        "bulkShare": "Share",
+        "bulkDeleteTitle": "Delete {count, plural, one {# file} other {# files}}?",
+        "bulkDeleteDescription": "They are removed for everyone in this Files workspace. This can't be undone.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
+        "bulkDeleteCancel": "Cancel",
+        "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
+        "bulkDeletePartial": "{deleted} deleted, {failed} failed and stay selected",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
         "detailCategory": "Category",
@@ -6986,9 +7855,6 @@
         "addTagUnavailable": "Tags could not be loaded",
         "tagAdded": "Tag added. An earlier removal of it no longer applies.",
         "suggestionExcerpt": "From this document",
-        "bulkMoreCategories": "{count} more…",
-        "bulkCategorySearch": "Search categories",
-        "bulkCategoryEmpty": "No categories match",
         "relatedNoText": "No related files. This document has no readable text.",
         "processingPartialCoverage": "Only part of this file is indexed. About {percent}% of the text was read.",
         "sheetOpenAsPage": "Open as page",
@@ -6996,6 +7862,7 @@
         "viewerDetails": "Details",
         "viewerClose": "Close",
         "viewerNoPreview": "No preview for this file type. Download it to open it.",
+        "viewerDownloadWithSize": "Download ({size})",
         "searchButton": "Search",
         "searchClear": "Clear search",
         "typeAll": "All",
@@ -7006,6 +7873,34 @@
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
+      },
+      "tableKind": "Table",
+      "Share": {
+        "title": "Share “{name}”",
+        "fileDescription": "Anyone with the link can view and download this file.",
+        "folderDescription": "Anyone with the link can see and download everything in this folder, including files added later.",
+        "loading": "Loading link",
+        "passwordOptional": "Password (optional)",
+        "passwordPlaceholder": "Leave empty for no password",
+        "newPasswordPlaceholder": "New password",
+        "passwordTooShort": "At least 4 characters",
+        "create": "Create link",
+        "created": "Link created",
+        "linkLabel": "Share link",
+        "copy": "Copy",
+        "copied": "Link copied",
+        "copyFailed": "Could not copy the link",
+        "passwordOn": "Password protected",
+        "passwordOff": "No password",
+        "setPassword": "Set password",
+        "changePassword": "Change",
+        "passwordSaved": "Password saved",
+        "removePassword": "Remove password",
+        "passwordRemoved": "Password removed",
+        "revoke": "Stop sharing",
+        "revoked": "Link turned off",
+        "loadFailed": "Could not load the link",
+        "saveFailed": "Could not save the link"
       }
     },
     "SokoBot": {
@@ -7018,18 +7913,23 @@
         "description": "The personal assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
-        "title": "Meet your Soko Bot",
+        "title": "Your own assistant",
         "successTitle": "Meet {name}",
         "successHint": "Opening your chat…",
-        "description": "A personal project manager inside Sokosumi. It answers directly when it can, delegates Tasks to your Coworkers, and hires marketplace Agents to run Jobs. Give it a name and a picture.",
+        "description": "A Soko Bot is an AI assistant that works for you in Sokosumi. Tell it what you need in plain words and it takes care of it.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
-        "submit": "Create Soko Bot",
+        "submit": "Create my Soko Bot",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
-        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
-        "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
+        "spendNotice": "Uses your credits. Set a daily limit in its settings.",
+        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings.",
+        "exampleDelegate": "Turns “research our top 5 competitors” into a Task for the right Coworker and follows up until it’s done.",
+        "exampleBrief": "Sends you a short morning brief from your inbox and calendar.",
+        "exampleMemory": "Remembers your goals and preferences, so you don’t repeat yourself.",
+        "examplesLabel": "What it can do for you",
+        "nameIntro": "First, give it a name."
       },
       "Memory": {
         "title": "Memory",
@@ -7059,7 +7959,7 @@
         "connectFailed": "The connection did not complete. Try again.",
         "lastError": "Needs attention: {error}",
         "title": "Connected accounts",
-        "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
+        "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask.",
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
@@ -7138,6 +8038,9 @@
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
         "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment names it.",
+        "mailAutoReadTitle": "Handle routine mail",
+        "mailAutoReadDescription": "After each check, mark mail that is neither urgent nor notable as read. Important mail stays unread for you.",
+        "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -7155,7 +8058,12 @@
         "deleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased. Tasks it created stay on your board. You can create a new assistant straight away.",
         "deleteConfirmLabel": "Type {name} to confirm",
         "deleteError": "Could not delete your Soko Bot.",
-        "deleted": "Soko Bot deleted."
+        "deleted": "Soko Bot deleted.",
+        "sharedArchiveDescription": "Stops all turns and schedules for everyone. An owner or admin can reactivate it; history is kept.",
+        "sharedArchiveConfirmTitle": "Archive this shared bot?",
+        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
+        "sharedDeleteConfirmTitle": "Delete this shared bot?",
+        "sharedDeleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased for everyone. Tasks it created stay where they are."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -7214,6 +8122,8 @@
           "read_file": "Reading a file",
           "generate_image": "Generating an image",
           "get_image": "Checking an image",
+          "generate_video": "Generating a video",
+          "get_video": "Checking a video",
           "preview_result": "Preparing a result preview"
         },
         "composer": {
@@ -7360,7 +8270,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask."
+          "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask."
         }
       },
       "Avatar": {
@@ -7436,7 +8346,53 @@
       "chatWith": "Chat with {name}",
       "yourAssistantTitle": "Your assistant",
       "teamTitle": "Your team's assistants",
-      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat."
+      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat.",
+      "Shared": {
+        "title": "Shared bots",
+        "count": "{count, plural, one {# bot} other {# bots}}",
+        "empty": "No shared bots yet. A shared bot works for one project or the whole workspace, and everyone talks to it in one room.",
+        "scopeWorkspace": "Works for the whole workspace",
+        "scopeProject": "Works for a project",
+        "scopeProjectNamed": "Works for {project}",
+        "archived": "Archived",
+        "fallbackName": "Shared assistant",
+        "openBot": "Settings for {name}",
+        "Create": {
+          "trigger": "New Soko Bot",
+          "title": "Create a Soko Bot",
+          "description": "Choose who it works for. Every member shares a project or workspace bot and can read its chat history, memory and settings.",
+          "nameLabel": "Name",
+          "scopeLabel": "Works for",
+          "scopes": {
+            "personal": {
+              "label": "Only you",
+              "hint": "Your own assistant. Nobody else can manage it."
+            },
+            "project": {
+              "label": "One project",
+              "hint": "Sees the project's public Tasks. Everyone talks to it in its room."
+            },
+            "workspace": {
+              "label": "The whole workspace",
+              "hint": "Sees every public Task and Project. Everyone talks to it in its room."
+            }
+          },
+          "projectLabel": "Project",
+          "projectPlaceholder": "Choose a project",
+          "cancel": "Cancel",
+          "submit": "Create",
+          "error": "Could not create the Soko Bot.",
+          "created": "Soko Bot created."
+        },
+        "Archived": {
+          "title": "{name} is archived",
+          "description": "An archived bot no longer reads, runs its schedules or answers in its room. Its history stays.",
+          "back": "Back to Soko Bots",
+          "reactivate": "Reactivate",
+          "reactivated": "Soko Bot reactivated.",
+          "reactivateError": "Could not reactivate the Soko Bot."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
@@ -7527,7 +8483,8 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
+        "platform": "Platform"
       },
       "socialOnly": {
         "label": "Social posts only"
@@ -7576,10 +8533,16 @@
       "yes": "Yes",
       "no": "No",
       "cellHistory": "History and sources: {column}",
+      "openLink": "Open link: {column}",
+      "wrapText": "Wrap text",
+      "fitColumn": "Fit width to content",
+      "resizeColumn": "Resize {column}. Drag, or press the left and right arrow keys. Double-click to fit the content.",
+      "gridKeys": "Arrow keys and Tab move between cells. Enter or typing edits a cell, Escape cancels, and Enter saves. Alt+Enter opens a link, Alt+Shift+H shows the cell history.",
       "discard": "Discard draft",
       "editColumn": "Edit column",
       "addColumn": "Add column",
       "columnDescription": "Descriptions help people and agents understand values. Column IDs stay stable.",
+      "lastUpdatedHint": "Fills itself with the time each row last changed.",
       "columnConflictReview": "This table changed while you were saving. Review the latest columns before saving again.",
       "reloadLatest": "Reload latest",
       "reviewLatest": "Review complete",
@@ -7648,7 +8611,8 @@
         "url": "URL",
         "email": "Email",
         "single_select": "Single select",
-        "multiple_select": "Multiple select"
+        "multiple_select": "Multiple select",
+        "last_updated": "Last updated"
       },
       "archived": "Archived",
       "active": "Active",
@@ -7675,8 +8639,26 @@
         "csvRows": "CSV files can contain up to 10,000 data rows.",
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
-        "csvWidth": "Every CSV row must have the same number of columns."
-      }
+        "csvWidth": "Every CSV row must have the same number of columns.",
+        "layout": "Column layout wasn't saved and was reset. {reason}"
+      },
+      "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
+      "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "previousPosition": "Previous position",
+      "newPosition": "New position",
+      "anyOption": "Any option",
+      "dnd": {
+        "instructions": "To move a row or column, drag its handle, or focus the handle and press the arrow keys.",
+        "pickedUp": "Picked up {item}.",
+        "over": "{item} is over {target}.",
+        "dropped": "{item} moved to the place of {target}.",
+        "cancelled": "Moving {item} was cancelled."
+      },
+      "contactsName": "Contacts",
+      "contactsPinned": "Pinned",
+      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
@@ -7697,6 +8679,404 @@
       "manage": "Manage projects",
       "current": "(current)",
       "searching": "Searching projects..."
+    },
+    "Contacts": {
+      "Metadata": {
+        "title": "Contacts",
+        "description": "Everyone your team knows, with every way to reach them."
+      },
+      "stages": {
+        "CONTACT": "Contact",
+        "FRIEND": "Friend",
+        "PROSPECT": "Prospect",
+        "LEAD": "Lead",
+        "ACTIVE": "Active",
+        "CUSTOMER": "Customer",
+        "PARTNER": "Partner",
+        "INVESTOR": "Investor",
+        "VENDOR": "Vendor",
+        "ADVISOR": "Advisor",
+        "COMMUNITY": "Community",
+        "PRESS": "Press",
+        "DORMANT": "Dormant"
+      },
+      "channelTypes": {
+        "EMAIL": "Email",
+        "PHONE": "Phone",
+        "SLACK": "Slack",
+        "LINKEDIN": "LinkedIn",
+        "X": "X",
+        "WEBSITE": "Website",
+        "TELEGRAM": "Telegram",
+        "WHATSAPP": "WhatsApp",
+        "GITHUB": "GitHub",
+        "OTHER": "Other"
+      },
+      "sources": {
+        "MANUAL": "Added by hand",
+        "EMAIL": "From email",
+        "CALENDAR": "From calendar",
+        "SLACK": "From Slack",
+        "WEB_RESEARCH": "From web research",
+        "IMPORT": "Imported",
+        "OTHER": "Other source"
+      },
+      "presets": {
+        "all": "All contacts",
+        "mine": "My contacts",
+        "recent": "Recently added"
+      },
+      "emptyViews": {
+        "all": "No contacts yet.",
+        "mine": "Nobody you have talked to yet. Everyone you email or meet shows up here.",
+        "recent": "Nobody was added in the last two weeks.",
+        "list": "This list is empty. Select people in All contacts and add them here."
+      },
+      "views": {
+        "label": "Contact views",
+        "lists": "Lists",
+        "newList": "New list",
+        "smartList": "Smart list",
+        "editList": "Edit list",
+        "deleteList": "Delete list",
+        "noLists": "No lists yet.",
+        "import": "Import from a table",
+        "autoList": "Made automatically from your contacts",
+        "companies": "Companies",
+        "findCompany": "Find a company…",
+        "noCompanies": "No companies found.",
+        "clearCompany": "Show every company"
+      },
+      "columns": {
+        "name": "Name",
+        "organization": "Organization",
+        "role": "Role",
+        "stage": "Relationship",
+        "lists": "Lists",
+        "channels": "Channels",
+        "firstContact": "First contact",
+        "lastContact": "Last contact",
+        "knownBy": "Known by",
+        "followUp": "Follow-up",
+        "email": "Email",
+        "reply": "Reply",
+        "importance": "Importance",
+        "familiarity": "Familiarity"
+      },
+      "grid": {
+        "label": "Contacts",
+        "openContact": "Open {name}",
+        "knownByLabel": "Known by {names}",
+        "due": "Due",
+        "selectAll": "Select all contacts",
+        "selectRow": "Select {name}",
+        "resizeColumn": "Resize {column}",
+        "keys": "Arrow keys move between cells. Enter on a name opens the person; on other cells it edits. F2 edits the name. Escape cancels.",
+        "loadMore": "Load more",
+        "copyEmail": "Copy {email}",
+        "emailCopied": "Email copied",
+        "waitingDays": "{days, plural, =0 {today} other {#d}}",
+        "addedAutomatically": "Added to {list} automatically",
+        "filterCompany": "Show people at {name}"
+      },
+      "toolbar": {
+        "search": "Search contacts",
+        "searchPlaceholder": "Search name, company, email…",
+        "me": "Me",
+        "clearFilter": "Clear {filter} filter",
+        "export": "Export CSV",
+        "add": "Add contact",
+        "more": "More actions",
+        "filter": "Filter",
+        "kind": "Type"
+      },
+      "bulk": {
+        "label": "Selected contacts",
+        "selected": "{count} selected",
+        "addToList": "Add to list",
+        "removeFromList": "Remove from list",
+        "merge": "Merge",
+        "clear": "Clear selection",
+        "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
+        "addedToList": "{count, plural, =1 {Added 1 contact to {list}} other {Added # contacts to {list}}}",
+        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}"
+      },
+      "errors": {
+        "versionConflict": "Someone changed this contact a moment ago. We loaded their version; try your edit again.",
+        "saveFailed": "That didn't save. Try again.",
+        "exportFailed": "The export didn't finish. Try again.",
+        "loadTitle": "Contacts didn't load",
+        "load": "Check your connection and try again."
+      },
+      "count": "{count, plural, =0 {No people} =1 {1 person} other {# people}}",
+      "showing": "Showing {shown} of {total}",
+      "loading": "Loading contacts",
+      "retry": "Try again",
+      "noMatchesTitle": "Nobody here",
+      "noMatches": "No contacts match these filters.",
+      "clearFilters": "Clear filters",
+      "merged": "Merged into {name}",
+      "deleteList": {
+        "title": "Delete {name}?",
+        "description": "The list goes away for the whole team. The people on it stay in Contacts.",
+        "cancel": "Cancel",
+        "confirm": "Delete list"
+      },
+      "listDialog": {
+        "createTitle": "New list",
+        "editTitle": "Edit list",
+        "description": "Lists are shared with your whole team. A person can be on as many as you like.",
+        "name": "Name",
+        "namePlaceholder": "Investors, Berlin meetup…",
+        "nameRequired": "Give the list a name.",
+        "color": "Color",
+        "colors": {
+          "gray": "Gray",
+          "red": "Red",
+          "orange": "Orange",
+          "amber": "Amber",
+          "green": "Green",
+          "teal": "Teal",
+          "blue": "Blue",
+          "indigo": "Indigo",
+          "violet": "Violet",
+          "pink": "Pink"
+        },
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Optional. What the list is for.",
+        "failed": "The list didn't save. Try again.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "create": "Create list"
+      },
+      "addDialog": {
+        "title": "Add contact",
+        "description": "A name, a way to reach them, or both. If your team already knows them, we'll point you to that contact.",
+        "name": "Name",
+        "organization": "Organization",
+        "role": "Role",
+        "channels": "Ways to reach them",
+        "channelType": "Channel {index} type",
+        "channelValue": "Channel {index}",
+        "removeChannel": "Remove channel {index}",
+        "addChannel": "Add another",
+        "placeholders": {
+          "EMAIL": "name@company.com",
+          "PHONE": "+49 151 2345678",
+          "SLACK": "TEAMID:USERID",
+          "LINKEDIN": "linkedin.com/in/name",
+          "X": "@handle",
+          "WEBSITE": "company.com",
+          "TELEGRAM": "@handle",
+          "WHATSAPP": "+49 151 2345678",
+          "GITHUB": "github.com/name",
+          "OTHER": "Anything else"
+        },
+        "prospect": "This is a prospect",
+        "prospectHint": "Someone you haven't talked to yet but would like to.",
+        "whyInteresting": "Why interesting",
+        "whyPlaceholder": "What makes them worth meeting?",
+        "nameOrChannel": "Add a name or a way to reach them.",
+        "channelTaken": "Someone on your team already has this person in Contacts.",
+        "openExisting": "Open contact",
+        "failed": "The contact didn't save. Try again.",
+        "cancel": "Cancel",
+        "submit": "Add contact"
+      },
+      "mergeDialog": {
+        "title": "{count, plural, =2 {Merge 2 contacts} other {Merge # contacts}}",
+        "description": "Pick the one to keep. Everything from the others moves onto it: channels, timeline and lists. Empty fields are filled from them.",
+        "keep": "Keep",
+        "noDetails": "No role or organization",
+        "interactions": "{count, plural, =0 {No interactions} =1 {1 interaction} other {# interactions}}",
+        "failed": "The merge didn't finish. Nothing changed.",
+        "cancel": "Cancel",
+        "submit": "Merge"
+      },
+      "importDialog": {
+        "title": "Import from a table",
+        "description": "Bring people in from a table in Files. Rows that match someone by email or name update that contact.",
+        "doneDescription": "Your contacts are up to date.",
+        "chooseTable": "Table",
+        "columnCount": "{count, plural, =1 {1 column} other {# columns}}",
+        "noTables": "There are no tables in Files yet.",
+        "mapColumns": "Match columns",
+        "mapHint": "We guessed from the column names. Skip anything you don't need.",
+        "required": "(required)",
+        "skipColumn": "Skip",
+        "fields": {
+          "name": "Name",
+          "organization": "Organization",
+          "role": "Role",
+          "location": "Location",
+          "email": "Email",
+          "phone": "Phone",
+          "linkedin": "LinkedIn",
+          "x": "X",
+          "website": "Website",
+          "github": "GitHub",
+          "telegram": "Telegram",
+          "summary": "About",
+          "whyInteresting": "Why interesting",
+          "nextStep": "Next step",
+          "firstContactAt": "First contact",
+          "lists": "Lists"
+        },
+        "result": {
+          "created": "Added",
+          "updated": "Updated",
+          "unchanged": "Already up to date",
+          "skipped": "Skipped",
+          "listsCreated": "{count, plural, =1 {Created 1 list from the tags} other {Created # lists from the tags}}"
+        },
+        "importing": "Importing… This can take a minute for large tables.",
+        "nameRequired": "Choose the column that holds names.",
+        "failed": "The import didn't finish. Try again.",
+        "cancel": "Cancel",
+        "submit": "Import",
+        "done": "Done"
+      },
+      "empty": {
+        "title": "Your team's contacts live here",
+        "description": "People are added automatically from the mail, calendar and Slack your Soko Bots are connected to, with who on the team knows them. No newsletters or automated senders.",
+        "connect": "Connect {name}",
+        "connected": "{name} connected",
+        "connectFailed": "That connection didn't start. Try again.",
+        "manageConnections": "Manage connections",
+        "addByHand": "Add someone",
+        "import": "Import from a table"
+      },
+      "panel": {
+        "loading": "Loading contact",
+        "notFoundTitle": "Contact not found",
+        "notFound": "It may have been merged or archived.",
+        "retry": "Try again",
+        "name": "Name",
+        "roleAt": " at ",
+        "noRole": "No role or organization yet",
+        "addedBy": "Added by {name} {when}",
+        "addedByBot": "Added by Soko Bot {when}",
+        "someone": "a teammate",
+        "menu": "Contact options",
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied",
+        "archive": "Archive contact",
+        "archived": "{name} archived",
+        "changeStage": "Stage: {stage}. Change stage",
+        "changeLists": "Change lists",
+        "addToList": "Add to a list",
+        "manualLists": "Lists",
+        "noManualLists": "No lists yet.",
+        "empty": "Add…",
+        "location": "Location",
+        "nextStepTitle": "Next step",
+        "nextStep": "Next step",
+        "nextStepPlaceholder": "What happens next?",
+        "noFollowUp": "No date",
+        "about": "About",
+        "summary": "Summary",
+        "summaryPlaceholder": "Who they are and how you know them.",
+        "whyInteresting": "Why interesting",
+        "whyPlaceholder": "Why the team should care.",
+        "duplicate": "This looks like the same person as",
+        "reviewMerge": "Review and merge",
+        "channels": "Channels",
+        "addChannel": "Add channel",
+        "channelSource": "{type}, {source}",
+        "verified": "verified",
+        "primary": "Primary",
+        "openSource": "Open where this was found",
+        "copyChannel": "Copy {value}",
+        "removeChannel": "Remove {value}",
+        "noChannels": "No way to reach them yet.",
+        "channelType": "Channel type",
+        "channelValue": "Address",
+        "add": "Add",
+        "timeline": "Timeline",
+        "interactionCount": "{count, plural, =1 {1 interaction} other {# interactions}}",
+        "noInteractions": "No interactions yet. Mail, meetings and Slack messages with this person show up here.",
+        "sokoBot": "Soko Bot",
+        "interactionChannels": {
+          "EMAIL": "Email",
+          "MEETING": "Meeting",
+          "SLACK": "Slack",
+          "CALL": "Call",
+          "MANUAL": "Note",
+          "OTHER": "Other"
+        },
+        "source": "Source",
+        "showMore": "Show more",
+        "activityTitle": "Activity",
+        "activity": {
+          "CREATED": "{who} added this contact",
+          "UPDATED": "{who} changed {fields}",
+          "CHANNEL_ADDED": "{who} added a channel",
+          "CHANNEL_REMOVED": "{who} removed a channel",
+          "MERGED": "{who} merged {names} into this contact",
+          "ARCHIVED": "{who} archived this contact",
+          "UNARCHIVED": "{who} restored this contact"
+        },
+        "fields": {
+          "name": "name",
+          "organization": "organization",
+          "role": "role",
+          "location": "location",
+          "summary": "summary",
+          "whyInteresting": "why interesting",
+          "stage": "stage",
+          "ownerUserId": "owner",
+          "nextStep": "next step",
+          "followUpAt": "follow-up",
+          "avatarUrl": "photo",
+          "customFields": "custom fields",
+          "kind": "type"
+        },
+        "markOrganization": "Mark as organization",
+        "markPerson": "Mark as person",
+        "waitingSince": "Since {date}, no answer yet",
+        "heardFrom": "Last heard from them {when}",
+        "automatic": "Automatic",
+        "classifier": "Automatic classification"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Sales",
+        "relationships": "Relationships",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "No reply",
+        "AWAITING_REPLY": "Awaiting reply",
+        "IN_CONVERSATION": "In conversation",
+        "REPLIED": "Replied"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organization or shared inbox"
+      },
+      "title": "Contacts",
+      "importance": {
+        "veryHigh": "Very important",
+        "high": "Important",
+        "medium": "Somewhat important",
+        "low": "Not very important",
+        "minimal": "Not important",
+        "auto": "Let Jev decide",
+        "change": "Change how important they are to you",
+        "byJev": "Judged by Jev",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Set by you",
+        "byBot": "Set by your Soko Bot",
+        "notYet": "Not judged yet",
+        "familiarityHint": "From your own emails and meetings with them",
+        "reasons": {
+          "decides": "decision maker",
+          "value": "could move your work forward",
+          "active": "live business",
+          "close": "close relationship",
+          "noise": "looks automated or not personal"
+        }
+      }
     }
   },
   "Share": {
@@ -7733,6 +9113,22 @@
       "title": "On-demand AI agents at your fingertips",
       "description": "Select a trusted agent, set your brief, and receive actionable outputs - no subscriptions needed.",
       "buttonText": "Explore agents"
+    },
+    "Files": {
+      "sharedFile": "Shared file",
+      "sharedFolder": "Shared folder",
+      "notFoundTitle": "Link not found",
+      "passwordLabel": "This link is protected. Enter the password",
+      "open": "Open",
+      "download": "Download",
+      "downloadFile": "Download {name}",
+      "truncated": "Showing the first 2,000 files of this folder.",
+      "emptyFolder": "This folder is empty.",
+      "errors": {
+        "wrong": "Wrong password.",
+        "locked": "Too many wrong passwords. Try again in 15 minutes.",
+        "failed": "Something went wrong. Try again."
+      }
     }
   },
   "NotFound": {
@@ -7982,6 +9378,12 @@
       "rejectError": "We could not reject the remaining invitations.",
       "activateError": "We could not switch you into that organization. Try again before continuing.",
       "activateRetry": "Try switching again"
+    },
+    "Assistant": {
+      "metadataTitle": "Set up your assistant",
+      "later": "Later",
+      "skip": "Skip",
+      "continue": "Continue"
     }
   }
 }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import { StudioLightbox } from "./studio-lightbox";
 import type { StudioAsset } from "./types";
 
 const { prepareMock, writeCaptionMock, pushMock, toastErrorMock } = vi.hoisted(
@@ -31,12 +32,14 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
+  startVideoGeneration: vi.fn(),
   prepareStudioAssetSocialMedia: (...args: unknown[]) => prepareMock(...args),
   writeStudioAssetCaption: (...args: unknown[]) => writeCaptionMock(...args),
 }));
 
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
+    failed: [],
     queued: [],
     enqueue: vi.fn(),
     waitingForSlot: false,
@@ -79,7 +82,7 @@ const MEDIA = {
   kind: "image" as const,
 };
 
-const ASSET = {
+const ASSET: StudioAsset = {
   id: "asset-1",
   projectId: "project-9",
   projectName: "Launch",
@@ -92,7 +95,9 @@ const ASSET = {
   height: 1024,
   bytes: 1000,
   contentType: "image/png",
-  createdAt: "2026-09-26T12:00:00Z",
+  mediaType: "IMAGE",
+  video: null,
+  createdAt: new Date("2026-09-26T12:00:00Z"),
   jobId: "job-1",
   settings: {
     aspectRatio: "1:1",
@@ -101,7 +106,7 @@ const ASSET = {
     seed: null,
   },
   contentPath: "/asset-1",
-} as unknown as StudioAsset;
+};
 
 function mount(canScheduleSocial = false) {
   return render(
@@ -109,7 +114,7 @@ function mount(canScheduleSocial = false) {
       canScheduleSocial={canScheduleSocial}
       catalog={TEST_CATALOG}
       initialSelectedAssetId="asset-1"
-      initialState={{ assets: [ASSET], jobs: [], nextCursor: null } as never}
+      initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
       labels={TEST_LABELS}
       projectId="project-9"
     />,
@@ -169,7 +174,7 @@ describe("write a caption", () => {
     expect(screen.queryByLabelText("captionLabel")).not.toBeInTheDocument();
   });
 
-  it("carries the caption into Social with the image", async () => {
+  it("carries the edited caption into Social with the image", async () => {
     writeCaptionMock.mockResolvedValue({
       ok: true,
       value: { text: "Late sun on a red fox." },
@@ -184,6 +189,9 @@ describe("write a caption", () => {
       );
     });
 
+    fireEvent.change(screen.getByLabelText("captionLabel"), {
+      target: { value: "The edited caption." },
+    });
     fireEvent.click(screen.getByRole("button", { name: "schedule" }));
 
     await waitFor(() => {
@@ -193,10 +201,36 @@ describe("write a caption", () => {
       JSON.parse(sessionStorage.getItem("sokosumi.social-compose.project-9")!),
     ).toEqual({
       media: [MEDIA],
-      text: "Late sun on a red fox.",
+      text: "The edited caption.",
     });
     expect(pushMock).toHaveBeenCalledWith(
       "/social?projectId=project-9&compose=new",
     );
+  });
+
+  it("offers no caption in compare mode", () => {
+    const assets = [ASSET, { ...ASSET, id: "asset-2", version: 2 }];
+    render(
+      <StudioLightbox
+        assets={assets}
+        caption="A caption for the first image."
+        catalog={TEST_CATALOG}
+        creditsByAssetId={{}}
+        elapsedByAssetId={{}}
+        labels={TEST_LABELS}
+        onCaptionChange={vi.fn()}
+        onClose={vi.fn()}
+        onRegenerate={vi.fn()}
+        onSelect={vi.fn()}
+        onUseAsReference={vi.fn()}
+        onWriteCaption={writeCaptionMock}
+        siblings={assets}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "writeCaption" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("captionLabel")).not.toBeInTheDocument();
   });
 });

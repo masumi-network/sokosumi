@@ -1,4 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -36,11 +42,16 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 vi.mock("./use-studio-state", () => ({
   useStudioState: ({
     initialState,
+    initialSelectedAssetId,
   }: {
     initialState: { assets: StudioAsset[] };
+    initialSelectedAssetId: string | null;
   }) => ({
     state: { ...initialState, jobs: [] },
-    selectedAsset: null,
+    selectedAsset:
+      initialState.assets.find(
+        (asset) => asset.id === initialSelectedAssetId,
+      ) ?? null,
     selectAsset: vi.fn(),
     activeJobs: [],
     refresh: vi.fn().mockResolvedValue(undefined),
@@ -52,11 +63,10 @@ vi.mock("./use-studio-state", () => ({
 
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
+    failed: [],
     queued: [],
     enqueue: mocks.enqueue,
     waitingForSlot: false,
-    lastError: null,
-    clearError: vi.fn(),
   }),
 }));
 
@@ -82,11 +92,15 @@ const ASSET = {
   contentPath: "/a",
 } as unknown as StudioAsset;
 
-function mount(assets: StudioAsset[] = [ASSET]) {
+function mount(
+  assets: StudioAsset[] = [ASSET],
+  catalog = TEST_CATALOG,
+  selectedAssetId: string | null = null,
+) {
   return render(
     <ImageStudio
-      catalog={TEST_CATALOG}
-      initialSelectedAssetId={null}
+      catalog={catalog}
+      initialSelectedAssetId={selectedAssetId}
       initialState={{ assets, jobs: [], sessions: [] } as never}
       labels={TEST_LABELS}
       projectId="p"
@@ -123,6 +137,79 @@ describe("actions on a result", () => {
     });
   });
 
+  it("refines the image with its frame even when a selected model cannot edit", async () => {
+    const asset: StudioAsset = {
+      ...ASSET,
+      projectId: "source-project",
+      settings: { ...ASSET.settings, aspectRatio: "16:9" },
+    };
+    const catalog = {
+      ...TEST_CATALOG,
+      models: TEST_CATALOG.models.map((model) =>
+        model.id === "model-b"
+          ? { ...model, editEndpoint: null, maxReferences: 0 }
+          : model,
+      ),
+    };
+    mount([asset], catalog, asset.id);
+    fireEvent.click(screen.getByRole("button", { name: "refine" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    await waitFor(() => expect(prompt).toHaveFocus());
+    fireEvent.change(prompt, {
+      target: { value: "Add the text Hello and make the background blue" },
+    });
+    fireEvent.keyDown(prompt, { key: "Enter", metaKey: true });
+
+    const [[requests]] = mocks.enqueue.mock.calls;
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      projectId: "source-project",
+      modelId: "model-a",
+      prompt: "Add the text Hello and make the background blue",
+      parentAssetId: asset.id,
+      referenceAssetIds: [asset.id],
+      settings: { aspectRatio: "16:9", resolution: "2K", seed: null },
+    });
+  });
+
+  it("keeps the base visible and blocks submission until an editing model is selected", () => {
+    const catalog = {
+      ...TEST_CATALOG,
+      models: TEST_CATALOG.models.map((model) => ({
+        ...model,
+        editEndpoint: null,
+        maxReferences: 0,
+      })),
+    };
+    mount([ASSET], catalog, ASSET.id);
+    fireEvent.click(screen.getByRole("button", { name: "refine" }));
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, { target: { value: "Change the background" } });
+    fireEvent.keyDown(prompt, { key: "Enter", metaKey: true });
+    expect(screen.getByRole("button", { name: "generateOne" })).toBeDisabled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+
+    // Explicitly removing the base restores ordinary text-to-image generation.
+    const composer = screen.getByRole("region", { name: "composerTitle" });
+    fireEvent.click(
+      within(composer).getByRole("button", { name: "clearSelection" }),
+    );
+    fireEvent.keyDown(prompt, { key: "Enter", metaKey: true });
+    const [[requests]] = mocks.enqueue.mock.calls;
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request).toMatchObject({
+        parentAssetId: null,
+        referenceAssetIds: [],
+      });
+    }
+  });
+
   it("puts the prompt and frame back in the composer, without generating", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "reusePrompt" }));
@@ -130,7 +217,7 @@ describe("actions on a result", () => {
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue("a red fox");
     expect(prompt).toHaveFocus();
-    expect(screen.getByText("2:3 · 2K · png")).toBeInTheDocument();
+    expect(screen.getByText("1:1 · 2K · png")).toBeInTheDocument();
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 });

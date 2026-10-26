@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
-import { TaskVisibility } from "@sokosumi/database";
 import type {
   SokoBotContextPacket,
   TurnClassification,
@@ -13,12 +12,12 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
-import {
-  buildHumanParentTaskVisibilityWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { listHireableAgents } from "./agent-search";
+import {
+  type ContextPacketReaderInput,
+  contextPacketScope,
+} from "./context-packet-scope";
 import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
@@ -52,6 +51,7 @@ const TEXT_LIMITS = {
   inputSchema: 1_000,
   decisionReason: 300,
   turnMessage: 500,
+  selfStartedTurnMessage: 80,
   turnAnswer: 600,
   /** The newest reply in full: its closing question is what "yes" answers. */
   latestTurnAnswer: 4_000,
@@ -97,63 +97,49 @@ interface ProjectStatusJob {
   events: readonly { status: string }[];
 }
 
-function buildPacketTaskVisibilityWhere(
-  userId: string,
-  audience: "OWNER" | "TEAMMATE" | undefined,
-): Prisma.TaskWhereInput {
-  if (audience === "TEAMMATE") {
-    return { visibility: TaskVisibility.PUBLIC };
-  }
-  return buildSokoBotOwnerTaskVisibilityWhere(userId);
-}
-
-function buildPacketJobParentTaskWhere(
-  userId: string,
-  audience: "OWNER" | "TEAMMATE" | undefined,
-): Prisma.JobWhereInput {
-  if (audience === "TEAMMATE") {
-    return {
-      OR: [
-        { taskId: null },
-        { task: { is: { visibility: TaskVisibility.PUBLIC } } },
-      ],
-    };
-  }
-  return {
-    OR: [
-      { taskId: null },
-      { task: { is: buildHumanParentTaskVisibilityWhere(userId) } },
-    ],
-  };
-}
-
-export interface BuildContextPacketInput {
-  userId: string;
-  sokoBotId: string;
-  workspaceId: string;
+export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
   classification: TurnClassification;
-  /**
-   * Who the turn answers. A teammate mentioning someone else's bot in a shared
-   * room receives the model's answer in that room, so the packet must not carry
-   * the owner's private surfaces even though the turn runs as the owner.
-   */
-  audience?: "OWNER" | "TEAMMATE";
-  /**
-   * Who is on the other side of this turn. The turn runs as the owner — their
-   * bot, their credits — so `actor` is always the owner, and without this the
-   * packet asserts the owner is the one speaking: a bot reading that greets
-   * its owner by name at a teammate.
-   *
-   * `ASSISTANT` is another bot asking, and is deliberately nameless. The id
-   * that reaches us then belongs to the *sending bot's owner*, who is not in
-   * the conversation at all, so naming them would be worse than saying
-   * nothing.
-   */
-  askedByKind?: "OWNER" | "TEAMMATE" | "ASSISTANT";
-  askedByUserId?: string | null;
-  roomId?: string | null;
   referencedTaskIds?: readonly string[];
+  /** A person typed this turn: it holds every tool, and the route is a guess. */
+  personAsked?: boolean;
+  /** The lasting preference saved from this message before the turn. */
+  capturedPreference?: string | null;
+}
+
+/** A signal at or above this becomes a hint. */
+const LIKELY_SIGNAL = 0.6;
+/** Below this the message is not about the board, so fewer Tasks come along. */
+const UNLIKELY_SIGNAL = 0.2;
+/** Tasks a typed turn carries when it is not about the board. */
+const OFF_TOPIC_TASKS = 8;
+
+/**
+ * What Core noticed about a typed message, in plain words. Each hint adds
+ * context; none narrows the turn, which holds every tool whatever Jev said.
+ */
+export function triggerHints(input: BuildContextPacketInput): string[] {
+  if (!input.personAsked) return [];
+  const { signals } = input.classification;
+  return [
+    ...((signals?.refersToEarlier ?? 0) >= LIKELY_SIGNAL
+      ? [
+          "The message likely points back at earlier messages in this chat, your own posts included: read the CONTEXT block and recentTurns first.",
+        ]
+      : []),
+    ...((signals?.aboutMail ?? 0) >= LIKELY_SIGNAL
+      ? [
+          "The message is likely about mail, the calendar, or alerts you posted.",
+        ]
+      : []),
+    ...(input.capturedPreference
+      ? [
+          `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
+        ]
+      : (signals?.statesPreference ?? 0) >= LIKELY_SIGNAL
+        ? ["The message may state a lasting preference."]
+        : []),
+  ];
 }
 
 export interface BuiltContextPacket {
@@ -394,12 +380,20 @@ function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
   };
 }
 
+/**
+ * The conversation the bot can never read back with a tool, kept even when
+ * Tasks have to give way: trimmed to its last three turns, "stop messaging me
+ * about these" lost the inbox post it pointed at.
+ */
+const MIN_RECENT_TURNS = 8;
+
 /** Drops one item: the oldest turn, or the last of any other collection. */
 function trimOne(
   packet: ContextPacketWithoutHash,
 ): ContextPacketWithoutHash | null {
   for (const key of PACKET_TRIM_ORDER) {
     const items = packet[key];
+    if (key === "recentTurns" && items.length <= MIN_RECENT_TURNS) continue;
     const index = key === "recentTurns" ? 0 : items.length - 1;
     const item = items[index];
     if (!item || ("requiredReference" in item && item.requiredReference))
@@ -409,7 +403,10 @@ function trimOne(
       [key]: items.filter((_, position) => position !== index),
     };
   }
-  return null;
+  // Nothing else is left to give: the oldest turn goes before memory does.
+  return packet.recentTurns.length
+    ? { ...packet, recentTurns: packet.recentTurns.slice(1) }
+    : null;
 }
 
 function fitPacketToBudget(
@@ -468,13 +465,22 @@ function fitPacketToBudget(
 export class ContextPacketBuilder {
   async build(input: BuildContextPacketInput): Promise<BuiltContextPacket> {
     const workspace = await prisma.workspace.findFirst({
-      where: {
-        id: input.workspaceId,
-        OR: [
-          { userId: input.userId },
-          { organization: { members: { some: { userId: input.userId } } } },
-        ],
-      },
+      // A shared bot acting on its own reads its own workspace, which
+      // resolving the bot already proved.
+      where:
+        input.userId === null
+          ? { id: input.workspaceId }
+          : {
+              id: input.workspaceId,
+              OR: [
+                { userId: input.userId },
+                {
+                  organization: {
+                    members: { some: { userId: input.userId } },
+                  },
+                },
+              ],
+            },
       select: {
         id: true,
         userId: true,
@@ -483,7 +489,7 @@ export class ContextPacketBuilder {
           select: {
             name: true,
             members: {
-              where: { userId: input.userId },
+              where: { userId: input.userId ?? undefined },
               select: { role: true },
               take: 1,
             },
@@ -494,17 +500,28 @@ export class ContextPacketBuilder {
     if (!workspace) throw new Error("Workspace is not accessible");
 
     const organizationId = workspace.organizationId;
+    const referenceId = organizationId ?? input.userId;
+    // Only a shared bot acts for nobody, and only in an Organization.
+    if (referenceId === null) throw new Error("Workspace is not accessible");
     const billingPromise = buildCreditsPayload({
       userId: input.userId,
       organizationId,
-      referenceId: organizationId ?? input.userId,
+      referenceId,
       tx: prisma,
     });
     // Only routes that can hire carry the marketplace; the count still goes in.
     const hiring = MARKETPLACE_ROUTES.has(input.classification.route);
     const agentsPromise = listHireableAgents(hiring ? LIMITS.agents : 0);
 
-    const askedByKind = input.askedByKind ?? "OWNER";
+    const scope = contextPacketScope(input);
+    const { askedByKind } = scope;
+    // The bot can list Tasks itself; a message about something else leaves
+    // their room to the conversation.
+    const taskLimit =
+      input.personAsked &&
+      (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
+        ? OFF_TOPIC_TASKS
+        : LIMITS.tasks;
     const [
       user,
       projects,
@@ -524,12 +541,14 @@ export class ContextPacketBuilder {
       recentTurnCount,
       asker,
     ] = await Promise.all([
-      prisma.user.findUniqueOrThrow({
-        where: { id: input.userId },
-        select: { id: true, name: true, metadata: true },
-      }),
+      input.userId === null
+        ? null
+        : prisma.user.findUniqueOrThrow({
+            where: { id: input.userId },
+            select: { id: true, name: true, metadata: true },
+          }),
       prisma.project.findMany({
-        where: { workspaceId: input.workspaceId },
+        where: scope.projectWhere,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.projects,
         select: {
@@ -539,24 +558,8 @@ export class ContextPacketBuilder {
           updatedAt: true,
           _count: {
             select: {
-              tasks: {
-                where: {
-                  archivedAt: null,
-                  ...buildPacketTaskVisibilityWhere(
-                    input.userId,
-                    input.audience,
-                  ),
-                },
-              },
-              jobs: {
-                where: {
-                  ownerId: input.userId,
-                  ...buildPacketJobParentTaskWhere(
-                    input.userId,
-                    input.audience,
-                  ),
-                },
-              },
+              tasks: { where: { archivedAt: null, ...scope.taskWhere } },
+              jobs: { where: scope.jobWhere },
             },
           },
         },
@@ -568,13 +571,13 @@ export class ContextPacketBuilder {
             ? [
                 {
                   where: { id: { in: [...input.referencedTaskIds] } },
-                  take: LIMITS.tasks,
+                  take: taskLimit,
                 },
               ]
             : []),
           {
             where: { status: { notIn: [...SETTLED_TASK_STATUSES] } },
-            take: LIMITS.tasks - LIMITS.finishedTasks,
+            take: Math.max(taskLimit - LIMITS.finishedTasks, 1),
           },
           {
             where: {
@@ -591,7 +594,7 @@ export class ContextPacketBuilder {
               ...page.where,
               workspaceId: input.workspaceId,
               archivedAt: null,
-              ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
+              ...scope.taskWhere,
             },
             orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
             take: page.take,
@@ -617,10 +620,7 @@ export class ContextPacketBuilder {
                   fromTask: {
                     workspaceId: input.workspaceId,
                     archivedAt: null,
-                    ...buildPacketTaskVisibilityWhere(
-                      input.userId,
-                      input.audience,
-                    ),
+                    ...scope.taskWhere,
                   },
                 },
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -639,10 +639,7 @@ export class ContextPacketBuilder {
                       fromTask: {
                         workspaceId: input.workspaceId,
                         archivedAt: null,
-                        ...buildPacketTaskVisibilityWhere(
-                          input.userId,
-                          input.audience,
-                        ),
+                        ...scope.taskWhere,
                       },
                     },
                   },
@@ -654,14 +651,14 @@ export class ContextPacketBuilder {
       ).then((pages) =>
         [
           ...new Map(pages.flat().map((task) => [task.id, task])).values(),
-        ].slice(0, LIMITS.tasks),
+        ].slice(0, taskLimit),
       ),
       prisma.coworker.findMany({
         where: {
           archivedAt: null,
           OR: [
             { isWhitelisted: true },
-            { assignments: { some: { userId: input.userId } } },
+            { assignments: { some: scope.coworkerAssignmentWhere } },
             {
               workspaceAccess: {
                 some: { workspaceId: input.workspaceId, status: "GRANTED" },
@@ -679,7 +676,7 @@ export class ContextPacketBuilder {
           capabilities: true,
           isWhitelisted: true,
           assignments: {
-            where: { userId: input.userId },
+            where: scope.coworkerAssignmentWhere,
             select: { id: true },
             take: 1,
           },
@@ -701,11 +698,7 @@ export class ContextPacketBuilder {
       }),
       agentsPromise,
       prisma.job.findMany({
-        where: {
-          ownerId: input.userId,
-          workspaceId: input.workspaceId,
-          ...buildPacketJobParentTaskWhere(input.userId, input.audience),
-        },
+        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.jobs,
         select: {
@@ -724,22 +717,7 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.sokoBotPendingDecision.findMany({
-        where: {
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: "PENDING",
-          sokoBotId: input.sokoBotId,
-          expiresAt: { gt: new Date() },
-          turn: {
-            requestedByUserId:
-              input.askedByUserId && input.askedByUserId !== input.userId
-                ? input.askedByUserId
-                : null,
-            ...(input.roomId
-              ? { chatMention: { message: { roomId: input.roomId } } }
-              : { chatMentionId: null }),
-          },
-        },
+        where: scope.pendingDecisionWhere(),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: LIMITS.pendingDecisions,
         select: {
@@ -751,19 +729,7 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.sokoBotTurn.findMany({
-        where: {
-          sokoBotId: input.sokoBotId,
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
-            input.askedByUserId && input.askedByUserId !== input.userId
-              ? input.askedByUserId
-              : null,
-          ...(input.roomId
-            ? { chatMention: { message: { roomId: input.roomId } } }
-            : { chatMentionId: null }),
-        },
+        where: scope.recentTurnWhere,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: LIMITS.recentTurns,
         select: {
@@ -778,20 +744,17 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.sokoBotMemoryRevision.findFirst({
-        where: {
-          sokoBotId: input.sokoBotId,
-          sokoBot: { userId: input.userId },
-        },
+        where: scope.memoryWhere,
         orderBy: { version: "desc" },
         select: { id: true, version: true, hash: true, markdown: true },
       }),
       billingPromise,
-      prisma.project.count({ where: { workspaceId: input.workspaceId } }),
+      prisma.project.count({ where: scope.projectWhere }),
       prisma.task.count({
         where: {
           workspaceId: input.workspaceId,
           archivedAt: null,
-          ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
+          ...scope.taskWhere,
         },
       }),
       prisma.coworker.count({
@@ -799,7 +762,7 @@ export class ContextPacketBuilder {
           archivedAt: null,
           OR: [
             { isWhitelisted: true },
-            { assignments: { some: { userId: input.userId } } },
+            { assignments: { some: scope.coworkerAssignmentWhere } },
             {
               workspaceAccess: {
                 some: { workspaceId: input.workspaceId, status: "GRANTED" },
@@ -809,76 +772,38 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.job.count({
-        where: {
-          ownerId: input.userId,
-          workspaceId: input.workspaceId,
-          ...buildPacketJobParentTaskWhere(input.userId, input.audience),
-        },
+        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
       }),
       prisma.sokoBotPendingDecision.count({
-        where: {
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: "PENDING",
-          sokoBotId: input.sokoBotId,
-          expiresAt: { gt: new Date() },
-          turn: {
-            requestedByUserId:
-              input.askedByUserId && input.askedByUserId !== input.userId
-                ? input.askedByUserId
-                : null,
-            ...(input.roomId
-              ? { chatMention: { message: { roomId: input.roomId } } }
-              : { chatMentionId: null }),
-          },
-        },
+        where: scope.pendingDecisionWhere(),
       }),
-      prisma.sokoBotTurn.count({
-        where: {
-          sokoBotId: input.sokoBotId,
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
-            input.askedByUserId && input.askedByUserId !== input.userId
-              ? input.askedByUserId
-              : null,
-          ...(input.roomId
-            ? { chatMention: { message: { roomId: input.roomId } } }
-            : { chatMentionId: null }),
-        },
-      }),
-      // Only a named human is looked up: the owner is already `actor`, and
-      // the id behind an assistant's question is its owner, not the asker.
-      askedByKind === "TEAMMATE" &&
-      input.askedByUserId &&
-      input.askedByUserId !== input.userId
+      prisma.sokoBotTurn.count({ where: scope.recentTurnWhere }),
+      scope.askerUserId
         ? prisma.user.findUnique({
-            where: { id: input.askedByUserId },
+            where: { id: scope.askerUserId },
             select: { name: true },
           })
         : null,
     ]);
 
-    const reminders =
-      input.audience === "TEAMMATE"
-        ? []
-        : await prisma.sokoBotNudge.findMany({
-            where: {
-              sokoBotId: input.sokoBotId,
-              state: { in: ["ACTIVE", "ACKNOWLEDGED", "SNOOZED"] },
-            },
-            orderBy: [{ lastAt: "desc" }, { id: "desc" }],
-            take: 12,
-            select: {
-              key: true,
-              state: true,
-              revision: true,
-              snoozedUntil: true,
-              expiresAt: true,
-              lastDeliveredAt: true,
-            },
-          });
+    const reminders = !scope.includeReminders
+      ? []
+      : await prisma.sokoBotNudge.findMany({
+          where: {
+            sokoBotId: input.sokoBotId,
+            state: { in: ["ACTIVE", "ACKNOWLEDGED", "SNOOZED"] },
+          },
+          orderBy: [{ lastAt: "desc" }, { id: "desc" }],
+          take: 12,
+          select: {
+            key: true,
+            state: true,
+            revision: true,
+            snoozedUntil: true,
+            expiresAt: true,
+            lastDeliveredAt: true,
+          },
+        });
     const { agents, count: agentCount } = agentRead;
     const counts = {
       projects: projectCount,
@@ -893,6 +818,7 @@ export class ContextPacketBuilder {
     const safeMemoryMarkdown = sanitizeMemory(
       memoryRevision?.markdown ?? "# Soko Bot memory",
     );
+    const hints = triggerHints(input);
     const packetWithoutHash: ContextPacketWithoutHash = {
       schemaVersion: 1,
       generatedAt,
@@ -903,6 +829,7 @@ export class ContextPacketBuilder {
         ...(input.classification.unsureRoute
           ? { unsureRoute: input.classification.unsureRoute }
           : {}),
+        ...(hints.length ? { hints } : {}),
         requestedOutcome:
           sanitizeText(
             input.classification.requestedOutcome,
@@ -920,7 +847,7 @@ export class ContextPacketBuilder {
           // exact confusion this field exists to end.
           name:
             askedByKind === "OWNER"
-              ? sanitizeText(user.name, TEXT_LIMITS.actorName)
+              ? sanitizeText(user?.name ?? null, TEXT_LIMITS.actorName)
               : asker
                 ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
                 : null,
@@ -928,10 +855,11 @@ export class ContextPacketBuilder {
         },
       },
       actor: {
-        id: boundedIdentifier(user.id),
-        name: sanitizeText(user.name, TEXT_LIMITS.actorName),
-        locale: actorLocale(user.metadata),
-        timezone: actorTimezone(user.metadata),
+        // Null when a shared bot acts on its own: nobody is behind the turn.
+        id: boundedIdentifier(user?.id ?? null),
+        name: sanitizeText(user?.name ?? null, TEXT_LIMITS.actorName),
+        locale: actorLocale(user?.metadata ?? null),
+        timezone: actorTimezone(user?.metadata ?? null),
         workspaceId: boundedIdentifier(workspace.id),
         organizationId: boundedIdentifier(workspace.organizationId),
         organizationName: sanitizeText(
@@ -939,10 +867,12 @@ export class ContextPacketBuilder {
           TEXT_LIMITS.organizationName,
         ),
         role:
-          sanitizeText(
-            workspace.organization?.members[0]?.role ?? "owner",
-            TEXT_LIMITS.role,
-          ) ?? "owner",
+          user === null
+            ? null
+            : (sanitizeText(
+                workspace.organization?.members[0]?.role ?? "owner",
+                TEXT_LIMITS.role,
+              ) ?? "owner"),
         trust: "untrusted-data",
       },
       workspace: {
@@ -1091,7 +1021,14 @@ export class ContextPacketBuilder {
         source: turn.source,
         status: turn.status,
         route: turn.route,
-        userMessage: sanitizeText(turn.userMessage, TEXT_LIMITS.turnMessage),
+        // A self-started turn's message is Core's prompt, not the owner's:
+        // its first words say what kind of post it was, the rest is noise.
+        userMessage: sanitizeText(
+          turn.userMessage,
+          turn.source === "CHAT"
+            ? TEXT_LIMITS.turnMessage
+            : TEXT_LIMITS.selfStartedTurnMessage,
+        ),
         finalAnswer: sanitizeText(
           turn.finalAnswer,
           index === turns.length - 1

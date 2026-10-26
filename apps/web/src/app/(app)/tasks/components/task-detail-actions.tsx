@@ -33,6 +33,7 @@ import {
   SquareMinus,
   SquareMousePointer,
   SquarePlus,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,22 +41,15 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
-import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  markTaskArchived,
+  unmarkTaskArchived,
+} from "@/app/tasks/utils/archived-task-ids";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -71,10 +65,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createTaskAndLink,
   createTaskLink,
-  deleteTask,
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
+import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
+import { taskClientService } from "@/lib/services/task.client";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
@@ -103,8 +98,6 @@ import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 interface TaskDetailActionsLabels {
   edit: string;
   archive: string;
-  confirmArchive: string;
-  confirmArchiveDescription: string;
   archiveError: string;
   reopenToReady: string;
   reopenToReadyTitle: string;
@@ -153,6 +146,8 @@ interface TaskDetailActionsProps {
   canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
+  /** Null when the Task has no Owner. Archive and move then need an org owner or admin. */
+  taskOwnerId: string | null;
   hasAssignedSeat?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
@@ -183,6 +178,7 @@ export function TaskDetailActions({
   canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
+  taskOwnerId,
   hasAssignedSeat = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
@@ -194,13 +190,11 @@ export function TaskDetailActions({
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
   const [isStatusPending, startStatusTransition] = useTransition();
-  const [isArchivePending, startArchiveTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
     useTransition();
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
-  const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
@@ -256,31 +250,42 @@ export function TaskDetailActions({
       : [];
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
-  const canArchiveParked = canArchiveParkedTaskForViewer({
-    forceReadOnly,
-    taskStatus: status,
-    isTaskOwner,
-    isOrganizationTask: currentOrganizationId != null,
-    hasAssignedSeat,
-  });
+  // A Task with an Owner keeps the old gates. One without an Owner can be
+  // archived or moved only by an organization owner or admin, and never into
+  // a personal workspace (ADR 0057).
+  const canManageUnowned =
+    taskOwnerId === null &&
+    viewerIsOrganizationOwnerOrAdmin(currentOrganizationId, organizations);
+  const canArchiveUnowned = taskOwnerId !== null || canManageUnowned;
+  const canArchiveParked =
+    canArchiveUnowned &&
+    canArchiveParkedTaskForViewer({
+      forceReadOnly,
+      taskStatus: status,
+      isTaskOwner,
+      isOrganizationTask: currentOrganizationId != null,
+      hasAssignedSeat,
+    });
   const canArchiveTask =
     canArchiveParked ||
-    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
+    (canArchiveUnowned &&
+      isTaskArchivableStatus(status) &&
+      !isReadOnly &&
+      !forceReadOnly);
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
-  // Move stays owner-only: a member moving the task would take it away from
-  // its owner.
+  const personalMoveAllowed = taskOwnerId !== null && hasPersonalWorkspace;
   const canMove =
     canMutateTask &&
-    isTaskOwner &&
+    (isTaskOwner || canManageUnowned) &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
       organizations,
-      hasPersonalWorkspace,
+      personalMoveAllowed,
     ) > 0;
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
@@ -437,21 +442,16 @@ export function TaskDetailActions({
     });
   };
 
+  // Leaves for the board at once and archives in the background: the board
+  // already hides the task, and shows it again if the archive fails.
   const handleArchive = () => {
-    startArchiveTransition(async () => {
-      try {
-        await deleteTask({ taskId });
-        markTaskArchived(taskId);
-        setIsOpen(false);
-        router.push("/tasks");
-      } catch (error) {
-        console.error("Failed to archive task", error);
-        toast.error(
-          error instanceof Error && error.message
-            ? error.message
-            : labels.archiveError,
-        );
-      }
+    markTaskArchived(taskId);
+    router.push("/tasks");
+    taskClientService.archive(taskId).catch((error: unknown) => {
+      console.error("Failed to archive task", error);
+      unmarkTaskArchived(taskId);
+      toast.error(labels.archiveError);
+      router.refresh();
     });
   };
 
@@ -547,13 +547,26 @@ export function TaskDetailActions({
 
   const actionsDisabled =
     isStatusPending ||
-    isArchivePending ||
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
 
   return (
     <div className="flex items-center gap-2">
+      {canArchiveTask ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-10 md:size-8"
+          aria-label={labels.archive}
+          title={labels.archive}
+          disabled={actionsDisabled}
+          onClick={handleArchive}
+        >
+          <Trash2 className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       {canMutateTask && taskVisibility !== "PRIVATE" ? (
         <TaskShareButton
           task={{ id: taskId, share }}
@@ -931,7 +944,7 @@ export function TaskDetailActions({
             {canArchiveTask ? (
               <DropdownMenuItem
                 disabled={actionsDisabled}
-                onSelect={() => setIsOpen(true)}
+                onSelect={handleArchive}
               >
                 <Archive className="size-4" aria-hidden />
                 {labels.archive}
@@ -939,30 +952,6 @@ export function TaskDetailActions({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : null}
-
-      {canArchiveTask ? (
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{labels.confirmArchive}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {labels.confirmArchiveDescription}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isArchivePending}>
-                {tApp("cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleArchive}
-                loading={isArchivePending}
-              >
-                {labels.archive}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       ) : null}
 
       <TaskReopenToReadyDialog
@@ -994,7 +983,7 @@ export function TaskDetailActions({
           taskId={taskId}
           currentOrganizationId={currentOrganizationId ?? null}
           organizations={organizations ?? []}
-          hasPersonalWorkspace={hasPersonalWorkspace}
+          hasPersonalWorkspace={personalMoveAllowed}
           personalWorkspaceLabel={personalWorkspaceLabel}
         />
       ) : null}

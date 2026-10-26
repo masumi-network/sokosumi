@@ -13,6 +13,7 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
+import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
 
 const route = createRoute({
   method: "delete",
@@ -95,6 +96,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       deliverOrganizationCalendarInvalidationsNow(
         organization.id,
         member.userId,
+      ),
+      disconnectLeaverSokoBotIntegrationsBestEffort(
+        member.userId,
+        organization.id,
       ),
     ]);
 

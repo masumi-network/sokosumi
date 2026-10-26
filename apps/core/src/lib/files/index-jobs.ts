@@ -19,7 +19,7 @@ import prisma from "@/lib/db/prisma";
  */
 
 export const FILE_INDEX_JOB_MAX_ATTEMPTS = 5;
-export const FILE_INDEX_JOB_LEASE_MS = 60_000;
+const FILE_INDEX_JOB_LEASE_MS = 60_000;
 const RETRY_BACKOFF_MS = [60_000, 300_000, 1_800_000];
 
 /**
@@ -31,7 +31,7 @@ const RETRY_BACKOFF_MS = [60_000, 300_000, 1_800_000];
  * a file the parser cannot read, a resource that no longer exists — is
  * retried a few times and then left alone rather than forever.
  */
-export const FILE_INDEX_JOB_MAX_REVIVALS = 3;
+const FILE_INDEX_JOB_MAX_REVIVALS = 3;
 
 /**
  * How long a FAILED job waits before a sweep will touch it.
@@ -54,7 +54,7 @@ export const FILE_INDEX_JOB_MAX_REVIVALS = 3;
  * exceeds that fixture's eight-hour outage. A red there is the sweep
  * firing mid-incident, not a stale assertion.
  */
-export const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
+const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
 
 /** One sweep moves at most this many rows, so a tick stays bounded. */
 const REVIVE_BATCH = 50;
@@ -148,7 +148,7 @@ export async function enqueueFileIndexJob(
   return job.id;
 }
 
-export interface RequeueOutcome {
+interface RequeueOutcome {
   jobId: string;
   /**
    * True when this call made work runnable that was not runnable before.
@@ -359,8 +359,8 @@ const SUGGEST_BACKFILL_BATCH = 20;
  *
  * So the sweep, not a person one document at a time. It is deliberately
  * narrow: a document with no labels at all, in a workspace that has a
- * vocabulary, whose text has already been extracted, and which has not been
- * swept before. Each condition is a way of not paying for an evaluation
+ * vocabulary, whose extraction has settled, and which has not been swept
+ * before. Each condition is a way of not paying for an evaluation
  * twice.
  */
 export async function backfillMissingSuggestionJobs(input?: {
@@ -374,10 +374,11 @@ export async function backfillMissingSuggestionJobs(input?: {
     JOIN file_version fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
     WHERE fr."tombstonedAt" IS NULL
-      -- Text first. A document the parser could not read has nothing for the
-      -- model to have an opinion about, and UNSUPPORTED is the majority state
-      -- in production.
-      AND fv."extractionState" IN ('INDEXED', 'PARTIAL')
+      -- Any file whose extraction has settled. One with no text (a video, an
+      -- archive, an image: UNSUPPORTED is the majority state in production)
+      -- is labelled from its name, type, size and folder. Quarantined files
+      -- are never sent anywhere.
+      AND fv."extractionState" NOT IN ('PENDING', 'RUNNING', 'QUARANTINED')
       AND EXISTS (
         SELECT 1 FROM workspace_label wl
         WHERE wl."workspaceId" = fr."workspaceId"

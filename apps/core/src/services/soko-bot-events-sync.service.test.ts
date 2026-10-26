@@ -11,7 +11,11 @@ const {
   proactiveGateMock,
   reconcileTurnMock,
   startTurnMock,
+  botFindUniqueMock,
+  memberFindManyMock,
 } = vi.hoisted(() => ({
+  botFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   metadataUpsertMock: vi.fn(),
   metadataUpdateMock: vi.fn(),
   taskEventFindManyMock: vi.fn(),
@@ -40,6 +44,8 @@ vi.mock("@/lib/db/prisma", () => ({
     syncMetadata: { upsert: metadataUpsertMock, update: metadataUpdateMock },
     sokoBotEventInbox: { findMany: inboxFindManyMock },
     taskEvent: { findMany: taskEventFindManyMock },
+    sokoBot: { findUnique: botFindUniqueMock },
+    member: { findMany: memberFindManyMock },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
       update: delegationUpdateMock,
@@ -48,6 +54,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class SokoBotBusyError extends Error {},
+  SokoBotNotFoundError: class SokoBotNotFoundError extends Error {},
   sokoBotControlPlane: {
     reconcileTurn: reconcileTurnMock,
     startTurn: startTurnMock,
@@ -58,11 +65,18 @@ import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 
 import {
   buildEventMessage,
+  followUpPlans,
   SokoBotEventsSyncService,
   sokoBotEventClientTurnId,
 } from "./soko-bot-events-sync.service";
 
-const turn = { sokoBotId: "bot_1", userId: "user_1", workspaceId: "ws_1" };
+const turn = {
+  sokoBotId: "bot_1",
+  requestedByUserId: "user_1",
+  workspaceId: "ws_1",
+  parentTurnId: null as string | null,
+  status: "COMPLETED",
+};
 const input = {
   abortSignal: new AbortController().signal,
   shouldContinue: () => true,
@@ -85,11 +99,38 @@ function taskDelegation(
       workspaceId: "ws_1",
       archivedAt: null,
       status,
-      events: [] as { id: string; comment: string; createdAt: Date }[],
+      events: [] as {
+        id: string;
+        comment: string;
+        createdAt: Date;
+        userId?: string;
+        sokoBotId?: string;
+      }[],
     },
     job: null,
     turn,
+    followUp: null as string | null,
+    followUpTurnId: null as string | null,
   };
+}
+
+function plannedDelegation(
+  id: string,
+  status: string,
+  followUp: string,
+  followUpTurnId: string | null = null,
+) {
+  const delegation = taskDelegation(id, "READY", status);
+  delegation.task.id = "task_shared";
+  delegation.task.events = [
+    {
+      id: `event_${status}`,
+      comment: "Findings: A, B, C.",
+      createdAt: new Date("2026-10-23T10:00:00Z"),
+      userId: "user_2",
+    },
+  ];
+  return { ...delegation, followUp, followUpTurnId };
 }
 
 describe("SokoBotEventsSyncService", () => {
@@ -112,6 +153,12 @@ describe("SokoBotEventsSyncService", () => {
       status: "RUNNING",
       reconciliationLeaseToken: "lease",
     });
+    botFindUniqueMock.mockResolvedValue({
+      userId: "user_1",
+      createdByUserId: "user_1",
+      workspace: { organizationId: null },
+    });
+    memberFindManyMock.mockReset().mockResolvedValue([]);
   });
 
   it("bounds each pass and resumes its persisted cursor without starving older delegations", async () => {
@@ -298,6 +345,152 @@ describe("SokoBotEventsSyncService", () => {
     );
   });
 
+  it("leaves a running background run's own Tasks to the run", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "READY", "COMPLETED"),
+        turn: { ...turn, parentTurnId: "chat_turn", status: "RUNNING" },
+      },
+    ]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not wake the bot for a status change it made itself", async () => {
+    const delegation = taskDelegation("a", "DRAFT", "COMPLETED");
+    delegation.task.events = [
+      {
+        id: "event-1",
+        comment: "Closed at the owner's request",
+        createdAt: new Date(),
+        sokoBotId: turn.sokoBotId,
+      },
+    ];
+    delegationFindManyMock.mockResolvedValue([delegation]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+  });
+
+  it("wakes the bot for a Task whose background run has ended", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "READY", "COMPLETED"),
+        turn: { ...turn, parentTurnId: "chat_turn", status: "FAILED" },
+      },
+    ]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(1);
+  });
+
+  it("runs a shared bot's event turn for its Requester, not the TaskEvent's author", async () => {
+    const delegation = taskDelegation("a", "READY", "COMPLETED");
+    delegation.task.events = [
+      {
+        id: "ev_a",
+        comment: "Done",
+        createdAt: new Date(1),
+        userId: "member_2",
+      },
+    ];
+    delegationFindManyMock.mockResolvedValue([delegation]);
+    botFindUniqueMock.mockResolvedValue({
+      userId: null,
+      createdByUserId: "creator_1",
+      workspace: { organizationId: "org_1" },
+    });
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(1);
+    expect(memberFindManyMock).not.toHaveBeenCalled();
+    expect(startTurnMock.mock.calls[0]?.[0]).toMatchObject({
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "ws_1",
+      source: "EVENT",
+    });
+  });
+
+  it("runs a shared bot's self-started work for nobody", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "READY", "COMPLETED"),
+        turn: { ...turn, requestedByUserId: null, sokoBot: { userId: null } },
+      },
+    ]);
+    botFindUniqueMock.mockResolvedValue({
+      userId: null,
+      createdByUserId: null,
+      workspace: { organizationId: "org_1" },
+    });
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result).toMatchObject({ woken: 1, failed: 0 });
+    expect(startTurnMock.mock.calls[0]?.[0]).toMatchObject({
+      userId: null,
+      sokoBotId: "bot_1",
+    });
+  });
+
+  it("wakes a shared bot once per asking member, never one member for another", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "READY", "COMPLETED"),
+        turn: {
+          ...turn,
+          requestedByUserId: "member_1",
+          sokoBot: { userId: null },
+        },
+      },
+      {
+        ...taskDelegation("b", "READY", "COMPLETED"),
+        turn: {
+          ...turn,
+          requestedByUserId: "member_2",
+          sokoBot: { userId: null },
+        },
+      },
+    ]);
+    botFindUniqueMock.mockResolvedValue({
+      userId: null,
+      createdByUserId: null,
+      workspace: { organizationId: "org_1" },
+    });
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result).toMatchObject({ woken: 2, failed: 0 });
+    expect(
+      startTurnMock.mock.calls.map(([call]) => [
+        call.userId,
+        call.eventBatch.map(({ entityId }: { entityId: string }) => entityId),
+      ]),
+    ).toEqual([
+      ["member_1", ["task_a"]],
+      ["member_2", ["task_b"]],
+    ]);
+  });
+
   it("baselines first observations and silent statuses without waking", async () => {
     delegationFindManyMock.mockResolvedValue([
       taskDelegation("new", null, "COMPLETED"),
@@ -344,10 +537,67 @@ describe("SokoBotEventsSyncService", () => {
       },
     ]);
     await new SokoBotEventsSyncService().syncDelegatedWork(input);
-    expect(startTurnMock.mock.calls[0]?.[0].message).toContain(
-      'Job "Agent job" (id job_1) is now COMPLETED',
-    );
+    const message = startTurnMock.mock.calls[0]?.[0].message;
+    expect(message).toContain('Job "Agent job" (id job_1) is now COMPLETED');
+    expect(message).toContain("Read each Job with get_job_status");
+    expect(message).toContain("provide_job_input");
+    expect(message).not.toContain("Read each Task");
   });
+
+  it.each([
+    { label: "no parent Task", task: null },
+    {
+      label: "a parent Task someone else owns",
+      task: { visibility: "PUBLIC", ownerId: "other_owner" },
+    },
+  ])(
+    "runs a shared bot's Job wake for the hiring member with $label",
+    async ({ task }) => {
+      delegationFindManyMock.mockResolvedValue([
+        {
+          id: "j",
+          kind: "JOB",
+          lastSeenStatus: "RUNNING",
+          task: null,
+          job: {
+            id: "job_1",
+            name: null,
+            workspaceId: "ws_1",
+            ownerId: "user_1",
+            task,
+            events: [{ status: "COMPLETED" }],
+          },
+          turn,
+        },
+      ]);
+      botFindUniqueMock.mockResolvedValue({
+        userId: null,
+        createdByUserId: "creator_1",
+        workspace: { organizationId: "org_1" },
+      });
+      const live = ["user_1", "other_owner", "creator_1", "owner_1"];
+      memberFindManyMock.mockImplementation(
+        async (args: { where: { userId?: { in: string[] }; role?: string } }) =>
+          live
+            .filter((id) =>
+              args.where.role
+                ? id === "owner_1"
+                : args.where.userId?.in.includes(id),
+            )
+            .map((id) => ({
+              userId: id,
+              user: { banned: false, banExpires: null },
+            })),
+      );
+
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+
+      expect(startTurnMock.mock.calls[0]?.[0]).toMatchObject({
+        userId: "user_1",
+        sokoBotId: "bot_1",
+      });
+    },
+  );
 
   it("does nothing while Soko Bot is disabled", async () => {
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: false });
@@ -451,5 +701,86 @@ describe("SokoBotEventsSyncService", () => {
       sokoBotEventClientTurnId([{ ...change, eventId: "event-two" }]),
     );
     expect(sokoBotEventClientTurnId([change])).toHaveLength(70);
+  });
+
+  it("hands a follow-up plan over on the wake that reports completion", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give the findings to Alex."),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    expect(call.message).toContain(
+      "Follow-up plans you attached to this work:",
+    );
+    expect(call.message).toContain('Your plan: "Give the findings to Alex."');
+    expect(call.message).toContain("Latest comment: Findings: A, B, C.");
+    expect(call.eventBatch[0].followUpDelegationIds).toEqual(["d1"]);
+  });
+
+  it("shows a plan as pending, without claiming it, while the work waits", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "INPUT_REQUIRED", "Give the findings to Alex."),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    expect(call.message).toContain("Your plan for when it completes");
+    expect(call.eventBatch[0].followUpDelegationIds).toBeUndefined();
+  });
+
+  it("never repeats a plan another turn already carried out", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give it to Alex.", "turn_before"),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    expect(call.message).not.toContain("Give it to Alex.");
+    expect(call.eventBatch[0].followUpDelegationIds).toBeUndefined();
+  });
+
+  it("claims plans of every delegation on the Task once, on one occurrence", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give it to Alex."),
+      plannedDelegation("d2", "COMPLETED", "Tell the owner."),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    const claims = call.eventBatch.flatMap(
+      (occurrence: { followUpDelegationIds?: string[] }) =>
+        occurrence.followUpDelegationIds ?? [],
+    );
+    expect(claims.sort()).toEqual(["d1", "d2"]);
+    expect(call.message).toContain('"Give it to Alex." and "Tell the owner."');
+  });
+
+  it("defers, rather than fails, when another turn took the plan first", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give it to Alex."),
+    ]);
+    startTurnMock.mockRejectedValue(new SokoBotBusyError("handed over"));
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+    expect(result).toMatchObject({ woken: 0, deferred: 1, failed: 0 });
+  });
+
+  it("settles plans by kind: a failed Task can still be restarted, a failed Job cannot", () => {
+    const base = {
+      delegationId: "d1",
+      entityId: "e1",
+      name: "Work",
+      from: "READY",
+      note: null,
+      followUp: "Next step.",
+    };
+    const plan = (kind: "TASK" | "JOB", to: string) =>
+      followUpPlans([{ ...base, kind, to }])[0];
+    expect(plan("TASK", "COMPLETED").due).toBe(true);
+    expect(plan("TASK", "CANCELED").due).toBe(true);
+    expect(plan("TASK", "FAILED").due).toBe(false);
+    expect(plan("JOB", "FAILED").due).toBe(true);
+    expect(plan("JOB", "AWAITING_INPUT").due).toBe(false);
+    expect(
+      buildEventMessage([{ ...base, kind: "JOB", to: "FAILED" }]),
+    ).toContain('your plan "Next step." will not run');
   });
 });

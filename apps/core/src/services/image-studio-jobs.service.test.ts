@@ -18,6 +18,8 @@ const {
   createTaskEventTransactionMock,
   jobAggregateMock,
   getBalanceMock,
+  projectFindUniqueMock,
+  ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -36,12 +38,14 @@ const {
   createTaskEventTransactionMock: vi.fn(),
   jobAggregateMock: vi.fn(),
   getBalanceMock: vi.fn(),
+  projectFindUniqueMock: vi.fn(),
+  ssrfSafeFetchMock: vi.fn(),
 }));
 
 // The submit-time balance check: read-only, and not what this suite is about.
 // Money is covered end to end in `image-studio-credits.test.ts`.
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: { getBalance: getBalanceMock },
@@ -74,7 +78,7 @@ vi.mock("@/lib/db/prisma", () => {
       findFirst: vi.fn(),
       create: vi.fn(),
     },
-    project: { findUnique: vi.fn() },
+    project: { findUnique: projectFindUniqueMock },
     transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -108,6 +112,11 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
 
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
+}));
+
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
 import { imageModel } from "@/lib/image-studio/catalog";
@@ -194,6 +203,10 @@ describe("image studio job submission", () => {
     );
     // One caller wins the lease.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl: null,
+      contextMd: null,
+    });
   });
 
   it("persists the chosen model before submitting the model-specific payload", async () => {
@@ -484,6 +497,51 @@ describe("image studio job submission", () => {
 
     expect(job.status).toBe("SUBMISSION_UNCERTAIN");
     expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
+    const designMdUrl =
+      "https://abc123.public.blob.vercel-storage.com/design-md/hash.md";
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl,
+      contextMd: "We never use serif.",
+    });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response("# Brand\nUse crimson.", { status: 200 }),
+    );
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await createImageJob(BASE_INPUT);
+
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ prompt: BASE_INPUT.prompt }),
+      }),
+    );
+    expect(submitToQueueMock.mock.calls[0]![0].input.prompt).toBe(
+      [
+        "Follow this project's brand.",
+        "Design:\n# Brand\nUse crimson.",
+        "Memory:\nWe never use serif.",
+        "Brief:\na calm product shot",
+      ].join("\n\n"),
+    );
+  });
+
+  it("still sends the brief when Design cannot be read", async () => {
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl:
+        "https://abc123.public.blob.vercel-storage.com/design-md/hash.md",
+      contextMd: null,
+    });
+    ssrfSafeFetchMock.mockRejectedValue(new Error("blocked"));
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await createImageJob(BASE_INPUT);
+
+    expect(submitToQueueMock.mock.calls[0]![0].input.prompt).toBe(
+      BASE_INPUT.prompt,
+    );
   });
 });
 

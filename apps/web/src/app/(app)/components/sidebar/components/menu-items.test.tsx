@@ -5,7 +5,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const openHistorySearchMock = vi.fn();
 const setOpenMobileMock = vi.fn();
 const openNewTaskWizardMock = vi.fn();
 const { pathnameRef, searchRef } = vi.hoisted(() => ({
@@ -20,18 +19,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-}));
-
-let historySearchValue: {
-  openHistorySearch: typeof openHistorySearchMock;
-  searchShortcutLabel: string;
-} | null = {
-  openHistorySearch: openHistorySearchMock,
-  searchShortcutLabel: "Ctrl+K",
-};
-
-vi.mock("@/app/components/history-search-dialog-provider", () => ({
-  useOptionalHistorySearch: () => historySearchValue,
 }));
 
 let newTaskWizardValue: {
@@ -117,46 +104,23 @@ let sidebarIsMobile = true;
 function renderMenu(
   hasAssignedSeat = true,
   isMobile = true,
-  socialMenuEnabled = false,
+  socialBetaEnabled = false,
 ) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems socialMenuEnabled={socialMenuEnabled} />
+        <MenuItems socialBetaEnabled={socialBetaEnabled} />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
 }
 
-describe("MenuItems search action", () => {
+describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
-    historySearchValue = {
-      openHistorySearch: openHistorySearchMock,
-      searchShortcutLabel: "Ctrl+K",
-    };
     newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
-  });
-
-  it("opens history search and closes the mobile sidebar when search is clicked", () => {
-    renderMenu();
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }));
-
-    expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
-  });
-
-  it("still closes the mobile sidebar when history search is unavailable", () => {
-    historySearchValue = null;
-    renderMenu();
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }));
-
-    expect(openHistorySearchMock).not.toHaveBeenCalled();
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -185,10 +149,10 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("shows Search by default", () => {
+  it("leaves Search to the app header", () => {
     renderMenu();
 
-    expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /search/i })).toBeNull();
   });
 
   it("keeps product destinations when the member has no assigned seat", () => {
@@ -232,10 +196,10 @@ describe("MenuItems search action", () => {
     );
 
     const primaryOrder = [
-      "search",
       "exploreAgents",
       "taskManager",
       "schedules",
+      "contacts",
       "contentStudio",
       "drive",
     ];
@@ -251,14 +215,13 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Tasks, Schedules, Studio", () => {
+  it("orders primary destinations Agents, Tasks, Schedules, Studio", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
     );
 
     const primaryOrder = [
-      "search",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -306,6 +269,41 @@ describe("MenuItems search action", () => {
     );
 
     const order = ["contentStudio", "social", "drive"];
+    const positions = order.map((label) =>
+      menuLabels.findIndex((text) => text.includes(label)),
+    );
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  /** Ads shares Social's beta gate: one flag, no second check. */
+  it("leaves Ads out until the frame resolves the beta", () => {
+    renderMenu();
+
+    expect(screen.queryByRole("link", { name: /ads/i })).toBeNull();
+  });
+
+  it("shows Ads inside the beta, scoped to the reader's project", () => {
+    pathnameRef.current = "/studio";
+    searchRef.current = "projectId=project-1";
+    renderMenu(true, true, true);
+    pathnameRef.current = "/";
+    searchRef.current = "";
+
+    expect(screen.getByRole("link", { name: /ads/i })).toHaveAttribute(
+      "href",
+      "/ads?projectId=project-1",
+    );
+  });
+
+  it("puts Ads after Social and before Files", () => {
+    const { container } = renderMenu(true, false, true);
+    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
+      (element) => element.textContent ?? "",
+    );
+
+    const order = ["social", "ads", "drive"];
     const positions = order.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
     );
@@ -385,10 +383,10 @@ describe("MenuItems search action", () => {
       screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
     ).toEqual([
       "newTask",
-      "searchCtrl+K",
       "exploreAgents",
       "taskManager",
       "schedules",
+      "contacts",
       "contentStudio",
       "drive",
     ]);
@@ -403,10 +401,6 @@ describe("MenuItems rail selection bar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
-    historySearchValue = {
-      openHistorySearch: openHistorySearchMock,
-      searchShortcutLabel: "Ctrl+K",
-    };
     newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/";
   });
@@ -461,6 +455,7 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
+      ["contacts", "/contacts"],
       ["contentStudio", "/studio"],
       ["drive", "/drive"],
     ]) {
@@ -475,6 +470,8 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
+      // Contacts belong to the workspace, not a project.
+      ["contacts", "/contacts"],
       ["contentStudio", "/studio?projectId=p-1"],
       ["drive", "/drive?view=tasks&projectId=p-1"],
     ]) {

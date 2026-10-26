@@ -17,6 +17,8 @@ future; does not gate the initial ship).
 - **Wayfinder MAP / PR1-SPEC** (archived 2026-09-17). Unique PR 1 facts live
   in Decision 3, Decision 8, and the refund policy. Do not restore those
   files as the implementer surface.
+- **NODE-QUESTIONS.md** (dropped 2026-09-14, #4553). Ticket-011 node answers
+  live in this ADR (Decision 4 and Context). Do not restore the draft.
 - **Masumi ADR 0016** (2026-08-28). The node removed `GET /x402/budgets` and
   the `x402.budget` rail check. The spend cap is key usage credits
   (`eip155:<chainId>:<asset>`, gated by `usageLimited`); wallet access is an

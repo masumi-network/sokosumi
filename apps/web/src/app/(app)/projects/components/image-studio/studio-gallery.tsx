@@ -1,16 +1,31 @@
 "use client";
 
-import { Check, Dices, Download, Loader2, Quote, Shuffle } from "lucide-react";
+import {
+  Check,
+  Dices,
+  Download,
+  Loader2,
+  Play,
+  Quote,
+  Shuffle,
+} from "lucide-react";
 import { useFormatter } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { resolveModel } from "./catalog";
+import { resolveModel, supportsVariation } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
+  assetFileExtension,
   epochMs,
+  isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
   type StudioJob,
@@ -40,7 +55,6 @@ export function StudioGallery({
   onVariation,
   queued,
   selectedIds,
-  showProject,
 }: {
   activeJobs: StudioJob[];
   assets: StudioAsset[];
@@ -60,8 +74,6 @@ export function StudioGallery({
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
   selectedIds: string[];
-  /** Label each image with its project: the workspace view mixes them. */
-  showProject: boolean;
 }) {
   const format = useFormatter();
 
@@ -100,6 +112,7 @@ export function StudioGallery({
             {group.assets.map((asset) => {
               const selected = selectedIds.includes(asset.id);
               const model = resolveModel(catalog, asset.model);
+              const video = isVideoAsset(asset);
 
               return (
                 <li
@@ -108,13 +121,13 @@ export function StudioGallery({
                 >
                   <figure
                     className={cn(
-                      "group bg-card-background relative overflow-hidden rounded-xl transition-[background-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md",
+                      "group bg-card-background border-border relative overflow-hidden rounded-xl border transition-colors duration-200 hover:bg-card-background-hover",
                       selected && "ring-primary ring-2",
                     )}
                     data-asset-id={asset.id}
                   >
                     <button
-                      aria-label={`${labels.openDetails} — ${showProject ? `${asset.projectName}, ` : ""}${labels.version} ${asset.version}, ${model.label}`}
+                      aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
                       className="focus-visible:ring-ring-halo block w-full cursor-pointer outline-none focus-visible:ring-[3px]"
                       onClick={() => onOpen(asset.id)}
                       type="button"
@@ -123,19 +136,19 @@ export function StudioGallery({
                       the columns without cropping or letterboxing. */}
                       <span
                         className="bg-muted flex w-full items-center justify-center"
-                        style={{
-                          aspectRatio: `${asset.width} / ${asset.height}`,
-                        }}
+                        style={{ aspectRatio: tileAspectRatio(asset) }}
                       >
                         <StudioImage asset={asset} labels={labels} />
                       </span>
+                      {video ? (
+                        <span className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs tabular-nums">
+                          <Play aria-hidden className="size-3" />
+                          {asset.video?.durationSeconds
+                            ? `${asset.video.durationSeconds}s`
+                            : null}
+                        </span>
+                      ) : null}
                     </button>
-
-                    {showProject ? (
-                      <figcaption className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md border px-2 py-0.5 text-xs">
-                        {asset.projectName}
-                      </figcaption>
-                    ) : null}
 
                     {/* Actions live on the picture, on hover or focus, so the
                     grid stays a wall of images and the second draw is one
@@ -149,55 +162,77 @@ export function StudioGallery({
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                       )}
                     >
-                      <HoverAction
-                        label={labels.reroll}
-                        onClick={() => onReroll(asset)}
-                      >
-                        <Dices aria-hidden className="size-3.5" />
-                      </HoverAction>
-                      <HoverAction
-                        label={labels.regenerate}
-                        onClick={() => onVariation(asset)}
-                      >
-                        <Shuffle aria-hidden className="size-3.5" />
-                      </HoverAction>
+                      {video ? null : (
+                        <HoverAction
+                          label={labels.reroll}
+                          onClick={() => onReroll(asset)}
+                        >
+                          <Dices aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      )}
+                      {!video && supportsVariation(catalog, asset.model) ? (
+                        <HoverAction
+                          label={labels.regenerate}
+                          onClick={() => onVariation(asset)}
+                        >
+                          <Shuffle aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       <HoverAction
                         label={labels.reusePrompt}
                         onClick={() => onReusePrompt(asset)}
                       >
                         <Quote aria-hidden className="size-3.5" />
                       </HoverAction>
-                      <a
-                        aria-label={labels.download}
-                        className={HOVER_ACTION_CLASS}
-                        download={`v${asset.version}.${asset.settings?.outputFormat ?? "png"}`}
-                        href={assetContentUrl(asset)}
-                        title={labels.download}
-                      >
-                        <Download aria-hidden className="size-3.5" />
-                      </a>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <a
+                            aria-label={labels.download}
+                            className={HOVER_ACTION_CLASS}
+                            download={`v${asset.version}.${assetFileExtension(asset)}`}
+                            href={assetContentUrl(asset)}
+                          >
+                            <Download aria-hidden className="size-3.5" />
+                          </a>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={6}>
+                          {labels.download}
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
 
                     {/* Selection is its own control, and always drawn: an
                     empty box that only appears on hover cannot be found on
-                    touch and is not a thing a keyboard user can see coming. */}
-                    <button
-                      aria-label={selected ? labels.deselect : labels.select}
-                      aria-pressed={selected}
-                      className={cn(
-                        "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
-                        "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-                        selected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground",
-                      )}
-                      onClick={() => onToggleSelect(asset.id)}
-                      type="button"
-                    >
-                      {selected ? (
-                        <Check aria-hidden className="size-3.5" />
-                      ) : null}
-                    </button>
+                    touch and is not a thing a keyboard user can see coming.
+                    A video is never a reference, so it has none. */}
+                    {video ? null : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            aria-label={
+                              selected ? labels.deselect : labels.select
+                            }
+                            aria-pressed={selected}
+                            className={cn(
+                              "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border transition-colors",
+                              "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background text-muted-foreground hover:text-foreground",
+                            )}
+                            onClick={() => onToggleSelect(asset.id)}
+                            type="button"
+                          >
+                            {selected ? (
+                              <Check aria-hidden className="size-3.5" />
+                            ) : null}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={6}>
+                          {selected ? labels.deselect : labels.select}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </figure>
                 </li>
               );
@@ -253,6 +288,18 @@ export function StudioGallery({
   );
 }
 
+/**
+ * The tile's frame before the bytes load: the stored size, or a text-to-video
+ * clip's requested ratio. An animated image has neither and takes the video's
+ * own size once its metadata arrives.
+ */
+function tileAspectRatio(asset: StudioAsset): string | undefined {
+  if (asset.width > 0 && asset.height > 0)
+    return `${asset.width} / ${asset.height}`;
+  const ratio = asset.video?.aspectRatio;
+  return ratio ? ratio.replace(":", " / ") : undefined;
+}
+
 /** CSS columns: a masonry that keeps each image at its own ratio. */
 const GRID_CLASS = cn(
   "list-none columns-2 gap-3 sm:columns-3",
@@ -274,15 +321,21 @@ function HoverAction({
   onClick: () => void;
 }) {
   return (
-    <button
-      aria-label={label}
-      className={HOVER_ACTION_CLASS}
-      onClick={onClick}
-      title={label}
-      type="button"
-    >
-      {children}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          aria-label={label}
+          className={HOVER_ACTION_CLASS}
+          onClick={onClick}
+          type="button"
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

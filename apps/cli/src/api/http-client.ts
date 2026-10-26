@@ -21,6 +21,7 @@ export interface CoreHttpClient {
   post<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   put<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   patch<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
+  delete<T>(pathname: string, signal?: AbortSignal): Promise<T>;
 }
 
 interface HttpClientOptions {
@@ -151,6 +152,8 @@ function createHttpClient({
       request<T>("PUT", pathname, body, signal),
     patch: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
       request<T>("PATCH", pathname, body, signal),
+    delete: <T>(pathname: string, signal?: AbortSignal) =>
+      request<T>("DELETE", pathname, undefined, signal),
   };
 }
 

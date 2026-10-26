@@ -64,14 +64,16 @@ async function resolveOwner() {
   const bot = await prisma.sokoBot.findFirst({
     where: {
       archivedAt: null,
-      ...(userIdArg ? { userId: userIdArg } : {}),
+      // The lab drives a personal bot; a shared bot has no owner to act as.
+      userId: userIdArg ?? { not: null },
       ...(workspaceIdArg ? { workspaceId: workspaceIdArg } : {}),
     },
     select: { id: true, userId: true, workspaceId: true, name: true },
     orderBy: { createdAt: "asc" },
   });
-  if (!bot) throw new Error("No active Soko Bot found");
-  return { bot, workspaceId: bot.workspaceId };
+  const ownerId = bot?.userId;
+  if (!bot || !ownerId) throw new Error("No active Soko Bot found");
+  return { bot: { ...bot, userId: ownerId }, workspaceId: bot.workspaceId };
 }
 
 /**
@@ -178,6 +180,7 @@ async function loadTurn(turnId: string) {
           jobId: true,
           action: true,
           outcome: true,
+          followUp: true,
         },
       },
       pendingDecisions: { select: { id: true, resultingEntityId: true } },
@@ -251,7 +254,7 @@ async function startScenario(
             await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
-                userId: bot.userId,
+                userId: owner.bot.userId,
                 workspaceId: bot.workspaceId,
                 ingestTimezone: bot.ingestTimezone,
                 followWholeBoard: bot.followWholeBoard,

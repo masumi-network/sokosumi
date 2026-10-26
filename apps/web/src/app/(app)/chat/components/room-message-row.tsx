@@ -88,6 +88,8 @@ import {
   readProjectSelectionReply,
 } from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
+import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
+import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
@@ -157,9 +159,11 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
+  previewedTaskIds,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
+  sharedSokoBotId,
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -1398,7 +1402,7 @@ function MessageActions({
     >
       <SokoBotChainBadge metadata={message.metadata} />
       <SokoBotFeedbackButtons
-        metadata={message.metadata}
+        message={message}
         buttonClassName="size-10 rounded-full md:size-8"
       />
       <MessageActionControls
@@ -1692,7 +1696,7 @@ function TouchMessageActionsSheet({
             </>
           ) : null}
           <SokoBotFeedbackButtons
-            metadata={message.metadata}
+            message={message}
             buttonClassName="size-11 rounded-full"
           />
         </div>
@@ -2530,12 +2534,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       (message.resultPreviews ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
+  // Jev's chips draw a row of their own under the text when there is one.
+  const hasSignalRow =
+    !isDeleted &&
+    message.signal != null &&
+    (signalChips(message.signal, currentUserId).length > 0 ||
+      message.signal.loopClosedAt != null);
   const contentEndsTheRow =
     !isEditing &&
     !hasReactionRow &&
     !hasThreadLink &&
     !hasUnfurlRow &&
     !hasSokoBotFooter &&
+    !hasSignalRow &&
     outboundStatus !== "failed";
   // An attachment row is a block: the inline reserve after it has no line to
   // share and opens one of its own, a line height the row gained only when
@@ -2911,19 +2922,22 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   <ResultPreviews
                     descriptors={message.resultPreviews ?? []}
                     source={{ roomId: message.roomId, messageId: message.id }}
+                    sokoBotId={sharedSokoBotId(message.sender)}
                     renderFooter={(results) => (
                       <SokoBotMessageFooter
                         metadata={message.metadata}
-                        previewedTaskIds={results.flatMap((result) =>
-                          result.state === "available" &&
-                          result.kind === "task" &&
-                          result.task
-                            ? [result.task.id]
-                            : [],
-                        )}
+                        previewedTaskIds={previewedTaskIds(results)}
+                        sharedBotId={sharedSokoBotId(message.sender)}
                       />
                     )}
                   />
+                  {hasSignalRow ? (
+                    <MessageSignalBar
+                      message={message}
+                      currentUserId={currentUserId}
+                      usersById={usersById}
+                    />
+                  ) : null}
                 </>
               )}
             </>

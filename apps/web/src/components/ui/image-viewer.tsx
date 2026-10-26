@@ -40,6 +40,8 @@ export interface ImageViewerImage {
   src: string;
   alt: string;
   downloadFilename?: string;
+  /** A video plays with its own controls in place of the image. */
+  isVideo?: boolean;
 }
 
 interface ImageViewerProps {
@@ -143,6 +145,7 @@ function ImageViewerChrome({
   src,
   alt,
   downloadFilename,
+  isVideo = false,
   position,
   total,
   onClose,
@@ -292,9 +295,11 @@ function ImageViewerChrome({
               <DropdownMenuItem onSelect={handleOpenInNewTab}>
                 {t("openInNewTab")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleCopyImage}>
-                {t("copyImage")}
-              </DropdownMenuItem>
+              {isVideo ? null : (
+                <DropdownMenuItem onSelect={handleCopyImage}>
+                  {t("copyImage")}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -310,19 +315,37 @@ function ImageViewerChrome({
           swipeStartRef.current = null;
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt={alt}
-          data-zoom={zoom}
-          className="max-h-full max-w-full object-contain transition-transform"
-          style={{ transform: `scale(${zoom})` }}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        />
+        {isVideo ? (
+          <video
+            aria-label={alt}
+            autoPlay
+            className="max-h-full max-w-full object-contain"
+            controls
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+            playsInline
+            src={src}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt}
+            data-zoom={zoom}
+            className="max-h-full max-w-full object-contain transition-transform"
+            style={{ transform: `scale(${zoom})` }}
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          />
+        )}
         <div
-          className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-scrim-strong px-2 py-1 text-on-media"
+          className={cn(
+            "absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-scrim-strong px-2 py-1 text-on-media",
+            // A video's own controls sit where the zoom bar would.
+            isVideo && "hidden",
+          )}
           data-testid="image-viewer-zoom"
           onClick={(event) => {
             event.stopPropagation();
@@ -458,7 +481,7 @@ export function ImageViewer({
           />
         ) : null}
         {[previousImage, nextImage].map((image) =>
-          image ? (
+          image && !image.isVideo ? (
             // A hidden img still fetches, so stepping shows a cached image.
             // eslint-disable-next-line @next/next/no-img-element
             <img

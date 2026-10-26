@@ -3,6 +3,7 @@ import "server-only";
 import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
+  GetWorkspacesCalendarSourcesData,
   Task,
   TaskActivitySummary,
   TaskEvent,
@@ -30,7 +31,7 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt";
+  sort?: "createdAt" | "updatedAt";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
 }
@@ -168,10 +169,10 @@ export const taskService = (() => {
     };
   }
 
-  async function getWorkspaceCalendarSources(): Promise<
-    WorkspaceCalendarSource[]
-  > {
-    const result = await coreClient.getWorkspaceCalendarSources();
+  async function getWorkspaceCalendarSources(
+    query?: GetWorkspacesCalendarSourcesData["query"],
+  ): Promise<WorkspaceCalendarSource[]> {
+    const result = await coreClient.getWorkspaceCalendarSources(query);
     return result.data;
   }
 

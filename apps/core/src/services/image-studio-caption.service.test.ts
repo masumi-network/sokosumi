@@ -63,6 +63,14 @@ describe("writeStudioAssetCaption", () => {
     expect(mocks.generateText).not.toHaveBeenCalled();
   });
 
+  it("caps generated captions at 500 characters", async () => {
+    mocks.generateText.mockResolvedValue({ text: "x".repeat(501) });
+
+    await expect(
+      writeStudioAssetCaption({ projectId: "project-1", assetId: "asset-1" }),
+    ).resolves.toEqual(ok("x".repeat(500)));
+  });
+
   it("strips wrapping quotes and treats a blank as empty", async () => {
     mocks.generateText.mockResolvedValueOnce({
       text: '"  A fox at dusk.  "',

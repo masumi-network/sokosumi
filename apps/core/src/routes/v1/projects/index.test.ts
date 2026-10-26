@@ -45,6 +45,53 @@ const SOCIAL_CONNECTION_OPERATIONS = [
     method: "delete",
     responseStatuses: ["200", "401", "403", "404", "409", "422", "500", "503"],
   },
+  {
+    path: `${PROJECTS_BASE_PATH}/{id}/social-connections/{connectionId}/suggested-times`,
+    method: "get",
+    responseStatuses: ["200", "400", "401", "403", "404", "422", "500", "503"],
+  },
+] as const;
+
+const AD_OPERATIONS = [
+  ["get", "/ads/accounts", ["200", "401", "403", "404"]],
+  ["post", "/ads/accounts", ["200", "400", "403", "404", "502", "503"]],
+  ["delete", "/ads/accounts/{accountId}", ["204", "403", "404", "502"]],
+  [
+    "get",
+    "/ads/accounts/{accountId}/campaigns",
+    ["200", "403", "404", "409", "502"],
+  ],
+  [
+    "patch",
+    "/ads/accounts/{accountId}/campaigns/{campaignId}",
+    ["204", "403", "404", "409", "422", "502"],
+  ],
+  [
+    "post",
+    "/ads/accounts/{accountId}/campaigns",
+    ["201", "403", "404", "409", "422", "502"],
+  ],
+  [
+    "get",
+    "/ads/accounts/{accountId}/targeting/locations",
+    ["200", "403", "404", "409", "422", "502"],
+  ],
+  [
+    "get",
+    "/ads/accounts/{accountId}/targeting/languages",
+    ["200", "403", "404", "409", "502"],
+  ],
+  ["get", "/ads/market", ["200", "403", "404"]],
+  ["put", "/ads/market", ["200", "403", "404", "409", "422"]],
+  ["get", "/ads/market/keywords", ["200", "403", "404", "502", "503"]],
+  ["get", "/ads/market/ads", ["200", "403", "404", "502", "503"]],
+  ["post", "/ads/connections/initiate", ["201", "403", "404", "502", "503"]],
+  ["post", "/ads/connections/finalize", ["200", "403", "404", "502", "503"]],
+  [
+    "delete",
+    "/ads/connections/{adConnectionId}",
+    ["204", "403", "404", "409", "502", "503"],
+  ],
 ] as const;
 
 const FORBIDDEN_CONTRACT_FIELDS = [
@@ -142,6 +189,25 @@ describe("projects routes OpenAPI contract", () => {
       for (const field of FORBIDDEN_CONTRACT_FIELDS) {
         expect(serializedContract).not.toContain(`"${field}"`);
       }
+    }
+  });
+
+  it("mounts the Project ad account operations", () => {
+    const document = projectsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Projects API", version: "1.0.0" },
+    });
+    for (const [method, path, statuses] of AD_OPERATIONS) {
+      const operation = document.paths?.[`/{id}${path}`]?.[method];
+      expect(
+        operation,
+        `${method.toUpperCase()} ${path} is mounted`,
+      ).toBeDefined();
+      expect(operation?.responses).toEqual(
+        expect.objectContaining(
+          Object.fromEntries(statuses.map((s) => [s, expect.anything()])),
+        ),
+      );
     }
   });
 });

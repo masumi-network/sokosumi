@@ -3,14 +3,17 @@ import type {
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
+import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import prisma from "@/lib/db/prisma";
 import {
   foreignTasksBlock,
   memoryTasks,
   tasksIn,
 } from "@/lib/soko-bot/memory-task-ownership";
+import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
+import { contactLinesByEmail } from "@/services/contacts-context.service";
 import {
+  type ActivityStatsBot,
   activityStats,
   activityStatsLines,
 } from "@/services/soko-bot-activity-stats.service";
@@ -23,36 +26,20 @@ import {
 const HOUR_MS = 60 * 60 * 1_000;
 const DAY_MS = 24 * HOUR_MS;
 const SLOT_MS = 30 * 60 * 1_000;
-/** Mail providers whose domain says nothing about the company. */
-const FREEMAIL = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "outlook.com",
-  "hotmail.com",
-  "live.com",
-  "yahoo.com",
-  "icloud.com",
-  "me.com",
-  "gmx.de",
-  "gmx.net",
-  "web.de",
-  "proton.me",
-  "protonmail.com",
-]);
-
-export interface RhythmBot {
-  id: string;
-  name?: string | null;
-  userId: string;
-  workspaceId: string;
-  ingestTimezone: string;
-}
+/** A bot a rhythm runs for; a shared bot (`userId: null`) needs its scope. */
+export type RhythmBot = ActivityStatsBot & { ingestTimezone: string };
 
 export interface RhythmPacket {
   lines: string[];
   /** Nothing to brief on: no turn is started, nothing is spent. */
   skip: boolean;
 }
+
+/**
+ * Rhythms that read an owner's own mailbox identity ("waiting on you", "you
+ * sent"). A shared bot is not offered them and skips them if one exists.
+ */
+const OWNER_MAILBOX_RHYTHMS = new Set(["meeting-prep", "follow-ups"]);
 
 /** The keys this module builds packets for; the stand-up and wrap live in the proactive service. */
 export const RHYTHM_KEYS = new Set([
@@ -149,13 +136,15 @@ function domainOf(email: string): string {
 /** "acme" for anna@acme.com; null for freemail, where the domain names no company. */
 function companyOf(email: string): string | null {
   const domain = domainOf(email);
-  if (!domain || FREEMAIL.has(domain)) return null;
+  if (!domain || FREEMAIL_DOMAINS.has(domain)) return null;
   return domain.split(".")[0] ?? null;
 }
 
 async function ownerEmail(bot: RhythmBot): Promise<string | null> {
+  const ownerUserId = rhythmTaskScope(bot).ownerUserId;
+  if (ownerUserId === null) return null;
   const user = await prisma.user.findUnique({
-    where: { id: bot.userId },
+    where: { id: ownerUserId },
     select: { email: true },
   });
   return user?.email.toLowerCase() ?? null;
@@ -171,7 +160,7 @@ async function openTasksMatching(bot: RhythmBot, terms: string[]) {
       OR: terms.map((term) => ({
         name: { contains: term, mode: "insensitive" as const },
       })),
-      AND: [buildSokoBotOwnerTaskVisibilityWhere(bot.userId)],
+      AND: [rhythmTaskScope(bot).visible],
     },
     select: { id: true, name: true, status: true },
     take: 5,
@@ -213,6 +202,16 @@ async function meetingPrep(
       `## Meeting ${when(event.startsAt, bot.ingestTimezone)}: ${event.title} [${event.provider}:${event.id}]`,
       `- From outside: ${external.slice(0, 6).join(", ")}`,
     );
+    // Context only: a failed lookup must not cost the meeting its prep.
+    const known = await contactLinesByEmail({
+      workspaceId: bot.workspaceId,
+      emails: external.slice(0, 6),
+      timeZone: bot.ingestTimezone,
+    }).catch(() => new Map<string, string>());
+    for (const email of external.slice(0, 6)) {
+      const line = known.get(email);
+      if (line) lines.push(`- Contact: ${line}`);
+    }
     if (event.description)
       lines.push(
         `- Agenda: ${event.description.replace(/\s+/g, " ").slice(0, 300)}`,
@@ -256,8 +255,7 @@ async function meetingPrep(
 }
 
 async function endOfDay(bot: RhythmBot, dayStart: Date): Promise<RhythmPacket> {
-  const own = [{ ownerId: bot.userId }, { assigneeSokoBotId: bot.id }];
-  const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
+  const { own, visible, ownerUserId } = rhythmTaskScope(bot);
   const [done, waiting] = await Promise.all([
     prisma.task.findMany({
       where: {
@@ -298,7 +296,9 @@ async function endOfDay(bot: RhythmBot, dayStart: Date): Promise<RhythmPacket> {
     );
   }
   if (waiting.length > 0) {
-    lines.push("## Waiting on you");
+    lines.push(
+      ownerUserId === null ? "## Waiting on the team" : "## Waiting on you",
+    );
     lines.push(
       ...waiting.map(
         (task) =>
@@ -525,6 +525,11 @@ export async function buildRhythmPacket(input: {
   dayStart: Date;
 }): Promise<RhythmPacket> {
   const { bot, now, dayStart } = input;
+  if (
+    rhythmTaskScope(bot).ownerUserId === null &&
+    OWNER_MAILBOX_RHYTHMS.has(input.key)
+  )
+    return { lines: [], skip: true };
   switch (input.key) {
     case "meeting-prep":
       return meetingPrep(bot, now);

@@ -1,6 +1,7 @@
 export {
   CALENDAR_ACCESS_REVOKED_EVENT_NAME,
   CALENDAR_INVALIDATED_EVENT_NAME,
+  makeAgentJobsCapabilityResourceName,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
@@ -10,9 +11,9 @@ export {
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   makeWorkspaceCalendarChannelName,
-  type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
+  type RealtimeChannelEnvironment,
 } from "./ably-channel.js";
 export {
   AUTH_CAPTCHA_ACTION,
@@ -132,6 +133,36 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
+export {
+  CONTACT_CHANNEL_SOURCES,
+  CONTACT_CHANNEL_TYPES,
+  CONTACT_CONVERSATION_DAYS,
+  CONTACT_INTERACTION_CHANNELS,
+  CONTACT_INTERACTION_DIRECTIONS,
+  CONTACT_KINDS,
+  CONTACT_LIST_COLORS,
+  CONTACT_REPLY_STATES,
+  CONTACT_REPLY_WAIT_DAYS,
+  CONTACT_SORT_FIELDS,
+  CONTACT_STAGES,
+  type ContactChannelType,
+  type ContactFilter,
+  calendarDateSchema,
+  contactChannelInputSchema,
+  contactFieldsSchema,
+  contactFilterSchema,
+  contactImportMappingSchema,
+  contactImportSchema,
+  contactInteractionInputSchema,
+  contactListInputSchema,
+  contactListMembersSchema,
+  contactListUpdateSchema,
+  contactNameFromChannel,
+  createContactSchema,
+  mergeContactsSchema,
+  normalizeContactChannelValue,
+  updateContactSchema,
+} from "./contacts.js";
 export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
@@ -153,6 +184,7 @@ export {
 } from "./credit-topup-pricing.js";
 export {
   createDataTableSchema,
+  TABLE_COLUMN_WIDTH,
   tableBatchSchema,
   tableColumnInputSchema,
   tableEvidenceSchema,
@@ -376,6 +408,8 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_FIRST_COMMENT_LIMITS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
@@ -387,10 +421,15 @@ export {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
+  splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
@@ -469,6 +508,11 @@ export {
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
+export {
+  creditsPerVideoCents,
+  type VideoLength,
+  type VideoPriceFigures,
+} from "./video-credits.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

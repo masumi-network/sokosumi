@@ -16,7 +16,10 @@ const sourceSchema = z.union([
   z
     .object({ roomId: z.string().uuid(), messageId: z.string().uuid() })
     .strict(),
-  z.object({ turnId: z.string().uuid() }).strict(),
+  // botId names a shared bot; absent means the caller's own bot.
+  z
+    .object({ turnId: z.string().uuid(), botId: z.string().uuid().optional() })
+    .strict(),
 ]);
 const inputSchema = z
   .object({
@@ -54,8 +57,12 @@ export async function selectChatProjectAction(input: unknown) {
     // cannot inject a different project or reveal one whose access was revoked.
     const results =
       "turnId" in source
-        ? (await coreClientNoRedirect.getMySokoBotTurnResults(source.turnId))
-            .data
+        ? (
+            await coreClientNoRedirect.getMySokoBotTurnResults(
+              source.turnId,
+              source.botId,
+            )
+          ).data
         : (
             await coreClientNoRedirect.getChatRoomMessageResults(
               source.roomId,
@@ -70,7 +77,7 @@ export async function selectChatProjectAction(input: unknown) {
     if (!project) return failure();
     const content = `Use project ${JSON.stringify(project.name)} (project ID: ${project.id}).`;
     if ("turnId" in source) {
-      const turn = await sokoBotService.getTurn(source.turnId);
+      const turn = await sokoBotService.getTurn(source.turnId, source.botId);
       const workspaces = await userService.getMyWorkspaces();
       const current = workspaces?.workspaces.find(
         (workspace) =>
@@ -81,6 +88,7 @@ export async function selectChatProjectAction(input: unknown) {
       const message = `Continue this request: ${JSON.stringify(turn.userMessage.slice(0, 2000))}\nYour question: ${JSON.stringify((turn.finalAnswer ?? "").slice(0, 2000))}\n${content}`;
       const result = await startSokoBotTurnAction({
         input: { clientTurnId: clientMessageId, message },
+        botId: source.botId,
       });
       return result.ok ? toActionResult(ok(null)) : failure();
     }

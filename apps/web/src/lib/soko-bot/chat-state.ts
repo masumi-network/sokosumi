@@ -141,13 +141,17 @@ export interface ChatMemory {
 
 export interface ChatBot {
   id: string;
-  userId: string;
+  /** Null for a project or workspace bot, which has no owner. */
+  userId: string | null;
+  /** Core's answer to whether the viewer may archive, delete or reset it. */
+  viewerCanManage: boolean;
   name: string | null;
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
   versionId: string | null;
   followWholeBoard: boolean;
+  mailAutoRead: boolean;
   ingestTimezone: string;
   proactivePaused: boolean;
   proactiveDailyLimit: number;
@@ -293,11 +297,13 @@ function toChatBot(bot: SokoBot): ChatBot {
   return {
     id: bot.id,
     userId: bot.userId,
+    viewerCanManage: bot.viewerCanManage ?? false,
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
+    mailAutoRead: bot.mailAutoRead ?? false,
     ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
     proactivePaused: bot.proactivePaused ?? false,
     proactiveDailyLimit: bot.proactiveDailyLimit ?? 20,
