@@ -50,12 +50,12 @@ Web does not depend on this package.
 
 ## Package-Specific Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm --filter @sokosumi/ai-provider build` | Compile `src/` to `dist/` |
-| `pnpm --filter @sokosumi/ai-provider test` | Run Vitest |
-| `pnpm --filter @sokosumi/ai-provider typecheck` | Typecheck |
-| `pnpm --filter @sokosumi/ai-provider lint` | Lint |
+| Command                                         | Purpose                   |
+| ----------------------------------------------- | ------------------------- |
+| `pnpm --filter @sokosumi/ai-provider build`     | Compile `src/` to `dist/` |
+| `pnpm --filter @sokosumi/ai-provider test`      | Run Vitest                |
+| `pnpm --filter @sokosumi/ai-provider typecheck` | Typecheck                 |
+| `pnpm --filter @sokosumi/ai-provider lint`      | Lint                      |
 
 ## Testing
 

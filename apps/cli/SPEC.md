@@ -1,9 +1,11 @@
 # SPEC
 
 ## §G GOAL
+
 [REPORTED: user direction, 2026-09-24] Developer CLI + repo Skill onboard an existing remote agent as a private Sokosumi Coworker in a selected Workspace; Hermes first. MPS is the first Sokosumi payment path; prove Coworker wallet receipt before global waitlist; platform admins approve listing. Cardano x402 buyers enter through Sokosumi after MVP. [REPORTED: user direction, 2026-10-05] Preprod adds private self-service creation for own Vendor admins; organization Workspace access requires its owner/admin approval. This defines target behavior, not shipped features.
 
 ## §C CONSTRAINTS
+
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
 - package identity ∈ {published npm name: `@masumi_network/sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; published public to npm (live `1.0.0`, repo `1.0.1`) via `files:[dist]` + `publishConfig.access:public`. [PR #5325]
@@ -58,6 +60,7 @@
 [VERIFIED: ADR 0005, 2026-09-21] Runtime identity/invocation contract approved: runtime bearer ∈ `coworker_*` only; developer OAuth/user API keys ⊥ runtime Core calls; session grant ⊥ identity; no short-lived developer-delegation JWT. Chat transport, general x402 purchase, and seller settlement interfaces still need their own approved contracts before implementation.
 
 ## §V INVARIANTS
+
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
 V2: provider key ∉ argv & ∉ logs.
 V3: target → matching API URL, auth URL, public OAuth client ID, vault entry.

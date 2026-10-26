@@ -22095,6 +22095,403 @@ export const ProjectNeedsAttentionSchema = {
     ]
 } as const;
 
+export const NewsletterSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        senderName: {
+            type: 'string'
+        },
+        replyTo: {
+            type: 'string',
+            format: 'email'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        },
+        welcomeEmailEnabled: {
+            type: 'boolean'
+        },
+        welcomeSubject: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        welcomeBody: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publicSlug: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'workspaceId',
+        'name',
+        'senderName',
+        'replyTo',
+        'brand',
+        'welcomeEmailEnabled',
+        'welcomeSubject',
+        'welcomeBody',
+        'publicSlug',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const NewsletterBrandSchema = {
+    type: 'object',
+    properties: {
+        logoUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        primaryColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        accentColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        fontFamily: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        footerText: {
+            type: 'string',
+            maxLength: 5000
+        }
+    }
+} as const;
+
+export const PutNewsletterRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        senderName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        replyTo: {
+            type: 'string'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        },
+        welcomeEmailEnabled: {
+            type: 'boolean'
+        },
+        welcomeSubject: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        welcomeBody: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100000
+        }
+    },
+    required: [
+        'name',
+        'senderName',
+        'replyTo',
+        'brand',
+        'welcomeEmailEnabled'
+    ]
+} as const;
+
+export const NewsletterSubscriberListSchema = {
+    type: 'object',
+    properties: {
+        subscribers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/NewsletterSubscriber'
+            }
+        },
+        counts: {
+            type: 'object',
+            properties: {
+                PENDING: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                ACTIVE: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                UNSUBSCRIBED: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                BOUNCED: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'PENDING',
+                'ACTIVE',
+                'UNSUBSCRIBED',
+                'BOUNCED'
+            ]
+        }
+    },
+    required: [
+        'subscribers',
+        'counts'
+    ]
+} as const;
+
+export const NewsletterSubscriberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        newsletterId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        email: {
+            type: 'string',
+            format: 'email'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterSubscriberStatus'
+        },
+        source: {
+            $ref: '#/components/schemas/NewsletterSubscriberSource'
+        },
+        consentAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        confirmedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unsubscribedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        bouncedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'newsletterId',
+        'email',
+        'name',
+        'status',
+        'source',
+        'consentAt',
+        'confirmedAt',
+        'unsubscribedAt',
+        'bouncedAt',
+        'createdAt'
+    ]
+} as const;
+
+export const NewsletterSubscriberStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'ACTIVE',
+        'UNSUBSCRIBED',
+        'BOUNCED'
+    ]
+} as const;
+
+export const NewsletterSubscriberSourceSchema = {
+    type: 'string',
+    enum: [
+        'MANUAL',
+        'CSV_IMPORT',
+        'SIGNUP_FORM',
+        'API'
+    ]
+} as const;
+
+export const AddNewsletterSubscriberRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        consent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'email',
+        'consent'
+    ]
+} as const;
+
+export const NewsletterImportResultSchema = {
+    type: 'object',
+    properties: {
+        imported: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedExisting: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Valid rows skipped because the email already exists in the newsletter or CSV.'
+        },
+        invalid: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    row: {
+                        type: 'integer',
+                        minimum: 2
+                    },
+                    value: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'row',
+                    'value'
+                ]
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'imported',
+        'skippedExisting',
+        'invalid'
+    ]
+} as const;
+
+export const ImportNewsletterSubscribersRequestSchema = {
+    type: 'object',
+    properties: {
+        csv: {
+            type: 'string',
+            maxLength: 5000000
+        },
+        consent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'csv',
+        'consent'
+    ]
+} as const;
+
+export const PatchNewsletterSubscriberRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'UNSUBSCRIBED'
+            ]
+        }
+    }
+} as const;
+
 export const ProjectStarSchema = {
     type: 'object',
     properties: {

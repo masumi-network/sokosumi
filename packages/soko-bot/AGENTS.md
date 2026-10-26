@@ -13,15 +13,15 @@
 
 The live tree is `src/`. One main export in `package.json`. `prepare` compiles `src/` to `dist/`.
 
-| Module | Role |
-| --- | --- |
-| `policy.ts` | Routes, capabilities, hire-budget checks |
-| `tool-contracts.ts` | Per-capability Zod input schemas and descriptions |
-| `runtime.ts` | `SokoBotRuntime` port and turn/event types |
-| `wire-contracts.ts` | `sokoBotContextPacketSchema` |
-| `versions/` | Version ids, skills, system-prompt composition |
-| `result-previews.ts` | Chat result preview reference schema and limit |
-| `memory.ts`, `persona.ts`, `proactive.ts`, `judge.ts`, `scenarios.ts`, `integrations.ts` | Shared policy and admin-lab contracts |
+| Module                                                                                   | Role                                              |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `policy.ts`                                                                              | Routes, capabilities, hire-budget checks          |
+| `tool-contracts.ts`                                                                      | Per-capability Zod input schemas and descriptions |
+| `runtime.ts`                                                                             | `SokoBotRuntime` port and turn/event types        |
+| `wire-contracts.ts`                                                                      | `sokoBotContextPacketSchema`                      |
+| `versions/`                                                                              | Version ids, skills, system-prompt composition    |
+| `result-previews.ts`                                                                     | Chat result preview reference schema and limit    |
+| `memory.ts`, `persona.ts`, `proactive.ts`, `judge.ts`, `scenarios.ts`, `integrations.ts` | Shared policy and admin-lab contracts             |
 
 The loop runs in each bot's Vercel Sandbox (`apps/core/src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`apps/core/src/routes/v1/soko-bot-runtime`). Evaluation runs stay in-process (`apps/core/src/lib/soko-bot/in-process-runtime.ts`). There is no `apps/soko-bot`.
 
@@ -46,12 +46,12 @@ Core implements the port (`sandbox/sandbox-runtime.ts`, `in-process-runtime.ts`,
 
 ## Package-Specific Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm --filter @sokosumi/soko-bot build` | Compile `src/` to `dist/` |
-| `pnpm --filter @sokosumi/soko-bot test` | Run Vitest |
-| `pnpm --filter @sokosumi/soko-bot typecheck` | Typecheck |
-| `pnpm --filter @sokosumi/soko-bot lint` | Lint |
+| Command                                      | Purpose                   |
+| -------------------------------------------- | ------------------------- |
+| `pnpm --filter @sokosumi/soko-bot build`     | Compile `src/` to `dist/` |
+| `pnpm --filter @sokosumi/soko-bot test`      | Run Vitest                |
+| `pnpm --filter @sokosumi/soko-bot typecheck` | Typecheck                 |
+| `pnpm --filter @sokosumi/soko-bot lint`      | Lint                      |
 
 ## Testing
 

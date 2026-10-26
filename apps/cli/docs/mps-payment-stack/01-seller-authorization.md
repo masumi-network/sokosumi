@@ -81,13 +81,13 @@
 
 ## Test matrix
 
-| Proposed case | Required evidence | Status |
-| --- | --- | --- |
-| [PROPOSED] Seller authority and readiness | Foreign Vendor, assignment-only caller, wrong network, unverified destination, revoked access rejected | Planned |
-| [PROPOSED] Quote authorization | Changed terms, wrong billing account, moved Task, expiry, ceiling breach rejected | Planned |
-| [PROPOSED] Debit boundary | Direct unapproved event blocked; concurrent consumption permits one debit; failure preserves approval | Planned |
-| [PROPOSED] Secrets and rotation | URL attacks and credential leaks rejected; accepted terms and recovery authority preserved | Planned |
-| [PROPOSED] Partial rollout and private use | Direct approved writes remain gated; unpaid private work gains no seller charge | Planned |
+| Proposed case                              | Required evidence                                                                                      | Status  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------- |
+| [PROPOSED] Seller authority and readiness  | Foreign Vendor, assignment-only caller, wrong network, unverified destination, revoked access rejected | Planned |
+| [PROPOSED] Quote authorization             | Changed terms, wrong billing account, moved Task, expiry, ceiling breach rejected                      | Planned |
+| [PROPOSED] Debit boundary                  | Direct unapproved event blocked; concurrent consumption permits one debit; failure preserves approval  | Planned |
+| [PROPOSED] Secrets and rotation            | URL attacks and credential leaks rejected; accepted terms and recovery authority preserved             | Planned |
+| [PROPOSED] Partial rollout and private use | Direct approved writes remain gated; unpaid private work gains no seller charge                        | Planned |
 
 ## Acceptance and migration preconditions
 
