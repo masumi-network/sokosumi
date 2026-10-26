@@ -65,8 +65,8 @@ Tailwind 4's `scale-*` utilities write the `scale` property, so `transition-[...
 
 ## Which icons animate
 
-| Animate | Don't animate |
-| --- | --- |
+| Animate                                                                       | Don't animate                       |
+| ----------------------------------------------------------------------------- | ----------------------------------- |
 | Infrequent state swaps such as play to pause, like to liked or copy to copied | Hover-revealed actions in list rows |
-| Icons in a toolbar that appears on selection | Tab and navigation icon swaps |
-| Loading and success indicators | Decorative or always-visible icons |
+| Icons in a toolbar that appears on selection                                  | Tab and navigation icon swaps       |
+| Loading and success indicators                                                | Decorative or always-visible icons  |

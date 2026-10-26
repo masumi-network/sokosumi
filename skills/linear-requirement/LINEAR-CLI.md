@@ -27,17 +27,17 @@ Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
 
 Every `linear issue create` must include **all** of:
 
-| Flag | Default |
-|------|---------|
-| `--title` | user-approved **product** title (no `feat:` / `fix:` prefix) |
-| `--description-file` | approved requirement (`## Requirement`) |
-| `--team` | `SOK` |
-| `--project` | `sokosumi-6357694ddd23` (Sōkosumi marketplace) |
-| `--state` | `Triage` |
-| `--priority` | `3` (Medium) |
-| `--label` | exactly one of `Feature`, `Bug`, or `Improvement` |
-| `--no-interactive` | always |
-| `--no-use-default-template` | always |
+| Flag                        | Default                                                      |
+| --------------------------- | ------------------------------------------------------------ |
+| `--title`                   | user-approved **product** title (no `feat:` / `fix:` prefix) |
+| `--description-file`        | approved requirement (`## Requirement`)                      |
+| `--team`                    | `SOK`                                                        |
+| `--project`                 | `sokosumi-6357694ddd23` (Sōkosumi marketplace)               |
+| `--state`                   | `Triage`                                                     |
+| `--priority`                | `3` (Medium)                                                 |
+| `--label`                   | exactly one of `Feature`, `Bug`, or `Improvement`            |
+| `--no-interactive`          | always                                                       |
+| `--no-use-default-template` | always                                                       |
 
 **Do not pass `--assignee` on create** unless the user explicitly asked for an assignee during intake.
 
