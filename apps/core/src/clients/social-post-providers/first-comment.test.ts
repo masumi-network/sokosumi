@@ -98,6 +98,47 @@ describe("publishSocialPostFirstComment", () => {
     expect(deleteSessionMock).toHaveBeenCalled();
   });
 
+  it.each(["Basic", "Premium", "PremiumPlus"])(
+    "sends a long X reply for %s",
+    async (subscriptionType) => {
+      const text = "x".repeat(5000);
+      await publishSocialPostFirstComment({
+        ...base,
+        provider: "x",
+        subscriptionType,
+        text,
+      });
+      expect(executeToolMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          arguments: { text, reply_in_reply_to_tweet_id: "1907" },
+        }),
+      );
+    },
+  );
+
+  it("uses weighted X reply length, including shortened URLs and emoji sequences", async () => {
+    const text = `${"x".repeat(250)} 👨‍👩‍👧‍👦 https://example.com/${"p".repeat(100)}`;
+    await publishSocialPostFirstComment({ ...base, provider: "x", text });
+    expect(executeToolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arguments: { text, reply_in_reply_to_tweet_id: "1907" },
+      }),
+    );
+  });
+
+  it.each([null, "None"])(
+    "skips a long reply without an eligible X tier: %s",
+    async (subscriptionType) => {
+      await publishSocialPostFirstComment({
+        ...base,
+        provider: "x",
+        subscriptionType,
+        text: "x".repeat(5000),
+      });
+      expect(createSessionMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("comments on LinkedIn with a share URN", async () => {
     await publishSocialPostFirstComment({
       ...base,
