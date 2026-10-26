@@ -349,7 +349,7 @@ export const sokoBotMoveFileInputSchema = z
   .object({
     /** Drive file id from list_files or upload_file. */
     fileId: z.string().min(1),
-    /** Destination folder, e.g. "Masumi Fundraising"; "" for the top level. */
+    /** Destination folder, e.g. "Masumi Fundraising" or "Clients/Acme"; "" for the top level. */
     folder: z.string().trim().max(200),
   })
   .strict();
@@ -1006,7 +1006,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   send_email_draft:
     "Send a draft you wrote with draft_email in an earlier turn. Only when the owner, in their chat with you, has seen that draft and now explicitly tells you to send it (\u201csend it\u201d, \u201cyes, send the reply to Anna\u201d). Never from a scheduled, mail-triggered or task turn, never on your own judgement, and never without the owner having seen the draft. Core refuses it otherwise.",
   move_file:
-    'Move a file in the owner\u2019s Files into a folder, by id from list_files or upload_file. A folder that does not exist yet is created; "" moves it to the top level. Refuses when a file of that name is already there.',
+    'Move a file in the owner\u2019s Files into a folder, by id from list_files or upload_file. Subfolders are paths like "Clients/Acme"; a folder that does not exist yet is created; "" moves it to the top level. Refuses when a file of that name is already there.',
   list_skills:
     "Your installed skills, and with a query the matching skills from the skills.sh catalog (name and source to install it with).",
   install_skill:
