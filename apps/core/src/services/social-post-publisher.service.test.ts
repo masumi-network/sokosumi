@@ -22,6 +22,7 @@ const {
   queryRawMock,
   transactionMock,
   ssrfSafeFetchMock,
+  resolveXSubscriptionTypeMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
@@ -37,6 +38,11 @@ const {
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
+  resolveXSubscriptionTypeMock: vi.fn(),
+}));
+
+vi.mock("@/services/x-subscription-tier.service", () => ({
+  resolveXSubscriptionType: resolveXSubscriptionTypeMock,
 }));
 
 vi.mock("@sokosumi/net", async (importOriginal) => ({
@@ -94,6 +100,7 @@ const activeConnection = {
   composioConnectedAccountId: "ca_123",
   externalAccountId: "x_account",
   externalHandle: "sokosumi",
+  subscriptionType: "Premium",
 };
 
 const IMAGE_REF = {
@@ -167,6 +174,9 @@ describe("social post publisher service", () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+    resolveXSubscriptionTypeMock.mockImplementation(
+      async (connection) => connection.subscriptionType ?? null,
+    );
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
       closingAt: null,
@@ -196,6 +206,118 @@ describe("social post publisher service", () => {
     ssrfSafeFetchMock.mockImplementation(async () =>
       mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
     );
+  });
+
+  it("fails a Premium-written post after a fresh downgrade without calling X", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, text: "x".repeat(1240) })
+      .mockResolvedValue(null);
+    resolveXSubscriptionTypeMock.mockResolvedValue("None");
+    const { publishDueSocialPosts } = await loadService();
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+      retried: 0,
+    });
+    expect(resolveXSubscriptionTypeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionType: "Premium",
+        projectId: PROJECT_ID,
+        provider: "x",
+      }),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(publishFirstCommentMock).not.toHaveBeenCalled();
+    const message =
+      "This post is 1,240 characters, but @sokosumi can now post at most 280 characters on X (no X Premium). Shorten it or renew Premium, then retry.";
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      lastError: message,
+    });
+    expect(attemptUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "text_limit",
+          providerOutcome: message,
+        }),
+      }),
+    );
+  });
+
+  it("publishes long posts and replies when a failed lookup preserves stored Premium", async () => {
+    const text = "x".repeat(5000);
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, text, firstComment: text })
+      .mockResolvedValue(null);
+    // The resolver owns failure handling; its fallback is the persisted Premium tier.
+    resolveXSubscriptionTypeMock.mockResolvedValue("Premium");
+    const { publishDueSocialPosts } = await loadService();
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      published: 1,
+      failed: 0,
+    });
+    expect(publishXPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ text }),
+    );
+    expect(publishFirstCommentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ text }),
+    );
+  });
+
+  it("uses weighted counts in the publish guard", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, text: "界".repeat(141) })
+      .mockResolvedValue(null);
+    resolveXSubscriptionTypeMock.mockResolvedValue("None");
+    const { publishDueSocialPosts } = await loadService();
+    await publishDueSocialPosts(syncContext);
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.lastError).toContain("282 characters");
+  });
+
+  it("checks a long first comment before publishing the main post", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, firstComment: "x".repeat(5000) })
+      .mockResolvedValue(null);
+    resolveXSubscriptionTypeMock.mockResolvedValue("None");
+    const { publishDueSocialPosts } = await loadService();
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.lastError).toContain(
+      "The first comment is 5,000 characters",
+    );
+  });
+
+  it("applies the downgrade guard to Post now", async () => {
+    socialPostFindFirstMock.mockReset().mockResolvedValueOnce({
+      ...duePost,
+      status: "DRAFT",
+      text: "x".repeat(5000),
+    });
+    resolveXSubscriptionTypeMock.mockResolvedValue("None");
+    const { publishSocialPostNow } = await loadService();
+    await publishSocialPostNow({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 1,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      lastError: expect.stringContaining("no X Premium"),
+    });
   });
 
   it.each(["closingAt", "closedAt"])(
@@ -472,6 +594,7 @@ describe("social post publisher service", () => {
 
     expect(publishFirstCommentMock).toHaveBeenCalledWith({
       provider: "x",
+      subscriptionType: "Premium",
       connectedAccountId: "ca_123",
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
       externalAccountId: "x_account",
@@ -848,6 +971,25 @@ describe("social post publisher service", () => {
 
     expect(result).toMatchObject({ failed: 1, published: 0, missed: 0 });
     expect(publishXPostMock).not.toHaveBeenCalled();
+  });
+
+  it("honors a Project closing while the subscription lookup is in progress", async () => {
+    resolveXSubscriptionTypeMock.mockImplementation(async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        closingAt: NOW,
+      });
+      return "Premium";
+    });
+    const { publishDueSocialPosts } = await loadService();
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.lastError).toBe(
+      "Cannot publish Social posts in a closing or closed Project",
+    );
   });
 
   it.each([

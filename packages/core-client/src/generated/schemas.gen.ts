@@ -22895,6 +22895,14 @@ export const ProjectSocialConnectionSchema = {
             ],
             example: 'Sokosumi'
         },
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'X subscription tier; null when unknown or not X',
+            example: 'Premium'
+        },
         avatarUrl: {
             type: [
                 'string',
@@ -22936,6 +22944,7 @@ export const ProjectSocialConnectionSchema = {
         'provider',
         'externalHandle',
         'displayName',
+        'subscriptionType',
         'avatarUrl',
         'status',
         'connectedAt',
@@ -22954,6 +22963,26 @@ export const ProjectSocialProviderSchema = {
         'youtube'
     ],
     example: 'x'
+} as const;
+
+export const ProjectSocialConnectionSubscriptionSchema = {
+    type: 'object',
+    properties: {
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        textLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'subscriptionType',
+        'textLimit'
+    ]
 } as const;
 
 export const SocialAccountStatisticsPageSchema = {
@@ -26019,6 +26048,14 @@ export const SocialPostSocialConnectionSchema = {
             description: 'Profile picture copy in Sokosumi storage',
             example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
         },
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'X subscription tier; null when unknown or not X',
+            example: 'Premium'
+        },
         status: {
             type: 'string',
             enum: [
@@ -26035,6 +26072,7 @@ export const SocialPostSocialConnectionSchema = {
         'externalHandle',
         'displayName',
         'avatarUrl',
+        'subscriptionType',
         'status'
     ]
 } as const;
@@ -26193,12 +26231,10 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
             example: '#launch'
         },
         media: {
@@ -26288,12 +26324,10 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
             example: '#launch'
         },
         media: {

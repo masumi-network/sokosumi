@@ -434,8 +434,13 @@ export {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLength,
+  socialPostTextLimit,
   splitYouTubePostText,
   validateSocialPostMedia,
+  X_LONG_POST_SUBSCRIPTION_TYPES,
+  X_PREMIUM_TEXT_LIMIT,
+  type XLongPostSubscriptionType,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
