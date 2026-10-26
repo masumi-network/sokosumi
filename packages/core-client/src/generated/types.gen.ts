@@ -6482,6 +6482,110 @@ export type ProjectNeedsAttention = {
     items: Array<HistoryItem>;
 };
 
+export type Newsletter = {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    name: string;
+    senderName: string;
+    replyTo: string;
+    brand: NewsletterBrand;
+    welcomeEmailEnabled: boolean;
+    welcomeSubject: string | null;
+    welcomeBody: string | null;
+    publicSlug: string;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type NewsletterBrand = {
+    logoUrl?: string;
+    primaryColor?: string;
+    accentColor?: string;
+    fontFamily?: string;
+    footerText?: string;
+};
+
+export type PutNewsletterRequest = {
+    name: string;
+    senderName: string;
+    replyTo: string;
+    brand: NewsletterBrand;
+    welcomeEmailEnabled: boolean;
+    welcomeSubject?: string | null;
+    welcomeBody?: string | null;
+};
+
+export type NewsletterSubscriberList = {
+    subscribers: Array<NewsletterSubscriber>;
+    counts: {
+        PENDING: number;
+        ACTIVE: number;
+        UNSUBSCRIBED: number;
+        BOUNCED: number;
+    };
+};
+
+export type NewsletterSubscriber = {
+    id: string;
+    newsletterId: string;
+    email: string;
+    name: string | null;
+    status: NewsletterSubscriberStatus;
+    source: NewsletterSubscriberSource;
+    consentAt: Date | null;
+    confirmedAt: Date | null;
+    unsubscribedAt: Date | null;
+    bouncedAt: Date | null;
+    createdAt: Date;
+};
+
+export const NewsletterSubscriberStatus = {
+    PENDING: 'PENDING',
+    ACTIVE: 'ACTIVE',
+    UNSUBSCRIBED: 'UNSUBSCRIBED',
+    BOUNCED: 'BOUNCED'
+} as const;
+
+export type NewsletterSubscriberStatus = typeof NewsletterSubscriberStatus[keyof typeof NewsletterSubscriberStatus];
+
+export const NewsletterSubscriberSource = {
+    MANUAL: 'MANUAL',
+    CSV_IMPORT: 'CSV_IMPORT',
+    SIGNUP_FORM: 'SIGNUP_FORM',
+    API: 'API'
+} as const;
+
+export type NewsletterSubscriberSource = typeof NewsletterSubscriberSource[keyof typeof NewsletterSubscriberSource];
+
+export type AddNewsletterSubscriberRequest = {
+    email: string;
+    name?: string | null;
+    consent: true;
+};
+
+export type NewsletterImportResult = {
+    imported: number;
+    /**
+     * Valid rows skipped because the email already exists in the newsletter or CSV.
+     */
+    skippedExisting: number;
+    invalid: Array<{
+        row: number;
+        value: string;
+    }>;
+};
+
+export type ImportNewsletterSubscribersRequest = {
+    csv: string;
+    consent: true;
+};
+
+export type PatchNewsletterSubscriberRequest = {
+    name?: string | null;
+    status?: 'ACTIVE' | 'UNSUBSCRIBED';
+};
+
 export type ProjectStar = {
     projectId: string;
     starredAt: Date | null;
@@ -6562,6 +6666,9 @@ export type SocialAccountPost = {
     provider: ProjectSocialProvider;
     externalId: string;
     text: string;
+    contentType?: SocialAccountPostContentType;
+    postKind?: SocialAccountPostKind;
+    media?: Array<SocialAccountPostMedia>;
     publishedAt: Date | null;
     url: string | null;
     metrics: SocialPostMetrics;
@@ -6569,6 +6676,33 @@ export type SocialAccountPost = {
     fetchedAt: Date;
     strong?: boolean;
     canRecycle?: boolean;
+};
+
+export const SocialAccountPostContentType = {
+    TEXT: 'text',
+    IMAGE: 'image',
+    VIDEO: 'video',
+    CAROUSEL: 'carousel',
+    LINK: 'link',
+    UNKNOWN: 'unknown'
+} as const;
+
+export type SocialAccountPostContentType = typeof SocialAccountPostContentType[keyof typeof SocialAccountPostContentType];
+
+export const SocialAccountPostKind = {
+    POST: 'post',
+    REPLY: 'reply',
+    QUOTE: 'quote',
+    REPOST: 'repost',
+    UNKNOWN: 'unknown'
+} as const;
+
+export type SocialAccountPostKind = typeof SocialAccountPostKind[keyof typeof SocialAccountPostKind];
+
+export type SocialAccountPostMedia = {
+    kind: 'image' | 'gif' | 'video';
+    url: string;
+    thumbnailUrl: string | null;
 };
 
 export type SocialPostMetrics = {
@@ -46836,6 +46970,902 @@ export type GetProjectsByIdNeedsAttentionResponses = {
 };
 
 export type GetProjectsByIdNeedsAttentionResponse = GetProjectsByIdNeedsAttentionResponses[keyof GetProjectsByIdNeedsAttentionResponses];
+
+export type GetProjectsByIdNewsletterData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter';
+};
+
+export type GetProjectsByIdNewsletterErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterError = GetProjectsByIdNewsletterErrors[keyof GetProjectsByIdNewsletterErrors];
+
+export type GetProjectsByIdNewsletterResponses = {
+    /**
+     * Newsletter settings
+     */
+    200: {
+        data: Newsletter;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterResponse = GetProjectsByIdNewsletterResponses[keyof GetProjectsByIdNewsletterResponses];
+
+export type PutProjectsByIdNewsletterData = {
+    body: PutNewsletterRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter';
+};
+
+export type PutProjectsByIdNewsletterErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdNewsletterError = PutProjectsByIdNewsletterErrors[keyof PutProjectsByIdNewsletterErrors];
+
+export type PutProjectsByIdNewsletterResponses = {
+    /**
+     * Newsletter saved
+     */
+    200: {
+        data: Newsletter;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdNewsletterResponse = PutProjectsByIdNewsletterResponses[keyof PutProjectsByIdNewsletterResponses];
+
+export type GetProjectsByIdNewsletterSubscribersData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        status?: NewsletterSubscriberStatus;
+        search?: string;
+    };
+    url: '/projects/{id}/newsletter/subscribers';
+};
+
+export type GetProjectsByIdNewsletterSubscribersErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSubscribersError = GetProjectsByIdNewsletterSubscribersErrors[keyof GetProjectsByIdNewsletterSubscribersErrors];
+
+export type GetProjectsByIdNewsletterSubscribersResponses = {
+    /**
+     * Newsletter subscribers and status counts
+     */
+    200: {
+        data: NewsletterSubscriberList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSubscribersResponse = GetProjectsByIdNewsletterSubscribersResponses[keyof GetProjectsByIdNewsletterSubscribersResponses];
+
+export type PostProjectsByIdNewsletterSubscribersData = {
+    body: AddNewsletterSubscriberRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/subscribers';
+};
+
+export type PostProjectsByIdNewsletterSubscribersErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSubscribersError = PostProjectsByIdNewsletterSubscribersErrors[keyof PostProjectsByIdNewsletterSubscribersErrors];
+
+export type PostProjectsByIdNewsletterSubscribersResponses = {
+    /**
+     * Subscriber added
+     */
+    201: {
+        data: NewsletterSubscriber;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSubscribersResponse = PostProjectsByIdNewsletterSubscribersResponses[keyof PostProjectsByIdNewsletterSubscribersResponses];
+
+export type PostProjectsByIdNewsletterSubscribersImportData = {
+    body: ImportNewsletterSubscribersRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/subscribers/import';
+};
+
+export type PostProjectsByIdNewsletterSubscribersImportErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid CSV or missing consent
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSubscribersImportError = PostProjectsByIdNewsletterSubscribersImportErrors[keyof PostProjectsByIdNewsletterSubscribersImportErrors];
+
+export type PostProjectsByIdNewsletterSubscribersImportResponses = {
+    /**
+     * Import summary
+     */
+    200: {
+        data: NewsletterImportResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSubscribersImportResponse = PostProjectsByIdNewsletterSubscribersImportResponses[keyof PostProjectsByIdNewsletterSubscribersImportResponses];
+
+export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        subscriberId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/subscribers/{subscriberId}';
+};
+
+export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Suppressed subscriber must be retained
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdError = DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors[keyof DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors];
+
+export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdResponses = {
+    /**
+     * Subscriber deleted
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdResponse = DeleteProjectsByIdNewsletterSubscribersBySubscriberIdResponses[keyof DeleteProjectsByIdNewsletterSubscribersBySubscriberIdResponses];
+
+export type PatchProjectsByIdNewsletterSubscribersBySubscriberIdData = {
+    body: PatchNewsletterSubscriberRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        subscriberId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/subscribers/{subscriberId}';
+};
+
+export type PatchProjectsByIdNewsletterSubscribersBySubscriberIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid status transition
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchProjectsByIdNewsletterSubscribersBySubscriberIdError = PatchProjectsByIdNewsletterSubscribersBySubscriberIdErrors[keyof PatchProjectsByIdNewsletterSubscribersBySubscriberIdErrors];
+
+export type PatchProjectsByIdNewsletterSubscribersBySubscriberIdResponses = {
+    /**
+     * Subscriber updated
+     */
+    200: {
+        data: NewsletterSubscriber;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchProjectsByIdNewsletterSubscribersBySubscriberIdResponse = PatchProjectsByIdNewsletterSubscribersBySubscriberIdResponses[keyof PatchProjectsByIdNewsletterSubscribersBySubscriberIdResponses];
 
 export type DeleteProjectsByIdStarData = {
     body?: never;

@@ -1657,6 +1657,7 @@
         "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr.",
         "source": {
           "inbox": "Aus deinem Posteingang",
+          "briefing": "Morgen-Briefing",
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",

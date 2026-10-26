@@ -167,6 +167,8 @@ model Workspace {
   jobs                     Job[]
   tasks                    Task[]
   socialPosts              SocialPost[]
+  newsletters              Newsletter[]
+  newsletterIssues         NewsletterIssue[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
   projectIdentifierAliases ProjectIdentifierAlias[]
@@ -485,6 +487,9 @@ model Project {
   socialQueueSlots        ProjectSocialQueueSlot[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
+  newsletter       Newsletter?
+  newsletterIssues NewsletterIssue[]
+
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
   adMarketProfile   ProjectAdMarketProfile?
@@ -602,6 +607,9 @@ model SocialAccountPost {
   connectionId      String    @db.Uuid
   externalId        String
   text              String
+  contentType       String    @default("unknown")
+  postKind          String    @default("unknown")
+  media             Json      @default("[]")
   publishedAt       DateTime?
   url               String?
   metrics           Json
@@ -3189,6 +3197,7 @@ model Task {
   files              TaskFile[]
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
+  newsletterIssues   NewsletterIssue[]
   sokoBotSchedules   SokoBotSchedule[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
