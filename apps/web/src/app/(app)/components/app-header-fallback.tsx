@@ -31,7 +31,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         aria-hidden
         className={cn(
           HEADER_SEARCH_BOX_CLASS,
-          "bg-muted animate-pulse rounded-md",
+          "bg-quinary animate-pulse rounded-md",
         )}
       />
 
