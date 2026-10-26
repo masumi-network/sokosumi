@@ -15,6 +15,7 @@ import {
   normalizeContactChannelValue,
   type updateContactSchema,
 } from "@sokosumi/utils";
+import { v7 as uuidv7 } from "uuid";
 import type { z } from "zod";
 import { resolveTableActor } from "@/helpers/data-table";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -56,11 +57,16 @@ type CreateContactInput = z.infer<typeof createContactSchema>;
 type UpdateContactInput = z.infer<typeof updateContactSchema>;
 type InteractionInput = z.infer<typeof contactInteractionInputSchema>;
 
-/** Who reads or writes contacts: a member, or a Soko Bot acting for one. */
-export interface ContactActor {
+/** System writes have no member to attribute; provenance columns allow null. */
+export interface ContactWriteActor {
   workspaceId: string;
-  userId: string;
+  userId: string | null;
   sokoBotId: string | null;
+}
+
+/** Who reads or writes contacts: a member, or a Soko Bot acting for one. */
+export interface ContactActor extends ContactWriteActor {
+  userId: string;
 }
 
 /** Membership of the workspace is the only gate: contacts are shared. */
@@ -477,6 +483,131 @@ export interface UpsertContactResult {
   /** Whether anything was written: created, filled or given a channel. */
   changed: boolean;
   mergeSuggestion: ContactMergeSuggestion | null;
+}
+
+/** Current people for these ids, resolving merge tombstones in batches. */
+export async function resolveContactSummaries(
+  tx: Tx,
+  workspaceId: string,
+  ids: string[],
+): Promise<Map<string, { id: string; name: string } | null>> {
+  const byId = new Map<
+    string,
+    { id: string; name: string; mergedIntoId: string | null }
+  >();
+  let pending = [...new Set(ids)];
+  while (pending.length) {
+    const rows = await tx.contact.findMany({
+      where: { workspaceId, id: { in: pending } },
+      select: { id: true, name: true, mergedIntoId: true },
+    });
+    for (const row of rows) byId.set(row.id, row);
+    pending = [
+      ...new Set(
+        rows.flatMap((row) =>
+          row.mergedIntoId && !byId.has(row.mergedIntoId)
+            ? [row.mergedIntoId]
+            : [],
+        ),
+      ),
+    ];
+  }
+  return new Map(
+    ids.map((id) => {
+      let row = byId.get(id);
+      const visited = new Set<string>();
+      while (row?.mergedIntoId && !visited.has(row.id)) {
+        visited.add(row.id);
+        row = byId.get(row.mergedIntoId);
+      }
+      return [
+        id,
+        row && !row.mergedIntoId ? { id: row.id, name: row.name } : null,
+      ];
+    }),
+  );
+}
+
+/**
+ * Email-only bulk upsert, with the same channel ownership and name preservation
+ * as upsertContact. Run chunks of at most 1,000 inside inContactTransaction.
+ */
+export async function upsertContactsByEmail(
+  tx: Tx,
+  actor: ContactWriteActor,
+  input: { email: string; name?: string | null }[],
+  source: NonNullable<ChannelInput["source"]>,
+) {
+  const rows = new Map(
+    input.map((row) => {
+      const [channel] = normalizeChannels([
+        { type: "EMAIL", value: row.email },
+      ]);
+      if (!channel) throw unprocessableEntity("Email is required");
+      return [channel.value, row];
+    }),
+  );
+  const channels = await tx.contactChannel.findMany({
+    where: {
+      workspaceId: actor.workspaceId,
+      type: "EMAIL",
+      value: { in: [...rows.keys()] },
+    },
+    select: { value: true, contactId: true },
+  });
+  const current = await resolveContactSummaries(
+    tx,
+    actor.workspaceId,
+    channels.map((channel) => channel.contactId),
+  );
+  const contacts = new Map(
+    channels.map((channel) => {
+      const contact = current.get(channel.contactId);
+      if (!contact) throw notFound("Contact not found");
+      return [channel.value, contact];
+    }),
+  );
+  const missing = [...rows.entries()]
+    .filter(([email]) => !contacts.has(email))
+    .map(([email, row]) => ({
+      email,
+      id: uuidv7(),
+      name: row.name?.trim() || contactNameFromChannel("EMAIL", email),
+    }));
+  if (missing.length) {
+    await tx.contact.createMany({
+      data: missing.map(({ id, name }) => ({
+        id,
+        name,
+        workspaceId: actor.workspaceId,
+        createdByUserId: actor.userId,
+        createdBySokoBotId: actor.sokoBotId,
+      })),
+    });
+    await tx.contactChannel.createMany({
+      data: missing.map(({ id, email }) => ({
+        workspaceId: actor.workspaceId,
+        contactId: id,
+        type: "EMAIL",
+        value: email,
+        isPrimary: true,
+        source,
+      })),
+    });
+    await tx.contactActivity.createMany({
+      data: missing.map(({ id, email }) => ({
+        workspaceId: actor.workspaceId,
+        contactId: id,
+        userId: actor.userId,
+        sokoBotId: actor.sokoBotId,
+        kind: "CREATED",
+        changes: { channels: [`EMAIL:${email}`] },
+      })),
+    });
+    for (const { id, name, email } of missing)
+      contacts.set(email, { id, name });
+  }
+  return contacts;
 }
 
 /**

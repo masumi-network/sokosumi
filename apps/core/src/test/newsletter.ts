@@ -27,6 +27,7 @@ export const NEWSLETTER: Newsletter = {
   id: NEWSLETTER_ID,
   projectId: NEWSLETTER_PROJECT_ID,
   workspaceId: NEWSLETTER_WORKSPACE_ID,
+  contactListId: null,
   name: "Weekly News",
   senderName: "Ada",
   replyTo: "ada@example.com",
@@ -70,6 +71,7 @@ export const NEWSLETTER_ISSUE: NewsletterIssue = {
 export const NEWSLETTER_SUBSCRIBER: NewsletterSubscriber = {
   id: NEWSLETTER_SUBSCRIBER_ID,
   newsletterId: NEWSLETTER_ID,
+  contactId: null,
   email: "reader@example.com",
   name: null,
   status: "ACTIVE",

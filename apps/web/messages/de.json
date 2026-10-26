@@ -3225,7 +3225,8 @@
             "MANUAL": "Manuell hinzugefügt",
             "CSV_IMPORT": "CSV-Import",
             "SIGNUP_FORM": "Anmeldeformular",
-            "API": "API"
+            "API": "API",
+            "CONTACTS": "Kontakte"
           },
           "Validation": {
             "email": "Gib eine gültige E-Mail-Adresse ein.",

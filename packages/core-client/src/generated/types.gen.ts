@@ -6560,6 +6560,7 @@ export type Newsletter = {
     id: string;
     projectId: string;
     workspaceId: string;
+    contactListId: string | null;
     name: string;
     senderName: string;
     replyTo: string;
@@ -6765,6 +6766,10 @@ export type NewsletterSubscriber = {
     newsletterId: string;
     email: string;
     name: string | null;
+    contact: {
+        id: string;
+        name: string;
+    } | null;
     status: NewsletterSubscriberStatus;
     source: NewsletterSubscriberSource;
     consentAt: Date | null;
@@ -6787,7 +6792,8 @@ export const NewsletterSubscriberSource = {
     MANUAL: 'MANUAL',
     CSV_IMPORT: 'CSV_IMPORT',
     SIGNUP_FORM: 'SIGNUP_FORM',
-    API: 'API'
+    API: 'API',
+    CONTACTS: 'CONTACTS'
 } as const;
 
 export type NewsletterSubscriberSource = typeof NewsletterSubscriberSource[keyof typeof NewsletterSubscriberSource];
@@ -49868,6 +49874,21 @@ export type PostProjectsByIdNewsletterSubscribersImportErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Invalid CSV or missing consent
      */
     422: {
@@ -57683,6 +57704,21 @@ export type PostPublicNewslettersByPublicSlugSubscribeErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
