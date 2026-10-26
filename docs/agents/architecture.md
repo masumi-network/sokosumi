@@ -33,13 +33,13 @@ Keep a design you would still want in six months. A stopgap needs an explicit ho
 
 If two keepable options remain, pick the one that matches existing patterns, names things for what they mean today, and does not leave dead parameters, branches, or comments.
 
-| Short-term win | Maintainable choice |
-| --- | --- |
-| Reuse a positional arg slot for a new meaning | Named options object or explicit parameter |
-| Copy-paste to ship faster | Shared helper or package when logic is duplicated |
-| Leave a stub, TODO, or partial removal "for later" | Finish the removal or scope the PR honestly |
-| One-off hack around architecture | Fix at the right layer (Core, shared package, schema) |
-| Skip renaming because the diff is bigger | Rename when the old name is now misleading |
+| Short-term win                                     | Maintainable choice                                   |
+| -------------------------------------------------- | ----------------------------------------------------- |
+| Reuse a positional arg slot for a new meaning      | Named options object or explicit parameter            |
+| Copy-paste to ship faster                          | Shared helper or package when logic is duplicated     |
+| Leave a stub, TODO, or partial removal "for later" | Finish the removal or scope the PR honestly           |
+| One-off hack around architecture                   | Fix at the right layer (Core, shared package, schema) |
+| Skip renaming because the diff is bigger           | Rename when the old name is now misleading            |
 
 A shortcut is fine when the user asked for the smallest change, when a hotfix has a tracked follow-up, or when expanding a bugfix would balloon into a refactor. Removing a feature means removing its types, routes, UI, migrations, and tests. If you touch a misleading API, rename it in the same change.
 
@@ -63,7 +63,6 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 > [!IMPORTANT]
 > **Direct database access from `apps/web` is forbidden.** All database reads and writes MUST be implemented in `apps/core` and exposed as Core API endpoints. The web app consumes data exclusively through the generated Core API client — never through Prisma, Postgres, or `@sokosumi/database` repositories.
-
 - **Forbidden in `apps/web`**: importing `@sokosumi/database` repositories/helpers, instantiating or calling the Prisma client, or issuing raw SQL. Web services (`apps/web/src/lib/services/`) and actions (`apps/web/src/lib/actions/`) coordinate domain flows but obtain their data by calling Core endpoints.
 - **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, using direct Prisma (legacy services may still use `@sokosumi/database/repositories`), validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
 - **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter @sokosumi/core-client generate:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`) to catch DTO drift. Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).

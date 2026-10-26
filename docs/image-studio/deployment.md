@@ -5,7 +5,7 @@ deployables:
 
 - **Web** (`apps/web`) — the studio UI, the token route that lets the browser
   talk to the agent, and the eve agent itself. `withEve()` in `next.config.ts`
-  builds the agent as a service inside the *same* Vercel project and
+  builds the agent as a service inside the _same_ Vercel project and
   deployment, mounted at `/eve/image-studio/v1/*`. It is not a second Vercel
   project.
 - **Core** (`apps/core`) — sessions, jobs, assets, the fal submission, Blob
@@ -22,11 +22,11 @@ them has a default, and each absence has its own visible symptom.
 
 ### Web project (`sokosumi-app-preprod`, `sokosumi-app-mainnet`)
 
-| Key | Why | Absent |
-| --- | --- | --- |
-| `IMAGE_STUDIO_AGENT_SECRET` | HMAC secret, at least 32 characters. Web signs the short-lived token the browser hands the agent; the agent signs the grant it presents to Core. | `POST /api/projects/:projectId/image-studio/agent-token` answers `503 not_configured`, and the chat replaces its composer with **Studio assistant not available**. |
-| a Gateway credential | The agent selects an AI Gateway model id (`anthropic/claude-sonnet-5`), so every model call needs one. **Two routes, and one of them is already on** — see below. | The chat opens and the first turn dies at the first model call. |
-| `CORE_APP_BASE_URL` | Core's **origin** for the agent service. The app resolves Core through `@vercel/related-projects`, but that runs inside Next; the agent is a separate service and reads this variable directly. | The agent throws `CORE_APP_BASE_URL is not configured`, every authorization returns false, and the channel answers `401`. |
+| Key                         | Why                                                                                                                                                                                             | Absent                                                                                                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `IMAGE_STUDIO_AGENT_SECRET` | HMAC secret, at least 32 characters. Web signs the short-lived token the browser hands the agent; the agent signs the grant it presents to Core.                                                | `POST /api/projects/:projectId/image-studio/agent-token` answers `503 not_configured`, and the chat replaces its composer with **Studio assistant not available**. |
+| a Gateway credential        | The agent selects an AI Gateway model id (`anthropic/claude-sonnet-5`), so every model call needs one. **Two routes, and one of them is already on** — see below.                               | The chat opens and the first turn dies at the first model call.                                                                                                    |
+| `CORE_APP_BASE_URL`         | Core's **origin** for the agent service. The app resolves Core through `@vercel/related-projects`, but that runs inside Next; the agent is a separate service and reads this variable directly. | The agent throws `CORE_APP_BASE_URL is not configured`, every authorization returns false, and the channel answers `401`.                                          |
 
 `CORE_APP_BASE_URL` is the origin, with no `/v1`. Do not copy
 `NEXT_PUBLIC_CORE_APP_BASE_URL` into it by hand: Next builds that value with
@@ -51,11 +51,11 @@ turn succeeds: that takes one real turn, which costs money. Confirm
 
 ### Core project (`sokosumi-core-preprod`, `sokosumi-core-mainnet`)
 
-| Key | Why | Absent |
-| --- | --- | --- |
-| `IMAGE_STUDIO_AGENT_SECRET` | **The same value as the Web project.** Core verifies the agent's grants with it and re-checks the named user's project access on every call. | Core rejects every agent call; the conversation opens and nothing it tries succeeds. |
-| `FAL_KEY` | Submits the generation. | `FAL_KEY is not configured` on the first generate. |
-| `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` | Stores the image that comes back, in the studio's **own private-access Blob store**. Not `BLOB_READ_WRITE_TOKEN` — see below. | The studio refuses to generate at all: `POST …/image-studio/jobs` answers `503`, nothing is sent to fal, and nothing is charged. |
+| Key                                  | Why                                                                                                                                          | Absent                                                                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `IMAGE_STUDIO_AGENT_SECRET`          | **The same value as the Web project.** Core verifies the agent's grants with it and re-checks the named user's project access on every call. | Core rejects every agent call; the conversation opens and nothing it tries succeeds.                                             |
+| `FAL_KEY`                            | Submits the generation.                                                                                                                      | `FAL_KEY is not configured` on the first generate.                                                                               |
+| `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` | Stores the image that comes back, in the studio's **own private-access Blob store**. Not `BLOB_READ_WRITE_TOKEN` — see below.                | The studio refuses to generate at all: `POST …/image-studio/jobs` answers `503`, nothing is sent to fal, and nothing is charged. |
 
 Core carries `FAL_KEY` for Soko Bot and the rest of the platform, so on a fresh
 network the studio needs two variables of its own:
@@ -73,7 +73,7 @@ reports `"access": "public"` for each. Everything in a public store is served
 to anyone holding its URL, with no credential.
 
 Generated images are project artwork and must not be in a public store.
-Vercel fixes public-or-private per *store*, not per object, so the studio needs
+Vercel fixes public-or-private per _store_, not per object, so the studio needs
 a second store created with `--access private`. Two things that look like they
 would substitute for that do not, and neither is relied on here:
 
@@ -87,7 +87,7 @@ would substitute for that do not, and neither is relied on here:
 
 So the studio **fails closed**. With no
 `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` it refuses to generate rather than falling
-back to the shared public store, and it refuses *before* reserving a job or
+back to the shared public store, and it refuses _before_ reserving a job or
 calling fal, so an unconfigured deployment costs nothing.
 
 #### Provisioning the private store
@@ -209,7 +209,7 @@ first — only step 1 is free.
    call, priced per token, before any image exists.
 3. Generate one image. This adds the fal charge and is the first call that needs
    `FAL_KEY` and `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` as well. Watch it
-   *settle*, not just start: a version has to appear. A tile that stays
+   _settle_, not just start: a version has to appear. A tile that stays
    **Generating** for minutes after fal is done means settlement is failing,
    and the job row carries the reason in `lastPollError` with
    `unreachableSource = result`.
@@ -226,7 +226,7 @@ first — only step 1 is free.
 ## Deploy side effects
 
 - **Migrations.** Core's `vercel-build` ends in `prisma:migrate:deploy`, so
-  every Core deploy — *including a preview* — writes schema to whatever
+  every Core deploy — _including a preview_ — writes schema to whatever
   database that deployment's `DATABASE_URL` resolves to. The studio added six
   migrations: `20260925001732_project_image_studio`,
   `20260925014414_image_job_cancel_request_and_poll_failures`,
@@ -237,8 +237,8 @@ first — only step 1 is free.
   new tables, columns and enum values for the studio's own rows.
 
   What a build log does and does not tell you: a successful
-  `prisma migrate deploy` proves that *those* migrations ran against *that*
-  connection at *that* time. It does not identify the database — Prisma prints
+  `prisma migrate deploy` proves that _those_ migrations ran against _that_
+  connection at _that_ time. It does not identify the database — Prisma prints
   the host redacted — and it does not tell you what is pending now. Before
   relying on either, check `DATABASE_URL`'s scope on the Core project and the
   `_prisma_migrations` table of the database the next deploy will actually

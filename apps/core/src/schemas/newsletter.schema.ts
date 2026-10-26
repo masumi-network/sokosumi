@@ -1,8 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import {
+  NewsletterIssueStatus,
   NewsletterSubscriberSource,
   NewsletterSubscriberStatus,
 } from "@sokosumi/database";
+import { newsletterContentSchema } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -10,6 +12,83 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 export const newsletterProjectParamsSchema = z.object({ id: z.uuid() });
 export const newsletterSubscriberParamsSchema =
   newsletterProjectParamsSchema.extend({ subscriberId: z.uuid() });
+export const newsletterIssueParamsSchema = newsletterProjectParamsSchema.extend(
+  { issueId: z.uuid() },
+);
+
+// Shared schemas may load before Hono extends Zod with OpenAPI methods.
+const contentSchema = newsletterContentSchema
+  .clone()
+  .openapi("NewsletterContent");
+
+export const newsletterTemplateSchema = z
+  .enum(["TEXT", "IMAGES", "BUTTONS"])
+  .openapi("NewsletterTemplate");
+
+export const newsletterIssueStatusSchema = z
+  .enum(NewsletterIssueStatus)
+  .openapi("NewsletterIssueStatus");
+
+export const createNewsletterIssueRequestSchema = z
+  .object({
+    subject: z.string().trim().min(1).max(200),
+    previewText: z.string().max(500).nullable().optional(),
+    template: newsletterTemplateSchema,
+    content: contentSchema,
+  })
+  .openapi("CreateNewsletterIssueRequest");
+
+export const patchNewsletterIssueRequestSchema =
+  createNewsletterIssueRequestSchema
+    .partial()
+    .extend({ revision: z.int().nonnegative() })
+    .refine(
+      ({ revision: _revision, ...input }) =>
+        Object.values(input).some((value) => value !== undefined),
+      { message: "Provide issue content to update" },
+    )
+    .openapi("PatchNewsletterIssueRequest");
+
+export const newsletterIssueSchema = z
+  .object({
+    id: z.uuid(),
+    newsletterId: z.uuid(),
+    projectId: z.uuid(),
+    workspaceId: z.uuid(),
+    subject: z.string(),
+    previewText: z.string().nullable(),
+    template: newsletterTemplateSchema,
+    content: contentSchema,
+    status: newsletterIssueStatusSchema,
+    publicSlug: z.string(),
+    revision: z.int().nonnegative(),
+    scheduledAt: dateTimeSchema.nullable(),
+    timezone: z.string().nullable(),
+    sentAt: dateTimeSchema.nullable(),
+    approvedByUserId: z.string().nullable(),
+    approvedAt: dateTimeSchema.nullable(),
+    taskId: z.string().nullable(),
+    lastError: z.string().nullable(),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("NewsletterIssue");
+
+export const listNewsletterIssuesQuerySchema =
+  cursorPaginationQuerySchema.extend({
+    cursor: z.uuid().optional(),
+    status: newsletterIssueStatusSchema.optional(),
+  });
+
+export type CreateNewsletterIssueRequest = z.infer<
+  typeof createNewsletterIssueRequestSchema
+>;
+export type PatchNewsletterIssueRequest = z.infer<
+  typeof patchNewsletterIssueRequestSchema
+>;
+export type ListNewsletterIssuesQuery = z.infer<
+  typeof listNewsletterIssuesQuerySchema
+>;
 
 export const newsletterEmailSchema = z
   .string()
