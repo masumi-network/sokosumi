@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { projectService } from "@/lib/services/project.service";
+import { socialStatisticsResearchErrorSchema } from "@/lib/social-statistics-research-error";
 
 const paramsSchema = z.object({
   projectId: z.string(),
@@ -107,11 +108,30 @@ export async function GET(
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    const coreError = error instanceof CoreApiRequestError ? error : null;
+    const parsed = socialStatisticsResearchErrorSchema.safeParse(
+      coreError?.status ? coreError.details : null,
+    );
+    const details = parsed.success ? parsed.data : null;
+    const retryAfterSeconds =
+      coreError?.retryAfterSeconds ?? details?.retryAfterSeconds;
     return NextResponse.json(
-      { error: "Statistics research unavailable" },
       {
-        status:
-          error instanceof CoreApiRequestError ? (error.status ?? 502) : 502,
+        error:
+          details?.message ||
+          details?.error ||
+          "Statistics research unavailable",
+        ...(details?.code ? { code: details.code } : {}),
+        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+      },
+      {
+        status: coreError?.status ?? 502,
+        headers: {
+          "Cache-Control": "no-store",
+          ...(retryAfterSeconds !== undefined
+            ? { "Retry-After": String(retryAfterSeconds) }
+            : {}),
+        },
       },
     );
   }

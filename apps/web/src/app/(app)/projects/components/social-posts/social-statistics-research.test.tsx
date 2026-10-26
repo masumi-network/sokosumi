@@ -364,6 +364,115 @@ describe("SocialStatisticsResearch", () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
     },
   );
+  describe.each([
+    { tab: copy.audience, label: null },
+    { tab: copy.compare, label: copy.handle },
+    { tab: copy.discover, label: copy.topic },
+  ])("$tab errors", ({ tab, label }) => {
+    it.each([
+      [
+        "x_access_denied",
+        undefined,
+        "The X app’s plan or permissions may not include this read. Check the app’s access in X.",
+      ],
+      [
+        "x_reconnect_required",
+        undefined,
+        "Reconnect this X account in Social settings and grant the required read permissions.",
+      ],
+      [
+        "x_rate_limited",
+        120,
+        "X is rate limiting this request. Try again in 120 seconds.",
+      ],
+      [
+        "x_rate_limited",
+        undefined,
+        "X is rate limiting this request. Wait a few minutes before trying again.",
+      ],
+      ["x_upstream_error", undefined, copy.loadFailed],
+      ["x_upstream_unavailable", undefined, copy.loadFailed],
+      ["future_code", undefined, copy.loadFailed],
+    ] as const)(
+      "presents %s as an inline alert",
+      async (code, retryAfterSeconds, message) => {
+        fetchMock.mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: "private provider error",
+              code,
+              retryAfterSeconds,
+            }),
+            { status: 429 },
+          ),
+        );
+        const user = userEvent.setup();
+        renderResearch();
+        await user.click(screen.getByRole("tab", { name: tab }));
+        if (label) await user.type(screen.getByLabelText(label), "launch");
+        await user.click(screen.getByRole("button", { name: copy.load }));
+        const alert = await screen.findByRole("alert");
+        expect(alert).toHaveAttribute("data-slot", "alert");
+        expect(alert).toHaveTextContent(message);
+        expect(alert).not.toHaveTextContent("private provider error");
+        const retry = within(alert).getByRole("button", { name: "Try again" });
+        expect(retry).toHaveAttribute("type", "button");
+        if (code === "x_reconnect_required") {
+          expect(
+            within(alert).getByRole("link", { name: "Manage accounts" }),
+          ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
+        }
+      },
+    );
+
+    it("retries the submitted request from the keyboard", async () => {
+      fetchMock
+        .mockResolvedValueOnce(new Response("{}", { status: 502 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              profile: contact,
+              summary: {
+                postCount: 0,
+                views: null,
+                impressions: null,
+                interactions: null,
+              },
+              contacts: [],
+              posts: [],
+              nextCursor: null,
+            }),
+          ),
+        );
+      const user = userEvent.setup();
+      renderResearch();
+      await user.click(screen.getByRole("tab", { name: tab }));
+      if (label) await user.type(screen.getByLabelText(label), "launch");
+      await user.click(screen.getByRole("button", { name: copy.load }));
+      const alert = await screen.findByRole("alert");
+      if (label) await user.type(screen.getByLabelText(label), "changed");
+      const retry = within(alert).getByRole("button", { name: "Try again" });
+      retry.focus();
+      expect(retry).toHaveFocus();
+      await user.keyboard("{Enter}");
+      expect(await screen.findByText(copy.empty)).toBeVisible();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1][0]).toBe(fetchMock.mock.calls[0][0]);
+    });
+  });
+
+  it("matches the Audience control heights and stacks the Load action on phones", () => {
+    renderResearch();
+    const load = screen.getByRole("button", { name: copy.load });
+    const select = screen.getByRole("combobox", { name: copy.kind });
+    expect(load).toHaveClass("h-11", "md:h-10", "w-full", "sm:w-auto");
+    expect(select).toHaveClass("h-11", "md:h-10");
+    expect(load.parentElement).toHaveClass(
+      "flex-col",
+      "sm:flex-row",
+      "sm:items-end",
+    );
+  });
 
   it("does not fetch until Load and then reads mentions from the selected account", async () => {
     fetchMock
@@ -796,7 +905,7 @@ describe("SocialStatisticsResearch", () => {
       await user.click(screen.getByRole("tab", { name: tab }));
       if (label) await user.type(screen.getByLabelText(label), "launch");
       const load = screen.getByRole("button", { name: copy.load });
-      expect(load).toHaveClass("h-11", "md:h-8");
+      expect(load).toHaveClass("h-11", "md:h-10");
       await user.click(load);
       expect(screen.getByTestId("social-research-loading")).toHaveAttribute(
         "aria-busy",
@@ -876,7 +985,7 @@ describe("SocialStatisticsResearch", () => {
     await user.click(screen.getByRole("button", { name: copy.showMore }));
     expect(await screen.findByRole("alert")).toHaveTextContent(copy.loadFailed);
     expect(screen.getByText("Mentioning launch")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: copy.showMore }));
+    await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Next topic match")).toBeVisible();
     expect(screen.getAllByTestId("social-post-preview")).toHaveLength(2);
     for (const [input, options] of fetchMock.mock.calls.slice(1)) {

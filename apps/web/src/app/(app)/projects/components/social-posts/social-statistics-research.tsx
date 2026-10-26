@@ -6,13 +6,16 @@ import type {
   SocialPerformanceBenchmarkResponse,
   SocialPerformanceContact,
   SocialPerformanceDiscoveryResponse,
+  SocialStatisticsResearchError,
   SocialStatisticsResearchPost,
 } from "@sokosumi/core-client";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Search, Users } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { socialStatisticsResearchErrorSchema } from "@/lib/social-statistics-research-error";
 import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
@@ -122,6 +126,88 @@ function audienceExportPage(
     newestPostAt: page.newestPostAt,
     coverage: page.coverage,
   };
+}
+
+class ResearchRequestError extends Error {
+  constructor(
+    readonly code?: SocialStatisticsResearchError["code"],
+    readonly retryAfterSeconds?: number,
+  ) {
+    super("Failed to load X research");
+  }
+}
+
+async function researchRequestError(response: Response) {
+  try {
+    const parsed = socialStatisticsResearchErrorSchema.safeParse(
+      await response.json(),
+    );
+    if (parsed.success)
+      return new ResearchRequestError(
+        parsed.data.code,
+        parsed.data.retryAfterSeconds,
+      );
+  } catch {
+    // A non-JSON failure still gets the translated fallback and retry action.
+  }
+  return new ResearchRequestError();
+}
+
+function ResearchQueryError({
+  error,
+  projectId,
+  retrying,
+  onRetry,
+}: {
+  error: Error | null;
+  projectId: string;
+  retrying: boolean;
+  onRetry: () => Promise<unknown>;
+}) {
+  const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const code = error instanceof ResearchRequestError ? error.code : undefined;
+  let message = t("research.loadFailed");
+  if (code === "x_access_denied") message = t("research.accessDenied");
+  if (code === "x_reconnect_required")
+    message = t("research.reconnectRequired");
+  if (code === "x_rate_limited") {
+    const seconds =
+      error instanceof ResearchRequestError
+        ? error.retryAfterSeconds
+        : undefined;
+    message =
+      seconds !== undefined
+        ? t("research.rateLimitedRetry", { seconds })
+        : t("research.rateLimited");
+  }
+  return (
+    <Alert variant="destructive">
+      <AlertDescription className="gap-3">
+        <p>{message}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-11 md:h-8"
+            loading={retrying}
+            onClick={() => void onRetry()}
+          >
+            {t("retry")}
+          </Button>
+          {code === "x_reconnect_required" ? (
+            <Button asChild variant="outline" size="sm" className="h-11 md:h-8">
+              <Link
+                href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
+              >
+                {t("manageAccounts")}
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 function ResearchQuerySkeleton({ label }: { label: string }) {
@@ -364,7 +450,7 @@ export function SocialStatisticsResearch({
         `/api/projects/${encodeURIComponent(projectId)}/social-statistics/${encodeURIComponent(accountId)}/audience?${params}`,
         { signal, cache: "no-store" },
       );
-      if (!response.ok) throw new Error(t("research.loadFailed"));
+      if (!response.ok) throw await researchRequestError(response);
       return response.json();
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
@@ -386,7 +472,7 @@ export function SocialStatisticsResearch({
         `/api/projects/${encodeURIComponent(projectId)}/social-statistics/${encodeURIComponent(accountId)}/benchmark?username=${encodeURIComponent(benchmarkHandle)}`,
         { signal, cache: "no-store" },
       );
-      if (!response.ok) throw new Error(t("research.loadFailed"));
+      if (!response.ok) throw await researchRequestError(response);
       return response.json();
     },
     retry: false,
@@ -411,7 +497,7 @@ export function SocialStatisticsResearch({
         `/api/projects/${encodeURIComponent(projectId)}/social-statistics/${encodeURIComponent(accountId)}/discovery?${params}`,
         { signal, cache: "no-store" },
       );
-      if (!response.ok) throw new Error(t("research.loadFailed"));
+      if (!response.ok) throw await researchRequestError(response);
       return response.json();
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
@@ -491,7 +577,7 @@ export function SocialStatisticsResearch({
           </TabsTrigger>
         </TabsList>
         <TabsContent value="audience" className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="w-full space-y-2 sm:w-auto">
               <Label htmlFor="research-kind">{t("research.kind")}</Label>
               <Select
@@ -548,8 +634,7 @@ export function SocialStatisticsResearch({
             ) : null}
             <Button
               type="button"
-              size="sm"
-              className="h-11 md:h-8"
+              className="h-11 w-full sm:w-auto md:h-10"
               disabled={needsPost && !postId}
               loading={audience.isFetching && !audience.isFetchingNextPage}
               onClick={() => {
@@ -564,9 +649,16 @@ export function SocialStatisticsResearch({
             <ResearchQuerySkeleton label={t("research.loading")} />
           ) : null}
           {audience.isError ? (
-            <p role="alert" className="text-sm">
-              {t("research.loadFailed")}
-            </p>
+            <ResearchQueryError
+              error={audience.error}
+              projectId={projectId}
+              retrying={audience.isFetching}
+              onRetry={() =>
+                audience.isFetchNextPageError
+                  ? audience.fetchNextPage()
+                  : audience.refetch()
+              }
+            />
           ) : null}
           {audiencePages[0]?.coverage ? (
             <p className="text-muted-foreground text-sm">
@@ -669,7 +761,7 @@ export function SocialStatisticsResearch({
           />
         </TabsContent>
         <TabsContent value="benchmark" className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="w-full space-y-2 sm:w-auto sm:min-w-[200px]">
               <Label htmlFor="research-handle">{t("research.handle")}</Label>
               <Input
@@ -682,8 +774,7 @@ export function SocialStatisticsResearch({
             </div>
             <Button
               type="button"
-              size="sm"
-              className="h-11 md:h-8"
+              className="h-11 w-full sm:w-auto md:h-10"
               disabled={!/^[A-Za-z0-9_]{1,15}$/.test(handle)}
               loading={benchmark.isFetching}
               onClick={() => {
@@ -698,9 +789,12 @@ export function SocialStatisticsResearch({
             <ResearchQuerySkeleton label={t("research.loading")} />
           ) : null}
           {benchmark.isError ? (
-            <p role="alert" className="text-sm">
-              {t("research.loadFailed")}
-            </p>
+            <ResearchQueryError
+              error={benchmark.error}
+              projectId={projectId}
+              retrying={benchmark.isFetching}
+              onRetry={() => benchmark.refetch()}
+            />
           ) : null}
           {benchmark.data ? (
             <div className="space-y-4">
@@ -763,7 +857,7 @@ export function SocialStatisticsResearch({
           ) : null}
         </TabsContent>
         <TabsContent value="discovery" className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="w-full space-y-2 sm:w-auto sm:min-w-[200px]">
               <Label htmlFor="research-topic">{t("research.topic")}</Label>
               <Input
@@ -776,8 +870,7 @@ export function SocialStatisticsResearch({
             </div>
             <Button
               type="button"
-              size="sm"
-              className="h-11 md:h-8"
+              className="h-11 w-full sm:w-auto md:h-10"
               disabled={!topic.trim()}
               loading={discovery.isFetching && !discovery.isFetchingNextPage}
               onClick={() => {
@@ -792,9 +885,16 @@ export function SocialStatisticsResearch({
             <ResearchQuerySkeleton label={t("research.loading")} />
           ) : null}
           {discovery.isError ? (
-            <p role="alert" className="text-sm">
-              {t("research.loadFailed")}
-            </p>
+            <ResearchQueryError
+              error={discovery.error}
+              projectId={projectId}
+              retrying={discovery.isFetching}
+              onRetry={() =>
+                discovery.isFetchNextPageError
+                  ? discovery.fetchNextPage()
+                  : discovery.refetch()
+              }
+            />
           ) : null}
           {discovery.data?.pages[0]?.coverage ? (
             <p className="text-muted-foreground text-sm">

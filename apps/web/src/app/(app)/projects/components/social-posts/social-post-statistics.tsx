@@ -44,7 +44,10 @@ import {
 import { useSession } from "@/lib/auth/auth.client";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { projectService } from "@/lib/services/project.service";
-import { socialSyncPollIntervalMs } from "@/lib/social-sync-poll";
+import {
+  isSocialSyncInFlight,
+  socialSyncPollIntervalMs,
+} from "@/lib/social-sync-poll";
 import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
@@ -437,11 +440,6 @@ export function SocialPostStatistics(
     return formatter.relativeTime(new Date(value));
   }
 
-  function isSyncInFlight(account: Account | undefined) {
-    return (
-      account?.sync?.status === "queued" || account?.sync?.status === "running"
-    );
-  }
   function handlePreset(days: "7" | "30" | "90") {
     const window = utcPreset(Number(days) as 7 | 30 | 90);
     void setFilters({
@@ -456,9 +454,24 @@ export function SocialPostStatistics(
     selectedAccount ? [selectedAccount] : accounts,
   );
   const viewAccounts = selectedAccount ? [selectedAccount] : accounts;
+  // Observe successful polls even when structural sharing retains identical account data.
+  const syncNow = Math.max(query.dataUpdatedAt, Date.now());
   const updating =
     Boolean(enqueueingId) ||
-    viewAccounts.some((account) => isSyncInFlight(account));
+    viewAccounts.some((account) => isSocialSyncInFlight(account, syncNow));
+  const staleSync =
+    statusAccount?.sync?.status === "running" &&
+    !isSocialSyncInFlight(statusAccount, syncNow);
+  const syncError = statusAccount
+    ? (syncErrors[statusAccount.id] ??
+      (staleSync
+        ? statusAccount.sync?.lastError ||
+          statusSnapshot?.error ||
+          t("syncStale")
+        : statusSnapshot?.error
+          ? t("accountMetricsIncomplete")
+          : null))
+    : null;
 
   const advancedFilterCount = [
     !preset && Boolean(filters.publishedFrom || filters.publishedUntil),
@@ -624,10 +637,9 @@ export function SocialPostStatistics(
               </Link>
             </p>
           ) : null}
-          {statusAccount &&
-          (statusSnapshot?.error || syncErrors[statusAccount.id]) ? (
+          {syncError ? (
             <p role="status" className="text-semantic-warning text-sm">
-              {syncErrors[statusAccount.id] ?? t("accountMetricsIncomplete")}
+              {syncError}
             </p>
           ) : null}
           {statusSnapshot?.metricWarning ? (
@@ -754,10 +766,7 @@ export function SocialPostStatistics(
           {validRange && consistency ? (
             <PostingConsistency
               days={consistency.daily.map((day) => ({
-                date:
-                  day.date instanceof Date
-                    ? day.date.toISOString().slice(0, 10)
-                    : day.date,
+                date: new Date(day.date).toISOString().slice(0, 10),
                 posts: day.postCount,
                 engagement: day.interactions,
               }))}

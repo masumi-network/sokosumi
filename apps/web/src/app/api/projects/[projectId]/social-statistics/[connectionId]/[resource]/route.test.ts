@@ -188,4 +188,86 @@ describe("statistics research read", () => {
     );
     expect((await read("audience")).status).toBe(403);
   });
+
+  describe.each(["audience", "benchmark", "discovery"] as const)(
+    "%s errors",
+    (resource) => {
+      it.each([
+        [403, "x_access_denied"],
+        [422, "x_reconnect_required"],
+        [429, "x_rate_limited"],
+        [502, "x_upstream_error"],
+        [503, "x_upstream_unavailable"],
+      ] as const)(
+        "forwards %s and its safe public code/message",
+        async (status, code) => {
+          const message = "Public X research error";
+          mocks[resource].mockRejectedValue(
+            new CoreApiRequestError(message, {
+              status,
+              details: {
+                message,
+                code,
+                stack: "private stack",
+                upstream: { token: "secret" },
+              },
+              retryAfterSeconds: status === 429 ? 120 : undefined,
+            }),
+          );
+          const response = await read(
+            resource,
+            resource === "benchmark" ? "?username=ada" : "?topic=launch",
+          );
+          expect(response.status).toBe(status);
+          expect(response.headers.get("Cache-Control")).toBe("no-store");
+          expect(await response.json()).toEqual({
+            error: message,
+            code,
+            ...(status === 429 ? { retryAfterSeconds: 120 } : {}),
+          });
+          expect(response.headers.get("Retry-After")).toBe(
+            status === 429 ? "120" : null,
+          );
+        },
+      );
+    },
+  );
+
+  it("accepts a code in extensions and a retry delay in the Core body", async () => {
+    mocks.audience.mockRejectedValue(
+      new CoreApiRequestError("Rate limited", {
+        status: 429,
+        details: {
+          error: "Rate limited",
+          extensions: { code: "x_rate_limited", upstream: "private" },
+          retryAfterSeconds: 30,
+        },
+      }),
+    );
+    const response = await read("audience");
+    expect(response.headers.get("Retry-After")).toBe("30");
+    expect(await response.json()).toEqual({
+      error: "Rate limited",
+      code: "x_rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  it.each([
+    new Error("private stack"),
+    new CoreApiRequestError("private transport error"),
+    new CoreApiRequestError("private transport error", {
+      details: new Error("private upstream URL"),
+    }),
+    new CoreApiRequestError("private transport error", {
+      details: { message: "private upstream URL", code: "x_upstream_error" },
+    }),
+  ])("does not expose unexpected errors", async (error) => {
+    mocks.audience.mockRejectedValue(error);
+    const response = await read("audience");
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "Statistics research unavailable",
+    });
+  });
 });

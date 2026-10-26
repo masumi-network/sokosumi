@@ -432,6 +432,7 @@ export {
   splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
+export { SOCIAL_SYNC_LEASE_MS } from "./social-sync.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export { encodeTableCsv, parseTableCsv } from "./table-csv.js";

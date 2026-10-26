@@ -27,7 +27,6 @@ export type {
 } from "@/services/social-sync-read";
 export {
   SOCIAL_SYNC_FRESH_MS,
-  SOCIAL_SYNC_LEASE_MS,
   socialSyncReadModel,
 } from "@/services/social-sync-read";
 

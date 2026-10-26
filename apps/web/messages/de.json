@@ -2772,6 +2772,7 @@
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
           "updatedAt": "Aktualisiert {date}",
           "updating": "Aktualisiere…",
+          "syncStale": "Die letzte Synchronisierung wurde nicht abgeschlossen. Gespeicherte Ergebnisse bleiben erhalten. Synchronisiere das Konto erneut.",
           "metrics": {
             "views": "Aufrufe",
             "impressions": "Impressionen",
@@ -2876,6 +2877,10 @@
             "postImage": "Beitragsbild",
             "postVideo": "Beitragsvideo",
             "loadFailed": "Diese Stichprobe konnte nicht geladen werden. Versuche es erneut.",
+            "accessDenied": "Der Tarif oder die Berechtigungen der X-App erlauben diesen Lesezugriff möglicherweise nicht. Prüfe den Zugriff der App in X.",
+            "reconnectRequired": "Verbinde dieses X-Konto in den Social-Einstellungen erneut und erteile die erforderlichen Leseberechtigungen.",
+            "rateLimited": "X begrenzt derzeit diese Anfragen. Warte einige Minuten und versuche es erneut.",
+            "rateLimitedRetry": "X begrenzt derzeit diese Anfragen. Versuche es in {seconds, plural, one {# Sekunde} other {# Sekunden}} erneut.",
             "empty": "Keine Ergebnisse in dieser Stichprobe. Versuche eine andere Stichprobe oder Suche.",
             "followers": "{count} Follower",
             "posts": "Beiträge",
