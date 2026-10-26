@@ -45,12 +45,12 @@ await postWebhook(url, payload, { userAgent: "Sokosumi-Core-API/1.0" });
 
 ## Package-Specific Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm --filter @sokosumi/net build` | Compile `src/` to `dist/` |
-| `pnpm --filter @sokosumi/net test` | Run Vitest (unit + integration) |
-| `pnpm --filter @sokosumi/net typecheck` | Typecheck |
-| `pnpm --filter @sokosumi/net lint` | Lint |
+| Command                                 | Purpose                         |
+| --------------------------------------- | ------------------------------- |
+| `pnpm --filter @sokosumi/net build`     | Compile `src/` to `dist/`       |
+| `pnpm --filter @sokosumi/net test`      | Run Vitest (unit + integration) |
+| `pnpm --filter @sokosumi/net typecheck` | Typecheck                       |
+| `pnpm --filter @sokosumi/net lint`      | Lint                            |
 
 `@sokosumi/net` is in `allowBuilds` so filtered Vercel installs still run `prepare`.
 
