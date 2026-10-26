@@ -2,7 +2,7 @@
 
 import type { SocialPostCalendarItem } from "@sokosumi/core-client";
 import { socialPostProviderLabel } from "@sokosumi/utils";
-import { GripVertical, Paperclip, Play } from "lucide-react";
+import { CalendarClock, GripVertical, Paperclip, Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
@@ -107,18 +107,26 @@ export function SocialPostCalendarEvent({
   timeZone,
   variant = "preview",
   showThumb = false,
+  showProject = true,
+  onReschedule,
 }: {
   item: SocialPostCalendarItem;
   timeZone: string;
   variant?: "compact" | "preview" | "month" | "week";
   /** Square media preview on a compact chip. Workspace compact stays one line. */
   showThumb?: boolean;
+  /** Off when the calendar is one project's: every chip would repeat it. */
+  showProject?: boolean;
+  /** Week chips of movable posts offer a Reschedule button: the drag without a pointer. */
+  onReschedule?: (item: SocialPostCalendarItem) => void;
 }) {
   if (variant === "month" || variant === "week") {
     return (
       <SocialPostCalendarChip
         density={variant}
         item={item}
+        onReschedule={variant === "week" ? onReschedule : undefined}
+        showProject={showProject}
         timeZone={timeZone}
       />
     );
@@ -327,6 +335,7 @@ function SocialPostPreviewCard({
 function useSocialPostCalendarCopy(
   item: SocialPostCalendarItem,
   timeZone: string,
+  showProject = true,
 ) {
   const t = useTranslations("App.Calendar.socialPost");
   const formatter = useFormatter();
@@ -340,7 +349,7 @@ function useSocialPostCalendarCopy(
   const accessibleName = [
     account,
     formatter.dateTime(item.scheduledAt, "time", { timeZone }),
-    t("project", { name: item.projectName }),
+    showProject ? t("project", { name: item.projectName }) : null,
     item.text || t("mediaOnly"),
     statuses(item.status),
     scheduler,
@@ -384,10 +393,14 @@ const WORDED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
 function SocialPostCalendarChip({
   density,
   item,
+  onReschedule,
+  showProject,
   timeZone,
 }: {
   density: "month" | "week";
   item: SocialPostCalendarItem;
+  onReschedule?: (item: SocialPostCalendarItem) => void;
+  showProject: boolean;
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
@@ -395,15 +408,16 @@ function SocialPostCalendarChip({
   const openPreview = useSocialCalendarPreview();
   const dragHintId = useId();
   const { account, accessibleName, handle, providerLabel } =
-    useSocialPostCalendarCopy(item, timeZone);
+    useSocialPostCalendarCopy(item, timeZone, showProject);
   const movable = isChangeableSocialPost(item);
+  const reschedule = movable ? onReschedule : undefined;
   const tone = getToneStyle(socialPostStatusTone(item.status));
   const week = density === "week";
   const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
   const className = cn(
     "group/chip bg-background text-foreground press hover:bg-muted border-border relative flex w-full min-w-0 select-none overflow-hidden rounded-md border text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
     week
-      ? "flex-col gap-1 py-1.5 ps-2.5 pe-1.5"
+      ? "@container flex-col gap-1 py-1.5 ps-2.5 pe-1.5"
       : "items-center gap-1 py-0.5 ps-2 pe-1",
     DASHED_STATUSES.has(item.status) && "border-dashed",
     movable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
@@ -445,10 +459,15 @@ function SocialPostCalendarChip({
       {rail}
       <span className="flex w-full min-w-0 items-center gap-1.5">
         <AccountChipMark avatarUrl={item.avatarUrl} provider={item.provider} />
-        <span className="min-w-0 flex-1 truncate" title={account}>
+        {/* A narrow column would cut the handle to a bare "@": the mark and
+            the accessible name still say whose post it is. */}
+        <span
+          className="min-w-0 flex-1 truncate @max-[8rem]:hidden"
+          title={account}
+        >
           {handle ?? providerLabel}
         </span>
-        <span className="text-muted-foreground shrink-0 tabular-nums">
+        <span className="text-muted-foreground ms-auto shrink-0 tabular-nums">
           {time}
         </span>
       </span>
@@ -458,7 +477,13 @@ function SocialPostCalendarChip({
           <CompactSocialPostThumb media={item.previewMedia} />
         ) : null}
       </span>
-      <span className="flex w-full min-w-0 items-center gap-1">
+      <span
+        className={cn(
+          "flex w-full min-w-0 items-center gap-1",
+          // Room for the Reschedule button laid over this row's end.
+          reschedule && "pe-7",
+        )}
+      >
         <CalendarSocialPostStatus
           className={
             WORDED_STATUSES.has(item.status) ? "px-1.5 py-0.5" : "size-5"
@@ -468,9 +493,11 @@ function SocialPostCalendarChip({
         />
         <span
           className="text-muted-foreground min-w-0 flex-1 truncate font-normal"
-          title={t("project", { name: item.projectName })}
+          title={
+            showProject ? t("project", { name: item.projectName }) : undefined
+          }
         >
-          {item.projectName}
+          {showProject ? item.projectName : null}
         </span>
         {grip}
       </span>
@@ -504,7 +531,7 @@ function SocialPostCalendarChip({
     "data-status": item.status,
     "data-testid": "calendar-social-post",
   };
-  return (
+  const chip = (
     <>
       {openPreview ? (
         <button
@@ -527,6 +554,26 @@ function SocialPostCalendarChip({
         </span>
       ) : null}
     </>
+  );
+  if (!reschedule) return chip;
+  // A sibling of the chip, not inside it: a button cannot hold a button.
+  return (
+    <div className="relative">
+      {chip}
+      <button
+        aria-label={t("rescheduleNamed", {
+          time,
+          text: item.text || t("mediaOnly"),
+        })}
+        className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo hit-area absolute end-1 bottom-1 flex size-6 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+        data-testid="calendar-social-post-reschedule"
+        onClick={() => reschedule(item)}
+        title={t("reschedule")}
+        type="button"
+      >
+        <CalendarClock aria-hidden className="size-4" />
+      </button>
+    </div>
   );
 }
 

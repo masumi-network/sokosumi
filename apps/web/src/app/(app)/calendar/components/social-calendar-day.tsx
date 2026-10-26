@@ -3,11 +3,9 @@
 import type { SocialPostCalendarItem } from "@sokosumi/core-client";
 import {
   addDays,
-  addMinutes,
   endOfMonth,
   endOfWeek,
   format,
-  startOfHour,
   startOfMonth,
   startOfWeek,
 } from "date-fns";
@@ -15,6 +13,7 @@ import { Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import { Temporal } from "temporal-polyfill";
 import { socialPostStatusTone } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { Button } from "@/components/ui/button";
@@ -23,15 +22,32 @@ import { cn } from "@/lib/utils";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 
 /**
- * The composer slot a day's "+" asks for, in the viewer's own zone (the
- * composer's): 09:00 that day, or the next whole hour at least 15 minutes out
- * when 09:00 has gone.
+ * The composer slot a day's "+" asks for: 09:00 that day in the calendar's
+ * zone, or the next whole hour there at least 15 minutes out when 09:00 has
+ * gone. Returned as the same instant on the viewer's own clock, which is the
+ * zone the composer reads its input in.
  */
-export function composeSlotForDay(dayKey: string, now = new Date()): string {
-  const morning = `${dayKey}T09:00`;
-  const soonest = addMinutes(now, 15);
-  if (new Date(morning) > soonest) return morning;
-  return format(startOfHour(addMinutes(soonest, 59)), "yyyy-MM-dd'T'HH:mm");
+export function composeSlotForDay(
+  dayKey: string,
+  timeZone: string,
+  now = new Date(),
+): string {
+  const morning = Temporal.PlainDateTime.from(
+    `${dayKey}T09:00`,
+  ).toZonedDateTime(timeZone);
+  const soonest = Temporal.Instant.fromEpochMilliseconds(
+    now.getTime() + 15 * 60_000,
+  ).toZonedDateTimeISO(timeZone);
+  const slot =
+    Temporal.ZonedDateTime.compare(morning, soonest) > 0
+      ? morning
+      : soonest.round({ smallestUnit: "hour", roundingMode: "ceil" });
+  return format(new Date(slot.epochMilliseconds), "yyyy-MM-dd'T'HH:mm");
+}
+
+/** A failed or missed post waits on the reader to retry or reschedule it. */
+function needsAttention(item: SocialPostCalendarItem): boolean {
+  return item.status === "FAILED" || item.status === "MISSED";
 }
 
 /** One calendar day, labelled as itself whatever zone the formatter is in. */
@@ -52,11 +68,14 @@ function useDayLabel() {
  */
 export function SocialDayAddButton({
   dayKey,
+  timeZone,
   todayKey,
   className,
   size = "icon",
 }: {
   dayKey: string;
+  /** The calendar's zone: the day's 09:00 is read there. */
+  timeZone: string;
   todayKey: string;
   className?: string;
   size?: "icon" | "label";
@@ -66,7 +85,7 @@ export function SocialDayAddButton({
   const dayLabel = useDayLabel();
   if (!compose || dayKey < todayKey) return null;
   const label = t("newOnDay", { date: dayLabel(dayKey) });
-  const open = () => compose.openAt(composeSlotForDay(dayKey));
+  const open = () => compose.openAt(composeSlotForDay(dayKey, timeZone));
   if (size === "label") {
     return (
       <Button
@@ -115,9 +134,11 @@ export function SocialDayAddButton({
  */
 export function SocialDayAddSlot({
   className,
+  timeZone,
   todayKey,
 }: {
   className?: string;
+  timeZone: string;
   todayKey: string;
 }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
@@ -133,6 +154,7 @@ export function SocialDayAddSlot({
             <SocialDayAddButton
               className={className}
               dayKey={dayKey}
+              timeZone={timeZone}
               todayKey={todayKey}
             />,
             host,
@@ -146,12 +168,16 @@ function SocialDayList({
   dayKey,
   heading,
   items,
+  onReschedule,
+  showProject,
   timeZone,
   todayKey,
 }: {
   dayKey: string;
   heading: string;
   items: SocialPostCalendarItem[];
+  onReschedule: (item: SocialPostCalendarItem) => void;
+  showProject: boolean;
   timeZone: string;
   todayKey: string;
 }) {
@@ -171,7 +197,12 @@ function SocialDayList({
         >
           {heading}
         </h3>
-        <SocialDayAddButton dayKey={dayKey} size="label" todayKey={todayKey} />
+        <SocialDayAddButton
+          dayKey={dayKey}
+          size="label"
+          timeZone={timeZone}
+          todayKey={todayKey}
+        />
       </div>
       {items.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("dayEmpty")}</p>
@@ -181,6 +212,8 @@ function SocialDayList({
             <li key={item.id}>
               <SocialPostCalendarEvent
                 item={item}
+                onReschedule={onReschedule}
+                showProject={showProject}
                 timeZone={timeZone}
                 variant="week"
               />
@@ -196,11 +229,13 @@ function SocialDayList({
  * Social's calendar on a phone. Seven columns of cards do not fit a phone
  * width, so the month is a compact grid of days with a mark per post, and
  * the chosen day lists its posts underneath; the week lists its seven days.
- * Rescheduling here goes through the post's preview, not a drag.
+ * There is no drag here: a post that can move carries a Reschedule button.
  */
 export function SocialMobileCalendar({
   date,
   items,
+  onReschedule,
+  showProject,
   timeZone,
   todayKey,
   view,
@@ -208,6 +243,8 @@ export function SocialMobileCalendar({
 }: {
   date: Date;
   items: SocialPostCalendarItem[];
+  onReschedule: (item: SocialPostCalendarItem) => void;
+  showProject: boolean;
   timeZone: string;
   todayKey: string;
   view: "month" | "week";
@@ -234,6 +271,8 @@ export function SocialMobileCalendar({
             heading={dayLabel(dayKey, true)}
             items={byDay.get(dayKey) ?? []}
             key={dayKey}
+            onReschedule={onReschedule}
+            showProject={showProject}
             timeZone={timeZone}
             todayKey={todayKey}
           />
@@ -270,11 +309,20 @@ export function SocialMobileCalendar({
         <div className="grid grid-cols-7 gap-0.5">
           {gridDays.map((dayKey) => {
             const dayItems = byDay.get(dayKey) ?? [];
+            const attention = dayItems.filter(needsAttention).length;
             const inMonth = dayKey.startsWith(monthKey);
             const isSelected = dayKey === selected;
             return (
               <button
-                aria-label={`${dayLabel(dayKey, true)}, ${t("dayCount", { count: dayItems.length })}`}
+                aria-label={[
+                  dayLabel(dayKey, true),
+                  t("dayCount", { count: dayItems.length }),
+                  attention > 0
+                    ? t("dayAttention", { count: attention })
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
                 aria-pressed={isSelected}
                 className={cn(
                   "press focus-visible:ring-ring-halo flex min-h-12 cursor-pointer flex-col items-center gap-1 rounded-md py-1 text-sm tabular-nums outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
@@ -293,17 +341,28 @@ export function SocialMobileCalendar({
               >
                 <span>{Number(dayKey.slice(8))}</span>
                 <span aria-hidden className="flex h-1.5 items-center gap-0.5">
-                  {dayItems.slice(0, 3).map((item) => (
-                    <span
-                      className={cn(
-                        "size-1.5 rounded-full",
-                        isSelected
-                          ? "bg-primary-foreground"
-                          : getToneStyle(socialPostStatusTone(item.status)).dot,
-                      )}
-                      key={item.id}
-                    />
-                  ))}
+                  {dayItems
+                    .toSorted(
+                      (a, b) =>
+                        Number(needsAttention(b)) - Number(needsAttention(a)),
+                    )
+                    .slice(0, 3)
+                    .map((item) => (
+                      <span
+                        className={cn(
+                          "size-1.5",
+                          // A post waiting on the reader is a diamond, not only a red dot.
+                          needsAttention(item)
+                            ? "rotate-45 rounded-xs"
+                            : "rounded-full",
+                          isSelected
+                            ? "bg-primary-foreground"
+                            : getToneStyle(socialPostStatusTone(item.status))
+                                .dot,
+                        )}
+                        key={item.id}
+                      />
+                    ))}
                   {dayItems.length > 3 ? (
                     <span className="text-2xs leading-none">+</span>
                   ) : null}
@@ -317,6 +376,8 @@ export function SocialMobileCalendar({
         dayKey={selected}
         heading={dayLabel(selected, true)}
         items={byDay.get(selected) ?? []}
+        onReschedule={onReschedule}
+        showProject={showProject}
         timeZone={timeZone}
         todayKey={todayKey}
       />

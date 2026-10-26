@@ -8631,7 +8631,21 @@
         "newPost": "Neuer Beitrag",
         "dragHint": "Zum Verschieben auf einen anderen Tag ziehen.",
         "dayEmpty": "An diesem Tag ist nichts geplant.",
-        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}"
+        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "statusFilter": "Beiträge nach Status anzeigen",
+        "postCount": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "dayAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
+        "reschedule": "Neu planen",
+        "rescheduleNamed": "Beitrag um {time} neu planen: {text}"
+      },
+      "socialMove": {
+        "title": "Beitrag neu planen",
+        "description": "Wähle ein neues Datum und eine neue Uhrzeit. Zeiten in {zone}.",
+        "label": "Neues Datum und Uhrzeit",
+        "confirm": "Neu planen",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+        "past": "Wähle einen Zeitpunkt in der Zukunft."
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"

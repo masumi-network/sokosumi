@@ -130,9 +130,13 @@ describe("Social calendar days", () => {
     expect(screen.getByText("socialPost.more:2")).toBeInTheDocument();
   });
 
-  it.each(["UTC", "Pacific/Auckland", "America/Los_Angeles"])(
-    "opens the composer on the day whose + was pressed in %s",
-    async (timeZone) => {
+  it.each([
+    ["UTC", "2030-01-16T09:00:00.000Z"],
+    ["Pacific/Auckland", "2030-01-15T20:00:00.000Z"],
+    ["America/Los_Angeles", "2030-01-16T17:00:00.000Z"],
+  ])(
+    "opens the composer on 09:00 of the day whose + was pressed, in %s",
+    async (timeZone, instant) => {
       const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
       renderSocialCalendar({
         searchParams: `?timezone=${timeZone}&view=month&date=2030-01-16`,
@@ -141,13 +145,13 @@ describe("Social calendar days", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "newOnDay:Jan 16" }));
 
-      await waitFor(() =>
-        expect(onUrlUpdate).toHaveBeenLastCalledWith(
-          expect.objectContaining({
-            queryString: expect.stringContaining("composeAt=2030-01-16T09:00"),
-          }),
-        ),
-      );
+      // The composer reads its slot on the viewer's clock; the instant is
+      // 09:00 on the calendar's.
+      await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+      const composeAt = new URLSearchParams(
+        onUrlUpdate.mock.lastCall?.[0].queryString,
+      ).get("composeAt");
+      expect(new Date(composeAt ?? "").toISOString()).toBe(instant);
     },
   );
 
@@ -189,20 +193,45 @@ describe("Social calendar days", () => {
     expect(scheduled).toHaveAccessibleDescription("dragHint");
     expect(published).not.toHaveAttribute("data-movable");
     expect(published).not.toHaveAccessibleDescription();
+    // Only the movable post offers the keyboard and touch way to move it.
+    expect(
+      screen.getAllByTestId("calendar-social-post-reschedule"),
+    ).toHaveLength(1);
+  });
+
+  it("leaves the project off the chips of one project's calendar", () => {
+    renderSocialCalendar({
+      searchParams: "?timezone=UTC&view=week&date=2030-01-16",
+    });
+
+    const chip = screen.getByTestId("calendar-social-post");
+    expect(chip).toHaveTextContent("Launch news");
+    expect(chip).not.toHaveTextContent("Release planning");
   });
 });
 
 describe("composeSlotForDay", () => {
-  const now = new Date(2030, 0, 16, 10, 20);
+  const now = new Date("2030-01-16T10:20:00.000Z");
+  /** The slot as an instant: the composer parses it on the viewer's clock. */
+  const slot = (dayKey: string, timeZone: string, at = now) =>
+    new Date(composeSlotForDay(dayKey, timeZone, at)).toISOString();
 
-  it("starts a later day at nine", () => {
-    expect(composeSlotForDay("2030-01-17", now)).toBe("2030-01-17T09:00");
+  it("starts a later day at nine in the calendar's zone", () => {
+    expect(slot("2030-01-17", "UTC")).toBe("2030-01-17T09:00:00.000Z");
+    expect(slot("2030-01-17", "Europe/Prague")).toBe(
+      "2030-01-17T08:00:00.000Z",
+    );
   });
 
   it("starts today on the next whole hour at least 15 minutes out", () => {
-    expect(composeSlotForDay("2030-01-16", now)).toBe("2030-01-16T11:00");
-    expect(composeSlotForDay("2030-01-16", new Date(2030, 0, 16, 10, 50))).toBe(
-      "2030-01-16T12:00",
-    );
+    expect(slot("2030-01-16", "UTC")).toBe("2030-01-16T11:00:00.000Z");
+    expect(
+      slot("2030-01-16", "UTC", new Date("2030-01-16T10:50:00.000Z")),
+    ).toBe("2030-01-16T12:00:00.000Z");
+  });
+
+  it("rounds to a whole hour on the calendar's clock, not the viewer's", () => {
+    // 15:50 in Kolkata (UTC+5:30): the next whole hour there is 17:00.
+    expect(slot("2030-01-16", "Asia/Kolkata")).toBe("2030-01-16T11:30:00.000Z");
   });
 });

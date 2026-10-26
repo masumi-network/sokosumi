@@ -8631,7 +8631,21 @@
         "newPost": "Nueva publicación",
         "dragHint": "Arrastra a otro día para reprogramar.",
         "dayEmpty": "No hay nada programado este día.",
-        "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}"
+        "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "statusFilter": "Mostrar publicaciones por estado",
+        "postCount": "{count, plural, =0 {Sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "dayAttention": "{count, plural, one {# requiere atención} other {# requieren atención}}",
+        "reschedule": "Reprogramar",
+        "rescheduleNamed": "Reprogramar la publicación de las {time}: {text}"
+      },
+      "socialMove": {
+        "title": "Reprogramar publicación",
+        "description": "Elige una nueva fecha y hora. Las horas están en {zone}.",
+        "label": "Nueva fecha y hora",
+        "confirm": "Reprogramar",
+        "cancel": "Cancelar",
+        "invalid": "Elige una fecha y hora válidas.",
+        "past": "Elige una hora en el futuro."
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"

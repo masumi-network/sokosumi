@@ -3,7 +3,13 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
@@ -31,11 +37,17 @@ const {
   fullCalendarMock,
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
+  refreshMock,
+  scheduleSocialPostMock,
+  toastErrorMock,
 } = vi.hoisted(() => ({
   filterDropdownMenuMock: vi.fn(),
   fullCalendarMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
+  refreshMock: vi.fn(),
+  scheduleSocialPostMock: vi.fn(),
+  toastErrorMock: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
@@ -81,10 +93,14 @@ vi.mock("next-intl", async () => {
 });
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: refreshMock }),
 }));
 
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), info: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: toastErrorMock, info: vi.fn() } }));
+
+vi.mock("@/lib/actions/project/action", () => ({
+  scheduleProjectSocialPost: scheduleSocialPostMock,
+}));
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
   useCreateTaskModal: () => ({ handleOpenWithDefaults: vi.fn() }),
@@ -193,6 +209,31 @@ function renderCalendar(
 function renderedEventTitles(): string[] {
   const props = fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps;
   return (props.events ?? []).map((event) => event.title);
+}
+
+function renderedPostStart(id: string): string | undefined {
+  const props = fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps;
+  return props.events?.find((event) => event.id === id)?.start;
+}
+
+function stubPhone() {
+  vi.stubGlobal("innerWidth", 767);
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(
+      () =>
+        ({
+          matches: true,
+          media: "(max-width: 767px)",
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) satisfies MediaQueryList,
+    ),
+  );
 }
 
 function filterSectionIds(): string[] {
@@ -547,7 +588,7 @@ describe("WorkspaceCalendar Social-only view", () => {
         screen.getByTestId("calendar-social-post-thumb"),
       ).toBeInTheDocument();
       expect(
-        screen.getByTestId("social-post-status-SCHEDULED"),
+        within(chip).getByTestId("social-post-status-SCHEDULED"),
       ).toBeInTheDocument();
     });
 
@@ -636,6 +677,241 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(
         screen.queryByRole("link", { name: /schedules\.link/ }),
       ).not.toBeInTheDocument();
+    });
+
+    describe("status summary", () => {
+      const ITEMS: SocialPostCalendarItem[] = [
+        POST,
+        {
+          ...POST,
+          id: "social:failed",
+          status: "FAILED",
+          scheduledAt: new Date("2030-01-04T09:00:00.000Z"),
+        },
+        {
+          ...POST,
+          id: "social:published",
+          status: "PUBLISHED",
+          scheduledAt: new Date("2030-01-05T09:00:00.000Z"),
+        },
+        {
+          ...POST,
+          id: "social:february",
+          scheduledAt: new Date("2030-02-05T09:00:00.000Z"),
+        },
+      ];
+
+      it("counts the month's posts by status", () => {
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true, items: ITEMS },
+          "?timezone=UTC&view=month&date=2030-01-02",
+        );
+
+        const summary = screen.getByTestId("calendar-status-summary");
+        const pills = within(summary).getAllByRole("button");
+        expect(pills.map((pill) => pill.textContent)).toEqual([
+          "SCHEDULED1",
+          "PUBLISHED1",
+          "FAILED1",
+        ]);
+        for (const pill of pills) {
+          expect(pill).toHaveAttribute("aria-pressed", "false");
+        }
+      });
+
+      it("presses a pill to set the Filters menu's post status", async () => {
+        const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true, items: ITEMS },
+          "?timezone=UTC&view=month&date=2030-01-02",
+          onUrlUpdate,
+        );
+
+        await userEvent.click(
+          screen.getByTestId("calendar-status-pill-FAILED"),
+        );
+
+        await waitFor(() =>
+          expect(onUrlUpdate).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+              queryString: expect.stringContaining("postStatus=FAILED"),
+            }),
+          ),
+        );
+      });
+
+      it("keeps the other pills while one is pressed, and lets it go", async () => {
+        const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true, items: ITEMS },
+          "?timezone=UTC&view=month&date=2030-01-02&postStatus=FAILED",
+          onUrlUpdate,
+        );
+
+        expect(renderedEventTitles()).toHaveLength(1);
+        const failed = screen.getByTestId("calendar-status-pill-FAILED");
+        expect(failed).toHaveAttribute("aria-pressed", "true");
+        expect(
+          screen.getByTestId("calendar-status-pill-SCHEDULED"),
+        ).toHaveTextContent("SCHEDULED1");
+
+        await userEvent.click(failed);
+
+        await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+        expect(onUrlUpdate.mock.lastCall?.[0].queryString).not.toContain(
+          "postStatus",
+        );
+      });
+
+      it("stays off the workspace calendar", () => {
+        renderCalendar({ includeSocialPosts: true, items: ITEMS });
+
+        expect(
+          screen.queryByTestId("calendar-status-summary"),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    describe("reschedule without a drag", () => {
+      const PUBLISHED: SocialPostCalendarItem = {
+        ...POST,
+        id: "social:published",
+        status: "PUBLISHED",
+      };
+
+      async function rescheduleTo(value: string) {
+        await userEvent.click(
+          screen.getByTestId("calendar-social-post-reschedule"),
+        );
+        const dialog = await screen.findByRole("dialog");
+        fireEvent.change(within(dialog).getByLabelText("socialMove.label"), {
+          target: { value },
+        });
+        await userEvent.click(
+          within(dialog).getByRole("button", { name: "socialMove.confirm" }),
+        );
+      }
+
+      it("moves a week chip's post in the calendar's zone, at once", async () => {
+        let resolve: (value: unknown) => void = () => {};
+        scheduleSocialPostMock.mockReturnValue(
+          new Promise((done) => {
+            resolve = done;
+          }),
+        );
+        renderCalendar(
+          {
+            includeSocialPosts: true,
+            socialPostsOnly: true,
+            items: [POST, PUBLISHED],
+          },
+          "?timezone=Europe/Prague&view=week&date=2030-01-02",
+        );
+
+        // Only the post that can still move offers it.
+        expect(
+          screen.getAllByTestId("calendar-social-post-reschedule"),
+        ).toHaveLength(1);
+        await rescheduleTo("2030-01-05T14:30");
+
+        expect(scheduleSocialPostMock).toHaveBeenCalledWith({
+          projectId: "project-1",
+          postId: "post-1",
+          scheduledAt: "2030-01-05T13:30:00.000Z",
+          revision: 4,
+        });
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        // Drawn at the new time before Core answers, like a drop.
+        expect(renderedPostStart(POST.id)).toBe("2030-01-05T13:30:00.000Z");
+
+        resolve({ ok: true, value: {} });
+        await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+      });
+
+      it("puts the post back and says why when Core refuses", async () => {
+        scheduleSocialPostMock.mockResolvedValue({
+          ok: false,
+          error: { message: "Account disconnected" },
+        });
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true, items: [POST] },
+          "?timezone=UTC&view=week&date=2030-01-02",
+        );
+
+        await rescheduleTo("2030-01-05T14:30");
+
+        await waitFor(() =>
+          expect(toastErrorMock).toHaveBeenCalledWith(
+            "Account disconnected",
+            expect.anything(),
+          ),
+        );
+        expect(renderedPostStart(POST.id)).toBe(POST.scheduledAt.toISOString());
+        expect(refreshMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a time already gone without calling Core", async () => {
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true, items: [POST] },
+          "?timezone=UTC&view=week&date=2030-01-02",
+        );
+
+        await rescheduleTo("2020-01-05T14:30");
+
+        expect(screen.getByRole("alert")).toHaveTextContent("socialMove.past");
+        expect(scheduleSocialPostMock).not.toHaveBeenCalled();
+      });
+
+      it("offers it in a phone's day list, which has no drag", async () => {
+        scheduleSocialPostMock.mockResolvedValue({ ok: true, value: {} });
+        stubPhone();
+        try {
+          renderCalendar(
+            { includeSocialPosts: true, socialPostsOnly: true, items: [POST] },
+            "?timezone=UTC&date=2030-01-03",
+          );
+          await userEvent.click(
+            await screen.findByRole("button", {
+              name: "Thursday, January 3, dayCount",
+            }),
+          );
+
+          await rescheduleTo("2030-01-05T14:30");
+
+          expect(scheduleSocialPostMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              scheduledAt: "2030-01-05T14:30:00.000Z",
+            }),
+          );
+          await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      });
+    });
+
+    it("marks a phone day holding a post that needs attention in words and shape", async () => {
+      stubPhone();
+      try {
+        renderCalendar(
+          {
+            includeSocialPosts: true,
+            socialPostsOnly: true,
+            items: [POST, { ...POST, id: "social:failed", status: "FAILED" }],
+          },
+          "?timezone=UTC&date=2030-01-03",
+        );
+
+        const day = await screen.findByRole("button", {
+          name: "Thursday, January 3, dayCount, dayAttention",
+        });
+        const marks = day.querySelectorAll("span[aria-hidden] > span");
+        // The failed post leads, drawn as a diamond rather than a dot.
+        expect(marks[0]).toHaveClass("rotate-45");
+        expect(marks[1]).toHaveClass("rounded-full");
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
   });
 });
