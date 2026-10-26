@@ -1,5 +1,6 @@
 import { hasAdminRole } from "@sokosumi/utils";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
@@ -52,6 +53,7 @@ interface SokoBotPageProps {
 
 /** The assistant console; the conversation itself lives in chat. */
 export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
+  await connection();
   const [session, load, t, params, activeOrganizationId] = await Promise.all([
     getSessionOrRedirect(),
     loadState(),
