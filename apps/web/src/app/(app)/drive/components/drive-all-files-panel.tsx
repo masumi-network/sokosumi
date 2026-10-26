@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   Bookmark,
+  Link2,
   MoreHorizontal,
   Search,
   SlidersHorizontal,
@@ -36,6 +37,7 @@ import {
   DriveFolderNav,
 } from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
+import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -167,6 +169,8 @@ export interface DriveAllFilesPanelProps {
    * this tab landed in the store and appeared nowhere.
    */
   reloadToken?: number;
+  /** Opens the link dialog for one uploaded file. */
+  onShareFile?: (item: DriveShareItem) => void;
 }
 
 interface SearchState {
@@ -194,6 +198,7 @@ export function DriveAllFilesPanel({
   onFolderChange,
   folderActions,
   virtualFolder,
+  onShareFile,
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
@@ -1181,6 +1186,25 @@ export function DriveAllFilesPanel({
             disabled={bulkBusy}
             onPick={(categoryLabelId) => void applyBulk({ categoryLabelId })}
           />
+          {onShareFile &&
+          !selectionToken &&
+          selectedIds.length === 1 &&
+          deletableSelection.length === 1 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                const [file] = deletableSelection;
+                onShareFile({
+                  target: { kind: "file", resourceId: file.id },
+                  name: file.displayName,
+                });
+              }}
+            >
+              <Link2 aria-hidden className="size-4" />
+              {t("bulkShare")}
+            </Button>
+          ) : null}
           {/* A whole-window selection is not on screen to name, so delete
               only acts on rows the reader ticked. */}
           {!selectionToken && deletableSelection.length > 0 ? (

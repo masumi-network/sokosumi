@@ -16061,6 +16061,102 @@ export const FileSearchMetaSchema = {
     ]
 } as const;
 
+export const DriveShareResponseSchema = {
+    type: 'object',
+    properties: {
+        share: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DriveShare'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'share'
+    ]
+} as const;
+
+export const DriveShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        token: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ]
+        },
+        hasPassword: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'kind',
+        'hasPassword',
+        'createdAt'
+    ]
+} as const;
+
+export const UpsertDriveShareRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Catalog id of the uploaded file to share.'
+        },
+        folderPath: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Folder to share, e.g. "Masumi Fundraising".',
+            example: 'Masumi Fundraising'
+        },
+        password: {
+            anyOf: [
+                {
+                    type: 'string',
+                    minLength: 4,
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set or change the password; null removes it; omit to keep the current one.'
+        }
+    },
+    required: [
+        'scope'
+    ]
+} as const;
+
 export const DataTableSchema = {
     type: 'object',
     properties: {
@@ -27092,6 +27188,98 @@ export const GetInvitationResultSchema = {
                 'kind'
             ]
         }
+    ]
+} as const;
+
+export const PublicDriveShareSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        locked: {
+            type: 'boolean'
+        },
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PublicDriveShareItem'
+            }
+        },
+        truncated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'locked'
+    ]
+} as const;
+
+export const PublicDriveShareItemSchema = {
+    type: 'object',
+    properties: {
+        path: {
+            type: 'string'
+        },
+        size: {
+            type: 'integer'
+        },
+        uploadedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'path',
+        'size',
+        'uploadedAt'
+    ]
+} as const;
+
+export const UnlockDriveShareResponseSchema = {
+    type: 'object',
+    properties: {
+        proof: {
+            type: 'string'
+        }
+    },
+    required: [
+        'proof'
+    ]
+} as const;
+
+export const UnlockDriveShareRequestSchema = {
+    type: 'object',
+    properties: {
+        password: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'password'
+    ]
+} as const;
+
+export const DriveShareDownloadSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 

@@ -7666,6 +7666,8 @@
       "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
       "moveAction": "Move",
+      "shareAction": "Share",
+      "shareFolderAction": "Share “{name}”",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
       "moveHere": "Move here",
@@ -7766,6 +7768,7 @@
         "bulkApplied": "Updated {count} files",
         "bulkPartial": "{applied} updated, {failed} failed and stay selected",
         "bulkDelete": "Delete",
+        "bulkShare": "Share",
         "bulkDeleteTitle": "Delete {count, plural, one {# file} other {# files}}?",
         "bulkDeleteDescription": "They are removed for everyone in this Files workspace. This can't be undone.",
         "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
@@ -7873,7 +7876,34 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table"
+      "tableKind": "Table",
+      "Share": {
+        "title": "Share “{name}”",
+        "fileDescription": "Anyone with the link can view and download this file.",
+        "folderDescription": "Anyone with the link can see and download everything in this folder, including files added later.",
+        "loading": "Loading link",
+        "passwordOptional": "Password (optional)",
+        "passwordPlaceholder": "Leave empty for no password",
+        "newPasswordPlaceholder": "New password",
+        "passwordTooShort": "At least 4 characters",
+        "create": "Create link",
+        "created": "Link created",
+        "linkLabel": "Share link",
+        "copy": "Copy",
+        "copied": "Link copied",
+        "copyFailed": "Could not copy the link",
+        "passwordOn": "Password protected",
+        "passwordOff": "No password",
+        "setPassword": "Set password",
+        "changePassword": "Change",
+        "passwordSaved": "Password saved",
+        "removePassword": "Remove password",
+        "passwordRemoved": "Password removed",
+        "revoke": "Stop sharing",
+        "revoked": "Link turned off",
+        "loadFailed": "Could not load the link",
+        "saveFailed": "Could not save the link"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -9082,6 +9112,22 @@
       "title": "On-demand AI agents at your fingertips",
       "description": "Select a trusted agent, set your brief, and receive actionable outputs - no subscriptions needed.",
       "buttonText": "Explore agents"
+    },
+    "Files": {
+      "sharedFile": "Shared file",
+      "sharedFolder": "Shared folder",
+      "notFoundTitle": "Link not found",
+      "passwordLabel": "This link is protected. Enter the password",
+      "open": "Open",
+      "download": "Download",
+      "downloadFile": "Download {name}",
+      "truncated": "Showing the first 2,000 files of this folder.",
+      "emptyFolder": "This folder is empty.",
+      "errors": {
+        "wrong": "Wrong password.",
+        "locked": "Too many wrong passwords. Try again in 15 minutes.",
+        "failed": "Something went wrong. Try again."
+      }
     }
   },
   "NotFound": {
