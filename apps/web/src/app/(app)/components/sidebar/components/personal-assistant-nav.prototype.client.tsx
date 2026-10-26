@@ -131,7 +131,7 @@ export function SokoBotLiveNav({ bot }: { bot: SidebarSokoBotLive | null }) {
   const line = statusLine(bot);
 
   return (
-    <SidebarGroup className="w-full py-2">
+    <SidebarGroup className="w-full pt-0 pb-2">
       <SidebarGroupContent
         className={cn(
           card &&
