@@ -8538,6 +8538,7 @@
       "next": "Nächster Zeitraum",
       "today": "Heute",
       "view": {
+        "list": "Liste",
         "month": "Monat",
         "week": "Woche",
         "agenda": "Agenda"
@@ -8566,6 +8567,17 @@
         "confirm": "Lauf verschieben",
         "cancel": "Abbrechen",
         "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit."
+      },
+      "socialMove": {
+        "title": "Beitrag verschieben",
+        "description": "Wähle eine neue Zeit. Zeiten in {zone}.",
+        "label": "Neue Zeit",
+        "confirm": "Verschieben",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+        "past": "Wähle eine Zeit in der Zukunft.",
+        "failed": "Beitrag konnte nicht verschoben werden.",
+        "done": "Beitrag verschoben"
       },
       "create": {
         "fab": "Task planen"
@@ -8611,6 +8623,15 @@
         "loading": "Wird geladen…",
         "loadMore": "Mehr laden"
       },
+      "list": {
+        "today": "Heute",
+        "empty": "Keine Beiträge",
+        "count": "{count, plural, one {# Beitrag} other {# Beiträge}}",
+        "create": "Beitrag hinzufügen",
+        "createOn": "Beitrag am {day} hinzufügen",
+        "reschedule": "Beitrag um {time} verschieben",
+        "rescheduleHint": "Verschieben"
+      },
       "socialPost": {
         "mediaOnly": "Medienbeitrag",
         "project": "Projekt: {name}",
@@ -8619,14 +8640,7 @@
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
-        "platform": "Plattform",
-        "more": "+{count} weitere",
-        "moreHint": "{count, plural, one {# weiteren Beitrag} other {# weitere Beiträge}} an diesem Tag anzeigen",
-        "newOnDay": "Neuer Beitrag am {date}",
-        "newPost": "Neuer Beitrag",
-        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen.",
-        "dayEmpty": "An diesem Tag ist nichts geplant.",
-        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}"
+        "platform": "Plattform"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"

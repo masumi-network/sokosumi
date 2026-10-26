@@ -1,62 +1,65 @@
 "use client";
 
-import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsIsoDateTime, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { createContext, useContext, useState } from "react";
-
-const SCHEDULE_VALUE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 interface SocialCompose {
   open: boolean;
-  /** A local `yyyy-MM-ddTHH:mm` slot the composer starts on, if one was picked. */
-  scheduledAt: string | null;
+  /** The time the calendar proposed for the new post, if it was started there. */
+  scheduledAt: Date | null;
   setOpen: (open: boolean) => void;
-  /** Opens the composer on a slot, as the calendar's day "+" does. */
-  openAt: (scheduledAt: string) => void;
+  /** Opens the composer on a time the reader picked on the calendar. */
+  openAt: (scheduledAt: Date) => void;
 }
 
 const SocialComposeContext = createContext<SocialCompose | null>(null);
 
+const composeParsers = {
+  compose: parseAsStringLiteral(["new"]),
+  composeAt: parseAsIsoDateTime,
+};
+
 /**
- * Whether Social's Manual post composer is open.
+ * Whether Social's Manual post composer is open, and at what time.
  *
  * The New post menu sits at the top of the page, above the calendar, while
  * the composer belongs to the posts list further down (it owns the saved-post
- * state the composer feeds). The two meet here. `?compose=new` opens it too:
- * the menu sets it when it first had to ask for a project, and it is cleared
- * on close so a reload does not reopen an empty composer. `?composeAt=` carries
- * the slot a calendar day asked for across that same project pick.
+ * state the composer feeds). The calendar starts posts too, on the day or
+ * slot the reader picked. They meet here. `?compose=new` (with `composeAt`
+ * for a picked time) opens it too: the menu sets it when it first had to ask
+ * for a project, and it is cleared on close so a reload does not reopen an
+ * empty composer.
+ *
+ * With no project in scope there is no composer on the page; the New post
+ * menu reads `open` as "ask for a project first".
  */
 export function SocialComposeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [compose, setCompose] = useQueryState(
-    "compose",
-    parseAsStringLiteral(["new"]),
-  );
-  const [composeAt, setComposeAt] = useQueryState("composeAt", parseAsString);
+  const [params, setParams] = useQueryStates(composeParsers);
   const [openedHere, setOpenedHere] = useState(false);
+  const [scheduledAtHere, setScheduledAtHere] = useState<Date | null>(null);
 
   function setOpen(next: boolean) {
     setOpenedHere(next);
-    if (!next && (compose || composeAt)) {
-      void setCompose(null);
-      void setComposeAt(null);
+    setScheduledAtHere(null);
+    if (!next && (params.compose || params.composeAt)) {
+      void setParams({ compose: null, composeAt: null });
     }
   }
 
-  function openAt(scheduledAt: string) {
+  function openAt(scheduledAt: Date) {
     setOpenedHere(true);
-    void setComposeAt(scheduledAt);
+    setScheduledAtHere(scheduledAt);
   }
 
   return (
     <SocialComposeContext
       value={{
-        open: openedHere || compose === "new",
-        scheduledAt:
-          composeAt && SCHEDULE_VALUE.test(composeAt) ? composeAt : null,
+        open: openedHere || params.compose === "new",
+        scheduledAt: scheduledAtHere ?? params.composeAt,
         setOpen,
         openAt,
       }}

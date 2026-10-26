@@ -3,7 +3,7 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
@@ -20,22 +20,36 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 interface FullCalendarProps {
+  dateClick?: (info: { date: Date; allDay: boolean }) => void;
   eventContent?: (info: {
     event: { id: string; title: string; start?: Date | null };
   }) => ReactNode;
   events?: Array<{ id: string; title: string; start: string }>;
+  initialView?: string;
+  slotMaxTime?: string;
+  slotMinTime?: string;
 }
 
 const {
+  compose,
   filterDropdownMenuMock,
   fullCalendarMock,
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
 } = vi.hoisted(() => ({
+  compose: { current: null as null | { openAt: ReturnType<typeof vi.fn> } },
   filterDropdownMenuMock: vi.fn(),
   fullCalendarMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
+}));
+
+vi.mock("@/app/social/components/social-compose-context", () => ({
+  useSocialCompose: () => compose.current,
+}));
+
+vi.mock("@/lib/actions/project/action", () => ({
+  scheduleProjectSocialPost: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
@@ -62,6 +76,7 @@ vi.mock("@fullcalendar/react", () => ({
 vi.mock("@fullcalendar/react/daygrid", () => ({ default: {} }));
 vi.mock("@fullcalendar/react/interaction", () => ({ default: {} }));
 vi.mock("@fullcalendar/react/list", () => ({ default: {} }));
+vi.mock("@fullcalendar/react/timegrid", () => ({ default: {} }));
 vi.mock("@fullcalendar/react/themes/classic", () => ({ default: {} }));
 
 vi.mock("next-intl", async () => {
@@ -195,6 +210,10 @@ function renderedEventTitles(): string[] {
   return (props.events ?? []).map((event) => event.title);
 }
 
+function lastCalendarProps(): FullCalendarProps {
+  return fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps;
+}
+
 function filterSectionIds(): string[] {
   const props = filterDropdownMenuMock.mock.lastCall?.[0] as {
     sections: { id: string }[];
@@ -205,6 +224,7 @@ function filterSectionIds(): string[] {
 describe("WorkspaceCalendar Social-only view", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    compose.current = null;
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [],
       meta: { pagination: { nextCursor: null } },
@@ -387,16 +407,23 @@ describe("WorkspaceCalendar Social-only view", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("opens on the month, not the workspace calendar's week", () => {
+    it("opens on the week timeline on a desktop", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
         "?timezone=UTC",
       );
 
-      expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
+      expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
+      expect(lastCalendarProps().initialView).toBe("timeGridWeek");
     });
 
-    it("opens on a day grid with the chosen day's posts on a phone, not a sideways grid", async () => {
+    it("keeps the workspace calendar's week a day grid", () => {
+      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=week");
+
+      expect(lastCalendarProps().initialView).toBe("dayGridWeek");
+    });
+
+    it("opens on the list on a phone", async () => {
       const mediaQuery = {
         matches: true,
         media: "(max-width: 767px)",
@@ -420,45 +447,33 @@ describe("WorkspaceCalendar Social-only view", () => {
         );
 
         await waitFor(() =>
-          expect(screen.getByTestId("calendar-month")).toBeInTheDocument(),
+          expect(screen.getByTestId("calendar-list")).toBeInTheDocument(),
         );
         expect(screen.queryByTestId("calendar-agenda")).not.toBeInTheDocument();
-        expect(fullCalendarMock).not.toHaveBeenCalled();
-        // January 2030 starts on a Tuesday: five weeks of seven days.
-        expect(screen.getAllByTestId("calendar-mobile-day")).toHaveLength(35);
-        expect(screen.getByTestId("calendar-day-list")).toHaveTextContent(
-          "dayEmpty",
-        );
-
-        await userEvent.click(
-          screen.getByRole("button", {
-            name: "Thursday, January 3, dayCount",
-          }),
-        );
-        expect(
-          screen.getByRole("button", {
-            name: "Thursday, January 3, dayCount",
-          }),
-        ).toHaveAttribute("aria-pressed", "true");
-        expect(screen.getByTestId("calendar-day-list")).toHaveTextContent(
-          "Launch news",
-        );
       } finally {
         vi.unstubAllGlobals();
       }
     });
 
-    it("offers month and week, and no agenda list", () => {
+    it("offers list, week and month, and opens an old agenda link on the list", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
         "?timezone=UTC&view=agenda",
       );
 
-      expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
+      expect(screen.getByTestId("calendar-list")).toBeInTheDocument();
       expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-        "view.month",
+        "view.list",
         "view.week",
+        "view.month",
       ]);
+    });
+
+    it("ignores a list view on the workspace calendar", () => {
+      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=list");
+
+      expect(screen.queryByTestId("calendar-list")).not.toBeInTheDocument();
+      expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
     it("gives the view tabs and filters 44px phone targets", () => {
@@ -519,7 +534,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
-    it("draws the week as rich chips: account, words, media and status", () => {
+    it("places week posts on the timeline with their words and a square preview", () => {
       renderCalendar(
         {
           includeSocialPosts: true,
@@ -539,55 +554,29 @@ describe("WorkspaceCalendar Social-only view", () => {
       );
 
       const chip = screen.getByTestId("calendar-social-post");
-      expect(chip).toHaveAttribute("data-density", "week");
       expect(chip).toHaveTextContent("Launch news");
       expect(chip).toHaveTextContent("@team");
-      expect(chip).toHaveTextContent("Release planning");
+      expect(chip).not.toHaveTextContent("compactLabel");
       expect(
         screen.getByTestId("calendar-social-post-thumb"),
       ).toBeInTheDocument();
       expect(
-        screen.getByTestId("social-post-status-SCHEDULED"),
+        screen.getByTestId("social-post-provider-icon"),
       ).toBeInTheDocument();
     });
 
-    it("lets the week fill the screen and keeps every post of a day", () => {
+    it("leaves a text-only week post without a media tile", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
         "?timezone=UTC&view=week",
       );
 
-      expect(fullCalendarMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({ dayMaxEvents: false }),
+      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
+        "Launch news",
       );
-    });
-
-    it("shows three posts a day on the month, then a +N more", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=month",
-      );
-
-      const props = fullCalendarMock.mock.lastCall?.[0] as {
-        dayMaxEvents: number;
-        moreLinkContent: (info: { num: number }) => string;
-        moreLinkHint: (num: number) => string;
-      };
-      expect(props.dayMaxEvents).toBe(3);
-      expect(props.moreLinkContent({ num: 2 })).toBe("socialPost.more");
-      expect(props.moreLinkHint(2)).toBe("socialPost.moreHint");
-      expect(screen.getByTestId("calendar-social-post")).toHaveAttribute(
-        "data-density",
-        "month",
-      );
-    });
-
-    it("leaves the workspace calendar's day cells alone", () => {
-      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=month");
-
-      const props = fullCalendarMock.mock.lastCall?.[0] as object;
-      expect(props).not.toHaveProperty("dayMaxEvents");
-      expect(props).not.toHaveProperty("dayCellTopContent");
+      expect(
+        screen.queryByTestId("calendar-social-post-thumb"),
+      ).not.toBeInTheDocument();
     });
 
     it("leaves mixed week posts as one line without a media tile", () => {
@@ -636,6 +625,153 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(
         screen.queryByRole("link", { name: /schedules\.link/ }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Social's schedule", () => {
+    const social = { includeSocialPosts: true, socialPostsOnly: true };
+
+    it("lists every day of the week, each post under its day in the calendar's zone", () => {
+      renderCalendar(
+        {
+          ...social,
+          items: [
+            // 02:00 UTC on the 3rd is still the evening of the 2nd in LA.
+            { ...POST, scheduledAt: new Date("2030-01-03T02:00:00.000Z") },
+          ],
+        },
+        "?timezone=America/Los_Angeles&view=list&date=2030-01-03",
+      );
+
+      const list = screen.getByTestId("calendar-list");
+      expect(within(list).getAllByRole("region")).toHaveLength(7);
+      const day = screen.getByTestId("calendar-list-day-2030-01-02");
+      expect(within(day).getByTestId("calendar-list-row")).toHaveTextContent(
+        "Launch news",
+      );
+      expect(
+        screen.getByTestId("calendar-list-day-2030-01-03"),
+      ).toHaveTextContent("list.empty");
+    });
+
+    it("offers Reschedule on posts that can move, and opens the time dialog", async () => {
+      const user = userEvent.setup();
+      renderCalendar(
+        {
+          ...social,
+          items: [
+            POST,
+            {
+              ...POST,
+              id: "social:published",
+              postId: "published",
+              status: "PUBLISHED",
+              text: "Old news",
+            },
+          ],
+        },
+        "?timezone=UTC&view=list&date=2030-01-03",
+      );
+
+      const buttons = screen.getAllByRole("button", {
+        name: "list.reschedule",
+      });
+      expect(buttons).toHaveLength(1);
+      await user.click(buttons[0]);
+
+      expect(
+        screen.getByRole("dialog", { name: "socialMove.title" }),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText("socialMove.label")).toHaveValue(
+        "2030-01-03T09:00",
+      );
+    });
+
+    it("starts a post on a day of the list at 9:00 in the calendar's zone", async () => {
+      const user = userEvent.setup();
+      compose.current = { openAt: vi.fn() };
+      renderCalendar(
+        { ...social, items: [] },
+        "?timezone=Europe/Prague&view=list&date=2030-01-03",
+      );
+
+      const day = screen.getByTestId("calendar-list-day-2030-01-04");
+      await user.click(
+        within(day).getByRole("button", { name: "list.createOn" }),
+      );
+
+      expect(compose.current.openAt).toHaveBeenCalledWith(
+        new Date("2030-01-04T08:00:00.000Z"),
+      );
+    });
+
+    it("offers no Add post where no composer can open", () => {
+      renderCalendar(
+        { ...social, items: [] },
+        "?timezone=UTC&view=list&date=2030-01-03",
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "list.createOn" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("starts a post at the timeline slot, or the morning of a month day", () => {
+      compose.current = { openAt: vi.fn() };
+      renderCalendar(social, "?timezone=UTC&view=week&date=2030-01-03");
+
+      act(() =>
+        lastCalendarProps().dateClick?.({
+          date: new Date("2030-01-03T14:00:00.000Z"),
+          allDay: false,
+        }),
+      );
+      expect(compose.current.openAt).toHaveBeenLastCalledWith(
+        new Date("2030-01-03T14:00:00.000Z"),
+      );
+
+      renderCalendar(social, "?timezone=UTC&view=month&date=2030-01-03");
+      act(() =>
+        lastCalendarProps().dateClick?.({
+          date: new Date("2030-01-05T00:00:00.000Z"),
+          allDay: true,
+        }),
+      );
+      expect(compose.current.openAt).toHaveBeenLastCalledWith(
+        new Date("2030-01-05T09:00:00.000Z"),
+      );
+    });
+
+    it("widens the timeline to hold an early post", () => {
+      renderCalendar(
+        {
+          ...social,
+          items: [
+            { ...POST, scheduledAt: new Date("2030-01-03T04:00:00.000Z") },
+          ],
+        },
+        "?timezone=UTC&view=week",
+      );
+
+      expect(lastCalendarProps()).toMatchObject({
+        slotMinTime: "04:00:00",
+        slotMaxTime: "22:00:00",
+      });
+    });
+
+    it("drops the repeated project name once the calendar is locked to it", () => {
+      renderCalendar(social, "?timezone=UTC&view=month");
+      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
+        "Release planning",
+      );
+
+      renderCalendar(
+        { ...social, lockedProjectId: "project-1" },
+        "?timezone=UTC&view=month",
+      );
+      expect(
+        screen.getAllByTestId("calendar-social-post").at(-1),
+      ).not.toHaveTextContent("Release planning");
     });
   });
 });

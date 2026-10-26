@@ -106,8 +106,8 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
-      /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
-      scheduledAt?: string;
+      /** A time picked on the calendar, which the new post opens on. */
+      scheduledAt?: Date;
     }
   | { kind: "edit"; post: SocialPost }
   | { kind: "schedule"; post: SocialPost };
@@ -266,12 +266,11 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
-  const prefilledScheduledAt =
-    mode.kind === "create" ? (mode.scheduledAt ?? "") : "";
+  const initialScheduledAt =
+    post?.scheduledAt ??
+    (mode.kind === "create" ? mode.scheduledAt : undefined);
   const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt
-      ? toScheduleValue(post.scheduledAt)
-      : prefilledScheduledAt,
+    initialScheduledAt ? toScheduleValue(initialScheduledAt) : "",
   );
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
@@ -308,7 +307,7 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    scheduledAt: initialScheduledAt ? toScheduleValue(initialScheduledAt) : "",
     connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
   }));
 
@@ -949,7 +948,7 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== prefilledScheduledAt
+        scheduledAt !== initial.scheduledAt
       : firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||

@@ -45,8 +45,9 @@ interface SocialNewPostMenuProps {
  *
  * Writing needs a project, because a post goes out from the accounts one
  * project connected; with none in scope the menu asks for one first and
- * reopens Social there with the composer up. Soko Bot does not need one: it
- * can ask in the conversation.
+ * reopens Social there with the composer up. A post the calendar started on
+ * a picked day asks the same way and keeps that time. Soko Bot does not need
+ * one: it can ask in the conversation.
  */
 export function SocialNewPostMenu({
   project,
@@ -55,14 +56,13 @@ export function SocialNewPostMenu({
   const t = useTranslations("App.Social.newPost");
   const router = useRouter();
   const compose = useSocialCompose();
-  const [choosingProjectHere, setChoosingProjectHere] = useState(false);
-  // The calendar's day "+" asks for the composer through the same context;
-  // with no project in scope that request becomes this project pick.
-  const choosingProject =
-    choosingProjectHere || (!project && Boolean(compose?.open));
+  const [choosingHere, setChoosingHere] = useState(false);
+  // With no composer on the page, a post the calendar started is a request
+  // for a project first.
+  const choosingProject = choosingHere || (!project && Boolean(compose?.open));
 
   function setChoosingProject(open: boolean) {
-    setChoosingProjectHere(open);
+    setChoosingHere(open);
     if (!open && !project) compose?.setOpen(false);
   }
   const [isOpeningChat, startOpeningChat] = useTransition();
@@ -158,12 +158,9 @@ export function SocialNewPostMenu({
             selectedProjectId={project?.id ?? null}
             onSelect={(projectId) => {
               if (!projectId) return;
-              const query = new URLSearchParams({
-                projectId,
-                compose: "new",
-              });
+              const query = new URLSearchParams({ projectId, compose: "new" });
               if (compose?.scheduledAt) {
-                query.set("composeAt", compose.scheduledAt);
+                query.set("composeAt", compose.scheduledAt.toISOString());
               }
               router.push(`/social?${query}`);
             }}

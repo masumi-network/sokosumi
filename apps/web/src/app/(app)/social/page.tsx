@@ -30,9 +30,11 @@ import { SocialPageShell } from "./components/social-page-shell";
 export const instant = false;
 
 /**
- * Social's calendar has no agenda list, but older links (and the workspace
- * calendar's phone default) can still carry `view=agenda`; loading that
- * range would leave the month grid missing posts.
+ * Social's calendar has no upcoming-only agenda, but older links (and the
+ * workspace calendar's phone default) can still carry `view=agenda`. The
+ * calendar opens those on its list, which reads every post of the week like
+ * the grids do; the agenda range (upcoming only, paged) would leave it
+ * missing posts, so load the grids' range instead.
  */
 function withoutAgendaView<T extends { view?: string }>(query: T): T {
   return query.view === "agenda" ? { ...query, view: undefined } : query;
@@ -90,6 +92,8 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     return (
       <SocialPageShell title={t("title")}>
         <SocialCalendarPreviewProvider>
+          {/* No composer here: a post started on the calendar asks the New
+              post menu for a project, then opens in it at the picked time. */}
           <SocialComposeProvider>
             <SocialAllProjectsTabs
               actions={

@@ -45,7 +45,7 @@ const item: SocialPostCalendarItem = {
 
 function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
-  variant: "compact" | "preview" | "month" | "week" = "preview",
+  variant: "compact" | "preview" | "timeline" = "preview",
   showThumb = false,
 ) {
   return render(
@@ -69,6 +69,21 @@ describe("Social post calendar event", () => {
   beforeEach(() => {
     openPreview.current = null;
   });
+  it("names a timeline post by time, account, words and status, and marks it draggable", () => {
+    renderCard({}, "timeline");
+    const post = screen.getByRole("link", {
+      name: "12:00 PM, X · @team, Launch news, Scheduled",
+    });
+    expect(post).toHaveClass("cursor-grab");
+  });
+
+  it("does not offer a published timeline post as draggable", () => {
+    renderCard({ status: "PUBLISHED" }, "timeline");
+    expect(screen.getByTestId("calendar-social-post")).toHaveClass(
+      "cursor-pointer",
+    );
+  });
+
   it("names the compact workspace card in one phrase", () => {
     renderCard({}, "compact");
     expect(
@@ -494,106 +509,5 @@ describe("Social post calendar event", () => {
       previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
     });
     expect(screen.queryByText("1 attachment")).not.toBeInTheDocument();
-  });
-
-  describe("Social calendar chips", () => {
-    it("draws the month chip as status, platform, time and first words", () => {
-      renderCard({}, "month");
-      const chip = screen.getByTestId("calendar-social-post");
-      expect(chip).toHaveAttribute("data-density", "month");
-      expect(chip).toHaveTextContent("12:00 PMLaunch news");
-      expect(chip).not.toHaveTextContent("Launch project");
-      expect(
-        within(chip).getByTestId("social-post-status-SCHEDULED"),
-      ).toBeInTheDocument();
-      expect(
-        within(chip).getByTestId("social-post-provider-icon"),
-      ).toBeInTheDocument();
-      expect(
-        within(chip).getByTestId("calendar-social-post-rail"),
-      ).toBeInTheDocument();
-      expect(chip).toHaveAccessibleName(
-        "X · @team, 12:00 PM, Project: Launch project, Launch news, Scheduled, Scheduled by Albina, 2 attachments",
-      );
-    });
-
-    it("adds the account, project and media on the week chip", () => {
-      renderCard({ previewMedia: { fileUrl: "a.png", kind: "image" } }, "week");
-      const chip = screen.getByTestId("calendar-social-post");
-      expect(chip).toHaveTextContent("@team");
-      expect(chip).toHaveTextContent("Launch project");
-      expect(
-        within(chip).getByTestId("calendar-social-post-thumb"),
-      ).toBeInTheDocument();
-    });
-
-    it("shows a grip and a drag hint only on posts that can move", () => {
-      const { unmount } = renderCard({ status: "SCHEDULED" }, "week");
-      const movable = screen.getByTestId("calendar-social-post");
-      expect(movable).toHaveAttribute("data-movable", "true");
-      expect(movable).toHaveAccessibleDescription(
-        "Drag to another day to reschedule.",
-      );
-      expect(
-        screen.getByTestId("calendar-social-post-grip"),
-      ).toBeInTheDocument();
-      unmount();
-
-      renderCard({ status: "PUBLISHED" }, "week");
-      expect(screen.getByTestId("calendar-social-post")).not.toHaveAttribute(
-        "data-movable",
-      );
-      expect(
-        screen.queryByTestId("calendar-social-post-grip"),
-      ).not.toBeInTheDocument();
-    });
-
-    it("strikes a canceled post through and dashes its edge", () => {
-      renderCard({ status: "CANCELED" }, "month");
-      const chip = screen.getByTestId("calendar-social-post");
-      expect(chip).toHaveClass("border-dashed");
-      expect(within(chip).getByText("Launch news")).toHaveClass("line-through");
-    });
-
-    it.each([
-      ["FAILED", "Failed"],
-      ["MISSED", "Missed"],
-      ["NEEDS_APPROVAL", "Needs approval"],
-    ] as const)(
-      "names a %s post in words on the week, and by glyph on the month",
-      (status, word) => {
-        const { unmount } = renderCard({ status }, "week");
-        expect(
-          screen.getByTestId(`social-post-status-${status}`),
-        ).toHaveTextContent(word);
-        unmount();
-
-        renderCard({ status }, "month");
-        expect(
-          screen.getByTestId(`social-post-status-${status}`),
-        ).toHaveAccessibleName(word);
-      },
-    );
-
-    it("keeps a published week chip to the glyph", () => {
-      renderCard({ status: "PUBLISHED" }, "week");
-      expect(
-        screen.getByTestId("social-post-status-PUBLISHED"),
-      ).toHaveAccessibleName("Published");
-      expect(
-        screen.getByTestId("social-post-status-PUBLISHED"),
-      ).not.toHaveTextContent("Published");
-    });
-
-    it("opens the in-place preview from a chip", () => {
-      openPreview.current = vi.fn();
-      renderCard({}, "month");
-      fireEvent.click(screen.getByTestId("calendar-social-post"));
-      expect(openPreview.current).toHaveBeenCalledWith(
-        "project",
-        "post",
-        screen.getByTestId("calendar-social-post"),
-      );
-    });
   });
 });

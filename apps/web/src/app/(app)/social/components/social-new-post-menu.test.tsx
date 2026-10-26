@@ -7,8 +7,7 @@ import messages from "@/../messages/en.json";
 const mocks = vi.hoisted(() => ({
   setOpen: vi.fn(),
   push: vi.fn(),
-  compose: { open: false, scheduledAt: null as string | null },
-  onSelect: { current: null as null | ((projectId: string) => void) },
+  compose: { open: false, scheduledAt: null as Date | null },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -24,10 +23,15 @@ vi.mock("@/app/chat/actions", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
-  ProjectScopeMenu: (props: { onSelect: (projectId: string) => void }) => {
-    mocks.onSelect.current = props.onSelect;
-    return <div data-testid="project-scope-menu" />;
-  },
+  ProjectScopeMenu: ({ onSelect }: { onSelect: (id: string) => void }) => (
+    <button
+      data-testid="project-scope-menu"
+      onClick={() => onSelect("p2")}
+      type="button"
+    >
+      Pick p2
+    </button>
+  ),
 }));
 
 import { SocialNewPostMenu } from "./social-new-post-menu";
@@ -66,22 +70,25 @@ describe("SocialNewPostMenu", () => {
     ).toHaveClass("min-h-11");
   });
 
-  it("turns a calendar day's request into a project pick that keeps the day", async () => {
+  it("asks for a project for a post the calendar started, and keeps its time", async () => {
     const user = userEvent.setup();
-    mocks.compose = { open: true, scheduledAt: "2030-01-16T09:00" };
+    mocks.compose = {
+      open: true,
+      scheduledAt: new Date("2030-01-03T09:00:00.000Z"),
+    };
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
         <SocialNewPostMenu project={null} sokoBotId="bot-1" />
       </NextIntlClientProvider>,
     );
 
-    expect(screen.getByTestId("project-scope-menu")).toBeInTheDocument();
-    mocks.onSelect.current?.("p2");
-    expect(mocks.push).toHaveBeenCalledWith(
-      "/social?projectId=p2&compose=new&composeAt=2030-01-16T09%3A00",
-    );
+    expect(
+      screen.getByRole("dialog", { name: "Choose a project for this post" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByTestId("project-scope-menu"));
 
-    await user.keyboard("{Escape}");
-    expect(mocks.setOpen).toHaveBeenCalledWith(false);
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/social?projectId=p2&compose=new&composeAt=2030-01-03T09%3A00%3A00.000Z",
+    );
   });
 });

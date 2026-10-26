@@ -2,15 +2,12 @@
 
 import type { SocialPostCalendarItem } from "@sokosumi/core-client";
 import { socialPostProviderLabel } from "@sokosumi/utils";
-import { GripVertical, Paperclip, Play } from "lucide-react";
+import { Paperclip, Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId } from "react";
+import type { ReactNode } from "react";
 import { publishFailureCopy } from "@/app/projects/components/social-posts/social-post-publish-failure";
-import {
-  SocialPostStatusBadge,
-  socialPostStatusTone,
-} from "@/app/projects/components/social-posts/social-post-status-badge";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostStatusReasonTooltip } from "@/app/projects/components/social-posts/social-post-status-reason-tooltip";
 import { useSocialCalendarPreview } from "@/app/social/components/social-calendar-preview";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
@@ -20,7 +17,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { getToneStyle } from "@/components/ui/status-marker";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { cn } from "@/lib/utils";
 import { isChangeableSocialPost } from "./social-post-change";
@@ -35,7 +31,7 @@ function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
   );
 }
 
-function CalendarSocialPostStatus({
+export function CalendarSocialPostStatus({
   item,
   showLabel,
   className,
@@ -80,7 +76,7 @@ function socialPostHref(item: SocialPostCalendarItem): string {
   return `/social?${query}#social-post-${encodeURIComponent(item.postId)}`;
 }
 
-function formatHandle(handle: string | null): string | null {
+export function formatHandle(handle: string | null): string | null {
   if (!handle) return null;
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
@@ -88,32 +84,29 @@ function formatHandle(handle: string | null): string | null {
 /**
  * A Social post on a calendar.
  *
- * `month` and `week` are the chips Social's own calendar draws: one shape in
- * both views, a single line on the month and the same line with the post's
- * words, account and media on the week. `preview` is the feed-like card.
- * `compact` is the one line the workspace Calendar draws among task runs
- * ("X post with video"); pressing it expands the preview card in a popover.
+ * `preview` is the feed-like card Social's own calendar draws on the month.
+ * `timeline` is the block Social's week timeline places at its hour: time,
+ * account, status and the opening words of the post. `compact` is the one
+ * line the workspace Calendar draws among task runs ("X post with video");
+ * pressing it expands the same preview card in a popover.
  */
 export function SocialPostCalendarEvent({
   item,
   timeZone,
   variant = "preview",
   showThumb = false,
+  showProject = true,
 }: {
   item: SocialPostCalendarItem;
   timeZone: string;
-  variant?: "compact" | "preview" | "month" | "week";
-  /** Square media preview on a compact chip. Workspace compact stays one line. */
+  variant?: "compact" | "preview" | "timeline";
+  /** Square media preview on Social's week chips. Workspace compact stays one line. */
   showThumb?: boolean;
+  /** A calendar locked to one project need not repeat its name on every card. */
+  showProject?: boolean;
 }) {
-  if (variant === "month" || variant === "week") {
-    return (
-      <SocialPostCalendarChip
-        density={variant}
-        item={item}
-        timeZone={timeZone}
-      />
-    );
+  if (variant === "timeline") {
+    return <TimelineSocialPostCalendarEvent item={item} timeZone={timeZone} />;
   }
   if (variant === "compact") {
     return (
@@ -124,7 +117,122 @@ export function SocialPostCalendarEvent({
       />
     );
   }
-  return <SocialPostPreviewCard item={item} timeZone={timeZone} />;
+  return (
+    <SocialPostPreviewCard
+      item={item}
+      showProject={showProject}
+      timeZone={timeZone}
+    />
+  );
+}
+
+/**
+ * Opens the post: the in-place preview on Social, its list entry elsewhere.
+ * Shared by every Social post surface on the calendar so they open alike.
+ */
+export function SocialPostOpenTarget({
+  accessibleName,
+  children,
+  className,
+  item,
+}: {
+  accessibleName: string;
+  children: ReactNode;
+  className?: string;
+  item: SocialPostCalendarItem;
+}) {
+  const openPreview = useSocialCalendarPreview();
+  return openPreview ? (
+    <button
+      type="button"
+      aria-label={accessibleName}
+      className={className}
+      data-testid="calendar-social-post"
+      onClick={(event) =>
+        openPreview(item.sourceProjectId, item.postId, event.currentTarget)
+      }
+    >
+      {children}
+    </button>
+  ) : (
+    <Link
+      href={socialPostHref(item)}
+      aria-label={accessibleName}
+      className={className}
+      data-testid="calendar-social-post"
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** A post that can be dragged says so to the pointer before the drag starts. */
+function dragCursorClass(item: SocialPostCalendarItem): string {
+  return isChangeableSocialPost(item)
+    ? "cursor-grab active:cursor-grabbing"
+    : "cursor-pointer";
+}
+
+/**
+ * One post on the week timeline. The slot already says the hour, so the block
+ * spends its room on what the post says: the opening words, under a line with
+ * the exact time, the account and a status mark that is named for readers.
+ */
+function TimelineSocialPostCalendarEvent({
+  item,
+  timeZone,
+}: {
+  item: SocialPostCalendarItem;
+  timeZone: string;
+}) {
+  const t = useTranslations("App.Calendar.socialPost");
+  const formatter = useFormatter();
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
+  const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
+  const providerLabel = socialPostProviderLabel(item.provider);
+  const handle = formatHandle(item.externalHandle);
+  const text = item.text || t("mediaOnly");
+  const accessibleName = [
+    time,
+    handle ? `${providerLabel} · ${handle}` : providerLabel,
+    text,
+    statuses(item.status),
+  ].join(", ");
+  return (
+    <SocialPostOpenTarget
+      accessibleName={accessibleName}
+      className={cn(
+        "@container bg-background text-foreground press hover:bg-muted border-border flex size-full min-w-0 select-none items-start gap-1 overflow-hidden rounded-md border p-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+        dragCursorClass(item),
+      )}
+      item={item}
+    >
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex min-w-0 items-center gap-1">
+          <SocialPostProviderIcon
+            aria-hidden
+            className="size-3 shrink-0"
+            provider={item.provider}
+          />
+          <span className="shrink-0 tabular-nums">{time}</span>
+          <span className="text-muted-foreground min-w-0 flex-1 truncate">
+            {handle}
+          </span>
+          <CalendarSocialPostStatus
+            className="size-4"
+            item={item}
+            showLabel={false}
+          />
+        </span>
+        <span className="line-clamp-2 min-w-0 break-words font-normal">
+          {text}
+        </span>
+      </span>
+      {item.previewMedia ? (
+        <CompactSocialPostThumb media={item.previewMedia} />
+      ) : null}
+    </SocialPostOpenTarget>
+  );
 }
 
 function CompactSocialPostCalendarEvent({
@@ -219,18 +327,39 @@ function CompactSocialPostCalendarEvent({
 
 function SocialPostPreviewCard({
   item,
+  showProject = true,
   timeZone,
 }: {
   item: SocialPostCalendarItem;
+  showProject?: boolean;
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
   const formatter = useFormatter();
-  const openPreview = useSocialCalendarPreview();
-  const { account, accessibleName, handle, providerLabel, scheduler } =
-    useSocialPostCalendarCopy(item, timeZone);
-  const className =
-    "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
+  const scheduler = t("scheduledBy", {
+    name: item.scheduledByName ?? t("unknownScheduler"),
+  });
+  const providerLabel = socialPostProviderLabel(item.provider);
+  const handle = formatHandle(item.externalHandle);
+  const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
+  const className = cn(
+    "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo",
+    dragCursorClass(item),
+  );
+  const accessibleName = [
+    account,
+    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
+    showProject ? t("project", { name: item.projectName }) : null,
+    item.text || t("mediaOnly"),
+    statuses(item.status),
+    scheduler,
+    item.attachmentCount > 1
+      ? t("attachments", { count: item.attachmentCount })
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(", ");
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -252,13 +381,15 @@ function SocialPostPreviewCard({
           {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
         </span>
       </span>
-      <span
-        className="text-muted-foreground w-full min-w-0 truncate font-normal"
-        title={t("project", { name: item.projectName })}
-      >
-        <span className="sr-only">{t("projectLabel")}</span>
-        {item.projectName}
-      </span>
+      {showProject ? (
+        <span
+          className="text-muted-foreground w-full min-w-0 truncate font-normal"
+          title={t("project", { name: item.projectName })}
+        >
+          <span className="sr-only">{t("projectLabel")}</span>
+          {item.projectName}
+        </span>
+      ) : null}
       {item.previewMedia ? (
         <SocialPostCalendarPreview media={item.previewMedia} />
       ) : null}
@@ -291,246 +422,31 @@ function SocialPostPreviewCard({
       </span>
     </>
   );
-  return openPreview ? (
-    <button
-      type="button"
-      aria-label={accessibleName}
-      className={className}
-      data-testid="calendar-social-post"
-      onClick={(event) =>
-        openPreview(item.sourceProjectId, item.postId, event.currentTarget)
-      }
-    >
-      {content}
-    </button>
-  ) : (
-    <Link
-      href={socialPostHref(item)}
-      aria-label={accessibleName}
-      className={className}
-      data-testid="calendar-social-post"
-    >
-      {content}
-    </Link>
-  );
-}
-
-/** The words every Social calendar card says about a post, aloud and on screen. */
-function useSocialPostCalendarCopy(
-  item: SocialPostCalendarItem,
-  timeZone: string,
-) {
-  const t = useTranslations("App.Calendar.socialPost");
-  const formatter = useFormatter();
-  const statuses = useTranslations("App.Projects.SocialPosts.status");
-  const scheduler = t("scheduledBy", {
-    name: item.scheduledByName ?? t("unknownScheduler"),
-  });
-  const providerLabel = socialPostProviderLabel(item.provider);
-  const handle = formatHandle(item.externalHandle);
-  const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
-  const accessibleName = [
-    account,
-    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
-    t("project", { name: item.projectName }),
-    item.text || t("mediaOnly"),
-    statuses(item.status),
-    scheduler,
-    item.attachmentCount > 1
-      ? t("attachments", { count: item.attachmentCount })
-      : null,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(", ");
-  return { account, accessibleName, handle, providerLabel, scheduler };
-}
-
-/**
- * How a chip says its status without leaning on hue: the glyph is always
- * there, a post someone still has to finish has a dashed edge, a canceled one
- * is struck through, and a post that needs the reader names its status in
- * words on the week.
- */
-const DASHED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
-  "DRAFT",
-  "NEEDS_APPROVAL",
-  "CANCELED",
-]);
-const WORDED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
-  "FAILED",
-  "MISSED",
-  "NEEDS_APPROVAL",
-  "PUBLISHING",
-  "CANCELED",
-  "DRAFT",
-]);
-
-/**
- * Social's calendar chip, one shape for the month and the week.
- *
- * A status rail and glyph lead, then the platform, the time and the post's
- * first words. The week adds the account, a few lines of text, the media
- * thumb and the status word. A post that can still move carries a grip and
- * says so to assistive tech; the drag itself stays FullCalendar's.
- */
-function SocialPostCalendarChip({
-  density,
-  item,
-  timeZone,
-}: {
-  density: "month" | "week";
-  item: SocialPostCalendarItem;
-  timeZone: string;
-}) {
-  const t = useTranslations("App.Calendar.socialPost");
-  const formatter = useFormatter();
-  const openPreview = useSocialCalendarPreview();
-  const dragHintId = useId();
-  const { account, accessibleName, handle, providerLabel } =
-    useSocialPostCalendarCopy(item, timeZone);
-  const movable = isChangeableSocialPost(item);
-  const tone = getToneStyle(socialPostStatusTone(item.status));
-  const week = density === "week";
-  const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
-  const className = cn(
-    "group/chip bg-background text-foreground press hover:bg-muted border-border relative flex w-full min-w-0 select-none overflow-hidden rounded-md border text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
-    week
-      ? "flex-col gap-1 py-1.5 ps-2.5 pe-1.5"
-      : "items-center gap-1 py-0.5 ps-2 pe-1",
-    DASHED_STATUSES.has(item.status) && "border-dashed",
-    movable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-  );
-  const rail = (
-    <span
-      aria-hidden
-      className={cn(
-        "absolute inset-y-1 start-0.5 w-0.5 rounded-full",
-        tone.dot,
-      )}
-      data-testid="calendar-social-post-rail"
-    />
-  );
-  const grip = movable ? (
-    <GripVertical
-      aria-hidden
-      className={cn(
-        "text-muted-foreground size-3 shrink-0",
-        // The month has no room to spare: the grip shows when it is wanted.
-        !week && "hidden group-hover/chip:block group-focus-visible/chip:block",
-      )}
-      data-testid="calendar-social-post-grip"
-    />
-  ) : null;
-  const text = (
-    <span
-      className={cn(
-        "min-w-0 font-normal",
-        week ? "line-clamp-3 break-words" : "flex-1 truncate",
-        item.status === "CANCELED" && "text-muted-foreground line-through",
-      )}
-    >
-      {item.text || t("mediaOnly")}
-    </span>
-  );
-  const content = week ? (
-    <>
-      {rail}
-      <span className="flex w-full min-w-0 items-center gap-1.5">
-        <AccountChipMark avatarUrl={item.avatarUrl} provider={item.provider} />
-        <span className="min-w-0 flex-1 truncate" title={account}>
-          {handle ?? providerLabel}
-        </span>
-        <span className="text-muted-foreground shrink-0 tabular-nums">
-          {time}
-        </span>
-      </span>
-      <span className="flex w-full min-w-0 items-start gap-1.5">
-        <span className="flex min-w-0 flex-1">{text}</span>
-        {item.previewMedia ? (
-          <CompactSocialPostThumb media={item.previewMedia} />
-        ) : null}
-      </span>
-      <span className="flex w-full min-w-0 items-center gap-1">
-        <CalendarSocialPostStatus
-          className={
-            WORDED_STATUSES.has(item.status) ? "px-1.5 py-0.5" : "size-5"
-          }
-          item={item}
-          showLabel={WORDED_STATUSES.has(item.status)}
-        />
-        <span
-          className="text-muted-foreground min-w-0 flex-1 truncate font-normal"
-          title={t("project", { name: item.projectName })}
-        >
-          {item.projectName}
-        </span>
-        {grip}
-      </span>
-    </>
-  ) : (
-    <>
-      {rail}
-      <CalendarSocialPostStatus
-        className="size-4 rounded-full"
-        item={item}
-        showLabel={false}
-      />
-      <SocialPostProviderIcon
-        aria-hidden
-        className="size-3 shrink-0"
-        provider={item.provider}
-      />
-      <span className="text-muted-foreground shrink-0 tabular-nums">
-        {time}
-      </span>
-      {text}
-      {grip}
-    </>
-  );
-  const shared = {
-    "aria-describedby": movable ? dragHintId : undefined,
-    "aria-label": accessibleName,
-    className,
-    "data-density": density,
-    "data-movable": movable ? "true" : undefined,
-    "data-status": item.status,
-    "data-testid": "calendar-social-post",
-  };
   return (
-    <>
-      {openPreview ? (
-        <button
-          type="button"
-          {...shared}
-          onClick={(event) =>
-            openPreview(item.sourceProjectId, item.postId, event.currentTarget)
-          }
-        >
-          {content}
-        </button>
-      ) : (
-        <Link href={socialPostHref(item)} {...shared}>
-          {content}
-        </Link>
-      )}
-      {movable ? (
-        <span className="sr-only" id={dragHintId}>
-          {t("dragHint")}
-        </span>
-      ) : null}
-    </>
+    <SocialPostOpenTarget
+      accessibleName={accessibleName}
+      className={className}
+      item={item}
+    >
+      {content}
+    </SocialPostOpenTarget>
   );
 }
 
 /** Square first-frame on a week chip. Absent when the post has no media. */
-function CompactSocialPostThumb({
+export function CompactSocialPostThumb({
+  className,
   media,
 }: {
+  className?: string;
   media: NonNullable<SocialPostCalendarItem["previewMedia"]>;
 }) {
   return (
     <span
-      className="bg-muted border-border relative size-7 shrink-0 overflow-hidden rounded-md border @max-[6.875rem]:hidden"
+      className={cn(
+        "bg-muted border-border relative size-7 shrink-0 overflow-hidden rounded-md border @max-[6.875rem]:hidden",
+        className,
+      )}
       data-testid="calendar-social-post-thumb"
     >
       <span aria-hidden className="absolute inset-0">

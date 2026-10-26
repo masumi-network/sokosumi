@@ -8538,6 +8538,7 @@
       "next": "Periodo siguiente",
       "today": "Hoy",
       "view": {
+        "list": "Lista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"
@@ -8566,6 +8567,17 @@
         "confirm": "Mover ejecución",
         "cancel": "Cancelar",
         "invalid": "Elige una fecha y una hora válidas."
+      },
+      "socialMove": {
+        "title": "Reprogramar publicación",
+        "description": "Elige una nueva hora. Las horas están en {zone}.",
+        "label": "Nueva hora",
+        "confirm": "Reprogramar",
+        "cancel": "Cancelar",
+        "invalid": "Elige una fecha y una hora válidas.",
+        "past": "Elige una hora en el futuro.",
+        "failed": "No se pudo reprogramar la publicación.",
+        "done": "Publicación reprogramada"
       },
       "create": {
         "fab": "Programar una tarea"
@@ -8611,6 +8623,15 @@
         "loading": "Cargando…",
         "loadMore": "Cargar más"
       },
+      "list": {
+        "today": "Hoy",
+        "empty": "Sin publicaciones",
+        "count": "{count, plural, one {# publicación} other {# publicaciones}}",
+        "create": "Añadir publicación",
+        "createOn": "Añadir una publicación el {day}",
+        "reschedule": "Reprogramar la publicación de las {time}",
+        "rescheduleHint": "Reprogramar"
+      },
       "socialPost": {
         "mediaOnly": "Publicación multimedia",
         "project": "Proyecto: {name}",
@@ -8619,14 +8640,7 @@
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
         "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}",
-        "platform": "Plataforma",
-        "more": "+{count} más",
-        "moreHint": "Mostrar {count, plural, one {# publicación más} other {# publicaciones más}} de este día",
-        "newOnDay": "Nueva publicación el {date}",
-        "newPost": "Nueva publicación",
-        "dragHint": "Arrastra a otro día para reprogramar.",
-        "dayEmpty": "No hay nada programado este día.",
-        "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}"
+        "platform": "Plataforma"
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"
