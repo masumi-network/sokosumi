@@ -76,6 +76,28 @@ describe("action lines the owner reads", () => {
     expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
   });
 
+  it.each([
+    [
+      "create_newsletter_issue",
+      "Created newsletter draft ([Open issue](/projects/{p}/newsletter/issues/issue-one)).",
+    ],
+    [
+      "update_newsletter_issue",
+      "Updated newsletter issue ([Open issue](/projects/{p}/newsletter/issues/issue-one)).",
+    ],
+    [
+      "delete_newsletter_issue",
+      "Deleted newsletter issue ([Open issues](/projects/{p}/newsletter/issues)).",
+    ],
+  ])("links a verified %s to the Newsletter", async (capability, line) => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability, targetId: "issue-one", result: { projectId } }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(line.replace("{p}", projectId));
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",
