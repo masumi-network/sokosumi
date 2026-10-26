@@ -12,6 +12,7 @@ import {
   channelInfo,
   channelKey,
   formatHasImage,
+  formatHasVideo,
   formatName,
   GROUP_NAMES,
   OWNER_PART,
@@ -447,6 +448,9 @@ function ChannelPlan({ strategy }: { strategy: Strategy }) {
           const images = entries.some((entry) =>
             formatHasImage(channel.key, entry.format),
           );
+          const videos = entries.some((entry) =>
+            formatHasVideo(channel.key, entry.format),
+          );
           return (
             <li key={channel.key} className="cw-card">
               <div className="cw-head">
@@ -469,6 +473,9 @@ function ChannelPlan({ strategy }: { strategy: Strategy }) {
                     .join(", ")}
                   {images ? (
                     <span className="cw-images">Images by Cuso</span>
+                  ) : null}
+                  {videos ? (
+                    <span className="cw-images">Videos by Cuso</span>
                   ) : null}
                 </p>
               ) : null}

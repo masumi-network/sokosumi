@@ -35,6 +35,14 @@ export function formatName(channel: string, format: string): string {
   return known ?? format.charAt(0).toUpperCase() + format.slice(1);
 }
 
+/** Whether this piece is a video Cuso makes. */
+export function formatHasVideo(channel: string, format: string): boolean {
+  const formats = channelInfo(channel)?.formats as
+    | Record<string, { video?: boolean }>
+    | undefined;
+  return formats?.[format.trim().toLowerCase()]?.video ?? false;
+}
+
 /** Whether Cuso makes the image for this piece. */
 export function formatHasImage(channel: string, format: string): boolean {
   const formats = channelInfo(channel)?.formats as

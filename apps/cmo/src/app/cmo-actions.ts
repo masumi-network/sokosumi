@@ -304,7 +304,7 @@ async function callbackUrl(): Promise<string> {
 
 /** Starts connecting a network; the browser goes to the returned URL. */
 export async function connectChannel(
-  provider: "x" | "linkedin" | "instagram" | "facebook",
+  provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoChannel({

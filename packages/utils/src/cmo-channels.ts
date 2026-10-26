@@ -25,6 +25,12 @@ export const CMO_CHANNELS = {
         what: "Two to four images that tell one story",
         image: true,
       },
+      video: {
+        name: "Short video",
+        what: "A vertical 10 to 15 second video Cuso makes, with a caption",
+        image: false,
+        video: true,
+      },
     },
   },
   x: {
@@ -66,6 +72,12 @@ export const CMO_CHANNELS = {
         what: "A post that sends people to your site",
         image: true,
       },
+      reel: {
+        name: "Reel",
+        what: "A vertical 10 to 15 second video Cuso makes",
+        image: false,
+        video: true,
+      },
     },
   },
   instagram: {
@@ -84,6 +96,26 @@ export const CMO_CHANNELS = {
         what: "A branded card with one line people save and share",
         image: true,
       },
+      reel: {
+        name: "Reel",
+        what: "A vertical 10 to 15 second video Cuso makes",
+        image: false,
+        video: true,
+      },
+    },
+  },
+  youtube: {
+    name: "YouTube",
+    group: "social",
+    status: "live",
+    owner: "connect",
+    formats: {
+      short: {
+        name: "YouTube Short",
+        what: "A vertical 10 to 15 second video Cuso makes, with a title",
+        image: false,
+        video: true,
+      },
     },
   },
   tiktok: {
@@ -92,7 +124,12 @@ export const CMO_CHANNELS = {
     status: "soon",
     owner: "connect",
     formats: {
-      video: { name: "Short video", what: "Coming soon", image: false },
+      video: {
+        name: "Short video",
+        what: "Coming soon",
+        image: false,
+        video: true,
+      },
     },
   },
   meta_ads: {
@@ -170,7 +207,10 @@ export const CMO_CHANNELS = {
     status: "live" | "soon";
     /** What the owner does: connect the account, connect an ad account, add a mailing list, or publish SEO changes. */
     owner: "connect" | "ad_account" | "mailing_list" | "publish";
-    formats: Record<string, { name: string; what: string; image: boolean }>;
+    formats: Record<
+      string,
+      { name: string; what: string; image: boolean; video?: boolean }
+    >;
   }
 >;
 export type CmoChannelKey = keyof typeof CMO_CHANNELS;
@@ -228,6 +268,7 @@ export function normalizeCmoChannelFormat(
     (/thread|reply/.test(raw) && pick("reply", "post")) ||
     (/quote/.test(raw) && pick("quote_card", "image")) ||
     (/link/.test(raw) && pick("link")) ||
+    (/video|reel|short|clip/.test(raw) && pick("reel", "short", "video")) ||
     (/image|photo|graphic|visual/.test(raw) &&
       pick("image", "image_ad", "display_ad")) ||
     (/article|blog|guide/.test(raw) && pick("article")) ||

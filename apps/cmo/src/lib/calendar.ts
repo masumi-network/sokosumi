@@ -28,6 +28,7 @@ export const SOCIAL_PROVIDERS = [
   "linkedin",
   "instagram",
   "facebook",
+  "youtube",
 ] as const;
 
 /**

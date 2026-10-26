@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   AgentJobStatus,
   Channel,
+  type CmoHire,
   FileSourceKind,
   jobInclude,
   type Prisma,
@@ -13,6 +14,7 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   type ChatResultReference,
+  type CmoStrategy,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
@@ -208,6 +210,7 @@ import {
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
 import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
+import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   persistedToolResult,
@@ -256,6 +259,11 @@ import {
   saveCmoBrandBrain,
   saveCmoStrategy,
 } from "@/services/cmo.service";
+import {
+  CMO_PLAN_REVIEWS_PER_TURN,
+  cmoPlanDrift,
+  cmoPlanProblems,
+} from "@/services/cmo-plan-review.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
@@ -4192,6 +4200,44 @@ export class SokoBotRuntimeService {
   }
 
   /** Cuso's Brand Brain, strategy and reports, written to its CMO hire. */
+  /**
+   * The plan's review while it waits for approval: the strategy skill's hard
+   * rules, and whether it sells the main offer. Bounded per turn, so a plan
+   * that cannot be fixed still ends. Approved plans are the daily run's to
+   * change and are not reviewed.
+   */
+  private async reviewCmoPlan(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+    plan: {
+      hire: CmoHire;
+      strategy: CmoStrategy | null;
+      planSent: boolean;
+    },
+  ): Promise<string[]> {
+    const { hire, strategy } = plan;
+    if (!strategy || hire.strategyApprovedAt) return [];
+    const saves = await prisma.sokoBotToolCall.count({
+      where: { turnId: authorized.turn.id, capability: "save_strategy" },
+    });
+    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return [];
+    const problems = cmoPlanProblems(strategy);
+    const brain = parseCmoBrandBrain(hire.brandBrain);
+    if (plan.planSent && brain) {
+      const drift = await cmoPlanDrift({ strategy, brain, goals: hire.goals });
+      if (drift.problem) problems.push(drift.problem);
+      if (drift.costUsd > 0) {
+        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+          runtimeEvent("step.completed", {
+            modelId: SOKO_BOT_JEV_MODEL,
+            usage: { costUsd: drift.costUsd },
+          }),
+        );
+      }
+    }
+    return problems;
+  }
+
   private async saveCmoRecord(
     authorized: AuthorizedSokoBotRuntime,
     input: ExecuteSokoBotToolInput,
@@ -4223,12 +4269,17 @@ export class SokoBotRuntimeService {
           };
         }
         case "save_strategy": {
-          const saved = await saveCmoStrategy(
-            where,
-            parseCmoStrategySave(input.input),
-            { turnId: authorized.turn.id },
-          );
-          const calendar = parseCmoStrategy(saved.strategy)?.calendar ?? [];
+          const sent = parseCmoStrategySave(input.input);
+          const saved = await saveCmoStrategy(where, sent, {
+            turnId: authorized.turn.id,
+          });
+          const stored = parseCmoStrategy(saved.strategy);
+          const calendar = stored?.calendar ?? [];
+          const problems = await this.reviewCmoPlan(authorized, input, {
+            hire: saved,
+            strategy: stored,
+            planSent: sent.summary !== undefined,
+          });
           // Says which pieces still have no draft.
           const undrafted = calendar
             .filter((entry) => entry.status !== "skipped" && !entry.draft)
@@ -4244,6 +4295,12 @@ export class SokoBotRuntimeService {
               drafted: calendar.filter((entry) => entry.draft).length,
               undrafted: undrafted.length,
               firstUndrafted: undrafted[0],
+              ...(problems.length > 0
+                ? {
+                    problems,
+                    next: "Fix these and save again: part plan for the strategy, part calendar for the calendar.",
+                  }
+                : {}),
             },
           };
         }

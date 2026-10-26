@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { useEffect } from "react";
 
 import { channelLabel, formatDay } from "../lib/calendar";
-import { formatHasImage, formatName } from "../lib/channels";
+import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
 import { ChannelIcon } from "./channel-icon";
 import { DraftText } from "./draft-text";
 import { withoutLabel } from "./showcases";
@@ -56,9 +56,11 @@ export function EntrySheet({
           <span>
             {channelLabel(entry.channel)} ·{" "}
             {formatName(entry.channel, entry.format)}
-            {formatHasImage(entry.channel, entry.format)
-              ? " · image by Cuso"
-              : ""}
+            {formatHasVideo(entry.channel, entry.format)
+              ? " · video by Cuso"
+              : formatHasImage(entry.channel, entry.format)
+                ? " · image by Cuso"
+                : ""}
           </span>
           <button
             type="button"

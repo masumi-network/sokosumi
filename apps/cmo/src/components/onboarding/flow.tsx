@@ -44,7 +44,7 @@ export interface OnboardingActions {
     text: string,
   ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   connectChannel: (
-    provider: "x" | "linkedin" | "instagram" | "facebook",
+    provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
   ) => Promise<{ url: string | null; error: string | null }>;
   completeOnboarding: () => Promise<void>;
   signOut: () => Promise<void>;

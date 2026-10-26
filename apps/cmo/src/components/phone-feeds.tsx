@@ -3,10 +3,10 @@
 import "./phone-feeds.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Play } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { channelInfo, channelKey } from "../lib/channels";
+import { channelInfo, channelKey, formatHasVideo } from "../lib/channels";
 import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
 
@@ -36,6 +36,13 @@ type Screen = {
 };
 
 const SCREENS: Omit<Screen, "entries">[] = [
+  {
+    key: "youtube",
+    name: "YouTube",
+    icon: "youtube",
+    one: "YouTube Short",
+    many: "YouTube Shorts",
+  },
   {
     key: "linkedin",
     name: "LinkedIn",
@@ -286,6 +293,18 @@ function Mockup({
 }) {
   const channel = channelKey(entry.channel) ?? entry.channel;
   const format = entry.format;
+
+  if (formatHasVideo(channel, format)) {
+    return (
+      <div className="mw-body">
+        <Author overview={overview} />
+        <span className="mw-img tall mw-video" aria-hidden="true">
+          <Play size={22} strokeWidth={1.5} />
+        </span>
+        <Lines count={1} seed={seed} />
+      </div>
+    );
+  }
 
   if (channel === "newsletter") {
     return (

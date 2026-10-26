@@ -151,7 +151,7 @@ describe("CMO strategy and rhythms", () => {
         .calendar[0]?.format,
     ).toBe("images");
     const refused = cmoSaveStrategyInputSchema.safeParse(
-      plan("youtube", "video"),
+      plan("reddit", "thread"),
     );
     expect(refused.success).toBe(false);
     expect(refused.error?.issues[0]?.message).toContain("linkedin");
@@ -159,9 +159,9 @@ describe("CMO strategy and rhythms", () => {
     withSkipped.strategy.calendar.push({
       id: "old",
       date: "2026-10-06",
-      channel: "youtube",
+      channel: "reddit",
       title: "Retired",
-      format: "video",
+      format: "thread",
       status: "skipped",
     });
     expect(cmoSaveStrategyInputSchema.safeParse(withSkipped).success).toBe(

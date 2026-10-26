@@ -150,6 +150,16 @@
   background: var(--brand-soft, var(--surface));
 }
 
+/* A video: the frame stays dark like a paused clip. */
+.mw-img.mw-video {
+  background: color-mix(
+    in srgb,
+    var(--foreground) 85%,
+    var(--brand, var(--foreground))
+  );
+  color: var(--background);
+}
+
 .mw-img.square {
   aspect-ratio: 1;
 }

@@ -10,7 +10,11 @@ import { motion } from "motion/react";
 import { useEffect, useState, useTransition } from "react";
 
 import { calendarKind, socialPostsPerWeek } from "../../lib/calendar";
-import { channelInfo, formatHasImage } from "../../lib/channels";
+import {
+  channelInfo,
+  formatHasImage,
+  formatHasVideo,
+} from "../../lib/channels";
 import { fittingMockPlan, mockPlanById } from "../../lib/mock-plans";
 import { MockPlanTable } from "../mock-plans";
 import { strategySocialChannels } from "./connect-step";
@@ -270,6 +274,13 @@ function MonthSummary({ overview }: { overview: CmoOverview }) {
       ).length,
       one: "with an image",
       many: "with images",
+    },
+    {
+      value: calendar.filter((entry) =>
+        formatHasVideo(entry.channel, entry.format),
+      ).length,
+      one: "video",
+      many: "videos",
     },
   ].filter((tile) => tile.value > 0);
   if (tiles.length === 0) return null;

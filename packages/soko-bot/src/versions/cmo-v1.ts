@@ -62,6 +62,8 @@ export const cmoV1: SokoBotVersion = {
     "upload_file",
     "generate_image",
     "get_image",
+    "generate_video",
+    "get_video",
     "list_tables",
     "read_table",
     "create_table",

@@ -37,7 +37,8 @@
     "soko-bot:router-eval": "tsx --env-file=.env scripts/soko-bot-router-eval.mts",
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
-    "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts"
+    "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts",
+    "cmo:lab": "tsx --env-file=.env scripts/cmo-lab.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.10",

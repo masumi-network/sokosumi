@@ -11,6 +11,10 @@ describe("CMO channels", () => {
     expect(isCmoChannelFormat("instagram", "carousel")).toBe(false);
     expect(isCmoChannelFormat("x", "thread")).toBe(false);
     expect(isCmoChannelFormat("tiktok", "video")).toBe(false);
+    // Videos come from Content Studio; YouTube takes only Shorts.
+    expect(isCmoChannelFormat("youtube", "short")).toBe(true);
+    expect(isCmoChannelFormat("instagram", "reel")).toBe(true);
+    expect(isCmoChannelFormat("linkedin", "video")).toBe(true);
   });
 
   it("maps older plans onto today's channels and formats", () => {
@@ -47,12 +51,20 @@ describe("CMO channels", () => {
       channel: "seo",
       format: "page_fix",
     });
+    expect(normalizeCmoChannelFormat("instagram", "Video")).toEqual({
+      channel: "instagram",
+      format: "reel",
+    });
+    expect(normalizeCmoChannelFormat("youtube", "video")).toEqual({
+      channel: "youtube",
+      format: "short",
+    });
   });
 
   it("leaves channels Cuso does not run for the save check to name", () => {
-    expect(normalizeCmoChannelFormat("youtube", "video")).toEqual({
-      channel: "youtube",
-      format: "video",
+    expect(normalizeCmoChannelFormat("reddit", "thread")).toEqual({
+      channel: "reddit",
+      format: "thread",
     });
   });
 });

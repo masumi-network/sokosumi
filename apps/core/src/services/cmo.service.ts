@@ -768,6 +768,11 @@ export async function retryCmoOnboarding(
   if (!hire.brandVisual) {
     waitUntil(learnCmoBrandVisual(hire).catch(() => undefined));
   }
+  return startCmoResearch(hire);
+}
+
+/** Starts Cuso's research turn for a hire; the CMO lab reruns it per brand. */
+export function startCmoResearch(hire: CmoHire): Promise<{ turnId: string }> {
   return startCmoTurn(hire, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: onboardingMessage(hire),
