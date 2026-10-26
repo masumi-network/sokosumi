@@ -7666,6 +7666,13 @@
       "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
       "moveAction": "Move",
+      "moveFilesDialogTitle": "Move {count, plural, one {# file} other {# files}}",
+      "movedFiles": "{count, plural, one {Moved # file} other {Moved # files}}",
+      "moveFilesPartialError": "{count, plural, one {# file could not be moved} other {# files could not be moved}}",
+      "moveNewFolderLabel": "New folder",
+      "moveNewFolderPlaceholder": "Or type a new folder name",
+      "shareAction": "Share",
+      "shareFolderAction": "Share “{name}”",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
       "moveHere": "Move here",
@@ -7758,22 +7765,16 @@
         "suggestedChip": "Suggested: {name}",
         "selectFile": "Select {name}",
         "bulkSelected": "{count} selected",
-        "bulkWindowSelected": "{count} files selected from this result window",
-        "bulkWindowChanged": "This window changed — {count} files still match. Confirm again.",
-        "bulkSelectionExpired": "That result window expired. Search again.",
-        "bulkSetCategory": "Set {name}",
         "bulkClear": "Clear selection",
-        "bulkApplied": "Updated {count} files",
-        "bulkPartial": "{applied} updated, {failed} failed and stay selected",
         "bulkDelete": "Delete",
+        "bulkMove": "Move",
+        "bulkShare": "Share",
         "bulkDeleteTitle": "Delete {count, plural, one {# file} other {# files}}?",
         "bulkDeleteDescription": "They are removed for everyone in this Files workspace. This can't be undone.",
         "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
         "bulkDeleteCancel": "Cancel",
         "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
         "bulkDeletePartial": "{deleted} deleted, {failed} failed and stay selected",
-        "bulkSelectAllMatches": "Select all {count} matches",
-        "bulkError": "Those changes could not be applied.",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
         "detailCategory": "Category",
@@ -7851,9 +7852,6 @@
         "addTagUnavailable": "Tags could not be loaded",
         "tagAdded": "Tag added. An earlier removal of it no longer applies.",
         "suggestionExcerpt": "From this document",
-        "bulkMoreCategories": "{count} more…",
-        "bulkCategorySearch": "Search categories",
-        "bulkCategoryEmpty": "No categories match",
         "relatedNoText": "No related files. This document has no readable text.",
         "processingPartialCoverage": "Only part of this file is indexed. About {percent}% of the text was read.",
         "sheetOpenAsPage": "Open as page",
@@ -7873,7 +7871,34 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table"
+      "tableKind": "Table",
+      "Share": {
+        "title": "Share “{name}”",
+        "fileDescription": "Anyone with the link can view and download this file.",
+        "folderDescription": "Anyone with the link can see and download everything in this folder, including files added later.",
+        "loading": "Loading link",
+        "passwordOptional": "Password (optional)",
+        "passwordPlaceholder": "Leave empty for no password",
+        "newPasswordPlaceholder": "New password",
+        "passwordTooShort": "At least 4 characters",
+        "create": "Create link",
+        "created": "Link created",
+        "linkLabel": "Share link",
+        "copy": "Copy",
+        "copied": "Link copied",
+        "copyFailed": "Could not copy the link",
+        "passwordOn": "Password protected",
+        "passwordOff": "No password",
+        "setPassword": "Set password",
+        "changePassword": "Change",
+        "passwordSaved": "Password saved",
+        "removePassword": "Remove password",
+        "passwordRemoved": "Password removed",
+        "revoke": "Stop sharing",
+        "revoked": "Link turned off",
+        "loadFailed": "Could not load the link",
+        "saveFailed": "Could not save the link"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -7931,7 +7956,7 @@
         "connectFailed": "The connection did not complete. Try again.",
         "lastError": "Needs attention: {error}",
         "title": "Connected accounts",
-        "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
+        "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask.",
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
@@ -8010,6 +8035,9 @@
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
         "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment names it.",
+        "mailAutoReadTitle": "Handle routine mail",
+        "mailAutoReadDescription": "After each check, mark mail that is neither urgent nor notable as read. Important mail stays unread for you.",
+        "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -8239,7 +8267,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask."
+          "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask."
         }
       },
       "Avatar": {
@@ -9082,6 +9110,22 @@
       "title": "On-demand AI agents at your fingertips",
       "description": "Select a trusted agent, set your brief, and receive actionable outputs - no subscriptions needed.",
       "buttonText": "Explore agents"
+    },
+    "Files": {
+      "sharedFile": "Shared file",
+      "sharedFolder": "Shared folder",
+      "notFoundTitle": "Link not found",
+      "passwordLabel": "This link is protected. Enter the password",
+      "open": "Open",
+      "download": "Download",
+      "downloadFile": "Download {name}",
+      "truncated": "Showing the first 2,000 files of this folder.",
+      "emptyFolder": "This folder is empty.",
+      "errors": {
+        "wrong": "Wrong password.",
+        "locked": "Too many wrong passwords. Try again in 15 minutes.",
+        "failed": "Something went wrong. Try again."
+      }
     }
   },
   "NotFound": {

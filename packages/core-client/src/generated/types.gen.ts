@@ -1109,6 +1109,7 @@ export type SokoBot = {
     avatarImageUrl?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
+    mailAutoRead?: boolean;
     ingestTimezone?: string;
     proactivePaused?: boolean;
     proactiveDailyLimit?: number;
@@ -4619,6 +4620,38 @@ export type FileSearchMeta = {
     };
 };
 
+export type DriveShareResponse = {
+    share: DriveShare | null;
+};
+
+export type DriveShare = {
+    id: string;
+    token: string;
+    kind: 'file' | 'folder';
+    hasPassword: boolean;
+    createdAt: string;
+};
+
+export type UpsertDriveShareRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    /**
+     * Catalog id of the uploaded file to share.
+     */
+    resourceId?: string;
+    /**
+     * Folder to share, e.g. "Masumi Fundraising".
+     */
+    folderPath?: string;
+    /**
+     * Set or change the password; null removes it; omit to keep the current one.
+     */
+    password?: string | null;
+};
+
 export type DataTable = {
     id: string;
     workspaceId: string;
@@ -7883,6 +7916,32 @@ export type GetInvitationResult = {
     kind: 'inviter_not_found';
 };
 
+export type PublicDriveShare = {
+    kind: 'file' | 'folder';
+    name: string;
+    locked: boolean;
+    items?: Array<PublicDriveShareItem>;
+    truncated?: boolean;
+};
+
+export type PublicDriveShareItem = {
+    path: string;
+    size: number;
+    uploadedAt: string;
+};
+
+export type UnlockDriveShareResponse = {
+    proof: string;
+};
+
+export type UnlockDriveShareRequest = {
+    password: string;
+};
+
+export type DriveShareDownload = {
+    url: string;
+};
+
 export type PublicSharedResourceResponse = ({
     kind: 'job';
 } & PublicSharedJobResource) | ({
@@ -8023,6 +8082,7 @@ export type SokoBotState = {
         avatarImageUrl?: string | null;
         versionId?: string | null;
         followWholeBoard?: boolean;
+        mailAutoRead?: boolean;
         ingestTimezone?: string;
         proactivePaused?: boolean;
         proactiveDailyLimit?: number;
@@ -8166,6 +8226,7 @@ export type UpdateSokoBotProactiveRequest = {
     paused?: boolean;
     dailyLimit?: number;
     timezone?: string;
+    mailAutoRead?: boolean;
 };
 
 export type SokoBotTurnFeedbackRequest = {
@@ -33657,6 +33718,312 @@ export type GetDriveSearchResponses = {
 
 export type GetDriveSearchResponse = GetDriveSearchResponses[keyof GetDriveSearchResponses];
 
+export type GetDriveSharesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        /**
+         * Catalog id of the uploaded file to share.
+         */
+        resourceId?: string;
+        /**
+         * Folder to share, e.g. "Masumi Fundraising".
+         */
+        folderPath?: string;
+    };
+    url: '/drive/shares';
+};
+
+export type GetDriveSharesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveSharesError = GetDriveSharesErrors[keyof GetDriveSharesErrors];
+
+export type GetDriveSharesResponses = {
+    /**
+     * Share
+     */
+    200: {
+        data: DriveShareResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveSharesResponse = GetDriveSharesResponses[keyof GetDriveSharesResponses];
+
+export type PutDriveSharesData = {
+    body: UpsertDriveShareRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/shares';
+};
+
+export type PutDriveSharesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutDriveSharesError = PutDriveSharesErrors[keyof PutDriveSharesErrors];
+
+export type PutDriveSharesResponses = {
+    /**
+     * Share
+     */
+    200: {
+        data: DriveShare;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutDriveSharesResponse = PutDriveSharesResponses[keyof PutDriveSharesResponses];
+
+export type DeleteDriveSharesByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/shares/{id}';
+};
+
+export type DeleteDriveSharesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveSharesByIdError = DeleteDriveSharesByIdErrors[keyof DeleteDriveSharesByIdErrors];
+
+export type DeleteDriveSharesByIdResponses = {
+    /**
+     * Link revoked
+     */
+    204: void;
+};
+
+export type DeleteDriveSharesByIdResponse = DeleteDriveSharesByIdResponses[keyof DeleteDriveSharesByIdResponses];
+
 export type GetDriveTablesData = {
     body?: never;
     headers?: {
@@ -55962,6 +56329,173 @@ export type GetInvitationsByIdResponses = {
 };
 
 export type GetInvitationsByIdResponse = GetInvitationsByIdResponses[keyof GetInvitationsByIdResponses];
+
+export type GetShareDriveByTokenData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/drive/{token}';
+};
+
+export type GetShareDriveByTokenErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareDriveByTokenError = GetShareDriveByTokenErrors[keyof GetShareDriveByTokenErrors];
+
+export type GetShareDriveByTokenResponses = {
+    /**
+     * Shared file or folder
+     */
+    200: {
+        data: PublicDriveShare;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareDriveByTokenResponse = GetShareDriveByTokenResponses[keyof GetShareDriveByTokenResponses];
+
+export type PostShareDriveByTokenUnlockData = {
+    body: UnlockDriveShareRequest;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/drive/{token}/unlock';
+};
+
+export type PostShareDriveByTokenUnlockErrors = {
+    /**
+     * Wrong password
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too many wrong passwords
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostShareDriveByTokenUnlockError = PostShareDriveByTokenUnlockErrors[keyof PostShareDriveByTokenUnlockErrors];
+
+export type PostShareDriveByTokenUnlockResponses = {
+    /**
+     * Unlocked
+     */
+    200: {
+        data: UnlockDriveShareResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostShareDriveByTokenUnlockResponse = PostShareDriveByTokenUnlockResponses[keyof PostShareDriveByTokenUnlockResponses];
+
+export type GetShareDriveByTokenDownloadData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: {
+        path?: string;
+    };
+    url: '/share/drive/{token}/download';
+};
+
+export type GetShareDriveByTokenDownloadErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareDriveByTokenDownloadError = GetShareDriveByTokenDownloadErrors[keyof GetShareDriveByTokenDownloadErrors];
+
+export type GetShareDriveByTokenDownloadResponses = {
+    /**
+     * Download
+     */
+    200: {
+        data: DriveShareDownload;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareDriveByTokenDownloadResponse = GetShareDriveByTokenDownloadResponses[keyof GetShareDriveByTokenDownloadResponses];
 
 export type GetShareByTokenData = {
     body?: never;

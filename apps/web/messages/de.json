@@ -7666,6 +7666,13 @@
       "deleteFolderAction": "Ordner löschen",
       "deleteFolderDialogDescription": "Möchtest du wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "moveAction": "Verschieben",
+      "moveFilesDialogTitle": "{count, plural, one {# Datei} other {# Dateien}} verschieben",
+      "movedFiles": "{count, plural, one {# Datei verschoben} other {# Dateien verschoben}}",
+      "moveFilesPartialError": "{count, plural, one {# Datei konnte nicht verschoben werden} other {# Dateien konnten nicht verschoben werden}}",
+      "moveNewFolderLabel": "Neuer Ordner",
+      "moveNewFolderPlaceholder": "Oder neuen Ordnernamen eingeben",
+      "shareAction": "Teilen",
+      "shareFolderAction": "„{name}“ teilen",
       "moveDialogTitle": "{itemName} verschieben",
       "moveDialogDescription": "Wähle den Zielordner aus",
       "moveHere": "Hierher verschieben",
@@ -7758,22 +7765,16 @@
         "suggestedChip": "Vorschlag: {name}",
         "selectFile": "{name} auswählen",
         "bulkSelected": "{count} ausgewählt",
-        "bulkWindowSelected": "{count} Dateien aus diesem Ergebnisfenster ausgewählt",
-        "bulkWindowChanged": "Dieses Fenster hat sich geändert – {count} Dateien passen noch. Bitte erneut bestätigen.",
-        "bulkSelectionExpired": "Dieses Ergebnisfenster ist abgelaufen. Bitte erneut suchen.",
-        "bulkSetCategory": "{name} setzen",
         "bulkClear": "Auswahl aufheben",
-        "bulkApplied": "{count} Dateien aktualisiert",
-        "bulkPartial": "{applied} aktualisiert, {failed} fehlgeschlagen und weiterhin ausgewählt",
         "bulkDelete": "Löschen",
+        "bulkMove": "Verschieben",
+        "bulkShare": "Teilen",
         "bulkDeleteTitle": "{count, plural, one {# Datei} other {# Dateien}} löschen?",
         "bulkDeleteDescription": "Sie werden für alle in diesem Dateibereich entfernt. Das kann nicht rückgängig gemacht werden.",
         "bulkDeleteDescriptionSkipsTaskFiles": "Sie werden für alle in diesem Dateibereich entfernt. Dateien aus Tasks bleiben bei ihrem Task. Das kann nicht rückgängig gemacht werden.",
         "bulkDeleteCancel": "Abbrechen",
         "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
         "bulkDeletePartial": "{deleted} gelöscht, {failed} fehlgeschlagen und weiterhin ausgewählt",
-        "bulkSelectAllMatches": "Alle {count} Treffer auswählen",
-        "bulkError": "Diese Änderungen konnten nicht angewendet werden.",
         "detailLoading": "Datei wird geladen",
         "detailProcessing": "Verarbeitung",
         "detailCategory": "Kategorie",
@@ -7851,9 +7852,6 @@
         "addTagUnavailable": "Tags konnten nicht geladen werden",
         "tagAdded": "Tag hinzugefügt. Eine frühere Entfernung gilt nicht mehr.",
         "suggestionExcerpt": "Aus diesem Dokument",
-        "bulkMoreCategories": "{count} weitere…",
-        "bulkCategorySearch": "Kategorien durchsuchen",
-        "bulkCategoryEmpty": "Keine passenden Kategorien",
         "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text.",
         "processingPartialCoverage": "Nur ein Teil dieser Datei ist indexiert. Etwa {percent}% des Textes wurden gelesen.",
         "sheetOpenAsPage": "Als Seite öffnen",
@@ -7873,7 +7871,34 @@
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
       },
-      "tableKind": "Tabelle"
+      "tableKind": "Tabelle",
+      "Share": {
+        "title": "„{name}“ teilen",
+        "fileDescription": "Alle mit dem Link können diese Datei ansehen und herunterladen.",
+        "folderDescription": "Alle mit dem Link sehen alles in diesem Ordner, auch später hinzugefügte Dateien, und können es herunterladen.",
+        "loading": "Link wird geladen",
+        "passwordOptional": "Passwort (optional)",
+        "passwordPlaceholder": "Leer lassen für kein Passwort",
+        "newPasswordPlaceholder": "Neues Passwort",
+        "passwordTooShort": "Mindestens 4 Zeichen",
+        "create": "Link erstellen",
+        "created": "Link erstellt",
+        "linkLabel": "Freigabelink",
+        "copy": "Kopieren",
+        "copied": "Link kopiert",
+        "copyFailed": "Link konnte nicht kopiert werden",
+        "passwordOn": "Passwortgeschützt",
+        "passwordOff": "Kein Passwort",
+        "setPassword": "Passwort setzen",
+        "changePassword": "Ändern",
+        "passwordSaved": "Passwort gespeichert",
+        "removePassword": "Passwort entfernen",
+        "passwordRemoved": "Passwort entfernt",
+        "revoke": "Freigabe beenden",
+        "revoked": "Link deaktiviert",
+        "loadFailed": "Link konnte nicht geladen werden",
+        "saveFailed": "Link konnte nicht gespeichert werden"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -7931,7 +7956,7 @@
         "connectFailed": "Die Verbindung wurde nicht abgeschlossen. Bitte erneut versuchen.",
         "lastError": "Braucht Aufmerksamkeit: {error}",
         "title": "Verbundene Konten",
-        "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
+        "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest.",
         "connect": "Verbinden",
         "reconnect": "Neu verbinden",
         "disconnect": "Trennen",
@@ -8010,6 +8035,9 @@
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
         "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar ihn beim Namen nennt.",
+        "mailAutoReadTitle": "Routine-Mails erledigen",
+        "mailAutoReadDescription": "Markiert nach jeder Prüfung Mails als gelesen, die weder dringend noch wichtig sind. Wichtige Mails bleiben für dich ungelesen.",
+        "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -8239,7 +8267,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps, die er für dich nutzen kann. Mail und Kalender werden nur gelesen; andere Apps handeln in deinem Namen, wenn du darum bittest."
+          "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest."
         }
       },
       "Avatar": {
@@ -9082,6 +9110,22 @@
       "title": "KI-Agents auf Abruf",
       "description": "Wähle einen vertrauenswürdigen Agent, definiere deine Anforderungen und erhalte umsetzbare Ergebnisse – ohne Abonnement.",
       "buttonText": "Agents entdecken"
+    },
+    "Files": {
+      "sharedFile": "Geteilte Datei",
+      "sharedFolder": "Geteilter Ordner",
+      "notFoundTitle": "Link nicht gefunden",
+      "passwordLabel": "Dieser Link ist geschützt. Passwort eingeben",
+      "open": "Öffnen",
+      "download": "Herunterladen",
+      "downloadFile": "{name} herunterladen",
+      "truncated": "Es werden die ersten 2.000 Dateien dieses Ordners angezeigt.",
+      "emptyFolder": "Dieser Ordner ist leer.",
+      "errors": {
+        "wrong": "Falsches Passwort.",
+        "locked": "Zu viele falsche Passwörter. Versuche es in 15 Minuten erneut.",
+        "failed": "Etwas ist schiefgelaufen. Versuche es erneut."
+      }
     }
   },
   "NotFound": {
