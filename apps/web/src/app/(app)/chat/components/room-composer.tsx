@@ -35,6 +35,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { CHAT_CONTENT_COLUMN_CLASS } from "@/app/chat/chat-message-list-scroller";
 import {
   getFormatToolbarOpenPreference,
   setFormatToolbarOpenPreference,
@@ -613,7 +614,7 @@ export function RoomComposer({
         onSubmit={onSubmit}
         withOuterPadding={false}
         withSafeAreaPadding
-        className="px-3 md:px-5"
+        className={cn(CHAT_CONTENT_COLUMN_CLASS, "px-3 md:px-5")}
         attachments={attachments}
         onRemoveAttachment={(attachment) =>
           removeAttachment({

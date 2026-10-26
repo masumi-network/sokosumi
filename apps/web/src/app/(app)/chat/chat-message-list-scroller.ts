@@ -18,3 +18,10 @@ export const CHAT_MESSAGE_LIST_SCROLLER_CLASS =
  */
 export const CHAT_MESSAGE_LIST_CONTENT_CLASS =
   "flex min-h-full min-w-0 w-full shrink-0 flex-col justify-end overflow-y-clip";
+
+/**
+ * Centred reading column for a room's transcript and composer, sized so
+ * 14px Inter body text stays at or under about 95 characters per line. The
+ * scroller stays full width so its scrollbar keeps to the pane edge.
+ */
+export const CHAT_CONTENT_COLUMN_CLASS = "mx-auto w-full max-w-[725px]";
