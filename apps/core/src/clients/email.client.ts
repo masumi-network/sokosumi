@@ -18,6 +18,12 @@ function resend(): Resend {
 
 export const RESEND_BATCH_MAX_SIZE = 100;
 
+export function verifyEmailWebhook(
+  options: Parameters<Resend["webhooks"]["verify"]>[0],
+) {
+  return resend().webhooks.verify(options);
+}
+
 export interface SendEmailInput {
   to: string | string[];
   subject: string;
