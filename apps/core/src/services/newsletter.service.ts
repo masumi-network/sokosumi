@@ -64,8 +64,9 @@ export async function getNewsletter(
 export async function putNewsletter(
   scope: NewsletterScope,
   input: PutNewsletterRequest,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
 ) {
-  await requireScopedProject(scope);
+  await requireScopedProject(scope, { client });
   const data = {
     ...input,
     welcomeSubject: input.welcomeSubject ?? null,
@@ -74,7 +75,7 @@ export async function putNewsletter(
   for (let attempt = 0; ; attempt++) {
     const publicSlug = `${slugify(input.name, { lower: true, strict: true }) || "newsletter"}-${randomBytes(4).toString("hex")}`;
     try {
-      return await prisma.newsletter.upsert({
+      return await client.newsletter.upsert({
         where: scope,
         create: { ...scope, ...data, publicSlug },
         update: data,

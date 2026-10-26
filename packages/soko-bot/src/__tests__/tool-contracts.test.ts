@@ -315,6 +315,54 @@ describe("newsletter preview and submit tools", () => {
   });
 });
 
+describe("newsletter settings tool", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const settings = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings;
+
+  it("changes only what it is given, and at least one thing", () => {
+    expect(
+      settings.safeParse({ projectId, brand: { primaryColor: "#1a2b3c" } })
+        .success,
+    ).toBe(true);
+    expect(
+      settings.safeParse({ projectId, brand: { logoUrl: null } }).success,
+    ).toBe(true);
+    expect(settings.safeParse({ projectId, name: "Weekly" }).success).toBe(
+      true,
+    );
+    expect(settings.safeParse({ projectId }).success).toBe(false);
+    expect(settings.safeParse({ projectId, brand: {} }).success).toBe(false);
+  });
+
+  it.each([
+    { brand: { primaryColor: "blue" } },
+    { brand: { accentColor: "#12345" } },
+    { brand: { logoUrl: "http://example.com/logo.png" } },
+    { brand: { logoUrl: "javascript:alert(1)" } },
+    { brand: { css: "body{}" } },
+    { replyTo: "not-an-email" },
+    { name: "" },
+  ])("rejects %j", (change) => {
+    expect(settings.safeParse({ projectId, ...change }).success).toBe(false);
+  });
+
+  it("takes no approval or send flag", () => {
+    for (const field of ["approve", "autoApprove", "skipApproval", "sendNow"])
+      expect(
+        settings.safeParse({ projectId, name: "Weekly", [field]: true })
+          .success,
+      ).toBe(false);
+  });
+
+  it("says sender, reply-to and welcome email need the owner's word", () => {
+    const description = SOKO_BOT_TOOL_DESCRIPTIONS.update_newsletter_settings;
+    expect(description).toMatch(/owner explicitly asks/);
+    expect(description).toMatch(/senderName, replyTo and the welcome email/);
+    expect(description).toMatch(/untrusted/i);
+    expect(description).toMatch(/never approves, schedules or sends/);
+  });
+});
+
 describe("evaluate_with_jev input", () => {
   const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.evaluate_with_jev;
   const triage = {
