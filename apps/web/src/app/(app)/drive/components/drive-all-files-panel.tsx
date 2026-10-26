@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   Bookmark,
+  FolderInput,
   Link2,
   MoreHorizontal,
   Search,
@@ -25,7 +26,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
 import {
@@ -61,10 +61,8 @@ import { Input } from "@/components/ui/input";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
-  applyMetadataBatch,
   countActiveFileFilters,
   createFileCollection,
-  createSelectionToken,
   decideSuggestion,
   deleteDriveUploads,
   deleteFileCollection,
@@ -171,6 +169,8 @@ export interface DriveAllFilesPanelProps {
   reloadToken?: number;
   /** Opens the link dialog for one uploaded file. */
   onShareFile?: (item: DriveShareItem) => void;
+  /** Opens the move dialog for the ticked uploads. */
+  onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
 }
 
 interface SearchState {
@@ -199,6 +199,7 @@ export function DriveAllFilesPanel({
   folderActions,
   virtualFolder,
   onShareFile,
+  onMoveFiles,
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
@@ -214,7 +215,6 @@ export function DriveAllFilesPanel({
   });
   const [folders, setFolders] = useState<string[]>([]);
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
-  const categories = labels.filter((label) => label.kind === "CATEGORY");
   const [labelsState, setLabelsState] = useState<
     "loading" | "ready" | "failed"
   >("loading");
@@ -240,7 +240,6 @@ export function DriveAllFilesPanel({
    */
   const [openFile, setOpenFile] = useState<DriveFileViewerFile | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectionToken, setSelectionToken] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [state, setState] = useState<SearchState>({
@@ -338,7 +337,6 @@ export function DriveAllFilesPanel({
           );
         } else {
           setSelectedIds([]);
-          setSelectionToken(null);
         }
       } catch {
         if (controller.signal.aborted) return;
@@ -435,7 +433,6 @@ export function DriveAllFilesPanel({
   // letting one store's rows linger under another store's header.
   useEffect(() => {
     setSelectedIds([]);
-    setSelectionToken(null);
     setState({
       items: [],
       meta: null,
@@ -496,89 +493,6 @@ export function DriveAllFilesPanel({
         : [...current, id];
     });
     lastSelectedIndexRef.current = index;
-    setSelectionToken(null);
-  }
-
-  function selectThisPage() {
-    setSelectedIds(state.items.map((item) => item.id));
-    setSelectionToken(null);
-  }
-
-  async function selectWholeWindow() {
-    const cursor = state.meta?.nextCursor;
-    if (!cursor) {
-      selectThisPage();
-      return;
-    }
-    try {
-      const token = await createSelectionToken({
-        store,
-        windowCursor: cursor,
-      });
-      setSelectionToken(token.token);
-      toast.success(t("bulkWindowSelected", { count: token.count }));
-    } catch {
-      toast.error(t("bulkSelectionExpired"));
-    }
-  }
-
-  async function applyBulk(input: {
-    addTagLabelIds?: string[];
-    removeTagLabelIds?: string[];
-    categoryLabelId?: string | null;
-  }) {
-    if (selectedIds.length === 0 && !selectionToken) return;
-    setBulkBusy(true);
-    try {
-      const byId = new Map(state.items.map((item) => [item.id, item]));
-      const result = await applyMetadataBatch({
-        store,
-        ...(selectionToken
-          ? { selectionToken }
-          : {
-              resourceIds: selectedIds,
-              expectedRevisions: selectedIds.flatMap((id) => {
-                const item = byId.get(id);
-                return item
-                  ? [
-                      {
-                        resourceId: id,
-                        metadataRevision: item.metadataRevision,
-                      },
-                    ]
-                  : [];
-              }),
-            }),
-        ...input,
-      });
-
-      if (result.revisedCount !== null) {
-        toast.warning(t("bulkWindowChanged", { count: result.revisedCount }));
-        setSelectionToken(null);
-        return;
-      }
-
-      const failed = result.outcomes.filter(
-        (outcome) => outcome.status !== "applied",
-      );
-      const applied = result.outcomes.length - failed.length;
-
-      if (failed.length === 0) {
-        toast.success(t("bulkApplied", { count: applied }));
-        setSelectedIds([]);
-      } else {
-        // Keep the rows that failed selected so the reader can retry exactly
-        // those, and say plainly how the batch split.
-        toast.warning(t("bulkPartial", { applied, failed: failed.length }));
-        setSelectedIds(failed.map((outcome) => outcome.resourceId));
-      }
-      setSelectionToken(null);
-      await runSearch({ query: appliedQuery, filters, keepSelection: true });
-    } catch {
-      toast.error(t("bulkError"));
-    } finally {
-      setBulkBusy(false);
-    }
   }
 
   /** What a collection stores: the filters, plus the query that shaped them. */
@@ -775,7 +689,6 @@ export function DriveAllFilesPanel({
             .map((item) => item.id),
         );
       }
-      setSelectionToken(null);
       setConfirmDeleteOpen(false);
       await runSearch({ query: appliedQuery, filters, keepSelection: true });
     } finally {
@@ -840,9 +753,7 @@ export function DriveAllFilesPanel({
   ];
 
   const browsing = isBrowsing(appliedQuery, filters);
-  const selectionCount = selectionToken
-    ? (state.meta?.windowCount ?? selectedIds.length)
-    : selectedIds.length;
+  const selectionCount = selectedIds.length;
 
   return (
     <div className="flex flex-col gap-4" data-testid="drive-all-files">
@@ -1174,20 +1085,26 @@ export function DriveAllFilesPanel({
           <span className="text-sm font-medium">
             {t("bulkSelected", { count: selectionCount })}
           </span>
-          {state.meta?.nextCursor && !selectionToken ? (
-            <Button size="sm" variant="ghost" onClick={selectWholeWindow}>
-              {t("bulkSelectAllMatches", {
-                count: state.meta.windowCount,
-              })}
+          {onMoveFiles && deletableSelection.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulkBusy}
+              onClick={() =>
+                onMoveFiles(
+                  deletableSelection.flatMap((item) =>
+                    item.pathname
+                      ? [{ pathname: item.pathname, name: item.displayName }]
+                      : [],
+                  ),
+                )
+              }
+            >
+              <FolderInput aria-hidden className="size-4" />
+              {t("bulkMove")}
             </Button>
           ) : null}
-          <DriveBulkCategoryPicker
-            categories={categories}
-            disabled={bulkBusy}
-            onPick={(categoryLabelId) => void applyBulk({ categoryLabelId })}
-          />
           {onShareFile &&
-          !selectionToken &&
           selectedIds.length === 1 &&
           deletableSelection.length === 1 ? (
             <Button
@@ -1205,9 +1122,7 @@ export function DriveAllFilesPanel({
               {t("bulkShare")}
             </Button>
           ) : null}
-          {/* A whole-window selection is not on screen to name, so delete
-              only acts on rows the reader ticked. */}
-          {!selectionToken && deletableSelection.length > 0 ? (
+          {deletableSelection.length > 0 ? (
             <Button
               size="sm"
               variant="ghost"
@@ -1224,7 +1139,6 @@ export function DriveAllFilesPanel({
             variant="ghost"
             onClick={() => {
               setSelectedIds([]);
-              setSelectionToken(null);
             }}
           >
             {t("bulkClear")}

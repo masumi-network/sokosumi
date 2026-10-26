@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
+const patchDriveFilesMoveMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
@@ -136,7 +137,7 @@ vi.mock("@sokosumi/core-client", () => ({
   deleteDriveFoldersDelete: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>
     getUsersByIdOrganizationsMock(...args),
-  patchDriveFilesMove: vi.fn(),
+  patchDriveFilesMove: (...args: unknown[]) => patchDriveFilesMoveMock(...args),
   patchDriveFilesRename: vi.fn(),
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
@@ -248,12 +249,14 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     onFolderChange,
     folderActions,
     virtualFolder,
+    onMoveFiles,
   }: {
     initialQuery?: string;
     initialFolder?: string;
     onFolderChange?: (folder: string) => void;
     folderActions?: React.ReactNode;
     virtualFolder?: { label: string; onOpen: () => void };
+    onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
   }) => (
     <div
       data-testid="drive-all-files"
@@ -272,6 +275,19 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
       {/* The page's own folder controls, which the real panel seats beside
           the folder trail. */}
       {folderActions}
+      {/* Two ticked uploads, handed to the page's move dialog. */}
+      <button
+        type="button"
+        data-testid="drive-all-files-move"
+        onClick={() =>
+          onMoveFiles?.([
+            { pathname: "drive/users/u1/deck.pdf", name: "deck.pdf" },
+            { pathname: "drive/users/u1/notes.md", name: "notes.md" },
+          ])
+        }
+      >
+        move
+      </button>
       {virtualFolder ? (
         <button
           type="button"
@@ -1118,6 +1134,36 @@ describe("DrivePage files view mode", () => {
     });
     expect(screen.queryByRole("button", { name: "Reports" })).toBeNull();
     expect(screen.queryByTestId("drive-item-more-actions")).toBeNull();
+  });
+
+  it("moves ticked files into a new folder in one go", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+    patchDriveFilesMoveMock.mockResolvedValue({ data: {} });
+
+    renderDrive();
+    await user.click(await screen.findByTestId("drive-all-files-move"));
+    expect(await screen.findByText("moveFilesDialogTitle")).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText("moveNewFolderLabel"),
+      "Masumi Fundraising",
+    );
+    await user.click(screen.getByRole("button", { name: "moveHere" }));
+
+    await waitFor(() =>
+      expect(patchDriveFilesMoveMock).toHaveBeenCalledTimes(2),
+    );
+    expect(patchDriveFilesMoveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          sourcePathname: "drive/users/u1/deck.pdf",
+          targetFolderPath: "Masumi Fundraising",
+          itemType: "file",
+        },
+      }),
+    );
   });
 
   it("carries a folder deep link into the catalog as a facet", async () => {
