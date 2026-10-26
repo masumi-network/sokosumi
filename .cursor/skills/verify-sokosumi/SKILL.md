@@ -120,14 +120,14 @@ If UI login leaves you on `/signin` or bounces back after a “success” (class
 
 Credentials (pick **in this order** — do not skip to signup):
 
-| Source | Email | Password | When |
-| --- | --- | --- | --- |
-| Env secrets | `$VERIFY_SOKOSUMI_EMAIL` | `$VERIFY_SOKOSUMI_PASSWORD` | Always first when `verify_credentials_*=set` (doctor / `credentials-status`) |
-| Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | VERIFY_* unset **and** `fixture_auth=ok` on Neon `cloud-agent-*` |
-| Cloud-agent admin | `admin@sokosumi.test` | `Password123!` | Admin UI `/admin` only |
-| Cloud-agent bob | `bob@sokosumi.test` | `Password123!` | Second-user scenarios only |
-| Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Shared/preprod Neon or local DB — never seed Alice here |
-| Local signup | unique `*@sokosumi.test` via `/signup` | choose once | **Only** when testing signup itself — never as a computer-use fallback |
+| Source               | Email                                  | Password                    | When                                                                         |
+| -------------------- | -------------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| Env secrets          | `$VERIFY_SOKOSUMI_EMAIL`               | `$VERIFY_SOKOSUMI_PASSWORD` | Always first when `verify_credentials_*=set` (doctor / `credentials-status`) |
+| Cloud-agent fixtures | `alice@sokosumi.test`                  | `Password123!`              | VERIFY_* unset **and** `fixture_auth=ok` on Neon `cloud-agent-*`             |
+| Cloud-agent admin    | `admin@sokosumi.test`                  | `Password123!`              | Admin UI `/admin` only                                                       |
+| Cloud-agent bob      | `bob@sokosumi.test`                    | `Password123!`              | Second-user scenarios only                                                   |
+| Coworker vault       | `agent-browser auth save sokosumi …`   | machine-local               | Shared/preprod Neon or local DB — never seed Alice here                      |
+| Local signup         | unique `*@sokosumi.test` via `/signup` | choose once                 | **Only** when testing signup itself — never as a computer-use fallback       |
 
 OAuth and passkey do **not** work with placeholder credentials. Skip those paths. Email codes do work in development: Core prints each one as `[email code] <address>: <code>`, in `.cursor/verify-sokosumi-artifacts/state/logs/core.log` (or `$VERIFY_SOKOSUMI_STATE_DIR/logs/core.log`) when the launch helper started it.
 

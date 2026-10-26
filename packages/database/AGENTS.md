@@ -64,7 +64,7 @@ const user = await userRepository.getUserById("user-id", prisma);
 ### Helpers Export (`@sokosumi/database/helpers`)
 
 - **Purpose**: Prisma-backed domain helpers (job status, credit buckets, billing plan resolution, etc.)
-- **Note**: Credit *conversion* (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
+- **Note**: Credit _conversion_ (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
 
 ```typescript
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
@@ -122,15 +122,15 @@ export const userRepository = {
 
 ## Package-Specific Commands
 
-| Command                      | Purpose                       |
-| ---------------------------- | ----------------------------- |
-| `pnpm --filter @sokosumi/database lint` | Lint package code             |
-| `pnpm --filter @sokosumi/database format` | Format code with Biome        |
-| `pnpm prisma:generate`       | Generate Prisma client        |
-| `pnpm prisma:migrate:dev`    | Create new migration          |
-| `pnpm prisma:migrate:deploy` | Apply migrations (production / Core Vercel build) |
-| `pnpm prisma:migrate:reset`  | Reset database (dev only)     |
-| `pnpm prisma:studio`         | Open Prisma Studio            |
+| Command                                   | Purpose                                           |
+| ----------------------------------------- | ------------------------------------------------- |
+| `pnpm --filter @sokosumi/database lint`   | Lint package code                                 |
+| `pnpm --filter @sokosumi/database format` | Format code with Biome                            |
+| `pnpm prisma:generate`                    | Generate Prisma client                            |
+| `pnpm prisma:migrate:dev`                 | Create new migration                              |
+| `pnpm prisma:migrate:deploy`              | Apply migrations (production / Core Vercel build) |
+| `pnpm prisma:migrate:reset`               | Reset database (dev only)                         |
+| `pnpm prisma:studio`                      | Open Prisma Studio                                |
 
 ## Usage in Apps
 

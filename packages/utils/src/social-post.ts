@@ -1,5 +1,7 @@
+import { X_COUNTRY_TLDS, X_GENERIC_TLDS } from "./x-tlds.js";
+
 /**
- * Maximum text length per social provider for a Social post.
+ * Default maximum text length per social provider for a Social post.
  * Client-safe: web reuses it for composer validation, Core for request validation.
  */
 export const SOCIAL_POST_TEXT_LIMITS = {
@@ -15,6 +17,166 @@ export const SOCIAL_POST_TEXT_LIMITS = {
 export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
+
+export const X_PREMIUM_TEXT_LIMIT = 25_000;
+// Every Premium tier includes longer posts: https://help.x.com/en/using-x/x-premium
+export const X_LONG_POST_SUBSCRIPTION_TYPES = [
+  "Basic",
+  "Premium",
+  "PremiumPlus",
+] as const;
+export type XLongPostSubscriptionType =
+  (typeof X_LONG_POST_SUBSCRIPTION_TYPES)[number];
+
+export function socialPostTextLimit(
+  provider: SocialPostProvider,
+  subscriptionType?: string | null,
+): number {
+  return provider === "x" &&
+    X_LONG_POST_SUBSCRIPTION_TYPES.some((tier) => tier === subscriptionType)
+    ? X_PREMIUM_TEXT_LIMIT
+    : SOCIAL_POST_TEXT_LIMITS[provider];
+}
+
+const X_GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
+const X_EMOJI = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F|[0-9#*]\uFE0F?\u20E3/u;
+// Bare hosts use twitter-text's TLD lists and short ccTLD rule.
+const X_URL_DOMAIN = String.raw`(?:[\p{L}\p{N}](?:[\p{L}\p{M}\p{N}-]*[\p{L}\p{M}\p{N}])?\.)+`;
+const X_URL_TLD_PREFIX = new RegExp(
+  `^(?:${[...X_GENERIC_TLDS, ...X_COUNTRY_TLDS].sort((a, b) => b.length - a.length).join("|")})(?=[^a-z0-9@+-]|$)`,
+  "iu",
+);
+// Path/query character sets follow twitter-text (Apache-2.0, Copyright 2018 Twitter, Inc.).
+// https://github.com/twitter/twitter-text/tree/master/js/src/regexp
+const X_LATIN_ACCENTS = String.raw`\xC0-\xD6\xD8-\xF6\xF8-\xFF\u0100-\u024F\u0253\u0254\u0256\u0257\u0259\u025B\u0263\u0268\u026F\u0272\u0289\u028B\u02BB\u0300-\u036F\u1E00-\u1EFF`;
+const X_URL_HOST = String.raw`[^\s\x00-\x1f\x7f!"#$%&'()*+,/:;<=>?@\[\]^\x60{|}~\\\uFFFE\uFEFF\uFFFF\u202A-\u202E\u2066-\u2069]+`;
+const X_URL_PATH_CHARS = String.raw`[a-z0-9${X_LATIN_ACCENTS}\u0400-\u04FF!*';:=+,.$/%#\[\]\u2013_~@|&\-]`;
+const X_URL_PARENS = String.raw`\((?:${X_URL_PATH_CHARS}+|${X_URL_PATH_CHARS}*\(${X_URL_PATH_CHARS}+\)${X_URL_PATH_CHARS}*)\)`;
+const X_URL_PATH_END = String.raw`(?:[+\-a-z0-9${X_LATIN_ACCENTS}\u0400-\u04FF=_#\/]|${X_URL_PARENS})`;
+const X_URL_PATH = String.raw`(?:${X_URL_PATH_CHARS}*(?:${X_URL_PARENS}${X_URL_PATH_CHARS}*)*${X_URL_PATH_END}|@${X_URL_PATH_CHARS}+/)`;
+const X_URL_QUERY = String.raw`[a-z0-9!?*'@();:&=+$/%#\[\]_.,~|\-]`;
+const X_ASCII_DOMAIN_PREFIX = new RegExp(
+  String.raw`[a-z0-9${X_LATIN_ACCENTS}\-]+(?:\.[a-z0-9${X_LATIN_ACCENTS}\-]+)*\.$`,
+  "iu",
+);
+const X_URL = new RegExp(
+  String.raw`(?:(?<![a-z0-9@＠])https?:\/\/(${X_URL_HOST})|(?<![\p{L}\p{M}\p{N}._@＠$#＃])(${X_URL_DOMAIN}[\p{L}\p{M}\p{N}_-]*))(?::[0-9]+)?(\/${X_URL_PATH}*)?(?:\?${X_URL_QUERY}*[a-z0-9\-_&=#/])?`,
+  "giu",
+);
+
+function xCharacterLength(text: string): number {
+  let length = 0;
+  for (const { segment } of X_GRAPHEMES.segment(text)) {
+    if (X_EMOJI.test(segment)) {
+      length += 2;
+      continue;
+    }
+    for (const character of segment) {
+      const point = character.codePointAt(0)!;
+      length +=
+        point <= 0x10ff ||
+        (point >= 0x2000 && point <= 0x200d) ||
+        (point >= 0x2010 && point <= 0x201f) ||
+        (point >= 0x2032 && point <= 0x2037)
+          ? 1
+          : 2;
+    }
+  }
+  return length;
+}
+
+/** X v3 weights: t.co URLs cost 23; emoji sequences cost 2. Other providers keep UTF-16 length. */
+export function socialPostTextLength(
+  provider: SocialPostProvider,
+  text: string,
+): number {
+  if (provider !== "x") return text.length;
+  const normalized = text.normalize("NFC");
+  if (!normalized.includes(".")) return xCharacterLength(normalized);
+  let length = 0;
+  let end = 0;
+  const urls = new RegExp(X_URL);
+  for (
+    let match = urls.exec(normalized);
+    match;
+    match = urls.exec(normalized)
+  ) {
+    let start = match.index;
+    let candidate = match[0];
+    const explicit = match[1] !== undefined;
+    let hostname = match[1] ?? match[2];
+    let hasPath = Boolean(match[3]);
+    if (!explicit && hostname.endsWith(".")) {
+      hostname = hostname.replace(/\.+$/, "");
+      candidate = hostname;
+      hasPath = false;
+    }
+    const tldStart = hostname.lastIndexOf(".") + 1;
+    const tld = hostname.slice(tldStart);
+    const knownTld = tld.match(X_URL_TLD_PREFIX)?.[0];
+    if (knownTld && knownTld.length < tld.length) {
+      hostname = hostname.slice(0, tldStart + knownTld.length);
+      candidate = candidate.slice(
+        0,
+        (explicit ? candidate.indexOf("://") + 3 : 0) + hostname.length,
+      );
+      hasPath = false;
+    }
+    if (!explicit) {
+      const dot = hostname.lastIndexOf(".");
+      const prefix = hostname
+        .slice(0, dot + 1)
+        .match(X_ASCII_DOMAIN_PREFIX)?.[0];
+      if (!prefix) continue;
+      const skipped = dot + 1 - prefix.length;
+      start += skipped;
+      candidate = candidate.slice(skipped);
+      hostname = hostname.slice(skipped);
+    }
+    const preceding = normalized.slice(0, start);
+    if (
+      /[a-z0-9@＠]$/i.test(preceding) ||
+      (!explicit && /[_$#＃]$/.test(preceding))
+    ) {
+      continue;
+    }
+    if (!explicit) {
+      const labels = hostname.toLowerCase().split(".");
+      const tld = labels[labels.length - 1];
+      const isCountry = X_COUNTRY_TLDS.has(tld);
+      if (!X_GENERIC_TLDS.has(tld) && !isCountry) continue;
+      if (
+        isCountry &&
+        labels.length === 2 &&
+        !hasPath &&
+        tld !== "co" &&
+        tld !== "tv"
+      ) {
+        continue;
+      }
+    }
+    // Sentence punctuation stays outside the link, as do unmatched closing parentheses.
+    let url = candidate.replace(/[.,!?;:'"…]+$/, "");
+    while (
+      url.endsWith(")") &&
+      (url.match(/\)/g)?.length ?? 0) > (url.match(/\(/g)?.length ?? 0)
+    ) {
+      url = url.slice(0, -1);
+    }
+    try {
+      const parsed = new URL(
+        /^https?:\/\//i.test(url) ? url : `https://${url}`,
+      );
+      if (!parsed.hostname.includes(".")) continue;
+    } catch {
+      continue;
+    }
+    length += xCharacterLength(normalized.slice(end, start)) + 23;
+    end = start + url.length;
+    urls.lastIndex = end;
+  }
+  return length + xCharacterLength(normalized.slice(end));
+}
 
 /** Whether a provider accepts a post with text only, media only, or needs video. */
 export type SocialPostMediaRequirement = "none" | "any" | "video";
@@ -203,7 +365,7 @@ export const SOCIAL_POST_FIRST_COMMENT_LIMITS = {
 
 /** Longest first comment any supporting provider accepts. */
 export const SOCIAL_POST_FIRST_COMMENT_MAX = Math.max(
-  SOCIAL_POST_FIRST_COMMENT_LIMITS.x,
+  X_PREMIUM_TEXT_LIMIT,
   SOCIAL_POST_FIRST_COMMENT_LIMITS.linkedin,
   SOCIAL_POST_FIRST_COMMENT_LIMITS.facebook,
   SOCIAL_POST_FIRST_COMMENT_LIMITS.instagram,
@@ -213,8 +375,11 @@ export const SOCIAL_POST_FIRST_COMMENT_MAX = Math.max(
 /** Comment cap for a provider, or `null` when Composio cannot post one. */
 export function socialPostFirstCommentLimit(
   provider: SocialPostProvider,
+  subscriptionType?: string | null,
 ): number | null {
-  return SOCIAL_POST_FIRST_COMMENT_LIMITS[provider];
+  return provider === "x"
+    ? socialPostTextLimit(provider, subscriptionType)
+    : SOCIAL_POST_FIRST_COMMENT_LIMITS[provider];
 }
 
 export function socialPostSupportsFirstComment(

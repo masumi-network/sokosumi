@@ -6,7 +6,7 @@ A User is no longer guaranteed a personal workspace. Signup does not create one.
 
 **Why a hard workspace gate (not an in-app dialog):** zero workspaces is not a product state. A dedicated route owns pending invitations/join links and identity onboarding. Access is “has a first workspace,” not a parallel `onboardingCompleted` flag (that flag is removed).
 
-**Why invite/join skip identity onboarding:** joining the organization *is* the first-workspace decision. Rejecting every pending invite falls through to identity onboarding.
+**Why invite/join skip identity onboarding:** joining the organization _is_ the first-workspace decision. Rejecting every pending invite falls through to identity onboarding.
 
 **Why org create does not require verified email:** verification stays an account notice, not a lock on creating or joining workspaces.
 

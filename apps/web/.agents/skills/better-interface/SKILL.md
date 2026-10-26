@@ -116,16 +116,16 @@ Treat a review request as read-only. Do not edit source unless the user also ask
 
 ## Before you finish
 
-| Mistake | Fix |
-| --- | --- |
-| A separate findings section per domain | Merge them into one table ranked by severity, then reach |
-| A rendering claim whose only evidence is source | Inspect the rendered state, or mark it **Not verified** |
-| A missing accessible name or focus ring rated `MEDIUM` because the surface is minor | Triggers are `HIGH` on sight |
-| A coverage row whose evidence cell names no file, component or check | Inspect that domain, or mark it `Not reviewed` with the reason |
-| A domain marked `Clear` although its skill never loaded | Mark it `Not reviewed` and name the skill |
-| The same symptom in several rows, one per component | One row against the shared token or component, listing every location |
-| An **After** that adds a wrapper, token or ARIA attribute | Check whether a deletion or the native element fixes it first |
-| A fix written in a library or styling system the project does not use | Rewrite it in the project's own idiom |
+| Mistake                                                                             | Fix                                                                   |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| A separate findings section per domain                                              | Merge them into one table ranked by severity, then reach              |
+| A rendering claim whose only evidence is source                                     | Inspect the rendered state, or mark it **Not verified**               |
+| A missing accessible name or focus ring rated `MEDIUM` because the surface is minor | Triggers are `HIGH` on sight                                          |
+| A coverage row whose evidence cell names no file, component or check                | Inspect that domain, or mark it `Not reviewed` with the reason        |
+| A domain marked `Clear` although its skill never loaded                             | Mark it `Not reviewed` and name the skill                             |
+| The same symptom in several rows, one per component                                 | One row against the shared token or component, listing every location |
+| An **After** that adds a wrapper, token or ARIA attribute                           | Check whether a deletion or the native element fixes it first         |
+| A fix written in a library or styling system the project does not use               | Rewrite it in the project's own idiom                                 |
 
 ## Review output format
 
