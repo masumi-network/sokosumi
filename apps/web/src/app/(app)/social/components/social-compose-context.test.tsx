@@ -13,21 +13,12 @@ function Probe() {
   return (
     <div>
       <span data-testid="open">{String(compose?.open)}</span>
-      <span data-testid="scheduled-at">
-        {compose?.scheduledAt?.toISOString() ?? "none"}
-      </span>
+      <span data-testid="at">{String(compose?.scheduledAt)}</span>
+      <button type="button" onClick={() => compose?.openAt("2030-01-16T09:00")}>
+        open on a day
+      </button>
       <button type="button" onClick={() => compose?.setOpen(true)}>
         open
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          compose?.setOpen(true, {
-            scheduledAt: new Date("2030-01-09T08:00:00.000Z"),
-          })
-        }
-      >
-        plan
       </button>
       <button type="button" onClick={() => compose?.setOpen(false)}>
         close
@@ -85,24 +76,40 @@ describe("SocialComposeProvider", () => {
     expect(event.searchParams.has("compose")).toBe(false);
   });
 
-  it("carries a calendar day's time while open and drops it on close", async () => {
+  it("opens on a calendar day's slot and clears it on close", async () => {
     const user = userEvent.setup();
+    const onUrlUpdate = vi.fn();
     render(
       <SocialComposeProvider>
         <Probe />
       </SocialComposeProvider>,
-      { wrapper: withNuqsTestingAdapter({ searchParams: "" }) },
+      { wrapper: withNuqsTestingAdapter({ searchParams: "", onUrlUpdate }) },
     );
 
-    await user.click(screen.getByRole("button", { name: "plan" }));
+    await user.click(screen.getByRole("button", { name: "open on a day" }));
     expect(screen.getByTestId("open")).toHaveTextContent("true");
-    expect(screen.getByTestId("scheduled-at")).toHaveTextContent(
-      "2030-01-09T08:00:00.000Z",
-    );
+    expect(screen.getByTestId("at")).toHaveTextContent("2030-01-16T09:00");
 
     await user.click(screen.getByRole("button", { name: "close" }));
-    await user.click(screen.getByRole("button", { name: "open" }));
-    // The New post menu opens a composer with no time picked.
-    expect(screen.getByTestId("scheduled-at")).toHaveTextContent("none");
+    expect(screen.getByTestId("open")).toHaveTextContent("false");
+    const event = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+      searchParams: URLSearchParams;
+    };
+    expect(event.searchParams.has("composeAt")).toBe(false);
+  });
+
+  it("ignores a composeAt that is not a slot", () => {
+    render(
+      <SocialComposeProvider>
+        <Probe />
+      </SocialComposeProvider>,
+      {
+        wrapper: withNuqsTestingAdapter({
+          searchParams: "?compose=new&composeAt=tomorrow",
+        }),
+      },
+    );
+
+    expect(screen.getByTestId("at")).toHaveTextContent("null");
   });
 });

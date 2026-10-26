@@ -3,7 +3,7 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
@@ -195,13 +195,6 @@ function renderedEventTitles(): string[] {
   return (props.events ?? []).map((event) => event.title);
 }
 
-/** Social's planner draws its own cards; FullCalendar is not used there. */
-function plannerPostTexts(): string[] {
-  return screen
-    .queryAllByTestId("calendar-social-post")
-    .map((card) => card.getAttribute("aria-label") ?? "");
-}
-
 function filterSectionIds(): string[] {
   const props = filterDropdownMenuMock.mock.lastCall?.[0] as {
     sections: { id: string }[];
@@ -334,9 +327,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       "?timezone=UTC&view=week&postStatus=FAILED",
     );
 
-    expect(plannerPostTexts()).toEqual([
-      expect.stringContaining("Failed news"),
-    ]);
+    expect(renderedEventTitles()).toEqual(["Failed news"]);
   });
 
   it("narrows posts by platform", () => {
@@ -358,9 +349,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       "?timezone=UTC&view=week&provider=linkedin",
     );
 
-    expect(plannerPostTexts()).toEqual([
-      expect.stringContaining("LinkedIn news"),
-    ]);
+    expect(renderedEventTitles()).toEqual(["LinkedIn news"]);
   });
 
   it("clears the platform when Social-only is turned off", async () => {
@@ -392,10 +381,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     it("shows posts alone, with no toggle to undo it", () => {
       renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
 
-      expect(plannerPostTexts()).toEqual([
-        expect.stringContaining("Launch news"),
-      ]);
-      expect(fullCalendarMock).not.toHaveBeenCalled();
+      expect(renderedEventTitles()).toEqual(["Launch news"]);
       expect(
         screen.queryByTestId("calendar-social-only"),
       ).not.toBeInTheDocument();
@@ -410,7 +396,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
     });
 
-    it("opens on the month on a phone too, as an overview over the chosen day", async () => {
+    it("opens on a day grid with the chosen day's posts on a phone, not a sideways grid", async () => {
       const mediaQuery = {
         matches: true,
         media: "(max-width: 767px)",
@@ -436,11 +422,27 @@ describe("WorkspaceCalendar Social-only view", () => {
         await waitFor(() =>
           expect(screen.getByTestId("calendar-month")).toBeInTheDocument(),
         );
-        expect(
-          screen.getByTestId("planner-month-overview"),
-        ).toBeInTheDocument();
-        expect(screen.getByTestId("planner-day-panel")).toBeInTheDocument();
         expect(screen.queryByTestId("calendar-agenda")).not.toBeInTheDocument();
+        expect(fullCalendarMock).not.toHaveBeenCalled();
+        // January 2030 starts on a Tuesday: five weeks of seven days.
+        expect(screen.getAllByTestId("calendar-mobile-day")).toHaveLength(35);
+        expect(screen.getByTestId("calendar-day-list")).toHaveTextContent(
+          "dayEmpty",
+        );
+
+        await userEvent.click(
+          screen.getByRole("button", {
+            name: "Thursday, January 3, dayCount",
+          }),
+        );
+        expect(
+          screen.getByRole("button", {
+            name: "Thursday, January 3, dayCount",
+          }),
+        ).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByTestId("calendar-day-list")).toHaveTextContent(
+          "Launch news",
+        );
       } finally {
         vi.unstubAllGlobals();
       }
@@ -517,7 +519,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
-    it("draws week posts as full cards in their day lane, with a thumb for media", () => {
+    it("draws the week as rich chips: account, words, media and status", () => {
       renderCalendar(
         {
           includeSocialPosts: true,
@@ -536,33 +538,56 @@ describe("WorkspaceCalendar Social-only view", () => {
         "?timezone=UTC&view=week",
       );
 
-      // The week is seven lanes, not a seven-column chip grid: the card says
-      // what the post says, from which account, in which state.
-      expect(screen.getAllByTestId("planner-day-lane")).toHaveLength(7);
-      const card = screen.getByTestId("calendar-social-post");
-      expect(card).toHaveTextContent("Launch news");
-      expect(card).toHaveTextContent("@team");
-      expect(card).not.toHaveTextContent("compactLabel");
-      expect(
-        within(card).getByTestId("social-post-status-SCHEDULED"),
-      ).toHaveTextContent("SCHEDULED");
+      const chip = screen.getByTestId("calendar-social-post");
+      expect(chip).toHaveAttribute("data-density", "week");
+      expect(chip).toHaveTextContent("Launch news");
+      expect(chip).toHaveTextContent("@team");
+      expect(chip).toHaveTextContent("Release planning");
       expect(
         screen.getByTestId("calendar-social-post-thumb"),
       ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("social-post-status-SCHEDULED"),
+      ).toBeInTheDocument();
     });
 
-    it("leaves a text-only week card without a media tile", () => {
+    it("lets the week fill the screen and keeps every post of a day", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
         "?timezone=UTC&view=week",
       );
 
-      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
-        "Launch news",
+      expect(fullCalendarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ dayMaxEvents: false }),
       );
-      expect(
-        screen.queryByTestId("calendar-social-post-thumb"),
-      ).not.toBeInTheDocument();
+    });
+
+    it("shows three posts a day on the month, then a +N more", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=month",
+      );
+
+      const props = fullCalendarMock.mock.lastCall?.[0] as {
+        dayMaxEvents: number;
+        moreLinkContent: (info: { num: number }) => string;
+        moreLinkHint: (num: number) => string;
+      };
+      expect(props.dayMaxEvents).toBe(3);
+      expect(props.moreLinkContent({ num: 2 })).toBe("socialPost.more");
+      expect(props.moreLinkHint(2)).toBe("socialPost.moreHint");
+      expect(screen.getByTestId("calendar-social-post")).toHaveAttribute(
+        "data-density",
+        "month",
+      );
+    });
+
+    it("leaves the workspace calendar's day cells alone", () => {
+      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=month");
+
+      const props = fullCalendarMock.mock.lastCall?.[0] as object;
+      expect(props).not.toHaveProperty("dayMaxEvents");
+      expect(props).not.toHaveProperty("dayCellTopContent");
     });
 
     it("leaves mixed week posts as one line without a media tile", () => {
@@ -593,9 +618,7 @@ describe("WorkspaceCalendar Social-only view", () => {
         "?timezone=UTC&view=week&socialOnly=false",
       );
 
-      expect(plannerPostTexts()).toEqual([
-        expect.stringContaining("Launch news"),
-      ]);
+      expect(renderedEventTitles()).toEqual(["Launch news"]);
     });
 
     it("offers neither task creation nor the schedules link", () => {

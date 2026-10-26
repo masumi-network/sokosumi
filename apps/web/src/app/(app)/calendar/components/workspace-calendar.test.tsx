@@ -20,8 +20,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import CalendarError from "../error";
 import CalendarLoading from "../loading";
-import { getCalendarItemDateKey } from "./calendar-day-key";
-import { WorkspaceCalendar } from "./workspace-calendar";
+import {
+  getCalendarItemDateKey,
+  WorkspaceCalendar,
+} from "./workspace-calendar";
 
 const {
   calendarRealtimeBridgeMock,

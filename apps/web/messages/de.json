@@ -8619,24 +8619,17 @@
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
-        "platform": "Plattform"
+        "platform": "Plattform",
+        "more": "+{count} weitere",
+        "moreHint": "{count, plural, one {# weiteren Beitrag} other {# weitere Beiträge}} an diesem Tag anzeigen",
+        "newOnDay": "Neuer Beitrag am {date}",
+        "newPost": "Neuer Beitrag",
+        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen.",
+        "dayEmpty": "An diesem Tag ist nichts geplant.",
+        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
-      },
-      "planner": {
-        "statusFilter": "Nach Status filtern",
-        "posts": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
-        "openDays": "{count, plural, =0 {Keine freien Tage voraus} one {# freier Tag voraus} other {# freie Tage voraus}}",
-        "dayLabel": "{date}, {count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
-        "today": "heute",
-        "plan": "Beitrag planen",
-        "planFor": "Beitrag planen am {date}",
-        "emptyDay": "Für diesen Tag ist nichts geplant.",
-        "openDay": "Freier Tag",
-        "noPosts": "Keine Beiträge",
-        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen. Die Uhrzeit bleibt gleich.",
-        "moved": "Verschoben auf {date}."
       }
     },
     "You": {

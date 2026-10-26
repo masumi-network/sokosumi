@@ -108,7 +108,6 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { getCalendarItemDateKey } from "./calendar-day-key";
 import {
   type ChangeableRun,
   changeRun,
@@ -116,7 +115,7 @@ import {
   useReportRunChangeFailure,
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
-import { SocialPlanner } from "./social-planner";
+import { SocialDayAddSlot, SocialMobileCalendar } from "./social-calendar-day";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 import {
   isChangeableSocialPost,
@@ -124,7 +123,6 @@ import {
   useReportSocialRescheduleFailure,
 } from "./social-post-change";
 import { SourceMarker } from "./source-marker";
-import { usePendingMoves } from "./use-pending-moves";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
@@ -255,6 +253,23 @@ function getProjectIdFromSource(
 
   const projectId = source.sourceId.replace(/^project:/, "");
   return projectId ? projectId : null;
+}
+
+export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function getRangeLabel(
@@ -535,6 +550,7 @@ function CalendarView({
   onDateClick,
   runHandlers,
   socialOnly,
+  socialPostVariant,
   sources,
   timeZone,
   view,
@@ -546,21 +562,78 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   socialOnly: boolean;
+  /** Social's own calendar draws its chips; the workspace Calendar lists posts. */
+  socialPostVariant: "compact" | "month" | "week";
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: CalendarView;
 }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [fillHeight, setFillHeight] = useState<number | null>(null);
+  const socialChips = socialPostVariant !== "compact";
+  // Social's week is one row of days; let it reach the bottom of the screen
+  // rather than stop under the last chip.
+  const fillSpace = socialChips && view === "week" && !isMobile;
+  useEffect(() => {
+    if (!fillSpace || !calendarRef.current) return;
+    const element = calendarRef.current;
+    const measure = () => {
+      setFillHeight(
+        Math.max(
+          320,
+          window.innerHeight - element.getBoundingClientRect().top - 24,
+        ),
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element.parentElement ?? element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [fillSpace]);
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
   const reportSocialRescheduleFailure = useReportSocialRescheduleFailure();
-  const { pendingMoves, addPendingMove, clearPendingMove } =
-    usePendingMoves(items);
+  // Optimistic overlay for an in-flight drop: the event renders at the time it
+  // was dropped at until Core confirms it or the rollback removes it.
+  const [pendingMoves, setPendingMoves] = useState<
+    Record<string, { item: WorkspaceCalendarEntry; scheduledAt: Date }>
+  >({});
+  // Unchanged server snapshots retain the move until its time or revision changes.
+  const retainedMoves = Object.entries(pendingMoves).filter(([, move]) => {
+    const current = items.find((item) => item.id === move.item.id);
+    if (
+      !current ||
+      current.scheduledAt.getTime() !== move.item.scheduledAt.getTime()
+    ) {
+      return false;
+    }
+    return current.kind === "socialPost"
+      ? move.item.kind === "socialPost" &&
+          current.revision === move.item.revision
+      : move.item.kind !== "socialPost" &&
+          current.scheduleRevision === move.item.scheduleRevision;
+  });
+  if (retainedMoves.length !== Object.keys(pendingMoves).length) {
+    setPendingMoves(Object.fromEntries(retainedMoves));
+  }
   const pluginView = {
     month: "dayGridMonth",
     week: "dayGridWeek",
   }[view === "agenda" ? "week" : view];
+
+  function clearPendingMove(runId: string) {
+    setPendingMoves((moves) => {
+      const { [runId]: _dropped, ...rest } = moves;
+      return rest;
+    });
+  }
 
   async function handleEventDrop(info: EventDropInfo) {
     const item = items.find(({ id }) => id === info.event.id);
@@ -571,7 +644,10 @@ function CalendarView({
     }
 
     if (isChangeableRun(item)) {
-      addPendingMove(item, scheduledAt);
+      setPendingMoves((moves) => ({
+        ...moves,
+        [item.id]: { item, scheduledAt },
+      }));
       try {
         const result = await changeRun(item, { action: "move", scheduledAt });
         if (!result.ok) {
@@ -590,7 +666,10 @@ function CalendarView({
     }
 
     if (isChangeableSocialPost(item)) {
-      addPendingMove(item, scheduledAt);
+      setPendingMoves((moves) => ({
+        ...moves,
+        [item.id]: { item, scheduledAt },
+      }));
       try {
         const result = await rescheduleSocialPost(item, scheduledAt);
         if (!result.ok) {
@@ -612,6 +691,21 @@ function CalendarView({
   }
 
   const dateKey = getCalendarDayKey(date);
+  const todayKey = calendarTodayKey(timeZone);
+
+  if (socialChips && isMobile && view !== "agenda") {
+    return (
+      <SocialMobileCalendar
+        date={date}
+        dayKeyOf={(item) => getCalendarItemDateKey(item.scheduledAt, timeZone)}
+        items={items.filter((item) => item.kind === "socialPost")}
+        key={dateKey}
+        timeZone={timeZone}
+        todayKey={todayKey}
+        view={view}
+      />
+    );
+  }
 
   if (view === "agenda") {
     const days = Map.groupBy(items, (item) =>
@@ -656,7 +750,7 @@ function CalendarView({
                     <SocialPostCalendarEvent
                       item={item}
                       timeZone={timeZone}
-                      variant="compact"
+                      variant={socialPostVariant}
                     />
                   ) : (
                     <CalendarEvent
@@ -684,6 +778,7 @@ function CalendarView({
     <>
       <div
         className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
+        ref={calendarRef}
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -693,7 +788,9 @@ function CalendarView({
           dayCellClass={
             canCreate
               ? "hover:bg-muted motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
-              : undefined
+              : socialChips
+                ? "group/day relative"
+                : undefined
           }
           key={`${dateKey}-${timeZone}-${view}`}
           plugins={[classicTheme, dayGridPlugin, interactionPlugin]}
@@ -711,13 +808,50 @@ function CalendarView({
           }))}
           timeZone={timeZone}
           headerToolbar={false}
-          height="auto"
+          height={fillSpace && fillHeight ? fillHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
           // already carries the time, so the dot was the only leftover. Block
           // mode paints the theme's event blue behind the card; the card is
           // the only fill wanted.
           eventDisplay="block"
           eventColor="transparent"
+          {...(socialChips
+            ? {
+                // A day shows its first few posts; the rest are one tap away
+                // in FullCalendar's day popover, drawn with the same chips.
+                dayMaxEvents: view === "month" ? 3 : false,
+                moreLinkContent: ({ num }: { num: number }) =>
+                  t("socialPost.more", { count: num }),
+                moreLinkHint: (num: number) =>
+                  t("socialPost.moreHint", { count: num }),
+                dayCellTopContent: (cell: {
+                  dayNumberText: string;
+                  inPopover: boolean;
+                }) => (
+                  <>
+                    {cell.dayNumberText}
+                    {cell.inPopover ? null : (
+                      <SocialDayAddSlot
+                        className="absolute top-1 start-1 z-10 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+                        todayKey={todayKey}
+                      />
+                    )}
+                  </>
+                ),
+                dayHeaderClass: "relative",
+                dayHeaderContent: (header: { text: string }) => (
+                  <>
+                    {header.text}
+                    {view === "week" ? (
+                      <SocialDayAddSlot
+                        className="absolute end-1 top-1/2 z-10 -translate-y-1/2"
+                        todayKey={todayKey}
+                      />
+                    ) : null}
+                  </>
+                ),
+              }
+            : {})}
           editable={false}
           eventDurationEditable={false}
           eventAllow={(_span, movingEvent) => {
@@ -743,9 +877,13 @@ function CalendarView({
                         ? { ...item, scheduledAt: pendingStart }
                         : item
                     }
-                    showThumb={socialOnly && view === "week"}
+                    showThumb={
+                      socialPostVariant === "compact" &&
+                      socialOnly &&
+                      view === "week"
+                    }
                     timeZone={timeZone}
-                    variant="compact"
+                    variant={socialPostVariant}
                   />
                 </div>
               );
@@ -874,8 +1012,8 @@ export function WorkspaceCalendar({
   const isMobile = useIsMobile();
   // Phones open on the agenda list; a seven-column grid is a desktop default.
   // Social plans a feed a month at a time, so its own calendar opens on the
-  // month everywhere: its planner stacks the month overview over the chosen
-  // day on a phone rather than squeezing seven columns of posts.
+  // month, on a phone too, where the month is a grid of days over the chosen
+  // day's posts; the workspace calendar plans the week's runs.
   const views: readonly CalendarView[] = socialPostsOnly
     ? SOCIAL_CALENDAR_VIEWS
     : CALENDAR_VIEWS;
@@ -967,23 +1105,6 @@ export function WorkspaceCalendar({
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
 
-  // The planner's status counts ignore the status filter they set, so a
-  // pressed status still shows how many posts each other state holds.
-  const socialSummaryItems = socialPostsOnly
-    ? loadedItems.filter(
-        (item) =>
-          item.kind === "socialPost" &&
-          (state.provider === null || item.provider === state.provider) &&
-          (selectedSourceId === null || item.sourceId === selectedSourceId),
-      )
-    : [];
-  // Social's planner selects a day, so Today stays useful until that day is today.
-  const showingToday =
-    isShowingToday(date, view, timeZone) &&
-    (!socialPostsOnly ||
-      state.date === null ||
-      state.date === calendarTodayKey(timeZone));
-
   function getNavigatedDate(direction: -1 | 1): Date {
     return view === "week"
       ? addDays(date, direction * 7)
@@ -1005,11 +1126,7 @@ export function WorkspaceCalendar({
   }
 
   function handleToday() {
-    // Within the shown period the planner only moves its selected day.
-    void setState(
-      { date: calendarTodayKey(timeZone) },
-      { shallow: isShowingToday(date, view, timeZone) },
-    );
+    void setState({ date: calendarTodayKey(timeZone) }, { shallow: false });
   }
 
   function handleViewChange(view: CalendarView) {
@@ -1370,7 +1487,7 @@ export function WorkspaceCalendar({
               <ChevronRight aria-hidden />
             </Button>
             <Button
-              disabled={showingToday}
+              disabled={isShowingToday(date, view, timeZone)}
               type="button"
               variant="outline"
               onClick={handleToday}
@@ -1505,43 +1622,29 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {socialPostsOnly ? (
-        <SocialPlanner
+      <div className="flex min-w-0 flex-col gap-4">
+        {visibleItems.length === 0 && view !== "agenda" ? (
+          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+          </div>
+        ) : null}
+        <CalendarView
+          key={calendarRenderEpoch}
+          canCreate={canCreate}
+          coworkers={coworkers}
           date={date}
           items={visibleItems}
-          onPostStatusChange={(postStatus) => void setState({ postStatus })}
-          // Picking a day inside the shown period changes no range, so the
-          // URL keeps it for a reload or a shared link without a server trip.
-          onSelectDay={(day) => void setState({ date: day })}
-          postStatus={state.postStatus}
-          requestedDayKey={state.date}
-          showProject={!lockedProjectId}
-          summaryItems={socialSummaryItems}
+          onDateClick={handleDateClick}
+          runHandlers={runHandlers}
+          socialOnly={socialOnly}
+          socialPostVariant={
+            socialPostsOnly ? (view === "week" ? "week" : "month") : "compact"
+          }
+          sources={sources}
           timeZone={timeZone}
-          view={view === "week" ? "week" : "month"}
+          view={view}
         />
-      ) : (
-        <div className="flex min-w-0 flex-col gap-4">
-          {visibleItems.length === 0 && view !== "agenda" ? (
-            <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-              {t(socialOnly ? "empty.socialOnly" : "empty.title")}
-            </div>
-          ) : null}
-          <CalendarView
-            key={calendarRenderEpoch}
-            canCreate={canCreate}
-            coworkers={coworkers}
-            date={date}
-            items={visibleItems}
-            onDateClick={handleDateClick}
-            runHandlers={runHandlers}
-            socialOnly={socialOnly}
-            sources={sources}
-            timeZone={timeZone}
-            view={view}
-          />
-        </div>
-      )}
+      </div>
       {view === "agenda" && nextCursor ? (
         <div className="flex justify-center" ref={agendaBoundaryRef}>
           <Button

@@ -106,8 +106,8 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
-      /** A time to start on, when the calendar opened the composer for a day. */
-      scheduledAt?: Date;
+      /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
+      scheduledAt?: string;
     }
   | { kind: "edit"; post: SocialPost }
   | { kind: "schedule"; post: SocialPost };
@@ -168,8 +168,6 @@ export function SocialPostComposerDialog({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
-  const initialScheduledAt =
-    mode.kind === "create" ? mode.scheduledAt : post?.scheduledAt;
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -268,8 +266,12 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
+  const prefilledScheduledAt =
+    mode.kind === "create" ? (mode.scheduledAt ?? "") : "";
   const [scheduledAt, setScheduledAt] = useState(
-    initialScheduledAt ? toScheduleValue(initialScheduledAt) : "",
+    post?.scheduledAt
+      ? toScheduleValue(post.scheduledAt)
+      : prefilledScheduledAt,
   );
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
@@ -306,7 +308,7 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: initialScheduledAt ? toScheduleValue(initialScheduledAt) : "",
+    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
     connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
   }));
 
@@ -947,7 +949,7 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== ""
+        scheduledAt !== prefilledScheduledAt
       : firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||

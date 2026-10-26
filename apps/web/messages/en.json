@@ -8619,24 +8619,17 @@
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
-        "platform": "Platform"
+        "platform": "Platform",
+        "more": "+{count} more",
+        "moreHint": "Show {count, plural, one {# more post} other {# more posts}} on this day",
+        "newOnDay": "New post on {date}",
+        "newPost": "New post",
+        "dragHint": "Drag to another day to reschedule.",
+        "dayEmpty": "Nothing scheduled on this day.",
+        "dayCount": "{count, plural, =0 {no posts} one {# post} other {# posts}}"
       },
       "socialOnly": {
         "label": "Social posts only"
-      },
-      "planner": {
-        "statusFilter": "Filter by status",
-        "posts": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
-        "openDays": "{count, plural, =0 {No open days ahead} one {# open day ahead} other {# open days ahead}}",
-        "dayLabel": "{date}, {count, plural, =0 {no posts} one {# post} other {# posts}}",
-        "today": "today",
-        "plan": "Plan a post",
-        "planFor": "Plan a post on {date}",
-        "emptyDay": "Nothing planned for this day.",
-        "openDay": "Open day",
-        "noPosts": "No posts",
-        "dragHint": "Drag to another day to reschedule. The time stays the same.",
-        "moved": "Moved to {date}."
       }
     },
     "You": {
