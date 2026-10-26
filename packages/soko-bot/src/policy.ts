@@ -92,6 +92,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "create_newsletter_issue",
   "update_newsletter_issue",
   "delete_newsletter_issue",
+  "preview_newsletter_issue",
+  "submit_newsletter_issue",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -128,6 +130,8 @@ export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
   "create_newsletter_issue",
   "update_newsletter_issue",
   "delete_newsletter_issue",
+  "preview_newsletter_issue",
+  "submit_newsletter_issue",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotNewsletterCapability(
@@ -186,6 +190,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "create_newsletter_issue",
   "update_newsletter_issue",
   "delete_newsletter_issue",
+  "submit_newsletter_issue",
   "generate_video",
   "post_chat",
   "open_direct_chat",
@@ -263,6 +268,8 @@ const DIRECT_READ_CAPABILITIES = [
   "get_newsletter_issue",
   "get_newsletter_analytics",
   "list_newsletter_subscribers",
+  // Renders an issue for review; it never saves or sends one.
+  "preview_newsletter_issue",
   "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
@@ -322,6 +329,8 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "create_newsletter_issue",
   "update_newsletter_issue",
   "delete_newsletter_issue",
+  // Asks a person to approve; approving and sending stay with them.
+  "submit_newsletter_issue",
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.

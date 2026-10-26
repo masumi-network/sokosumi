@@ -7,6 +7,7 @@ import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { isSharedSokoBotAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import type { NewsletterScope } from "@/services/newsletter.service";
+import { sokoBotNewsletterTaskContext } from "@/services/newsletter-issues.service";
 import type { TaskDomainActor } from "@/services/task-domain.service";
 
 export async function newsletterScope(
@@ -42,16 +43,8 @@ export async function newsletterIssueScope(
 /** The approval Task retains the submitting actor without assigning work to an agent. */
 export async function newsletterTaskContext(c: Context<EnvVariables>) {
   const auth = c.var.authContext;
+  if (auth.actor === "sokoBot") return sokoBotNewsletterTaskContext(auth);
   let actor: TaskDomainActor;
-  if (auth.actor === "sokoBot") {
-    actor = { kind: "soko_bot", sokoBotId: auth.sokoBotId };
-    return {
-      actor,
-      ownerId: auth.userId,
-      organizationId: auth.organizationId,
-      humanUserId: null,
-    };
-  }
   const user = await requireAuthorizedUserContext(auth);
   actor =
     auth.actor === "coworker"
