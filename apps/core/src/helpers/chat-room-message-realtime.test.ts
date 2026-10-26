@@ -5,11 +5,13 @@ const {
   findUniqueMessageMock,
   publishChatRoomMessageEventMock,
   mapChatRoomMessageMock,
+  withChatRoomReplyCountMock,
 } = vi.hoisted(() => ({
   findRoomMembersMock: vi.fn().mockResolvedValue([{ userId: "user_b" }]),
   findUniqueMessageMock: vi.fn(),
   publishChatRoomMessageEventMock: vi.fn(),
   mapChatRoomMessageMock: vi.fn(),
+  withChatRoomReplyCountMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -33,7 +35,8 @@ vi.mock("@/lib/ably/publish", () => ({
 vi.mock("@/routes/v1/chats/rooms/helpers", () => ({
   chatRoomMessageInclude: {},
   mapChatRoomMessage: (...args: unknown[]) => mapChatRoomMessageMock(...args),
-  withChatRoomReplyCount: async (_db: unknown, message: unknown) => message,
+  withChatRoomReplyCount: (...args: unknown[]) =>
+    withChatRoomReplyCountMock(...args),
 }));
 
 vi.mock("@/schemas/chat-room.schema", () => ({
@@ -85,6 +88,10 @@ describe("publishChatRoomMessageRealtime", () => {
     findRoomMembersMock.mockResolvedValue([{ userId: "user_b" }]);
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
+    withChatRoomReplyCountMock.mockReset();
+    withChatRoomReplyCountMock.mockImplementation(
+      async (_db: unknown, message: unknown) => message,
+    );
   });
 
   it("propagates a transport failure for durable outbox callers", async () => {
@@ -163,6 +170,7 @@ describe("publishChatRoomMessageRealtime", () => {
   it("maps once without a viewer id and publishes once to the room channel", async () => {
     await publishChatRoomMessageRealtime(baseMessage as never, "create");
 
+    expect(withChatRoomReplyCountMock).toHaveBeenCalledTimes(1);
     expect(mapChatRoomMessageMock).toHaveBeenCalledTimes(1);
     expect(mapChatRoomMessageMock).toHaveBeenCalledWith(baseMessage);
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(1);
@@ -196,7 +204,12 @@ describe("publishChatRoomMessageRealtime", () => {
 
     await publishChatRoomMessageRealtime(baseMessage as never, "reaction");
 
-    expect(mapChatRoomMessageMock).toHaveBeenCalledWith(baseMessage);
+    // A patch never reads the reply count, so it does not pay for one.
+    expect(withChatRoomReplyCountMock).not.toHaveBeenCalled();
+    expect(mapChatRoomMessageMock).toHaveBeenCalledWith({
+      ...baseMessage,
+      threadReplyCount: 0,
+    });
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
       eventType: "reaction",
       messageId: baseMessage.id,
@@ -282,6 +295,10 @@ describe("publishChatRoomMessageRealtimeById", () => {
     findRoomMembersMock.mockResolvedValue([{ userId: "user_b" }]);
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
+    withChatRoomReplyCountMock.mockReset();
+    withChatRoomReplyCountMock.mockImplementation(
+      async (_db: unknown, message: unknown) => message,
+    );
   });
 
   it("loads the message then publishes once", async () => {
