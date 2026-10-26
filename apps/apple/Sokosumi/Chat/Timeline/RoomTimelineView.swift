@@ -174,6 +174,12 @@ import SwiftUI
         })) {
           Button("OK", role: .cancel) {}
         } message: { Text(jumpError ?? "") }
+        // The room counts as read only at the end of its transcript (SOK-1481): tell the room whenever the list reaches
+        // or leaves it, and again for each visit, which starts away from it.
+        .onChange(of: TranscriptEnd(visit: workspaces.openRoom.room.timeline.generation, atEnd: !scroll.showsJumpToLatest(anchored: anchored)),
+                  initial: true) { _, end in
+          Task { @MainActor in await workspaces.openRoom.setAtEnd(end.atEnd, roomId: roomId) }
+        }
         .onChange(of: workspaces.openRoom.room.timeline.historicalAnchor) { old, new in
           if old != nil, new == nil {
             scroll.followLatest()
@@ -511,6 +517,12 @@ import SwiftUI
         Button("Retry", action: retry)
       }
     }
+  }
+
+  /// Whether the list is at its end (Jump to latest hidden), per visit of the room.
+  private struct TranscriptEnd: Equatable {
+    let visit: Int
+    let atEnd: Bool
   }
 
   /// Where the transcript's first two rows sit in the viewport, and the row an older page's landing keeps in place

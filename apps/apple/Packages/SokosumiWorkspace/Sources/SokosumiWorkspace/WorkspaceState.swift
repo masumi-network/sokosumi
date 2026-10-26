@@ -814,6 +814,7 @@ public final class WorkspaceState: ObservableObject {
         room: room,
         content: content,
         historyReadable: roomHistoryReadable && !openRoom.thread.transcript.timeline.isLoading,
+        atEnd: openRoom.isAtEnd,
         client: client,
         organizationSlug: slug,
         threadLooked: { threadLooked(content.parentMessageId) }

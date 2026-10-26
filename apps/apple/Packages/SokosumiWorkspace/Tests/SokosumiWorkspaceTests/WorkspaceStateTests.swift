@@ -237,6 +237,7 @@ private func ephemeralState(
     sleep: recoveryTimersNeverFire
   )
   state.readAttention.setVisible(visible, window: UUID())
+  keepRoomListAtTheEnd(state)
   state.clientResolver = { client }
   return (state, auth, transport, defaults)
 }

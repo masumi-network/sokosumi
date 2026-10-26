@@ -46,6 +46,10 @@ public final class TranscriptSession: ObservableObject {
   static let signInMissing = "Sign-in is not configured."
 
   @Published public private(set) var jumpTarget: JumpTarget?
+  /// Whether the reader is at the end of this Transcript: the list follows the latest message outside a jump window,
+  /// the state that hides Jump to latest. A room counts as read only there (SOK-1481). Every open starts away from it,
+  /// so opening reads nothing until the list reports reaching it, and a jump leaves it.
+  public private(set) var isAtEnd = false
   public let timeline = RoomTimeline()
   public let outbox: RoomOutbox
   public let recovery: ChatRefreshScheduler
@@ -91,12 +95,20 @@ public final class TranscriptSession: ObservableObject {
   /// once, in `open` or `close`, so it never publishes an empty scope between two rooms.
   private func stop() {
     clearJump()
+    isAtEnd = false
     loadTask?.cancel()
     loadTask = nil
     gapTask?.cancel()
     gapTask = nil
     recovery.stop()
     outbox.reset()
+  }
+
+  /// The list reports whether it is at its end; true when the reader has just reached it.
+  @discardableResult
+  public func setAtEnd(_ atEnd: Bool) -> Bool {
+    defer { isAtEnd = atEnd }
+    return atEnd && !isAtEnd
   }
 
   public func requestJump(to messageId: String) {
@@ -174,6 +186,7 @@ public final class TranscriptSession: ObservableObject {
 
   private func replaceJump(with target: JumpTarget) {
     finishLanding(false)
+    isAtEnd = false
     jumpTarget = target
   }
 

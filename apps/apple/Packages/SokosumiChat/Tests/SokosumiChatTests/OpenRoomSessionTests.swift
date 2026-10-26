@@ -110,13 +110,13 @@ struct OpenRoomSessionTests {
   // MARK: - Routes through the session
 
   /// A session on Core through `transport`; `rejected` hears every failure the workspace would see.
-  private func connected(_ transport: TestTransport, rejected: @escaping (Error) -> Void = { _ in }) throws -> OpenRoomSession {
+  private func connected(_ transport: TestTransport, rejected: @escaping (Error) -> Void = { _ in }, synced: @escaping () -> Void = {}) throws -> OpenRoomSession {
     let client = try makeTestClient(transport)
     let session = OpenRoomSession(sleep: { _ in try await Task.sleep(for: .seconds(3600)) })
     session.hooks = .init(access: { (client, nil) }, failed: { error in
       rejected(error)
       return false
-    }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false }, listedRoom: { [self] in room(testRoomId) },
+    }, pageLanded: synced, lookBeforeThread: {}, isForeground: { false }, listedRoom: { [self] in room(testRoomId) },
     viewer: { ("me", "Me") }, organizationId: { nil })
     return session
   }
@@ -379,5 +379,62 @@ struct OpenRoomSessionTests {
     session.hooks.listedRoom = { listedRoom }
     session.hooks.viewer = { ("me", account) }
     #expect(session.reactionViewer == PendingReactionViewer(id: "me", name: expected))
+  }
+
+  // MARK: - SOK-1484: the room reads only at the end of its transcript
+
+  /// Opening puts nothing at the end; the list's report that it reached the end syncs the read, once, for the open room.
+  @Test func reachingTheEndSyncsTheRead() async throws {
+    var syncs = 0
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]), synced: { syncs += 1 })
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    #expect(syncs == 1)
+    #expect(!session.isAtEnd, "Opening the room does not put it at its end.")
+    await session.setAtEnd(true, roomId: "other")
+    #expect(!session.isAtEnd && syncs == 1, "Another room's list says nothing about this one.")
+    await session.setAtEnd(true, roomId: testRoomId)
+    #expect(session.isAtEnd && syncs == 2)
+    await session.setAtEnd(true, roomId: testRoomId)
+    await session.setAtEnd(false, roomId: testRoomId)
+    #expect(syncs == 2, "Staying at the end or leaving it syncs nothing.")
+    session.open(room("b"), userId: "me", organizationId: nil)
+    #expect(!session.isAtEnd, "The next room starts away from its end.")
+  }
+
+  /// An explicit target holds the read from its start, through the first page, until its jump has moved the list off
+  /// the end; the room reads once the reader is back at the end.
+  @Test func anExplicitTargetHoldsTheReadUntilTheReaderIsBackAtTheEnd() async throws {
+    var atEndWhenSynced: [Bool] = []
+    var atEnd: () -> Bool = { false }
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Root", sender: ada)], nextCursor: nil))
+    ]), synced: { atEndWhenSynced.append(atEnd()) })
+    atEnd = { session.isAtEnd }
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    await session.setAtEnd(true, roomId: testRoomId)
+    #expect(try await session.openLinkTarget(roomId: testRoomId, messageId: "root") == .opened)
+    #expect(atEndWhenSynced == [true, false, false], "Neither the first page nor the navigation's end reads the room.")
+    // The room's list takes the jump and leaves the end.
+    let jump = try #require(session.messageJump)
+    session.room.requestJump(to: jump.messageId)
+    session.consumeMessageJump(jump.requestId)
+    await session.setAtEnd(false, roomId: testRoomId)
+    #expect(!session.isAtEnd)
+    await session.setAtEnd(true, roomId: testRoomId)
+    #expect(atEndWhenSynced == [true, false, false, true], "Back at the end, the room reads.")
+  }
+
+  /// A link without a message still holds the read through the first page, then releases it.
+  @Test func aRoomLinkReadsOnceItsNavigationSettles() async throws {
+    var atEndWhenSynced: [Bool] = []
+    var atEnd: () -> Bool = { false }
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]),
+                                synced: { atEndWhenSynced.append(atEnd()) })
+    atEnd = { session.isAtEnd }
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    await session.setAtEnd(true, roomId: testRoomId)
+    #expect(try await session.openLinkTarget(roomId: testRoomId, messageId: nil) == .opened)
+    #expect(atEndWhenSynced == [true, false, true])
   }
 }
