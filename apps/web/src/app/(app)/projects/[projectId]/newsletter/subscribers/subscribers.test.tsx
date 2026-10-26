@@ -142,6 +142,28 @@ beforeEach(() => {
 });
 
 describe("newsletter subscribers", () => {
+  it.each([
+    NewsletterSubscriberStatus.UNSUBSCRIBED,
+    NewsletterSubscriberStatus.BOUNCED,
+  ])(
+    "preserves suppression by offering no reactivation or removal for %s",
+    (status) => {
+      renderSubscribers({
+        data: {
+          ...DATA,
+          subscribers: [{ ...PERSON, status }],
+        },
+      });
+      expect(
+        screen.queryByRole("button", {
+          name: `Manage subscriber ${PERSON.email}`,
+        }),
+      ).not.toBeInTheDocument();
+      expect(mocks.status).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
+    },
+  );
+
   it("shows counts and both empty-state entry actions", () => {
     renderSubscribers({ data: EMPTY });
     expect(
@@ -458,11 +480,6 @@ describe("newsletter subscribers", () => {
       COPY.unsubscribe,
       NewsletterSubscriberStatus.UNSUBSCRIBED,
     ],
-    [
-      NewsletterSubscriberStatus.UNSUBSCRIBED,
-      COPY.resubscribe,
-      NewsletterSubscriberStatus.ACTIVE,
-    ],
   ])("changes status only for %s", async (status, label, target) => {
     const user = userEvent.setup();
     renderSubscribers({
@@ -480,22 +497,24 @@ describe("newsletter subscribers", () => {
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
-  it.each([
-    NewsletterSubscriberStatus.PENDING,
-    NewsletterSubscriberStatus.BOUNCED,
-  ])("offers removal only for %s", async (status) => {
-    const user = userEvent.setup();
-    renderSubscribers({
-      data: { ...DATA, subscribers: [{ ...PERSON, status }] },
-    });
-    await user.click(
-      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
-    );
-    expect(screen.getAllByRole("menuitem")).toHaveLength(1);
-    expect(
-      screen.getByRole("menuitem", { name: COPY.remove }),
-    ).toBeInTheDocument();
-  });
+  it.each([NewsletterSubscriberStatus.PENDING])(
+    "offers removal only for %s",
+    async (status) => {
+      const user = userEvent.setup();
+      renderSubscribers({
+        data: { ...DATA, subscribers: [{ ...PERSON, status }] },
+      });
+      await user.click(
+        screen.getByRole("button", {
+          name: `Manage subscriber ${PERSON.email}`,
+        }),
+      );
+      expect(screen.getAllByRole("menuitem")).toHaveLength(1);
+      expect(
+        screen.getByRole("menuitem", { name: COPY.remove }),
+      ).toBeInTheDocument();
+    },
+  );
 
   it("reports stale status errors without claiming success", async () => {
     mocks.status.mockResolvedValue({

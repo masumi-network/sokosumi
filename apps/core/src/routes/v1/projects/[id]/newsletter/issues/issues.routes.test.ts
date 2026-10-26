@@ -22,6 +22,7 @@ import mountCreate from "./post";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
   findUnique: vi.fn(),
@@ -42,6 +43,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    workspace: { findUnique: m.workspace },
     project: { findFirst: m.project },
     newsletter: { findUnique: m.newsletter },
     newsletterIssue: {
@@ -106,6 +108,7 @@ function app(authenticated = true) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     closingAt: null,

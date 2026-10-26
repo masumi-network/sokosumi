@@ -127,10 +127,7 @@ export const changeNewsletterSubscriberStatus = withSession<
 >(async ({ projectId, subscriberId, status }) => {
   const t = await getTranslations("App.Projects.Newsletter.Subscribers");
   const parsed = z
-    .enum([
-      NewsletterSubscriberStatus.ACTIVE,
-      NewsletterSubscriberStatus.UNSUBSCRIBED,
-    ])
+    .literal(NewsletterSubscriberStatus.UNSUBSCRIBED)
     .safeParse(status);
   if (
     !targetSchema.safeParse({ projectId, subscriberId }).success ||

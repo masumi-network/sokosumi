@@ -229,7 +229,7 @@ describe("newsletter subscriber actions", () => {
     ).toMatchObject({ ok: false, error: { message: COPY.Import.invalidCsv } });
   });
 
-  it.each(["ACTIVE", "UNSUBSCRIBED"])(
+  it.each(["UNSUBSCRIBED"])(
     "requests the permitted target status %s",
     async (status) => {
       mocks.updateSubscriber.mockResolvedValue({ status });
@@ -245,7 +245,7 @@ describe("newsletter subscriber actions", () => {
     },
   );
 
-  it.each(["PENDING", "BOUNCED", "forged"])(
+  it.each(["ACTIVE", "PENDING", "BOUNCED", "forged"])(
     "rejects target status %s",
     async (status) => {
       expect(
@@ -260,7 +260,10 @@ describe("newsletter subscriber actions", () => {
       new CoreApiRequestError("private", { status: 409 }),
     );
     expect(
-      await changeNewsletterSubscriberStatus({ ...TARGET, status: "ACTIVE" }),
+      await changeNewsletterSubscriberStatus({
+        ...TARGET,
+        status: "UNSUBSCRIBED",
+      }),
     ).toMatchObject({ ok: false, error: { message: COPY.transitionError } });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
@@ -285,7 +288,7 @@ describe("newsletter subscriber actions", () => {
       await changeNewsletterSubscriberStatus({
         ...TARGET,
         subscriberId: "invalid",
-        status: "ACTIVE",
+        status: "UNSUBSCRIBED",
       }),
     ).toMatchObject({ ok: false });
     expect(mocks.removeSubscriber).not.toHaveBeenCalled();
@@ -310,7 +313,10 @@ describe("newsletter subscriber actions", () => {
         }),
       ).toMatchObject({ ok: false, error: { message: COPY.Import.error } });
       expect(
-        await changeNewsletterSubscriberStatus({ ...TARGET, status: "ACTIVE" }),
+        await changeNewsletterSubscriberStatus({
+          ...TARGET,
+          status: "UNSUBSCRIBED",
+        }),
       ).toMatchObject({ ok: false, error: { message: COPY.updateError } });
       expect(await removeNewsletterSubscriber(TARGET)).toMatchObject({
         ok: false,
