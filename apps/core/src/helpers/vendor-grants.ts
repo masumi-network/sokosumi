@@ -29,9 +29,6 @@ export const VendorPermissionApi = {
   WORKSPACE: "workspace",
 } as const;
 
-export type VendorPermissionApiValue =
-  (typeof VendorPermissionApi)[keyof typeof VendorPermissionApi];
-
 function workspaceGrantUniqueWhere(vendorId: string, workspaceId: string) {
   return {
     vendorId_workspaceId: {

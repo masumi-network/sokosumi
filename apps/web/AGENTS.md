@@ -183,17 +183,17 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 ## App-Specific Commands
 
-| Command           | Purpose                   |
-| ----------------- | ------------------------- |
-| `pnpm web:dev`       | Start development server on `:3000` |
-| `pnpm portless:dev`  | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
-| `pnpm portless:web`  | Web only via portless (still injects Core's named URL) |
-| `pnpm web:build`  | Build for production      |
-| `pnpm web:start`  | Test production build     |
-| `pnpm --filter web lint` | Run Biome lint rules for the web app |
-| `pnpm --filter web check` | Run full Biome checks for the web app |
-| `pnpm web:test`   | Run web app tests         |
-| `pnpm --filter web format` | Format code with Biome |
+| Command                    | Purpose                                                                     |
+| -------------------------- | --------------------------------------------------------------------------- |
+| `pnpm web:dev`             | Start development server on `:3000`                                         |
+| `pnpm portless:dev`        | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
+| `pnpm portless:web`        | Web only via portless (still injects Core's named URL)                      |
+| `pnpm web:build`           | Build for production                                                        |
+| `pnpm web:start`           | Test production build                                                       |
+| `pnpm --filter web lint`   | Run Biome lint rules for the web app                                        |
+| `pnpm --filter web check`  | Run full Biome checks for the web app                                       |
+| `pnpm web:test`            | Run web app tests                                                           |
+| `pnpm --filter web format` | Format code with Biome                                                      |
 
 ## App-Specific Testing
 
@@ -252,12 +252,12 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 
 #### Not Core REST DTOs (do not add to `/v1` OpenAPI entity schemas)
 
-| Category | Examples | Canonical home | Rule |
-| -------- | -------- | -------------- | ---- |
-| Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
-| UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
-| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
-| Localized view models | `TaskWithCoworker` | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
+| Category                   | Examples                                             | Canonical home                                                                     | Rule                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stable API error kinds     | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind`           | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`)                    | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map.                                                                              |
+| UI-only display values     | `expired` invitation status                          | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
+| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils`                                                                  | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5).                                                                                               |
+| Localized view models      | `TaskWithCoworker`                                   | Feature folders next to UI                                                         | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos).                                                                                                                                                                                  |
 
 **Decision test:** If a value is (a) a stable error `kind`, (b) UI-derived display state, (c) Better Auth `/auth` shape, or (d) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
 
@@ -359,10 +359,10 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
   (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
   blocks and in the `@theme inline` bridge. Guard:
-  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See `.cursor/rules/color-tokens.mdc`.
+  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See [Color tokens](../../.cursor/rules/color-tokens.mdc).
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
-- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
+- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See [Dynamic Type](../../.cursor/rules/dynamic-type.mdc) and `apps/web/src/lib/utils/dynamic-type.ts`.
 - **Font sizes**: Never set a literal font size in product UI: no arbitrary `text-[…]` in any unit (`text-[10px]`; `text-[0.8125rem]` is the same off-scale 13px), no `text-[length:…]` or `text-(length:…)`, and no literal `font-size`/`fontSize` in px, rem or em (`font-size: 12px`, `fontSize: "0.875rem"`, `fontSize: 14`). Use a scale step: `text-2xs` (11px, dense meta and badges only) through `text-4xl`. They are rem, so type scales with root. `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails each spelling and lists the few exceptions with their reason.
 - **Whole pixels**: Never a fractional `px` on a layout or border length (`p-[1.5px]`, `padding: 1.5px`, `border: "0.2px solid …"`). A 1x display has no half pixel, so the browser rounds a `1.5px` border to 1px on one edge and 2px on the other. Blur radii, keyframe translations and unitless scale factors stay continuous. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 

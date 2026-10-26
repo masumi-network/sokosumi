@@ -1,8 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  socialProviderUnavailableMessage,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { conflict, forbidden, notFound, unauthorized } from "@/helpers/error";
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -180,6 +189,7 @@ const scheduledPost = {
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   scheduledByUserId: USER_ID,
@@ -353,17 +363,17 @@ describe("Project social post routes", () => {
     expectNoServiceCalls();
   });
 
-  it("gates every operation behind Social beta access", async () => {
+  it("allows every operation without Social beta membership", async () => {
     requireSocialBetaAccessMock.mockRejectedValue(
-      forbidden("Calendar is only available to utxo AG workspace members"),
+      forbidden("Beta access required"),
     );
 
     const responses = await Promise.all(allOperations(createApp()));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403, 403, 403, 403, 403,
+      200, 201, 200, 200, 200, 200, 200, 200, 201, 200,
     ]);
-    expectNoServiceCalls();
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects a missing workspace", async () => {
@@ -394,10 +404,7 @@ describe("Project social post routes", () => {
       },
     ]);
     expect(filtered.status).toBe(200);
-    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
-      USER_ID,
-      expect.anything(),
-    );
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expect(listSocialPostsMock).toHaveBeenNthCalledWith(1, {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
@@ -900,6 +907,32 @@ describe("Project social post routes", () => {
     );
   });
 
+  it("propagates disabled-provider refusals for every post mutation", async () => {
+    const message = socialProviderUnavailableMessage("instagram", {
+      organizationSlug: null,
+    });
+    if (!message) throw new Error("Expected an unavailable provider");
+    for (const mock of [
+      createSocialPostMock,
+      updateSocialPostMock,
+      scheduleSocialPostMock,
+      approveSocialPostMock,
+      duplicateSocialPostMock,
+      publishSocialPostNowMock,
+    ]) {
+      mock.mockRejectedValue(badRequest(message));
+    }
+
+    const responses = await Promise.all(allOperations(createApp()));
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 400, 200, 400, 400, 200, 400, 200, 400, 400,
+    ]);
+    for (const index of [1, 3, 4, 6, 8, 9]) {
+      expect(await responses[index]!.text()).toContain(message);
+    }
+  });
+
   it("hides unexpected service failures", async () => {
     listSocialPostsMock.mockRejectedValue(new Error("database exploded"));
 
@@ -943,7 +976,7 @@ describe("Project social post routes", () => {
     expect(approveSocialPostMock).not.toHaveBeenCalled();
     expect(rejectSocialPostMock).not.toHaveBeenCalled();
   });
-  it("keeps coworker scheduling beta-gated", async () => {
+  it("allows delegated coworker scheduling without Social beta membership", async () => {
     requireAuthorizedUserContextMock.mockResolvedValue({
       userId: USER_ID,
       organizationId: null,
@@ -954,8 +987,21 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(
       allOperations(createApp(COWORKER_CONTEXT_AUTH)),
     );
-    expect(responses.every((response) => response.status === 403)).toBe(true);
-    expectNoServiceCalls();
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 201, 200, 200, 200, 200, 403, 403, 201, 403,
+    ]);
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
+    );
+    expect(scheduleSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
+    );
+    expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
+      "cow_123",
+      "tasks",
+      expect.anything(),
+    );
   });
   it("rejects coworkers without the tasks capability", async () => {
     requireAuthorizedUserContextMock.mockResolvedValue({

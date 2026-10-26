@@ -203,7 +203,7 @@ export function isAgentAuthContext(
  * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
  * | {@link requireOwnerUserContext} | Session only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
  * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker. |
- * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat, Social beta) must follow the effective user. |
+ * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat) must follow the effective user. |
  *
  * Middleware (`coworkerContextMiddleware`) only **attaches** validated
  * `X-Context-*` headers. Policy lives in these helpers — not per-handler
@@ -272,8 +272,8 @@ export function requireUserContext(
  * `null` for a standalone coworker key, whose access is decided by the Task
  * collaboration helpers instead of user-scoped gates.
  *
- * Use where a route accepts both user-scoped gates (organization seat,
- * Social beta) and standalone coworker actors: the gates apply to the
+ * Use where a route accepts both user-scoped gates (organization seats)
+ * and standalone coworker actors: the gates apply to the
  * effective user whenever one exists.
  */
 export function resolveUserContext(

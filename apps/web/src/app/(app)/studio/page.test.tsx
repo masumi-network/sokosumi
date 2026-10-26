@@ -37,7 +37,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
     initialSelectedAssetId: string | null;
     projectId: string | null;
     initialState: { assets: unknown[] };
-    canScheduleSocial?: boolean;
   }) => (
     <div
       data-testid="image-studio"
@@ -45,7 +44,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-assets={props.initialState.assets.length}
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
-      data-can-schedule={String(props.canScheduleSocial ?? false)}
     />
   ),
 }));
@@ -240,8 +238,8 @@ describe("StudioPage", () => {
     expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
-  it("lets Social beta members schedule from the studio", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(true);
+  it("loads the public studio without an Ads beta lookup", async () => {
+    hasSocialBetaAccessMock.mockRejectedValue(new Error("Not in Ads beta"));
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(studioState());
 
@@ -253,10 +251,8 @@ describe("StudioPage", () => {
       }),
     );
 
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-can-schedule",
-      "true",
-    );
+    expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

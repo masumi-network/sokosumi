@@ -59,9 +59,9 @@ If you use `generateStaticParams`, Suspense is optional.
 
 ## Quick Reference
 
-| Hook | Suspense Required |
-|------|-------------------|
-| `useSearchParams()` | Yes |
-| `usePathname()` | Yes (dynamic routes) |
-| `useParams()` | No |
-| `useRouter()` | No |
+| Hook                | Suspense Required    |
+| ------------------- | -------------------- |
+| `useSearchParams()` | Yes                  |
+| `usePathname()`     | Yes (dynamic routes) |
+| `useParams()`       | No                   |
+| `useRouter()`       | No                   |

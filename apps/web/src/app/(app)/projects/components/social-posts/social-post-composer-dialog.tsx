@@ -10,14 +10,15 @@ import {
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
-  SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaValidationReason,
   socialPostFirstCommentLimit,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLength,
+  socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-import { useQuery } from "@tanstack/react-query";
+import { type Query, useQueries, useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
@@ -37,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -44,6 +46,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
@@ -57,6 +60,7 @@ import {
 } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { formatTimezoneLabel } from "@/lib/schedules/timezones";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
@@ -127,28 +131,6 @@ function accountLabel(connection: ProjectSocialConnection): string {
   );
 }
 
-/** The zone as people read it: `America/New_York` → `Eastern Time`. */
-function zoneName(
-  timezone: string,
-  locale: string,
-  at: Date = new Date(),
-): string {
-  try {
-    const nameFor = (timeZoneName: "longGeneric" | "long") =>
-      new Intl.DateTimeFormat(locale, { timeZone: timezone, timeZoneName })
-        .formatToParts(at)
-        .find((part) => part.type === "timeZoneName")?.value;
-    const generic = nameFor("longGeneric");
-    // UTC's generic name is an offset (`GMT+00:00`); the long name is words.
-    if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
-    const longName = nameFor("long");
-    if (longName) return longName;
-  } catch {
-    // Unknown IANA zone from an old post.
-  }
-  return timezone.replaceAll("_", " ");
-}
-
 function resolveTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
@@ -164,11 +146,15 @@ export function SocialPostComposerDialog({
   open,
   projectId,
 }: SocialPostComposerDialogProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
+  const subscriptionQueryId = useId();
   const firstCommentId = useId();
   const isMobile = useIsMobile();
   const accountsLabelId = useId();
@@ -213,6 +199,9 @@ export function SocialPostComposerDialog({
       null,
   }));
   const organizationId = session?.session.activeOrganizationId ?? null;
+  const enabledConnections = connections.filter((connection) =>
+    isProviderEnabled(connection.provider),
+  );
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [copy, setCopy] = useState<SocialPostComposerText>({
@@ -236,11 +225,54 @@ export function SocialPostComposerDialog({
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
+        enabledProviders,
       );
     }
-    const initial = post?.socialConnection?.id ?? connections[0]?.id;
+    const initial = post
+      ? isProviderEnabled(post.provider)
+        ? (post.socialConnection?.id ?? enabledConnections[0]?.id)
+        : undefined
+      : enabledConnections[0]?.id;
     return initial ? [initial] : [];
   });
+  const xConnections = connections.filter(
+    (connection) => connection.provider === "x",
+  );
+  const subscriptionQueries = useQueries({
+    queries: xConnections.map((connection) => ({
+      queryKey: [
+        "social-subscription",
+        subscriptionQueryId,
+        session?.user?.id,
+        organizationId,
+        projectId,
+        connection.id,
+      ],
+      queryFn: async () =>
+        (
+          await coreClient.getProjectsByIdSocialConnectionsByConnectionIdSubscription(
+            projectId,
+            connection.id,
+          )
+        ).data,
+      enabled: (query: Pick<Query, "state">) =>
+        open &&
+        Boolean(session?.user?.id) &&
+        connectionIds.includes(connection.id) &&
+        query.state.status !== "error",
+      staleTime: Infinity,
+      gcTime: 0,
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    })),
+  });
+  const subscriptions = new Map(
+    xConnections.map((connection, index) => [
+      connection.id,
+      subscriptionQueries[index]?.data,
+    ]),
+  );
   const [scheduledAt, setScheduledAt] = useState(
     post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
   );
@@ -280,14 +312,19 @@ export function SocialPostComposerDialog({
     text: post?.text ?? "",
     media: post?.media ?? [],
     scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+    connectionId: connectionIds[0] ?? "",
   }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnections = connections.filter((connection) =>
-    connectionIds.includes(connection.id),
-  );
+  const selectedConnections = enabledConnections
+    .filter((connection) => connectionIds.includes(connection.id))
+    .map((connection) => {
+      const fresh = subscriptions.get(connection.id);
+      return fresh
+        ? { ...connection, subscriptionType: fresh.subscriptionType }
+        : connection;
+    });
   const connectionId = selectedConnections[0]?.id ?? "";
   // One feed at a time: the account the reader picked, else the first still
   // selected, else the post's own account while none is picked.
@@ -307,9 +344,9 @@ export function SocialPostComposerDialog({
       }
     : null;
   const providers = socialPostComposerProviders(
-    post?.provider,
+    post && isProviderEnabled(post.provider) ? post.provider : undefined,
     selectedConnections.map((connection) => connection.provider),
-    connections.map((connection) => connection.provider),
+    enabledConnections.map((connection) => connection.provider),
   );
   const previewProvider =
     selectedConnections.find(
@@ -317,12 +354,6 @@ export function SocialPostComposerDialog({
     )?.provider ??
     post?.provider ??
     providers[0];
-  // Media errors still name the strictest selected provider.
-  const provider = providers.reduce((strictest, candidate) =>
-    SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
-      ? candidate
-      : strictest,
-  );
   const accept = socialPostComposerAccept(providers);
   function textFor(connectionId: string | null | undefined): string {
     return socialPostTextFor(connectionId, copy);
@@ -338,19 +369,34 @@ export function SocialPostComposerDialog({
     );
   }
   const displayedText = textFor(previewConnection?.id);
-  const displayedLimit =
-    SOCIAL_POST_TEXT_LIMITS[previewConnection ? previewProvider : provider];
-  const displayedOverLimit = displayedText.length > displayedLimit;
   const accountTexts =
     selectedConnections.length > 0
       ? selectedConnections.map((connection) => ({
           provider: connection.provider,
+          limit: socialPostTextLimit(
+            connection.provider,
+            connection.subscriptionType,
+          ),
           text: textFor(connection.id),
         }))
       : providers.map((candidate) => ({
           provider: candidate,
+          limit: socialPostTextLimit(candidate),
           text: copy.shared,
         }));
+  // Media errors still name the strictest selected provider.
+  const provider = accountTexts.reduce((strictest, candidate) =>
+    candidate.limit < strictest.limit ? candidate : strictest,
+  ).provider;
+  const displayedLimit = socialPostTextLimit(
+    previewConnection ? previewProvider : provider,
+    previewConnection?.subscriptionType,
+  );
+  const displayedLength = socialPostTextLength(
+    previewConnection ? previewProvider : provider,
+    displayedText,
+  );
+  const displayedOverLimit = displayedLength > displayedLimit;
   const issueAccount =
     accountTexts.find(
       (account) =>
@@ -376,25 +422,40 @@ export function SocialPostComposerDialog({
   const trimmedText = displayedText.trim();
   const overLimit = accountTexts.some(
     (account) =>
-      account.text.length > SOCIAL_POST_TEXT_LIMITS[account.provider],
+      socialPostTextLength(account.provider, account.text) > account.limit,
   );
   const trimmedFirstComment = firstComment.trim();
-  const commentProviders = (
+  const commentAccounts = (
     selectedConnections.length > 0
-      ? selectedConnections.map((connection) => connection.provider)
-      : providers
-  ).filter(socialPostSupportsFirstComment);
-  const showFirstComment = commentProviders.length > 0;
-  const firstCommentLimit = commentProviders.reduce(
+      ? selectedConnections
+      : providers.map((provider) => ({ provider, subscriptionType: null }))
+  )
+    .filter((account) => socialPostSupportsFirstComment(account.provider))
+    .map((account) => ({
+      limit:
+        socialPostFirstCommentLimit(
+          account.provider,
+          account.subscriptionType,
+        ) ?? SOCIAL_POST_FIRST_COMMENT_MAX,
+      length: socialPostTextLength(account.provider, firstComment),
+    }));
+  const showFirstComment = commentAccounts.length > 0;
+  const strictestComment = commentAccounts.reduce<
+    (typeof commentAccounts)[number] | null
+  >(
     (strictest, candidate) =>
-      Math.min(
-        strictest,
-        socialPostFirstCommentLimit(candidate) ?? SOCIAL_POST_FIRST_COMMENT_MAX,
-      ),
-    SOCIAL_POST_FIRST_COMMENT_MAX,
+      !strictest ||
+      candidate.limit - candidate.length < strictest.limit - strictest.length
+        ? candidate
+        : strictest,
+    null,
   );
-  const overFirstComment =
-    showFirstComment && firstComment.length > firstCommentLimit;
+  const firstCommentLimit =
+    strictestComment?.limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
+  const firstCommentLength = strictestComment?.length ?? firstComment.length;
+  const overFirstComment = commentAccounts.some(
+    (account) => account.length > account.limit,
+  );
   const mediaValid = providers.every(
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
@@ -419,7 +480,12 @@ export function SocialPostComposerDialog({
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = draftValid && !isBusy;
+  const canSave =
+    draftValid &&
+    !isBusy &&
+    (!post ||
+      isProviderEnabled(post.provider) ||
+      selectedConnections.length > 0);
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
@@ -430,6 +496,7 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
+    if (!enabledConnections.some((connection) => connection.id === id)) return;
     setConnectionIds((current) => {
       if (!multiAccount) return [id];
       return current.includes(id)
@@ -673,7 +740,12 @@ export function SocialPostComposerDialog({
           published += 1;
         } else {
           const reason =
-            publishFailureCopy(result.value, t) ?? t("toasts.failed");
+            publishFailureCopy(
+              result.value,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ) ?? t("toasts.failed");
           failures.push(nameIfMany(connection, reason));
         }
       }
@@ -701,7 +773,7 @@ export function SocialPostComposerDialog({
    * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
    * time is all the schedule dialog does, so it never saves a new draft.
    */
-  const canPostNow = mode.kind === "create" && connections.length > 0;
+  const canPostNow = mode.kind === "create" && enabledConnections.length > 0;
   const primaryAction: Exclude<PendingSubmit, null> =
     scheduledAt !== "" || isScheduleOnly
       ? "schedule"
@@ -827,6 +899,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
+          socialConnectionId: connectionId,
           revision,
         });
         if (!updated.ok) {
@@ -1094,7 +1167,9 @@ export function SocialPostComposerDialog({
                               ? "border-foreground text-foreground"
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
-                          disabled={isBusy}
+                          disabled={
+                            isBusy || !isProviderEnabled(connection.provider)
+                          }
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
                           type="button"
@@ -1104,6 +1179,11 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {!isProviderEnabled(connection.provider) ? (
+                            <Badge variant="secondary">
+                              {accountsT("comingSoon")}
+                            </Badge>
+                          ) : null}
                           {selected ? (
                             <Check className="size-3.5" aria-hidden />
                           ) : null}
@@ -1198,7 +1278,7 @@ export function SocialPostComposerDialog({
                         data-testid="social-post-character-count"
                       >
                         {t("composer.characters", {
-                          count: displayedText.length,
+                          count: displayedLength,
                           limit: displayedLimit,
                         })}
                       </span>
@@ -1221,8 +1301,12 @@ export function SocialPostComposerDialog({
                       data-testid="social-post-platforms"
                     >
                       {accountTexts.map((account, index) => {
-                        const limit = SOCIAL_POST_TEXT_LIMITS[account.provider];
-                        const over = account.text.length > limit;
+                        const limit = account.limit;
+                        const length = socialPostTextLength(
+                          account.provider,
+                          account.text,
+                        );
+                        const over = length > limit;
                         return (
                           <li
                             className={cn(
@@ -1247,7 +1331,7 @@ export function SocialPostComposerDialog({
                                 format: t(
                                   `composer.formats.${socialPostComposerFormat(account.provider)}`,
                                 ),
-                                count: account.text.length,
+                                count: length,
                                 limit,
                               })}
                             </span>
@@ -1287,7 +1371,7 @@ export function SocialPostComposerDialog({
                         data-testid="social-post-first-comment-count"
                       >
                         {t("composer.characters", {
-                          count: firstComment.length,
+                          count: firstCommentLength,
                           limit: firstCommentLimit,
                         })}
                       </p>
@@ -1346,10 +1430,18 @@ export function SocialPostComposerDialog({
                             scheduledDate,
                             "dateTimeWithYear",
                           ),
-                          zone: zoneName(viewerTimezone, locale, scheduledDate),
+                          zone: formatTimezoneLabel(
+                            viewerTimezone,
+                            locale,
+                            scheduledDate,
+                          ),
                         })
                       : t("composer.timezone.yours", {
-                          zone: zoneName(viewerTimezone, locale),
+                          zone: formatTimezoneLabel(
+                            viewerTimezone,
+                            locale,
+                            new Date(),
+                          ),
                         })}
                   </p>
                   {post?.scheduledAt &&
@@ -1362,7 +1454,11 @@ export function SocialPostComposerDialog({
                           "dateTimeWithYear",
                           { timeZone: post.timezone },
                         ),
-                        zone: zoneName(post.timezone, locale, post.scheduledAt),
+                        zone: formatTimezoneLabel(
+                          post.timezone,
+                          locale,
+                          post.scheduledAt,
+                        ),
                       })}
                     </p>
                   ) : null}

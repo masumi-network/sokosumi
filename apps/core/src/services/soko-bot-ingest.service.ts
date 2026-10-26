@@ -1,6 +1,7 @@
-import type {
-  SokoBotCalendarEvent,
-  SokoBotInboxMessage,
+import {
+  SOKO_BOT_BRIEF_FORMAT,
+  type SokoBotCalendarEvent,
+  type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
@@ -22,6 +23,7 @@ import {
   fetchCalendarEvents,
   fetchInboxMessages,
 } from "@/services/soko-bot-integrations.service";
+import { autoReadBulkMail } from "@/services/soko-bot-mail-auto-read.service";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
@@ -30,7 +32,12 @@ const DELTA_INTERVAL_MS = HOUR_MS;
 /** The briefing summarises this much mail; a fresh connection starts here. */
 const LOOKBACK_MS = 24 * HOUR_MS;
 const BRIEFING_HOUR = 7;
-const MAX_MAIL_PER_PACKET = 20;
+/**
+ * An hourly check reads every mail since the last one, up to this many: the
+ * cursor moves past whatever it read, so a lower cap left the rest of a busy
+ * hour untriaged and unread for good.
+ */
+const MAX_MAIL_PER_CHECK = 100;
 const MAX_MAIL_PER_BRIEFING = 40;
 const MAX_EVENTS_PER_PACKET = 15;
 
@@ -104,13 +111,17 @@ export function buildIngestMessage(input: {
   const lines: string[] = [];
   if (input.kind === "briefing") {
     lines.push(
-      "Morning briefing time. Below is today's calendar and the mail of the last 24 hours, triaged by Jev. Give the owner a short briefing as described in your inbox skill: today's events, then the mail: urgent first with what each needs and by when, notable mail one line each, bulk only as a count. Update memory follow-ups, and propose (do not start) any delegable work.",
+      `Morning briefing time. Below is today's calendar and the mail of the last 24 hours, triaged by Jev. Give the owner a short briefing as described in your inbox skill: today's events, then the mail: urgent first with what each needs and by when, notable mail one line each, bulk only as a count. Update memory follow-ups, and propose (do not start) any delegable work. ${SOKO_BOT_BRIEF_FORMAT}`,
     );
   } else {
     lines.push(
       "New mail arrived that Jev triaged as urgent. Tell the owner briefly what each urgent one needs and by when, as described in your inbox skill, then any notable mail one line each under Notable. Leave out any that, on reading, can wait for tomorrow's briefing; if no urgent mail is left, reply exactly `Nothing new worth flagging.`",
     );
   }
+  if (input.mail.some((item) => item.matchesRule))
+    lines.push(
+      "Some mail matches a saved rule of the owner's (listed first). For each, read it with `read_email` and do what the rule says, such as `save_email_attachment` into the folder it names, then say in one line what you filed where. Do nothing a rule does not ask for.",
+    );
   lines.push(MAIL_TRIAGE_GUIDE, "");
   if (input.events.length > 0) {
     lines.push(`## Calendar (${input.timeZone})`);
@@ -133,7 +144,7 @@ export function buildIngestMessage(input: {
       timeZone: input.timeZone,
       mail: input.mail,
       limit:
-        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
     }),
   );
   if (input.mail.length === 0 && input.events.length === 0) {
@@ -160,14 +171,14 @@ export async function buildIngestDeltaMessageForBot(
     mail.push(
       ...(await fetchInboxMessages(integration, {
         since,
-        limit: MAX_MAIL_PER_PACKET,
+        limit: MAX_MAIL_PER_CHECK,
       })),
     );
   }
   mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
   const triage = await triageMail({
     sokoBotId,
-    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    mail: mail.slice(0, MAX_MAIL_PER_CHECK),
     source: "lab",
   });
   triage.log.emit();
@@ -215,6 +226,7 @@ export class SokoBotIngestSyncService {
         workspaceId: true,
         ingestTimezone: true,
         lastBriefingAt: true,
+        mailAutoRead: true,
       },
     });
     for (const bot of bots) {
@@ -246,6 +258,7 @@ export class SokoBotIngestSyncService {
       workspaceId: string;
       ingestTimezone: string;
       lastBriefingAt: Date | null;
+      mailAutoRead: boolean;
     },
     abortSignal: AbortSignal,
   ): Promise<"briefings" | "deltas" | "skipped"> {
@@ -279,7 +292,7 @@ export class SokoBotIngestSyncService {
       try {
         messages = await fetchInboxMessages(integration, {
           since,
-          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
         });
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
@@ -373,21 +386,41 @@ export class SokoBotIngestSyncService {
         limit: gate.limit,
         mail: mail.length,
       });
+      // A capped bot is not woken, but its owner's bulk mail is still read.
+      if (bot.mailAutoRead && mail.length > 0) {
+        const tagged = await triageMail({
+          sokoBotId: bot.id,
+          mail: mail.slice(0, MAX_MAIL_PER_CHECK),
+          source: kind,
+        });
+        tagged.log.set({
+          outcome: "withheld",
+          mailAutoRead: await autoReadBulkMail(bot.id, tagged.mail),
+        });
+        tagged.log.emit();
+      }
       await stamp(false);
       return "skipped";
     }
     // Jev tags every mail the bot is shown. Between briefings only urgent
-    // mail wakes it; the rest, and everything when Jev is down, waits for the
-    // next briefing.
+    // mail, or mail a saved rule of the owner's asks the bot to act on, wakes
+    // it; the rest, and everything when Jev is down, waits for the briefing.
     const triage = await triageMail({
       sokoBotId: bot.id,
       mail: mail.slice(
         0,
-        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
       ),
       source: kind,
     });
-    if (!briefing && !triage.mail.some((item) => item.tag === "URGENT")) {
+    if (bot.mailAutoRead)
+      triage.log.set({
+        mailAutoRead: await autoReadBulkMail(bot.id, triage.mail),
+      });
+    if (
+      !briefing &&
+      !triage.mail.some((item) => item.tag === "URGENT" || item.matchesRule)
+    ) {
       triage.log.set({ outcome: "quiet" });
       triage.log.emit();
       await stamp();

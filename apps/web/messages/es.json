@@ -1657,6 +1657,7 @@
         "chainLastHop": "Este es el último paso: ya no despertará a nadie.",
         "source": {
           "inbox": "De tu bandeja de entrada",
+          "briefing": "Resumen de la mañana",
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
@@ -2464,6 +2465,8 @@
           "sync": "No se pudo iniciar la sincronización."
         },
         "comingSoon": "Próximamente",
+        "linkedinPersonalOnly": "Solo perfil personal. Las páginas de empresa aún no son compatibles.",
+        "personalProfile": "Perfil personal",
         "connectComingSoon": "{provider} (próximamente)",
         "empty": "Aún no hay cuentas.",
         "emptyHint": "Conecta una para publicar."
@@ -2498,6 +2501,7 @@
           "missed": "Se pasó la hora programada."
         },
         "failures": {
+          "providerComingSoon": "{provider} estará disponible próximamente. Disponible ahora: {providers}.",
           "rateLimited": "Límite de peticiones. Inténtalo más tarde.",
           "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
           "unauthorized": "Vuelve a conectar la cuenta.",
@@ -2505,7 +2509,8 @@
           "rejected": "La plataforma rechazó esta publicación.",
           "mediaMissing": "Falta un archivo.",
           "mediaType": "Ese tipo de archivo no está permitido.",
-          "generic": "No se pudo publicar. Abre la publicación para ver los detalles."
+          "generic": "No se pudo publicar. Abre la publicación para ver los detalles.",
+          "unconfirmed": "No pudimos confirmar la publicación. Revisa {provider} antes de reintentar para no publicarla dos veces."
         },
         "sections": {
           "calendar": "Calendario",
@@ -2606,8 +2611,8 @@
           },
           "timezone": {
             "yours": "Tu zona horaria: {zone}",
-            "goesOut": "Sale el {date} ({zone})",
-            "postZone": "Programada como {date} ({zone})"
+            "goesOut": "Sale el {date} · {zone}",
+            "postZone": "Programada como {date} · {zone}"
           },
           "platforms": "Límites por plataforma",
           "platformLimit": "{provider}: {format} · {count} / {limit}",
@@ -3078,13 +3083,150 @@
           "design": "Diseño",
           "memory": "Memoria",
           "ariaLabel": "Secciones del proyecto",
-          "bots": "Bots"
+          "bots": "Bots",
+          "newsletter": "Boletín"
         },
         "design": {
           "document": "DESIGN.md"
         },
         "bots": {
           "title": "Bots de este proyecto"
+        }
+      },
+      "Newsletter": {
+        "title": "Boletín",
+        "description": "Configura el remitente, la marca y el correo de bienvenida del boletín de este proyecto.",
+        "navigation": "Secciones del boletín",
+        "settings": "Ajustes",
+        "emptyTitle": "Configura tu boletín",
+        "emptyDescription": "Elige un nombre, un remitente y una marca a continuación. Después, guarda los ajustes para crear el boletín.",
+        "general": "General",
+        "brand": "Marca",
+        "welcome": "Correo de bienvenida",
+        "welcomeDescription": "Envía un correo de bienvenida cuando un suscriptor confirme su dirección de correo electrónico.",
+        "publicAddress": "Dirección pública del boletín",
+        "colorHint": "Usa un color hexadecimal, como #1a2b3c, o deja el campo vacío.",
+        "save": "Guardar ajustes",
+        "success": "Ajustes del boletín guardados",
+        "error": "No se han podido guardar los ajustes del boletín. Inténtalo de nuevo.",
+        "unavailable": "Este boletín ya no está disponible. Vuelve a cargar la página.",
+        "invalid": "Revisa los campos resaltados y vuelve a guardar.",
+        "fields": {
+          "name": "Nombre del boletín",
+          "senderName": "Nombre del remitente",
+          "replyTo": "Correo de respuesta",
+          "logoUrl": "URL del logotipo",
+          "primaryColor": "Color principal",
+          "accentColor": "Color de acento",
+          "fontFamily": "Familia tipográfica",
+          "footerText": "Texto del pie de página",
+          "welcomeEmailEnabled": "Enviar un correo de bienvenida",
+          "welcomeSubject": "Asunto del correo de bienvenida",
+          "welcomeBody": "Texto del correo de bienvenida"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman"
+        },
+        "Validation": {
+          "required": "Introduce un valor.",
+          "email": "Introduce una dirección de correo electrónico válida.",
+          "url": "Introduce una URL completa con HTTPS.",
+          "color": "Introduce un color hexadecimal de 3 o 6 dígitos que empiece por #.",
+          "maxLength": "Usa un máximo de {max} caracteres."
+        },
+        "Subscribers": {
+          "title": "Suscriptores",
+          "description": "Gestiona las personas que reciben el boletín de este proyecto.",
+          "add": "Añadir suscriptor",
+          "import": "Importar CSV",
+          "cancel": "Cancelar",
+          "done": "Listo",
+          "emptyTitle": "Aún no hay suscriptores",
+          "emptyDescription": "Añade a alguien que haya aceptado recibir tu boletín o importa una lista CSV con consentimiento.",
+          "search": "Buscar por correo",
+          "searchPlaceholder": "nombre@ejemplo.es",
+          "searchButton": "Buscar",
+          "filterStatus": "Estado",
+          "allStatuses": "Todos los estados",
+          "clearFilters": "Borrar filtros",
+          "results": "{count, plural, =0 {No hay suscriptores coincidentes} one {# suscriptor coincidente} other {# suscriptores coincidentes}}",
+          "firstPage": "Primera página",
+          "nextPage": "Página siguiente",
+          "noName": "—",
+          "rowActions": "Gestionar suscriptor {email}",
+          "unsubscribe": "Dar de baja",
+          "remove": "Eliminar suscriptor",
+          "unsubscribed": "Suscriptor dado de baja",
+          "updateError": "No se pudo actualizar el suscriptor. Inténtalo de nuevo.",
+          "transitionError": "El estado de este suscriptor ha cambiado. Recarga la página antes de volver a intentarlo.",
+          "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
+          "columns": {
+            "email": "Correo electrónico",
+            "name": "Nombre",
+            "status": "Estado",
+            "source": "Origen",
+            "subscribedAt": "Fecha de suscripción",
+            "actions": "Acciones"
+          },
+          "statuses": {
+            "ACTIVE": "Activo",
+            "PENDING": "Pendiente",
+            "UNSUBSCRIBED": "Dado de baja",
+            "BOUNCED": "Rebotado"
+          },
+          "sources": {
+            "MANUAL": "Añadido manualmente",
+            "CSV_IMPORT": "Importación CSV",
+            "SIGNUP_FORM": "Formulario de suscripción",
+            "API": "API"
+          },
+          "Validation": {
+            "email": "Introduce un correo electrónico válido.",
+            "name": "Usa como máximo 200 caracteres.",
+            "consent": "Confirma el consentimiento antes de continuar."
+          },
+          "Add": {
+            "description": "Añade a una persona que haya aceptado recibir este boletín.",
+            "email": "Correo electrónico",
+            "name": "Nombre (opcional)",
+            "consent": "Esta persona ha aceptado recibir este boletín",
+            "duplicate": "Este correo ya está en la lista. Búscalo para gestionar el suscriptor existente.",
+            "error": "No se pudo añadir el suscriptor. Inténtalo de nuevo.",
+            "success": "Suscriptor añadido"
+          },
+          "Remove": {
+            "title": "¿Eliminar suscriptor?",
+            "description": "Elimina permanentemente a {email} de este boletín. Esta acción no se puede deshacer.",
+            "error": "No se pudo eliminar el suscriptor. Inténtalo de nuevo.",
+            "success": "Suscriptor eliminado"
+          },
+          "Import": {
+            "description": "Importa un CSV con una columna de correo electrónico y otra opcional de nombre. Los suscriptores existentes conservan su estado actual.",
+            "file": "Archivo CSV",
+            "chooseFile": "Elegir CSV",
+            "noFile": "Ningún archivo seleccionado",
+            "fileHint": "Archivos CSV de hasta 5 MB y un máximo de 50.000 filas. Incluye una cabecera email y, opcionalmente, name.",
+            "fileType": "Elige un archivo con la extensión .csv.",
+            "fileSize": "Elige un archivo CSV de 5 MB como máximo.",
+            "fileRequired": "Elige un archivo CSV para importar.",
+            "consent": "Todas las personas de este CSV han aceptado recibir este boletín",
+            "importing": "Importando suscriptores…",
+            "error": "No se pudieron importar los suscriptores. Inténtalo de nuevo.",
+            "invalidCsv": "Revisa el CSV: incluye una cabecera email, otra opcional name y un máximo de 50.000 filas. Después, inténtalo de nuevo.",
+            "doneDescription": "Importación completada. Revisa los resultados a continuación.",
+            "result": {
+              "imported": "Importados",
+              "skippedExisting": "Ya están en la lista",
+              "invalid": "Filas no válidas notificadas"
+            },
+            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidRow": "Fila {row}: {value}",
+            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+          },
+          "dismiss": "Cerrar"
         }
       }
     },
@@ -7229,6 +7371,10 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "jumpToLatest": "Ir a los mensajes más recientes",
+      "UnreadDivider": {
+        "label": "Nuevo",
+        "accessibleName": "Mensajes nuevos"
+      },
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",
@@ -7703,6 +7849,13 @@
       "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
       "moveAction": "Mover",
+      "moveFilesDialogTitle": "Mover {count, plural, one {# archivo} other {# archivos}}",
+      "movedFiles": "{count, plural, one {# archivo movido} other {# archivos movidos}}",
+      "moveFilesPartialError": "{count, plural, one {No se pudo mover # archivo} other {No se pudieron mover # archivos}}",
+      "moveNewFolderLabel": "Carpeta nueva",
+      "moveNewFolderPlaceholder": "O escribe el nombre de una carpeta nueva",
+      "shareAction": "Compartir",
+      "shareFolderAction": "Compartir “{name}”",
       "moveDialogTitle": "Mover {itemName}",
       "moveDialogDescription": "Selecciona la carpeta de destino",
       "moveHere": "Mover aquí",
@@ -7795,15 +7948,16 @@
         "suggestedChip": "Sugerido: {name}",
         "selectFile": "Seleccionar {name}",
         "bulkSelected": "{count} seleccionados",
-        "bulkWindowSelected": "{count} archivos seleccionados de esta ventana",
-        "bulkWindowChanged": "Esta ventana cambió: {count} archivos siguen coincidiendo. Confirma de nuevo.",
-        "bulkSelectionExpired": "Esa ventana de resultados caducó. Busca de nuevo.",
-        "bulkSetCategory": "Poner {name}",
         "bulkClear": "Quitar selección",
-        "bulkApplied": "{count} archivos actualizados",
-        "bulkPartial": "{applied} actualizados, {failed} fallaron y siguen seleccionados",
-        "bulkSelectAllMatches": "Seleccionar los {count} resultados",
-        "bulkError": "No se pudieron aplicar esos cambios.",
+        "bulkDelete": "Eliminar",
+        "bulkMove": "Mover",
+        "bulkShare": "Compartir",
+        "bulkDeleteTitle": "¿Eliminar {count, plural, one {# archivo} other {# archivos}}?",
+        "bulkDeleteDescription": "Se eliminan para todos en este espacio de archivos. No se puede deshacer.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
+        "bulkDeleteCancel": "Cancelar",
+        "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
+        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -7881,9 +8035,6 @@
         "addTagUnavailable": "No se pudieron cargar las etiquetas",
         "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior.",
         "suggestionExcerpt": "De este documento",
-        "bulkMoreCategories": "{count} más…",
-        "bulkCategorySearch": "Buscar categorías",
-        "bulkCategoryEmpty": "No hay categorías que coincidan",
         "relatedNoText": "No hay archivos relacionados. Este documento no tiene texto legible.",
         "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
         "sheetOpenAsPage": "Abrir como página",
@@ -7903,7 +8054,34 @@
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
       },
-      "tableKind": "Tabla"
+      "tableKind": "Tabla",
+      "Share": {
+        "title": "Compartir “{name}”",
+        "fileDescription": "Cualquiera con el enlace puede ver y descargar este archivo.",
+        "folderDescription": "Cualquiera con el enlace puede ver y descargar todo lo que hay en esta carpeta, incluidos los archivos que se añadan después.",
+        "loading": "Cargando enlace",
+        "passwordOptional": "Contraseña (opcional)",
+        "passwordPlaceholder": "Déjala vacía para no usar contraseña",
+        "newPasswordPlaceholder": "Nueva contraseña",
+        "passwordTooShort": "Al menos 4 caracteres",
+        "create": "Crear enlace",
+        "created": "Enlace creado",
+        "linkLabel": "Enlace para compartir",
+        "copy": "Copiar",
+        "copied": "Enlace copiado",
+        "copyFailed": "No se pudo copiar el enlace",
+        "passwordOn": "Protegido con contraseña",
+        "passwordOff": "Sin contraseña",
+        "setPassword": "Poner contraseña",
+        "changePassword": "Cambiar",
+        "passwordSaved": "Contraseña guardada",
+        "removePassword": "Quitar contraseña",
+        "passwordRemoved": "Contraseña quitada",
+        "revoke": "Dejar de compartir",
+        "revoked": "Enlace desactivado",
+        "loadFailed": "No se pudo cargar el enlace",
+        "saveFailed": "No se pudo guardar el enlace"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -7961,7 +8139,7 @@
         "connectFailed": "La conexión no se completó. Inténtalo de nuevo.",
         "lastError": "Necesita atención: {error}",
         "title": "Cuentas conectadas",
-        "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
+        "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides.",
         "connect": "Conectar",
         "reconnect": "Reconectar",
         "disconnect": "Desconectar",
@@ -8040,6 +8218,9 @@
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
         "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario lo nombra.",
+        "mailAutoReadTitle": "Gestionar correo rutinario",
+        "mailAutoReadDescription": "Tras cada revisión, marca como leído el correo que no es urgente ni relevante. El correo importante queda sin leer para ti.",
+        "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
@@ -8269,7 +8450,7 @@
         },
         "Connectors": {
           "title": "Herramientas",
-          "description": "Apps que puede usar por ti. El correo y los calendarios son de solo lectura; otras apps actúan en tu nombre cuando se lo pides."
+          "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides."
         }
       },
       "Avatar": {
@@ -9112,6 +9293,22 @@
       "title": "AI Agents a demanda",
       "description": "Elige un Agent de confianza, define tus requisitos y recibe resultados accionables, sin suscripción.",
       "buttonText": "Descubrir Agents"
+    },
+    "Files": {
+      "sharedFile": "Archivo compartido",
+      "sharedFolder": "Carpeta compartida",
+      "notFoundTitle": "Enlace no encontrado",
+      "passwordLabel": "Este enlace está protegido. Escribe la contraseña",
+      "open": "Abrir",
+      "download": "Descargar",
+      "downloadFile": "Descargar {name}",
+      "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
+      "emptyFolder": "Esta carpeta está vacía.",
+      "errors": {
+        "wrong": "Contraseña incorrecta.",
+        "locked": "Demasiadas contraseñas incorrectas. Vuelve a intentarlo en 15 minutos.",
+        "failed": "Algo salió mal. Vuelve a intentarlo."
+      }
     }
   },
   "NotFound": {

@@ -46,7 +46,9 @@ vi.mock("@/helpers/access-control", () => ({
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: vi.fn(),
+  requireSocialBetaAccess: vi
+    .fn()
+    .mockRejectedValue(new Error("Outside Ads beta")),
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: projectAccess,
@@ -244,7 +246,7 @@ describe("authorized chat results", () => {
       await hydrateChatResultSnapshots([followUp], "someone-else"),
     ).toEqual([{ id: followUp.data.id, state: "unavailable" }]);
   });
-  it("reads scheduled posts through beta and project access", async () => {
+  it("reads scheduled posts through project access outside the Ads beta", async () => {
     socialPost.mockResolvedValue({
       text: "Our launch",
       status: "SCHEDULED",

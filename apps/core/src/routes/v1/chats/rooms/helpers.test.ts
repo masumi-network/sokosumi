@@ -15,10 +15,8 @@ import {
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   findLiveDirectByParticipantKey,
-  formerDirectUserIds,
   getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
-  isReadOnlyDirectRoom,
   loadFormerDirectUserMembers,
   mapChatRoom,
   mapChatRoomMessage,
@@ -39,7 +37,9 @@ import {
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
   validateChatCoworkerIds,
+  withChatRoomReplyCounts,
 } from "./helpers";
+import { formerDirectUserIds, isReadOnlyDirectRoom } from "./read-only-room";
 
 const { workspaceFindUniqueMock, coworkerFindManyMock } = vi.hoisted(() => ({
   workspaceFindUniqueMock: vi.fn(),
@@ -620,7 +620,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toEqual(quote);
@@ -654,7 +654,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.metadata).toEqual({ client_message_id: "turn-1" });
@@ -692,7 +692,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toEqual(quote);
@@ -733,7 +733,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toEqual({
@@ -771,7 +771,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toBeNull();
@@ -810,7 +810,7 @@ describe("mapChatRoomMessage quote", () => {
       ],
       replies: [],
       pins: [],
-      _count: { replies: 2 },
+      threadReplyCount: 2,
     });
 
     expect(mapped.content).toBe("");
@@ -825,15 +825,49 @@ describe("mapChatRoomMessage quote", () => {
 });
 
 describe("chatRoomMessageInclude thread reply aggregates", () => {
-  it("excludes soft-deleted replies from threadReplyCount and last-reply preview", () => {
-    // Soft-deleted replies must not inflate "N replies" on the parent
-    // (matches getChatRoomThreadAggregates reply."deletedAt" IS NULL).
-    expect(chatRoomMessageInclude._count.select.replies).toEqual({
-      where: { deletedAt: null },
-    });
+  it("excludes soft-deleted replies from the last-reply preview", () => {
     expect(chatRoomMessageInclude.replies.where).toEqual({
       deletedAt: null,
     });
+  });
+});
+
+describe("withChatRoomReplyCounts", () => {
+  it("counts live replies for these messages only", async () => {
+    const groupBy = vi
+      .fn()
+      .mockResolvedValue([{ parentMessageId: "parent", _count: { _all: 3 } }]);
+    const db = {
+      chatRoomMessage: { groupBy },
+    } as unknown as Prisma.TransactionClient;
+
+    const counted = await withChatRoomReplyCounts(db, [
+      { id: "parent" },
+      { id: "plain" },
+    ]);
+
+    // Soft-deleted replies must not inflate "N replies" on the parent
+    // (matches getChatRoomThreadAggregates reply."deletedAt" IS NULL), and
+    // the read is scoped to the page rather than every room's messages.
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ["parentMessageId"],
+      where: { parentMessageId: { in: ["parent", "plain"] }, deletedAt: null },
+      _count: { _all: true },
+    });
+    expect(counted).toEqual([
+      { id: "parent", threadReplyCount: 3 },
+      { id: "plain", threadReplyCount: 0 },
+    ]);
+  });
+
+  it("does not query for an empty page", async () => {
+    const groupBy = vi.fn();
+    const db = {
+      chatRoomMessage: { groupBy },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(withChatRoomReplyCounts(db, [])).resolves.toEqual([]);
+    expect(groupBy).not.toHaveBeenCalled();
   });
 });
 
@@ -864,7 +898,7 @@ describe("mapChatRoomMessage membership", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.membership).toEqual(membership);
@@ -899,7 +933,7 @@ describe("mapChatRoomMessage membership", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.membership).toBeNull();
@@ -943,7 +977,7 @@ describe("mapChatRoomMessage unfurls", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.unfurls).toEqual(unfurls);
@@ -986,7 +1020,7 @@ describe("mapChatRoomMessage unfurls", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.unfurls).toBeNull();
@@ -1037,7 +1071,7 @@ describe("mapChatRoomMessage unfurls", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.unfurls).toEqual([

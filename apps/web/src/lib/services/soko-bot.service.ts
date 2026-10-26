@@ -147,6 +147,7 @@ export const sokoBotService = {
       paused?: boolean;
       dailyLimit?: number;
       timezone?: string;
+      mailAutoRead?: boolean;
     },
     botId?: string,
   ): Promise<SokoBot> {

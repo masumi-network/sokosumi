@@ -12,6 +12,7 @@ const connection: ProjectSocialConnection = {
   externalHandle: "sokosumi",
   displayName: null,
   avatarUrl: null,
+  subscriptionType: null,
   connectedAt: new Date("2026-09-01"),
   disconnectedAt: null,
 };

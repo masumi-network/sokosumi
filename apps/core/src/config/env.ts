@@ -93,6 +93,14 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
+  // Project newsletters use a separate sending domain from transactional email.
+  NEWSLETTER_ENABLED: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+  NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
+  RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
+
   /**
    * Credits under which a wallet is told it is running low (SOK-932).
    *

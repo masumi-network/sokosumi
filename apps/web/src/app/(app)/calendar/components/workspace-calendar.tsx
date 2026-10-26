@@ -40,7 +40,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  type DateTimeFormatOptions,
+  useFormatter,
+  useLocale,
+  useTranslations,
+} from "next-intl";
 import {
   parseAsBoolean,
   parseAsString,
@@ -96,6 +101,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
+  formatTimezoneLabel,
   getDefaultTimezone,
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
@@ -270,11 +276,20 @@ function getRangeLabel(
   date: Date,
   view: CalendarView,
 ) {
+  // The range is a run of local calendar days, but the formatter renders in the
+  // request's zone, which differs from the runtime's local zone during SSR and
+  // before the time zone cookie exists. Show each day as itself, read as UTC.
+  const formatDay = (day: Date, options: DateTimeFormatOptions) =>
+    formatDate(new Date(`${getCalendarDayKey(day)}T12:00:00Z`), {
+      ...options,
+      timeZone: "UTC",
+    });
+
   if (view === "week") {
-    return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
+    return `${formatDay(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDay(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
   }
 
-  return formatDate(date, { month: "long", year: "numeric" });
+  return formatDay(date, { month: "long", year: "numeric" });
 }
 
 function calendarTodayKey(timeZone: string): string {
@@ -850,6 +865,7 @@ export function WorkspaceCalendar({
   socialPostsOnly = false,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
+  const locale = useLocale();
   const tFilters = useTranslations("App.Tasks.Filters");
   const tPostStatus = useTranslations("App.Projects.SocialPosts.status");
   const formatDate = useFormatter().dateTime;
@@ -1351,7 +1367,9 @@ export function WorkspaceCalendar({
       value: timeZone,
       options: getTimezoneOptions(timeZone).map((timezone) => ({
         value: timezone,
-        label: timezone,
+        label: formatTimezoneLabel(timezone, locale, date),
+        shortLabel: formatTimezoneLabel(timezone, locale, date, "short"),
+        searchKeywords: [timezone],
       })),
       onChange: (timezone: string | null) =>
         void setState(
@@ -1423,11 +1441,15 @@ export function WorkspaceCalendar({
           // in, since the zone picker sits behind the filters. On a phone it
           // goes under the controls rather than between their two rows.
           <span
-            className="text-muted-foreground inline-flex items-center gap-1 text-xs max-md:order-last max-md:w-full"
+            className="text-muted-foreground inline-flex min-w-0 items-center gap-1 text-xs max-md:order-last max-md:w-full"
             data-testid="calendar-timezone"
           >
-            <Clock3 className="size-3.5" aria-hidden />
-            {t("timezone.showing", { zone: timeZone.replaceAll("_", " ") })}
+            <Clock3 className="size-3.5 shrink-0" aria-hidden />
+            <span>
+              {t("timezone.showing", {
+                zone: formatTimezoneLabel(timeZone, locale, date),
+              })}
+            </span>
           </span>
         ) : null}
 

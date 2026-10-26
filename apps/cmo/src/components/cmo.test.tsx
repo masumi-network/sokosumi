@@ -1,4 +1,3 @@
-import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -14,6 +13,11 @@ import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
 import { VIEW_PATHS, viewFromPath } from "../lib/views";
 import {
+  cmoChatMessage,
+  cmoOverview as overview,
+  cmoStrategy as strategy,
+} from "../test-fixtures/cmo";
+import {
   LearningCard,
   learningSteps,
   StrategyCard,
@@ -23,89 +27,6 @@ import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
 import { StrategyPage } from "./app/strategy-page";
 import { Onboarding } from "./onboarding";
-
-const strategy: NonNullable<CmoOverview["strategy"]> = {
-  month: "2026-10",
-  summary: "Founder led LinkedIn posts that show the product working.",
-  goals: ["More demo requests"],
-  pillars: ["Product stories"],
-  channels: [{ channel: "linkedin", cadence: "3 a week" }],
-  calendar: [
-    {
-      id: "a",
-      date: "2026-10-05",
-      channel: "linkedin",
-      title: "Why we built it",
-      format: "post",
-      status: "draft",
-    },
-  ],
-  previews: [
-    { kind: "post", channel: "linkedin", title: "Hello", body: "First post" },
-    { kind: "ad", channel: "meta", title: "Try it", body: "Ad copy" },
-  ],
-};
-
-function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
-  return {
-    id: "cmo-1",
-    businessName: "Acme",
-    websiteUrl: "https://acme.io",
-    goals: "More sales",
-    organizationSlug: null,
-    projectName: "CMO.xyz · Acme",
-    workspaceId: "ws-1",
-    sokoBotId: "bot-1",
-    projectId: "project-1",
-    roomId: "room-1",
-    botStatus: "IDLE",
-    learning: "done",
-    work: null,
-    brandVisual: null,
-    projectLogo: null,
-    accountsDoneAt: new Date("2026-10-02T00:00:00Z"),
-    mockBilling: false,
-    mockPlan: null,
-    mockPlanActivatedAt: null,
-    onboardedAt: new Date("2026-10-02T00:00:00Z"),
-    routines: [
-      {
-        key: "cmo-daily-run",
-        name: "Daily marketing run",
-        when: "Every day at 09:00",
-        description: "Prepares what the calendar has due.",
-        nextRunAt: null,
-        timezone: "Europe/Berlin",
-      },
-    ],
-    subscriptionActive: false,
-    brandBrain: {
-      summary: "Acme sells rockets.",
-      voice: { tone: "Direct", do: [], dont: [], examples: [] },
-      audience: ["Founders"],
-      products: [],
-      competitors: [],
-      channels: [],
-    },
-    brandBrainUpdatedAt: new Date("2026-10-01T09:01:00Z"),
-    strategy,
-    media: [],
-    strategyUpdatedAt: new Date("2026-10-01T09:02:00Z"),
-    strategyApprovedAt: null,
-    updates: [],
-    channels: [],
-    upNext: [],
-    connectChannelUrl: "http://web/social?projectId=project-1",
-    adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
-    mailingListSize: 0,
-    subscribeUrl: "http://web/billing",
-    billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
-    posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
-    createdAt: new Date("2026-10-01T09:00:00Z"),
-    ...patch,
-  };
-}
 
 const noop = {
   approve: async () => {},
@@ -218,16 +139,7 @@ describe("calendar", () => {
 
 describe("thread", () => {
   it("orders messages and cards by time", () => {
-    const messages = toCusoMessages([
-      {
-        id: "m1",
-        parentMessageId: null,
-        deletedAt: null,
-        content: "Plan is ready.",
-        createdAt: new Date("2026-10-01T09:03:00Z"),
-        sender: { type: "sokoBot", sokoBot: { name: "Cuso" } },
-      } as unknown as ChatRoomMessage,
-    ]);
+    const messages = toCusoMessages([cmoChatMessage()]);
     const kinds = buildThread(overview(), messages).map((item) => item.kind);
     expect(kinds).toEqual(["learning", "brandBrain", "strategy", "message"]);
   });

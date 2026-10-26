@@ -1,3 +1,4 @@
+import { SOCIAL_PUBLIC_PROVIDERS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -37,7 +38,10 @@ const {
   filterAuthorizedOrganizationIdsMock,
   listAuthorizedUserWorkspacesMock,
 } = vi.hoisted(() => ({
-  listAuthorizedUserWorkspacesMock: vi.fn(),
+  listAuthorizedUserWorkspacesMock:
+    vi.fn<
+      typeof import("@/helpers/coworker-user-context-binding").listAuthorizedUserWorkspaces
+    >(),
   filterAuthorizedOrganizationIdsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
@@ -68,8 +72,7 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
   requireAuthorizedUserContext: vi.fn(),
   filterAuthorizedOrganizationIds: (...args: unknown[]) =>
     filterAuthorizedOrganizationIdsMock(...args),
-  listAuthorizedUserWorkspaces: (...args: unknown[]) =>
-    listAuthorizedUserWorkspacesMock(...args),
+  listAuthorizedUserWorkspaces: listAuthorizedUserWorkspacesMock,
 }));
 
 vi.mock("@/helpers/subscription", () => ({
@@ -328,6 +331,7 @@ describe("coworker user route allowlist", () => {
           name: "Acme",
           organizationId: "org_1",
           slug: "acme",
+          enabledSocialProviders: [...SOCIAL_PUBLIC_PROVIDERS],
           logo: null,
           websiteUrl: null,
           preferred: false,
@@ -356,6 +360,7 @@ describe("coworker user route allowlist", () => {
           name: "Acme",
           organizationId: "org_1",
           slug: "acme",
+          enabledSocialProviders: [...SOCIAL_PUBLIC_PROVIDERS],
           logo: null,
           websiteUrl: null,
           preferred: true,
@@ -372,6 +377,7 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).data).toMatchObject({
       organizationId: "org_1",
+      enabledSocialProviders: SOCIAL_PUBLIC_PROVIDERS,
       preferred: true,
     });
     expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();

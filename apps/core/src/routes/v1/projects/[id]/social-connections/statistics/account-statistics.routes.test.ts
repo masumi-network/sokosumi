@@ -56,6 +56,7 @@ const account = {
   externalHandle: "launch",
   displayName: "Launch",
   avatarUrl: null,
+  subscriptionType: null,
   status: "active",
   connectedAt: null,
   disconnectedAt: null,
@@ -174,7 +175,7 @@ describe("social account statistics routes", () => {
     ).toBe(422);
     expect(mocks.schedule).not.toHaveBeenCalled();
   });
-  it("rejects beta revocation before account reads or refreshes", async () => {
+  it("allows account reads and refreshes outside the Ads beta", async () => {
     mocks.beta.mockRejectedValue(forbidden("Social unavailable"));
     const app = createApp();
     expect(
@@ -183,7 +184,7 @@ describe("social account statistics routes", () => {
           `http://localhost/${projectId}/social-connections/statistics`,
         )
       ).status,
-    ).toBe(403);
+    ).toBe(200);
     expect(
       (
         await app.request(
@@ -191,9 +192,9 @@ describe("social account statistics routes", () => {
           refreshRequest(),
         )
       ).status,
-    ).toBe(403);
-    expect(mocks.list).not.toHaveBeenCalled();
-    expect(mocks.schedule).not.toHaveBeenCalled();
+    ).toBe(200);
+    expect(mocks.list).toHaveBeenCalled();
+    expect(mocks.schedule).toHaveBeenCalled();
   });
   it("allows a delegated Coworker and rejects a bare Coworker", async () => {
     const actor: AuthenticationContext = {

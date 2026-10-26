@@ -59,13 +59,17 @@ vi.mock("@/lib/db/prisma", () => {
   return { default: client };
 });
 
-const mockBilling = vi.hoisted(() => ({ on: false }));
+const mockBilling = vi.hoisted(() => ({ on: false, production: false }));
 
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
     ...actual,
-    getEnv: () => ({ ...actual.getEnv(), CMO_MOCK_BILLING: mockBilling.on }),
+    getEnv: () => ({
+      ...actual.getEnv(),
+      CMO_MOCK_BILLING: mockBilling.on,
+      ...(mockBilling.production ? { VERCEL_ENV: "production" as const } : {}),
+    }),
   };
 });
 
@@ -163,6 +167,7 @@ const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 beforeEach(() => {
   vi.clearAllMocks();
   mockBilling.on = false;
+  mockBilling.production = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
 });
@@ -289,6 +294,21 @@ describe("mock billing", () => {
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toMatch(/subscribe/);
+  });
+
+  it("ignores CMO_MOCK_BILLING on production", async () => {
+    mockBilling.on = true;
+    mockBilling.production = true;
+    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    workspaceFindUnique.mockResolvedValue({ organizationId: null });
+    subscriptionFindFirst.mockResolvedValue(null);
+    expect(
+      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
+    ).toMatch(/subscribe/);
+    await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
+      /mock billing is off/i,
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
   });
 
   it("stores the chosen tier only while the flag is on", async () => {
@@ -483,6 +503,58 @@ describe("weekly change and revert", () => {
     });
     const updates = parseCmoUpdates(cmoUpdate.mock.calls[1]?.[0].data.updates);
     expect(updates[0]?.revertedAt).toBeTruthy();
+  });
+
+  it("keeps entries already handed to Social when reverting", async () => {
+    const postId = "6b1f6a52-0d4e-4f55-9b0e-2f1d2c3b4a5e";
+    const newPostId = "7c2a7b63-1e5f-4a66-8c1f-3a2e3d4c5b6f";
+    const scheduled = {
+      ...strategy.calendar[0]!,
+      status: "scheduled" as const,
+      socialPostId: postId,
+    };
+    const added = {
+      id: "n",
+      date: "2026-10-22",
+      channel: "linkedin",
+      title: "Added by the review",
+      format: "post",
+      status: "scheduled" as const,
+      socialPostId: newPostId,
+    };
+    const update = {
+      id: "u-1",
+      at: "2026-10-05T09:03:00Z",
+      kind: "weekly" as const,
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: [],
+      previousStrategy: strategy,
+    };
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy: {
+        ...revised,
+        calendar: [scheduled, strategy.calendar[1]!, added],
+      },
+      strategyUpdatedAt: new Date(),
+      strategyHistory: null,
+      updates: [update],
+    });
+    await revertCmoUpdate({ userId: "user-1", updateId: "u-1" });
+    const calendar = cmoUpdate.mock.calls[0]?.[0].data.strategy.calendar;
+    expect(
+      calendar.map((entry: { id: string; socialPostId?: string }) => [
+        entry.id,
+        entry.socialPostId,
+      ]),
+    ).toEqual([
+      ["b", undefined],
+      ["c", undefined],
+      ["a", postId],
+      ["n", newPostId],
+    ]);
   });
 
   it("does not offer a revert for a daily report", async () => {

@@ -6,7 +6,7 @@ import {
   requireSocialBetaAccess,
 } from "./social-beta-access.js";
 
-describe("Social beta access", () => {
+describe("Ads beta access (Social scheduling is public)", () => {
   it("allows members of the utxo AG workspace", async () => {
     const findFirst = vi.fn().mockResolvedValue({ id: "member-1" });
 
@@ -33,7 +33,7 @@ describe("Social beta access", () => {
       } as never),
     ).rejects.toMatchObject({
       status: 403,
-      message: "Social is only available to utxo AG workspace members",
+      message: "Ads is only available to utxo AG workspace members",
     } satisfies Partial<HTTPException>);
   });
 });

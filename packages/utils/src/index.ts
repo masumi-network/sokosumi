@@ -314,6 +314,11 @@ export {
   serializeMetadataRecord,
 } from "./metadata-record.js";
 export {
+  type NewsletterBlock,
+  newsletterBlockSchema,
+  newsletterContentSchema,
+} from "./newsletter.js";
+export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
@@ -414,6 +419,7 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
@@ -423,10 +429,12 @@ export {
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  type SocialProviderWorkspace,
   socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
@@ -435,8 +443,15 @@ export {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLength,
+  socialPostTextLimit,
+  socialProvidersForWorkspace,
+  socialProviderUnavailableMessage,
   splitYouTubePostText,
   validateSocialPostMedia,
+  X_LONG_POST_SUBSCRIPTION_TYPES,
+  X_PREMIUM_TEXT_LIMIT,
+  type XLongPostSubscriptionType,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";

@@ -67,6 +67,24 @@ describe("system turn routes", () => {
     );
   });
 
+  it("lets mail checks file attachments and change nothing else in the mailbox", () => {
+    const delta = SYSTEM_TURN_ROUTES["ingest:delta"].capabilities;
+    const briefing = SYSTEM_TURN_ROUTES["ingest:briefing"].capabilities;
+    for (const capabilities of [delta, briefing]) {
+      expect(capabilities).toContain("save_email_attachment");
+      expect(capabilities).toContain("read_email");
+      for (const capability of [
+        "update_emails",
+        "draft_email",
+        "send_email_draft",
+        "hire_agent",
+      ])
+        expect(capabilities).not.toContain(capability);
+    }
+    expect(delta).not.toContain("update_memory");
+    expect(briefing).toContain("update_memory");
+  });
+
   it("lets meeting prep search mail itself without writing anything", () => {
     const capabilities = capabilitiesForClassification(
       presetClassificationResult("beat", SYSTEM_TURN_ROUTES["meeting-prep"])

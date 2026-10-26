@@ -11,6 +11,13 @@ import { SocialPostMediaError } from "@/helpers/social-post-media";
 const SUMMARY_LIMIT = 300;
 const UNKNOWN_SUMMARY = "Unexpected error while publishing";
 
+export class SocialPostTextLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SocialPostTextLimitError";
+  }
+}
+
 export interface PublishErrorClassification {
   /** Short machine kind stored on the attempt row. */
   kind: string;
@@ -83,6 +90,20 @@ function classifyToolError(
 }
 
 /**
+ * Whether a publish failure means the account's own login expired or lost
+ * permissions, so its connection should be flagged for reconnect.
+ */
+export function shouldRequestReauthorization(
+  error: unknown,
+  classified: PublishErrorClassification,
+): boolean {
+  // Only provider refusals: a ComposioApiError 401/403 can be our own API key or a platform outage.
+  return (
+    classified.kind === "unauthorized" && error instanceof ComposioToolError
+  );
+}
+
+/**
  * Maps a publish failure to a retry decision. Unknown errors count as
  * transient so a bug does not burn a post on its first try; the attempt cap
  * still bounds them.
@@ -91,6 +112,9 @@ export function classifyPublishError(
   error: unknown,
   provider: SocialPostProvider,
 ): PublishErrorClassification {
+  if (error instanceof SocialPostTextLimitError) {
+    return { kind: "text_limit", transient: false, summary: error.message };
+  }
   if (error instanceof ComposioPublishOutcomeUnknownError) {
     return { kind: "unknown", transient: false, summary: error.message };
   }

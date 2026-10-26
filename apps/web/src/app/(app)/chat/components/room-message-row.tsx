@@ -134,6 +134,7 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
+import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
@@ -150,12 +151,14 @@ import {
   type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
+  ROOM_QUOTE_CLAMP_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
   senderProfile,
   type UserMentionLookup,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
+import { isSokoBotBriefSource, SokoBotBriefCard } from "./soko-bot-brief-card";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
@@ -440,7 +443,7 @@ function MessageQuoteBlock({
             ref={contentRef}
             className={cn(
               "text-muted-foreground text-xs leading-5",
-              expanded ? null : "line-clamp-4",
+              expanded ? null : ROOM_QUOTE_CLAMP_CLASSNAME,
             )}
           >
             <RoomMessageMarkdown
@@ -2556,6 +2559,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     contentEndsTheRow && !isDeleted && endsWithAttachmentRow(message.content);
   const bodyEndsTheRow =
     seenBy != null && contentEndsTheRow && !attachmentEndsTheRow;
+  const brief =
+    !isDeleted && isSokoBotBriefSource(message.metadata)
+      ? parseSokoBotBrief(message.content)
+      : null;
   const keepsSeenByCornerClear = newestEndsInAttachment && attachmentEndsTheRow;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2851,7 +2858,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 />
               ) : (
                 <>
-                  <SokoBotSourceLabel metadata={message.metadata} />
+                  {brief ? null : (
+                    <SokoBotSourceLabel metadata={message.metadata} />
+                  )}
                   {thoughtView?.disclosure ? (
                     <div className="mb-1">
                       <CoworkerThoughtTrace
@@ -2872,7 +2881,34 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   ) : null}
                   {/* Send to yourself posts only a quote, so there is no body.
                       The card still ends the row, so the reserve follows it. */}
-                  {quote && !message.content.trim() ? (
+                  {brief ? (
+                    <>
+                      <SokoBotBriefCard
+                        brief={brief}
+                        metadata={message.metadata}
+                        createdAt={message.createdAt}
+                        renderMarkdown={(content) => (
+                          <ChannelMessageText
+                            content={content}
+                            coworkersById={coworkersById}
+                            coworkersBySlug={coworkersBySlug}
+                            sokoBotsById={sokoBotsById}
+                            sokoBotsBySlug={sokoBotsBySlug}
+                            usersById={usersById}
+                            usersBySlug={usersBySlug}
+                            channelLinks={channelLinks}
+                            currentUserId={currentUserId}
+                            canOpenHumanDirect={canOpenHumanDirect}
+                            onOpenDirectMessage={onOpenDirectMessage}
+                            openingDirectParticipantKey={
+                              openingDirectParticipantKey
+                            }
+                          />
+                        )}
+                      />
+                      {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                    </>
+                  ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (
                       <SeenByInlineReserve />
                     ) : null

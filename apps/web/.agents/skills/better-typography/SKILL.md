@@ -1,6 +1,6 @@
 ---
 name: better-typography
-description: Sets and reviews how text renders in your product, from the type scale and spacing to font features, wrapping, truncation and punctuation.
+description: Sets and reviews how text renders, from the type scale and spacing to font features, wrapping, truncation and punctuation.
 ---
 
 # Typography
@@ -127,27 +127,27 @@ Keep text selectable by default. `::selection` can carry brand into the reading 
 
 ## Before you finish
 
-| Pattern | Fix |
-| --- | --- |
-| `font-weight` value with no matching weight in the loaded `@font-face` files | Load that face or use a weight the family ships |
-| `font-synthesis: none` on body or interface text | Remove it; set only the unwanted longhand after checking the fallback stack |
-| `font-variation-settings: "wght"` or `"opsz"` | `font-weight`; drop `"opsz"` so `font-optical-sizing: auto` applies |
-| `font-feature-settings: "tnum"` or `"zero"` | `font-variant-numeric: tabular-nums` or `slashed-zero` |
-| `line-height` in `px` or `rem` | A unitless value |
-| `leading-none` or `leading-tight` on a description, card body or anything that can wrap | `1.4` or more |
-| `letter-spacing` in `px` | The same value in `em` |
-| Body `font-size` in `px` | `rem` |
-| Weight `100`–`300` or `font-thin`, `font-light` on text under `18px` | `400` or heavier |
-| `text-wrap: balance` on a paragraph | `text-wrap: pretty` |
-| `text-align: justify` in application UI | `text-align: start` |
-| `-webkit-line-clamp` without `display: -webkit-box` | Add `display: -webkit-box` and `-webkit-box-orient: vertical` |
-| A timer, counter, price or numeric column without `tabular-nums` | `font-variant-numeric: tabular-nums` |
-| `...`, `--` or a hyphenated range in rendered strings | `…`, an em dash or an en dash |
-| `text-decoration-skip-ink: none` | Remove it; set `text-underline-offset` or `from-font` instead |
-| `<input>` with `text-sm` or `14px` and no mobile override | One of the **Inputs at 16px on mobile** fixes |
-| `-webkit-font-smoothing` or `antialiased` inside a component | Move it to the root |
-| Mixed-direction value such as a name, number or URL without `<bdi>` or `dir` | Wrap it in `<bdi>` |
-| `user-select: none` or `select-none` on a layout root or text container | Remove it; keep it only on a drag or gesture surface |
+| Pattern                                                                                 | Fix                                                                         |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `font-weight` value with no matching weight in the loaded `@font-face` files            | Load that face or use a weight the family ships                             |
+| `font-synthesis: none` on body or interface text                                        | Remove it; set only the unwanted longhand after checking the fallback stack |
+| `font-variation-settings: "wght"` or `"opsz"`                                           | `font-weight`; drop `"opsz"` so `font-optical-sizing: auto` applies         |
+| `font-feature-settings: "tnum"` or `"zero"`                                             | `font-variant-numeric: tabular-nums` or `slashed-zero`                      |
+| `line-height` in `px` or `rem`                                                          | A unitless value                                                            |
+| `leading-none` or `leading-tight` on a description, card body or anything that can wrap | `1.4` or more                                                               |
+| `letter-spacing` in `px`                                                                | The same value in `em`                                                      |
+| Body `font-size` in `px`                                                                | `rem`                                                                       |
+| Weight `100`–`300` or `font-thin`, `font-light` on text under `18px`                    | `400` or heavier                                                            |
+| `text-wrap: balance` on a paragraph                                                     | `text-wrap: pretty`                                                         |
+| `text-align: justify` in application UI                                                 | `text-align: start`                                                         |
+| `-webkit-line-clamp` without `display: -webkit-box`                                     | Add `display: -webkit-box` and `-webkit-box-orient: vertical`               |
+| A timer, counter, price or numeric column without `tabular-nums`                        | `font-variant-numeric: tabular-nums`                                        |
+| `...`, `--` or a hyphenated range in rendered strings                                   | `…`, an em dash or an en dash                                               |
+| `text-decoration-skip-ink: none`                                                        | Remove it; set `text-underline-offset` or `from-font` instead               |
+| `<input>` with `text-sm` or `14px` and no mobile override                               | One of the **Inputs at 16px on mobile** fixes                               |
+| `-webkit-font-smoothing` or `antialiased` inside a component                            | Move it to the root                                                         |
+| Mixed-direction value such as a name, number or URL without `<bdi>` or `dir`            | Wrap it in `<bdi>`                                                          |
+| `user-select: none` or `select-none` on a layout root or text container                 | Remove it; keep it only on a drag or gesture surface                        |
 
 ## Reporting
 
@@ -158,7 +158,7 @@ Keep text selectable by default. `::selection` can carry brand into the reading 
 **Format.** Group findings under the principle each violates, ordered by severity, one row per root cause listing every location it appears in:
 
 | Severity | Location | Before | After | Why |
-| --- | --- | --- | --- | --- |
+| -------- | -------- | ------ | ----- | --- |
 
 `Location` is `path/to/file:line`. `Why` names the principle and the user impact.
 

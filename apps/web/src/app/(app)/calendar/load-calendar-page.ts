@@ -26,7 +26,6 @@ import {
   taskService,
   type WorkspaceCalendarPage,
 } from "@/lib/services/task.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 export interface CalendarPageSearchParams {
@@ -148,10 +147,8 @@ export async function loadWorkspaceCalendarPage({
   searchParams: Promise<CalendarPageSearchParams>;
 }): Promise<LoadedWorkspaceCalendarPage> {
   await connection();
-  const [session, includeSocialPosts] = await Promise.all([
-    getSession(),
-    hasCurrentUserSocialBetaAccess(),
-  ]);
+  const session = await getSession();
+  const includeSocialPosts = true;
   const params = await searchParams;
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const scope = params.scope === "owned" ? "owned" : "workspace";

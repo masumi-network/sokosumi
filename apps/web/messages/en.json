@@ -1657,6 +1657,7 @@
         "chainLastHop": "This is the last hop — it will not wake anyone else.",
         "source": {
           "inbox": "From your inbox",
+          "briefing": "Morning briefing",
           "standup": "Daily stand-up",
           "weeklyWrap": "Weekly wrap",
           "scheduled": "Scheduled: {name}",
@@ -2464,6 +2465,8 @@
           "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
+        "linkedinPersonalOnly": "Personal profile only. Company pages aren't supported yet.",
+        "personalProfile": "Personal profile",
         "connectComingSoon": "{provider} (coming soon)",
         "empty": "No accounts yet.",
         "emptyHint": "Connect one to post."
@@ -2498,6 +2501,7 @@
           "missed": "Missed the scheduled time."
         },
         "failures": {
+          "providerComingSoon": "{provider} is coming soon. Available now: {providers}.",
           "rateLimited": "Rate limited. Try again later.",
           "timeout": "Timed out. Try again.",
           "unauthorized": "Reconnect the account.",
@@ -2505,7 +2509,8 @@
           "rejected": "The platform rejected this post.",
           "mediaMissing": "A file is missing.",
           "mediaType": "That file type is not allowed.",
-          "generic": "Couldn't publish. Open the post for details."
+          "generic": "Couldn't publish. Open the post for details.",
+          "unconfirmed": "We couldn't confirm the post. Check {provider} before retrying so it isn't posted twice."
         },
         "sections": {
           "calendar": "Calendar",
@@ -2606,8 +2611,8 @@
           },
           "timezone": {
             "yours": "Your time zone: {zone}",
-            "goesOut": "Goes out {date} ({zone})",
-            "postZone": "Scheduled as {date} ({zone})"
+            "goesOut": "Goes out {date} · {zone}",
+            "postZone": "Scheduled as {date} · {zone}"
           },
           "platforms": "Limits per platform",
           "platformLimit": "{provider} {format} · {count} / {limit}",
@@ -3078,13 +3083,150 @@
           "design": "Design",
           "memory": "Memory",
           "ariaLabel": "Project sections",
-          "bots": "Bots"
+          "bots": "Bots",
+          "newsletter": "Newsletter"
         },
         "design": {
           "document": "DESIGN.md"
         },
         "bots": {
           "title": "Bots for this project"
+        }
+      },
+      "Newsletter": {
+        "title": "Newsletter",
+        "description": "Set the sender, brand, and welcome email for this project’s newsletter.",
+        "navigation": "Newsletter sections",
+        "settings": "Settings",
+        "emptyTitle": "Set up your newsletter",
+        "emptyDescription": "Choose a name, sender, and brand below, then save your settings to create the newsletter.",
+        "general": "General",
+        "brand": "Brand",
+        "welcome": "Welcome email",
+        "welcomeDescription": "Send a welcome email after a subscriber confirms their email address.",
+        "publicAddress": "Public newsletter address",
+        "colorHint": "Use a hex color, such as #1a2b3c, or leave blank.",
+        "save": "Save settings",
+        "success": "Newsletter settings saved",
+        "error": "Failed to save newsletter settings. Try again.",
+        "unavailable": "This newsletter is no longer available. Reload the page.",
+        "invalid": "Check the highlighted fields and save again.",
+        "fields": {
+          "name": "Newsletter name",
+          "senderName": "Sender name",
+          "replyTo": "Reply-to email",
+          "logoUrl": "Logo URL",
+          "primaryColor": "Primary color",
+          "accentColor": "Accent color",
+          "fontFamily": "Font family",
+          "footerText": "Footer text",
+          "welcomeEmailEnabled": "Send a welcome email",
+          "welcomeSubject": "Welcome email subject",
+          "welcomeBody": "Welcome email body"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman"
+        },
+        "Validation": {
+          "required": "Enter a value.",
+          "email": "Enter a valid email address.",
+          "url": "Enter a full HTTPS URL.",
+          "color": "Enter a hex color with 3 or 6 digits, starting with #.",
+          "maxLength": "Use at most {max} characters."
+        },
+        "Subscribers": {
+          "title": "Subscribers",
+          "description": "Manage the people who receive this project’s newsletter.",
+          "add": "Add subscriber",
+          "import": "Import CSV",
+          "cancel": "Cancel",
+          "done": "Done",
+          "emptyTitle": "No subscribers yet",
+          "emptyDescription": "Add someone who agreed to receive your newsletter, or import a CSV list with consent.",
+          "search": "Search by email",
+          "searchPlaceholder": "name@example.com",
+          "searchButton": "Search",
+          "filterStatus": "Status",
+          "allStatuses": "All statuses",
+          "clearFilters": "Clear filters",
+          "results": "{count, plural, =0 {No matching subscribers} one {# matching subscriber} other {# matching subscribers}}",
+          "firstPage": "First page",
+          "nextPage": "Next page",
+          "noName": "—",
+          "rowActions": "Manage subscriber {email}",
+          "unsubscribe": "Unsubscribe",
+          "remove": "Remove subscriber",
+          "unsubscribed": "Subscriber unsubscribed",
+          "updateError": "Failed to update subscriber. Try again.",
+          "transitionError": "This subscriber’s status changed. Reload the page before trying again.",
+          "invalid": "Check the highlighted fields and try again.",
+          "columns": {
+            "email": "Email",
+            "name": "Name",
+            "status": "Status",
+            "source": "Source",
+            "subscribedAt": "Subscribed date",
+            "actions": "Actions"
+          },
+          "statuses": {
+            "ACTIVE": "Active",
+            "PENDING": "Pending",
+            "UNSUBSCRIBED": "Unsubscribed",
+            "BOUNCED": "Bounced"
+          },
+          "sources": {
+            "MANUAL": "Added by hand",
+            "CSV_IMPORT": "CSV import",
+            "SIGNUP_FORM": "Signup form",
+            "API": "API"
+          },
+          "Validation": {
+            "email": "Enter a valid email address.",
+            "name": "Use at most 200 characters.",
+            "consent": "Confirm consent before continuing."
+          },
+          "Add": {
+            "description": "Add a person who agreed to receive this newsletter.",
+            "email": "Email",
+            "name": "Name (optional)",
+            "consent": "This person agreed to receive this newsletter",
+            "duplicate": "This email is already on the list. Search for it to manage the existing subscriber.",
+            "error": "Failed to add subscriber. Try again.",
+            "success": "Subscriber added"
+          },
+          "Remove": {
+            "title": "Remove subscriber?",
+            "description": "Permanently remove {email} from this newsletter. This cannot be undone.",
+            "error": "Failed to remove subscriber. Try again.",
+            "success": "Subscriber removed"
+          },
+          "Import": {
+            "description": "Import a CSV with an email column and an optional name column. Existing subscribers keep their current status.",
+            "file": "CSV file",
+            "chooseFile": "Choose CSV",
+            "noFile": "No file chosen",
+            "fileHint": "CSV files up to 5 MB, with at most 50,000 rows. Include an email header and an optional name header.",
+            "fileType": "Choose a file ending in .csv.",
+            "fileSize": "Choose a CSV file no larger than 5 MB.",
+            "fileRequired": "Choose a CSV file to import.",
+            "consent": "Everyone in this CSV agreed to receive this newsletter",
+            "importing": "Importing subscribers…",
+            "error": "Failed to import subscribers. Try again.",
+            "invalidCsv": "Check the CSV: include an email header, an optional name header, and at most 50,000 rows. Then try again.",
+            "doneDescription": "Import complete. Review the results below.",
+            "result": {
+              "imported": "Imported",
+              "skippedExisting": "Already on the list",
+              "invalid": "Invalid rows reported"
+            },
+            "invalidHint": "Fix these rows and import them again. Row numbers include the header. Up to 100 invalid rows are reported.",
+            "invalidRow": "Row {row}: {value}",
+            "moreInvalid": "{count, plural, one {# more invalid row reported} other {# more invalid rows reported}}"
+          },
+          "dismiss": "Dismiss"
         }
       }
     },
@@ -7229,6 +7371,10 @@
       },
       "loadOlder": "Load older messages",
       "jumpToLatest": "Jump to latest",
+      "UnreadDivider": {
+        "label": "New",
+        "accessibleName": "New messages"
+      },
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
@@ -7703,6 +7849,13 @@
       "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
       "moveAction": "Move",
+      "moveFilesDialogTitle": "Move {count, plural, one {# file} other {# files}}",
+      "movedFiles": "{count, plural, one {Moved # file} other {Moved # files}}",
+      "moveFilesPartialError": "{count, plural, one {# file could not be moved} other {# files could not be moved}}",
+      "moveNewFolderLabel": "New folder",
+      "moveNewFolderPlaceholder": "Or type a new folder name",
+      "shareAction": "Share",
+      "shareFolderAction": "Share “{name}”",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
       "moveHere": "Move here",
@@ -7795,15 +7948,16 @@
         "suggestedChip": "Suggested: {name}",
         "selectFile": "Select {name}",
         "bulkSelected": "{count} selected",
-        "bulkWindowSelected": "{count} files selected from this result window",
-        "bulkWindowChanged": "This window changed — {count} files still match. Confirm again.",
-        "bulkSelectionExpired": "That result window expired. Search again.",
-        "bulkSetCategory": "Set {name}",
         "bulkClear": "Clear selection",
-        "bulkApplied": "Updated {count} files",
-        "bulkPartial": "{applied} updated, {failed} failed and stay selected",
-        "bulkSelectAllMatches": "Select all {count} matches",
-        "bulkError": "Those changes could not be applied.",
+        "bulkDelete": "Delete",
+        "bulkMove": "Move",
+        "bulkShare": "Share",
+        "bulkDeleteTitle": "Delete {count, plural, one {# file} other {# files}}?",
+        "bulkDeleteDescription": "They are removed for everyone in this Files workspace. This can't be undone.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
+        "bulkDeleteCancel": "Cancel",
+        "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
+        "bulkDeletePartial": "{deleted} deleted, {failed} failed and stay selected",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
         "detailCategory": "Category",
@@ -7881,9 +8035,6 @@
         "addTagUnavailable": "Tags could not be loaded",
         "tagAdded": "Tag added. An earlier removal of it no longer applies.",
         "suggestionExcerpt": "From this document",
-        "bulkMoreCategories": "{count} more…",
-        "bulkCategorySearch": "Search categories",
-        "bulkCategoryEmpty": "No categories match",
         "relatedNoText": "No related files. This document has no readable text.",
         "processingPartialCoverage": "Only part of this file is indexed. About {percent}% of the text was read.",
         "sheetOpenAsPage": "Open as page",
@@ -7903,7 +8054,34 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table"
+      "tableKind": "Table",
+      "Share": {
+        "title": "Share “{name}”",
+        "fileDescription": "Anyone with the link can view and download this file.",
+        "folderDescription": "Anyone with the link can see and download everything in this folder, including files added later.",
+        "loading": "Loading link",
+        "passwordOptional": "Password (optional)",
+        "passwordPlaceholder": "Leave empty for no password",
+        "newPasswordPlaceholder": "New password",
+        "passwordTooShort": "At least 4 characters",
+        "create": "Create link",
+        "created": "Link created",
+        "linkLabel": "Share link",
+        "copy": "Copy",
+        "copied": "Link copied",
+        "copyFailed": "Could not copy the link",
+        "passwordOn": "Password protected",
+        "passwordOff": "No password",
+        "setPassword": "Set password",
+        "changePassword": "Change",
+        "passwordSaved": "Password saved",
+        "removePassword": "Remove password",
+        "passwordRemoved": "Password removed",
+        "revoke": "Stop sharing",
+        "revoked": "Link turned off",
+        "loadFailed": "Could not load the link",
+        "saveFailed": "Could not save the link"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -7961,7 +8139,7 @@
         "connectFailed": "The connection did not complete. Try again.",
         "lastError": "Needs attention: {error}",
         "title": "Connected accounts",
-        "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
+        "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask.",
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
@@ -8040,6 +8218,9 @@
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
         "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment names it.",
+        "mailAutoReadTitle": "Handle routine mail",
+        "mailAutoReadDescription": "After each check, mark mail that is neither urgent nor notable as read. Important mail stays unread for you.",
+        "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -8269,7 +8450,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask."
+          "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask."
         }
       },
       "Avatar": {
@@ -9112,6 +9293,22 @@
       "title": "On-demand AI agents at your fingertips",
       "description": "Select a trusted agent, set your brief, and receive actionable outputs - no subscriptions needed.",
       "buttonText": "Explore agents"
+    },
+    "Files": {
+      "sharedFile": "Shared file",
+      "sharedFolder": "Shared folder",
+      "notFoundTitle": "Link not found",
+      "passwordLabel": "This link is protected. Enter the password",
+      "open": "Open",
+      "download": "Download",
+      "downloadFile": "Download {name}",
+      "truncated": "Showing the first 2,000 files of this folder.",
+      "emptyFolder": "This folder is empty.",
+      "errors": {
+        "wrong": "Wrong password.",
+        "locked": "Too many wrong passwords. Try again in 15 minutes.",
+        "failed": "Something went wrong. Try again."
+      }
     }
   },
   "NotFound": {

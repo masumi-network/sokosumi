@@ -8,13 +8,18 @@ import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  type SOCIAL_PROVIDERS,
+  socialProvidersEnabledFirst,
+} from "@/components/social-providers";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 
 const NEED_PROJECT_COPY = {
   accounts: "accountsNeedProject",
@@ -97,18 +102,25 @@ export function SocialAccountsProjectPrompt({
 
 function SocialPlatformCard({
   comingSoonLabel,
+  personalProfileLabel,
   provider,
 }: {
   comingSoonLabel: string;
+  personalProfileLabel: string;
   provider: (typeof SOCIAL_PROVIDERS)[number];
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   return (
     <div className="bg-card flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border px-3 py-5">
       <provider.Icon className="size-8" aria-hidden />
       <div className="space-y-1">
         <p className="text-sm font-medium">{provider.name}</p>
-        {"comingSoon" in provider ? (
-          <p className="text-muted-foreground text-xs">{comingSoonLabel}</p>
+        {!isProviderEnabled(provider.id) ? (
+          <Badge variant="secondary">{comingSoonLabel}</Badge>
+        ) : provider.id === "linkedin" ? (
+          <span className="text-muted-foreground block text-xs">
+            {personalProfileLabel}
+          </span>
         ) : null}
       </div>
     </div>
@@ -120,6 +132,10 @@ function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
   const comingSoonLabel = accounts("comingSoon");
+  const personalProfileLabel = accounts("personalProfile");
+  const providers = socialProvidersEnabledFirst(
+    useSocialProviderAvailability().enabledProviders,
+  );
 
   return (
     <section
@@ -158,13 +174,14 @@ function SocialPlatformCarousel() {
                   : "flex shrink-0"
               }
             >
-              {SOCIAL_PROVIDERS.map((provider) => (
+              {providers.map((provider) => (
                 <li
                   key={`${provider.id}-${copy}`}
                   className="w-[40cqw] shrink-0 pl-3 sm:w-[calc(100cqw/3)] lg:w-[calc(100cqw/6)]"
                 >
                   <SocialPlatformCard
                     comingSoonLabel={comingSoonLabel}
+                    personalProfileLabel={personalProfileLabel}
                     provider={provider}
                   />
                 </li>

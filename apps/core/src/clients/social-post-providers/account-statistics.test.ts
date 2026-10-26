@@ -114,6 +114,7 @@ describe("connected account statistics", () => {
       request.tool_slug
         ? {
             id: "123",
+            subscription_type: "Premium",
             public_metrics: {
               followers_count: 0,
               following_count: 9,
@@ -142,6 +143,11 @@ describe("connected account statistics", () => {
           },
     );
     const result = await fetchSocialAccountStatisticsPage(input);
+    expect(result.subscriptionType).toBe("Premium");
+    expect(requests[0]).toMatchObject({
+      tool_slug: "TWITTER_USER_LOOKUP_ME",
+      arguments: { user_fields: ["public_metrics", "subscription_type"] },
+    });
     expect(result.accountMetrics).toContainEqual({
       key: "followers_count",
       value: 0,
@@ -153,6 +159,9 @@ describe("connected account statistics", () => {
       externalId: "456",
       text: "Outside Sokosumi",
       publishedAt: "2026-01-01T00:00:00.000Z",
+      contentType: "text",
+      postKind: "post",
+      media: [],
       metrics: { likes: 0, impressions: null },
       additionalMetrics: [{ key: "quote_count", value: 2 }],
     });
@@ -169,6 +178,8 @@ describe("connected account statistics", () => {
       parameters: [
         { name: "max_results", type: "query" },
         { name: "post.fields", type: "query" },
+        { name: "expansions", type: "query" },
+        { name: "media.fields", type: "query" },
       ],
     });
     expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
@@ -184,6 +195,7 @@ describe("connected account statistics", () => {
       cursor: "token_2",
     });
     expect(result.accountMetrics).toBeNull();
+    expect(result.subscriptionType).toBeNull();
     expect(result.historyError).toBeNull();
     expect(requests).toHaveLength(1);
     expect(requests[0].parameters).toContainEqual({
@@ -843,12 +855,104 @@ describe("connected account statistics", () => {
     });
     expect(requests[0].parameters).toContainEqual({
       name: "post.fields",
-      value: "created_at,public_metrics,note_post,referenced_tweets",
+      value:
+        "created_at,public_metrics,note_post,referenced_tweets,attachments,author_id,in_reply_to_user_id",
       type: "query",
     });
     expect(result.posts[0]).toMatchObject({
       text: "Full post",
       metrics: { shares: 4 },
+    });
+  });
+  it("maps X media, quote kind and Instagram carousel from already-fetched payloads", async () => {
+    const x = stub(() => ({
+      status: 200,
+      data: {
+        data: [
+          {
+            id: "quoted",
+            author_id: "123",
+            text: "Quote",
+            referenced_tweets: [{ type: "quoted", id: "1" }],
+            attachments: { media_keys: ["m1"] },
+          },
+        ],
+        includes: {
+          media: [
+            {
+              media_key: "m1",
+              type: "photo",
+              url: "https://pbs.twimg.com/media/one.jpg",
+            },
+          ],
+        },
+      },
+    }));
+    const quoted = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(quoted.posts[0]).toMatchObject({
+      contentType: "image",
+      postKind: "quote",
+      media: [
+        {
+          kind: "image",
+          url: "https://pbs.twimg.com/media/one.jpg",
+          thumbnailUrl: null,
+        },
+      ],
+    });
+    expect(x.requests[0].parameters).toContainEqual({
+      name: "expansions",
+      value: "attachments.media_keys",
+      type: "query",
+    });
+
+    stub((request) =>
+      request.tool_slug === "INSTAGRAM_GET_IG_USER_MEDIA"
+        ? {
+            data: [
+              {
+                id: "ig-carousel",
+                media_type: "CAROUSEL_ALBUM",
+                children: {
+                  data: [
+                    {
+                      media_type: "IMAGE",
+                      media_url: "https://scontent.cdninstagram.com/a.jpg",
+                    },
+                    {
+                      media_type: "VIDEO",
+                      media_url: "https://scontent.cdninstagram.com/b.mp4",
+                      thumbnail_url: "https://scontent.cdninstagram.com/b.jpg",
+                    },
+                  ],
+                },
+              },
+            ],
+          }
+        : { data: [] },
+    );
+    const carousel = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "instagram",
+      includeProfile: false,
+    });
+    expect(carousel.posts[0]).toMatchObject({
+      contentType: "carousel",
+      media: [
+        {
+          kind: "image",
+          url: "https://scontent.cdninstagram.com/a.jpg",
+          thumbnailUrl: null,
+        },
+        {
+          kind: "video",
+          url: "https://scontent.cdninstagram.com/b.mp4",
+          thumbnailUrl: "https://scontent.cdninstagram.com/b.jpg",
+        },
+      ],
     });
   });
   it("retries only a trusted X host alias on Composio domain rejection and preserves account/query", async () => {

@@ -1,3 +1,4 @@
+import { isSocialProviderEnabled } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -29,6 +30,7 @@ const {
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentFindUniqueInTransactionMock,
   socialConnectionUpdateMock,
+  socialConnectionUpdateManyMock,
   socialPostUpdateManyMock,
   transactionMock,
 } = vi.hoisted(() => ({
@@ -55,6 +57,7 @@ const {
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentFindUniqueInTransactionMock: vi.fn(),
   socialConnectionUpdateMock: vi.fn(),
+  socialConnectionUpdateManyMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -114,6 +117,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectSocialConnection: {
       findFirst: socialConnectionFindFirstMock,
       findMany: socialConnectionFindManyMock,
+      updateMany: socialConnectionUpdateManyMock,
     },
     projectSocialConnectionAudit: {
       findFirst: socialConnectionAuditFindFirstMock,
@@ -141,6 +145,7 @@ const socialConnection = {
   externalHandle: "sokosumi",
   displayName: null as string | null,
   avatarUrl: null as string | null,
+  subscriptionType: null as string | null,
   composioConnectedAccountId: "ca_old",
   status: "reauthorization_required",
   activeExternalAccountKey: "x:123",
@@ -174,7 +179,10 @@ describe("project social connections service", () => {
     vi.setSystemTime(new Date("2026-09-03T10:00:00.000Z"));
     getEnvMock.mockReturnValue({ COMPOSIO_X_AUTH_CONFIG_ID: "ac_x" });
     getWebAppBaseUrlMock.mockReturnValue("https://app.sokosumi.com");
-    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      workspace: { organization: null },
+    });
     initiateComposioConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
       redirectUrl: "https://connect.composio.dev/link-token",
@@ -191,6 +199,7 @@ describe("project social connections service", () => {
       handle: "sokosumi",
       displayName: null,
       avatarUrl: null,
+      subscriptionType: null,
     });
     snapshotSocialAccountAvatarMock.mockResolvedValue(null);
     socialConnectionCreateMock.mockResolvedValue({
@@ -217,197 +226,299 @@ describe("project social connections service", () => {
     PROJECT_SOCIAL_PROVIDERS,
   ) as ProjectSocialProvider[];
 
-  it.each(providers)(
-    "initiates %s with its configured OAuth credentials",
-    async (provider) => {
-      const { authConfigEnv } = PROJECT_SOCIAL_PROVIDERS[provider];
-      getEnvMock.mockReturnValue({ [authConfigEnv]: `ac_${provider}` });
-      const { initiateProjectSocialConnection } = await import(
-        "./project-social-connections.service"
-      );
-
-      await initiateProjectSocialConnection({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-        userId: USER_ID,
-        action: "connect",
-        provider,
-      });
-
-      expect(initiateComposioConnectionMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          authConfigId: `ac_${provider}`,
-          connectorUserId: `sokosumi:user:${USER_ID}`,
-          executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
-        }),
-      );
-      expect(socialConnectionIntentCreateMock).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          provider,
-          authConfigId: `ac_${provider}`,
-        }),
-      });
-    },
-  );
-
-  it.each(providers)(
-    "does not provision OAuth credentials for unconfigured %s",
-    async (provider) => {
-      getEnvMock.mockReturnValue({});
-      const { initiateProjectSocialConnection } = await import(
-        "./project-social-connections.service"
-      );
-      await expect(
-        initiateProjectSocialConnection({
-          projectId: PROJECT_ID,
-          workspaceId: WORKSPACE_ID,
-          userId: USER_ID,
-          action: "connect",
-          provider,
-        }),
-      ).rejects.toThrow(PROJECT_SOCIAL_PROVIDERS[provider].authConfigEnv);
-      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each(providers)(
-    "finalizes %s using its pinned intent and provider identity",
-    async (provider) => {
-      const intent = {
-        ...createIntent("connect"),
-        provider,
-        authConfigId: `ac_${provider}`,
-      };
-      socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
-      socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
-        intent,
-      );
-      getComposioConnectedAccountMock.mockResolvedValue({
-        id: CONNECTION_ID,
-        status: "ACTIVE",
-        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
-        authConfigId: `ac_${provider}`,
-        connectorUserId: `sokosumi:user:${USER_ID}`,
-      });
-      socialConnectionCreateMock.mockResolvedValue({
-        ...socialConnection,
-        provider,
-        status: "active",
-      });
-      const { finalizeProjectSocialConnection } = await import(
-        "./project-social-connections.service"
-      );
-
-      await expect(
-        finalizeProjectSocialConnection({
-          projectId: PROJECT_ID,
-          workspaceId: WORKSPACE_ID,
-          userId: USER_ID,
-          connectionId: CONNECTION_ID,
-        }),
-      ).resolves.toMatchObject({ provider, status: "active" });
-      expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
-        provider,
-        connectedAccountId: CONNECTION_ID,
-        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
-      });
-      expect(socialConnectionCreateMock).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          provider,
-          activeExternalAccountKey: `${provider}:123`,
-        }),
-      });
-    },
-  );
-
-  it.each(providers)(
-    "derives reconnect and replacement OAuth for stored %s",
-    async (provider) => {
-      const { initiateProjectSocialConnection } = await import(
-        "./project-social-connections.service"
-      );
-      getEnvMock.mockReturnValue({
-        [PROJECT_SOCIAL_PROVIDERS[provider].authConfigEnv]: `ac_${provider}`,
-      });
-      for (const action of ["reconnect", "replace"] as const) {
-        socialConnectionFindFirstMock.mockResolvedValue({
-          ...socialConnection,
-          provider,
+  describe.each([null, "other", "utxo"])(
+    "Project workspace %s",
+    (organizationSlug) => {
+      beforeEach(() => {
+        projectFindFirstMock.mockResolvedValue({
+          id: PROJECT_ID,
+          workspace: {
+            organization: organizationSlug ? { slug: organizationSlug } : null,
+          },
         });
-        await initiateProjectSocialConnection({
-          projectId: PROJECT_ID,
-          workspaceId: WORKSPACE_ID,
-          userId: USER_ID,
-          action,
-          socialConnectionId: SOCIAL_CONNECTION_ID,
-        });
-        expect(initiateComposioConnectionMock).toHaveBeenLastCalledWith(
-          expect.objectContaining({ authConfigId: `ac_${provider}` }),
-        );
-        expect(socialConnectionIntentCreateMock).toHaveBeenLastCalledWith({
-          data: expect.objectContaining({
-            provider,
-            action,
-            authConfigId: `ac_${provider}`,
-          }),
-        });
-      }
-    },
-  );
-
-  it.each(providers)(
-    "finalizes reconnect and replacement for %s",
-    async (provider) => {
-      const { finalizeProjectSocialConnection } = await import(
-        "./project-social-connections.service"
+      });
+      const enabledProviders = providers.filter((provider) =>
+        isSocialProviderEnabled(provider, { organizationSlug }),
       );
-      for (const action of ["reconnect", "replace"] as const) {
-        const intent = {
-          ...createIntent(action),
-          provider,
-          authConfigId: `ac_${provider}`,
-        };
-        const target = {
-          ...socialConnection,
-          provider,
-          status:
-            action === "replace" ? "disconnected" : "reauthorization_required",
-        };
-        socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
-        socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
-          intent,
-        );
-        socialConnectionFindFirstMock
-          .mockResolvedValueOnce(target)
-          .mockResolvedValueOnce(null);
-        getComposioConnectedAccountMock.mockResolvedValue({
-          id: CONNECTION_ID,
-          status: "ACTIVE",
-          toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
-          authConfigId: `ac_${provider}`,
-          connectorUserId: `sokosumi:user:${USER_ID}`,
-        });
-        socialConnectionCreateMock.mockResolvedValue({
-          ...target,
-          status: "active",
-        });
-        socialConnectionUpdateMock.mockResolvedValue({
-          ...target,
-          status: "active",
-        });
-        await expect(
-          finalizeProjectSocialConnection({
+      const disabledProviders = providers.filter(
+        (provider) => !isSocialProviderEnabled(provider, { organizationSlug }),
+      );
+
+      it.each(enabledProviders)(
+        "initiates %s with its configured OAuth credentials",
+        async (provider) => {
+          const { authConfigEnv } = PROJECT_SOCIAL_PROVIDERS[provider];
+          getEnvMock.mockReturnValue({ [authConfigEnv]: `ac_${provider}` });
+          const { initiateProjectSocialConnection } = await import(
+            "./project-social-connections.service"
+          );
+
+          await initiateProjectSocialConnection({
             projectId: PROJECT_ID,
             workspaceId: WORKSPACE_ID,
             userId: USER_ID,
-            connectionId: CONNECTION_ID,
-          }),
-        ).resolves.toMatchObject({ provider, status: "active" });
-        expect(getConnectedSocialIdentityMock).toHaveBeenLastCalledWith({
-          provider,
-          connectedAccountId: CONNECTION_ID,
-          executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
-        });
+            action: "connect",
+            provider,
+          });
+
+          expect(initiateComposioConnectionMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              authConfigId: `ac_${provider}`,
+              connectorUserId: `sokosumi:user:${USER_ID}`,
+              executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+            }),
+          );
+          expect(socialConnectionIntentCreateMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+              provider,
+              authConfigId: `ac_${provider}`,
+            }),
+          });
+        },
+      );
+
+      it.each(enabledProviders)(
+        "does not provision OAuth credentials for unconfigured %s",
+        async (provider) => {
+          getEnvMock.mockReturnValue({});
+          const { initiateProjectSocialConnection } = await import(
+            "./project-social-connections.service"
+          );
+          await expect(
+            initiateProjectSocialConnection({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              action: "connect",
+              provider,
+            }),
+          ).rejects.toThrow(PROJECT_SOCIAL_PROVIDERS[provider].authConfigEnv);
+          expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each(enabledProviders)(
+        "finalizes %s using its pinned intent and provider identity",
+        async (provider) => {
+          const intent = {
+            ...createIntent("connect"),
+            provider,
+            authConfigId: `ac_${provider}`,
+          };
+          socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+          socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+            intent,
+          );
+          getComposioConnectedAccountMock.mockResolvedValue({
+            id: CONNECTION_ID,
+            status: "ACTIVE",
+            toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+            authConfigId: `ac_${provider}`,
+            connectorUserId: `sokosumi:user:${USER_ID}`,
+          });
+          socialConnectionCreateMock.mockResolvedValue({
+            ...socialConnection,
+            provider,
+            status: "active",
+          });
+          const { finalizeProjectSocialConnection } = await import(
+            "./project-social-connections.service"
+          );
+
+          await expect(
+            finalizeProjectSocialConnection({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              connectionId: CONNECTION_ID,
+            }),
+          ).resolves.toMatchObject({ provider, status: "active" });
+          expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
+            provider,
+            connectedAccountId: CONNECTION_ID,
+            executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+          });
+          expect(socialConnectionCreateMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+              provider,
+              activeExternalAccountKey: `${provider}:123`,
+            }),
+          });
+        },
+      );
+
+      it.each(enabledProviders)(
+        "derives reconnect and replacement OAuth for stored %s",
+        async (provider) => {
+          const { initiateProjectSocialConnection } = await import(
+            "./project-social-connections.service"
+          );
+          getEnvMock.mockReturnValue({
+            [PROJECT_SOCIAL_PROVIDERS[provider].authConfigEnv]:
+              `ac_${provider}`,
+          });
+          for (const action of ["reconnect", "replace"] as const) {
+            socialConnectionFindFirstMock.mockResolvedValue({
+              ...socialConnection,
+              provider,
+            });
+            await initiateProjectSocialConnection({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              action,
+              socialConnectionId: SOCIAL_CONNECTION_ID,
+            });
+            expect(initiateComposioConnectionMock).toHaveBeenLastCalledWith(
+              expect.objectContaining({ authConfigId: `ac_${provider}` }),
+            );
+            expect(socialConnectionIntentCreateMock).toHaveBeenLastCalledWith({
+              data: expect.objectContaining({
+                provider,
+                action,
+                authConfigId: `ac_${provider}`,
+              }),
+            });
+          }
+        },
+      );
+
+      it.each(enabledProviders)(
+        "finalizes reconnect and replacement for %s",
+        async (provider) => {
+          const { finalizeProjectSocialConnection } = await import(
+            "./project-social-connections.service"
+          );
+          for (const action of ["reconnect", "replace"] as const) {
+            const intent = {
+              ...createIntent(action),
+              provider,
+              authConfigId: `ac_${provider}`,
+            };
+            const target = {
+              ...socialConnection,
+              provider,
+              status:
+                action === "replace"
+                  ? "disconnected"
+                  : "reauthorization_required",
+            };
+            socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+            socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+              intent,
+            );
+            socialConnectionFindFirstMock
+              .mockResolvedValueOnce(target)
+              .mockResolvedValueOnce(null);
+            getComposioConnectedAccountMock.mockResolvedValue({
+              id: CONNECTION_ID,
+              status: "ACTIVE",
+              toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+              authConfigId: `ac_${provider}`,
+              connectorUserId: `sokosumi:user:${USER_ID}`,
+            });
+            socialConnectionCreateMock.mockResolvedValue({
+              ...target,
+              status: "active",
+            });
+            socialConnectionUpdateMock.mockResolvedValue({
+              ...target,
+              status: "active",
+            });
+            await expect(
+              finalizeProjectSocialConnection({
+                projectId: PROJECT_ID,
+                workspaceId: WORKSPACE_ID,
+                userId: USER_ID,
+                connectionId: CONNECTION_ID,
+              }),
+            ).resolves.toMatchObject({ provider, status: "active" });
+            expect(getConnectedSocialIdentityMock).toHaveBeenLastCalledWith({
+              provider,
+              connectedAccountId: CONNECTION_ID,
+              executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+            });
+          }
+        },
+      );
+
+      if (disabledProviders.length) {
+        it.each(
+          disabledProviders.flatMap((provider) =>
+            (["connect", "reconnect", "replace"] as const).map((action) => ({
+              provider,
+              action,
+            })),
+          ),
+        )(
+          "rejects $action for $provider before initiating or retiring credentials",
+          async ({ provider, action }) => {
+            socialConnectionFindFirstMock.mockResolvedValue({
+              ...socialConnection,
+              provider,
+            });
+            const { initiateProjectSocialConnection } = await import(
+              "./project-social-connections.service"
+            );
+
+            await expect(
+              initiateProjectSocialConnection({
+                projectId: PROJECT_ID,
+                workspaceId: WORKSPACE_ID,
+                userId: USER_ID,
+                ...(action === "connect"
+                  ? { action, provider }
+                  : { action, socialConnectionId: SOCIAL_CONNECTION_ID }),
+              }),
+            ).rejects.toMatchObject({
+              status: 400,
+              message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+            });
+            expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+            expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+            expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+            expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+            expect(socialConnectionIntentCreateMock).not.toHaveBeenCalled();
+          },
+        );
+
+        it.each(
+          disabledProviders.flatMap((provider) =>
+            (["connect", "reconnect", "replace"] as const).map((action) => ({
+              provider,
+              action,
+            })),
+          ),
+        )(
+          "rejects finalizing $action for $provider before reading external credentials",
+          async ({ provider, action }) => {
+            socialConnectionIntentFindUniqueMock.mockResolvedValue({
+              ...createIntent(action),
+              provider,
+              authConfigId: `ac_${provider}`,
+            });
+            const { finalizeProjectSocialConnection } = await import(
+              "./project-social-connections.service"
+            );
+
+            await expect(
+              finalizeProjectSocialConnection({
+                projectId: PROJECT_ID,
+                workspaceId: WORKSPACE_ID,
+                userId: USER_ID,
+                connectionId: CONNECTION_ID,
+              }),
+            ).rejects.toMatchObject({
+              status: 400,
+              message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+            });
+            expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+            expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
+            expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+            expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+            expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+          },
+        );
       }
     },
   );
@@ -683,7 +794,12 @@ describe("project social connections service", () => {
 
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      select: { id: true, closingAt: true, closedAt: true },
+      select: {
+        id: true,
+        closingAt: true,
+        closedAt: true,
+        workspace: { select: { organization: { select: { slug: true } } } },
+      },
     });
     expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
       authConfigId: "ac_x",
@@ -1123,6 +1239,7 @@ describe("project social connections service", () => {
         connectorUserId: `sokosumi:user:${USER_ID}`,
         externalHandle: "sokosumi",
         displayName: null,
+        subscriptionType: null,
         status: "active",
         activeExternalAccountKey: "x:123",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
@@ -1141,6 +1258,7 @@ describe("project social connections service", () => {
       id: "123",
       handle: "sokosumi",
       displayName: "Sokosumi",
+      subscriptionType: "Premium",
       avatarUrl: "https://pbs.twimg.com/a_400x400.jpg",
     });
     snapshotSocialAccountAvatarMock.mockResolvedValue(newAvatar);
@@ -1157,6 +1275,7 @@ describe("project social connections service", () => {
     socialConnectionUpdateMock.mockResolvedValue({
       ...socialConnection,
       displayName: "Sokosumi",
+      subscriptionType: "Premium",
       avatarUrl: newAvatar,
       status: "active",
     });
@@ -1171,7 +1290,11 @@ describe("project social connections service", () => {
         userId: USER_ID,
         connectionId: CONNECTION_ID,
       }),
-    ).resolves.toMatchObject({ displayName: "Sokosumi", avatarUrl: newAvatar });
+    ).resolves.toMatchObject({
+      displayName: "Sokosumi",
+      avatarUrl: newAvatar,
+      subscriptionType: "Premium",
+    });
 
     expect(snapshotSocialAccountAvatarMock).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
@@ -1183,6 +1306,7 @@ describe("project social connections service", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           displayName: "Sokosumi",
+          subscriptionType: "Premium",
           avatarUrl: newAvatar,
         }),
       }),
@@ -1280,6 +1404,117 @@ describe("project social connections service", () => {
       null,
       PROJECT_ID,
     );
+  });
+
+  it("reconnects a legacy LinkedIn URN row and stores the bare person id", async () => {
+    const intent = {
+      ...createIntent("reconnect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "alice",
+      handle: null,
+      displayName: "Alice Doe",
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    const legacy = {
+      ...socialConnection,
+      provider: "linkedin",
+      externalAccountId: "urn:li:person:alice",
+      activeExternalAccountKey: "linkedin:urn:li:person:alice",
+    };
+    socialConnectionFindFirstMock.mockResolvedValue(legacy);
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...legacy,
+      externalAccountId: "alice",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).resolves.toMatchObject({ provider: "linkedin", status: "active" });
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          externalAccountId: "alice",
+          activeExternalAccountKey: "linkedin:alice",
+        }),
+      }),
+    );
+  });
+
+  it("blocks connecting a LinkedIn person already held by a legacy URN row", async () => {
+    const intent = {
+      ...createIntent("connect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "alice",
+      handle: null,
+      displayName: null,
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...socialConnection,
+      provider: "linkedin",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("already connected");
+    expect(socialConnectionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        activeExternalAccountKey: {
+          in: ["linkedin:alice", "linkedin:urn:li:person:alice"],
+        },
+      },
+    });
   });
 
   it("rejects a reconnect to a different provider identity", async () => {
@@ -1660,6 +1895,7 @@ describe("project social connections service", () => {
         externalHandle: "sokosumi",
         displayName: null,
         avatarUrl: null,
+        subscriptionType: null,
         status: "active",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
         disconnectedAt: null,
@@ -1802,5 +2038,114 @@ describe("project social connections service", () => {
     expect(socialConnectionIntentDeleteMock).toHaveBeenCalledWith({
       where: { connectionId: CONNECTION_ID },
     });
+  });
+});
+
+describe("backfillLinkedInAccountProfile", () => {
+  const linkedIn = {
+    id: SOCIAL_CONNECTION_ID,
+    projectId: PROJECT_ID,
+    provider: "linkedin",
+    status: "active",
+    composioConnectedAccountId: "ca_li",
+    externalAccountId: "urn:li:person:abc",
+    avatarUrl: null as string | null,
+  };
+  const identity = {
+    id: "abc",
+    handle: "alice",
+    displayName: "Alice Doe",
+    avatarUrl: "https://media.licdn.com/dms/image/a.jpg",
+    subscriptionType: null,
+  };
+  const stored =
+    "https://blob.example/social-account-avatars/project/linkedin/a.jpg";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    getConnectedSocialIdentityMock.mockResolvedValue(identity);
+    snapshotSocialAccountAvatarMock.mockResolvedValue(stored);
+    socialConnectionUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("stores the photo and a missing name for a LinkedIn account without one", async () => {
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(true);
+
+    expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
+      provider: "linkedin",
+      connectedAccountId: "ca_li",
+      executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+    });
+    expect(snapshotSocialAccountAvatarMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      provider: "linkedin",
+      externalAccountId: "urn:li:person:abc",
+      avatarUrl: identity.avatarUrl,
+    });
+    expect(socialConnectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: SOCIAL_CONNECTION_ID, status: "active", avatarUrl: null },
+      data: { avatarUrl: stored },
+    });
+    expect(socialConnectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: SOCIAL_CONNECTION_ID, displayName: null },
+      data: { displayName: "Alice Doe" },
+    });
+  });
+
+  it.each([
+    ["another provider", { provider: "x" }],
+    ["an account that already has a photo", { avatarUrl: "https://a/b.jpg" }],
+    ["an inactive account", { status: "reauthorization_required" }],
+  ])("skips %s without calling LinkedIn", async (_label, change) => {
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      backfillLinkedInAccountProfile({ ...linkedIn, ...change }),
+    ).resolves.toBe(false);
+    expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
+  });
+
+  it("never stores another person's photo", async () => {
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      ...identity,
+      id: "someone-else",
+    });
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    expect(snapshotSocialAccountAvatarMock).not.toHaveBeenCalled();
+    expect(socialConnectionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("removes its copy when the row got a photo meanwhile", async () => {
+    socialConnectionUpdateManyMock.mockResolvedValue({ count: 0 });
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    expect(deleteSocialAccountAvatarIfOwnedMock).toHaveBeenCalledWith(
+      stored,
+      PROJECT_ID,
+    );
+  });
+
+  it("never throws when the lookup fails", async () => {
+    getConnectedSocialIdentityMock.mockRejectedValue(new Error("down"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    warn.mockRestore();
   });
 });

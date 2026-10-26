@@ -2,6 +2,8 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { cmoOverview } from "../test-fixtures/cmo";
+
 import { planPieces } from "./phone-feeds";
 import { goalLine, planDays, StrategyReveal } from "./strategy-reveal";
 
@@ -115,7 +117,7 @@ const strategy: Strategy = {
 };
 
 const overview = (patch: Partial<Strategy> = {}) =>
-  ({
+  cmoOverview({
     businessName: "acme.io",
     websiteUrl: "https://acme.io",
     projectLogo: null,
@@ -128,7 +130,7 @@ const overview = (patch: Partial<Strategy> = {}) =>
       images: [],
     },
     strategy: { ...strategy, ...patch },
-  }) as unknown as CmoOverview;
+  });
 
 describe("strategy reveal", () => {
   it("counts at least four weeks from the first piece", () => {

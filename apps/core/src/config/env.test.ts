@@ -124,6 +124,53 @@ describe("Soko Bot deployment environment", () => {
   });
 });
 
+describe("Newsletter environment", () => {
+  it("allows an omitted webhook secret", () => {
+    vi.stubEnv("RESEND_NEWSLETTER_WEBHOOK_SECRET", undefined);
+    expect(validateEnv().RESEND_NEWSLETTER_WEBHOOK_SECRET).toBeUndefined();
+  });
+
+  it("preserves a configured webhook secret", () => {
+    const secret = "whsec_bmV3c2xldHRlci13ZWJob29rLXRlc3Qtc2VjcmV0";
+    vi.stubEnv("RESEND_NEWSLETTER_WEBHOOK_SECRET", secret);
+    expect(validateEnv().RESEND_NEWSLETTER_WEBHOOK_SECRET).toBe(secret);
+  });
+
+  it("rejects an empty webhook secret", () => {
+    vi.stubEnv("RESEND_NEWSLETTER_WEBHOOK_SECRET", "");
+    expectInvalidEnvironment("RESEND_NEWSLETTER_WEBHOOK_SECRET");
+  });
+
+  it.each([
+    [undefined, false],
+    ["false", false],
+    ["true", true],
+    [" TRUE ", true],
+    ["1", false],
+  ])("parses %s as enabled=%s", (value, enabled) => {
+    vi.stubEnv("NEWSLETTER_ENABLED", value);
+    expect(validateEnv().NEWSLETTER_ENABLED).toBe(enabled);
+  });
+
+  it("allows an omitted sending domain", () => {
+    vi.stubEnv("NEWSLETTER_FROM_DOMAIN", undefined);
+    expect(validateEnv().NEWSLETTER_FROM_DOMAIN).toBeUndefined();
+  });
+
+  it("preserves a configured sending hostname", () => {
+    vi.stubEnv("NEWSLETTER_FROM_DOMAIN", "news.sokosumi.com");
+    expect(validateEnv().NEWSLETTER_FROM_DOMAIN).toBe("news.sokosumi.com");
+  });
+
+  it.each(["", "https://news.sokosumi.com", "news.sokosumi.com/path"])(
+    "rejects an invalid sending hostname: %s",
+    (value) => {
+      vi.stubEnv("NEWSLETTER_FROM_DOMAIN", value);
+      expectInvalidEnvironment("NEWSLETTER_FROM_DOMAIN");
+    },
+  );
+});
+
 describe("Turnstile deployment configuration", () => {
   let consoleWarn: MockInstance<typeof console.warn>;
 

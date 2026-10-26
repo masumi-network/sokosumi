@@ -2,6 +2,7 @@ import {
   type SocialPostProvider,
   socialPostFirstCommentLimit,
   socialPostProviderLabel,
+  socialPostTextLength,
 } from "@sokosumi/utils";
 
 import { deleteComposioToolSession } from "@/clients/composio.client";
@@ -9,6 +10,7 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
+import { linkedInPersonUrn } from "@/helpers/linkedin-person";
 
 const FIRST_COMMENT_TOOLS = {
   x: {
@@ -42,6 +44,7 @@ export interface PublishSocialPostFirstCommentInput {
   externalAccountId: string;
   externalId: string;
   text: string;
+  subscriptionType?: string | null;
   signal?: AbortSignal;
 }
 
@@ -69,7 +72,7 @@ function commentArguments(
       const urn = linkedInCommentUrn(input.externalId);
       if (!urn) return null;
       return {
-        actor: `urn:li:person:${input.externalAccountId}`,
+        actor: linkedInPersonUrn(input.externalAccountId),
         object: urn,
         target_urn: urn,
         message: { text: input.text },
@@ -106,9 +109,17 @@ export async function publishSocialPostFirstComment(
   input: PublishSocialPostFirstCommentInput,
 ): Promise<void> {
   const tool = socialPostFirstCommentTool(input.provider);
-  const limit = socialPostFirstCommentLimit(input.provider);
+  const limit = socialPostFirstCommentLimit(
+    input.provider,
+    input.subscriptionType,
+  );
   const text = input.text.trim();
-  if (!tool || limit === null || text.length === 0 || text.length > limit) {
+  if (
+    !tool ||
+    limit === null ||
+    text.length === 0 ||
+    socialPostTextLength(input.provider, text) > limit
+  ) {
     return;
   }
   const args = commentArguments({ ...input, text });

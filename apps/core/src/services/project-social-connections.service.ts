@@ -13,9 +13,12 @@ import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
 } from "@/config/social-providers";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
+import { linkedInPersonId, linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -32,6 +35,7 @@ export interface ProjectSocialConnectionSummary {
   externalHandle: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  subscriptionType: string | null;
   status: string;
   connectedAt: Date | null;
   disconnectedAt: Date | null;
@@ -85,6 +89,7 @@ interface ProjectSocialConnectionRecord {
   externalHandle: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  subscriptionType: string | null;
   composioConnectedAccountId: string;
   status: string;
   activeExternalAccountKey: string | null;
@@ -110,6 +115,31 @@ function activeExternalAccountKey(
   return `${provider}:${externalAccountId}`;
 }
 
+/** Keys an active row for this account may hold, including legacy LinkedIn URN rows. */
+function activeExternalAccountKeys(
+  provider: string,
+  externalAccountId: string,
+): string[] {
+  if (provider !== "linkedin") {
+    return [activeExternalAccountKey(provider, externalAccountId)];
+  }
+  return [
+    activeExternalAccountKey(provider, linkedInPersonId(externalAccountId)),
+    activeExternalAccountKey(provider, linkedInPersonUrn(externalAccountId)),
+  ];
+}
+
+/** LinkedIn rows saved before the bare id hold the full person URN. */
+function isSameExternalAccount(
+  provider: string,
+  stored: string,
+  current: string,
+): boolean {
+  return provider === "linkedin"
+    ? linkedInPersonId(stored) === linkedInPersonId(current)
+    : stored === current;
+}
+
 function mapProjectSocialConnection(
   connection: ProjectSocialConnectionRecord,
 ): ProjectSocialConnectionSummary {
@@ -122,6 +152,7 @@ function mapProjectSocialConnection(
     externalHandle: connection.externalHandle,
     displayName: connection.displayName,
     avatarUrl: connection.avatarUrl,
+    subscriptionType: connection.subscriptionType,
     status: connection.status,
     connectedAt: connection.connectedAt,
     disconnectedAt: connection.disconnectedAt,
@@ -226,10 +257,15 @@ export async function requireScopedProject(
     /** Message of the 409 for a closing or closed Project. */
     closedMessage?: string;
   } = {},
-): Promise<void> {
+) {
   const project = await client.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
-    select: { id: true, closingAt: true, closedAt: true },
+    select: {
+      id: true,
+      closingAt: true,
+      closedAt: true,
+      ...socialProviderProjectSelect,
+    },
   });
   if (!project) {
     throw notFound("Project not found");
@@ -237,6 +273,7 @@ export async function requireScopedProject(
   if (requireOpen && (project.closingAt || project.closedAt)) {
     throw conflict(closedMessage);
   }
+  return project;
 }
 
 export async function requireLockedOpenProject(
@@ -273,7 +310,7 @@ async function requireTargetConnection(input: {
 export async function initiateProjectSocialConnection(
   input: InitiateProjectSocialConnectionInput,
 ): Promise<{ connectionId: string; redirectUrl: string }> {
-  await requireScopedProject(input, { requireOpen: true });
+  const project = await requireScopedProject(input, { requireOpen: true });
   if (input.action === "connect" && input.socialConnectionId) {
     throw conflict("A new connection cannot target an existing social account");
   }
@@ -289,6 +326,7 @@ export async function initiateProjectSocialConnection(
     provider = target.provider;
   }
 
+  requireSocialProviderEnabled(provider, project);
   const authConfigId = requireProjectSocialAuthConfigId(provider);
   if (input.action === "replace") {
     const retiredConnection = await serializableTransaction(async (tx) => {
@@ -354,13 +392,15 @@ export async function initiateProjectSocialConnection(
 export async function finalizeProjectSocialConnection(
   input: FinalizeProjectSocialConnectionInput,
 ): Promise<ProjectSocialConnectionSummary> {
-  await requireScopedProject(input, { requireOpen: true });
+  const project = await requireScopedProject(input, { requireOpen: true });
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
   });
   if (!isLiveIntent(intent, input)) {
     throw notFound("Unknown or expired connection");
   }
+
+  requireSocialProviderEnabled(intent.provider, project);
 
   const authConfigId = intent.authConfigId;
   const connectorUserId = projectConnectorUserId(input.userId);
@@ -427,7 +467,11 @@ export async function finalizeProjectSocialConnection(
         }
         if (
           currentIntent.action === "reconnect" &&
-          target.externalAccountId !== identity.id
+          !isSameExternalAccount(
+            target.provider,
+            target.externalAccountId,
+            identity.id,
+          )
         ) {
           throw conflict("Reconnect must match the existing account");
         }
@@ -440,7 +484,12 @@ export async function finalizeProjectSocialConnection(
         const duplicate = await tx.projectSocialConnection.findFirst({
           where: {
             projectId: input.projectId,
-            activeExternalAccountKey: key,
+            activeExternalAccountKey: {
+              in: activeExternalAccountKeys(
+                currentIntent.provider,
+                identity.id,
+              ),
+            },
             ...(target ? { NOT: { id: target.id } } : {}),
           },
         });
@@ -483,8 +532,13 @@ export async function finalizeProjectSocialConnection(
           data: {
             composioConnectedAccountId: input.connectionId,
             connectorUserId,
+            // Rewrites a legacy LinkedIn URN row to the bare id.
+            ...(target.externalAccountId !== identity.id
+              ? { externalAccountId: identity.id }
+              : {}),
             externalHandle: identity.handle,
             displayName: identity.displayName,
+            subscriptionType: identity.subscriptionType,
             // A failed avatar copy keeps the previous one.
             ...(avatarUrl ? { avatarUrl } : {}),
             status: "active",
@@ -501,6 +555,7 @@ export async function finalizeProjectSocialConnection(
             externalAccountId: identity.id,
             externalHandle: identity.handle,
             displayName: identity.displayName,
+            subscriptionType: identity.subscriptionType,
             avatarUrl,
             composioConnectedAccountId: input.connectionId,
             status: "active",
@@ -825,4 +880,83 @@ export async function revokeProjectSocialConnectionForClose(
   await prisma.projectSocialConnectionIntent.deleteMany({
     where: { connectionId: pending.connectedAccountId },
   });
+}
+
+const LINKEDIN_PERSON_URN_PREFIX = "urn:li:person:";
+
+function linkedInPersonKey(value: string): string {
+  return value.startsWith(LINKEDIN_PERSON_URN_PREFIX)
+    ? value.slice(LINKEDIN_PERSON_URN_PREFIX.length)
+    : value;
+}
+
+/**
+ * Best effort backfill for LinkedIn accounts connected before their photo was
+ * read: looks the identity up again and stores the photo (and a missing name)
+ * only while the row still has none. Never throws.
+ */
+export async function backfillLinkedInAccountProfile(connection: {
+  id: string;
+  projectId: string;
+  provider: string;
+  status: string;
+  composioConnectedAccountId: string;
+  externalAccountId: string;
+  avatarUrl: string | null;
+}): Promise<boolean> {
+  if (
+    connection.provider !== "linkedin" ||
+    connection.status !== "active" ||
+    connection.avatarUrl
+  ) {
+    return false;
+  }
+  let snapshot: string | null = null;
+  try {
+    const identity = await getConnectedSocialIdentity({
+      provider: "linkedin",
+      connectedAccountId: connection.composioConnectedAccountId,
+      executorUserId: projectExecutorUserId(connection.projectId),
+    });
+    if (
+      linkedInPersonKey(identity.id) !==
+      linkedInPersonKey(connection.externalAccountId)
+    ) {
+      return false;
+    }
+    if (!identity.avatarUrl) return false;
+    snapshot = await snapshotSocialAccountAvatar({
+      projectId: connection.projectId,
+      provider: "linkedin",
+      externalAccountId: connection.externalAccountId,
+      avatarUrl: identity.avatarUrl,
+    });
+    if (!snapshot) return false;
+    const updated = await prisma.projectSocialConnection.updateMany({
+      where: { id: connection.id, status: "active", avatarUrl: null },
+      data: { avatarUrl: snapshot },
+    });
+    if (identity.displayName) {
+      await prisma.projectSocialConnection.updateMany({
+        where: { id: connection.id, displayName: null },
+        data: { displayName: identity.displayName },
+      });
+    }
+    if (updated.count === 0) {
+      await deleteSocialAccountAvatarIfOwned(snapshot, connection.projectId);
+      return false;
+    }
+    return true;
+  } catch {
+    console.warn("[social-connections] LinkedIn profile backfill failed", {
+      connectionId: connection.id,
+    });
+    if (snapshot) {
+      await deleteSocialAccountAvatarIfOwned(
+        snapshot,
+        connection.projectId,
+      ).catch(() => {});
+    }
+    return false;
+  }
 }

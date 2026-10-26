@@ -1,8 +1,7 @@
-import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-
 import { type BrandBrain, openQuestions } from "../lib/brand-sections";
+import { cmoOverview } from "../test-fixtures/cmo";
 import { accountFromLink, BrandReveal, ownerFinding } from "./brand-profile";
 
 const brain = (extra: Partial<BrandBrain>): BrandBrain => ({
@@ -22,7 +21,7 @@ const brain = (extra: Partial<BrandBrain>): BrandBrain => ({
 });
 
 const overview = (brandBrain: BrandBrain) =>
-  ({
+  cmoOverview({
     businessName: "acme.io",
     websiteUrl: "https://acme.io",
     projectLogo: null,
@@ -32,9 +31,10 @@ const overview = (brandBrain: BrandBrain) =>
       fonts: ["Inter"],
       siteName: "Acme",
       designMdUrl: null,
+      images: [],
     },
     brandBrain,
-  }) as unknown as CmoOverview;
+  });
 
 const render = (brandBrain: BrandBrain) =>
   renderToStaticMarkup(

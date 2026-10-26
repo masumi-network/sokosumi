@@ -72,7 +72,7 @@ Optional, per network:
   route classifier's with `soko-bot:router-eval`; results appear under Admin →
   Soko Bots → Model evaluations.
 
-Environment changes only apply to the *next* build, so redeploy after setting
+Environment changes only apply to the _next_ build, so redeploy after setting
 them.
 
 ## Move the avatar pool prefix

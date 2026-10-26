@@ -58,6 +58,7 @@ const account = {
   externalHandle: "launch",
   displayName: "Launch",
   avatarUrl: null,
+  subscriptionType: null,
   status: "active",
   connectedAt: new Date("2026-10-01T12:00:00Z"),
   disconnectedAt: null,
@@ -145,6 +146,42 @@ beforeEach(() => {
 });
 
 describe("Social account statistics", () => {
+  it.each(["Basic", "Premium", "PremiumPlus", "None"])(
+    "refreshes the X subscription tier to %s",
+    async (subscriptionType) => {
+      mocks.provider.mockResolvedValue({ ...page, subscriptionType });
+      await refreshSocialAccountStatistics({
+        ...scope,
+        userId: "user_1",
+        connectionId,
+      });
+      expect(mocks.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ subscriptionType }),
+        }),
+      );
+    },
+  );
+
+  it.each(["absent", "failed"])(
+    "keeps the stored subscription tier when the read is %s",
+    async (result) => {
+      mocks.connections.mockResolvedValue([
+        { ...connection, subscriptionType: "Premium" },
+      ]);
+      if (result === "failed")
+        mocks.provider.mockRejectedValue(new Error("Provider unavailable"));
+      await refreshSocialAccountStatistics({
+        ...scope,
+        userId: "user_1",
+        connectionId,
+      });
+      expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty(
+        "subscriptionType",
+      );
+    },
+  );
+
   it("returns cached external posts and independent account totals without provider history calls", async () => {
     const publishedFrom = new Date("2026-10-01T00:00:00Z");
     const result = await listSocialAccountStatistics({
@@ -285,6 +322,9 @@ describe("Social account statistics", () => {
         create: expect.objectContaining({
           connectionId,
           text: providerPost.text,
+          contentType: "unknown",
+          postKind: "unknown",
+          media: [],
           metrics,
           additionalMetrics: providerPost.additionalMetrics,
           fetchedAt: expect.any(Date),
@@ -326,6 +366,66 @@ describe("Social account statistics", () => {
           error: null,
         },
       },
+    });
+  });
+  it("stores imported media while retaining counters a partial fetch did not measure", async () => {
+    const media = [
+      {
+        kind: "video",
+        url: "https://media.example.com/post.mp4",
+        thumbnailUrl: "https://media.example.com/thumbnail.jpg",
+      },
+    ];
+    mocks.storedPosts.mockResolvedValue([
+      {
+        externalId: providerPost.externalId,
+        metrics: { ...metrics, likes: 7 },
+        additionalMetrics: [],
+      },
+    ]);
+    mocks.provider.mockResolvedValue({
+      ...page,
+      posts: [
+        {
+          ...providerPost,
+          contentType: "video",
+          postKind: "quote",
+          media,
+          metrics: { ...metrics, impressions: 0, likes: null },
+        },
+      ],
+    });
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    const { create, update } = mocks.upsert.mock.calls[0][0];
+    for (const data of [create, update]) {
+      expect(data).toMatchObject({
+        contentType: "video",
+        postKind: "quote",
+        media,
+        metrics: { impressions: 0, likes: 7 },
+      });
+    }
+    expect(mocks.published).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          statistics: expect.objectContaining({
+            metrics: { ...metrics, impressions: 0, likes: 7 },
+          }),
+        },
+      }),
+    );
+    mocks.posts.mockResolvedValue([
+      { ...cachedPost, contentType: "video", postKind: "quote", media },
+    ]);
+    const result = await listSocialAccountStatistics(scope);
+    expect(result.posts[0]).toMatchObject({
+      contentType: "video",
+      postKind: "quote",
+      media,
     });
   });
   it("uses only the stored cursor for one continuation page and preserves the profile timestamp", async () => {
@@ -466,6 +566,9 @@ describe("Social account statistics", () => {
     expect(create.metrics.impressions).toBeNull();
     expect(update).toEqual({
       text: providerPost.text,
+      contentType: "unknown",
+      postKind: "unknown",
+      media: [],
       publishedAt: new Date(providerPost.publishedAt),
       url: providerPost.url,
     });
