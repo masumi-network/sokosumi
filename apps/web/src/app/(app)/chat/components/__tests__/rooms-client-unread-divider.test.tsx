@@ -17,6 +17,7 @@ import {
   markOrganizationChatRoomReadAction,
   mockReplace,
   mockSearch,
+  renderWithQueryClient,
   roomsClientBaseProps,
   sampleMessage,
   useChatRoomRealtimeMock,
@@ -160,8 +161,18 @@ async function reachEnd(atEnd = true) {
   await act(async () => transcriptViewportEnd.report(atEnd));
 }
 
+function RetainedRooms({ children }: { children: ReactNode }) {
+  return (
+    <TestQueryProvider>
+      <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
+        {children}
+      </RoomCacheProvider>
+    </TestQueryProvider>
+  );
+}
+
 function openRoom(overrides: Partial<ChatRoom> = {}) {
-  return render(
+  return renderWithQueryClient(
     <RoomsClient
       {...roomsClientBaseProps({
         rooms: [unreadRoom(overrides)],
@@ -194,7 +205,11 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     await waitFor(() => expect(dividerMessageId()).toBe("unread-1"));
 
     expect(openAtUnreadCalls()).toEqual([
-      ["room-channel", null, { openAtUnread: true }],
+      [
+        "room-channel",
+        null,
+        { openAtUnread: true, signal: expect.any(AbortSignal) },
+      ],
     ]);
     expect(
       transcriptViewportSpies.position.mock.calls[0]?.[0].initialPosition,
@@ -213,16 +228,19 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     );
   });
 
+  it("aborts an open-at-unread read still out when the visit ends", async () => {
+    fetchRoomMessagesMock.mockImplementation(() => new Promise(() => {}));
+    const view = openRoom();
+    await waitFor(() => expect(openAtUnreadCalls()).toHaveLength(1));
+    const signal: AbortSignal = openAtUnreadCalls()[0]?.[2].signal;
+    expect(signal.aborted).toBe(false);
+
+    view.unmount();
+
+    expect(signal.aborted).toBe(true);
+  });
+
   it("opens a retained room at the divider as well", async () => {
-    function Wrapper({ children }: { children: ReactNode }) {
-      return (
-        <TestQueryProvider>
-          <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
-            {children}
-          </RoomCacheProvider>
-        </TestQueryProvider>
-      );
-    }
     render(
       <RoomsClient
         {...roomsClientBaseProps({
@@ -230,7 +248,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
           messages: [read1, read2, unread1, unread2],
         })}
       />,
-      { wrapper: Wrapper },
+      { wrapper: RetainedRooms },
     );
     await waitFor(() => expect(dividerMessageId()).toBe("unread-1"));
 
@@ -246,7 +264,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     const old1 = message("old-1", 0, "self");
     const old2 = message("old-2", 1);
     answerOpenAtUnread(page([old1, old2], "old-2", "old-1"));
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...roomsClientBaseProps({
           rooms: [unreadRoom()],
@@ -262,6 +280,34 @@ describe("RoomsClient opens a room at the Unread divider", () => {
       transcriptViewportSpies.position.mock.calls[0]?.[0].initialPosition
         ?.anchorId,
     ).toBe("old-2");
+  });
+
+  it("joins an older divider window in a retained room too", async () => {
+    const old1 = message("old-1", 0, "self");
+    const old2 = message("old-2", 1);
+    answerOpenAtUnread(page([old1, old2], "old-2", "old-1"));
+    fetchRoomMessagesMock.mockImplementation(
+      async (
+        _roomId: string,
+        parent: string | null,
+        options?: { openAtUnread?: boolean },
+      ) =>
+        options?.openAtUnread
+          ? page([old1, old2], "old-2", "old-1")
+          : parent
+            ? null
+            : page([unread1, unread2], "old-2", "unread-1"),
+    );
+    render(
+      <RoomsClient
+        {...roomsClientBaseProps({ rooms: [unreadRoom()], messages: [] })}
+      />,
+      { wrapper: RetainedRooms },
+    );
+    await waitFor(() => expect(dividerMessageId()).toBe("old-2"));
+
+    expect(screen.getByText("Boundary.missingHere")).toBeTruthy();
+    expect(screen.getByText("body of unread-2")).toBeTruthy();
   });
 
   it("keeps the divider in place through arrivals, own posts and later reads", async () => {
@@ -377,7 +423,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
   });
 
   it("opens a room that is only Marked unread as today, with no divider", async () => {
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...roomsClientBaseProps({
           rooms: [
@@ -401,7 +447,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
   });
 
   it("does not place a divider for Thread unread alone", async () => {
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...roomsClientBaseProps({
           rooms: [
@@ -447,7 +493,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
       rooms: [unreadRoom()],
       messages: [unread1, unread2],
     });
-    const view = render(<RoomsClient {...props} />);
+    const view = renderWithQueryClient(<RoomsClient {...props} />);
     await act(async () => {});
     view.rerender(<RoomsClient {...props} />);
     await waitFor(() =>
@@ -463,6 +509,82 @@ describe("RoomsClient opens a room at the Unread divider", () => {
       transcriptViewportSpies.position.mock.calls[0]?.[0].initialPosition,
     ).toBeUndefined();
     expect(dividerMessageId()).toBe("old-unread");
+  });
+
+  describe("when a named message already loaded wins the open", () => {
+    beforeEach(() => {
+      mockReplace.mockImplementation((href: string) => {
+        mockSearch.current = href.split("?")[1] ?? "";
+      });
+      mockSearch.current = "message=read-2";
+    });
+
+    async function openOnNamedMessage(
+      props: Parameters<typeof roomsClientBaseProps>[0],
+    ) {
+      const view = renderWithQueryClient(
+        <RoomsClient {...roomsClientBaseProps(props)} />,
+      );
+      await act(async () => {});
+      view.rerender(<RoomsClient {...roomsClientBaseProps(props)} />);
+      await waitFor(() =>
+        expect(
+          document
+            .querySelector('[data-message-id="read-2"]')
+            ?.getAttribute("data-search-landed"),
+        ).toBe("true"),
+      );
+      await act(async () => {});
+    }
+
+    async function readAgainNaming(arrival: ChatRoomMessage) {
+      fetchRoomMessagesMock.mockImplementation(
+        async (_roomId: string, parent: string | null) =>
+          parent
+            ? null
+            : page([read1, read2, unread1, unread2, arrival], arrival.id),
+      );
+      const reads = fetchRoomMessagesMock.mock.calls.length;
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+      });
+      await waitFor(() =>
+        expect(fetchRoomMessagesMock.mock.calls.length).toBeGreaterThan(reads),
+      );
+      await act(async () => {});
+    }
+
+    it("draws no divider later when no answer of the open named one", async () => {
+      await openOnNamedMessage({
+        rooms: [unreadRoom()],
+        messages: [read1, read2, unread1, unread2],
+      });
+      expect(openAtUnreadCalls()).toHaveLength(0);
+
+      const arrival = message("peer-new", 5);
+      await deliver({ eventType: "create", message: arrival });
+      await readAgainNaming(arrival);
+
+      expect(screen.getByText("body of peer-new")).toBeTruthy();
+      expect(divider()).toBeNull();
+    });
+
+    it("draws the divider the deferred first page names, and keeps it", async () => {
+      await openOnNamedMessage({
+        rooms: [unreadRoom()],
+        messagesPromise: Promise.resolve({
+          messages: [read1, read2, unread1, unread2],
+          nextCursor: null,
+          failed: false,
+          firstUnreadMessageId: "unread-1",
+        }),
+      });
+      expect(dividerMessageId()).toBe("unread-1");
+
+      await readAgainNaming(message("peer-new", 5));
+
+      expect(dividerMessageId()).toBe("unread-1");
+    });
   });
 
   it("shares one row with the day separator when both sit above the same message", async () => {

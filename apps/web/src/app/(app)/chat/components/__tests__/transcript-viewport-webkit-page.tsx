@@ -228,14 +228,20 @@ class CatchError extends Component<
 
 function Room() {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
-  const behavior = window.location.search === "?behavior";
+  const search = window.location.search;
+  const behavior = search === "?behavior";
+  // `?short` fits the scroller and `?empty` has no rows: neither scrolls.
   const [rows, setRows] = useState<RoomTranscriptRenderRow[]>(() =>
     behavior
       ? [
           { kind: "boundary", cursorMessageId: "msg-000", isGap: false },
           ...ROWS,
         ]
-      : ROWS,
+      : search === "?short"
+        ? ROWS.slice(-2)
+        : search === "?empty"
+          ? []
+          : ROWS,
   );
   const [generation, setGeneration] = useState(0);
   const position = useRef<TranscriptPosition | undefined>(undefined);

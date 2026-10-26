@@ -146,6 +146,10 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
 
   const syncRoomAttentionAfterThreadLook = useCallback(
     async (roomId: string): Promise<void> => {
+      // Above the end the room is not read yet, which is no failure: the
+      // marker stays, as in `readCurrentRoom`, so the Thread is not Looked
+      // again for the same content.
+      if (!snapshotRef.current.transcriptAtEnd) return;
       if (!(await readRoom(roomId, false))) {
         readMarkerRef.current = null;
       }

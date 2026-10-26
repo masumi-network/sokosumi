@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -14,6 +14,7 @@ import {
   markOrganizationChatRoomReadAction,
   mockReplace,
   mockSearch,
+  renderWithQueryClient,
   roomsClientBaseProps,
   sampleMessage,
   useChatRoomRealtimeMock,
@@ -121,7 +122,9 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
   });
 
   it("reads a room whose transcript opens at its end", async () => {
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await waitFor(() => {
       expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
     });
@@ -132,7 +135,9 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
 
   it("does not read a room on open, only once the reader reaches the end", async () => {
     transcriptViewportEnd.openAtEnd = false;
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await act(async () => {});
     expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
 
@@ -145,7 +150,7 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
 
   it("keeps a room unread when the reader leaves before reaching the end", async () => {
     transcriptViewportEnd.openAtEnd = false;
-    const view = render(
+    const view = renderWithQueryClient(
       <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
     );
     await act(async () => {});
@@ -171,7 +176,9 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
   });
 
   it("reads messages that arrive while the reader is at the end", async () => {
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await waitFor(() => {
       expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
     });
@@ -182,7 +189,9 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
   });
 
   it("holds messages that arrive while scrolled up until the reader reaches the end", async () => {
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await waitFor(() => {
       expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
     });
@@ -197,7 +206,9 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
   });
 
   it("does not read again on reaching the end when nothing new arrived", async () => {
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await waitFor(() => {
       expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
     });
@@ -211,7 +222,9 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
     async (eventName) => {
       visibility = "hidden";
       transcriptViewportEnd.openAtEnd = false;
-      render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+      renderWithQueryClient(
+        <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+      );
       await act(async () => {});
 
       visibility = "visible";
@@ -248,7 +261,7 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
     };
 
     // The viewport opens at the end before the jump moves it.
-    const view = render(<RoomsClient {...props} />);
+    const view = renderWithQueryClient(<RoomsClient {...props} />);
     await act(async () => {});
     view.rerender(<RoomsClient {...props} />);
     await act(async () => {});

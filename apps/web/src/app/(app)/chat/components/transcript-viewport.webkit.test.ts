@@ -439,6 +439,24 @@ it("tells the room when the reader leaves the end and comes back", async () => {
   }
 });
 
+it.each(["short", "empty"])(
+  "tells the room it is at the end of a list that never scrolls (%s)",
+  async (mode) => {
+    const address = server.httpServer?.address();
+    if (!address || typeof address === "string")
+      throw new Error("the page server has no port");
+    const page = await browser.newPage({ viewport: PHONE_VIEWPORT });
+    try {
+      await page.goto(`http://127.0.0.1:${address.port}/?${mode}`);
+      await expect
+        .poll(() => page.getAttribute("body", "data-at-end"))
+        .toBe("true");
+    } finally {
+      await page.close();
+    }
+  },
+);
+
 it("reaches the newest page through the gap row below a long unread run", async () => {
   const page = await dividerPage();
   try {

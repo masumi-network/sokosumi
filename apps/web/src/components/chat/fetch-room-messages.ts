@@ -25,6 +25,8 @@ export async function fetchRoomMessages(
     around?: string;
     limit?: number;
     openAtUnread?: boolean;
+    /** Aborts the request, e.g. when the view that asked unmounts. */
+    signal?: AbortSignal;
   },
   onAccessDenied?: (status: number) => void,
 ): Promise<RoomMessagesPage | null> {
@@ -49,6 +51,7 @@ export async function fetchRoomMessages(
       )
         onAccessDenied?.(status);
     },
+    options?.signal,
   );
   if (data == null) return null;
   try {

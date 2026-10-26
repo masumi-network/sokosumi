@@ -408,10 +408,35 @@ function visibleRoomLocation(
   };
 }
 
+/** Where the Unread divider sits; `at` keeps its place once its message goes. */
+interface UnreadDividerPlace {
+  id: string;
+  at: number | null;
+}
+
+/**
+ * The divider an answer names: undefined when it names none (an older page)
+ * or has not arrived, null for no Room unread or a failed read.
+ */
+function unreadDividerIn(
+  page: RoomTranscriptPage | null | undefined,
+): UnreadDividerPlace | null | undefined {
+  if (page === undefined) return undefined;
+  const id = page ? page.firstUnreadMessageId : null;
+  if (id === undefined) return undefined;
+  if (!id) return null;
+  const createdAt = page?.messages.find(
+    (message) => message.id === id,
+  )?.createdAt;
+  return { id, at: createdAt == null ? null : new Date(createdAt).getTime() };
+}
+
 interface RetainedTranscriptBinding {
   entry: RoomTranscriptEntry;
   position?: TranscriptPosition;
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
+  /** Merge a jump window into the cache alone, so a render may call it. */
+  joinWindow: (page: RoomTranscriptPage) => void;
   resolve: (page: RoomMessagePage) => void;
   refresh: (
     isCurrent: () => boolean,
@@ -491,6 +516,10 @@ function RetainedRoomsClient({
         return next;
       });
     },
+    joinWindow: (page) =>
+      cache.setTranscript(roomId, lifetime, (current) =>
+        mergeRoomJumpWindow(current, page),
+      ),
     resolve: (page) => {
       cache.update(roomId, lifetime, (current) =>
         page.failed
@@ -694,36 +723,31 @@ function RoomView({
     roomId: string;
     atEnd: boolean;
   } | null>(null);
-  // The visit's Unread divider. The first answer that names it wins, so
-  // arrivals, own posts and later reads leave it where the room opened.
-  // Undefined until an answer has said; a room with no Room unread at open
-  // has none from the start. `at` keeps its place once its message is gone
-  // from the transcript.
-  const [unreadDivider, setUnreadDivider] = useState<
-    { id: string; at: number | null } | null | undefined
+  // The visit's Unread divider when a named message wins the open. The first
+  // answer that names it wins, so arrivals, own posts and later reads leave
+  // it where the room opened. Undefined until an answer has said; a room with
+  // no Room unread at open has none from the start.
+  const [latchedUnreadDivider, setLatchedUnreadDivider] = useState<
+    UnreadDividerPlace | null | undefined
   >(roomAtOpen.hasRoomUnread ? undefined : null);
-  // A failed read (null) settles it too: that room opens as it would have.
   const noteUnreadDivider = useCallback((page: RoomTranscriptPage | null) => {
-    const id = page ? page.firstUnreadMessageId : null;
-    if (id === undefined) return;
-    const createdAt = page?.messages.find(
-      (message) => message.id === id,
-    )?.createdAt;
-    setUnreadDivider((current) =>
-      current !== undefined
-        ? current
-        : id
-          ? {
-              id,
-              at: createdAt == null ? null : new Date(createdAt).getTime(),
-            }
-          : null,
+    const place = unreadDividerIn(page);
+    if (place === undefined) return;
+    setLatchedUnreadDivider((current) =>
+      current !== undefined ? current : place,
     );
   }, []);
   const [explicitJumps, setExplicitJumps] = useState(0);
   const trackExplicitJump = useCallback((jump: Promise<void>) => {
     setExplicitJumps((count) => count + 1);
-    void jump.finally(() => setExplicitJumps((count) => count - 1));
+    void jump.finally(() => {
+      setExplicitJumps((count) => count - 1);
+      // The open has landed: what no answer named by now is no divider, so a
+      // later read cannot draw one under an arrival.
+      setLatchedUnreadDivider((current) =>
+        current === undefined ? null : current,
+      );
+    });
   }, []);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
@@ -791,45 +815,43 @@ function RoomView({
   // Core's open-at-unread answer: the newest page, or a window on the
   // divider when it is older than that. Undefined while in flight, null when
   // the read failed and the room opens as it would have.
-  // Joined to the newest page through the gap row, the way a search jump
-  // window joins, by whichever of the two lands second. A merge while the
-  // head read is still out would have it discarded as stale.
-  const unreadJoinRef = useRef<{
-    headIn: boolean;
-    window?: RoomMessagesPage | null;
-    joined: boolean;
-  }>({ headIn: !messagesPending, joined: false });
-  const joinUnreadWindow = (landed: {
-    headIn?: true;
-    window?: RoomMessagesPage | null;
-  }) => {
-    const join = Object.assign(unreadJoinRef.current, landed);
-    if (join.joined || !join.headIn || !join.window) return;
-    join.joined = true;
-    const page = join.window;
-    setTranscript((current) => mergeRoomJumpWindow(current, page));
-  };
   const { data: unreadWindow } = useQuery({
-    // One read per visit: a revisit asks Core again.
+    // One answer per visit, read once: the divider is the visit's, so a
+    // revisit asks Core again and nothing refetches it within one. Nothing
+    // else reads the key, so it goes when the visit does; unmounting then
+    // aborts a read still out, through the signal.
     queryKey: ["room-open-at-unread", selectedRoomId, roomAtOpen.visit],
-    // Reading the signal cancels the query once the visit unmounts.
-    queryFn: async ({ signal }) => {
-      const page = await fetchRoomMessages(selectedRoomId ?? "", null, {
+    queryFn: ({ signal }) =>
+      fetchRoomMessages(selectedRoomId ?? "", null, {
         openAtUnread: true,
-      });
-      if (!signal.aborted) {
-        noteUnreadDivider(page);
-        joinUnreadWindow({ window: page });
-      }
-      return page;
-    },
+        signal,
+      }),
     enabled: opensAtUnread && selectedRoomId != null,
     staleTime: Infinity,
     gcTime: 0,
     retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
+  // A failed read (null) settles it too: that room opens as it would have.
+  const unreadWindowDivider = useMemo(
+    () => unreadDividerIn(unreadWindow),
+    [unreadWindow],
+  );
+  const unreadDivider = opensAtUnread
+    ? unreadWindowDivider
+    : latchedUnreadDivider;
+  // Joined to the newest page through the gap row, the way a search jump
+  // window joins, once both are in: a merge while the head read is still
+  // out would have it discarded as stale.
+  const [unreadWindowJoined, setUnreadWindowJoined] = useState(false);
+  if (!unreadWindowJoined && unreadWindow && !messagesPending) {
+    setUnreadWindowJoined(true);
+    // During render: the retained cache, never its parent's state.
+    if (retained) retained.joinWindow(unreadWindow);
+    else
+      setLocalTranscript((current) =>
+        mergeRoomJumpWindow(current, unreadWindow),
+      );
+  }
   // The transcript waits for both, so it opens on the divider rather than
   // jumping to it. Latched: nothing later puts the skeleton back.
   const [openingAtUnread, setOpeningAtUnread] = useState(opensAtUnread);
@@ -858,7 +880,7 @@ function RoomView({
     );
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
-    joinUnreadWindow({ headIn: true });
+    if (!page.failed) noteUnreadDivider(page);
   }, []);
 
   const handleDeferredRosterResolved = useCallback(
@@ -1965,8 +1987,6 @@ function RoomView({
       if (!isCurrent() || selectedRoomIdRef.current !== roomId) {
         return;
       }
-      // A retained room's first head read lands here.
-      joinUnreadWindow({ headIn: true });
       if (result) {
         noteUnreadDivider(result);
         setTranscript((current) => mergeRoomHeadPage(current, result));

@@ -8,6 +8,8 @@ import { type RenderOptions, render } from "@testing-library/react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { beforeEach, type Mock, vi } from "vitest";
 
+import { TestQueryProvider } from "@/test/query-provider";
+
 import { RoomsClient } from "../rooms-client";
 import { transcriptViewportEnd } from "./transcript-viewport-stub";
 
@@ -120,22 +122,6 @@ export {
   updateRoomAction,
   useChatRoomRealtimeMock,
 };
-
-// A room view reads through react-query, whose client the app layout gives
-// it. Every render gets one unless the test brings its own wrapper.
-vi.mock("@testing-library/react", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@testing-library/react")>();
-  const { TestQueryProvider } = await import("@/test/query-provider");
-  return {
-    ...actual,
-    render: ((ui: ReactElement, options?: RenderOptions) =>
-      actual.render(ui, {
-        wrapper: TestQueryProvider,
-        ...options,
-      })) as typeof actual.render,
-  };
-});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -416,11 +402,20 @@ export function createRoomsClient(
   return <RoomsClient {...roomsClientBaseProps(overrides)} />;
 }
 
+/**
+ * A room view reads through react-query, whose client the app layout gives
+ * it. A test that brings its own wrapper brings its own client.
+ */
+export function renderWithQueryClient(
+  ui: ReactElement,
+  options?: RenderOptions,
+) {
+  return render(ui, { wrapper: TestQueryProvider, ...options });
+}
+
 export function renderRoomsClient(
   overrides?: Partial<RoomsClientProps>,
-  options?: Omit<RenderOptions, "wrapper"> & {
-    wrapper?: RenderOptions["wrapper"];
-  },
+  options?: RenderOptions,
 ) {
-  return render(createRoomsClient(overrides), options);
+  return renderWithQueryClient(createRoomsClient(overrides), options);
 }

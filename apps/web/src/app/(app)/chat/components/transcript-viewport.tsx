@@ -541,13 +541,20 @@ export function TranscriptViewport({
   });
 
   useLayoutEffect(() => {
-    if (openedRef.current || !scroller || rows.length === 0) return;
+    if (openedRef.current || !scroller) return;
+    // A list that cannot scroll never fires a scroll or a measurement, so
+    // the opening tells the room where it is: an empty one where it starts.
+    if (rows.length === 0) {
+      updateReach({ atEnd });
+      return;
+    }
     openedRef.current = true;
     const saved = restoreRef.current;
     const index = openingIndex(rows, saved);
     if (!saved || index < 0) {
       restoreRef.current = undefined;
       virtualizer.scrollToEnd();
+      recordDistance(scroller);
       return;
     }
     virtualizer.scrollToIndex(index, { align: "start" });

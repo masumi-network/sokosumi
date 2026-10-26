@@ -37,6 +37,7 @@ import {
   mockHeaderRoomSlotHost,
   mockIsMobileMedia,
   mockReplace,
+  renderWithQueryClient,
   sendRoomMessageAction,
   useChatRoomRealtimeMock,
 } from "./rooms-client-harness";
@@ -275,7 +276,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       failed: boolean;
     }>(() => undefined);
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         rooms={[{ ...channelRoom(), unreadCount: 4 }]}
@@ -296,7 +297,9 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       failed: boolean;
     }>(() => undefined);
 
-    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
+    );
 
     expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
     expect(screen.queryByTestId("chat-message-row")).toBeNull();
@@ -321,7 +324,9 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       resolvePage = resolve;
     });
 
-    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
+    );
 
     const composer = screen.getByTestId("room-session-composer");
 
@@ -377,7 +382,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       resolvePage = resolve;
     });
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         // Thread unread only: Room unread would open at the Unread divider,
@@ -444,7 +449,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
   });
 
   it("advances Room last-read when history resolves empty", async () => {
-    render(<RoomsClient {...baseProps} messages={[]} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} messages={[]} />);
 
     await waitFor(() => {
       expect(rememberRoomRead).toHaveBeenCalledWith(
@@ -467,7 +472,9 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       error: { code: "INTERNAL_SERVER_ERROR", message: "fail" },
     });
 
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
 
     await waitFor(() => {
       expect(forgetRoomRead).toHaveBeenCalledWith("room-channel");
@@ -480,7 +487,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       new Error("network"),
     );
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         rooms={[{ ...channelRoom(), unreadCount: 4, channelUnreadCount: 0 }]}
@@ -512,7 +519,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       channelUnreadCount: 0,
       unreadMentionCount: 1,
     };
-    const { unmount } = render(
+    const { unmount } = renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         rooms={[unreadRoom]}
@@ -564,7 +571,9 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       resolvePage = resolve;
     });
 
-    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
+    );
 
     expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
     const composer = screen.getByTestId("room-session-composer");
@@ -598,7 +607,9 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       rejectPage = reject;
     });
 
-    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
+    );
 
     await act(async () => {
       rejectPage(new Error("network boom"));
@@ -648,7 +659,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       slug: "other",
     };
 
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         rooms={[roomA]}
@@ -722,7 +733,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       resolveA = resolve;
     });
 
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <RoomsClient {...baseProps} messagesPromise={promiseA} />,
     );
 
@@ -813,7 +824,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       sokoBots: [];
     }>(() => undefined);
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messagesPromise={messagesPromise}
@@ -847,7 +858,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       sokoBots: [];
     }>(() => undefined);
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messagesPromise={messagesPromise}
@@ -878,7 +889,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       sokoBots: [];
     }>(() => undefined);
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messagesPromise={messagesPromise}
@@ -947,7 +958,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       failed: boolean;
     }>(() => undefined);
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messagesPromise={messagesPromise}

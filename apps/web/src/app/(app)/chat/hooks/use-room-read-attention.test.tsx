@@ -360,6 +360,31 @@ describe("useRoomReadAttention", () => {
     expect(applyRoomReadOverlays([room()])[0].unreadCount).toBe(3);
   });
 
+  it("keeps the marker through a post-thread sync above the end, so the Thread is not Looked again", async () => {
+    const props = {
+      ...options(),
+      openThreadParentId: "thread-1" as string | null,
+      transcriptAtEnd: false,
+    };
+    const { result, rerender } = renderHook(useRoomReadAttention, {
+      initialProps: props,
+    });
+    await act(async () => {});
+    expect(markThreadReadAction).toHaveBeenCalledTimes(1);
+
+    await act(async () =>
+      result.current.syncRoomAttentionAfterThreadLook("room-1"),
+    );
+    await showTab("focus");
+
+    expect(markThreadReadAction).toHaveBeenCalledTimes(1);
+    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
+
+    rerender({ ...props, transcriptAtEnd: true });
+    await act(async () => {});
+    expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
+  });
+
   it("does not let an older failed request replace a newer successful read", async () => {
     const pending =
       deferred<
