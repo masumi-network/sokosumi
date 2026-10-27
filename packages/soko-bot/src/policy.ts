@@ -94,6 +94,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "delete_newsletter_issue",
   "preview_newsletter_issue",
   "submit_newsletter_issue",
+  "update_newsletter_settings",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -132,6 +133,7 @@ export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
   "delete_newsletter_issue",
   "preview_newsletter_issue",
   "submit_newsletter_issue",
+  "update_newsletter_settings",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotNewsletterCapability(
@@ -191,6 +193,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "update_newsletter_issue",
   "delete_newsletter_issue",
   "submit_newsletter_issue",
+  "update_newsletter_settings",
   "generate_video",
   "post_chat",
   "open_direct_chat",
@@ -331,6 +334,8 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "delete_newsletter_issue",
   // Asks a person to approve; approving and sending stay with them.
   "submit_newsletter_issue",
+  // Sender, reply-to and welcome email changes also need the owner's word.
+  "update_newsletter_settings",
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.

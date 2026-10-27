@@ -226,8 +226,10 @@ import {
   ownerAskedToSend,
 } from "@/lib/soko-bot/mail-send-guard";
 import {
+  newsletterSettingsNeedOwner,
   runNewsletterReadTool,
   runNewsletterWriteTool,
+  updateNewsletterSettings,
 } from "@/lib/soko-bot/newsletter-tools";
 import {
   persistedToolResult,
@@ -5752,6 +5754,57 @@ export class SokoBotRuntimeService {
           if (error instanceof HTTPException && error.status === 409)
             throw new SokoBotRuntimeConflictError(
               `${error.message}. Read the issue again with get_newsletter_issue, keep any human edits, and retry with its current revision only if the change still applies.`,
+            );
+          throw error;
+        }
+      }
+      case "update_newsletter_settings": {
+        const { projectId } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings.parse(
+            input.input,
+          );
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          input.capability,
+          projectId,
+        );
+        // Sender, reply-to and the welcome email reach subscribers' inboxes.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          newsletterSettingsNeedOwner(input.input) &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Newsletter sender name, reply-to and welcome email change only when the owner asks in chat; ask them first",
+          );
+        try {
+          return await serializableTransaction(async (tx) => {
+            await this.requireMutationAuthority(
+              tx,
+              authorized,
+              false,
+              input.capability,
+              { projectIds: [projectId] },
+            );
+            const result = await updateNewsletterSettings(
+              input.input,
+              { projectId, workspaceId: scope.workspaceId },
+              tx,
+            );
+            await commitActionReceipt(tx, {
+              turnId: authorized.turn.id,
+              toolCallId: input.toolCallId,
+              actorBotId: authorized.turn.sokoBotId,
+              targetId: result.id,
+              observedVersion: result.updatedAt,
+              result: persistedToolResult(result),
+            });
+            return result;
+          }, "Newsletter settings changed concurrently");
+        } catch (error) {
+          if (error instanceof HTTPException && error.status === 409)
+            throw new SokoBotRuntimeConflictError(
+              `${error.message}. Read the settings again with get_newsletter and retry only if the change still applies.`,
             );
           throw error;
         }

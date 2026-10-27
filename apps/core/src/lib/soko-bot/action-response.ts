@@ -21,6 +21,7 @@ export const ACTION_LABELS: Record<string, string> = {
   update_newsletter_issue: "Updated newsletter issue",
   delete_newsletter_issue: "Deleted newsletter issue",
   submit_newsletter_issue: "Submitted newsletter issue for approval",
+  update_newsletter_settings: "Updated newsletter settings",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -197,6 +198,12 @@ function actionTarget(
     return call.capability === "delete_newsletter_issue"
       ? `([Open issues](/newsletter/issues${query}))`
       : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
+  }
+  if (call.capability === "update_newsletter_settings") {
+    const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    return newsletter.success
+      ? `([Open settings](/newsletter/settings?projectId=${encodeURIComponent(newsletter.data.projectId)}))`
+      : "";
   }
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
