@@ -17,6 +17,7 @@ const {
   projectCreate,
   projectDelete,
   cmoCreate,
+  cmoDeleteMany,
   getUserWorkspace,
 } = vi.hoisted(() => ({
   cmoFindUnique: vi.fn(),
@@ -35,6 +36,7 @@ const {
   projectCreate: vi.fn(),
   projectDelete: vi.fn(),
   cmoCreate: vi.fn(),
+  cmoDeleteMany: vi.fn(),
   getUserWorkspace: vi.fn(),
 }));
 
@@ -47,6 +49,7 @@ vi.mock("@/lib/db/prisma", () => {
       findUnique: cmoFindUnique,
       update: cmoUpdate,
       create: cmoCreate,
+      deleteMany: cmoDeleteMany,
     },
     project: { create: projectCreate, delete: projectDelete },
     subscription: { findFirst: subscriptionFindFirst },
@@ -1088,6 +1091,37 @@ describe("startCmoOnboarding", () => {
     });
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
     expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("hires again once the person's Cuso was deleted or archived", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "personal",
+      name: "Ana Example",
+    });
+
+    await startCmoOnboarding(input);
+
+    // Only a live Cuso counts as the person's hire.
+    expect(cmoFindUnique).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        sokoBot: { deletedAt: null, archivedAt: null },
+      },
+    });
+    // The dead hire gives way, so the unique userId does not block the new one.
+    expect(cmoDeleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        sokoBot: {
+          OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
+        },
+      },
+    });
+    expect(cmoDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      cmoCreate.mock.invocationCallOrder[0],
+    );
+    expect(cmoCreate).toHaveBeenCalled();
   });
 
   it("returns the person's existing Cuso without hiring again", async () => {

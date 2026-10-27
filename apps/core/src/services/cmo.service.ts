@@ -257,10 +257,13 @@ export function parseCmoStrategy(value: unknown): CmoStrategy | null {
   return parsed.success ? parsed.data : null;
 }
 
+/** The person's hire while Cuso is live; a deleted or archived Cuso hired no one. */
 export async function getCmoHireForUser(
   userId: string,
 ): Promise<CmoHire | null> {
-  return prisma.cmoHire.findUnique({ where: { userId } });
+  return prisma.cmoHire.findUnique({
+    where: { userId, sokoBot: { deletedAt: null, archivedAt: null } },
+  });
 }
 
 export async function getCmoHireForBot(
@@ -807,6 +810,16 @@ export async function startCmoOnboarding(input: {
 }): Promise<CmoHire> {
   const existing = await getCmoHireForUser(input.userId);
   if (existing) return existing;
+  // A hire whose Cuso was deleted or archived would block the new one on the
+  // unique userId; only a dead one goes, so a racing live hire stays.
+  await prisma.cmoHire.deleteMany({
+    where: {
+      userId: input.userId,
+      sokoBot: {
+        OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
+      },
+    },
+  });
 
   // Throws not found unless the person can act in this workspace.
   const workspace = await getUserWorkspace(input.userId, {
