@@ -143,6 +143,7 @@ describe("Soko Bot route capability ceilings", () => {
       "create_newsletter_issue",
       "update_newsletter_issue",
       "delete_newsletter_issue",
+      "submit_newsletter_issue",
     ];
     const reads = SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
       (capability) => !writes.includes(capability),
@@ -153,6 +154,7 @@ describe("Soko Bot route capability ceilings", () => {
       "get_newsletter_issue",
       "get_newsletter_analytics",
       "list_newsletter_subscribers",
+      "preview_newsletter_issue",
     ]);
     for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
       for (const read of reads)

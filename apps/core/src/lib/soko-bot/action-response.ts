@@ -20,6 +20,7 @@ export const ACTION_LABELS: Record<string, string> = {
   create_newsletter_issue: "Created newsletter draft",
   update_newsletter_issue: "Updated newsletter issue",
   delete_newsletter_issue: "Deleted newsletter issue",
+  submit_newsletter_issue: "Submitted newsletter issue for approval",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -86,6 +87,7 @@ const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
   "create_newsletter_issue",
   "update_newsletter_issue",
   "delete_newsletter_issue",
+  "submit_newsletter_issue",
 ]);
 
 const TABLE_CAPABILITIES = new Set([
