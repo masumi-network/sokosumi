@@ -15,11 +15,7 @@ import {
   newsletterSenderOptions,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
-import {
-  assertNewsletterEnabled,
-  isNewsletterEnabled,
-  NEWSLETTER_BETA_SCOPE,
-} from "@/lib/newsletter/feature";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 import {
   newsletterBrandSchema,
   newsletterTemplateSchema,
@@ -42,7 +38,6 @@ export async function sendNewsletterIssue(
   issueId: string,
   options: SendNewsletterIssueOptions = {},
 ): Promise<void> {
-  assertNewsletterEnabled();
   newsletterPublicUrl("unsubscribe");
   const issue = await prisma.newsletterIssue.findUnique({
     where: { id: issueId, ...NEWSLETTER_BETA_SCOPE },
@@ -275,7 +270,6 @@ export async function sendNewsletterIssue(
 export async function sendDueNewsletterIssues(
   options: Pick<SendNewsletterIssueOptions, "shouldContinue"> = {},
 ) {
-  if (!isNewsletterEnabled()) return;
   const now = new Date();
   const issues = await prisma.newsletterIssue.findMany({
     where: {

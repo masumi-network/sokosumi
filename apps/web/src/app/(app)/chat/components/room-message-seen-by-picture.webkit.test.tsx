@@ -39,7 +39,7 @@ beforeAll(async () => {
     </head><body><div id="fixture">${renderToString(<PicturePage />)}</div></body></html>`;
   server = await createServer({
     // The app's own resolution and React plugin, read from its Vitest config.
-    configFile: path.join(WEB_ROOT, "vitest.config.ts"),
+    configFile: path.join(WEB_ROOT, "vitest.config.mts"),
     root: WEB_ROOT,
     // The viewport suite runs another Vite server concurrently with a different
     // dependency graph. Its optimization cache must not reload this page.
@@ -74,7 +74,9 @@ beforeAll(async () => {
           if (id === "\0fixture-navigation") {
             return `export const useRouter = () => ({push(){}, replace(){}, refresh(){}});
               export const usePathname = () => '/chat';
-              export const useSearchParams = () => new URLSearchParams();`;
+              export const useSearchParams = () => new URLSearchParams();
+              export const redirect = () => {};
+              export const unstable_rethrow = () => {};`;
           }
           if (id === "\0fixture-action") {
             return `const forbidden = () => {

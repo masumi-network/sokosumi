@@ -59,7 +59,7 @@ export const addNewsletterSubscriber = withSession<
       name: parsed.data.name || null,
       consent: true,
     });
-    revalidatePath(`/projects/${projectId}/newsletter/subscribers`);
+    revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(subscriber));
   } catch (error) {
     if (error instanceof CoreApiRequestError && error.status === 409) {
@@ -107,7 +107,7 @@ export const importNewsletterSubscribers = withSession<
       csv: parsed.data.csv,
       consent: true,
     });
-    revalidatePath(`/projects/${projectId}/newsletter/subscribers`);
+    revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(summary));
   } catch (error) {
     return toActionResult(
@@ -140,7 +140,7 @@ export const changeNewsletterSubscriberStatus = withSession<
       subscriberId,
       { status: parsed.data },
     );
-    revalidatePath(`/projects/${projectId}/newsletter/subscribers`);
+    revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(subscriber));
   } catch (error) {
     return toActionResult(
@@ -163,7 +163,7 @@ export const removeNewsletterSubscriber = withSession<
     return toActionResult(err({ message: t("Remove.error") }));
   try {
     await newsletterService.removeSubscriber(projectId, subscriberId);
-    revalidatePath(`/projects/${projectId}/newsletter/subscribers`);
+    revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(null));
   } catch {
     return toActionResult(err({ message: t("Remove.error") }));

@@ -808,7 +808,7 @@
 
    A utility, not a plain class, so Tailwind puts it in the utilities layer and
    a port that has to hide its scrollbar in one state can still win on
-   specificity (the sidebar's collapsed icon rail does exactly that).
+   specificity.
 
    High-contrast and forced-colors modes keep the platform's own scrollbar
    colors and geometry. */

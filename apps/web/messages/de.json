@@ -176,7 +176,6 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung",
       "settings": "Einstellungen",
-      "expandSidebar": "Seitenleiste erweitern",
       "creditsSummary": "Credits-Übersicht:",
       "monthlyUsageLimit": "Monatliches Nutzungslimit",
       "additionalCreditsHero": "{credits, number}",
@@ -324,7 +323,7 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Gedächtnis",
-      "social": "Social-Planung",
+      "social": "Social-Media-Beiträge",
       "ads": "Ads",
       "evaluations": "Modellvergleiche",
       "catch-up": "Aufholen",
@@ -2648,6 +2647,7 @@
           "confirm": "Verwerfen"
         },
         "toasts": {
+          "movedQuotes": "Außerdem {count, plural, one {# Zitat verschoben, damit es nach diesem Beitrag erscheint} other {# Zitate verschoben, damit sie nach diesem Beitrag erscheinen}}",
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
@@ -2664,7 +2664,8 @@
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
-          "duplicated": "Entwurf erstellt."
+          "duplicated": "Entwurf erstellt.",
+          "approved": "Beitrag genehmigt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2676,7 +2677,8 @@
           "publishNow": "Jetzt posten",
           "retry": "Erneut versuchen",
           "dismiss": "Verwerfen",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "approve": "Genehmigen"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt posten?",
@@ -2929,7 +2931,50 @@
           "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
           "later": "Später"
         },
-        "moreActions": "Beitragsaktionen"
+        "moreActions": "Beitragsaktionen",
+        "thread": {
+          "add": "Zum Thread hinzufügen",
+          "limit": "Threads können bis zu {max} Teile enthalten.",
+          "part": "Teil {part}",
+          "text": "Text für Teil {part}",
+          "position": "{part}/{total}",
+          "positionLabel": "Teil {part} von {total}",
+          "moveUp": "Teil {part} nach oben verschieben",
+          "moveDown": "Teil {part} nach unten verschieben",
+          "remove": "Teil {part} entfernen",
+          "onlyX": "Thread-Teile werden nur für X-Konten unterstützt. Wähle andere Konten ab oder entferne die zusätzlichen Teile.",
+          "empty": "Teil {part} ist leer. Füge Text oder Medien hinzu.",
+          "tooLong": "Teil {part} überschreitet das Zeichenlimit.",
+          "mediaInvalid": "Teil {part}: {error}",
+          "partlyPosted": "Teilweise veröffentlicht",
+          "progress": "Teilweise veröffentlicht: {published} von {total} Teilen veröffentlicht.",
+          "failedPart": "Teil {part} ist fehlgeschlagen.",
+          "retry": "Verbleibende Teile erneut versuchen",
+          "outcomeUnknown": "Wir konnten nicht bestätigen, ob Teil {part} veröffentlicht wurde. Prüfe X und bestätige zum Fortfahren, dass er nicht veröffentlicht wurde, oder belasse es dabei.",
+          "confirmNotPosted": "Nicht veröffentlicht, fortfahren",
+          "viewPart": "Teil {part} auf X ansehen",
+          "retryDescription": "Es werden nur die verbleibenden Teile veröffentlicht."
+        },
+        "quote": {
+          "label": "Zitat",
+          "choose": "Beitrag zitieren",
+          "pickerDescription": "Wähle einen X-Beitrag aus diesem Projekt aus, den du zitieren möchtest.",
+          "search": "Beiträge suchen",
+          "select": "Diesen Beitrag zitieren",
+          "empty": "Keine Beiträge gefunden. Ändere die Suche oder plane einen X-Beitrag in diesem Projekt.",
+          "loadFailed": "Beiträge konnten nicht geladen werden. Versuche es erneut.",
+          "embedded": "Zitierter Beitrag",
+          "change": "Anderen Beitrag auswählen",
+          "remove": "Zitat entfernen",
+          "publishesAfter": "Wird nach dem zitierten Beitrag veröffentlicht ({time})",
+          "scheduleAfter": "Wähle einen Zeitpunkt nach dem zitierten Beitrag ({time}).",
+          "scheduleTargetFirst": "Plane zuerst den zitierten Beitrag und danach dieses Zitat.",
+          "postNowUnavailable": "Sofortiges Veröffentlichen ist erst möglich, wenn der zitierte Beitrag veröffentlicht wurde.",
+          "onlyX": "Zitate sind nur für X-Konten verfügbar. Entferne das Zitat oder wähle ausschließlich X-Konten aus.",
+          "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
+          "cancelled": "Der zitierte Beitrag wurde abgesagt",
+          "waiting": "Wartet auf den zitierten Beitrag"
+        }
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -3083,8 +3128,7 @@
           "design": "Design",
           "memory": "Gedächtnis",
           "ariaLabel": "Projektbereiche",
-          "bots": "Bots",
-          "newsletter": "Newsletter"
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
@@ -3227,6 +3271,112 @@
             "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
           },
           "dismiss": "Schließen"
+        },
+        "Issues": {
+          "title": "Ausgaben",
+          "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
+          "newIssue": "Neue Ausgabe",
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Wähle eine Vorlage für deine erste Newsletter-Ausgabe.",
+          "subject": "Betreff",
+          "previewText": "Vorschautext",
+          "status": "Status",
+          "deliveryDate": "Geplant / gesendet",
+          "updatedAt": "Aktualisiert",
+          "actions": "Aktionen",
+          "sentAt": "Gesendet am {date}",
+          "scheduledAt": "Geplant für {date}",
+          "noDate": "Nicht geplant",
+          "firstPage": "Erste Seite",
+          "nextPage": "Nächste Seite",
+          "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "statuses": {
+            "DRAFT": "Entwurf",
+            "NEEDS_APPROVAL": "Freigabe erforderlich",
+            "SCHEDULED": "Geplant",
+            "SENDING": "Wird gesendet",
+            "SENT": "Gesendet",
+            "FAILED": "Fehlgeschlagen",
+            "CANCELED": "Abgebrochen"
+          },
+          "createError": "Ausgabe konnte nicht erstellt werden. Wähle die Vorlage erneut.",
+          "saveError": "Ausgabe konnte nicht gespeichert werden. Behalte deine Änderungen und versuche es erneut.",
+          "conflict": "Diese Ausgabe wurde geändert oder kann nicht mehr bearbeitet werden. Kopiere deine Änderungen, lade die Seite neu und versuche es erneut.",
+          "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+          "save": "Ausgabe speichern",
+          "saved": "Alle Änderungen gespeichert",
+          "unsaved": "Ungespeicherte Änderungen",
+          "readOnly": "Diese Ausgabe ist schreibgeschützt. Nur Entwürfe und Ausgaben, die eine Freigabe benötigen, können bearbeitet werden.",
+          "back": "Zurück zu den Ausgaben",
+          "blocks": "Inhaltsblöcke",
+          "addBlock": "Block hinzufügen",
+          "moveUp": "Block {number} nach oben verschieben",
+          "moveDown": "Block {number} nach unten verschieben",
+          "removeBlock": "Block {number} entfernen",
+          "blockNumber": "Block {number}: {type}",
+          "emptyBlocks": "Füge einen Block hinzu, um mit dem Schreiben zu beginnen.",
+          "level": "Überschriftenebene",
+          "mainHeading": "Hauptüberschrift",
+          "subheading": "Unterüberschrift",
+          "text": "Text",
+          "imageUrl": "Bild-URL",
+          "alt": "Alternativtext",
+          "imageLink": "Link-URL (optional)",
+          "buttonLabel": "Schaltflächentext",
+          "buttonUrl": "Schaltflächen-URL",
+          "httpsHint": "Verwende eine vollständige HTTPS-URL.",
+          "blockTypes": {
+            "heading": "Überschrift",
+            "text": "Text",
+            "image": "Bild",
+            "button": "Schaltfläche",
+            "divider": "Trennlinie"
+          },
+          "Validation": {
+            "subject": "Gib einen Betreff mit 1 bis 200 Zeichen ein.",
+            "previewText": "Der Vorschautext darf höchstens 500 Zeichen enthalten.",
+            "content": "Prüfe diesen Block. Verwende HTTPS-URLs und halte die Zeichenbegrenzungen ein."
+          },
+          "Templates": {
+            "title": "Vorlage auswählen",
+            "description": "Beginne mit einem Layout und bearbeite anschließend jeden Block.",
+            "subject": "Unbenannte Ausgabe",
+            "heading": "Die Höhepunkte dieser Woche",
+            "text": "Teile Neuigkeiten, eine nützliche Idee oder ein Update mit deinen Abonnenten.",
+            "closing": "Danke fürs Lesen. Bis zum nächsten Mal.",
+            "heroAlt": "Titelbild",
+            "imageAlt": "Ergänzendes Bild",
+            "button": "Weiterlesen",
+            "TEXT": {
+              "title": "Text",
+              "description": "Eine Überschrift, Absätze und eine Trennlinie."
+            },
+            "IMAGES": {
+              "title": "Bilder",
+              "description": "Eine Überschrift, ein Titelbild, Text und ein weiteres Bild."
+            },
+            "BUTTONS": {
+              "title": "Schaltflächen",
+              "description": "Eine Überschrift, Text, eine Schaltfläche, eine Trennlinie und ein Abschlusstext."
+            }
+          },
+          "Preview": {
+            "title": "Vorschau",
+            "label": "Vorschau der Newsletter-E-Mail",
+            "mobile": "Mobil",
+            "desktop": "Desktop",
+            "loading": "Vorschau wird aktualisiert…",
+            "error": "Vorschau konnte nicht geladen werden. Versuche es erneut.",
+            "invalid": "Vervollständige den Betreff und prüfe die Inhaltsblöcke, um die Vorschau anzuzeigen.",
+            "retry": "Vorschau erneut laden"
+          },
+          "Delete": {
+            "title": "Entwurf löschen?",
+            "description": "„{subject}“ wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+            "action": "Entwurf löschen",
+            "cancel": "Abbrechen",
+            "error": "Ausgabe konnte nicht gelöscht werden. Ihr Status hat sich möglicherweise geändert. Lade die Seite neu und versuche es erneut."
+          }
         }
       }
     },
@@ -3968,8 +4118,21 @@
         "retry": "Erneut versuchen"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Jedes Projekt hat seinen eigenen Newsletter. Wähle ein Projekt aus, um ihn zu verwalten.",
+      "pickProject": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "projectTitle": "Newsletter von {project}",
+      "nextPage": "Weitere Projekte",
+      "empty": {
+        "title": "Noch keine Projekte",
+        "description": "Erstelle ein Projekt, um einen Newsletter zu starten.",
+        "action": "Projekt erstellen"
+      }
+    },
     "Social": {
-      "title": "Social-Planung",
+      "title": "Social-Media-Beiträge",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
         "label": "Neuer Beitrag",
@@ -4029,15 +4192,16 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details nicht verfügbar",
+        "compactCredits": "{count, plural, =0 {Keine Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
-        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "Neu",
           "newTask": "Neue Aufgabe",
           "search": "Suche",
+          "home": "Startseite",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -4051,9 +4215,15 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social-Planung",
+          "social": "Social-Media-Beiträge",
           "ads": "Ads",
-          "contacts": "Kontakte"
+          "newsletter": "Newsletter",
+          "contacts": "Kontakte",
+          "groups": {
+            "work": "Arbeit",
+            "records": "Unterlagen",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -4065,9 +4235,19 @@
           "title": "Zugewiesener Seat erforderlich",
           "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Arbeitet gerade",
+          "needsAttention": "Braucht Aufmerksamkeit",
+          "activeAgo": "Aktiv {time}",
+          "ready": "Bereit",
+          "team": "Soko Bots deines Teams"
         }
       },
-      "toggle": "Seitenleiste ein- oder ausblenden"
+      "show": "Seitenleiste einblenden",
+      "hide": "Seitenleiste ausblenden",
+      "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {
       "title": "Suche",
@@ -7181,6 +7361,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} weitere Teilnehmer",
+      "chats": "Chats",
       "directMessages": "Direktnachrichten",
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
@@ -7562,12 +7743,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
         "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten",
-        "railUnread": "Ungelesen"
+        "unread": "Ungelesen"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "mentionsCapped": "Mehr als {max} Erwähnungen",
-        "railMention": "Erwähnt dich"
+        "mentionsYou": "Erwähnt dich"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
@@ -7708,6 +7889,7 @@
       "SelfDirect": {
         "messageYourself": "Dir selbst schreiben",
         "you": "Du",
+        "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },
@@ -8582,6 +8764,7 @@
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
       "today": "Heute",
+      "weekNumber": "Kalenderwoche {week}",
       "view": {
         "month": "Monat",
         "week": "Woche",
@@ -8664,7 +8847,28 @@
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
-        "platform": "Plattform"
+        "platform": "Plattform",
+        "more": "+{count} weitere",
+        "moreHint": "{count, plural, one {# weiteren Beitrag} other {# weitere Beiträge}} an diesem Tag anzeigen",
+        "newOnDay": "Neuer Beitrag am {date}",
+        "newPost": "Neuer Beitrag",
+        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen.",
+        "dayEmpty": "An diesem Tag ist nichts geplant.",
+        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "statusFilter": "Beiträge nach Status anzeigen",
+        "postCount": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "dayAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
+        "reschedule": "Neu planen",
+        "rescheduleNamed": "Beitrag um {time} neu planen: {text}"
+      },
+      "socialMove": {
+        "title": "Beitrag neu planen",
+        "description": "Wähle ein neues Datum und eine neue Uhrzeit. Zeiten in {zone}.",
+        "label": "Neues Datum und Uhrzeit",
+        "confirm": "Neu planen",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+        "past": "Wähle einen Zeitpunkt in der Zukunft."
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
@@ -8844,8 +9048,8 @@
       "clearSearch": "Suche löschen",
       "close": "Schließen",
       "label": "Projekt",
+      "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
-      "workspaceView": "Alles",
       "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
       "pinned": "Angepinnt",
       "recent": "Zuletzt",

@@ -6472,6 +6472,25 @@ export type SocialPostCalendarItem = {
     kind: 'socialPost';
     id: string;
     postId: string;
+    quotedPostId: string | null;
+    /**
+     * A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post's state; no publish attempt is consumed.
+     */
+    waitingForQuotedPost?: boolean;
+    /**
+     * Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.
+     */
+    needsAttentionReason: string | null;
+    /**
+     * Total posts including the main text/media (1 for a single post).
+     */
+    threadPartCount: number;
+    publishedThreadPartCount: number;
+    failedThreadPartPosition: number | null;
+    /**
+     * Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.
+     */
+    partiallyPublished: boolean;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
     status: 'DRAFT' | 'NEEDS_APPROVAL' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
@@ -7596,10 +7615,39 @@ export type SocialPost = {
     text: string;
     firstComment: string | null;
     media: Array<SocialPostMediaRef>;
+    quotedPostId: string | null;
+    quotedPost: SocialPostQuotedPost | null;
+    /**
+     * Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.
+     */
+    needsAttentionReason: string | null;
+    /**
+     * A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post's state; no publish attempt is consumed.
+     */
+    waitingForQuotedPost?: boolean;
+    /**
+     * Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.
+     */
+    movedQuotes?: Array<{
+        id: string;
+        scheduledAt: Date;
+    }>;
+    threadParts: Array<SocialPostThreadPart>;
+    publishingThreadPartPosition: number | null;
+    /**
+     * Total posts including the main text/media (1 for a single post).
+     */
+    threadPartCount: number;
+    publishedThreadPartCount: number;
+    failedThreadPartPosition: number | null;
+    /**
+     * Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.
+     */
+    partiallyPublished: boolean;
     status: SocialPostStatus;
     scheduledAt: Date | null;
     timezone: string | null;
-    socialConnection: SocialPostSocialConnection;
+    socialConnection: SocialPostSocialConnection | null;
     creator: SocialPostCreator;
     scheduledByUserId: string | null;
     /**
@@ -7650,6 +7698,19 @@ export type SocialPostMediaRef = {
     kind: 'image' | 'gif' | 'video';
 };
 
+export type SocialPostQuotedPost = {
+    id: string;
+    provider: 'x';
+    status: SocialPostStatus;
+    scheduledAt: Date | null;
+    timezone: string | null;
+    publishedExternalId: string | null;
+    publishedUrl: string | null;
+    account: SocialPostSocialConnection | null;
+    text: string;
+    media: Array<SocialPostMediaRef>;
+};
+
 export const SocialPostStatus = {
     DRAFT: 'DRAFT',
     NEEDS_APPROVAL: 'NEEDS_APPROVAL',
@@ -7676,7 +7737,17 @@ export type SocialPostSocialConnection = {
      */
     subscriptionType: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
-} | null;
+};
+
+export type SocialPostThreadPart = {
+    id: string;
+    position: number;
+    text: string;
+    media: Array<SocialPostMediaRef>;
+    externalPostId: string | null;
+    publishedAt: Date | null;
+    error: string | null;
+};
 
 export type SocialPostCreator = {
     kind: 'user' | 'coworker' | 'sokoBot';
@@ -7709,11 +7780,28 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    /**
+     * Posted after publishing succeeds. For X threads, replies to the last thread part.
+     */
     firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
+    /**
+     * Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post's text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.
+     */
+    threadParts?: Array<{
+        text: string;
+        /**
+         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         */
+        media?: Array<SocialPostMediaRef>;
+    }>;
+    /**
+     * Another X post in the same project. Only the thread's first part quotes it. Until its X id is confirmed, schedule strictly after its scheduledAt; publish now is unavailable.
+     */
+    quotedPostId?: string | null;
     socialConnectionId?: string;
     scheduledAt?: Date;
     timezone?: string;
@@ -7734,12 +7822,31 @@ export type SocialPostStatisticsSummary = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    /**
+     * Posted after publishing succeeds. For X threads, replies to the last thread part.
+     */
     firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
+    /**
+     * Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post's text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.
+     */
+    threadParts?: Array<{
+        text: string;
+        /**
+         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         */
+        media?: Array<SocialPostMediaRef>;
+    }>;
+    /**
+     * Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.
+     */
+    quotedPostId?: string | null;
     socialConnectionId?: string | null;
+    scheduledAt?: Date;
+    timezone?: string;
     /**
      * Revision the client last observed; mismatches return 409
      */
@@ -7757,6 +7864,14 @@ export type ScheduleSocialPostRequest = {
 };
 
 export type ApproveSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
+export type ResumeSocialPostThreadRequest = {
+    confirmedNotPosted: true;
     /**
      * Revision the client last observed; mismatches return 409
      */
@@ -48648,6 +48763,127 @@ export type PostProjectsByIdNewsletterIssuesResponses = {
 
 export type PostProjectsByIdNewsletterIssuesResponse = PostProjectsByIdNewsletterIssuesResponses[keyof PostProjectsByIdNewsletterIssuesResponses];
 
+export type PostProjectsByIdNewsletterIssuesPreviewData = {
+    body: CreateNewsletterIssueRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/issues/preview';
+};
+
+export type PostProjectsByIdNewsletterIssuesPreviewErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterIssuesPreviewError = PostProjectsByIdNewsletterIssuesPreviewErrors[keyof PostProjectsByIdNewsletterIssuesPreviewErrors];
+
+export type PostProjectsByIdNewsletterIssuesPreviewResponses = {
+    /**
+     * Newsletter preview
+     */
+    200: {
+        data: {
+            html: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterIssuesPreviewResponse = PostProjectsByIdNewsletterIssuesPreviewResponses[keyof PostProjectsByIdNewsletterIssuesPreviewResponses];
+
 export type DeleteProjectsByIdNewsletterIssuesByIssueIdData = {
     body?: never;
     headers?: {
@@ -53770,6 +54006,16 @@ export type GetProjectsByIdSocialPostsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        /**
+         * List X posts in SCHEDULED, NEEDS_APPROVAL, or PUBLISHED, newest created first. Combine with excludePostId and search for the quote picker.
+         */
+        quoteCandidates?: 'true' | 'false';
+        excludePostId?: string;
+        /**
+         * Case-insensitive text search
+         */
+        search?: string;
         /**
          * Comma-separated Social post statuses to include
          */
@@ -55052,6 +55298,148 @@ export type PostProjectsByIdSocialPostsByPostIdApproveResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdApproveResponse = PostProjectsByIdSocialPostsByPostIdApproveResponses[keyof PostProjectsByIdSocialPostsByPostIdApproveResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeData = {
+    body: ResumeSocialPostThreadRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/thread/resume';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeError = PostProjectsByIdSocialPostsByPostIdThreadResumeErrors[keyof PostProjectsByIdSocialPostsByPostIdThreadResumeErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeResponses = {
+    /**
+     * Social thread ready to retry
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeResponse = PostProjectsByIdSocialPostsByPostIdThreadResumeResponses[keyof PostProjectsByIdSocialPostsByPostIdThreadResumeResponses];
 
 export type PostProjectsByIdSocialPostsByPostIdRejectData = {
     body: RejectSocialPostRequest;
@@ -75785,21 +76173,6 @@ export type PostWebhooksResendNewsletterErrors = {
      * Invalid webhook signature
      */
     401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Newsletter is not enabled
-     */
-    404: {
         error: string;
         message: string;
         kind?: string;

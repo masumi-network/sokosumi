@@ -50,6 +50,12 @@ const post = {
   project: { name: "Launch project" },
   scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
   attempts: [],
+  threadParts: [],
+  quotedPostId: null,
+  needsAttentionReason: null,
+  publishedExternalId: null,
+  publishingThreadPartPosition: null,
+  lastError: null,
   media: [
     {
       pathname: "drive/launch.png",
@@ -169,6 +175,59 @@ describe("Social posts in the calendar", () => {
     expect(JSON.stringify(result.items[0])).not.toContain("403");
     expect(JSON.stringify(result.items[0])).not.toContain("Duplicate");
   });
+  it("returns partial thread progress for calendar chips", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        publishedExternalId: "1907",
+        threadParts: [
+          { position: 2, externalPostId: null, error: "Thread part 2 failed" },
+          { position: 3, externalPostId: null, error: null },
+        ],
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      threadPartCount: 3,
+      publishedThreadPartCount: 1,
+      failedThreadPartPosition: 2,
+      partiallyPublished: true,
+    });
+  });
+
+  it("returns the quote indicator and attention reason for calendar items", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        quotedPostId: "77777777-7777-4777-8777-777777777777",
+        needsAttentionReason: "The post it quotes failed to publish",
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      quotedPostId: "77777777-7777-4777-8777-777777777777",
+      needsAttentionReason: "The post it quotes failed to publish",
+    });
+  });
+
+  it("derives the waiting state for a due quote whose target is not live", async () => {
+    vi.setSystemTime(new Date(at));
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        quotedPostId: "77777777-7777-4777-8777-777777777777",
+        quotedPost: { status: "SCHEDULED", publishedExternalId: null },
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      waitingForQuotedPost: true,
+      status: "SCHEDULED",
+    });
+  });
+
   it("keeps posts visible when the scheduler is deleted and there are no attachments", async () => {
     mocks.posts.mockResolvedValue([
       { ...post, scheduledByUser: null, media: [] },

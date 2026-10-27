@@ -22004,6 +22004,44 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             format: 'uuid'
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        waitingForQuotedPost: {
+            type: 'boolean',
+            description: 'A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post\'s state; no publish attempt is consumed.'
+        },
+        needsAttentionReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
+        },
+        threadPartCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Total posts including the main text/media (1 for a single post).'
+        },
+        publishedThreadPartCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        failedThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1
+        },
+        partiallyPublished: {
+            type: 'boolean',
+            description: 'Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.'
+        },
         provider: {
             type: 'string',
             enum: [
@@ -22145,6 +22183,12 @@ export const SocialPostCalendarItemSchema = {
         'kind',
         'id',
         'postId',
+        'quotedPostId',
+        'needsAttentionReason',
+        'threadPartCount',
+        'publishedThreadPartCount',
+        'failedThreadPartPosition',
+        'partiallyPublished',
         'provider',
         'text',
         'status',
@@ -25987,6 +26031,90 @@ export const SocialPostSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             }
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        quotedPost: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostQuotedPost'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        needsAttentionReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
+        },
+        waitingForQuotedPost: {
+            type: 'boolean',
+            description: 'A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post\'s state; no publish attempt is consumed.'
+        },
+        movedQuotes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    scheduledAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'scheduledAt'
+                ]
+            },
+            description: 'Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.'
+        },
+        threadParts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostThreadPart'
+            }
+        },
+        publishingThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 25
+        },
+        threadPartCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Total posts including the main text/media (1 for a single post).'
+        },
+        publishedThreadPartCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        failedThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1
+        },
+        partiallyPublished: {
+            type: 'boolean',
+            description: 'Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.'
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -26006,7 +26134,14 @@ export const SocialPostSchema = {
             example: 'Europe/Zurich'
         },
         socialConnection: {
-            $ref: '#/components/schemas/SocialPostSocialConnection'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostSocialConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         creator: {
             $ref: '#/components/schemas/SocialPostCreator'
@@ -26141,6 +26276,15 @@ export const SocialPostSchema = {
         'text',
         'firstComment',
         'media',
+        'quotedPostId',
+        'quotedPost',
+        'needsAttentionReason',
+        'threadParts',
+        'publishingThreadPartPosition',
+        'threadPartCount',
+        'publishedThreadPartCount',
+        'failedThreadPartPosition',
+        'partiallyPublished',
         'status',
         'scheduledAt',
         'timezone',
@@ -26220,6 +26364,83 @@ export const SocialPostMediaRefSchema = {
     ]
 } as const;
 
+export const SocialPostQuotedPostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SocialPostStatus'
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedExternalId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        account: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostSocialConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        text: {
+            type: 'string'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 1
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'status',
+        'scheduledAt',
+        'timezone',
+        'publishedExternalId',
+        'publishedUrl',
+        'account',
+        'text',
+        'media'
+    ]
+} as const;
+
 export const SocialPostStatusSchema = {
     type: 'string',
     enum: [
@@ -26235,10 +26456,7 @@ export const SocialPostStatusSchema = {
 } as const;
 
 export const SocialPostSocialConnectionSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -26294,6 +26512,59 @@ export const SocialPostSocialConnectionSchema = {
         'avatarUrl',
         'subscriptionType',
         'status'
+    ]
+} as const;
+
+export const SocialPostThreadPartSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        position: {
+            type: 'integer',
+            minimum: 2,
+            maximum: 25
+        },
+        text: {
+            type: 'string'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
+        externalPostId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'position',
+        'text',
+        'media',
+        'externalPostId',
+        'publishedAt',
+        'error'
     ]
 } as const;
 
@@ -26455,7 +26726,8 @@ export const CreateSocialPostRequestSchema = {
         },
         firstComment: {
             type: 'string',
-            example: '#launch'
+            example: '#launch',
+            description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
         media: {
             type: 'array',
@@ -26464,6 +26736,39 @@ export const CreateSocialPostRequestSchema = {
             },
             maxItems: 4,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+        },
+        threadParts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string',
+                        example: 'Shipping the new Calendar today.'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialPostMediaRef'
+                        },
+                        maxItems: 4,
+                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                    }
+                },
+                required: [
+                    'text'
+                ]
+            },
+            maxItems: 24,
+            description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
+        },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Another X post in the same project. Only the thread\'s first part quotes it. Until its X id is confirmed, schedule strictly after its scheduledAt; publish now is unavailable.'
         },
         socialConnectionId: {
             type: 'string',
@@ -26548,7 +26853,8 @@ export const UpdateSocialPostRequestSchema = {
         },
         firstComment: {
             type: 'string',
-            example: '#launch'
+            example: '#launch',
+            description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
         media: {
             type: 'array',
@@ -26558,12 +26864,54 @@ export const UpdateSocialPostRequestSchema = {
             maxItems: 4,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
+        threadParts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string',
+                        example: 'Shipping the new Calendar today.'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialPostMediaRef'
+                        },
+                        maxItems: 4,
+                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                    }
+                },
+                required: [
+                    'text'
+                ]
+            },
+            maxItems: 24,
+            description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
+        },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.'
+        },
         socialConnectionId: {
             type: [
                 'string',
                 'null'
             ],
             format: 'uuid'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
         },
         revision: {
             type: 'integer',
@@ -26617,6 +26965,28 @@ export const ApproveSocialPostRequestSchema = {
         }
     },
     required: [
+        'revision'
+    ]
+} as const;
+
+export const ResumeSocialPostThreadRequestSchema = {
+    type: 'object',
+    properties: {
+        confirmedNotPosted: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'confirmedNotPosted',
         'revision'
     ]
 } as const;

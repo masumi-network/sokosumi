@@ -14,6 +14,9 @@ export interface SocialPostPublishContext {
   externalHandle: string | null;
   text: string;
   media: readonly SocialPostMediaRef[];
+  /** X thread replies target the preceding part's confirmed id. */
+  replyToExternalId?: string;
+  quoteExternalId?: string;
   signal?: AbortSignal;
 }
 

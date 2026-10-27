@@ -52,7 +52,6 @@ export type DesignMdQueuedPayload = z.infer<typeof designMdQueuedPayloadSchema>;
 export type DesignMdRunningPayload = z.infer<
   typeof designMdRunningPayloadSchema
 >;
-export type DesignMdFailedPayload = z.infer<typeof designMdFailedPayloadSchema>;
 export type DesignMdJobPayload = z.infer<typeof designMdPayloadSchema>;
 
 export function isDesignMdJobInProgress(

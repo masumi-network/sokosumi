@@ -17,11 +17,10 @@ import router from "../index";
 
 const m = vi.hoisted(() => {
   const state: {
-    enabled: boolean;
     secret?: string;
     subscriber: NewsletterSubscriber | null;
     events: Prisma.NewsletterEventCreateManyInput[];
-  } = { enabled: true, subscriber: null, events: [] };
+  } = { subscriber: null, events: [] };
   return {
     state,
     findSend: vi.fn(),
@@ -37,7 +36,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.state.enabled,
       RESEND_NEWSLETTER_WEBHOOK_SECRET: m.state.secret,
     }),
   };
@@ -111,7 +109,6 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NEWSLETTER_NOW);
-  m.state.enabled = true;
   m.state.secret = SECRET;
   m.state.subscriber = { ...NEWSLETTER_SUBSCRIBER };
   m.state.events = [];
@@ -249,21 +246,6 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
   it("returns 503 without processing when the secret is missing", async () => {
     m.state.secret = undefined;
     expect((await app().request(URL, signedRequest())).status).toBe(503);
-    expect(m.findSend).not.toHaveBeenCalled();
-    expect(m.transaction).not.toHaveBeenCalled();
-  });
-
-  it("returns 404 before checking the secret, headers or body when disabled", async () => {
-    m.state.enabled = false;
-    m.state.secret = undefined;
-    const response = await app().request(URL, {
-      method: "POST",
-      body: "not-json",
-    });
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({
-      message: "Newsletter is not enabled",
-    });
     expect(m.findSend).not.toHaveBeenCalled();
     expect(m.transaction).not.toHaveBeenCalled();
   });
@@ -509,7 +491,6 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
       responses: {
         "200": expect.any(Object),
         "401": expect.any(Object),
-        "404": expect.any(Object),
         "503": expect.any(Object),
       },
     });

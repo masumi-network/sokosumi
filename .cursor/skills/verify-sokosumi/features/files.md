@@ -12,7 +12,7 @@ Files lets a signed-in user open `/drive` (nav label **Files**) and see Recents,
 
 ## How to get to it (user POV)
 
-- Desktop: choose **Files** in app navigation (after Content Studio; Social sits between Studio and Files when the social beta row is on).
+- Desktop: choose **Files** in app navigation. After **Tasks** the row is **Schedules**, **Contacts**, **Content Studio**, **Social Scheduling**, **Files**. Social Scheduling is always there. **Ads** appears only when social beta is on.
 - Mobile: open **You**, then **Files**.
 - Open `/drive` directly.
 
@@ -34,6 +34,6 @@ Preconditions:
 - Nav label is **Files**; the route is `/drive`.
 - The browse tab label is **Workspace**, not **My files**. `myDrive` (**My files**) is used as a workspace-root label (for example copy dialogs), not the tab.
 - Canonical browse URL is `?view=workspace`. `?view=browse` still opens Workspace as a legacy alias.
-- Desktop main nav includes Files after Schedules / Content Studio (and after **Social** when that beta row is on). There is no Calendar sidebar row. Mobile does **not** show Files in the sidebar — use the You page. The **New** browse control is the create-folder action; do not look for a **Create folder** button label. There is no header **Tasks** button; **Sokosumi Projects** is a folder-nav virtual row that opens `?view=tasks`.
+- Desktop main nav after Tasks is Schedules, Contacts, Content Studio, Social Scheduling, Files. There is no Calendar sidebar row. **Ads** is the social-beta row. Social Scheduling stays without that flag. Mobile does **not** show Files in the sidebar — use the You page. The **New** browse control is the create-folder action; do not look for a **Create folder** button label. There is no header **Tasks** button; **Sokosumi Projects** is a folder-nav virtual row that opens `?view=tasks`.
 - Recents calls `GET /v1/drive/recents`, which needs a real Blob token. Missing token is Core **503**; placeholder tokens may toast **Failed to load recent files**. Browse list calls `GET /v1/drive/files` and may toast **Failed to load files**. Those are environment gaps, not proof the route is missing.
 - Upload, rename, delete, Tables contents, and project File Browser (`/drive?view=tasks&projectId=…`) are out of scope for this landing entry.

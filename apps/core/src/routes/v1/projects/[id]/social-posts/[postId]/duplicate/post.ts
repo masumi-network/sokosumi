@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/duplicate",
     description:
-      "Copy a published, failed, or missed Social post into a new draft. Copies text, media, provider, and the linked account when it is still connected. Does not copy the provider post id, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace.",
+      "Copy a published, failed, or missed Social post into a new draft (Needs approval for a Coworker). Copies text, media, first comment, thread parts, the quote reference and its attention reason, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace.",
     tags: ["Projects"],
     request: { params: socialPostParamsSchema },
     responses: {

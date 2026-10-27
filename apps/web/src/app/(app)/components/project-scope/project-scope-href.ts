@@ -12,7 +12,8 @@ export const PROJECT_SCOPE_PARAM = "projectId";
  * same way they do. Unlike them it has nothing to show for the workspace
  * view, so `/studio` with no project asks for one. Social is the same shape:
  * posts belong to one project's accounts, so `/social` asks for a project too,
- * and so does `/ads`.
+ * and so does `/ads`. Newsletter is one per project, so each of its tabs is
+ * here and lists the projects without one.
  */
 const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   {
@@ -22,6 +23,10 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/studio": {},
     "/social": {},
     "/ads": {},
+    "/newsletter": {},
+    "/newsletter/issues": {},
+    "/newsletter/subscribers": {},
+    "/newsletter/settings": {},
     "/drive": { view: "tasks" },
     "/history": {},
   };
@@ -32,7 +37,9 @@ const PROJECT_PAGE = /^\/projects\/([^/]+)/;
  * Detail pages of a scoped list. They report their item's project through
  * `ProjectScopeMarker`; a switch there goes back to the list.
  */
-const DETAIL_PAGE = new RegExp(`^(/tasks|${TASK_SCHEDULES_PATH})/[^/]+`);
+const DETAIL_PAGE = new RegExp(
+  `^(/tasks|${TASK_SCHEDULES_PATH}|/newsletter/issues)/[^/]+`,
+);
 
 /** Project sub-routes that belong to one project and do not carry over. */
 const PROJECT_ONLY_SUBPATHS = new Set(["/edit", "/design-md/edit"]);
@@ -73,7 +80,7 @@ export function readProjectScope(
 }
 
 /**
- * A task or schedule detail page: its own path (sub-routes such as `/edit`
+ * A task, schedule or newsletter issue detail page: its own path (sub-routes such as `/edit`
  * cut off) and the list it belongs to. Null anywhere else.
  */
 export function detailPageOf(
@@ -103,7 +110,7 @@ export function scopedHref(href: string, projectId: string | null): string {
  * Where choosing a project (or the workspace, as null) takes the reader.
  * A scoped page shows its other version, as Vercel does, with the params
  * that version needs even for the workspace (Drive stays on its Tasks view).
- * A task or schedule detail page goes back to its list. A project page keeps
+ * A task, schedule or newsletter issue detail page goes back to its list. A project page keeps
  * its section. Any other page opens the project.
  *
  * The page's own filters reset: a status or folder chosen for one project

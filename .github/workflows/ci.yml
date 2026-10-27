@@ -63,19 +63,17 @@ jobs:
           predicate-quantifier: "every"
           filters: .github/js-paths-filter.yml
 
-  # Web's suite is ~1000 files and ran 5+ minutes on one runner, the longest
-  # leg by far, so it runs as three Vitest shards. A matrix is fine here
-  # because nothing requires these checks: `web` below carries the required
-  # `Test Web` name and reports skipped when the shards skip.
-  web-shard:
-    name: Test Web (${{ matrix.shard }}/3)
+  # One job, not Vitest shards. The organization's plan runs 20 jobs at once
+  # across every repository, and three web shards, three Core shards and the
+  # two jobs that gated them made a full push start ~13. Overlapping pushes
+  # then queued for 5-20 minutes, against ~3 minutes the shards saved: on
+  # one runner web takes ~6 minutes and Core ~7. Through turbo, an unchanged
+  # suite also replays from the remote cache instead of running.
+  web:
+    name: Test Web
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
     # id-token lets Setup exchange OIDC for the Turborepo remote cache.
     permissions: &turbo-permissions
       contents: read
@@ -91,56 +89,16 @@ jobs:
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
-      # Exactly what `test:ci`'s `^build` builds for web and cmo, through
-      # turbo so it replays from the remote cache. `turbo run test:ci --
-      # --shard=…` would instead change every task's hash, dependencies
-      # included, and rebuild them on each shard.
-      - name: Build test dependencies
-        run: pnpm exec turbo run build --filter='web^...' --filter='cmo^...'
-
       # CMO rides this leg: a small Next.js app, too small for a job of
-      # its own. pnpm appends `--shard` to both `test:ci` scripts, so CMO's
-      # files spread across the shards too.
+      # its own.
       - name: Run Tests
-        run: pnpm --filter=web --filter=cmo run test:ci --shard=${{ matrix.shard }}/3
+        run: pnpm exec turbo run test:ci --filter=web --filter=cmo
 
-  web:
-    name: Test Web
-    needs: [changes, web-shard]
-    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check every shard passed
-        run: test "${{ needs.web-shard.result }}" = success
-
-  # Core's unit suite ran 7+ minutes on one runner, so it shards like web.
-  # The PostgreSQL work runs beside the shards in `core-db`, and `core`
-  # below carries the required `Test Core` name.
-  core-shard:
-    name: Test Core (${{ matrix.shard }}/3)
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    permissions: *turbo-permissions
-    steps:
-      - *checkout
-      - *setup
-
-      # Same split as the web shards: turbo builds what `test:ci`'s `^build`
-      # would, from the remote cache, and pnpm runs the shard.
-      - &core-test-deps
-        name: Build test dependencies
-        run: pnpm exec turbo run build --filter='@sokosumi/core^...'
-
-      - name: Run Tests
-        run: pnpm --filter=@sokosumi/core run test:ci --shard=${{ matrix.shard }}/3
-
-  core-db:
-    name: Test Core PostgreSQL
+  # One job for the same reason as `web`: migrations, the unit suite, then
+  # the PostgreSQL suites, on a database that boots during checkout and
+  # Setup.
+  core:
+    name: Test Core
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
@@ -179,7 +137,10 @@ jobs:
         env: *migrated-db
         run: pnpm prisma:check-drift
 
-      - *core-test-deps
+      # Builds what `test:ci`'s `^build` needs, which the PostgreSQL suites
+      # below reuse.
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
       # `optInDbExclude` in apps/core/vitest.config.ts keeps every
       # `src/**/*.postgres.test.ts` out of `test:ci`, so these files run
@@ -239,22 +200,13 @@ jobs:
       # (`apps/core/src/test/postgres-worker-databases.ts`), so the files
       # run in parallel, each worker on its own copy.
       - name: Test against PostgreSQL
+        # Reports on its own when the unit suite above fails.
+        if: ${{ !cancelled() }}
         env: *migrated-db
         run: |
           RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
             --passWithNoTests=false
-
-  core:
-    name: Test Core
-    needs: [changes, core-shard, core-db]
-    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check every shard and the PostgreSQL suites passed
-        run: |
-          test "${{ needs.core-shard.result }}" = success
-          test "${{ needs.core-db.result }}" = success
 
   packages:
     name: Test Packages
@@ -263,7 +215,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
-      # Booted in the background, as in `core-db` above. The unit tests run
+      # Booted in the background, as in `core` above. The unit tests run
       # first, so it is long up by the time the job sync test needs it.
       - *start-postgres
 
@@ -424,7 +376,7 @@ jobs:
     timeout-minutes: 10
     permissions: *turbo-permissions
     steps:
-      # Booted in the background, as in `core-db` above.
+      # Booted in the background, as in `core` above.
       - *start-postgres
       - *checkout
       - *setup

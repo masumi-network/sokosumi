@@ -15,7 +15,6 @@ import {
 import router from "../index";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   findUnique: vi.fn(),
   updateMany: vi.fn(),
   eventCreate: vi.fn(),
@@ -45,7 +44,6 @@ vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
     ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
     getBetterAuthPublicBaseUrl: () => "https://core.example.com",
   };
 });
@@ -104,7 +102,6 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NEWSLETTER_NOW);
-  m.enabled = true;
   subscriber = pending();
   m.findUnique.mockImplementation(async ({ where }) => {
     if (
@@ -447,16 +444,6 @@ describe("public newsletter confirmation", () => {
     },
   );
 
-  it("rechecks the feature flag before retry dispatch", async () => {
-    subscriber = pending({ status: "ACTIVE", confirmedAt: NEWSLETTER_NOW });
-    m.afterRender.mockImplementation(async () => {
-      m.enabled = false;
-    });
-    expect((await app().request(url(), { method: "POST" })).status).toBe(200);
-    expect(m.send).not.toHaveBeenCalled();
-    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
-  });
-
   it("keeps an already active subscription idempotent", async () => {
     m.findUnique.mockResolvedValue(
       pending({
@@ -526,25 +513,4 @@ describe("public newsletter confirmation", () => {
       expect(m.send).not.toHaveBeenCalled();
     },
   );
-
-  it.each(["GET", "POST"])(
-    "returns 404 before token validation on %s when disabled",
-    async (method) => {
-      m.enabled = false;
-      expect(
-        (
-          await app().request("http://localhost/v1/public/newsletter/confirm", {
-            method,
-          })
-        ).status,
-      ).toBe(404);
-      expect(m.findUnique).not.toHaveBeenCalled();
-    },
-  );
-
-  it("returns 404 for a deleted subscriber", async () => {
-    m.findUnique.mockResolvedValue(null);
-    expect((await app().request(url(), { method: "POST" })).status).toBe(404);
-    expect(m.updateMany).not.toHaveBeenCalled();
-  });
 });

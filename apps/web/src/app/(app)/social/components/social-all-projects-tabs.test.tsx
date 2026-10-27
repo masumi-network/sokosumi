@@ -121,11 +121,16 @@ describe("SocialAllProjectsTabs", () => {
     expect(tablist).toHaveClass(
       "w-fit",
       "bg-card-background",
-      "max-sm:justify-start",
-      "max-sm:overflow-x-auto",
+      "@max-[42rem]:w-full",
     );
+    // A narrow row fits every tab as an icon instead of scrolling sideways.
+    expect(tablist).not.toHaveClass("max-sm:overflow-x-auto");
     expect(tablist).not.toHaveClass("min-h-11", "flex-1");
-    expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");
+    expect(tablist.parentElement).toHaveClass(
+      "@container",
+      "min-w-0",
+      "flex-1",
+    );
     expect(tablist.parentElement?.parentElement).toHaveClass("justify-between");
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab).not.toHaveClass("min-h-11");

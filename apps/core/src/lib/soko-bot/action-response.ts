@@ -393,6 +393,8 @@ const socialAccountObservationSchema = z.object({
   status: z.string(),
   connectedAt: z.string().nullable(),
   disconnectedAt: z.string().nullable(),
+  // Absent from tool calls stored before accounts carried limits.
+  textLimit: z.number().int().optional(),
 });
 
 const socialPostObservationSchema = z.object({
@@ -408,10 +410,12 @@ const socialPostObservationSchema = z.object({
     .object({ externalHandle: z.string().nullable(), status: z.string() })
     .nullable()
     .optional(),
+  threadPartCount: z.number().int().optional(),
+  quotedPostId: z.string().nullable().optional(),
 });
 
 function describeSocialPost(read: z.infer<typeof socialPostObservationSchema>) {
-  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
+  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.threadPartCount && read.threadPartCount > 1 ? ` Thread of ${read.threadPartCount} posts.` : ""}${read.quotedPostId ? ` Quotes post ${quoteRead(read.quotedPostId)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
 }
 
 function describeRead(capability: string, value: unknown): string[] {
@@ -429,7 +433,7 @@ function describeRead(capability: string, value: unknown): string[] {
       `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,
       ...parsed.data.map(
         (read) =>
-          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.`,
+          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.${read.textLimit ? ` Text limit: ${read.textLimit} characters.` : ""}`,
       ),
     ];
   }

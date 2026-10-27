@@ -20,7 +20,7 @@ describe("organization-chat-list create actions", () => {
     const source = readFileSync(
       join(
         dirname(fileURLToPath(import.meta.url)),
-        "../../../app/(app)/chat/components/chat-compose-dialog.ts",
+        "../../ui/sidebar-classes.ts",
       ),
       "utf8",
     );

@@ -23,7 +23,8 @@ export function channelKindIcon(discoverability?: Discoverability) {
 
 /**
  * The kind glyph on its own, for a caller that already owns the box around it
- * — a sidebar row, where the box is the row's `SidebarRowSlot`.
+ * — a sidebar row, where the box is the row's `SidebarRowSlot`. The box sizes
+ * it, so it names no size of its own.
  */
 export function ChannelKindGlyph({
   discoverability,
@@ -37,7 +38,7 @@ export function ChannelKindGlyph({
   return (
     <Icon
       data-slot="channel-glyph"
-      className={cn("size-4 shrink-0", className)}
+      className={cn("shrink-0", className)}
       aria-hidden
     />
   );
@@ -62,11 +63,7 @@ export function ChannelDiscoverabilityIcon({
       {...props}
       aria-hidden
     >
-      {/* The box sizes the glyph, so it brings no size of its own. */}
-      <ChannelKindGlyph
-        discoverability={discoverability}
-        className="size-auto"
-      />
+      <ChannelKindGlyph discoverability={discoverability} />
     </span>
   );
 }

@@ -8,7 +8,7 @@
 
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
-- package identity ∈ {published npm name: `@masumi_network/sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; published public to npm (live `1.0.0`, repo `1.0.1`) via `files:[dist]` + `publishConfig.access:public`. [PR #5325]
+- package identity ∈ {published npm name: `@masumi_network/sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; published public to npm (live `1.1.0`, repo `1.1.0`) via `files:[dist]` + `publishConfig.access:public`. [PR #5325]
 - [REPORTED: user decision, 2026-09-24] Coworker registration → Sokosumi Preprod only; Mainnet registration → “Preprod only”; unrelated CLI commands remain network-configurable.
 - [REPORTED: user direction, 2026-10-05] Coworker create on Preprod → platform admin or admin of selected Vendor. Mainnet create → platform admin only. New Coworker remains private; participant cannot set priority or whitelist.
 - [REPORTED: user decision, 2026-09-24] Registration selects an existing Workspace and uses existing access control; report workspace availability only after `GRANTED`. A private Coworker stays unavailable outside granted workspaces until platform approval.

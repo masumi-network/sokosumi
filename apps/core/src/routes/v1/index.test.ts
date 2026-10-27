@@ -148,7 +148,6 @@ describe("v1 router", () => {
   it("includes public CORS headers on the signup acknowledgment", async () => {
     getEnvMock.mockReturnValue({
       NODE_ENV: "production",
-      NEWSLETTER_ENABLED: true,
     });
     const { default: app } = await import("./index.js");
     const server = new Hono().route("/v1", app);
