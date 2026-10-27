@@ -4035,6 +4035,7 @@
         "MenuItems": {
           "new": "Nuevo",
           "newTask": "Nueva tarea",
+          "newTaskShortcut": "Nueva tarea ({shortcut})",
           "search": "Buscar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",

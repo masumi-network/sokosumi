@@ -72,6 +72,16 @@ describe("AppSidebarFallback", () => {
     }
   });
 
+  // New task needs the wizard and a seat, neither of which this frame has, so
+  // the shell header leaves it out rather than showing one that may go away.
+  it("holds only the wordmark in the header, without New task", () => {
+    const { container } = renderFallback();
+    const header = container.querySelector('[data-slot="sidebar-header"]');
+
+    expect(header?.querySelector("a")).not.toBeNull();
+    expect(header?.querySelector("button")).toBeNull();
+  });
+
   it("leaves the session-backed surfaces as placeholders", () => {
     const { container } = renderFallback();
 

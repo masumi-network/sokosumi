@@ -271,7 +271,7 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 ### Feature badges
 
 **Announced feature**:
-An item of the sidebar menu that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
+An item of the sidebar that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
 _Avoid_: Feature (alone; collides with beta and feature flags), badge target, route
 
 **Badge campaign**:
@@ -279,7 +279,7 @@ One time-boxed announcement of an Announced feature, with a start and an end set
 _Avoid_: Announcement, release, feature flag
 
 **New badge**:
-The "New" pill on an Announced feature's nav row while a Badge campaign runs. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
+The "New" mark on an Announced feature while a Badge campaign runs: a pill on its nav row, or a dot on the sidebar header's New task button. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
 _Avoid_: NEW tag, beta badge, unread badge
 
 ### Account access
