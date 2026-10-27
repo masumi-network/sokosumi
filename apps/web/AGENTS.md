@@ -378,16 +378,24 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ```typescript
 // src/app/(app)/new-page/page.tsx
-import { Metadata } from 'next';
+import type { Metadata } from "next";
+
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: 'New Page',
+  title: "New Page",
 };
 
 export default function NewPage() {
   return (
-    <div className="container mx-auto p-4">
-      {/* Server Component content */}
+    <div className={cn(HOLDER_CLASS, "flex w-full flex-col gap-2")}>
+      <div className={cn(HOLDER_ITEM_CLASS, "px-4 py-3")}>
+        {/* Server Component content */}
+      </div>
     </div>
   );
 }
@@ -399,11 +407,18 @@ export default function NewPage() {
 // src/lib/actions/new-action.ts
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { ok, type Result } from "neverthrow";
+import {
+  toActionResult,
+  type ActionResultDto,
+} from "@/lib/actions/action-result";
 
-export async function createNewItem(data: FormData) {
-  // Server action logic
-  revalidatePath("/path");
+// wire: { ok: true; value: T } | { ok: false; error: E }
+export async function createNewItem(): Promise<
+  ActionResultDto<{ id: string }, ActionError>
+> {
+  const result: Result<{ id: string }, ActionError> = ok({ id: "…" });
+  return toActionResult(result);
 }
 ```
 
