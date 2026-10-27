@@ -8810,6 +8810,7 @@
       "clearSearch": "Borrar búsqueda",
       "close": "Cerrar",
       "label": "Proyecto",
+      "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
       "workspaceView": "Todo",
       "workspaceDescription": "Incluye trabajo sin proyecto",
