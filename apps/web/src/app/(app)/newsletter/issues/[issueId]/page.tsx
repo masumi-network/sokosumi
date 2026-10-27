@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { newsletterService } from "@/lib/services/newsletter.service";
 
 import { NewsletterPageShell } from "../../components/newsletter-page-shell";
@@ -13,6 +14,7 @@ import {
 } from "../../newsletter-project";
 import { getNewsletterTabs, newsletterHref } from "../../newsletter-tabs";
 import { NewsletterIssueEditor } from "../issue-editor";
+import { loadIssueEditorSearchParams } from "../search-params";
 
 export const instant = false;
 
@@ -26,9 +28,10 @@ export default async function NewsletterIssuePage({
   await connection();
   if (!(await newsletterService.isEnabled())) notFound();
 
-  const [{ issueId }, scope] = await Promise.all([
+  const [{ issueId }, scope, { draftedBySokoBot }] = await Promise.all([
     params,
     loadNewsletterProject(searchParams),
+    loadIssueEditorSearchParams(searchParams),
   ]);
   if (!scope.project) {
     return newsletterWorkspacePage({
@@ -52,6 +55,16 @@ export default async function NewsletterIssuePage({
     limit: 1,
     status: "ACTIVE",
   });
+  const analytics =
+    issue.status === "SENT"
+      ? await newsletterService
+          .getIssueAnalytics(project.id, issueId)
+          .catch((error: unknown) => {
+            if (error instanceof CoreApiRequestError && error.status === 404)
+              notFound();
+            throw error;
+          })
+      : null;
 
   return (
     <NewsletterPageShell
@@ -69,6 +82,9 @@ export default async function NewsletterIssuePage({
         issue={issue}
         projectId={project.id}
         activeSubscribers={subscribers.data.counts.ACTIVE}
+        newsletterSlug={newsletter.publicSlug}
+        analytics={analytics}
+        draftedBySokoBot={draftedBySokoBot}
       />
     </NewsletterPageShell>
   );

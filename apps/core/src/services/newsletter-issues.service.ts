@@ -100,13 +100,26 @@ export async function listNewsletterIssues(
 export async function createNewsletterIssue(
   scope: NewsletterScope,
   input: CreateNewsletterIssueRequest,
+  {
+    client = prisma,
+    creatorSokoBotId,
+  }: {
+    client?: Prisma.TransactionClient | typeof prisma;
+    creatorSokoBotId?: string;
+  } = {},
 ) {
-  const newsletter = await getNewsletter(scope);
+  const newsletter = await getNewsletter(scope, client);
   for (let attempt = 0; ; attempt++) {
     const publicSlug = `${slugify(input.subject, { lower: true, strict: true }) || "issue"}-${randomBytes(4).toString("hex")}`;
     try {
-      return await prisma.newsletterIssue.create({
-        data: { ...scope, newsletterId: newsletter.id, ...input, publicSlug },
+      return await client.newsletterIssue.create({
+        data: {
+          ...scope,
+          newsletterId: newsletter.id,
+          ...input,
+          publicSlug,
+          ...(creatorSokoBotId ? { creatorSokoBotId } : {}),
+        },
       });
     } catch (error) {
       if (!isPrismaUniqueViolation(error)) throw error;

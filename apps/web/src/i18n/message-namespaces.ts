@@ -119,3 +119,8 @@ export const SHARE_MESSAGE_PATHS = [
   "Library",
   "Auth",
 ] as const;
+
+export const PUBLIC_NEWSLETTER_MESSAGE_PATHS = [
+  ...GLOBAL_MESSAGE_PATHS,
+  "PublicNewsletter",
+] as const;

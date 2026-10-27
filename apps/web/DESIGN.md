@@ -381,7 +381,7 @@ prop/state-driven.
   tabs) use `duration-150 ease-out` for press and hover feedback; enter animations run about
   200ms.
 - **What animates:** `transform`, `opacity`, `blur` — **not layout** (width/height/top/margin).
-  Two exceptions are deliberate: the sidebar collapse (width) and disclosures that animate
+  Two exceptions are deliberate: hiding the sidebar (the width it leaves) and disclosures that animate
   `grid-template-rows` from `0fr` to `1fr`. Name the properties you transition; `transition-all`
   animates layout by accident.
   Active state nudges with `scale(0.995)`, shared as the `press` utility in `globals.css`

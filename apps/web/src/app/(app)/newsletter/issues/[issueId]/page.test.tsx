@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
+import {
+  NEWSLETTER_ANALYTICS,
+  NEWSLETTER_ISSUE,
+  NEWSLETTER_PROJECT_ID,
+  PUBLIC_NEWSLETTER_SLUG,
+} from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
@@ -11,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   editor: vi.fn(),
   marker: vi.fn(),
   subscribers: vi.fn(),
+  analytics: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -31,6 +38,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     getIssue: mocks.get,
     getSettings: mocks.settings,
     listSubscribers: mocks.subscribers,
+    getIssueAnalytics: mocks.analytics,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -65,12 +73,29 @@ beforeEach(() => {
     id: NEWSLETTER_PROJECT_ID,
     name: "Launch",
   });
-  mocks.settings.mockResolvedValue({ id: "n1" });
+  mocks.settings.mockResolvedValue({
+    id: "n1",
+    publicSlug: PUBLIC_NEWSLETTER_SLUG,
+  });
   mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 describe("newsletter issue page", () => {
+  it("passes the AI review notice from the generated draft URL", async () => {
+    render(
+      await NewsletterIssuePage({
+        ...PROPS,
+        searchParams: Promise.resolve({
+          projectId: NEWSLETTER_PROJECT_ID,
+          draftedBySokoBot: "true",
+        }),
+      }),
+    );
+    expect(mocks.editor).toHaveBeenCalledWith(
+      expect.objectContaining({ draftedBySokoBot: true }),
+    );
+  });
   it("loads the issue of the chosen project and reports the project", async () => {
     render(await NewsletterIssuePage(PROPS));
     expect(mocks.get).toHaveBeenCalledWith(
@@ -81,6 +106,7 @@ describe("newsletter issue page", () => {
       expect.objectContaining({
         issue: NEWSLETTER_ISSUE,
         projectId: NEWSLETTER_PROJECT_ID,
+        newsletterSlug: PUBLIC_NEWSLETTER_SLUG,
       }),
     );
     expect(mocks.marker).toHaveBeenCalledWith({
@@ -117,5 +143,30 @@ describe("newsletter issue page", () => {
     render(await NewsletterIssuePage(PROPS));
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(mocks.get).not.toHaveBeenCalled();
+  });
+  it("loads lifetime analytics only for sent issues", async () => {
+    await NewsletterIssuePage(PROPS);
+    expect(mocks.analytics).not.toHaveBeenCalled();
+    mocks.get.mockResolvedValue({ ...NEWSLETTER_ISSUE, status: "SENT" });
+    const analytics = { totals: NEWSLETTER_ANALYTICS.totals, topLinks: [] };
+    mocks.analytics.mockResolvedValue(analytics);
+    render(await NewsletterIssuePage(PROPS));
+    expect(mocks.analytics).toHaveBeenCalledExactlyOnceWith(
+      NEWSLETTER_PROJECT_ID,
+      NEWSLETTER_ISSUE.id,
+    );
+    expect(mocks.editor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ analytics }),
+    );
+  });
+  it("hides sent issues when Core rejects analytics beta access and preserves other failures", async () => {
+    mocks.get.mockResolvedValue({ ...NEWSLETTER_ISSUE, status: "SENT" });
+    mocks.analytics.mockRejectedValue(
+      new CoreApiRequestError("Not enabled", { status: 404 }),
+    );
+    await expect(NewsletterIssuePage(PROPS)).rejects.toThrow("NOT_FOUND");
+    const failure = new Error("Unavailable");
+    mocks.analytics.mockRejectedValue(failure);
+    await expect(NewsletterIssuePage(PROPS)).rejects.toBe(failure);
   });
 });

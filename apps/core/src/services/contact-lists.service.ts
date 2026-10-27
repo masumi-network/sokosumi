@@ -13,6 +13,7 @@ import prisma from "@/lib/db/prisma";
 import type { contactListSchema } from "@/schemas/contact.schema";
 import {
   type ContactActor,
+  type ContactWriteActor,
   contactFilterWhere,
   parseSmartFilter,
 } from "@/services/contacts.service";
@@ -267,7 +268,7 @@ export async function updateContactListMembers(
 /** The manual list of this name, created when missing; for imports. */
 export async function ensureManualContactList(
   tx: Tx,
-  actor: ContactActor,
+  actor: ContactWriteActor,
   name: string,
   color: ListColor,
 ): Promise<{ id: string; created: boolean }> {
