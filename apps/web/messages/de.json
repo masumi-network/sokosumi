@@ -3143,7 +3143,7 @@
         "navigation": "Newsletter-Bereiche",
         "settings": "Einstellungen",
         "emptyTitle": "Richte deinen Newsletter ein",
-        "emptyDescription": "Wähle unten einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
+        "emptyDescription": "Wähle einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
         "general": "Allgemein",
         "brand": "Erscheinungsbild",
         "welcome": "Begrüßungs-E-Mail",
@@ -3158,7 +3158,7 @@
           "name": "Newsletter-Name",
           "senderName": "Absendername",
           "replyTo": "Antwort-E-Mail-Adresse",
-          "logoUrl": "Logo-URL",
+          "logoUrl": "Logo",
           "primaryColor": "Primärfarbe",
           "accentColor": "Akzentfarbe",
           "fontFamily": "Schriftart",
@@ -3538,6 +3538,41 @@
             "net": "Nettowachstum",
             "runningTotal": "Aktive Abonnenten insgesamt"
           }
+        },
+        "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
+        "brandDescription": "Logo, Farben und Schrift deiner Ausgaben.",
+        "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
+        "unsavedChanges": "Du hast ungespeicherte Änderungen.",
+        "colorPlaceholder": "Keine Farbe",
+        "presetColors": "Vorgegebene Farben",
+        "clearColor": {
+          "primaryColor": "Primärfarbe entfernen",
+          "accentColor": "Akzentfarbe entfernen"
+        },
+        "Logo": {
+          "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
+          "upload": "Hochladen",
+          "replace": "Ersetzen",
+          "remove": "Logo entfernen",
+          "previewAlt": "Newsletter-Logo",
+          "uploadError": "Das Logo konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Dieser Dateityp wird nicht unterstützt",
+          "maxFilesExceeded": "Lade jeweils nur ein Logo hoch"
+        },
+        "Preview": {
+          "title": "Vorschau",
+          "description": "Eine Skizze, wie dein Erscheinungsbild in einer Ausgabe wirkt. Aktualisiert sich beim Tippen.",
+          "from": "Von {sender}",
+          "sampleHeading": "Deine nächste Ausgabe",
+          "sampleBody": "Hier erscheint der Inhalt deiner Ausgabe in deiner Schrift.",
+          "button": "Weiterlesen",
+          "unsubscribe": "Abmelden",
+          "primary": "Primär",
+          "accent": "Akzent",
+          "unset": "Standard",
+          "welcome": "Begrüßungs-E-Mail",
+          "noSubject": "Noch kein Betreff"
         }
       }
     },
