@@ -91,7 +91,7 @@ describe("action lines the owner reads", () => {
     ],
     [
       "submit_newsletter_issue",
-      "Submitted newsletter issue for approval ([Open issue](/projects/{p}/newsletter/issues/issue-one)).",
+      "Submitted newsletter issue for approval ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
     ],
   ])("links a verified %s to the Newsletter", async (capability, line) => {
     const projectId = "11111111-1111-4111-8111-111111111111";

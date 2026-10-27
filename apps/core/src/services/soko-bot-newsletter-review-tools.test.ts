@@ -35,7 +35,7 @@ const m = vi.hoisted(() => ({
   count: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: true }),
+  getEnv: () => ({}),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@sokosumi/email", () => ({ renderNewsletterEmail: m.render }));
@@ -92,7 +92,7 @@ import {
 
 const BOT_ID = "77777777-7777-4777-8777-777777777777";
 const TASK_ID = "88888888-8888-4888-8888-888888888888";
-const ISSUE_URL = `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ISSUE_ID}`;
+const ISSUE_URL = `/newsletter/issues/${NEWSLETTER_ISSUE_ID}?projectId=${NEWSLETTER_PROJECT_ID}`;
 const TOOLS = ["preview_newsletter_issue", "submit_newsletter_issue"] as const;
 type Tool = (typeof TOOLS)[number];
 const INPUTS: Record<Tool, Record<string, unknown>> = {
@@ -270,7 +270,7 @@ describe("Soko Bot newsletter preview", () => {
       subject: "Draft",
       previewText: "Inside: news",
       textTruncated: true,
-      url: `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues`,
+      url: `/newsletter/issues?projectId=${NEWSLETTER_PROJECT_ID}`,
       warnings: [
         "Block 1 (heading) is empty",
         "Block 2 (image) has no alt text",

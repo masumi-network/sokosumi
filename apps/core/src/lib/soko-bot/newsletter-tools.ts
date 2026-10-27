@@ -384,7 +384,7 @@ export async function runNewsletterReadTool(
         // Unsaved content has no editor page yet; the issue list is where it would land.
         url: saved
           ? issueUrl(saved)
-          : `/projects/${scope.projectId}/newsletter/issues`,
+          : `/newsletter/issues?projectId=${encodeURIComponent(scope.projectId)}`,
       };
     }
   }
