@@ -123,9 +123,11 @@ describe("saved chat stickers", () => {
     expect(response.status).toBe(201);
     expect(put).toHaveBeenLastCalledWith(
       expect.stringMatching(/^stickers\/alice\//),
-      bytes,
+      expect.any(Buffer),
       expect.objectContaining({ contentType: "image/png" }),
     );
+    const stored = vi.mocked(put).mock.lastCall?.[1];
+    expect(Buffer.isBuffer(stored) && stored.equals(bytes)).toBe(true);
   });
   it("rejects missing filename metadata", async () => {
     expect((await appFor("alice").request("/", upload())).status).toBe(422);
