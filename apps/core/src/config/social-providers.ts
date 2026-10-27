@@ -46,6 +46,13 @@ export function isProjectSocialProvider(
   return Object.hasOwn(PROJECT_SOCIAL_PROVIDERS, provider);
 }
 
+/** The social provider that uses this Composio toolkit, if any. */
+export function socialProviderForToolkit(toolkitSlug: string) {
+  return Object.values(PROJECT_SOCIAL_PROVIDERS).find(
+    (provider) => provider.toolkitSlug === toolkitSlug,
+  );
+}
+
 /** Always resolve availability from the owning Project, never the actor's memberships. */
 export const socialProviderProjectSelect = {
   workspace: { select: { organization: { select: { slug: true } } } },
