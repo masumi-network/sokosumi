@@ -1,4 +1,5 @@
 import type { Session } from "@sokosumi/utils";
+import { ChevronsUpDown } from "lucide-react";
 import { Suspense } from "react";
 import { userService } from "@/lib/services/user.service";
 import HeaderProfileSectionClient from "./header-profile-section.client";
@@ -17,6 +18,7 @@ function HeaderProfileSectionSkeleton() {
     >
       <div className="bg-muted h-3 w-20 animate-pulse rounded-md" />
       <div className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
+      <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 md:size-4.5" />
     </div>
   );
 }
