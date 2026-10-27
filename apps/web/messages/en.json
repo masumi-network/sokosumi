@@ -4028,6 +4028,7 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",
+        "compactCredits": "{count, plural, =0 {No credits} =1 {# credit} other {{credits} credits}}",
         "planLabel": "Plan",
         "openSummary": "Open account summary: {name}, {presence}, {summary}"
       },
@@ -4051,6 +4052,7 @@
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
           "social": "Social Scheduling",
+          "socialPosts": "Social posts",
           "ads": "Ads",
           "contacts": "Contacts",
           "groups": {
@@ -7686,6 +7688,7 @@
       "SelfDirect": {
         "messageYourself": "Message yourself",
         "you": "You",
+        "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
       },
@@ -8822,6 +8825,7 @@
       "clearSearch": "Clear search",
       "close": "Close",
       "label": "Project",
+      "allProjects": "All projects",
       "switchLabel": "Switch project",
       "workspaceView": "Everything",
       "workspaceDescription": "Includes work without a project",

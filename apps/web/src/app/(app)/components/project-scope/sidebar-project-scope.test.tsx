@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -93,6 +93,15 @@ function row() {
   return screen.getByTestId("project-scope-sidebar-row");
 }
 
+/** "Project" and the value as two lines of the row, the label first. */
+function expectLabelOver(value: string) {
+  const label = within(row()).getByText("label", { exact: true });
+  const valueLine = within(row()).getByText(value, { exact: true });
+  expect(
+    label.compareDocumentPosition(valueLine) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+}
+
 function probe() {
   return screen.getByTestId("mobile-sidebar-probe");
 }
@@ -176,6 +185,27 @@ describe("sidebar project scope", () => {
         screen.queryByRole("dialog", { name: "switchLabel" }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("reads Project over All projects when no project is picked", () => {
+    renderHarness();
+
+    expectLabelOver("allProjects");
+    expect(row()).toHaveAccessibleName("label: allProjects");
+  });
+
+  it("reads Project over the picked project's name", async () => {
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() => expect(row()).toHaveAccessibleName("label: Acme"));
+    expectLabelOver("Acme");
+  });
+
+  it("draws no rule under the picker", () => {
+    const { container } = renderHarness();
+
+    expect(container.querySelector('[data-sidebar="separator"]')).toBeNull();
   });
 
   it("names the mobile row with the full scope label", async () => {

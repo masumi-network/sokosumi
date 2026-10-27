@@ -179,6 +179,15 @@ describe("MenuItems", () => {
     expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
 
+  it("names the Social destination Social posts", () => {
+    renderMenu();
+
+    expect(screen.getByRole("link", { name: "socialPosts" })).toHaveAttribute(
+      "href",
+      "/social",
+    );
+  });
+
   it("shows public Social scoped like the rows above it", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
@@ -259,7 +268,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
-      "social",
+      "socialPosts",
       "ads",
     ]);
   });
@@ -286,7 +295,7 @@ describe("MenuItems groups", () => {
 
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "social" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "socialPosts" })).toBeNull();
     // Only its own rows go.
     expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
 
@@ -310,7 +319,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
-      "social",
+      "socialPosts",
     ]);
   });
 });

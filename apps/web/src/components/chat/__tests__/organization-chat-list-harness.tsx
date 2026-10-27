@@ -59,9 +59,14 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Values ride after the key, so a test can see what a label was given.
 vi.mock("next-intl", () => ({
-  useTranslations: (namespace?: string) => (key: string) =>
-    namespace ? `${namespace}.${key}` : key,
+  useTranslations:
+    (namespace?: string) => (key: string, values?: Record<string, unknown>) =>
+      [
+        namespace ? `${namespace}.${key}` : key,
+        ...Object.values(values ?? {}),
+      ].join(" "),
 }));
 
 vi.mock("sonner", () => ({
@@ -97,9 +102,16 @@ vi.mock("@/app/chat/components/create-direct-dialog", () => ({
   ),
 }));
 
-vi.mock("@/app/chat/components/room-helpers", () => ({
-  getRoomDisplayName: () => "room",
-}));
+// Every Direct reads "room" but the Self Direct, which keeps its real name.
+vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
+  const actual =
+    await importActual<typeof import("@/app/chat/components/room-helpers")>();
+  return {
+    getRoomDisplayName: (
+      ...args: Parameters<typeof actual.getRoomDisplayName>
+    ) => (args[0].isSelfDirect ? actual.getRoomDisplayName(...args) : "room"),
+  };
+});
 
 vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({

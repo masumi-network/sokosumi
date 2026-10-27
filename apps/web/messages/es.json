@@ -4028,6 +4028,7 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
+        "compactCredits": "{count, plural, =0 {Sin Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
         "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}"
       },
@@ -4051,6 +4052,7 @@
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
           "social": "Programación social",
+          "socialPosts": "Publicaciones sociales",
           "ads": "Anuncios",
           "contacts": "Contactos",
           "groups": {
@@ -7686,6 +7688,7 @@
       "SelfDirect": {
         "messageYourself": "Enviarte un mensaje",
         "you": "Tú",
+        "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
@@ -8822,6 +8825,7 @@
       "clearSearch": "Borrar búsqueda",
       "close": "Cerrar",
       "label": "Proyecto",
+      "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
       "workspaceView": "Todo",
       "workspaceDescription": "Incluye trabajo sin proyecto",

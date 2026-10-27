@@ -1207,7 +1207,9 @@ function RoomView({
     return selectedRoomIdRef.current === roomId;
   }
   const selectedRoomDisplayName = selectedRoom
-    ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
+    ? getRoomDisplayName(selectedRoom, currentUserId, (name) =>
+        t("SelfDirect.youNamed", { name }),
+      )
     : "";
   const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 

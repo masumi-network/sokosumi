@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     [key, ...Object.values(values ?? {})].join(" "),
+  useFormatter: () => ({
+    number: (value: number, options?: Intl.NumberFormatOptions) =>
+      new Intl.NumberFormat("en", options).format(value),
+  }),
 }));
 
 const pushMock = vi.fn();
@@ -104,14 +108,33 @@ describe("SidebarAccountChip", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the plan and the credit balance next to the profile picture", () => {
-    renderChip();
+  it("shows the plan badge and compact credits next to the profile picture", () => {
+    renderChip({ totalCredits: 943_580.9 });
 
     expect(screen.getByText("Patrick Tobler")).toBeInTheDocument();
+    expect(screen.getByText("Pro")).toBeInTheDocument();
+    // Never rounds up past what the account holds.
     expect(
-      screen.getByText(/planAndCredits Pro balanceCreditsLabel 15750/),
+      screen.getByText("compactCredits 943580 943.5K"),
     ).toBeInTheDocument();
     expect(screen.getByText("PT")).toBeInTheDocument();
+  });
+
+  it("keeps the exact plan and balance in the chip's accessible name", () => {
+    renderChip();
+
+    expect(
+      screen.getByRole("button", {
+        name: /openSummary .*planAndCredits Pro balanceCreditsLabel 15750/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the badge out when the plan is unknown", () => {
+    renderChip({ planName: null });
+
+    expect(screen.queryByText("Pro")).toBeNull();
+    expect(screen.getByText("compactCredits 15750 15.7K")).toBeInTheDocument();
   });
 
   it("keeps name line-height above 1 so truncate does not clip descenders", () => {
@@ -131,9 +154,7 @@ describe("SidebarAccountChip", () => {
   it("flags a balance under the low-credits threshold", () => {
     renderChip({ totalCredits: 42 });
 
-    const summary = screen.getByText(
-      /planAndCredits Pro balanceCreditsLabel 42/,
-    );
+    const summary = screen.getByText("compactCredits 42 42");
 
     expect(summary.parentElement?.className).toContain("text-semantic-warning");
   });

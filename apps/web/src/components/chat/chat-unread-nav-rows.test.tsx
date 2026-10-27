@@ -164,6 +164,9 @@ describe("ChatUnreadNavRows", () => {
     renderRows([], { onUnreadOnlyChange });
 
     const toggle = screen.getByRole("button", { name: "Unreads" });
+    // A text chip: the name is what the reader sees, not an icon's label.
+    expect(toggle).toHaveTextContent("Unreads");
+    expect(toggle).not.toHaveAttribute("aria-label");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(toggle);
 

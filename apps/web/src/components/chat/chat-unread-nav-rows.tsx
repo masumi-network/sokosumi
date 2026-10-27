@@ -1,7 +1,7 @@
 "use client";
 
 import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
-import { CheckCheck, Inbox, Loader2, Sunrise } from "lucide-react";
+import { CheckCheck, Loader2, Sunrise } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -43,6 +43,14 @@ import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-targe
 const THREADS_ROW_CLASS =
   "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
+/**
+ * The Unreads chip: a word, not an icon, so it says what it filters. Its
+ * pseudo-element keeps the target at 44px on phones and 28px from md, as the
+ * icon buttons beside it do.
+ */
+const UNREADS_CHIP_CLASS =
+  "text-muted-foreground border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex h-7 items-center rounded-full border px-2 text-xs font-medium whitespace-nowrap transition-colors before:absolute before:-inset-2 before:content-[''] md:h-6 md:before:-inset-0.5";
+
 interface ChatUnreadNavRowsProps {
   /** The sidebar's live rooms. The row reads these and nothing of its own. */
   rooms: readonly ChatRoom[];
@@ -58,7 +66,7 @@ interface ChatUnreadNavRowsProps {
  * up opens the written overview and the unread Threads (tabs of one page).
  * Its count is what waits on the reader (the needs-you pill), else the
  * Threads mark: the `@` pill where a Thread names them, the muted count of
- * unread Threads otherwise. The inbox button at its end is the All unreads
+ * unread Threads otherwise. The Unreads chip at its end is the All unreads
  * filter on the list below (⌘⇧U); while it is on, Mark all as read stands
  * beside it.
  */
@@ -202,7 +210,7 @@ export function ChatUnreadNavRows({
               {/* Holds the label clear of the buttons drawn over the end. */}
               <span
                 aria-hidden
-                className={cn("shrink-0", showMarkAll ? "w-14" : "w-7")}
+                className={cn("shrink-0", showMarkAll ? "w-28" : "w-20")}
               />
             </Link>,
           )}
@@ -236,20 +244,19 @@ export function ChatUnreadNavRows({
               boot script's mark tints it the same way. */}
           <button
             type="button"
-            aria-label={t("allUnreads")}
             aria-pressed={unreadOnly}
             aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
             title={showsShortcut ? shortcutHint : t("allUnreads")}
             data-filter-on={unreadOnly ? "true" : undefined}
             onClick={toggleUnreadOnly}
             className={cn(
-              CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
+              UNREADS_CHIP_CLASS,
               unreadOnly
                 ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant active:bg-primary-quaternary"
                 : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant",
             )}
           >
-            <Inbox className="size-4 md:size-3.5" aria-hidden />
+            {t("allUnreads")}
           </button>
         </div>
       </SidebarMenuItem>

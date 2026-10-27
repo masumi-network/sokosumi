@@ -194,7 +194,9 @@ describe("sidebar project scope scope name", () => {
   it("names the workspace view when no project is scoped", () => {
     renderHarness();
 
-    expect(row()).toHaveAccessibleName("workspaceView");
+    // The sidebar row says what it holds, "Project: All projects"; the
+    // header chip keeps the menu's own name for the view.
+    expect(row()).toHaveAccessibleName("label: allProjects");
     expect(chip()).toHaveAccessibleName("workspaceView");
     expect(mocks.fetch).not.toHaveBeenCalled();
   });

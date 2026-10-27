@@ -2,11 +2,12 @@
 
 import { resolveAccountDisplayName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
-import { AlertTriangle, ChevronDown } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { AlertTriangle, ChevronsUpDown } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { ReactElement } from "react";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
@@ -72,6 +73,7 @@ function SidebarAccountChipDesktop({
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
+  const format = useFormatter();
   const presence = useSelfPresence();
   const { isOpen, menuInstance, handleOpenChange, closeMenu } =
     useAccountSummaryOpenState();
@@ -83,6 +85,21 @@ function SidebarAccountChipDesktop({
   const presenceLabel = tPresence(presence);
   const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
     tBilling("balanceCreditsLabel", { credits }),
+  );
+  // At a glance: "943.5K credits", cut rather than rounded up, so the chip
+  // never shows more than the account holds. The exact figure stays in the
+  // accessible name.
+  const compactCreditsLabel = resolveAccountCreditsLabel(
+    totalCredits,
+    (credits) =>
+      t("compactCredits", {
+        count: credits,
+        credits: format.number(credits, {
+          notation: "compact",
+          maximumFractionDigits: 1,
+          roundingMode: "trunc",
+        }),
+      }),
   );
   const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
   const summary = resolveAccountSummaryLabel({
@@ -133,8 +150,18 @@ function SidebarAccountChipDesktop({
         />
       </span>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-        <span className="w-full truncate text-left text-sm leading-tight font-medium">
-          {displayName}
+        <span className="flex w-full min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate text-left text-sm leading-tight font-medium">
+            {displayName}
+          </span>
+          {planName !== null ? (
+            <Badge
+              variant="outline"
+              className="border-sidebar-border text-muted-foreground rounded-sm px-1 py-0 text-2xs leading-4"
+            >
+              {planName}
+            </Badge>
+          ) : null}
         </span>
         <span
           className={cn(
@@ -145,11 +172,13 @@ function SidebarAccountChipDesktop({
           {isLowCredits ? (
             <AlertTriangle className="size-3 shrink-0" aria-hidden />
           ) : null}
-          <span className="min-w-0 truncate tabular-nums">{summary}</span>
+          <span className="min-w-0 truncate tabular-nums">
+            {compactCreditsLabel ?? t("detailsUnavailable")}
+          </span>
         </span>
       </span>
-      <ChevronDown
-        className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/chip:rotate-180"
+      <ChevronsUpDown
+        className="text-muted-foreground size-3.5 shrink-0"
         aria-hidden
       />
     </button>

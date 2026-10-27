@@ -147,6 +147,7 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
         asChild
         isActive={isActive}
         className="h-auto py-1 md:h-auto"
+        data-row-lines="2"
       >
         <SheetClose asChild>
           <Link

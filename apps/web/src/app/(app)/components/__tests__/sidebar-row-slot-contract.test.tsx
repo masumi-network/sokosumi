@@ -71,8 +71,12 @@ vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async () => ({ rooms: [], nextCursor: null }),
 }));
+vi.mock("@/lib/project-scope-list.client", () => ({
+  fetchScopeList: async () => ({ projects: [], nextCursor: null }),
+}));
 
 import { type ChatRoomInvitation, SokoBotStatus } from "@sokosumi/core-client";
+import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { SidebarChatListSkeleton } from "@/app/components/sidebar/components/sidebar-chat-list-skeleton";
@@ -122,6 +126,7 @@ function renderSidebar() {
       <SidebarProvider defaultOpen>
         <Sidebar>
           <SidebarContent>
+            <SidebarProjectScope />
             <PersonalAssistantNav
               bot={{
                 id: "bot-1",
@@ -153,12 +158,15 @@ function renderSidebar() {
 }
 
 const SLOT = '[data-slot="sidebar-row-slot"]';
+// Not `data-slot`: a Popover trigger wrapping a row (the project picker)
+// renames that to `popover-trigger`, and the row would drop out unseen.
+const ROW = '[data-sidebar="menu-button"]';
 
 describe("every sidebar row uses the shared leading slot", () => {
   it("renders one for Soko Bots, nav, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // Soko Bots, the nav rows, five rooms, the archived row, the
+    // The project picker, Soko Bots, the nav rows, five rooms, the archived row, the
     // invitation's card, and six skeleton room slots. Section headings have
     // none: their title leads and the chevron follows it, and New task is
     // the header's button, not a row. Counting by row type rather than by
@@ -176,9 +184,7 @@ describe("every sidebar row uses the shared leading slot", () => {
   it("gives every row button the slot as its first child", () => {
     const { container } = renderSidebar();
 
-    const buttons = container.querySelectorAll(
-      '[data-slot="sidebar-menu-button"]',
-    );
+    const buttons = container.querySelectorAll(ROW);
     expect(buttons.length).toBeGreaterThan(10);
 
     for (const button of buttons) {
@@ -192,20 +198,19 @@ describe("every sidebar row uses the shared leading slot", () => {
   it("holds every row to the primitive's height, and no list to its own", () => {
     const { container } = renderSidebar();
     const ROW_HEIGHT = ["h-11", "min-h-11", "md:h-7", "md:min-h-7"];
-    // A two-line row (a guest room's host organisation line, the live Soko
-    // Bot row) releases the height and keeps the primitive's floor; it names
-    // no height either.
+    // A two-line row (the project picker, a guest room's host organisation
+    // line, the live Soko Bot row) declares itself with `data-row-lines`,
+    // releases the height and keeps the primitive's floor; it names no height
+    // either.
     const TWO_LINE_HEIGHT = ["h-auto", "min-h-11", "md:h-auto", "md:min-h-7"];
     let twoLineRows = 0;
 
-    for (const button of container.querySelectorAll(
-      '[data-slot="sidebar-menu-button"]',
-    )) {
+    for (const button of container.querySelectorAll(ROW)) {
       const heights = button.className
         .split(/\s+/)
         .filter((token) => /^(md:)?(min-)?h-/.test(token))
         .sort();
-      if (heights.includes("h-auto")) {
+      if (button.getAttribute("data-row-lines") === "2") {
         twoLineRows += 1;
         expect(heights, button.textContent ?? "").toEqual(
           [...TWO_LINE_HEIGHT].sort(),
@@ -213,12 +218,11 @@ describe("every sidebar row uses the shared leading slot", () => {
         // Both lines sit inside the element that takes the hover, so the
         // highlight covers the whole row and not just its first line.
         expect(button.className).toContain("hover:bg-sidebar-accent");
-        expect(button.textContent).toMatch(/hostOrganization|^Mo/);
         continue;
       }
       expect(heights, button.textContent ?? "").toEqual([...ROW_HEIGHT].sort());
     }
-    expect(twoLineRows).toBeGreaterThanOrEqual(2);
+    expect(twoLineRows).toBeGreaterThanOrEqual(3);
   });
 
   it("lets the slot size every row icon, so no list sets its own", () => {
