@@ -22,7 +22,7 @@ export const SCOPE_TITLE_GROUP_CLASS = "w-full px-2 pt-0 pb-0";
  * so a long name still shortens with "…".
  */
 export const SCOPE_TITLE_ROW_CLASS =
-  "flex h-11 w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-semibold md:h-8";
+  "flex h-11 w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-medium md:h-8";
 
 /** The switch arrows, so the selector does not read as a section's fold. */
 export const SCOPE_TITLE_ARROWS_CLASS = "text-muted-foreground size-3 shrink-0";
