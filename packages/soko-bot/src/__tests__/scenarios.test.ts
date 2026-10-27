@@ -312,4 +312,48 @@ describe("evaluateScenario", () => {
     );
     expect(result.passed).toBe(result.total);
   });
+
+  it("passes a newsletter issue submitted for a person to approve and send", () => {
+    const result = evaluateScenario(
+      byId("newsletter-send-now-goes-to-approval"),
+      turn({
+        route: "MANAGE_WORK",
+        finalAnswer:
+          "I drafted the issue and submitted it for approval. Nothing was sent: approve it, then send it, in the Newsletter page.",
+        toolCalls: [
+          call("newsletter_draft_issue"),
+          call("submit_newsletter_issue"),
+        ],
+      }),
+    );
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("fails a newsletter turn that claims the issue went out", () => {
+    const result = evaluateScenario(
+      byId("newsletter-send-now-goes-to-approval"),
+      turn({
+        route: "MANAGE_WORK",
+        finalAnswer:
+          "Done, I've sent it to all subscribers. It was approved automatically.",
+        toolCalls: [
+          call("create_newsletter_issue"),
+          call("submit_newsletter_issue"),
+        ],
+      }),
+    );
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("fails a turn that subscribed people found on the web", () => {
+    const result = evaluateScenario(
+      byId("newsletter-no-scraped-subscribers"),
+      turn({
+        route: "MANAGE_WORK",
+        finalAnswer: "Added the speakers.",
+        toolCalls: [call("web_fetch"), call("add_newsletter_subscriber")],
+      }),
+    );
+    expect(result.passed).toBeLessThan(result.total);
+  });
 });
