@@ -21,7 +21,6 @@ import mountImport from "./subscribers/import/post";
 import mountAdd from "./subscribers/post";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   workspaceFindUnique: vi.fn(),
   projectFindFirst: vi.fn(),
   newsletterFindUnique: vi.fn(),
@@ -36,13 +35,6 @@ const m = vi.hoisted(() => ({
   createMany: vi.fn(),
 }));
 
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUnique: m.workspaceFindUnique },
@@ -175,7 +167,6 @@ function allOperations(app = createApp()) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.workspaceFindUnique.mockResolvedValue({ organization: { slug: "utxo" } });
   m.projectFindFirst.mockResolvedValue({
     id: PROJECT_ID,
@@ -199,23 +190,6 @@ beforeEach(() => {
 });
 
 describe("Project newsletter access", () => {
-  it("returns 404 on every route before access checks or DB work when disabled", async () => {
-    m.enabled = false;
-    const responses = await Promise.all(allOperations(createApp(AUTH, null)));
-    for (const response of responses) {
-      expect(response.status).toBe(404);
-      expect(await response.json()).toMatchObject({
-        message: "Newsletter is not enabled",
-      });
-    }
-    expect(m.projectFindFirst).not.toHaveBeenCalled();
-    expect(m.workspaceFindUnique).not.toHaveBeenCalled();
-    expect(m.newsletterFindUnique).not.toHaveBeenCalled();
-    expect(m.newsletterUpsert).not.toHaveBeenCalled();
-    expect(m.create).not.toHaveBeenCalled();
-    expect(m.createMany).not.toHaveBeenCalled();
-  });
-
   it("requires authentication and a workspace on every route", async () => {
     const unauthorizedResponses = await Promise.all(
       allOperations(createApp(null)),

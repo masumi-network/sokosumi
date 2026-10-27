@@ -1033,6 +1033,40 @@ describe("social posts service", () => {
     );
   });
 
+  it.each([
+    ["Premium", null],
+    ["None", "Text must be at most 280 characters for X"],
+  ])(
+    "holds a Soko Bot's 300-character post for approval on a %s X account or names the limit",
+    async (subscriptionType, message) => {
+      resolveXSubscriptionTypeMock.mockResolvedValue(subscriptionType);
+      const { createSocialPost } = await loadService();
+      const result = createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        text: "x".repeat(300),
+      });
+      if (message) {
+        await expect(result).rejects.toMatchObject({ status: 400, message });
+        expect(socialPostCreateMock).not.toHaveBeenCalled();
+        return;
+      }
+      await result;
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            text: "x".repeat(300),
+            status: "NEEDS_APPROVAL",
+          }),
+        }),
+      );
+    },
+  );
+
   it("allows long first comments for a freshly upgraded Basic account", async () => {
     resolveXSubscriptionTypeMock.mockResolvedValue("Basic");
     const { createSocialPost } = await loadService();

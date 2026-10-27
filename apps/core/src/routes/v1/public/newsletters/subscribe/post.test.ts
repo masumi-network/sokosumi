@@ -15,7 +15,6 @@ import {
 import router from "../index";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   domain: "news.example.com" as string | undefined,
   newsletter: vi.fn(),
   createMany: vi.fn(),
@@ -41,7 +40,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.enabled,
       NEWSLETTER_FROM_DOMAIN: m.domain,
     }),
     getBetterAuthPublicBaseUrl: () => "https://core.example.com",
@@ -92,7 +90,6 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NEWSLETTER_NOW);
-  m.enabled = true;
   m.domain = "news.example.com";
   m.newsletter.mockResolvedValue(NEWSLETTER);
   m.createMany.mockResolvedValue({ count: 1 });
@@ -380,13 +377,6 @@ describe("public newsletter signup", () => {
   it("never falls back to the product domain when newsletter sending is unconfigured", async () => {
     m.domain = undefined;
     await signup();
-    expect(m.send).not.toHaveBeenCalled();
-  });
-
-  it("returns 404 before validation when disabled", async () => {
-    m.enabled = false;
-    expect((await app().request(URL, { method: "POST" })).status).toBe(404);
-    expect(m.newsletter).not.toHaveBeenCalled();
     expect(m.send).not.toHaveBeenCalled();
   });
 
