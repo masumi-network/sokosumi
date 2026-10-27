@@ -18,6 +18,22 @@ describe("Soko Bot memory", () => {
     expect(parseSokoBotMemory(renderSokoBotMemory(memory))).toEqual(memory);
   });
 
+  it("refuses a write with entries under an unknown heading, instead of dropping them", () => {
+    const merged =
+      "# Soko Bot memory\n\n## Active goals\n- Ship launch\n\n## Decisions / preferences\n- Save invoice PDFs in Finance/Invoices\n";
+    expect(() =>
+      parseSokoBotMemory(merged, { unknownSections: "reject" }),
+    ).toThrow(/"Decisions \/ preferences" is not one of .*"## Preferences"/);
+    // Reading stored memory stays lenient.
+    expect(parseSokoBotMemory(merged).activeGoals).toEqual(["Ship launch"]);
+    // An empty unknown heading costs nothing.
+    expect(
+      parseSokoBotMemory("## Notes\n- None\n## Decisions\n- A\n", {
+        unknownSections: "reject",
+      }).decisions,
+    ).toEqual(["A"]);
+  });
+
   it("normalizes untrusted whitespace", () => {
     const memory = createEmptySokoBotMemory();
     memory.decisions.push("  Use   Eve\nfor runtime ");

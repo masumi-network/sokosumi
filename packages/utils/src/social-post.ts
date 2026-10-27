@@ -6,6 +6,7 @@ import { X_COUNTRY_TLDS, X_GENERIC_TLDS } from "./x-tlds.js";
  */
 export const SOCIAL_POST_TEXT_LIMITS = {
   x: 280,
+  // LinkedIn counts the displayed text, not the little-text escapes Core adds.
   linkedin: 3000,
   facebook: 63206,
   instagram: 2200,

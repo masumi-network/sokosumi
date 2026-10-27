@@ -90,6 +90,20 @@ function classifyToolError(
 }
 
 /**
+ * Whether a publish failure means the account's own login expired or lost
+ * permissions, so its connection should be flagged for reconnect.
+ */
+export function shouldRequestReauthorization(
+  error: unknown,
+  classified: PublishErrorClassification,
+): boolean {
+  // Only provider refusals: a ComposioApiError 401/403 can be our own API key or a platform outage.
+  return (
+    classified.kind === "unauthorized" && error instanceof ComposioToolError
+  );
+}
+
+/**
  * Maps a publish failure to a retry decision. Unknown errors count as
  * transient so a bug does not burn a post on its first try; the attempt cap
  * still bounds them.

@@ -2465,6 +2465,8 @@
           "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
+        "linkedinPersonalOnly": "Personal profile only. Company pages aren't supported yet.",
+        "personalProfile": "Personal profile",
         "connectComingSoon": "{provider} (coming soon)",
         "empty": "No accounts yet.",
         "emptyHint": "Connect one to post."
@@ -2507,7 +2509,8 @@
           "rejected": "The platform rejected this post.",
           "mediaMissing": "A file is missing.",
           "mediaType": "That file type is not allowed.",
-          "generic": "Couldn't publish. Open the post for details."
+          "generic": "Couldn't publish. Open the post for details.",
+          "unconfirmed": "We couldn't confirm the post. Check {provider} before retrying so it isn't posted twice."
         },
         "sections": {
           "calendar": "Calendar",
@@ -7356,6 +7359,10 @@
       },
       "loadOlder": "Load older messages",
       "jumpToLatest": "Jump to latest",
+      "UnreadDivider": {
+        "label": "New",
+        "accessibleName": "New messages"
+      },
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",

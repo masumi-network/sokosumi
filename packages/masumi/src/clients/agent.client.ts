@@ -403,7 +403,6 @@ export function createAgentClient(config?: AgentClientConfig) {
         });
 
         if (!response.ok) {
-          // Log HTTP errors (4xx/5xx)
           const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
           logError(
@@ -426,7 +425,6 @@ export function createAgentClient(config?: AgentClientConfig) {
         try {
           responseData = await response.json();
         } catch (jsonError) {
-          // Log JSON parsing errors
           logError(
             "json_parse_error",
             "fetchInputSchema",

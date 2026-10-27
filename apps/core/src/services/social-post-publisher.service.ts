@@ -39,6 +39,7 @@ import {
 import {
   classifyPublishError,
   SocialPostTextLimitError,
+  shouldRequestReauthorization,
 } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -467,6 +468,8 @@ async function publishThread(
         media,
         ...(previousId ? { replyToExternalId: previousId } : {}),
       });
+      // The next part replies to this id, so a post without one is unconfirmed.
+      if (!result.externalId) throw new ComposioPublishOutcomeUnknownError("X");
     } catch (error) {
       if (error instanceof PublishLeaseLostError) throw error;
       const failure = new ThreadPartPublishError(position, error);
@@ -560,16 +563,18 @@ async function attemptPublish(
         case "succeeded": {
           // Thread ids are already durable; finish the loop and its last-part comment.
           if (post.threadParts.length > 0) break;
-          if (!previous.externalId) break;
+          // The platform confirmed the post; a missing id only drops the link.
           const settled = await settle(post, {
             status: "PUBLISHED",
             publishedAt: previous.finishedAt,
             publishedExternalId: previous.externalId,
-            publishedUrl: socialPostPublishedUrl(
-              provider,
-              post.socialConnection?.externalHandle ?? null,
-              previous.externalId,
-            ),
+            publishedUrl: previous.externalId
+              ? socialPostPublishedUrl(
+                  provider,
+                  post.socialConnection?.externalHandle ?? null,
+                  previous.externalId,
+                )
+              : null,
             lastError: null,
             attemptCount: post.attemptCount + 1,
           });
@@ -844,6 +849,21 @@ async function attemptPublish(
         externalId: null,
       },
     });
+    const providerError =
+      error instanceof ThreadPartPublishError ? error.cause : error;
+    if (shouldRequestReauthorization(providerError, classified)) {
+      try {
+        await prisma.projectSocialConnection.updateMany({
+          where: { id: connection.id, status: "active" },
+          data: { status: "reauthorization_required" },
+        });
+      } catch {
+        console.warn(
+          "[social-post-publisher] Could not flag connection for reconnect",
+          { postId: post.id, connectionId: connection.id },
+        );
+      }
+    }
     if (retrying) {
       return settleRetry(post, {
         status: "SCHEDULED",
@@ -884,7 +904,7 @@ async function attemptPublish(
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
-  if (settled && firstComment) {
+  if (settled && firstComment && published.externalId) {
     try {
       await publishSocialPostFirstComment({
         provider,

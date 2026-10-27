@@ -631,6 +631,7 @@ function requireStoredThreadParts(
 ): void {
   requireThreadPartsAllowed(provider, post.threadParts.length);
   for (const part of post.threadParts) {
+    if (part.externalPostId) continue;
     const media = parseSocialPostMedia(part.media, part.id);
     requireTextWithinLimit(
       part.text,
@@ -1129,22 +1130,24 @@ export async function scheduleSocialPost(
   );
   const provider = requireProvider(connection.provider);
   requireStoredThreadParts(post, provider, connection.subscriptionType);
-  const validation = validateSocialPostMedia(provider, media);
-  if (!validation.ok) {
-    throw badRequest(mediaValidationMessage(provider, validation.reason));
+  if (!post.publishedExternalId) {
+    const validation = validateSocialPostMedia(provider, media);
+    if (!validation.ok) {
+      throw badRequest(mediaValidationMessage(provider, validation.reason));
+    }
+    requireTextWithinLimit(
+      post.text,
+      provider,
+      media.length > 0,
+      connection.subscriptionType,
+    );
+    requireMediaRequirement(provider, media);
   }
-  requireTextWithinLimit(
-    post.text,
-    provider,
-    media.length > 0,
-    connection.subscriptionType,
-  );
   requireFirstCommentWithinLimit(
     post.firstComment,
     provider,
     connection.subscriptionType,
   );
-  requireMediaRequirement(provider, media);
 
   return mapSocialPost(
     await writeWithRevision(

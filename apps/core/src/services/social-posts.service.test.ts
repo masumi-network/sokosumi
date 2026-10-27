@@ -450,6 +450,47 @@ describe("social posts service", () => {
       ).rejects.toMatchObject({ status: 409 });
     });
 
+    it("reschedules a partial thread without re-checking parts already on X", async () => {
+      const long = "界".repeat(141);
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        text: long,
+        status: "FAILED",
+        publishedExternalId: "1907",
+        threadParts: [
+          { ...parts[0], text: long, externalPostId: "1908" },
+          parts[1],
+        ],
+      });
+      const { scheduleSocialPost } = await loadService();
+      await expect(
+        scheduleSocialPost({
+          ...input,
+          postId: POST_ID,
+          revision: 1,
+          scheduledAt: FUTURE,
+        }),
+      ).resolves.toMatchObject({ partiallyPublished: true });
+
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status: "FAILED",
+        publishedExternalId: "1907",
+        threadParts: [parts[0], { ...parts[1], text: long }],
+      });
+      await expect(
+        scheduleSocialPost({
+          ...input,
+          postId: POST_ID,
+          revision: 1,
+          scheduledAt: FUTURE,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "Text must be at most 280 characters for X",
+      });
+    });
+
     it("returns durable results and progress without allowing edits", async () => {
       socialPostFindFirstMock.mockResolvedValue({
         ...scheduledPost,

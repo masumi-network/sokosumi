@@ -31,7 +31,13 @@ const {
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    workspace: { findFirst: workspace },
+    workspace: {
+      findFirst: workspace,
+      findMany: async () => {
+        const row = await workspace();
+        return row ? [row] : [];
+      },
+    },
     project: { findMany: projects },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
@@ -281,11 +287,11 @@ describe("authorized chat results", () => {
       { ...actor, projectId: "project" },
       expect.anything(),
     );
-    projectAccess.mockRejectedValue(new Error("db offline"));
+    projects.mockRejectedValue(new Error("db offline"));
     await expect(
       hydrateChatResultSnapshots([snapshot], "owner"),
     ).rejects.toThrow("db offline");
-    projectAccess.mockReset();
+    projects.mockReset();
   });
   it.each(["FAILED", "CANCELLED", "QUEUED"])(
     "shows %s studio state without invented outputs",

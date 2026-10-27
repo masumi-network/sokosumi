@@ -8,7 +8,8 @@ public extension WorkspaceState {
     guard rooms.contains(where: { $0.id == roomId }) else { return .unavailable }
     // A link, a notification or a Threads row shows its room in place of the Threads view (row 24f1).
     sidebar.showsThreadsView = false
-    selectRoom(roomId)
+    // An explicit target comes before the Unread divider.
+    selectRoom(roomId, atUnreadDivider: messageId == nil)
     return try await openRoom.openLinkTarget(roomId: roomId, messageId: messageId)
   }
 }

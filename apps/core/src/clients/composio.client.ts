@@ -7,6 +7,7 @@ import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import { linkedInPersonId } from "@/helpers/linkedin-person";
 import { tryUseLogger } from "@/lib/evlog";
 
 let instance: Composio | null | undefined;
@@ -465,6 +466,15 @@ const SOCIAL_IDENTITY_TOOLS: Record<
   },
 };
 
+/**
+ * LINKEDIN_GET_MY_INFO can return the /v2/me profile, whose photo is only a
+ * media URN. Sign In with LinkedIn userinfo carries a `picture` URL instead.
+ */
+const LINKEDIN_AVATAR_FALLBACK_TOOL = {
+  slug: "LINKEDIN_WHO_AM_I",
+  arguments: {},
+} as const;
+
 function identityString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
@@ -493,6 +503,53 @@ function socialIdentityPayload(
   return null;
 }
 
+function joinedName(first: unknown, last: unknown): string | null {
+  return [first, last].map(identityString).filter(Boolean).join(" ") || null;
+}
+
+/** Name from userinfo (`name`, `given_name`) or the /v2/me profile. */
+export function linkedInDisplayName(
+  profile: Record<string, unknown>,
+): string | null {
+  return (
+    identityString(profile.name) ??
+    joinedName(profile.given_name, profile.family_name) ??
+    joinedName(profile.localizedFirstName, profile.localizedLastName)
+  );
+}
+
+function httpsUrl(value: unknown): string | null {
+  const url = identityString(value);
+  return url?.startsWith("https://") ? url : null;
+}
+
+/**
+ * Photo URL from userinfo (`picture`) or a /v2/me profile decorated with
+ * `profilePicture(displayImage~)`, whose last element is the largest size.
+ */
+export function linkedInAvatarUrl(
+  profile: Record<string, unknown>,
+): string | null {
+  const direct =
+    httpsUrl(profile.picture) ??
+    httpsUrl(profile.profile_picture) ??
+    httpsUrl(profile.profile_picture_url) ??
+    httpsUrl(profile.profilePictureUrl);
+  if (direct) return direct;
+  const picture = record(profile.profilePicture);
+  const decorated = record(picture?.["displayImage~"]);
+  const elements = Array.isArray(decorated?.elements) ? decorated.elements : [];
+  for (const element of [...elements].reverse()) {
+    const identifiers = record(element)?.identifiers;
+    if (!Array.isArray(identifiers)) continue;
+    for (const identifier of identifiers) {
+      const url = httpsUrl(record(identifier)?.identifier);
+      if (url) return url;
+    }
+  }
+  return httpsUrl(picture?.displayImage);
+}
+
 function socialIdentity(
   provider: ProjectSocialProvider,
   payload: Record<string, unknown>,
@@ -513,22 +570,18 @@ function socialIdentity(
       avatarUrl = identityString(identity.avatar_url);
       break;
     case "linkedin": {
-      // Composio also documents response_dict.author_id as the person URN.
+      // Composio returns response_dict.author_id as the full person URN; store
+      // the bare id so publishing can add the prefix once.
       const profile = record(payload.response_dict) ?? payload;
-      id =
+      const personId =
         identityString(profile.author_id) ??
         identityString(profile.sub) ??
         identityString(profile.id);
+      id = personId ? identityString(linkedInPersonId(personId)) : null;
       handle =
         identityString(profile.vanityName) ?? identityString(profile.name);
-      displayName =
-        identityString(profile.name) ??
-        ([profile.given_name, profile.family_name]
-          .map(identityString)
-          .filter(Boolean)
-          .join(" ") ||
-          null);
-      avatarUrl = identityString(profile.picture);
+      displayName = linkedInDisplayName(profile);
+      avatarUrl = linkedInAvatarUrl(profile);
       break;
     }
     case "youtube": {
@@ -592,6 +645,61 @@ function socialIdentity(
   return id ? { id, handle, displayName, avatarUrl, subscriptionType } : null;
 }
 
+/** Key paths (never values) of a payload, to learn a provider's shape from logs. */
+function payloadKeyPaths(value: unknown, prefix = "", depth = 0): string[] {
+  const data = record(value);
+  if (!data || depth > 4) return [];
+  return Object.entries(data).flatMap(([key, nested]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return [path, ...payloadKeyPaths(nested, path, depth + 1)];
+  });
+}
+
+/**
+ * Best effort: fill a LinkedIn photo (and name) from userinfo when the profile
+ * had none. Never fails the lookup it decorates.
+ */
+async function withLinkedInUserInfo(
+  identity: ConnectedSocialIdentity,
+  sessionId: string,
+  profilePayload: Record<string, unknown> | null,
+): Promise<ConnectedSocialIdentity> {
+  try {
+    const response = await projectComposioFetch(
+      `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/execute`,
+      {
+        method: "POST",
+        jsonBody: {
+          tool_slug: LINKEDIN_AVATAR_FALLBACK_TOOL.slug,
+          arguments: LINKEDIN_AVATAR_FALLBACK_TOOL.arguments,
+        },
+      },
+    );
+    const result = await projectComposioResponse<unknown>(
+      response,
+      "look up Project LinkedIn userinfo",
+    );
+    const payload = socialIdentityPayload(result, "linkedin");
+    const profile = record(payload?.response_dict) ?? payload;
+    const avatarUrl = profile ? linkedInAvatarUrl(profile) : null;
+    if (!avatarUrl) {
+      console.warn("[composio] LinkedIn identity has no photo", {
+        profileKeys: payloadKeyPaths(profilePayload).slice(0, 60),
+        userInfoKeys: payloadKeyPaths(payload).slice(0, 60),
+      });
+    }
+    return {
+      ...identity,
+      avatarUrl,
+      displayName:
+        identity.displayName ?? (profile ? linkedInDisplayName(profile) : null),
+    };
+  } catch {
+    console.warn("[composio] LinkedIn userinfo lookup failed");
+    return identity;
+  }
+}
+
 export async function getConnectedSocialIdentity(input: {
   provider: ProjectSocialProvider;
   connectedAccountId: string;
@@ -609,7 +717,14 @@ export async function getConnectedSocialIdentity(input: {
         toolkits: { enable: [toolkitSlug] },
         connected_accounts: { [toolkitSlug]: [input.connectedAccountId] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { [toolkitSlug]: { enable: [tool.slug] } },
+        tools: {
+          [toolkitSlug]: {
+            enable:
+              input.provider === "linkedin"
+                ? [tool.slug, LINKEDIN_AVATAR_FALLBACK_TOOL.slug]
+                : [tool.slug],
+          },
+        },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
         execute: { enable_multi_execute: false },
@@ -651,6 +766,9 @@ export async function getConnectedSocialIdentity(input: {
         undefined,
         `${name} identity lookup failed`,
       );
+    }
+    if (input.provider === "linkedin" && !identity.avatarUrl) {
+      return withLinkedInUserInfo(identity, sessionId, payload);
     }
     return identity;
   } finally {

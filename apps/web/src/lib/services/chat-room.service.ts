@@ -41,6 +41,8 @@ const ROOM_LIST_MAX_PAGES = 50;
 export interface ChatRoomMessagesPage {
   messages: ChatRoomMessage[];
   nextCursor: string | null;
+  /** Where the Unread divider belongs; absent on older pages (SOK-1481). */
+  firstUnreadMessageId?: string | null;
 }
 
 export interface ChatRoomsPage {
@@ -426,16 +428,23 @@ export const chatRoomService = (() => {
 
   const listMessages = cache(async function listMessages(
     roomId: string,
-    options?: { cursor?: string; limit?: number; around?: string },
+    options?: {
+      cursor?: string;
+      limit?: number;
+      around?: string;
+      openAtUnread?: boolean;
+    },
   ): Promise<ChatRoomMessagesPage> {
     const response = await coreClient.getChatRoomMessages(roomId, {
       limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
       cursor: options?.around ? undefined : options?.cursor,
       around: options?.around,
+      openAtUnread: options?.openAtUnread ? "true" : undefined,
     });
     return {
       messages: response.data,
       nextCursor: response.meta?.pagination?.nextCursor ?? null,
+      firstUnreadMessageId: response.meta?.pagination?.firstUnreadMessageId,
     };
   });
 

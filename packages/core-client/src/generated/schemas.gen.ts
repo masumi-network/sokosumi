@@ -11427,6 +11427,55 @@ export const ChatRoomThreadReadStateSchema = {
     ]
 } as const;
 
+export const ChatRoomMessagesPaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        total: {
+            type: 'integer',
+            minimum: 0,
+            example: 100,
+            description: 'Total number of items'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        },
+        firstUnreadMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The top-level message the viewer\'s Unread divider sits above, or null when the room has no Room unread. Present on every response without cursor or q.',
+            example: '550e8400-e29b-41d4-a716-446655440001'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'total',
+        'nextCursor'
+    ]
+} as const;
+
 export const ChatResultPreviewSchema = {
     oneOf: [
         {

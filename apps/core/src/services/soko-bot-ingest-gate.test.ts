@@ -148,6 +148,11 @@ describe("soko-bot ingest when the daily limit is spent", () => {
       turn: { id: "t" },
     });
     expect(logEmitMock).toHaveBeenCalledOnce();
+    // Every mail since the last check, not the newest 20 of a busy hour.
+    expect(fetchInboxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ limit: 300 }),
+    );
     expect(integrationUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -346,5 +351,63 @@ describe("soko-bot ingest member", () => {
       { error: "db down" },
     );
     log.mockRestore();
+  });
+});
+
+describe("soko-bot ingest with mail that lands late", () => {
+  beforeEach(() => {
+    setUp();
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
+  });
+
+  const message = (id: string, receivedAt: string) => ({
+    provider: "gmail",
+    id,
+    receivedAt,
+    subject: id,
+    from: "notifications@github.com",
+    snippet: "",
+    unread: true,
+  });
+  const handled = message("handled", "2026-09-30T06:00:00.000Z");
+  // Stamped before the last check's newest mail, delivered after that check.
+  const late = message("late", "2026-09-30T06:10:00.000Z");
+  const fresh = message("fresh", "2026-09-30T12:00:00.000Z");
+  const triaged = () =>
+    triageMailMock.mock.calls[0][0].mail.map(
+      (mail: SokoBotInboxMessage) => mail.id,
+    );
+  const savedCursor = () => integrationUpdateMock.mock.calls[0][0].data.cursor;
+
+  it("looks back behind the cursor and handles only mail it has not seen", async () => {
+    activeIntegrationsMock.mockResolvedValue([
+      {
+        id: "gmail-1",
+        provider: { id: "gmail" },
+        cursor: {
+          newestSeenAt: LAST_SEEN,
+          lastIngestAt: "2026-09-30T05:00:00.000Z",
+          seenIds: ["handled"],
+        },
+      },
+    ]);
+    fetchInboxMock.mockResolvedValue([fresh, late, handled]);
+    await run();
+    expect(fetchInboxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ since: new Date("2026-09-30T00:14:00.000Z") }),
+    );
+    expect(triaged()).toEqual(["fresh", "late"]);
+    expect(savedCursor()).toMatchObject({
+      newestSeenAt: "2026-09-30T12:00:00.000Z",
+      seenIds: ["fresh", "late", "handled"],
+    });
+  });
+
+  it("treats mail up to an older cursor's newest as handled", async () => {
+    fetchInboxMock.mockResolvedValue([fresh, late, handled]);
+    await run();
+    expect(triaged()).toEqual(["fresh"]);
+    expect(savedCursor().seenIds).toEqual(["fresh", "late", "handled"]);
   });
 });
