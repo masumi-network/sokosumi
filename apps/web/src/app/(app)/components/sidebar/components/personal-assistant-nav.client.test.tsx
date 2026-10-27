@@ -105,7 +105,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     const button = screen.getByRole("link", { name: "sokoBot" });
 
     expect(tokens(button?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-11", "md:h-8"]),
+      expect.arrayContaining(["h-11", "md:h-7"]),
     );
     // The card that is gone: its own border and radius.
     expect(tokens(button?.className ?? "")).not.toContain("border");
@@ -272,6 +272,11 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     renderNav({ bot });
     const tokens = row().className.split(/\s+/);
     expect(row()).toHaveAttribute("data-slot", "sidebar-menu-button");
-    expect(tokens).toEqual(expect.arrayContaining(["h-auto", "md:min-h-8"]));
+    // It releases the height and keeps the primitive's floor; it names no
+    // row height of its own.
+    expect(tokens).toEqual(
+      expect.arrayContaining(["h-auto", "md:h-auto", "min-h-11", "md:min-h-7"]),
+    );
+    expect(tokens).not.toContain("md:min-h-8");
   });
 });

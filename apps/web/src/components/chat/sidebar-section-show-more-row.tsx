@@ -36,7 +36,7 @@ export function SidebarSectionShowMoreRow({
         onClick={() => onShowAllChange(!showAll)}
       >
         <SidebarRowSlot>
-          <Icon className="size-4" aria-hidden />
+          <Icon aria-hidden />
         </SidebarRowSlot>
         <span className={SIDEBAR_ROW_LABEL_CLASS}>{label}</span>
       </SidebarMenuButton>

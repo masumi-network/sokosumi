@@ -105,7 +105,7 @@ function StaticSokoBotsRow() {
             )}
           >
             <SidebarRowSlot>
-              <Bot className="size-4" aria-hidden />
+              <Bot aria-hidden />
             </SidebarRowSlot>
             <span
               className={cn(
@@ -140,12 +140,13 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
 
   return (
     <SidebarMenuItem className="relative">
-      {/* Two lines, so the row grows past the one-line height; the hover and
-          selection fill stay on this one element and cover both. */}
+      {/* Two lines, so the row releases the one-line height and keeps the
+          primitive's floor; the hover and selection fill stay on this one
+          element and cover both. */}
       <SidebarMenuButton
         asChild
         isActive={isActive}
-        className="h-auto min-h-11 py-1 md:h-auto md:min-h-8"
+        className="h-auto py-1 md:h-auto"
       >
         <SheetClose asChild>
           <Link

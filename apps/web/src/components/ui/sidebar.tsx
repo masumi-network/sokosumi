@@ -433,11 +433,17 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
  * A 24px box whose left edge is fixed, so whatever it holds starts on the
  * sidebar's leading axis 28px from its left edge: the button's `px-2` puts it
  * there. Every mark a row can
- * carry fits inside it with room to spare — a 16px nav or Channel kind glyph,
- * a 20px avatar or Channel tile — so none of them has to know the axis, and
- * the label after it starts on one column at 48px. The box stays 24px though
- * nothing fills it: it is the column the label is measured from, and marks
- * are free to change size inside it without moving the names.
+ * carry fits inside it with room to spare — a 14px nav or Channel kind glyph,
+ * a 20px avatar — so none of them has to know the axis, and the label after
+ * it starts on one column at 48px. The box stays 24px though nothing fills
+ * it: it is the column the label is measured from, and marks are free to
+ * change size inside it without moving the names.
+ *
+ * It also sizes a bare icon, 14px with a pointer and 16px on the phone
+ * sheet, so a list hands it an icon without a size and cannot drift from the
+ * row's density. The rule is wrapped in `:where()`, which takes its
+ * specificity to zero: a mark that names its own size — a 20px face —
+ * keeps it.
  *
  * `min-w-6` rather than a hard `size-6`, because one mark says something a
  * single face cannot: a group Direct's stack of up to three faces. It grows
@@ -454,7 +460,7 @@ function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="sidebar-row-slot"
       className={cn(
-        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center",
+        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center [:where(&>svg)]:size-4 md:[:where(&>svg)]:size-3.5",
         className,
       )}
       {...props}

@@ -403,7 +403,7 @@ describe("ChatRoomSidebarRow row height", () => {
   }
 
   it("adds nothing to the row primitive's height on an ordinary room", () => {
-    // `h-11 md:h-8` lives on `sidebarMenuButtonVariants`, pinned by
+    // `h-11 md:h-7` lives on `sidebarMenuButtonVariants`, pinned by
     // `ui/__tests__/sidebar-geometry.test.tsx`. A room row used to
     // restate it here, which is how the two could drift apart.
     expect(heightTokens({})).toEqual([]);
@@ -413,14 +413,14 @@ describe("ChatRoomSidebarRow row height", () => {
     const tokens = heightTokens({ subtitle: "Hosted by Acme" });
     // One of the items allowed a second line. `md:h-auto`
     // matters as much as `h-auto`: the row primitive's height is `h-11
-    // md:h-8`, and lifting only the unprefixed one leaves the desktop row
-    // pinned at 32px with the second line clipped by its `overflow-hidden`.
+    // md:h-7`, and lifting only the unprefixed one leaves the desktop row
+    // pinned at 28px with the second line clipped by its `overflow-hidden`.
     expect(tokens).toContain("h-auto");
     expect(tokens).toContain("md:h-auto");
-    expect(tokens).toContain("min-h-11");
-    expect(tokens).toContain("md:min-h-8");
     expect(tokens).not.toContain("h-11");
-    expect(tokens).not.toContain("md:h-8");
+    expect(tokens).not.toContain("md:h-7");
+    // The floor is the primitive's `min-h`, so the row names no height.
+    expect(tokens.filter((token) => /^(md:)?min-h-/.test(token))).toEqual([]);
   });
 });
 

@@ -533,10 +533,10 @@ export function ChatRoomSidebarRow({
       asChild
       isActive={isActive}
       // A guest row is one of the items allowed a second line (GLOSSARY.md,
-      // "Sidebar row"): its host organisation line is one a 32px row has no
-      // room for, so this row alone grows to hold it. Its mark still sits in
-      // the shared slot.
-      className={cn(subtitle && "h-auto min-h-11 py-1 md:h-auto md:min-h-8")}
+      // "Sidebar row"): its host organisation line is one a 28px row has no
+      // room for, so this row alone releases the height to hold it, down to
+      // the floor the primitive keeps. Its mark still sits in the shared slot.
+      className={cn(subtitle && "h-auto py-1 md:h-auto")}
     >
       {dismissSheetOnNavigate ? (
         <SheetClose asChild>{roomLink}</SheetClose>

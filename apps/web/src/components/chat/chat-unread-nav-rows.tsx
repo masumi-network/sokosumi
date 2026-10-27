@@ -157,7 +157,7 @@ export function ChatUnreadNavRows({
               data-testid="chat-catch-up-row"
             >
               <SidebarRowSlot>
-                <Sunrise className="size-4" aria-hidden />
+                <Sunrise aria-hidden />
               </SidebarRowSlot>
               <span
                 className={cn(
