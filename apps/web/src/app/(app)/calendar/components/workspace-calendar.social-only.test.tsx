@@ -1,5 +1,4 @@
 import type {
-  NewsletterIssueCalendarItem,
   SocialPostCalendarItem,
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
@@ -30,12 +29,7 @@ interface FullCalendarProps {
   eventContent?: (info: {
     event: { id: string; title: string; start?: Date | null };
   }) => ReactNode;
-  events?: Array<{
-    id: string;
-    title: string;
-    start: string;
-    startEditable?: boolean;
-  }>;
+  events?: Array<{ id: string; title: string; start: string }>;
 }
 
 const {
@@ -266,50 +260,6 @@ describe("WorkspaceCalendar Social-only view", () => {
       data: [],
       meta: { pagination: { nextCursor: null } },
     });
-  });
-
-  it("includes newsletter issues in Social's calendar and links to their editor", () => {
-    const issue: NewsletterIssueCalendarItem = {
-      kind: "newsletter_issue",
-      id: "newsletter:issue-1",
-      issueId: "issue-1",
-      subject: "Weekly newsletter",
-      status: "SCHEDULED",
-      scheduledAt: POST.scheduledAt,
-      sourceId: POST.sourceId,
-      sourceProjectId: POST.sourceProjectId,
-      sourceWorkspaceId: POST.sourceWorkspaceId,
-      sourceType: "PROJECT",
-    };
-    renderCalendar({
-      includeSocialPosts: true,
-      socialPostsOnly: true,
-      items: [RUN, POST, issue],
-    });
-    expect(renderedEventTitles()).toEqual(["Launch news", "Weekly newsletter"]);
-    expect(screen.getByTestId("calendar-newsletter-issue")).toHaveAttribute(
-      "href",
-      "/newsletter/issues/issue-1?projectId=project-1",
-    );
-    const props = fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps;
-    expect(
-      props.events?.find((event) => event.id === issue.id)?.startEditable,
-    ).toBe(false);
-  });
-
-  it("names newsletters in the publication filter only when the feature is available", () => {
-    const view = renderCalendar({
-      includeSocialPosts: true,
-      sources: [{ ...SOURCES[0], latestScheduledNewsletterIssueAt: null }],
-    });
-    expect(screen.getByTestId("calendar-social-only")).toHaveTextContent(
-      "socialOnly.newslettersLabel",
-    );
-    view.unmount();
-    renderCalendar({ includeSocialPosts: true });
-    expect(screen.getByTestId("calendar-social-only")).toHaveTextContent(
-      "socialOnly.label",
-    );
   });
 
   it("offers no toggle where Social posts are not on the calendar", () => {

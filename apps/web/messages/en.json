@@ -3273,6 +3273,17 @@
           },
           "dismiss": "Dismiss"
         },
+        "Calendar": {
+          "title": "Calendar",
+          "description": "See when each newsletter issue is scheduled or was sent.",
+          "navigation": "Change month",
+          "previous": "Previous month",
+          "next": "Next month",
+          "today": "Today",
+          "emptyTitle": "No newsletters this month",
+          "emptyDescription": "Scheduled and sent issues appear here on their delivery date. Schedule an issue to plan your next send.",
+          "viewIssues": "View issues"
+        },
         "Issues": {
           "title": "Issues",
           "description": "Write newsletter issues and preview how they look in an inbox.",
@@ -8802,8 +8813,7 @@
       },
       "empty": {
         "title": "No scheduled releases match these filters.",
-        "socialOnly": "No social posts are scheduled in this period.",
-        "publications": "No posts or newsletters are scheduled in this period."
+        "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
         "link": "Schedules"
@@ -8848,11 +8858,7 @@
         "past": "Choose a time in the future."
       },
       "socialOnly": {
-        "label": "Social posts only",
-        "newslettersLabel": "Posts and newsletters only"
-      },
-      "newsletter": {
-        "label": "Newsletter"
+        "label": "Social posts only"
       }
     },
     "You": {

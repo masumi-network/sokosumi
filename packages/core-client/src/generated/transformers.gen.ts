@@ -4920,9 +4920,6 @@ const workspaceCalendarSourceSchemaResponseTransformer = (data: any) => {
     if (data.latestScheduledSocialPostAt) {
         data.latestScheduledSocialPostAt = new Date(data.latestScheduledSocialPostAt);
     }
-    if (data.latestScheduledNewsletterIssueAt) {
-        data.latestScheduledNewsletterIssueAt = new Date(data.latestScheduledNewsletterIssueAt);
-    }
     return data;
 };
 
