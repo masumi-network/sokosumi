@@ -6,7 +6,7 @@ import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
+import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
 import { Avatar } from "@/components/ui/avatar";
@@ -83,23 +83,6 @@ function getOrderedWorkspaces(
   ];
 }
 
-function WorkspaceAvatar({
-  sessionUser,
-  workspace,
-}: {
-  sessionUser: SessionUser;
-  workspace: WorkspaceItem;
-}) {
-  return (
-    <HeaderWorkspaceAvatar
-      sessionUser={sessionUser}
-      organization={workspace.organization ?? null}
-      className="size-6 md:size-6"
-      logoSize={14}
-    />
-  );
-}
-
 function WorkspaceMenuItem({
   sessionUser,
   workspace,
@@ -119,7 +102,12 @@ function WorkspaceMenuItem({
       disabled={isPending}
       onClick={() => onSelect(workspace.id)}
     >
-      <WorkspaceAvatar sessionUser={sessionUser} workspace={workspace} />
+      <WorkspaceAvatar
+        sessionUser={sessionUser}
+        organization={workspace.organization ?? null}
+        className="size-6 md:size-6"
+        logoSize={14}
+      />
       <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
       <Check
         className={cn("size-4", isSelected ? "opacity-100" : "opacity-0")}
@@ -280,7 +268,7 @@ export default function WorkspaceSwitcherMenu({
           >
             {activeWorkspace ? (
               <>
-                <HeaderWorkspaceAvatar
+                <WorkspaceAvatar
                   sessionUser={sessionUser}
                   organization={activeWorkspace.organization ?? null}
                   className={WORKSPACE_SWITCHER_AVATAR_CLASS}
