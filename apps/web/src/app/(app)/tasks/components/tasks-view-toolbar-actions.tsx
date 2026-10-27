@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 
 import { NewTaskButton } from "@/app/components/new-task-button.client";
+import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch, type ViewModeSwitchProps } from "./view-mode-switch";
@@ -22,7 +23,10 @@ export function TasksViewToolbarActions({
       <TasksViewFilters {...filters} />
       <ViewModeSwitch {...display} />
       {/* Below md the create FAB covers creation. */}
-      <NewTaskButton className="hidden md:inline-flex" />
+      {/* PROTOTYPE: variants b–e carry New task in the sidebar header. */}
+      <SidebarPrototypeOnly variants={["a"]}>
+        <NewTaskButton className="hidden md:inline-flex" />
+      </SidebarPrototypeOnly>
     </>
   );
 }
