@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
 import {
@@ -135,10 +136,15 @@ export async function collectNewSocialComments(input: {
   };
 }
 
-async function repliesLeftToday(projectId: string, now: Date) {
+async function repliesLeftToday(
+  projectId: string,
+  now: Date,
+  exceptCommentId?: string,
+) {
   const sent = await prisma.socialComment.count({
     where: {
       projectId,
+      id: exceptCommentId ? { not: exceptCommentId } : undefined,
       status: "REPLIED",
       handledAt: { gte: new Date(now.getTime() - DAY_MS) },
     },
@@ -167,17 +173,22 @@ export async function handleSocialComment(input: {
     },
   });
   if (!comment) throw new SocialCommentRefusedError("No such comment.");
-  if (comment.status !== "NEW")
-    throw new SocialCommentRefusedError("This comment was handled already.");
-  if (input.action !== "reply") {
-    await prisma.socialComment.update({
-      where: { id: comment.id },
-      data: {
-        status: input.action === "skip" ? "SKIPPED" : "OWNER",
-        note: input.note?.slice(0, 500) ?? null,
-        handledAt: now,
-      },
+  const handled = () =>
+    new SocialCommentRefusedError("This comment was handled already.");
+  if (comment.status !== "NEW") throw handled();
+  // Claiming the row first makes it the lock: of two racing calls only one
+  // moves it off NEW, and the checks below count the other claims.
+  const claim = (data: Prisma.SocialCommentUpdateManyMutationInput) =>
+    prisma.socialComment.updateMany({
+      where: { id: comment.id, status: "NEW" },
+      data: { ...data, handledAt: now },
     });
+  if (input.action !== "reply") {
+    const { count } = await claim({
+      status: input.action === "skip" ? "SKIPPED" : "OWNER",
+      note: input.note?.slice(0, 500) ?? null,
+    });
+    if (count === 0) throw handled();
     return { status: input.action === "skip" ? "skipped" : "owner" };
   }
   const reply = input.reply?.trim() ?? "";
@@ -185,40 +196,52 @@ export async function handleSocialComment(input: {
     throw new SocialCommentRefusedError(
       `Write a reply of 1 to ${SOCIAL_COMMENT_REPLY_MAX} characters.`,
     );
-  if ((await repliesLeftToday(input.projectId, now)) === 0)
-    throw new SocialCommentRefusedError(
-      `That was today's last reply (${SOCIAL_REPLIES_PER_DAY}). Leave the rest for tomorrow.`,
-    );
-  if (comment.authorExternalId) {
-    const answered = await prisma.socialComment.count({
-      where: {
-        socialPostId: comment.socialPostId,
-        authorExternalId: comment.authorExternalId,
-        status: "REPLIED",
-      },
-    });
-    if (answered > 0)
+  if ((await claim({ status: "REPLIED", reply })).count === 0) throw handled();
+  let replyExternalId: string | null;
+  try {
+    if ((await repliesLeftToday(input.projectId, now, comment.id)) === 0)
       throw new SocialCommentRefusedError(
-        "You replied to this person on this post already. Skip this one.",
+        `That was today's last reply (${SOCIAL_REPLIES_PER_DAY}). Leave the rest for tomorrow.`,
       );
-  }
-  const context = await contextFor(
-    input.projectId,
-    comment.socialPost.socialConnectionId,
-    comment.provider,
-  );
-  if (!context)
-    throw new SocialCommentRefusedError(
-      "The account that published this post is no longer connected.",
+    if (comment.authorExternalId) {
+      const answered = await prisma.socialComment.count({
+        where: {
+          id: { not: comment.id },
+          socialPostId: comment.socialPostId,
+          authorExternalId: comment.authorExternalId,
+          status: "REPLIED",
+        },
+      });
+      if (answered > 0)
+        throw new SocialCommentRefusedError(
+          "You replied to this person on this post already. Skip this one.",
+        );
+    }
+    const context = await contextFor(
+      input.projectId,
+      comment.socialPost.socialConnectionId,
+      comment.provider,
     );
-  const replyExternalId = await replyToComment(
-    context,
-    comment.externalCommentId,
-    reply,
-  );
+    if (!context)
+      throw new SocialCommentRefusedError(
+        "The account that published this post is no longer connected.",
+      );
+    replyExternalId = await replyToComment(
+      context,
+      comment.externalCommentId,
+      reply,
+    );
+  } catch (error) {
+    // Nothing was posted: the comment is new again for a later round.
+    await prisma.socialComment.updateMany({
+      where: { id: comment.id, status: "REPLIED", replyExternalId: null },
+      data: { status: "NEW", reply: null, handledAt: null },
+    });
+    throw error;
+  }
   await prisma.socialComment.update({
     where: { id: comment.id },
-    data: { status: "REPLIED", reply, replyExternalId, handledAt: now },
+    data: { replyExternalId },
   });
   return { status: "replied", reply };
 }

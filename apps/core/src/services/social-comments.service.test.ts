@@ -4,6 +4,7 @@ const db = vi.hoisted(() => ({
   commentFindFirst: vi.fn(),
   commentCount: vi.fn(),
   commentUpdate: vi.fn(async () => ({})),
+  commentUpdateMany: vi.fn(async () => ({ count: 1 })),
   connectionFindFirst: vi.fn(),
 }));
 const provider = vi.hoisted(() => ({ reply: vi.fn(async () => "r1") }));
@@ -14,6 +15,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: db.commentFindFirst,
       count: db.commentCount,
       update: db.commentUpdate,
+      updateMany: db.commentUpdateMany,
     },
     projectSocialConnection: { findFirst: db.connectionFindFirst },
   },
@@ -58,6 +60,7 @@ describe("handleSocialComment", () => {
     vi.clearAllMocks();
     db.commentFindFirst.mockResolvedValue(comment());
     db.commentCount.mockResolvedValue(0);
+    db.commentUpdateMany.mockResolvedValue({ count: 1 });
     db.connectionFindFirst.mockResolvedValue({
       composioConnectedAccountId: "ca-1",
       externalAccountId: "brand-1",
@@ -77,14 +80,17 @@ describe("handleSocialComment", () => {
       "ig-1",
       "Yes, it works offline.",
     );
-    expect(db.commentUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: "REPLIED",
-          replyExternalId: "r1",
-        }),
+    expect(db.commentUpdateMany).toHaveBeenCalledWith({
+      where: { id: "c-1", status: "NEW" },
+      data: expect.objectContaining({
+        status: "REPLIED",
+        reply: "Yes, it works offline.",
       }),
-    );
+    });
+    expect(db.commentUpdate).toHaveBeenCalledWith({
+      where: { id: "c-1" },
+      data: { replyExternalId: "r1" },
+    });
   });
 
   it("never answers a comment twice", async () => {
@@ -93,10 +99,42 @@ describe("handleSocialComment", () => {
     expect(provider.reply).not.toHaveBeenCalled();
   });
 
+  it("posts once when two calls race for the same comment", async () => {
+    // Both read it as new; only the call that claims the row posts.
+    db.commentUpdateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(reply()).rejects.toThrow("handled already");
+    expect(db.commentUpdateMany).toHaveBeenCalledWith({
+      where: { id: "c-1", status: "NEW" },
+      data: expect.objectContaining({ status: "REPLIED" }),
+    });
+    expect(provider.reply).not.toHaveBeenCalled();
+  });
+
+  it("counts only other replies, so racing calls cannot pass the cap or the person rule", async () => {
+    await reply();
+    for (const [query] of db.commentCount.mock.calls) {
+      expect(query.where.id).toEqual({ not: "c-1" });
+    }
+  });
+
+  it("gives the comment back when the provider refuses the reply", async () => {
+    provider.reply.mockRejectedValueOnce(new Error("rate limited"));
+    await expect(reply()).rejects.toThrow("rate limited");
+    expect(db.commentUpdateMany).toHaveBeenLastCalledWith({
+      where: { id: "c-1", status: "REPLIED", replyExternalId: null },
+      data: { status: "NEW", reply: null, handledAt: null },
+    });
+  });
+
   it("stops at the day's cap", async () => {
     db.commentCount.mockResolvedValueOnce(SOCIAL_REPLIES_PER_DAY);
     await expect(reply()).rejects.toThrow("today's last reply");
     expect(provider.reply).not.toHaveBeenCalled();
+    expect(db.commentUpdateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "NEW" }),
+      }),
+    );
   });
 
   it("answers a person once per post", async () => {
@@ -125,8 +163,9 @@ describe("handleSocialComment", () => {
       }),
     ).resolves.toEqual({ status: "owner" });
     expect(provider.reply).not.toHaveBeenCalled();
-    expect(db.commentUpdate).toHaveBeenCalledWith(
+    expect(db.commentUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "c-1", status: "NEW" },
         data: expect.objectContaining({
           status: "OWNER",
           note: "Asks for a refund",
