@@ -10,8 +10,8 @@ import baseConfig from "./vitest.config";
  *
  * Kept out of `pnpm test`, which has no browser to launch. Run with
  * `pnpm --filter web test:webkit` after
- * `pnpm --filter web exec playwright install webkit chromium`. CI runs it
- * as the advisory `Test Web WebKit` job.
+ * `pnpm --filter web exec playwright install webkit chromium`. Local only:
+ * CI dropped it after the browsers' apt install stalled on the Ubuntu mirror.
  */
 export default defineConfig({
   plugins: baseConfig.plugins,
