@@ -3129,8 +3129,7 @@
           "design": "Design",
           "memory": "Gedächtnis",
           "ariaLabel": "Projektbereiche",
-          "bots": "Bots",
-          "newsletter": "Newsletter"
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
