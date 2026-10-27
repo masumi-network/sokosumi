@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, FolderKanban, Layers, X } from "lucide-react";
+import { ArrowLeftRight, FolderKanban, Layers, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
@@ -114,7 +114,7 @@ export function SidebarScopeMobileChip() {
                 {mark}
               </span>
               <span className="min-w-0 truncate">{name}</span>
-              <ChevronsUpDown
+              <ArrowLeftRight
                 className="text-muted-foreground size-3.5 shrink-0"
                 aria-hidden
               />

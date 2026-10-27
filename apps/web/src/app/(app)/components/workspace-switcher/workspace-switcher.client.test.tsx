@@ -168,19 +168,19 @@ describe("WorkspaceSwitcherProvider", () => {
   });
 
   // As in Linear: the sidebar's switcher is a pill as wide as its content.
-  // Both placements carry the up-down selector chevron the project title
-  // uses, so the two pickers read alike.
-  it("gives the sidebar trigger the selector chevron and its content's width", () => {
+  // Both placements carry the switch arrows the project title uses, so the
+  // two pickers read alike.
+  it("gives the sidebar trigger the switch arrows and its content's width", () => {
     renderChrome();
 
     expect(
-      trigger("sidebar").querySelector("svg.lucide-chevrons-up-down"),
+      trigger("sidebar").querySelector("svg.lucide-arrow-left-right"),
     ).not.toBeNull();
     expect(trigger("sidebar").className.split(/\s+/)).not.toEqual(
       expect.arrayContaining([expect.stringMatching(/(^|:)w-full$/)]),
     );
     expect(
-      trigger("top-bar").querySelector("svg.lucide-chevrons-up-down"),
+      trigger("top-bar").querySelector("svg.lucide-arrow-left-right"),
     ).not.toBeNull();
   });
 

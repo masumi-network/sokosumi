@@ -101,7 +101,7 @@ function expectTitled(value: string) {
   expect(title()).toHaveTextContent(new RegExp(`^${value}$`));
   const name = within(title()).getByText(value, { exact: true });
   // The selector's up-down chevron, not a section's fold chevron.
-  const chevron = title().querySelector("svg.lucide-chevrons-up-down");
+  const chevron = title().querySelector("svg.lucide-arrow-left-right");
   if (!chevron) throw new Error("no chevron");
   expect(
     name.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING,

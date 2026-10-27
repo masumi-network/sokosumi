@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
@@ -48,7 +48,7 @@ export function SidebarProjectScope() {
   const content = (
     <>
       <span className="min-w-0 truncate">{name}</span>
-      <ChevronsUpDown className={SCOPE_TITLE_CHEVRON_CLASS} aria-hidden />
+      <ArrowLeftRight className={SCOPE_TITLE_CHEVRON_CLASS} aria-hidden />
     </>
   );
 

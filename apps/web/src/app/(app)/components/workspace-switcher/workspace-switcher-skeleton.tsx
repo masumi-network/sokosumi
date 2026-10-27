@@ -1,4 +1,4 @@
-import { ChevronsUpDown } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /*
@@ -33,17 +33,17 @@ export const WORKSPACE_SWITCHER_NAME_CLASS =
   "min-w-0 truncate text-left font-medium max-md:sr-only";
 
 /**
- * The up-down selector chevron, the same mark the project title uses, so both
- * pickers read alike: small in the sidebar, the size it had in the phone's
- * top bar.
+ * The switch arrows, the same mark the project title uses, so both pickers
+ * read alike and neither reads as a section's fold: small in the sidebar, the
+ * size the chevron had in the phone's top bar.
  */
 export function WorkspaceSwitcherChevron({
   placement,
 }: WorkspaceSwitcherPlacementProps) {
   return placement === "sidebar" ? (
-    <ChevronsUpDown className="text-muted-foreground size-3 shrink-0" />
+    <ArrowLeftRight className="text-muted-foreground size-3 shrink-0" />
   ) : (
-    <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
+    <ArrowLeftRight className="text-muted-foreground size-4 shrink-0" />
   );
 }
 

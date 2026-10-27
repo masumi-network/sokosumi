@@ -107,7 +107,7 @@ describe("AppSidebarFallback", () => {
     ).toBeTruthy();
     const [name, chevron] = [...placeholder.children];
     expect(tokens(name?.getAttribute("class") ?? "")).toContain("h-3");
-    expect(chevron?.getAttribute("class")).toContain("lucide-chevrons-up-down");
+    expect(chevron?.getAttribute("class")).toContain("lucide-arrow-left-right");
   });
 
   // The header mirrors the loaded one, as in Linear: the switcher as wide as
@@ -135,7 +135,7 @@ describe("AppSidebarFallback", () => {
     expect(tokens(name?.className ?? "")).toEqual(
       expect.arrayContaining(["h-3", "w-20"]),
     );
-    expect(chevron?.getAttribute("class")).toContain("lucide-chevrons-up-down");
+    expect(chevron?.getAttribute("class")).toContain("lucide-arrow-left-right");
     expect(tokens(placeholder?.parentElement?.className ?? "")).toEqual(
       expect.arrayContaining(["flex-1", "max-md:hidden"]),
     );
