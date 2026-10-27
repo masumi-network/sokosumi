@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -22,10 +22,8 @@ import {
   SidebarContent,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import {
-  ChatSidebarSectionContent,
-  ChatSidebarSectionHeader,
-} from "./chat-sidebar-section-header";
+import { SidebarSectionContent } from "@/components/ui/sidebar-section";
+import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import type { SectionAttention } from "./room-attention";
 
 function Section({
@@ -48,7 +46,7 @@ function Section({
             >
               Channels
             </ChatSidebarSectionHeader>
-            <ChatSidebarSectionContent>rooms</ChatSidebarSectionContent>
+            <SidebarSectionContent>rooms</SidebarSectionContent>
           </Collapsible>
         </SidebarContent>
       </Sidebar>
@@ -67,6 +65,40 @@ describe("ChatSidebarSectionHeader", () => {
 
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("rooms")).not.toBeInTheDocument();
+  });
+
+  it("puts the chevron after the title", () => {
+    render(<Section />);
+    const heading = screen.getByRole("button", { name: "Channels" });
+    const title = within(heading).getByText("Channels");
+    const chevron = heading.querySelector("svg");
+
+    expect(chevron).toHaveAttribute("aria-hidden", "true");
+    expect(
+      title.compareDocumentPosition(chevron as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows the chevron on hover and focus, and keeps it turned while closed", () => {
+    // Hover, focus and the closed turn are CSS states happy-dom cannot
+    // compute, so the classes on the chevron are the contract.
+    render(<Section />);
+    const chevron = screen
+      .getByRole("button", { name: "Channels" })
+      .querySelector("svg");
+    const classes = chevron?.getAttribute("class")?.split(/\s+/) ?? [];
+
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "opacity-0",
+        "group-hover/section:opacity-100",
+        "group-focus-visible/section:opacity-100",
+        "group-data-[state=closed]/section:opacity-100",
+        "group-data-[state=closed]/section:-rotate-90",
+        "motion-reduce:transition-opacity",
+      ]),
+    );
   });
 
   it("marks a closed section that holds something, and an open one never", () => {
@@ -91,74 +123,5 @@ describe("ChatSidebarSectionHeader", () => {
     expect(
       screen.getByRole("button", { name: "Channels Unread" }),
     ).toBeInTheDocument();
-  });
-});
-
-describe("ChatSidebarSectionContent", () => {
-  it("slides on the same motion as the Projects disclosure", () => {
-    const { container } = render(<Section />);
-    const content = container.querySelector(
-      '[data-slot="collapsible-content"]',
-    );
-    const classes = content?.className.split(/\s+/) ?? [];
-
-    expect(classes).toContain(
-      "motion-safe:data-[state=open]:animate-collapsible-down",
-    );
-    expect(classes).toContain(
-      "motion-safe:data-[state=closed]:animate-collapsible-up",
-    );
-    expect(classes).toContain("overflow-hidden");
-  });
-
-  it("lets a caller drop the clip, which Pinned needs while its rows drag", () => {
-    // `cn` is `twMerge`, so the caller's `overflow-visible` has to win
-    // outright rather than land beside `overflow-hidden` and lose to it.
-    const { container } = render(
-      <Collapsible open>
-        <ChatSidebarSectionContent className="overflow-visible">
-          rooms
-        </ChatSidebarSectionContent>
-      </Collapsible>,
-    );
-    const classes =
-      container
-        .querySelector('[data-slot="collapsible-content"]')
-        ?.className.split(/\s+/) ?? [];
-
-    expect(classes).toContain("overflow-visible");
-    expect(classes).not.toContain("overflow-hidden");
-  });
-
-  it("grows the clip box by the focus ring the outermost rows wear", () => {
-    // The rows fill the box edge to edge, so without this the clip lands on
-    // a row's own edge and cuts its `ring-2`. The margin/padding pairs cancel
-    // out, so nothing else moves. In `px`, not on the spacing scale: the ring
-    // is a fixed 2px, and `0.125rem` falls under it below a 16px root.
-    const { container } = render(<Section />);
-    const classes =
-      container
-        .querySelector('[data-slot="collapsible-content"]')
-        ?.className.split(/\s+/) ?? [];
-
-    expect(classes).toContain("-mx-2");
-    expect(classes).toContain("px-2");
-    expect(classes).toContain("-my-[2px]");
-    expect(classes).toContain("py-[2px]");
-  });
-
-  it("leaves the strip it grew into to the heading it overlaps", () => {
-    // The negative top margin puts 2px of this box over the bottom of the
-    // heading above, which paints earlier and would lose those hits. The box
-    // takes no pointer events and hands them back on its rows, which start
-    // inside the padding.
-    const { container } = render(<Section />);
-    const classes =
-      container
-        .querySelector('[data-slot="collapsible-content"]')
-        ?.className.split(/\s+/) ?? [];
-
-    expect(classes).toContain("pointer-events-none");
-    expect(classes).toContain("[&>*]:pointer-events-auto");
   });
 });

@@ -64,6 +64,7 @@ import {
   SIDEBAR_ROW_CLASS,
   SIDEBAR_ROW_LABEL_INSET_CLASS,
 } from "@/components/ui/sidebar-classes";
+import { SidebarSectionContent } from "@/components/ui/sidebar-section";
 import { cn } from "@/lib/utils";
 import { moveIdToSlot } from "@/lib/utils/move-id";
 import {
@@ -75,10 +76,7 @@ import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
 } from "./chat-room-sidebar-row";
-import {
-  ChatSidebarSectionContent,
-  ChatSidebarSectionHeader,
-} from "./chat-sidebar-section-header";
+import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import { limitSidebarSectionRooms } from "./limit-sidebar-section-rooms";
@@ -680,7 +678,7 @@ export function OrganizationChatList({
                 closes Pinned is already the render where `isReorderingPinned`
                 reads false, so the collapse clips as every other section
                 does. */}
-                <ChatSidebarSectionContent
+                <SidebarSectionContent
                   className={cn(isReorderingPinned && "overflow-visible")}
                 >
                   {isReorderingPinned ? (
@@ -716,7 +714,7 @@ export function OrganizationChatList({
                       ))}
                     </SidebarMenu>
                   )}
-                </ChatSidebarSectionContent>
+                </SidebarSectionContent>
               </Collapsible>
             ) : null}
 
@@ -733,7 +731,7 @@ export function OrganizationChatList({
                 >
                   {t("title")}
                 </ChatSidebarSectionHeader>
-                <ChatSidebarSectionContent>
+                <SidebarSectionContent>
                   <SidebarMenu className="gap-0">
                     {channelRows.visible.map((room) => (
                       <ChatRoomSidebarRow
@@ -761,7 +759,7 @@ export function OrganizationChatList({
                       </SidebarMenuItem>
                     ) : null}
                   </SidebarMenu>
-                </ChatSidebarSectionContent>
+                </SidebarSectionContent>
               </Collapsible>
             ) : null}
 
@@ -776,7 +774,7 @@ export function OrganizationChatList({
                 >
                   {tExternal("title")}
                 </ChatSidebarSectionHeader>
-                <ChatSidebarSectionContent>
+                <SidebarSectionContent>
                   <SidebarMenu className="gap-0">
                     {pendingRows.map((invitation) => {
                       const anyBusy = respondingInvitation !== null;
@@ -859,7 +857,7 @@ export function OrganizationChatList({
                       />
                     ) : null}
                   </SidebarMenu>
-                </ChatSidebarSectionContent>
+                </SidebarSectionContent>
               </Collapsible>
             ) : null}
 
@@ -898,7 +896,7 @@ export function OrganizationChatList({
                 <ChatSidebarSectionHeader isOpen={archivedSectionOpen}>
                   {t("archivedChannels")}
                 </ChatSidebarSectionHeader>
-                <ChatSidebarSectionContent>
+                <SidebarSectionContent>
                   <SidebarMenu className="gap-0">
                     {sortedArchivedChannels.map((room) => {
                       const isRestoring = restoringRoomId === room.id;
@@ -1002,7 +1000,7 @@ export function OrganizationChatList({
                       );
                     })}
                   </SidebarMenu>
-                </ChatSidebarSectionContent>
+                </SidebarSectionContent>
               </Collapsible>
             ) : null}
 
@@ -1063,7 +1061,7 @@ export function OrganizationChatList({
                 >
                   {t("directMessages")}
                 </ChatSidebarSectionHeader>
-                <ChatSidebarSectionContent>
+                <SidebarSectionContent>
                   <SidebarMenu className="gap-0">
                     {directRows.visible.map((room) => (
                       <ChatRoomSidebarRow
@@ -1091,7 +1089,7 @@ export function OrganizationChatList({
                       </SidebarMenuItem>
                     ) : null}
                   </SidebarMenu>
-                </ChatSidebarSectionContent>
+                </SidebarSectionContent>
               </Collapsible>
             ) : null}
           </div>

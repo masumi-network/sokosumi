@@ -20,7 +20,7 @@ function sectionTitleWidths(container: HTMLElement): string[] {
   ].map(
     (header) =>
       header
-        .querySelectorAll('[data-slot="skeleton"]')[1]
+        .querySelectorAll('[data-slot="skeleton"]')[0]
         ?.className.split(/\s+/)
         .find((token) => token.startsWith("w-")) ?? "",
   );
@@ -40,6 +40,21 @@ describe("SidebarChatListSkeleton", () => {
     expect(
       container.querySelectorAll('[data-slot="sidebar-menu-item"]'),
     ).toHaveLength(6);
+  });
+
+  it("starts a heading with its title, as the real heading does", () => {
+    // The real heading's chevron trails the title and hides at rest, so a
+    // leading mark here would be one the heading never shows.
+    const { container } = renderSkeleton({ hasOrganization: true });
+    const headers = container.querySelectorAll(
+      '[data-slot="sidebar-group-content"] > div',
+    );
+
+    expect(headers).toHaveLength(2);
+    for (const header of headers) {
+      expect(header.querySelector('[data-slot="sidebar-row-slot"]')).toBeNull();
+      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(1);
+    }
   });
 
   it("drops the Channels section in a personal workspace", () => {

@@ -4053,7 +4053,12 @@
           "social": "Social-Planung",
           "socialPosts": "Social-Media-Beiträge",
           "ads": "Ads",
-          "contacts": "Kontakte"
+          "contacts": "Kontakte",
+          "groups": {
+            "work": "Arbeit",
+            "records": "Unterlagen",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Letzte Chats",

@@ -145,15 +145,14 @@ function renderSidebar() {
 const SLOT = '[data-slot="sidebar-row-slot"]';
 
 describe("every sidebar row uses the shared leading slot", () => {
-  it("renders one for Soko Bots, nav, headings, rooms, archived and the invitation", () => {
+  it("renders one for Soko Bots, nav, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // Soko Bots, eight nav rows, five section headings (Pinned, Channels,
-    // External, Archived, Direct Messages), five rooms, the archived row, the
-    // invitation's card, and eight skeleton slots — two section headings and
-    // six rooms. Counting
-    // by row type rather than by total, so adding a nav item does not edit a
-    // number here.
+    // Soko Bots, eight nav rows, five rooms, the archived row, the
+    // invitation's card, and six skeleton room slots. Section headings have
+    // none: their title leads and the chevron follows it. Counting by row
+    // type rather than by total, so adding a nav item does not edit a number
+    // here.
     expect(container.querySelectorAll(SLOT).length).toBeGreaterThan(20);
 
     for (const slot of container.querySelectorAll(SLOT)) {
