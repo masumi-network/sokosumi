@@ -94,3 +94,34 @@ export async function resolveXSubscriptionType(
   }
   return subscriptionType;
 }
+
+/** Lookups per listing; later accounts keep their stored tier. */
+export const X_SUBSCRIPTION_LOOKUP_MAX_ACCOUNTS = 5;
+
+/**
+ * Current tiers of a Project's active X accounts, keyed by connection id, for
+ * callers that must state each account's text limit. Lookups run in parallel
+ * under the per-lookup timeout and fall back to the stored tier.
+ */
+export async function resolveProjectXSubscriptionTypes(
+  projectId: string,
+): Promise<Map<string, string | null>> {
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: { projectId, provider: "x", status: "active" },
+    select: {
+      id: true,
+      projectId: true,
+      provider: true,
+      composioConnectedAccountId: true,
+      subscriptionType: true,
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: X_SUBSCRIPTION_LOOKUP_MAX_ACCOUNTS,
+  });
+  const tiers = await Promise.all(
+    connections.map((connection) => resolveXSubscriptionType(connection)),
+  );
+  return new Map(
+    connections.map((connection, index) => [connection.id, tiers[index]]),
+  );
+}
