@@ -86,20 +86,24 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     return (
       <SocialPageShell title={t("title")}>
         <SocialCalendarPreviewProvider>
-          <SocialAllProjectsTabs
-            actions={
-              <SocialNewPostMenu
-                project={null}
-                sokoBotId={sokoBot?.id ?? null}
-              />
-            }
-            calendar={<SocialCalendar calendar={calendar} />}
-            notice={
-              projectId && !projectLoadFailed ? t("pickUnavailable") : undefined
-            }
-            projectFailed={projectLoadFailed}
-            workspaceId={calendar.workspaceId}
-          />
+          <SocialComposeProvider>
+            <SocialAllProjectsTabs
+              actions={
+                <SocialNewPostMenu
+                  project={null}
+                  sokoBotId={sokoBot?.id ?? null}
+                />
+              }
+              calendar={<SocialCalendar calendar={calendar} />}
+              notice={
+                projectId && !projectLoadFailed
+                  ? t("pickUnavailable")
+                  : undefined
+              }
+              projectFailed={projectLoadFailed}
+              workspaceId={calendar.workspaceId}
+            />
+          </SocialComposeProvider>
         </SocialCalendarPreviewProvider>
       </SocialPageShell>
     );
