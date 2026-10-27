@@ -27,7 +27,7 @@ overrides:
   # 2026-10-27 re-resolve with overrides removed already landed only
   # undici@6.29.1 and undici@7.30.1, so those pins were dropped.
   # undici@8 still landed 8.10.2 from eve@0.83.2 plus an unrelated 8.12.3
-  # from @scalar/json-magic. eve@0.83.3 still declares undici 8.10.2.
+  # from @scalar/json-magic. eve@0.84.0 still declares undici 8.10.2.
   # Latest 8.x patch is 8.12.3.
   "undici@8": "8.12.3"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. Fresh re-resolve without the override
