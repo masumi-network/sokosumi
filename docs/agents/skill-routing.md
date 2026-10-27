@@ -58,13 +58,13 @@ Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask
 
 When watching a pull request, fixing its CI, or merging `main` into it, read [`.agents/skills/steward/`](../../.agents/skills/steward/). Commit, check, and preview rules stay in [`delivery.md`](./delivery.md).
 
-### Caveman
+### I have ADHD
 
-When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](../../.agents/skills/caveman/).
+When the i-have-adhd skill is present, follow it for all replies. Off: "stop adhd mode" / "normal mode". See [`.agents/skills/i-have-adhd/`](../../.agents/skills/i-have-adhd/).
 
 ### Ponytail
 
-Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. Caveman owns prose; ponytail owns what gets built. Load [`.agents/skills/ponytail/`](../../.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
+Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. I have ADHD owns replies; ponytail owns what gets built. Load [`.agents/skills/ponytail/`](../../.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
 
 ### Linear issue implementation
 
