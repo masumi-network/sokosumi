@@ -86,12 +86,16 @@ function renderMenu(
   hasAssignedSeat = true,
   isMobile = true,
   socialBetaEnabled = false,
+  newsletterEnabled = false,
 ) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems socialBetaEnabled={socialBetaEnabled} />
+        <MenuItems
+          socialBetaEnabled={socialBetaEnabled}
+          newsletterEnabled={newsletterEnabled}
+        />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
@@ -321,6 +325,80 @@ describe("MenuItems groups", () => {
       "contentStudio",
       "social",
     ]);
+  });
+});
+
+describe("MenuItems newsletter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+    searchRef.current = "";
+  });
+
+  it("leaves Newsletter out of the Instant Nav shell by default", () => {
+    render(
+      <TestQueryProvider>
+        <MenuItems />
+      </TestQueryProvider>,
+    );
+
+    expect(screen.queryByRole("link", { name: "newsletter" })).toBeNull();
+  });
+
+  it("shows Newsletter when enabled independently of the Ads beta", () => {
+    renderMenu(true, false, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "href",
+      "/newsletter",
+    );
+    expect(screen.queryByRole("link", { name: "ads" })).toBeNull();
+  });
+
+  it("carries the selected project to Newsletter", () => {
+    pathnameRef.current = "/studio";
+    searchRef.current = "projectId=project-1";
+    renderMenu(true, true, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "href",
+      "/newsletter?projectId=project-1",
+    );
+  });
+
+  it("files Newsletter under Marketing, after Social and Ads", () => {
+    renderMenu(true, false, true, true);
+
+    expect(destinationsUnder("groups.marketing")).toEqual([
+      "contentStudio",
+      "social",
+      "ads",
+      "newsletter",
+    ]);
+  });
+
+  it.each([
+    "/newsletter",
+    "/projects/project-1/newsletter",
+    "/projects/project-1/newsletter/issues/issue-1",
+    "/projects/project-1/newsletter/subscribers",
+  ])("marks Newsletter current on %s", (pathname) => {
+    pathnameRef.current = pathname;
+    renderMenu(true, false, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("does not mark Newsletter current on another project section", () => {
+    pathnameRef.current = "/projects/project-1/newsletter-settings";
+    renderMenu(true, false, false, true);
+
+    expect(
+      screen.getByRole("link", { name: "newsletter" }),
+    ).not.toHaveAttribute("aria-current");
   });
 });
 

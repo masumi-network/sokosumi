@@ -183,7 +183,7 @@ export async function renderNewsletterEmail({
           {brand.footerText ? (
             <Text style={{ whiteSpace: "pre-line" }}>{brand.footerText}</Text>
           ) : null}
-          <Link href={httpsUrl(unsubscribeUrl)}>
+          <Link href={unsubscribeUrl === "#" ? "#" : httpsUrl(unsubscribeUrl)}>
             {t("newsletter.unsubscribe")}
           </Link>
         </Container>

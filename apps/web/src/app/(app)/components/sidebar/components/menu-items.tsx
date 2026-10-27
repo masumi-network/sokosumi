@@ -6,6 +6,7 @@ import {
   HardDrive,
   ImagePlus,
   ListTodo,
+  Mail,
   Megaphone,
   Repeat,
   Share2,
@@ -75,23 +76,31 @@ interface NavDestination extends MenuItemConfig {
  * the Instant Nav shell, which has not resolved the reader's beta membership
  * yet, leaves the rows out rather than guessing them: a row that appears once
  * is cheaper than one that appears and then goes away.
+ * Newsletter follows the same rule until workspace availability is resolved.
  */
 export default function MenuItems({
   socialBetaEnabled = false,
+  newsletterEnabled = false,
 }: {
   socialBetaEnabled?: boolean;
+  newsletterEnabled?: boolean;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <ScopedMenuItems socialBetaEnabled={socialBetaEnabled} />
+      <ScopedMenuItems
+        socialBetaEnabled={socialBetaEnabled}
+        newsletterEnabled={newsletterEnabled}
+      />
     </Suspense>
   );
 }
 
 function ScopedMenuItems({
   socialBetaEnabled,
+  newsletterEnabled,
 }: {
   socialBetaEnabled: boolean;
+  newsletterEnabled: boolean;
 }) {
   const { hrefFor } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
@@ -164,6 +173,17 @@ function ScopedMenuItems({
           } satisfies NavDestination,
         ]
       : []),
+    ...(newsletterEnabled
+      ? [
+          {
+            key: "newsletter",
+            href: "/newsletter",
+            label: t("newsletter"),
+            Icon: Mail,
+            group: "marketing",
+          } satisfies NavDestination,
+        ]
+      : []),
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile
       ? [
@@ -180,7 +200,11 @@ function ScopedMenuItems({
   ];
 
   function renderItem({ key, href, label, Icon, feature }: MenuItemConfig) {
-    const isActive = isPathActive(pathname, href);
+    const isActive =
+      isPathActive(pathname, href) ||
+      // A project's newsletter pages live under /projects/<id>/newsletter.
+      (href === "/newsletter" &&
+        /^\/projects\/[^/]+\/newsletter(?:\/|$)/.test(pathname));
 
     return (
       <SidebarMenuItem key={key}>

@@ -3251,6 +3251,112 @@
             "moreInvalid": "{count, plural, one {# more invalid row reported} other {# more invalid rows reported}}"
           },
           "dismiss": "Dismiss"
+        },
+        "Issues": {
+          "title": "Issues",
+          "description": "Write newsletter issues and preview how they look in an inbox.",
+          "newIssue": "New issue",
+          "emptyTitle": "No issues yet",
+          "emptyDescription": "Choose a template to start your first newsletter issue.",
+          "subject": "Subject",
+          "previewText": "Preview text",
+          "status": "Status",
+          "deliveryDate": "Scheduled / sent",
+          "updatedAt": "Updated",
+          "actions": "Actions",
+          "sentAt": "Sent {date}",
+          "scheduledAt": "Scheduled {date}",
+          "noDate": "Not scheduled",
+          "firstPage": "First page",
+          "nextPage": "Next page",
+          "results": "{count, plural, one {# issue} other {# issues}}",
+          "statuses": {
+            "DRAFT": "Draft",
+            "NEEDS_APPROVAL": "Needs approval",
+            "SCHEDULED": "Scheduled",
+            "SENDING": "Sending",
+            "SENT": "Sent",
+            "FAILED": "Failed",
+            "CANCELED": "Canceled"
+          },
+          "createError": "Failed to create issue. Try choosing the template again.",
+          "saveError": "Failed to save issue. Keep your changes and try again.",
+          "conflict": "This issue changed or is no longer editable. Copy your changes, reload the page, and try again.",
+          "invalid": "Check the highlighted fields and try again.",
+          "save": "Save issue",
+          "saved": "All changes saved",
+          "unsaved": "Unsaved changes",
+          "readOnly": "This issue is read-only. Only drafts and issues needing approval can be edited.",
+          "back": "Back to issues",
+          "blocks": "Content blocks",
+          "addBlock": "Add block",
+          "moveUp": "Move block {number} up",
+          "moveDown": "Move block {number} down",
+          "removeBlock": "Remove block {number}",
+          "blockNumber": "Block {number}: {type}",
+          "emptyBlocks": "Add a block to start writing.",
+          "level": "Heading level",
+          "mainHeading": "Main heading",
+          "subheading": "Subheading",
+          "text": "Text",
+          "imageUrl": "Image URL",
+          "alt": "Alt text",
+          "imageLink": "Link URL (optional)",
+          "buttonLabel": "Button label",
+          "buttonUrl": "Button URL",
+          "httpsHint": "Use a full HTTPS URL.",
+          "blockTypes": {
+            "heading": "Heading",
+            "text": "Text",
+            "image": "Image",
+            "button": "Button",
+            "divider": "Divider"
+          },
+          "Validation": {
+            "subject": "Enter a subject between 1 and 200 characters.",
+            "previewText": "Keep preview text within 500 characters.",
+            "content": "Check this block. Use HTTPS URLs and keep text within the field limits."
+          },
+          "Templates": {
+            "title": "Choose a template",
+            "description": "Start with a layout, then edit every block.",
+            "subject": "Untitled issue",
+            "heading": "This week’s highlights",
+            "text": "Share the latest news, a useful idea, or an update with your subscribers.",
+            "closing": "Thanks for reading. See you next time.",
+            "heroAlt": "Hero image",
+            "imageAlt": "Supporting image",
+            "button": "Read more",
+            "TEXT": {
+              "title": "Text",
+              "description": "A heading, paragraphs, and a divider."
+            },
+            "IMAGES": {
+              "title": "Images",
+              "description": "A heading, hero image, text, and another image."
+            },
+            "BUTTONS": {
+              "title": "Buttons",
+              "description": "A heading, text, a button, divider, and closing text."
+            }
+          },
+          "Preview": {
+            "title": "Preview",
+            "label": "Newsletter email preview",
+            "mobile": "Mobile",
+            "desktop": "Desktop",
+            "loading": "Updating preview…",
+            "error": "Failed to load preview. Try again.",
+            "invalid": "Complete the subject and check block content to see a preview.",
+            "retry": "Retry preview"
+          },
+          "Delete": {
+            "title": "Delete draft issue?",
+            "description": "“{subject}” will be permanently deleted. This cannot be undone.",
+            "action": "Delete draft",
+            "cancel": "Cancel",
+            "error": "Failed to delete issue. It may have changed status. Refresh and try again."
+          }
         }
       }
     },
@@ -3992,6 +4098,16 @@
         "retry": "Try again"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Choose a project to manage its newsletter.",
+      "nextPage": "Next projects",
+      "empty": {
+        "title": "No projects yet",
+        "description": "Create a project to start a newsletter.",
+        "action": "Create project"
+      }
+    },
     "Social": {
       "title": "Social posts",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
@@ -4077,6 +4193,7 @@
           "schedules": "Schedules",
           "social": "Social posts",
           "ads": "Ads",
+          "newsletter": "Newsletter",
           "contacts": "Contacts",
           "groups": {
             "work": "Work",

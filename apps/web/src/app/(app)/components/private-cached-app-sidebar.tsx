@@ -15,6 +15,7 @@ interface PrivateCachedAppSidebarProps {
   adminMenuEnabled: boolean;
   /** Resolved by the frame: Ads remains in the utxo beta; Social scheduling is public. */
   socialBetaEnabled: boolean;
+  newsletterEnabled: boolean;
 }
 
 /**
@@ -28,10 +29,12 @@ export default function PrivateCachedAppSidebar({
   activeOrganizationId,
   adminMenuEnabled,
   socialBetaEnabled,
+  newsletterEnabled,
 }: PrivateCachedAppSidebarProps) {
   return (
     <Sidebar
       socialBetaEnabled={socialBetaEnabled}
+      newsletterEnabled={newsletterEnabled}
       chatList={
         <Suspense
           fallback={
