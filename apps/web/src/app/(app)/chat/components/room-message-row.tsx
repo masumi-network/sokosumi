@@ -173,7 +173,12 @@ type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
-const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+// A height, not line-clamp: Chromium's line-clamp skips lines inside tables
+// and code blocks, so bodies made of them never collapsed. 16 lines at 24px.
+const MESSAGE_BODY_CLAMP_CLASS = "max-h-96 overflow-hidden";
+/** Softens the cut, which can land mid-line. */
+const MESSAGE_BODY_FADE_CLASS =
+  "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]";
 
 /**
  * Keeps the last line of a body clear of the Seen by faces in the row's
@@ -874,6 +879,9 @@ function ChannelMessageBody({
         className={cn(
           "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
+          !expanded && !skipBodyClamp && overflows
+            ? MESSAGE_BODY_FADE_CLASS
+            : null,
           // Last p is inline so the reserve shares its last line. Inline
           // boxes drop vertical margin, which would swallow [&_p+p]:mt-3
           // (the blank line). The previous block p keeps that gap.
