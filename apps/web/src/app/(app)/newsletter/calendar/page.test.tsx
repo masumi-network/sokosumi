@@ -1,14 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NEWSLETTER_ISSUE } from "@/test/newsletter";
+import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
   project: vi.fn(),
   settings: vi.fn(),
   list: vi.fn(),
+  listProjects: vi.fn(),
   calendar: vi.fn(),
 }));
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NOT_FOUND");
@@ -16,10 +18,9 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
     throw new Error(`REDIRECT:${path}`);
   },
-  usePathname: () => "/projects/p1/newsletter/calendar",
+  usePathname: () => "/newsletter/calendar",
 }));
 vi.mock("next-intl/server", () => ({
-  getFormatter: async () => ({ dateTime: () => "Oct 23, 2026" }),
   getTranslations: async () => (key: string) => key,
 }));
 vi.mock("@/lib/services/newsletter.service", () => ({
@@ -30,13 +31,10 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
-  projectService: { getProjectById: mocks.project },
-}));
-vi.mock("@/app/projects/components/project-workspace-shell", () => ({
-  getProjectWorkspaceLabels: async () => ({}),
-  ProjectWorkspaceShell: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+  projectService: {
+    getProjectById: mocks.project,
+    listProjects: mocks.listProjects,
+  },
 }));
 vi.mock("./calendar", () => ({
   NewsletterCalendar: (props: object) => {
@@ -52,32 +50,41 @@ const page = (data: unknown[], nextCursor: string | null = null) => ({
   meta: { pagination: { cursor: null, limit: 100, total: 0, nextCursor } },
 });
 const props = (searchParams = {}) => ({
-  params: Promise.resolve({ projectId: "p1" }),
-  searchParams: Promise.resolve(searchParams),
+  searchParams: Promise.resolve({
+    projectId: NEWSLETTER_PROJECT_ID,
+    ...searchParams,
+  }),
 });
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.enabled.mockResolvedValue(true);
-  mocks.project.mockResolvedValue({ id: "p1", name: "Launch" });
+  mocks.project.mockResolvedValue({
+    id: NEWSLETTER_PROJECT_ID,
+    name: "Launch",
+  });
+  mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
   mocks.settings.mockResolvedValue({ id: "n1" });
   mocks.list.mockResolvedValue(page([]));
 });
 
 describe("newsletter calendar page", () => {
-  it("is unreachable outside the newsletter beta or for inaccessible projects", async () => {
+  it("is unreachable outside the newsletter beta", async () => {
     mocks.enabled.mockResolvedValue(false);
     await expect(NewsletterCalendarPage(props())).rejects.toThrow("NOT_FOUND");
     expect(mocks.project).not.toHaveBeenCalled();
-    mocks.enabled.mockResolvedValue(true);
+  });
+
+  it("shows the unknown-project notice for an inaccessible project", async () => {
     mocks.project.mockResolvedValue(null);
-    await expect(NewsletterCalendarPage(props())).rejects.toThrow("NOT_FOUND");
+    render(await NewsletterCalendarPage(props()));
+    expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(mocks.list).not.toHaveBeenCalled();
   });
 
   it("returns to newsletter settings until configured", async () => {
     mocks.settings.mockResolvedValue(null);
     await expect(NewsletterCalendarPage(props())).rejects.toThrow(
-      "REDIRECT:/projects/p1/newsletter",
+      `REDIRECT:/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
   });
 
@@ -97,18 +104,18 @@ describe("newsletter calendar page", () => {
       from: new Date("2026-09-26T22:00:00Z"),
       to: new Date("2026-10-31T23:00:00Z"),
     };
-    expect(mocks.list).toHaveBeenNthCalledWith(1, "p1", {
+    expect(mocks.list).toHaveBeenNthCalledWith(1, NEWSLETTER_PROJECT_ID, {
       limit: 100,
       ...range,
     });
-    expect(mocks.list).toHaveBeenNthCalledWith(2, "p1", {
+    expect(mocks.list).toHaveBeenNthCalledWith(2, NEWSLETTER_PROJECT_ID, {
       limit: 100,
       ...range,
       cursor: "b",
     });
     expect(mocks.calendar).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: "p1",
+        projectId: NEWSLETTER_PROJECT_ID,
         month: "2026-10",
         timeZone: "Europe/Berlin",
         issues: [scheduled, sent],

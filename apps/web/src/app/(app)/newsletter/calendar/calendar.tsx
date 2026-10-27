@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { cn } from "@/lib/utils";
+import { newsletterHref } from "../newsletter-tabs";
 import { dateKey, getMonthGridDays, shiftMonth } from "./month";
 import { calendarSearchParams } from "./search-params";
 
@@ -45,7 +46,7 @@ export function NewsletterCalendar({
       ...(target ? { month: target } : {}),
       timezone: timeZone,
     });
-    return `/projects/${projectId}/newsletter/calendar?${search}`;
+    return `${newsletterHref("/newsletter/calendar", projectId)}&${search}`;
   };
   const days = getMonthGridDays(month);
   const byDay = new Map<string, { issue: NewsletterIssue; at: Date }[]>();
@@ -100,7 +101,7 @@ export function NewsletterCalendar({
           description={t("Calendar.emptyDescription")}
           action={
             <Button asChild variant="outline">
-              <Link href={`/projects/${projectId}/newsletter/issues`}>
+              <Link href={newsletterHref("/newsletter/issues", projectId)}>
                 {t("Calendar.viewIssues")}
               </Link>
             </Button>
@@ -160,7 +161,10 @@ export function NewsletterCalendar({
                       {dayIssues.map(({ issue, at }) => (
                         <li key={issue.id}>
                           <Link
-                            href={`/projects/${projectId}/newsletter/issues/${issue.id}`}
+                            href={newsletterHref(
+                              `/newsletter/issues/${encodeURIComponent(issue.id)}`,
+                              projectId,
+                            )}
                             className="bg-background text-foreground hover:bg-muted border-border focus-visible:ring-ring-halo block min-w-0 rounded border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
                           >
                             <span className="text-muted-foreground block tabular-nums">

@@ -96,6 +96,12 @@ describe("newsletter issues page", () => {
       "href",
       `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
+    expect(
+      screen.getByRole("link", { name: "Calendar.title" }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/calendar?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
   it("lists projects to pick from without a project, keeping the tab", async () => {

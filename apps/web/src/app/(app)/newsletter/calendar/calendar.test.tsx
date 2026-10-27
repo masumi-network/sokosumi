@@ -10,7 +10,7 @@ import { getMonthGridDays, getMonthGridRange, resolveMonth } from "./month";
 
 const url = vi.fn();
 const COPY = en.App.Projects.Newsletter.Calendar;
-const BASE = `/projects/${NEWSLETTER_PROJECT_ID}/newsletter`;
+const SCOPE = `projectId=${NEWSLETTER_PROJECT_ID}`;
 
 const SCHEDULED: NewsletterIssue = {
   ...NEWSLETTER_ISSUE,
@@ -62,7 +62,10 @@ describe("newsletter calendar", () => {
     renderCalendar();
     const day = screen.getByTestId("newsletter-calendar-day-2026-10-25");
     const link = within(day).getByRole("link");
-    expect(link).toHaveAttribute("href", `${BASE}/issues/${SCHEDULED.id}`);
+    expect(link).toHaveAttribute(
+      "href",
+      `/newsletter/issues/${SCHEDULED.id}?${SCOPE}`,
+    );
     expect(link).toHaveTextContent("01:30");
     expect(link).toHaveTextContent("Weekly news");
     expect(link).toHaveTextContent("Scheduled");
@@ -86,7 +89,7 @@ describe("newsletter calendar", () => {
     expect(screen.getByText(COPY.emptyTitle)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: COPY.viewIssues })).toHaveAttribute(
       "href",
-      `${BASE}/issues`,
+      `/newsletter/issues?${SCOPE}`,
     );
     expect(screen.queryByTestId(/newsletter-calendar-day-/)).toBeNull();
   });
@@ -98,15 +101,15 @@ describe("newsletter calendar", () => {
       within(nav).getByRole("link", { name: COPY.previous }),
     ).toHaveAttribute(
       "href",
-      `${BASE}/calendar?month=2026-12&timezone=Europe%2FBerlin`,
+      `/newsletter/calendar?${SCOPE}&month=2026-12&timezone=Europe%2FBerlin`,
     );
     expect(within(nav).getByRole("link", { name: COPY.next })).toHaveAttribute(
       "href",
-      `${BASE}/calendar?month=2027-02&timezone=Europe%2FBerlin`,
+      `/newsletter/calendar?${SCOPE}&month=2027-02&timezone=Europe%2FBerlin`,
     );
     expect(within(nav).getByRole("link", { name: COPY.today })).toHaveAttribute(
       "href",
-      `${BASE}/calendar?timezone=Europe%2FBerlin`,
+      `/newsletter/calendar?${SCOPE}&timezone=Europe%2FBerlin`,
     );
   });
 
