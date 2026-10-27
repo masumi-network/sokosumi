@@ -10,7 +10,8 @@ import baseConfig from "./vitest.config";
  *
  * Kept out of `pnpm test`, which has no browser to launch. Run with
  * `pnpm --filter web test:webkit` after
- * `pnpm --filter web exec playwright install webkit chromium`.
+ * `pnpm --filter web exec playwright install webkit chromium`. CI runs it
+ * as the advisory `Test Web WebKit` job.
  */
 export default defineConfig({
   plugins: baseConfig.plugins,
@@ -18,5 +19,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.webkit.test.{ts,tsx}"],
+    // Each file starts its own Vite dev server on the shared deps optimizer
+    // cache. In parallel, one server's re-optimize gives another's page a
+    // second React copy ("Invalid hook call"), failing whichever file lost.
+    fileParallelism: false,
   },
 });

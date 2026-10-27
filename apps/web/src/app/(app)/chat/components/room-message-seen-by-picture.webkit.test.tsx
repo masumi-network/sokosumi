@@ -74,7 +74,9 @@ beforeAll(async () => {
           if (id === "\0fixture-navigation") {
             return `export const useRouter = () => ({push(){}, replace(){}, refresh(){}});
               export const usePathname = () => '/chat';
-              export const useSearchParams = () => new URLSearchParams();`;
+              export const useSearchParams = () => new URLSearchParams();
+              export const redirect = () => {};
+              export const unstable_rethrow = () => {};`;
           }
           if (id === "\0fixture-action") {
             return `const forbidden = () => {
