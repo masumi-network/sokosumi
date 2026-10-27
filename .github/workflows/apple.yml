@@ -11,7 +11,8 @@ on:
   schedule:
     - cron: "17 3 * * *"
   # Push still starts the workflow so Publish macOS DMG runs on every Apple
-  # merge. Test and lint do not run on this event.
+  # merge, except the Release PR's own merge commit (see the `publish` job).
+  # Test and lint do not run on this event.
   #
   # A `macos-v*` tag push (merging the Release PR, see macos-release.yml)
   # publishes that Stable release. It must stay in this workflow: the build
@@ -360,7 +361,16 @@ jobs:
     # uploads both as artifacts without touching any release. That is the way
     # to test a change to this job. Schedule does not match, so the daily warm
     # never publishes.
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    #
+    # Merging the Release PR pushes main with a `chore(main): release macos`
+    # commit, then the `macos-v*` tag on that same commit. The tag run builds
+    # it as Stable, so the main push skips a second, identical Beta build. The
+    # tag test comes first: a tag push carries the same head commit message.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/macos-v') ||
+      (github.event_name == 'push' &&
+        !startsWith(github.event.head_commit.message, 'chore(main): release macos'))
     runs-on: xcode-27
     permissions:
       # `gh release` rewrites the macos-beta tag and its assets, and the

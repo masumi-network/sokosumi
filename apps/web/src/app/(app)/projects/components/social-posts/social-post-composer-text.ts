@@ -1,3 +1,9 @@
+import {
+  type SocialPostProvider,
+  socialPostTextLength,
+  socialPostTextLimit,
+} from "@sokosumi/utils";
+
 /** Shared caption until the reader edits one account on its own. */
 
 export interface SocialPostComposerText {
@@ -48,4 +54,15 @@ export function socialPostTextWrite(
     lastSharedEditId:
       perAccount && connectionId ? connectionId : copy.lastSharedEditId,
   };
+}
+
+/** One counter and validation path for the main post and every thread part. */
+export function socialPostTextMetrics(
+  text: string,
+  provider: SocialPostProvider,
+  subscriptionType?: string | null,
+) {
+  const count = socialPostTextLength(provider, text);
+  const limit = socialPostTextLimit(provider, subscriptionType);
+  return { count, limit, overLimit: count > limit };
 }
