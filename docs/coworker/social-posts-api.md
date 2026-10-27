@@ -1,6 +1,6 @@
 # Coworker Social post scheduling
 
-Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Posts they create land as Needs approval and never publish until a person approves them. Setting a time while a post still needs approval keeps that status.
+Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. By default, posts they create behave like a person's posts: `DRAFT`, or `SCHEDULED` when created with `scheduledAt`. A scheduled post publishes at its time. A Project can opt in to human approval instead; see [Optional approval for agent posts](#optional-approval-for-agent-posts).
 
 Social scheduling is public. Every workspace, including `utxo`, gets the same enabled providers: `socialProvidersForWorkspace` in [`packages/utils/src/social-post.ts`](../../packages/utils/src/social-post.ts) returns `SOCIAL_PUBLIC_PROVIDERS`. Other platforms show Coming soon and cannot be connected or used to create, edit, schedule, approve, publish, duplicate, or recycle posts. Existing posts on unavailable providers remain readable and fail when due with the coming-soon reason without contacting the platform. Ads remains `utxo`-only.
 
@@ -17,6 +17,15 @@ Core records the Coworker as creator independently of the contextual human. `sch
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, current workspace membership, and the Project's workspace provider availability. Revoked access or an unavailable provider fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly when its provider is enabled.
 
 Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, Publish now/Retry, and approve/reject remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow`, `canApprove`, and `canReject` to false. Calendar's Social feed remains interactive-human-only in this layer.
+
+## Optional approval for agent posts
+
+A Project can require a person to approve every post an agent creates. The flag is `requireAgentPostApproval` on the Project (default `false`). An interactive session owner sets it with `PATCH /v1/projects/{id}` or the **Require approval for agent posts** switch on the Social accounts tab; Coworker and Soko Bot credentials cannot change it.
+
+- Off (default): Coworker and Soko Bot posts are `DRAFT` or `SCHEDULED`, exactly like a person's post. A Coworker's duplicate is a `DRAFT`.
+- On: posts and duplicates created by a Coworker or Soko Bot land as `NEEDS_APPROVAL` and never publish until a person approves them. Setting a time while a post still needs approval keeps that status.
+
+Turning the flag on or off does not change existing posts. A post already in `NEEDS_APPROVAL` keeps waiting for a person. A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. Agents never approve.
 
 ## Published post statistics
 
@@ -48,7 +57,7 @@ Core derives the user and workspace from the active turn and rechecks owner acti
 
 Version `v23` keeps v22's model and base behavior and replaces the managed-post performance skill with `social-account-performance`. Use `list_social_account_statistics` for general account performance and external publications, then `refresh_social_account_statistics` when fresh or missing results matter. Continue provider history with `continueHistory: true`, up to ten pages per turn, and report freshness, metric periods, and incomplete coverage. Existing managed-post statistics tools remain available for specific Sokosumi posts. Existing version selections retain their workflows while provider availability follows the owning workspace. Account refresh and history synchronization are read capabilities under the existing Social access rules and never authorize publication.
 
-Bot-created posts identify the bot as creator and land as Needs approval. They never publish until a person approves them in Project Social. Scheduling under the owner's identity only stores a planned time while approval is still pending. `publish_social_post` refuses a post that still needs approval.
+Bot-created posts identify the bot as creator and follow the Project's `requireAgentPostApproval` flag (see [Optional approval for agent posts](#optional-approval-for-agent-posts)). With the flag on, they land as Needs approval and never publish until a person approves them in Project Social or on the chat card. Scheduling under the owner's identity then only stores a planned time while approval is still pending. `publish_social_post` refuses a post that still needs approval.
 
 ## Provider publishing rules
 

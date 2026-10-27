@@ -40,7 +40,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, identifier, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
+      "Update a project's name, identifier, briefing, website, logo, or whether agent-created social posts need approval. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -89,6 +89,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
       updateData.logo = body.logo ?? null;
+    }
+    if (body.requireAgentPostApproval !== undefined) {
+      updateData.requireAgentPostApproval = body.requireAgentPostApproval;
     }
     const existingProject = await prisma.project.findFirst({
       where: { id, workspaceId: workspaceContext.workspaceId },

@@ -32,6 +32,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import {
   SokoBotTargetContext,
@@ -39,6 +40,7 @@ import {
 } from "@/app/personal-assistant/components/soko-bot-target";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
@@ -48,6 +50,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import { approveProjectSocialPost } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
@@ -88,11 +91,14 @@ export function cardHref(sourceHref: string, botId?: string | null): string {
 export function ResultPreviewCard({
   result,
   onDecisionResolved,
+  onSocialPostApproved,
   source,
 }: {
   source?: ResultPreviewsProps["source"];
   result: ChatResultPreview;
   onDecisionResolved: () => void;
+  /** Re-reads the card after a person approves its post. */
+  onSocialPostApproved?: () => void;
 }) {
   const sourceLink = useRef<HTMLAnchorElement>(null);
   const botId = useSokoBotTargetId();
@@ -133,8 +139,8 @@ export function ResultPreviewCard({
         }
       : null;
   const social = result.kind === "social_post" ? result.social : null;
-  if (social)
-    return (
+  if (social) {
+    const preview = (
       <SocialPostPreview
         className="w-full min-w-0 max-w-xl"
         provider={social.provider}
@@ -162,6 +168,17 @@ export function ResultPreviewCard({
           }))}
       />
     );
+    if (result.status !== "NEEDS_APPROVAL") return preview;
+    return (
+      <div className="flex w-full min-w-0 max-w-xl flex-col gap-2">
+        {preview}
+        <ChatSocialPostApproval
+          social={social}
+          onApproved={onSocialPostApproved}
+        />
+      </div>
+    );
+  }
   const jobStatus =
     result.kind === "job"
       ? Object.values(SokosumiJobStatus).find(
@@ -590,11 +607,65 @@ function AuthorizedResultPreviews({
                 void query.refetch();
                 onDecisionResolved?.();
               }}
+              onSocialPostApproved={() => void query.refetch()}
             />
           ))}
       </div>
       {renderFooter?.(results)}
     </>
+  );
+}
+
+/** A person approves the post here, as in Project Social. Agents never can. */
+function ChatSocialPostApproval({
+  social,
+  onApproved,
+}: {
+  social: NonNullable<
+    Extract<ChatResultPreview, { state: "available" }>["social"]
+  >;
+  onApproved?: () => void;
+}) {
+  const t = useTranslations("Components.ChatResults.socialApproval");
+  const [pending, setPending] = useState(false);
+  const { projectId, postId, revision, canApprove } = social;
+  async function handleApprove() {
+    if (!projectId || !postId || revision == null || pending) return;
+    setPending(true);
+    try {
+      const result = await approveProjectSocialPost({
+        projectId,
+        postId,
+        revision,
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("failed"));
+        return;
+      }
+      toast.success(t("approved"));
+      onApproved?.();
+    } catch {
+      toast.error(t("failed"));
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <SocialPostStatusBadge label={t("label")} status="NEEDS_APPROVAL" />
+      {canApprove && projectId && postId && revision != null ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="primary"
+          loading={pending}
+          disabled={pending}
+          onClick={() => void handleApprove()}
+        >
+          {t("approve")}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

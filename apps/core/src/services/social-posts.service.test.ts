@@ -395,6 +395,10 @@ describe("social posts service", () => {
     );
 
     it("duplicates the reference and preserves coworker approval", async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        requireAgentPostApproval: true,
+      });
       socialPostFindFirstMock.mockResolvedValue({
         ...draftPost,
         status: "PUBLISHED",
@@ -510,6 +514,10 @@ describe("social posts service", () => {
     ];
 
     it("stores ordered parts with the same attachment shape on an approval draft", async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        requireAgentPostApproval: true,
+      });
       const { createSocialPost } = await loadService();
       await createSocialPost({
         ...input,
@@ -792,6 +800,10 @@ describe("social posts service", () => {
     });
 
     it("duplicates parts without any results and requires approval for a coworker", async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        requireAgentPostApproval: true,
+      });
       socialPostFindFirstMock.mockResolvedValue({
         ...scheduledPost,
         status: "FAILED",
@@ -1040,6 +1052,10 @@ describe("social posts service", () => {
     "holds a Soko Bot's 300-character post for approval on a %s X account or names the limit",
     async (subscriptionType, message) => {
       resolveXSubscriptionTypeMock.mockResolvedValue(subscriptionType);
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        requireAgentPostApproval: true,
+      });
       const { createSocialPost } = await loadService();
       const result = createSocialPost({
         projectId: PROJECT_ID,
@@ -1350,6 +1366,7 @@ describe("social posts service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
+        requireAgentPostApproval: true,
         workspace: { select: { organization: { select: { slug: true } } } },
       },
     });
@@ -3036,6 +3053,83 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({ status: 409 });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
+  it.each([
+    ["Coworker", { coworkerId: "cow_123" }],
+    ["Soko Bot", { sokoBotId: "55555555-5555-4555-8555-555555555555" }],
+  ])(
+    "keeps a %s draft as DRAFT unless the Project requires agent post approval",
+    async (_actor, creator) => {
+      const { createSocialPost } = await loadService();
+      const draftInput = {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        ...creator,
+        text: "Hello",
+      };
+
+      await createSocialPost(draftInput);
+      expect(socialPostCreateMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "DRAFT" }),
+        }),
+      );
+
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        requireAgentPostApproval: true,
+      });
+      await createSocialPost(draftInput);
+      expect(socialPostCreateMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "NEEDS_APPROVAL" }),
+        }),
+      );
+    },
+  );
+  it("never holds a human's post for approval, even when the Project requires it", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      requireAgentPostApproval: true,
+    });
+    const { createSocialPost } = await loadService();
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      text: "Hello",
+    });
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "DRAFT" }),
+      }),
+    );
+  });
+  it("duplicates a coworker post as DRAFT when agent post approval is off", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      status: "PUBLISHED",
+    });
+    const { duplicateSocialPost } = await loadService();
+    await duplicateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      coworkerId: "cow_123",
+      postId: POST_ID,
+    });
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "DRAFT",
+          creatorCoworkerId: "cow_123",
+        }),
+      }),
+    );
+  });
   it("records a coworker creator and contextual scheduling user separately", async () => {
     const { createSocialPost } = await loadService();
     await createSocialPost({
@@ -3051,7 +3145,7 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: "NEEDS_APPROVAL",
+          status: "SCHEDULED",
           creatorUserId: null,
           creatorCoworkerId: "cow_123",
           scheduledByUserId: USER_ID,
@@ -3085,7 +3179,7 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: "NEEDS_APPROVAL",
+          status: "SCHEDULED",
           creatorUserId: null,
           creatorCoworkerId: null,
           creatorSokoBotId: sokoBotId,
@@ -3173,6 +3267,7 @@ describe("social posts service", () => {
           id: true,
           closingAt: true,
           closedAt: true,
+          requireAgentPostApproval: true,
           workspace: { select: { organization: { select: { slug: true } } } },
         },
       });

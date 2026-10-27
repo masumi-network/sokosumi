@@ -56,6 +56,7 @@ interface PatchProjectInput {
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
+  requireAgentPostApproval?: boolean;
 }
 
 export const projectService = (() => {

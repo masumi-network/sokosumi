@@ -259,6 +259,7 @@ export async function requireScopedProject(
       id: true,
       closingAt: true,
       closedAt: true,
+      requireAgentPostApproval: true,
       ...socialProviderProjectSelect,
     },
   });
@@ -275,11 +276,11 @@ export async function requireLockedOpenProject(
   tx: Prisma.TransactionClient,
   input: { projectId: string; workspaceId: string },
   options: { closedMessage?: string } = {},
-): Promise<void> {
+) {
   if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
     throw notFound("Project not found");
   }
-  await requireScopedProject(input, {
+  return requireScopedProject(input, {
     client: tx,
     requireOpen: true,
     ...options,

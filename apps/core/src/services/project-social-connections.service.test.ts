@@ -798,6 +798,7 @@ describe("project social connections service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
+        requireAgentPostApproval: true,
         workspace: { select: { organization: { select: { slug: true } } } },
       },
     });

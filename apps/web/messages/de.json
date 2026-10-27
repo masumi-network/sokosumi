@@ -1015,6 +1015,12 @@
       "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
     },
     "ChatResults": {
+      "socialApproval": {
+        "label": "Freigabe erforderlich",
+        "approve": "Freigeben",
+        "approved": "Beitrag freigegeben.",
+        "failed": "Der Beitrag konnte nicht freigegeben werden."
+      },
       "unavailable": "Ergebnis nicht verfügbar oder nicht mehr zugänglich",
       "loading": "Ergebnisse werden geladen…",
       "loadError": "Ergebnisse konnten nicht geladen werden",
@@ -2410,6 +2416,9 @@
         "cancel": "Abbrechen"
       },
       "ProjectSocialAccounts": {
+        "agentPostApprovalTitle": "Freigabe für Agenten-Beiträge erforderlich",
+        "agentPostApprovalDescription": "Aus: Beiträge von Soko Bot und Coworkern werden wie deine als Entwurf oder geplanter Beitrag gespeichert. An: Eine Person muss jeden Beitrag freigeben, bevor er veröffentlicht werden kann.",
+        "agentPostApprovalError": "Die Freigabe-Einstellung konnte nicht gespeichert werden.",
         "title": "Social-Media-Konten",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
