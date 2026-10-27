@@ -102,12 +102,13 @@ describe("Soko Bot route capability ceilings", () => {
     }
   });
 
-  it("reads the Project's ad accounts, campaigns and targeting on every owner route", () => {
+  it("reads the Project's ad accounts, campaigns, targeting and Market keywords on every owner route", () => {
     for (const route of SOKO_BOT_ROUTES)
       for (const read of [
         "list_ad_accounts",
         "list_ad_campaigns",
         "find_ad_targeting",
+        "get_market_keywords",
       ] as const) {
         expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain(read);
         expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).not.toContain(read);

@@ -208,6 +208,7 @@ describe("Ads read tool contracts", () => {
     list_ad_accounts: { projectId },
     list_ad_campaigns: { projectId, accountId },
     find_ad_targeting: { projectId, accountId },
+    get_market_keywords: { projectId },
   } as const;
 
   it.each(Object.keys(inputs) as (keyof typeof inputs)[])(
@@ -232,6 +233,12 @@ describe("Ads read tool contracts", () => {
       schema.safeParse({ ...inputs.list_ad_campaigns, range: "LAST_YEAR" })
         .success,
     ).toBe(false);
+  });
+
+  it("points campaign creation at the Market keywords", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toContain(
+      "get_market_keywords",
+    );
   });
 
   it("searches locations only for a non-empty query", () => {

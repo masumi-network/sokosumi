@@ -266,6 +266,12 @@ const ads = vi.hoisted(() => ({
   locations: vi.fn(),
   languages: vi.fn(),
   create: vi.fn(),
+  marketProfile: vi.fn(),
+  marketKeywords: vi.fn(),
+}));
+vi.mock("@/services/project-ad-market.service", () => ({
+  getProjectAdMarketProfile: ads.marketProfile,
+  listProjectAdMarketKeywords: ads.marketKeywords,
 }));
 vi.mock("@/services/project-ad-accounts.service", () => ({
   createProjectAdCampaign: ads.create,
@@ -6386,6 +6392,7 @@ describe("Soko Bot project social tools", () => {
     "list_ad_accounts",
     "list_ad_campaigns",
     "find_ad_targeting",
+    "get_market_keywords",
     "create_ad_campaign",
     "list_social_posts",
     "list_social_post_statistics",
@@ -7224,6 +7231,132 @@ describe("Soko Bot project social tools", () => {
       await expect(refusal).rejects.toThrow(
         "Targeting is only available for Google Ads accounts",
       );
+    });
+
+    describe("get_market_keywords", () => {
+      const profile = {
+        keywords: ["running shoes", "trail shoes"],
+        countryCode: "DE",
+        locationId: "2276",
+        languageCode: "de",
+        updatedAt: new Date("2026-10-01T12:00:00Z"),
+      };
+      const fetchedAt = new Date("2026-10-27T08:00:00Z");
+      const keyword = {
+        keyword: "laufschuhe",
+        searchVolume: 12100,
+        trend: [{ year: 2026, month: 9, searchVolume: 11000 }],
+        competition: "HIGH",
+        competitionIndex: 87,
+        cpc: 1.2,
+        lowTopOfPageBid: 0.5,
+        highTopOfPageBid: 2.1,
+      };
+
+      beforeEach(() => {
+        ads.marketProfile.mockResolvedValue(profile);
+        ads.marketKeywords.mockResolvedValue({
+          keywords: [keyword],
+          fetchedAt,
+        });
+      });
+
+      it("returns the Market keywords compactly, without the trend", async () => {
+        const result = await new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "get_market_keywords",
+          toolCallId: "market-keywords",
+          input: { projectId },
+        });
+        const scope = { projectId, workspaceId: SCOPE.workspaceId };
+        expect(ads.marketProfile).toHaveBeenCalledWith(scope);
+        expect(ads.marketKeywords).toHaveBeenCalledWith(scope);
+        expect(social.beta).toHaveBeenCalledWith(
+          SCOPE.userId,
+          expect.anything(),
+        );
+        expect(result).toEqual({
+          market: {
+            countryCode: "DE",
+            languageCode: "de",
+            locationId: "2276",
+            seedKeywords: ["running shoes", "trail shoes"],
+          },
+          keywords: [
+            {
+              keyword: "laufschuhe",
+              searchVolume: 12100,
+              competition: "HIGH",
+              cpc: 1.2,
+              lowTopOfPageBid: 0.5,
+              highTopOfPageBid: 2.1,
+            },
+          ],
+          currency: "USD",
+          fetchedAt: "2026-10-27T08:00:00.000Z",
+        });
+      });
+
+      it("says a person sets the Market when the Project has no profile", async () => {
+        ads.marketProfile.mockResolvedValue(null);
+        const result = await new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "get_market_keywords",
+          toolCallId: "market-keywords-none",
+          input: { projectId },
+        });
+        expect(result).toEqual({
+          keywords: [],
+          note: expect.stringContaining("Market tab"),
+        });
+        expect(ads.marketKeywords).not.toHaveBeenCalled();
+      });
+
+      it.each(["TEAMMATE", "ASSISTANT"])(
+        "refuses Market keywords on a turn %s asked",
+        async (kind) => {
+          const turn = await turnFindUniqueMock();
+          turnFindUniqueMock.mockResolvedValue({
+            ...turn,
+            contextSnapshot: {
+              packet: {
+                memory: { version: 1 },
+                trigger: { askedBy: { kind } },
+              },
+            },
+          });
+          await expect(
+            new SokoBotRuntimeService().executeTool({
+              ...SCOPE,
+              capability: "get_market_keywords",
+              toolCallId: "market-wrong-audience",
+              input: { projectId },
+            }),
+          ).rejects.toThrow("only available for the owner");
+          expect(ads.marketProfile).not.toHaveBeenCalled();
+        },
+      );
+
+      it("hands the model a refreshing 409 as a readable refusal", async () => {
+        const { HTTPException } = await import("hono/http-exception");
+        ads.marketKeywords.mockRejectedValue(
+          new HTTPException(409, {
+            message: "Market keywords are refreshing. Please retry.",
+          }),
+        );
+        const refusal = new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "get_market_keywords",
+          toolCallId: "market-409",
+          input: { projectId },
+        });
+        await expect(refusal).rejects.toBeInstanceOf(
+          SokoBotRuntimeValidationError,
+        );
+        await expect(refusal).rejects.toThrow(
+          "Market keywords are refreshing. Please retry.",
+        );
+      });
     });
 
     it("says the provider could not complete when Composio fails", async () => {

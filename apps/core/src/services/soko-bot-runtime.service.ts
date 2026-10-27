@@ -302,6 +302,10 @@ import {
   searchProjectAdLocations,
 } from "@/services/project-ad-accounts.service";
 import {
+  getProjectAdMarketProfile,
+  listProjectAdMarketKeywords,
+} from "@/services/project-ad-market.service";
+import {
   listProjectSocialConnections,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
@@ -5007,6 +5011,7 @@ export class SokoBotRuntimeService {
           input.capability === "list_ad_accounts" ||
           input.capability === "list_ad_campaigns" ||
           input.capability === "find_ad_targeting" ||
+          input.capability === "get_market_keywords" ||
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
           input.capability === "list_social_account_statistics" ||
@@ -5491,6 +5496,49 @@ export class SokoBotRuntimeService {
         );
         return { ...languages, ...locations };
       }
+      case "get_market_keywords": {
+        const { projectId } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.get_market_keywords.parse(input.input);
+        await this.requireAdsAccess(authorized);
+        const scope = { projectId, workspaceId };
+        const profile = await callAds(() => getProjectAdMarketProfile(scope));
+        if (!profile)
+          return {
+            keywords: [],
+            note: "No Market profile is set for this Project. A person sets one on the Ads page's Market tab.",
+          };
+        const { keywords, fetchedAt } = await callAds(() =>
+          listProjectAdMarketKeywords(scope),
+        );
+        const { countryCode, languageCode, locationId } = profile;
+        return {
+          market: {
+            countryCode,
+            languageCode,
+            locationId,
+            seedKeywords: profile.keywords,
+          },
+          keywords: keywords.map(
+            ({
+              keyword,
+              searchVolume,
+              competition,
+              cpc,
+              lowTopOfPageBid,
+              highTopOfPageBid,
+            }) => ({
+              keyword,
+              searchVolume,
+              competition,
+              cpc,
+              lowTopOfPageBid,
+              highTopOfPageBid,
+            }),
+          ),
+          currency: "USD",
+          fetchedAt: fetchedAt.toISOString(),
+        };
+      }
       case "create_ad_campaign": {
         const { projectId, accountId, name, dailyBudget, google } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input);
@@ -5849,6 +5897,7 @@ export class SokoBotRuntimeService {
       case "list_ad_accounts":
       case "list_ad_campaigns":
       case "find_ad_targeting":
+      case "get_market_keywords":
       case "create_ad_campaign":
         return this.executeAdsTool(input, authorized);
       case "start_background_run":
