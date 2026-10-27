@@ -297,7 +297,7 @@ export function adToolkitRefusal(
     adProviderForToolkit(providerId) ??
     (tool ? adProviderForToolkit(tool.trim().split("_")[0]) : undefined);
   return provider
-    ? `${provider.name} is used through the Project's ad account: use list_ad_accounts, list_ad_campaigns, find_ad_targeting, get_market_keywords and create_ad_campaign`
+    ? `${provider.name} is used through the Project's ad account: start with list_ad_accounts and use the ad tools`
     : null;
 }
 

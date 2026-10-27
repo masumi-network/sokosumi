@@ -787,6 +787,30 @@ describe("authoritative action responses", () => {
     );
   });
 
+  it.each([
+    ["update_ad_campaign", "Updated ad campaign"],
+    ["edit_ad_campaign", "Edited ad campaign"],
+  ])(
+    "reports %s with a link to open the campaign",
+    async (capability, label) => {
+      const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability,
+          targetId: "123",
+          verification: "PROVIDER_ACK",
+          result: { campaignId: "123", updated: true, link },
+        }),
+      ]);
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done.",
+      );
+      expect(response.answerText).toBe(`${label} ([Open campaign](${link})).`);
+    },
+  );
+
   it.each([false, true])(
     "quotes connected social account evidence with availability metadata %s",
     async (withAvailability) => {

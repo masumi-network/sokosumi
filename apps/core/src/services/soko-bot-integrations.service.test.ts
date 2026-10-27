@@ -991,7 +991,7 @@ describe("ad toolkits stay off the Soko Bot", () => {
     },
   };
   const refusal =
-    /Google Ads is used through the Project's ad account: use list_ad_accounts/;
+    /Google Ads is used through the Project's ad account: start with list_ad_accounts/;
 
   it("leaves ad toolkits out of the catalog", async () => {
     mocks.toolkitGet.mockResolvedValue([

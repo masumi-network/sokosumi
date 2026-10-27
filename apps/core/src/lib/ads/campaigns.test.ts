@@ -1,7 +1,10 @@
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 
-import { googleCampaignSpecSchema } from "@/schemas/project-ad-account.schema";
+import {
+  googleCampaignEditSpecSchema,
+  googleCampaignSpecSchema,
+} from "@/schemas/project-ad-account.schema";
 import {
   AD_RANGES,
   buildAdCampaign,
@@ -161,5 +164,71 @@ describe("Soko Bot create_ad_campaign", () => {
     };
     expect(botSchema.safeParse({ ...base, google: bot }).success).toBe(true);
     expect(googleCampaignSpecSchema.safeParse(core).success).toBe(true);
+  });
+});
+
+describe("Soko Bot edit_ad_campaign", () => {
+  const botSchema = SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign;
+  const base = {
+    projectId: "01960001-0001-7001-8001-000000000001",
+    accountId: "01960001-0001-7001-8001-000000000002",
+    campaignId: "23850000000000000",
+    name: "Spring",
+    dailyBudget: 25,
+  };
+  const display = {
+    type: "DISPLAY",
+    locationIds: ["1003854"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com/spring",
+    businessName: "Sokosumi",
+    headlines: ["Run faster"],
+    longHeadline: "Light shoes that carry you further",
+    descriptions: ["Order today, run tomorrow."],
+  };
+  const kept = { assetId: "123456", role: "LANDSCAPE" };
+
+  // As for create: a spec the bot accepts must stay one Core accepts once
+  // its new images are resolved; kept images pass through unchanged.
+  it("accepts the same Display spec as Core, kept images and resolved new ones", () => {
+    const bot = {
+      ...display,
+      images: [
+        kept,
+        { fileId: "01960001-0001-7001-8001-000000000041", role: "SQUARE" },
+      ],
+    };
+    const core = {
+      ...display,
+      images: [
+        kept,
+        {
+          pathname: "drive/users/u/1.png",
+          fileUrl: "https://x.public.blob.vercel-storage.com/1.png",
+          name: "1.png",
+          size: 1000,
+          mimeType: "image/png",
+          role: "SQUARE",
+        },
+      ],
+    };
+    expect(botSchema.safeParse({ ...base, google: bot }).success).toBe(true);
+    expect(googleCampaignEditSpecSchema.safeParse(core).success).toBe(true);
+  });
+
+  it("refuses a kept image with no asset id, as Core does", () => {
+    const image = { role: "SQUARE" };
+    expect(
+      botSchema.safeParse({
+        ...base,
+        google: { ...display, images: [kept, image] },
+      }).success,
+    ).toBe(false);
+    expect(
+      googleCampaignEditSpecSchema.safeParse({
+        ...display,
+        images: [kept, image],
+      }).success,
+    ).toBe(false);
   });
 });

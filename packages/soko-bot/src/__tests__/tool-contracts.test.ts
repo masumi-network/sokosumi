@@ -209,6 +209,7 @@ describe("Ads read tool contracts", () => {
     list_ad_campaigns: { projectId, accountId },
     find_ad_targeting: { projectId, accountId },
     get_market_keywords: { projectId },
+    get_ad_campaign: { projectId, accountId, campaignId: "23850000000000000" },
   } as const;
 
   it.each(Object.keys(inputs) as (keyof typeof inputs)[])(
@@ -312,5 +313,115 @@ describe("create_ad_campaign contract", () => {
     expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toMatch(
       /never connect/i,
     );
+  });
+});
+
+describe("ad campaign management contracts", () => {
+  const base = {
+    projectId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    accountId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    campaignId: "23850000000000000",
+  };
+
+  it("defaults the details range and takes a digit campaign id only", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign;
+    expect(schema.parse(base).range).toBe("LAST_30_DAYS");
+    expect(schema.safeParse({ ...base, range: "LAST_YEAR" }).success).toBe(
+      false,
+    );
+    expect(schema.safeParse({ ...base, campaignId: "brand" }).success).toBe(
+      false,
+    );
+  });
+
+  describe("update_ad_campaign", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_ad_campaign;
+
+    // Google writes a budget and a status separately, so one change per call
+    // keeps a refused call honestly unsent.
+    it("takes a status or a budget, one per call, and nothing else", () => {
+      for (const change of [
+        { status: "PAUSED" },
+        { status: "ACTIVE" },
+        { dailyBudget: 12.5 },
+      ])
+        expect(schema.safeParse({ ...base, ...change }).success).toBe(true);
+      for (const bad of [
+        base,
+        { ...base, status: "PAUSED", dailyBudget: 12.5 },
+        { ...base, status: "REMOVED" },
+        { ...base, dailyBudget: 0 },
+        { ...base, status: "PAUSED", workspaceId: "x" },
+      ])
+        expect(schema.safeParse(bad).success).toBe(false);
+    });
+
+    it("lets the bot resume only when the owner asks", () => {
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.update_ad_campaign).toMatch(
+        /only resume when the owner asks/i,
+      );
+    });
+  });
+
+  describe("edit_ad_campaign", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign;
+    const common = {
+      locationIds: ["1003854"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com",
+    };
+    const display = {
+      type: "DISPLAY",
+      ...common,
+      businessName: "Sokosumi",
+      headlines: ["One"],
+      longHeadline: "A longer headline",
+      descriptions: ["First line."],
+      images: [
+        { assetId: "123456", role: "LANDSCAPE" },
+        { fileId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", role: "SQUARE" },
+      ],
+    };
+    const edit = { ...base, name: "Spring", dailyBudget: 25 };
+
+    it("keeps images by assetId and adds new ones by fileId", () => {
+      expect(schema.safeParse({ ...edit, google: display }).success).toBe(true);
+    });
+
+    it("refuses an image with both or neither id, and a Search spec with unknown keys", () => {
+      for (const image of [
+        { assetId: "123456", fileId: display.images[1].fileId, role: "SQUARE" },
+        { assetId: "not-digits", role: "SQUARE" },
+        { role: "SQUARE" },
+      ])
+        expect(
+          schema.safeParse({
+            ...edit,
+            google: { ...display, images: [image] },
+          }).success,
+        ).toBe(false);
+      expect(
+        schema.safeParse({
+          ...edit,
+          google: {
+            type: "SEARCH",
+            ...common,
+            keywords: [{ text: "shoes", matchType: "EXACT" }],
+            headlines: ["One", "Two", "Three"],
+            descriptions: ["First line.", "Second line."],
+            status: "ENABLED",
+          },
+        }).success,
+      ).toBe(false);
+    });
+
+    it("tells the bot to read the campaign first and leave the status alone", () => {
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.edit_ad_campaign).toContain(
+        "get_ad_campaign",
+      );
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.edit_ad_campaign).toContain(
+        "update_ad_campaign",
+      );
+    });
   });
 });

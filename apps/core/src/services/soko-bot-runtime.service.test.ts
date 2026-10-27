@@ -266,6 +266,9 @@ const ads = vi.hoisted(() => ({
   locations: vi.fn(),
   languages: vi.fn(),
   create: vi.fn(),
+  details: vi.fn(),
+  update: vi.fn(),
+  edit: vi.fn(),
   marketProfile: vi.fn(),
   marketKeywords: vi.fn(),
 }));
@@ -275,6 +278,9 @@ vi.mock("@/services/project-ad-market.service", () => ({
 }));
 vi.mock("@/services/project-ad-accounts.service", () => ({
   createProjectAdCampaign: ads.create,
+  getProjectAdCampaignDetails: ads.details,
+  updateProjectAdCampaign: ads.update,
+  editProjectAdCampaign: ads.edit,
   listProjectAdAccounts: ads.accounts,
   listProjectAdCampaigns: ads.campaigns,
   searchProjectAdLocations: ads.locations,
@@ -6396,6 +6402,9 @@ describe("Soko Bot project social tools", () => {
     "find_ad_targeting",
     "get_market_keywords",
     "create_ad_campaign",
+    "get_ad_campaign",
+    "update_ad_campaign",
+    "edit_ad_campaign",
     "list_integration_tools",
     "run_integration_tool",
     "list_social_posts",
@@ -7473,6 +7482,22 @@ describe("Soko Bot project social tools", () => {
           google: search,
         },
       ],
+      ["get_ad_campaign", { projectId, accountId, campaignId: "123" }],
+      [
+        "update_ad_campaign",
+        { projectId, accountId, campaignId: "123", status: "PAUSED" },
+      ],
+      [
+        "edit_ad_campaign",
+        {
+          projectId,
+          accountId,
+          campaignId: "123",
+          name: "Spring",
+          dailyBudget: 25,
+          google: search,
+        },
+      ],
     ])(
       "refuses %s outside the bot's own Project, unsent",
       async (capability, input) => {
@@ -7496,7 +7521,7 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  describe("create_ad_campaign", () => {
+  describe("ad campaign writes", () => {
     const adAccountId = "01960001-0001-7001-8001-000000000031";
     const metaAccountId = "01960001-0001-7001-8001-000000000032";
     const landscapeId = "01960001-0001-7001-8001-000000000041";
@@ -7634,7 +7659,7 @@ describe("Soko Bot project social tools", () => {
         campaignId: "23850000000000000",
         status: "PAUSED",
         link: `/ads/campaigns/23850000000000000?projectId=${projectId}&accountId=${adAccountId}`,
-        note: "Created paused. A person activates it on the Ads page.",
+        note: "Created paused. Resume it with update_ad_campaign only when the owner asks.",
       });
       expect(lastReceipt()).toMatchObject({
         disposition: "APPLIED",
@@ -7863,6 +7888,259 @@ describe("Soko Bot project social tools", () => {
       social.beta.mockRejectedValue(new Error("Ads is beta only"));
       await expect(run(search)).rejects.toThrow("Ads is beta only");
       expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    describe("managing a campaign", () => {
+      const campaignId = "23850000000000000";
+      const link = `/ads/campaigns/${campaignId}?projectId=${projectId}&accountId=${adAccountId}`;
+      const scope = {
+        projectId,
+        accountId: adAccountId,
+        campaignId,
+        workspaceId: SCOPE.workspaceId,
+      };
+      const runTool = (
+        capability:
+          | "get_ad_campaign"
+          | "update_ad_campaign"
+          | "edit_ad_campaign",
+        input: object,
+        accountId = adAccountId,
+      ) =>
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: `ad-${capability}`,
+          input: { projectId, accountId, campaignId, ...input },
+        });
+
+      describe("get_ad_campaign", () => {
+        it("returns the campaign's details with a link to open it", async () => {
+          const details = {
+            campaign: { id: campaignId, name: "Spring", editable: true },
+            keywords: [],
+          };
+          ads.details.mockResolvedValue(details);
+          await expect(runTool("get_ad_campaign", {})).resolves.toEqual({
+            ...details,
+            link,
+          });
+          expect(ads.details).toHaveBeenCalledWith({
+            ...scope,
+            range: "LAST_30_DAYS",
+          });
+        });
+
+        it("hands the model the 404 for a Meta account", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.details.mockRejectedValue(
+            new HTTPException(404, {
+              message:
+                "Campaign details are only available for Google Ads accounts",
+            }),
+          );
+          const refusal = runTool("get_ad_campaign", {}, metaAccountId);
+          await expect(refusal).rejects.toBeInstanceOf(
+            SokoBotRuntimeValidationError,
+          );
+          await expect(refusal).rejects.toThrow(
+            "only available for Google Ads accounts",
+          );
+        });
+      });
+
+      describe("update_ad_campaign", () => {
+        beforeEach(() => {
+          ads.update.mockResolvedValue(undefined);
+        });
+
+        it.each(["PAUSED", "ACTIVE"] as const)(
+          "sets the status to %s",
+          async (status) => {
+            await expect(
+              runTool("update_ad_campaign", { status }),
+            ).resolves.toEqual({
+              campaignId,
+              updated: true,
+              status,
+              link,
+            });
+            expect(ads.update).toHaveBeenCalledWith({ ...scope, status });
+            expect(lastReceipt()).toMatchObject({
+              disposition: "APPLIED",
+              verification: "PROVIDER_ACK",
+              targetId: campaignId,
+            });
+          },
+        );
+
+        it("changes only the budget", async () => {
+          await expect(
+            runTool("update_ad_campaign", { dailyBudget: 30 }),
+          ).resolves.toEqual({
+            campaignId,
+            updated: true,
+            dailyBudget: 30,
+            link,
+          });
+          expect(ads.update.mock.calls[0][0]).not.toHaveProperty("status");
+        });
+
+        it("updates a Meta campaign without a link, since it has no details page", async () => {
+          await expect(
+            runTool("update_ad_campaign", { status: "PAUSED" }, metaAccountId),
+          ).resolves.toEqual({ campaignId, updated: true, status: "PAUSED" });
+        });
+
+        it.each([
+          ["neither a status nor a budget", {}],
+          [
+            "a status and a budget together",
+            { status: "PAUSED", dailyBudget: 30 },
+          ],
+        ])("refuses %s before calling anything", async (_label, change) => {
+          await expect(runTool("update_ad_campaign", change)).rejects.toThrow(
+            "Set either status or dailyBudget",
+          );
+          expect(ads.accounts).not.toHaveBeenCalled();
+          expect(ads.update).not.toHaveBeenCalled();
+        });
+
+        it("hands the model a service refusal so it can fix and retry", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.update.mockRejectedValue(
+            new HTTPException(422, {
+              message: "Daily budget in EUR can have at most 2 decimal places",
+            }),
+          );
+          await refused(
+            runTool("update_ad_campaign", { dailyBudget: 1.234 }),
+            "at most 2 decimal places",
+          );
+        });
+      });
+
+      describe("edit_ad_campaign", () => {
+        const edit = { name: "Spring", dailyBudget: 25 };
+        const keptSquare = { assetId: "111", role: "SQUARE" as const };
+        beforeEach(() => {
+          ads.edit.mockResolvedValue(undefined);
+        });
+
+        it("edits a Search campaign and links it", async () => {
+          await expect(
+            runTool("edit_ad_campaign", { ...edit, google: search }),
+          ).resolves.toEqual({ campaignId, edited: true, link });
+          expect(ads.edit).toHaveBeenCalledWith({
+            ...scope,
+            userId: SCOPE.userId,
+            organizationId: "organization-one",
+            ...edit,
+            google: search,
+          });
+          expect(lastReceipt()).toMatchObject({
+            disposition: "APPLIED",
+            verification: "PROVIDER_ACK",
+            targetId: campaignId,
+          });
+        });
+
+        it("keeps a current image by asset id and crops a new one, in order", async () => {
+          await runTool("edit_ad_campaign", {
+            ...edit,
+            google: {
+              ...display,
+              images: [keptSquare, { fileId: wide169Id, role: "LANDSCAPE" }],
+            },
+          });
+          const pathname = `${orgPath}/Content Studio/wide169-landscape-${wide169Id.slice(-8)}.jpg`;
+          expect(files.put).toHaveBeenCalledTimes(1);
+          expect(ads.edit.mock.calls[0][0].google.images).toEqual([
+            keptSquare,
+            expect.objectContaining({
+              pathname,
+              mimeType: "image/jpeg",
+              role: "LANDSCAPE",
+            }),
+          ]);
+        });
+
+        it("writes nothing to Files when every image is kept", async () => {
+          const keptLandscape = { assetId: "222", role: "LANDSCAPE" as const };
+          await runTool("edit_ad_campaign", {
+            ...edit,
+            google: { ...display, images: [keptLandscape, keptSquare] },
+          });
+          expect(files.put).not.toHaveBeenCalled();
+          expect(ads.edit.mock.calls[0][0].google.images).toEqual([
+            keptLandscape,
+            keptSquare,
+          ]);
+        });
+
+        it("refuses a Meta account and points to the Ads page", async () => {
+          await refused(
+            runTool(
+              "edit_ad_campaign",
+              { ...edit, google: search },
+              metaAccountId,
+            ),
+            "Meta campaigns are edited on the Ads page",
+          );
+          expect(ads.edit).not.toHaveBeenCalled();
+        });
+
+        it("tells the model what Core's Google rules reject", async () => {
+          await refused(
+            runTool("edit_ad_campaign", {
+              ...edit,
+              google: {
+                ...display,
+                images: [{ assetId: "111", role: "LANDSCAPE" }],
+              },
+            }),
+            "Add at least one SQUARE image",
+          );
+          expect(ads.edit).not.toHaveBeenCalled();
+        });
+
+        it("hands the model a service refusal so it can fix and retry", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.edit.mockRejectedValue(
+            new HTTPException(422, {
+              message: "This campaign cannot be edited",
+            }),
+          );
+          await refused(
+            runTool("edit_ad_campaign", { ...edit, google: search }),
+            "cannot be edited",
+          );
+        });
+
+        it("rechecks ads access before replaying an edit", async () => {
+          const input = {
+            projectId,
+            accountId: adAccountId,
+            campaignId,
+            ...edit,
+            google: search,
+          };
+          toolCallFindUniqueMock.mockResolvedValue({
+            inputHash: createHash("sha256")
+              .update(canonicalJson(input))
+              .digest("hex"),
+            capability: "edit_ad_campaign",
+            status: "COMPLETED",
+            disposition: "APPLIED",
+            result: { campaignId, edited: true },
+          });
+          social.beta.mockRejectedValue(new Error("Ads is beta only"));
+          await expect(
+            runTool("edit_ad_campaign", { ...edit, google: search }),
+          ).rejects.toThrow("Ads is beta only");
+          expect(ads.edit).not.toHaveBeenCalled();
+        });
+      });
     });
   });
 
