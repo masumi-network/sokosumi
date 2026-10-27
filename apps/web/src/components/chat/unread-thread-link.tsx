@@ -25,10 +25,8 @@ function useThreadRowNames(
 ): { label: string; roomName: string } {
   const t = useTranslations("App.Channels.ThreadRows");
   const tChannels = useTranslations("App.Channels");
-  const roomName = getRoomDisplayName(
-    room,
-    currentUserId,
-    tChannels("SelfDirect.you"),
+  const roomName = getRoomDisplayName(room, currentUserId, (name) =>
+    tChannels("SelfDirect.youNamed", { name }),
   );
   return {
     label:

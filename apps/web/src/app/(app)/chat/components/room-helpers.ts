@@ -677,13 +677,15 @@ export function getFormerMemberNames(room: ChatRoom): string[] {
   return room.formerUserMembers.map((member) => member.name || member.email);
 }
 
+/** `selfLabel` names the Self Direct from the reader's own name. */
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
-  selfLabel: string,
+  selfLabel: (name: string) => string,
 ): string {
   if (room.isSelfDirect) {
-    return selfLabel;
+    const self = room.userMembers.find((member) => member.id === currentUserId);
+    return selfLabel(self?.name || self?.email || room.name);
   }
   if (room.kind !== "direct") {
     return room.name;

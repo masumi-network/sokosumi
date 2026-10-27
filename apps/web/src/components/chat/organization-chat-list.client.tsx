@@ -491,7 +491,9 @@ export function OrganizationChatList({
       room,
       href: `/chat/rooms/${room.id}`,
       label: isDirect
-        ? getRoomDisplayName(room, currentUserId, t("SelfDirect.you"))
+        ? getRoomDisplayName(room, currentUserId, (name) =>
+            t("SelfDirect.youNamed", { name }),
+          )
         : room.name,
       subtitle:
         room.myAccess === "guest" && room.organizationName

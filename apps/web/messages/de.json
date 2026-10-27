@@ -7672,6 +7672,7 @@
       "SelfDirect": {
         "messageYourself": "Dir selbst schreiben",
         "you": "Du",
+        "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },

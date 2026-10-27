@@ -405,7 +405,7 @@ An optional shared label on a group Direct, seen by every member in place of the
 _Avoid_: Channel name, nickname (a Group name is shared, not per-reader), room title
 
 **Self Direct**:
-One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.
+One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “{name} (you)”; sending notes triggers no self-notifications or AI work.
 _Avoid_: Notes channel, per-workspace self-chat, treating a former group with one remaining member as Self Direct
 
 **Send to yourself**:
