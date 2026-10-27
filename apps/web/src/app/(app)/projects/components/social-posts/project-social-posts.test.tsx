@@ -995,10 +995,12 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Drafts 1",
-      "Performance ",
-    ]);
+    // Read as announced: the phone's corner count badge is aria-hidden.
+    expect(screen.getAllByRole("tab")).toEqual(
+      ["Drafts 1", "Performance"].map((name) =>
+        screen.getByRole("tab", { name }),
+      ),
+    );
     expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
 
     const drafts = screen.getByTestId("social-posts-section-drafts");
@@ -1460,10 +1462,12 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Drafts 2",
-      "Performance ",
-    ]);
+    // Read as announced: the phone's corner count badge is aria-hidden.
+    expect(screen.getAllByRole("tab")).toEqual(
+      ["Drafts 2", "Performance"].map((name) =>
+        screen.getByRole("tab", { name }),
+      ),
+    );
     const drafts = screen.getByTestId("social-posts-section-drafts");
     const publishing = within(drafts).getByTestId(
       "social-post-post-publishing",
@@ -1686,12 +1690,12 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Calendar ",
-      "Drafts 1",
-      "Performance ",
-      "Accounts 1",
-    ]);
+    // Read as announced: the phone's corner count badge is aria-hidden.
+    expect(screen.getAllByRole("tab")).toEqual(
+      ["Calendar", "Drafts 1", "Performance", "Accounts 1"].map((name) =>
+        screen.getByRole("tab", { name }),
+      ),
+    );
     expect(screen.getByText("Calendar panel")).toBeVisible();
     expect(screen.getByRole("button", { name: "Page action" })).toBeVisible();
 
@@ -1759,11 +1763,16 @@ describe("ProjectSocialPosts", () => {
     expect(tablist).toHaveClass(
       "w-fit",
       "bg-card-background",
-      "max-sm:justify-start",
-      "max-sm:overflow-x-auto",
+      "@max-[42rem]:w-full",
     );
+    // A narrow row fits every tab as an icon instead of scrolling sideways.
+    expect(tablist).not.toHaveClass("max-sm:overflow-x-auto");
     expect(tablist).not.toHaveClass("min-h-11", "flex-1");
-    expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");
+    expect(tablist.parentElement).toHaveClass(
+      "@container",
+      "min-w-0",
+      "flex-1",
+    );
     expect(tablist.parentElement?.parentElement).toHaveClass("justify-between");
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab).not.toHaveClass("min-h-11");

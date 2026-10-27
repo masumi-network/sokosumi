@@ -8570,6 +8570,7 @@
       "previous": "Previous period",
       "next": "Next period",
       "today": "Today",
+      "weekNumber": "Week {week}",
       "view": {
         "month": "Month",
         "week": "Week",

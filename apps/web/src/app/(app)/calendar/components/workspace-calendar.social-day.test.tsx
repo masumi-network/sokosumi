@@ -30,8 +30,8 @@ vi.mock("next-intl", async () => {
     useLocale: () => "en",
     useTranslations:
       () => (key: string, values?: Record<string, string | number>) =>
-        values && ("date" in values || "count" in values)
-          ? `${key}:${values.date ?? values.count}`
+        values && ("date" in values || "count" in values || "week" in values)
+          ? `${key}:${values.date ?? values.count ?? values.week}`
           : key,
   };
 });
@@ -132,6 +132,56 @@ describe("Social calendar days", () => {
 
     expect(screen.getAllByTestId("calendar-social-post")).toHaveLength(3);
     expect(screen.getByText("socialPost.more:2")).toBeInTheDocument();
+  });
+
+  it("numbers each month row by the ISO week of its Monday", () => {
+    renderSocialCalendar({
+      searchParams: "?timezone=UTC&view=month&date=2027-01-16",
+    });
+
+    // The grid starts its rows on Sunday. Sun Dec 27 2026's row is ISO week
+    // 53 (its Monday is Dec 28); Sun Jan 3 2027's row is week 1.
+    const numbers = screen.getAllByTestId("calendar-week-number");
+    expect(numbers.map((number) => number.textContent)).toEqual([
+      "53",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+    ]);
+    for (const number of numbers) {
+      expect(number).toHaveAttribute("aria-hidden", "true");
+    }
+    // The row, not the decorative number, carries the localised name.
+    expect(
+      screen.getByRole("row", { name: "weekNumber:53" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "weekNumber:1" })).getByText("1", {
+        selector: "[data-testid=calendar-week-number]",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("draws today as a circle behind its day number, top-left", () => {
+    vi.useFakeTimers({
+      now: new Date("2030-01-16T12:00:00.000Z"),
+      toFake: ["Date"],
+    });
+    try {
+      renderSocialCalendar({
+        searchParams: "?timezone=UTC&view=month&date=2030-01-16",
+      });
+      const today = document.querySelector('[data-date="2030-01-16"]');
+      expect(today).toHaveAttribute("aria-current", "date");
+      expect(within(today as HTMLElement).getByText("16")).toHaveClass(
+        "rounded-full",
+        "bg-primary",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([

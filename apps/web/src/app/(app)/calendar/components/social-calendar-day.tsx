@@ -11,15 +11,17 @@ import {
 } from "date-fns";
 import { Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Temporal } from "temporal-polyfill";
-import { socialPostStatusTone } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { Button } from "@/components/ui/button";
-import { getToneStyle } from "@/components/ui/status-marker";
 import { cn } from "@/lib/utils";
-import { SocialPostCalendarEvent } from "./social-post-calendar-event";
+import { isoWeekOfRow } from "./iso-week";
+import {
+  SocialPostCalendarEvent,
+  SocialPostStatusDot,
+} from "./social-post-calendar-event";
 
 /**
  * The composer slot a day's "+" asks for: 09:00 that day in the calendar's
@@ -141,14 +143,11 @@ export function SocialDayAddSlot({
   timeZone: string;
   todayKey: string;
 }) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-  const anchor = useCallback((element: HTMLSpanElement | null) => {
-    setHost(element?.closest<HTMLElement>("[data-date]") ?? null);
-  }, []);
+  const { anchor, host } = useDayCell();
   const dayKey = host?.dataset.date;
   return (
     <>
-      <span hidden ref={anchor} />
+      {anchor}
       {host && dayKey
         ? createPortal(
             <SocialDayAddButton
@@ -157,6 +156,54 @@ export function SocialDayAddSlot({
               timeZone={timeZone}
               todayKey={todayKey}
             />,
+            host,
+          )
+        : null}
+    </>
+  );
+}
+
+/** The FullCalendar day cell a slot is drawn from, found through a hidden anchor. */
+function useDayCell() {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const ref = useCallback((element: HTMLSpanElement | null) => {
+    setHost(element?.closest<HTMLElement>("[data-date]") ?? null);
+  }, []);
+  return { anchor: <span hidden ref={ref} />, host };
+}
+
+/**
+ * A month row's ISO week number, in the gutter left of its first day.
+ *
+ * Drawn from that day's cell like the "+", and only by the cell that starts
+ * its row. The visible number is decorative: the row itself is named for the
+ * week, replacing the English label FullCalendar gives it with its own
+ * (US-style) week count.
+ */
+export function SocialWeekNumberSlot() {
+  const t = useTranslations("App.Calendar");
+  const { anchor, host } = useDayCell();
+  const row = host?.parentElement;
+  const rowStartKey =
+    row && row.firstElementChild === host ? host?.dataset.date : undefined;
+  const week = rowStartKey ? isoWeekOfRow(rowStartKey) : null;
+  const label = week === null ? null : t("weekNumber", { week });
+  useEffect(() => {
+    if (row && label) row.setAttribute("aria-label", label);
+  }, [row, label]);
+  return (
+    <>
+      {anchor}
+      {host && week !== null
+        ? createPortal(
+            <span
+              aria-hidden
+              className="text-muted-foreground absolute end-full top-1 flex h-6 w-8 items-center justify-center text-2xs tabular-nums"
+              data-testid="calendar-week-number"
+              title={label ?? undefined}
+            >
+              {week}
+            </span>,
             host,
           )
         : null}
@@ -251,6 +298,7 @@ export function SocialMobileCalendar({
   dayKeyOf: (item: SocialPostCalendarItem) => string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
+  const tCalendar = useTranslations("App.Calendar");
   const formatDate = useFormatter().dateTime;
   const dayLabel = useDayLabel();
   const byDay = Map.groupBy(items, dayKeyOf);
@@ -292,8 +340,13 @@ export function SocialMobileCalendar({
 
   return (
     <div className="flex flex-col gap-3" data-testid="calendar-month">
-      <div className="bg-card-background rounded-xl p-2">
-        <div aria-hidden className="grid grid-cols-7 pb-1">
+      <div className="bg-background border-quinary rounded-xl border p-2">
+        {/* A phone has no room for the week numbers; a small tablet does. */}
+        <div
+          aria-hidden
+          className="grid grid-cols-7 pb-1 sm:grid-cols-[1.5rem_repeat(7,minmax(0,1fr))]"
+        >
+          <span className="max-sm:hidden" />
           {gridDays.slice(0, 7).map((dayKey) => (
             <span
               className="text-muted-foreground text-center text-2xs font-medium"
@@ -306,13 +359,15 @@ export function SocialMobileCalendar({
             </span>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-0.5">
-          {gridDays.map((dayKey) => {
+        <div className="grid grid-cols-7 gap-0.5 sm:grid-cols-[1.5rem_repeat(7,minmax(0,1fr))]">
+          {gridDays.flatMap((dayKey, index) => {
             const dayItems = byDay.get(dayKey) ?? [];
             const attention = dayItems.filter(needsAttention).length;
             const inMonth = dayKey.startsWith(monthKey);
             const isSelected = dayKey === selected;
-            return (
+            const isToday = dayKey === todayKey;
+            const week = index % 7 === 0 ? isoWeekOfRow(dayKey) : null;
+            const day = (
               <button
                 aria-label={[
                   dayLabel(dayKey, true),
@@ -325,22 +380,27 @@ export function SocialMobileCalendar({
                   .join(", ")}
                 aria-pressed={isSelected}
                 className={cn(
-                  "press focus-visible:ring-ring-halo flex min-h-12 cursor-pointer flex-col items-center gap-1 rounded-md py-1 text-sm tabular-nums outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
-                  isSelected
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted",
-                  !inMonth && !isSelected && "text-muted-foreground",
-                  dayKey === todayKey &&
-                    !isSelected &&
-                    "text-primary font-semibold",
+                  "press focus-visible:ring-ring-halo flex min-h-12 cursor-pointer flex-col items-center gap-1 rounded-md py-1 text-xs tabular-nums outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+                  isSelected ? "bg-primary-quinary" : "hover:bg-muted",
+                  !inMonth && "text-muted-foreground",
                 )}
                 data-testid="calendar-mobile-day"
                 key={dayKey}
                 onClick={() => setSelected(dayKey)}
                 type="button"
               >
-                <span>{Number(dayKey.slice(8))}</span>
+                {/* Today is a filled circle, as on the desktop grid. */}
+                <span
+                  className={cn(
+                    "flex size-6 items-center justify-center rounded-full",
+                    isToday && "bg-primary text-primary-foreground",
+                    (isToday || isSelected) && "font-semibold",
+                  )}
+                >
+                  {Number(dayKey.slice(8))}
+                </span>
                 <span aria-hidden className="flex h-1.5 items-center gap-0.5">
+                  {/* A post waiting on the reader is a diamond, not only a red dot. */}
                   {dayItems
                     .toSorted(
                       (a, b) =>
@@ -348,20 +408,7 @@ export function SocialMobileCalendar({
                     )
                     .slice(0, 3)
                     .map((item) => (
-                      <span
-                        className={cn(
-                          "size-1.5",
-                          // A post waiting on the reader is a diamond, not only a red dot.
-                          needsAttention(item)
-                            ? "rotate-45 rounded-xs"
-                            : "rounded-full",
-                          isSelected
-                            ? "bg-primary-foreground"
-                            : getToneStyle(socialPostStatusTone(item.status))
-                                .dot,
-                        )}
-                        key={item.id}
-                      />
+                      <SocialPostStatusDot key={item.id} status={item.status} />
                     ))}
                   {dayItems.length > 3 ? (
                     <span className="text-2xs leading-none">+</span>
@@ -369,6 +416,20 @@ export function SocialMobileCalendar({
                 </span>
               </button>
             );
+            return week === null
+              ? [day]
+              : [
+                  <span
+                    aria-hidden
+                    className="text-muted-foreground flex h-8 items-center justify-center text-2xs tabular-nums max-sm:hidden"
+                    data-testid="calendar-week-number"
+                    key={`week-${dayKey}`}
+                    title={tCalendar("weekNumber", { week })}
+                  >
+                    {week}
+                  </span>,
+                  day,
+                ];
           })}
         </div>
       </div>

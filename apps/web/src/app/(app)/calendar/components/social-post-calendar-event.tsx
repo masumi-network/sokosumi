@@ -38,6 +38,55 @@ function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
   );
 }
 
+/** A post's status in words, and why it failed when it did. */
+function useSocialPostStatusCopy(item: SocialPostCalendarItem) {
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
+  const copy = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
+  const { enabledProviders } = useSocialProviderAvailability();
+  const label = item.partiallyPublished
+    ? copy("thread.partlyPosted")
+    : statuses(item.status);
+  const reason =
+    item.status === "FAILED" || item.status === "MISSED"
+      ? publishFailureCopy(
+          item,
+          copy,
+          (values) => formatter.list(values, { type: "conjunction" }),
+          enabledProviders,
+        )
+      : null;
+  return { label, reason };
+}
+
+/**
+ * A post's status as a small mark in its hue. A post that waits on the
+ * reader (failed or missed) is a diamond, not only a red dot. Decorative:
+ * whatever carries it names the status in words.
+ */
+export function SocialPostStatusDot({
+  status,
+  className,
+}: {
+  status: SocialPostCalendarItem["status"];
+  /** Replaces the status hue, e.g. on a selected day. */
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "size-1.5 shrink-0",
+        status === "FAILED" || status === "MISSED"
+          ? "rotate-45 rounded-xs"
+          : "rounded-full",
+        className ?? getToneStyle(socialPostStatusTone(status)).dot,
+      )}
+      data-testid="calendar-social-post-dot"
+    />
+  );
+}
+
 function CalendarSocialPostStatus({
   item,
   showLabel,
@@ -48,13 +97,7 @@ function CalendarSocialPostStatus({
   showLabel?: boolean;
   className?: string;
 }) {
-  const statuses = useTranslations("App.Projects.SocialPosts.status");
-  const copy = useTranslations("App.Projects.SocialPosts");
-  const formatter = useFormatter();
-  const { enabledProviders } = useSocialProviderAvailability();
-  const label = item.partiallyPublished
-    ? copy("thread.partlyPosted")
-    : statuses(item.status);
+  const { label, reason } = useSocialPostStatusCopy(item);
   const labeled = showLabel ?? needsStatusLabel(item.status);
   const badge = (
     <SocialPostStatusBadge
@@ -65,17 +108,9 @@ function CalendarSocialPostStatus({
       showLabel={labeled}
     />
   );
-  if (item.status !== "FAILED" && item.status !== "MISSED") return badge;
+  if (!reason) return badge;
   return (
-    <SocialPostStatusReasonTooltip
-      label={label}
-      reason={publishFailureCopy(
-        item,
-        copy,
-        (values) => formatter.list(values, { type: "conjunction" }),
-        enabledProviders,
-      )}
-    >
+    <SocialPostStatusReasonTooltip label={label} reason={reason}>
       {badge}
     </SocialPostStatusReasonTooltip>
   );
@@ -385,10 +420,11 @@ function useSocialPostCalendarCopy(
 }
 
 /**
- * How a chip says its status without leaning on hue: the glyph is always
- * there, a post someone still has to finish has a dashed edge, a canceled one
- * is struck through, and a post that needs the reader names its status in
- * words on the week.
+ * How a chip says its status without leaning on hue: the month's dot turns
+ * to a diamond for a post that waits on the reader, the week's glyph is
+ * always there, a post someone still has to finish has a dashed edge on the
+ * week, a canceled one is struck through, a post that needs the reader names
+ * its status in words on the week, and every chip's name and tooltip say it.
  */
 const DASHED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
   "DRAFT",
@@ -407,10 +443,11 @@ const WORDED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
 /**
  * Social's calendar chip, one shape for the month and the week.
  *
- * A status rail and glyph lead, then the platform, the time and the post's
- * first words. The week adds the account, a few lines of text, the media
- * thumb and the status word. A post that can still move carries a grip and
- * says so to assistive tech; the drag itself stays FullCalendar's.
+ * The month draws one borderless line: a status dot, the platform, the time
+ * and the post's first words. The week is a card with the account, a few
+ * lines of text, the media thumb and the status. A post that can still move
+ * carries a grip and says so to assistive tech; the drag itself stays
+ * FullCalendar's.
  */
 function SocialPostCalendarChip({
   density,
@@ -431,28 +468,22 @@ function SocialPostCalendarChip({
   const dragHintId = useId();
   const { account, accessibleName, handle, providerLabel } =
     useSocialPostCalendarCopy(item, timeZone, showProject);
+  const status = useSocialPostStatusCopy(item);
   const movable = isChangeableSocialPost(item);
   const reschedule = movable ? onReschedule : undefined;
-  const tone = getToneStyle(socialPostStatusTone(item.status));
   const week = density === "week";
   const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
+  const text = item.text || t("mediaOnly");
   const className = cn(
-    "group/chip bg-background text-foreground press hover:bg-muted border-border relative flex w-full min-w-0 select-none overflow-hidden rounded-md border text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+    "group/chip text-foreground press hover:bg-muted relative flex w-full min-w-0 select-none overflow-hidden rounded-md text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
     week
-      ? "@container flex-col gap-1 py-1.5 ps-2.5 pe-1.5"
-      : "items-center gap-1 py-0.5 ps-2 pe-1",
-    DASHED_STATUSES.has(item.status) && "border-dashed",
+      ? "@container bg-background flex-col gap-1 border px-2 py-1.5"
+      : "items-center gap-1.5 px-1 py-0.5",
+    week &&
+      (DASHED_STATUSES.has(item.status)
+        ? "border-border border-dashed"
+        : "border-quinary"),
     movable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-  );
-  const rail = (
-    <span
-      aria-hidden
-      className={cn(
-        "absolute inset-y-1 start-0.5 w-0.5 rounded-full",
-        tone.dot,
-      )}
-      data-testid="calendar-social-post-rail"
-    />
   );
   const grip = movable ? (
     <GripVertical
@@ -465,20 +496,19 @@ function SocialPostCalendarChip({
       data-testid="calendar-social-post-grip"
     />
   ) : null;
-  const text = (
+  const textLine = (
     <span
       className={cn(
         "min-w-0 font-normal",
-        week ? "line-clamp-3 break-words" : "flex-1 truncate",
+        week ? "line-clamp-3 break-words" : "flex-1 truncate text-sm leading-5",
         item.status === "CANCELED" && "text-muted-foreground line-through",
       )}
     >
-      {item.text || t("mediaOnly")}
+      {text}
     </span>
   );
   const content = week ? (
     <>
-      {rail}
       <span className="flex w-full min-w-0 items-center gap-1.5">
         <AccountChipMark avatarUrl={item.avatarUrl} provider={item.provider} />
         {/* A narrow column would cut the handle to a bare "@": the mark and
@@ -494,7 +524,7 @@ function SocialPostCalendarChip({
         </span>
       </span>
       <span className="flex w-full min-w-0 items-start gap-1.5">
-        <span className="flex min-w-0 flex-1">{text}</span>
+        <span className="flex min-w-0 flex-1">{textLine}</span>
         {item.previewMedia ? (
           <CompactSocialPostThumb media={item.previewMedia} />
         ) : null}
@@ -527,12 +557,7 @@ function SocialPostCalendarChip({
     </>
   ) : (
     <>
-      {rail}
-      <CalendarSocialPostStatus
-        className="size-4 rounded-full"
-        item={item}
-        showLabel={false}
-      />
+      <SocialPostStatusDot status={item.status} />
       <SocialPostProviderIcon
         aria-hidden
         className="size-3 shrink-0"
@@ -541,7 +566,7 @@ function SocialPostCalendarChip({
       <span className="text-muted-foreground shrink-0 tabular-nums">
         {time}
       </span>
-      {text}
+      {textLine}
       {grip}
     </>
   );
@@ -553,6 +578,14 @@ function SocialPostCalendarChip({
     "data-movable": movable ? "true" : undefined,
     "data-status": item.status,
     "data-testid": "calendar-social-post",
+    // The month's dot is only a hue: its tooltip says the status (and why a
+    // failed post failed) in words, as the accessible name does. The week
+    // shows its status glyph and word.
+    title: week
+      ? undefined
+      : [status.label, status.reason, time, text]
+          .filter((part): part is string => Boolean(part))
+          .join(" · "),
   };
   const chip = (
     <>
@@ -584,10 +617,7 @@ function SocialPostCalendarChip({
     <div className="relative">
       {chip}
       <button
-        aria-label={t("rescheduleNamed", {
-          time,
-          text: item.text || t("mediaOnly"),
-        })}
+        aria-label={t("rescheduleNamed", { time, text })}
         className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo hit-area absolute end-1 bottom-1 flex size-6 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
         data-testid="calendar-social-post-reschedule"
         onClick={() => reschedule(item)}

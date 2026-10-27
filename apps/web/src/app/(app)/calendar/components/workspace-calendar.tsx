@@ -116,7 +116,11 @@ import {
   useReportRunChangeFailure,
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
-import { SocialDayAddSlot, SocialMobileCalendar } from "./social-calendar-day";
+import {
+  SocialDayAddSlot,
+  SocialMobileCalendar,
+  SocialWeekNumberSlot,
+} from "./social-calendar-day";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 import {
   isChangeableSocialPost,
@@ -827,9 +831,16 @@ function CalendarView({
   return (
     <>
       <div
-        className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
+        className={cn(
+          "app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl",
+          // Social's grid is one white card ruled by hairlines.
+          socialChips
+            ? "bg-background border-quinary border"
+            : "bg-card-background",
+        )}
         ref={calendarRef}
         data-can-create={canCreate ? "true" : undefined}
+        data-social-grid={socialChips ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
       >
@@ -839,7 +850,13 @@ function CalendarView({
             canCreate
               ? "hover:bg-muted motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
               : socialChips
-                ? "group/day relative"
+                ? (cell: { dow: number }) =>
+                    cn(
+                      "group/day relative",
+                      // Weekends sit back a step.
+                      (cell.dow === 0 || cell.dow === 6) &&
+                        "bg-card-background",
+                    )
                 : undefined
           }
           key={`${dateKey}-${timeZone}-${view}`}
@@ -867,32 +884,67 @@ function CalendarView({
           eventColor="transparent"
           {...(socialChips
             ? {
+                // Rows start low and grow with their posts: FullCalendar's
+                // default ratio leaves a mostly empty month.
+                aspectRatio: 2.4,
                 // A day shows its first few posts; the rest are one tap away
                 // in FullCalendar's day popover, drawn with the same chips.
                 dayMaxEvents: view === "month" ? 3 : false,
+                moreLinkClass: "text-muted-foreground hover:text-foreground",
                 moreLinkContent: ({ num }: { num: number }) =>
                   t("socialPost.more", { count: num }),
                 moreLinkHint: (num: number) =>
                   t("socialPost.moreHint", { count: num }),
+                // The month leaves a narrow gutter on the left for each row's
+                // ISO week number.
+                viewClass: view === "month" ? "!ps-8" : undefined,
+                dayCellTopClass: "!justify-start",
                 dayCellTopContent: (cell: {
                   dayNumberText: string;
                   inPopover: boolean;
+                  isOther: boolean;
+                  isToday: boolean;
                 }) => (
                   <>
-                    {cell.dayNumberText}
+                    <span
+                      className={cn(
+                        "inline-flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
+                        cell.isToday
+                          ? "bg-primary text-primary-foreground font-semibold"
+                          : cell.isOther && "text-muted-foreground",
+                      )}
+                    >
+                      {cell.dayNumberText}
+                    </span>
                     {cell.inPopover ? null : (
-                      <SocialDayAddSlot
-                        className="absolute top-1 start-1 z-10 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
-                        timeZone={timeZone}
-                        todayKey={todayKey}
-                      />
+                      <>
+                        <SocialWeekNumberSlot />
+                        <SocialDayAddSlot
+                          className="absolute top-1 end-1 z-10 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+                          timeZone={timeZone}
+                          todayKey={todayKey}
+                        />
+                      </>
                     )}
                   </>
                 ),
-                dayHeaderClass: "relative",
-                dayHeaderContent: (header: { text: string }) => (
+                dayHeaderAlign: "start" as const,
+                dayHeaderClass: "relative !border-s-0",
+                dayHeaderContent: (header: {
+                  isToday: boolean;
+                  text: string;
+                }) => (
                   <>
-                    {header.text}
+                    <span
+                      className={cn(
+                        "text-xs",
+                        view === "week" && header.isToday
+                          ? "bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-semibold"
+                          : "text-muted-foreground font-medium",
+                      )}
+                    >
+                      {header.text}
+                    </span>
                     {view === "week" ? (
                       <SocialDayAddSlot
                         className="absolute end-1 top-1/2 z-10 -translate-y-1/2"

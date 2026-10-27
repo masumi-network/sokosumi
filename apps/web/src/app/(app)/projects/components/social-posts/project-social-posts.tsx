@@ -61,12 +61,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
 } from "@/components/ui/tabs";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
@@ -109,6 +107,11 @@ import { publishFailureCopy } from "./social-post-publish-failure";
 import { SocialPostStatistics } from "./social-post-statistics";
 import { SocialPostThreadBadge } from "./social-post-thread-badge";
 import { getSocialReconnections } from "./social-reconnection";
+import {
+  SOCIAL_TABS_LIST_CLASS_NAME,
+  SOCIAL_TABS_ROW_CLASS_NAME,
+  SocialTabTrigger,
+} from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
   /** Social's calendar, shown as the first tab when given. */
@@ -1283,12 +1286,14 @@ export function ProjectSocialPosts({
           }}
         >
           <div className="flex flex-row items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div
+              className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}
+            >
               <TabsList
                 aria-label={t("title")}
                 className={cn(
                   SEGMENTED_TABS_LIST_CLASS_NAME,
-                  "app-scrollbar w-fit min-w-0 max-w-full max-sm:justify-start max-sm:overflow-x-auto",
+                  SOCIAL_TABS_LIST_CLASS_NAME,
                 )}
               >
                 {tabs.map((candidate) => {
@@ -1300,30 +1305,22 @@ export function ProjectSocialPosts({
                         ? listedAccountCount
                         : 0;
                   return (
-                    <TabsTrigger
-                      key={candidate}
-                      className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-                      data-testid={`social-posts-tab-${candidate}`}
-                      value={candidate}
-                    >
-                      {candidate === "attention" ? (
-                        <AlertTriangle
-                          className="text-semantic-warning size-4"
-                          aria-hidden
-                        />
-                      ) : null}
-                      {t(`sections.${candidate}`)}{" "}
-                      {count > 0 ? (
-                        <span className="text-muted-foreground tabular-nums">
-                          {candidate !== "calendar" &&
-                          candidate !== "accounts" &&
-                          candidate !== "statistics" &&
-                          cursors[candidate]
+                    <SocialTabTrigger
+                      alert={candidate === "attention"}
+                      count={
+                        count > 0
+                          ? candidate !== "calendar" &&
+                            candidate !== "accounts" &&
+                            candidate !== "statistics" &&
+                            cursors[candidate]
                             ? `${count}+`
-                            : count}
-                        </span>
-                      ) : null}
-                    </TabsTrigger>
+                            : String(count)
+                          : null
+                      }
+                      key={candidate}
+                      label={t(`sections.${candidate}`)}
+                      tab={candidate}
+                    />
                   );
                 })}
               </TabsList>

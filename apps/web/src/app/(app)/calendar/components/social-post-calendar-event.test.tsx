@@ -577,23 +577,29 @@ describe("Social post calendar event", () => {
   });
 
   describe("Social calendar chips", () => {
-    it("draws the month chip as status, platform, time and first words", () => {
+    it("draws the month chip as status dot, platform, time and first words", () => {
       renderCard({}, "month");
       const chip = screen.getByTestId("calendar-social-post");
       expect(chip).toHaveAttribute("data-density", "month");
       expect(chip).toHaveTextContent("12:00 PMLaunch news");
       expect(chip).not.toHaveTextContent("Launch project");
+      // Borderless: one dot says the status; no rail, no glyph.
+      expect(chip).not.toHaveClass("border");
       expect(
-        within(chip).getByTestId("social-post-status-SCHEDULED"),
-      ).toBeInTheDocument();
+        within(chip).getByTestId("calendar-social-post-dot"),
+      ).toHaveAttribute("aria-hidden", "true");
+      expect(
+        within(chip).queryByTestId("social-post-status-SCHEDULED"),
+      ).not.toBeInTheDocument();
       expect(
         within(chip).getByTestId("social-post-provider-icon"),
       ).toBeInTheDocument();
-      expect(
-        within(chip).getByTestId("calendar-social-post-rail"),
-      ).toBeInTheDocument();
       expect(chip).toHaveAccessibleName(
         "X · @team, 12:00 PM, Project: Launch project, Launch news, Scheduled, Scheduled by Albina, 2 attachments",
+      );
+      expect(chip).toHaveAttribute(
+        "title",
+        "Scheduled · 12:00 PM · Launch news",
       );
     });
 
@@ -628,11 +634,18 @@ describe("Social post calendar event", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("strikes a canceled post through and dashes its edge", () => {
-      renderCard({ status: "CANCELED" }, "month");
-      const chip = screen.getByTestId("calendar-social-post");
-      expect(chip).toHaveClass("border-dashed");
-      expect(within(chip).getByText("Launch news")).toHaveClass("line-through");
+    it("strikes a canceled post through, and dashes its edge on the week", () => {
+      const { unmount } = renderCard({ status: "CANCELED" }, "month");
+      const month = screen.getByTestId("calendar-social-post");
+      expect(within(month).getByText("Launch news")).toHaveClass(
+        "line-through",
+      );
+      unmount();
+
+      renderCard({ status: "CANCELED" }, "week");
+      const week = screen.getByTestId("calendar-social-post");
+      expect(week).toHaveClass("border-dashed");
+      expect(within(week).getByText("Launch news")).toHaveClass("line-through");
     });
 
     it.each([
@@ -640,7 +653,7 @@ describe("Social post calendar event", () => {
       ["MISSED", "Missed"],
       ["NEEDS_APPROVAL", "Needs approval"],
     ] as const)(
-      "names a %s post in words on the week, and by glyph on the month",
+      "names a %s post in words on the week, and in the month chip's name and tooltip",
       (status, word) => {
         const { unmount } = renderCard({ status }, "week");
         expect(
@@ -649,11 +662,29 @@ describe("Social post calendar event", () => {
         unmount();
 
         renderCard({ status }, "month");
-        expect(
-          screen.getByTestId(`social-post-status-${status}`),
-        ).toHaveAccessibleName(word);
+        const chip = screen.getByTestId("calendar-social-post");
+        expect(chip).toHaveAccessibleName(expect.stringContaining(word));
+        expect(chip.getAttribute("title")).toMatch(new RegExp(`^${word} · `));
       },
     );
+
+    it("marks a failed month chip with a diamond and says why in its tooltip", () => {
+      renderCard(
+        {
+          status: "FAILED",
+          lastAttempt: { outcome: "failed_permanent", errorKind: "rejected" },
+        },
+        "month",
+      );
+      const chip = screen.getByTestId("calendar-social-post");
+      expect(within(chip).getByTestId("calendar-social-post-dot")).toHaveClass(
+        "rotate-45",
+      );
+      expect(chip).toHaveAttribute(
+        "title",
+        "Failed · The platform rejected this post. · 12:00 PM · Launch news",
+      );
+    });
 
     it("keeps a published week chip to the glyph", () => {
       renderCard({ status: "PUBLISHED" }, "week");
