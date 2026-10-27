@@ -44,11 +44,11 @@ import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
-import { cmoMailingListSize } from "@/services/cmo-mailing-list.service";
 import {
   type CmoCalendarMedia,
   cmoCalendarMedia,
 } from "@/services/cmo-media.service";
+import { contactListNameKey } from "@/services/contact-lists.service";
 
 /**
  * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
@@ -1777,4 +1777,25 @@ export async function getCmoOverview(
       postGroups.map((group) => [group.status, group._count._all]),
     ),
   };
+}
+
+/**
+ * The contact list Cuso writes the newsletter for, in the CMO workspace. The
+ * CMO app fills it through the standard contact-list import.
+ */
+export const CMO_MAILING_LIST_NAME = "Newsletter";
+
+/** How many people are on the newsletter list. */
+async function cmoMailingListSize(
+  hire: Pick<CmoHire, "workspaceId">,
+): Promise<number> {
+  return prisma.contactListMember.count({
+    where: {
+      list: {
+        workspaceId: hire.workspaceId,
+        nameKey: contactListNameKey(CMO_MAILING_LIST_NAME),
+      },
+      contact: { mergedIntoId: null },
+    },
+  });
 }

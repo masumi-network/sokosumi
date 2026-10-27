@@ -8,10 +8,12 @@ import {
   finishCmoAccountsStep,
   getChatsRoomsByIdMessages,
   getCmoOverview,
+  getContactLists,
   getSubscriptionCatalog,
-  importCmoMailingList,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
+  postContactLists,
+  postContactListsByIdImport,
   postProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategy,
@@ -265,22 +267,48 @@ export async function finishAccounts(): Promise<CmoOverview> {
   return data.data;
 }
 
+/** The contact list Cuso writes the newsletter for; Core counts it by this name. */
+const NEWSLETTER_LIST = "Newsletter";
+
+/** The workspace's Newsletter list, created the first time. */
+async function newsletterListId(
+  options: Awaited<ReturnType<typeof inCusoWorkspace>>,
+): Promise<string | null> {
+  const { data } = await getContactLists(options);
+  const existing = data?.data.find(
+    (list) =>
+      list.kind === "manual" &&
+      list.name.toLowerCase() === NEWSLETTER_LIST.toLowerCase(),
+  );
+  if (existing) return existing.id;
+  const { data: created } = await postContactLists({
+    ...options,
+    body: { name: NEWSLETTER_LIST, color: "blue" },
+  });
+  return created?.data.id ?? null;
+}
+
 /** Adds the founder's mailing list for the newsletter Cuso writes. */
 export async function addMailingList(
   text: string,
 ): Promise<{ overview: CmoOverview | null; error: string | null }> {
-  const core = await requireCore();
-  const { data, error } = await importCmoMailingList({
-    ...core,
+  const overview = await loadOverview();
+  if (!overview) return { overview: null, error: "Cuso is not hired yet" };
+  const options = await inCusoWorkspace(overview);
+  const listId = await newsletterListId(options);
+  if (!listId) return { overview: null, error: "Could not add the list" };
+  const { error } = await postContactListsByIdImport({
+    ...options,
+    path: { id: listId },
     body: { text },
   });
-  if (!data) {
+  if (error) {
     return {
       overview: null,
       error: errorText(error, "Could not add the list"),
     };
   }
-  return { overview: data.data, error: null };
+  return { overview: await loadOverview(), error: null };
 }
 
 /** The founder is done with onboarding: CMO opens on the chat. */
@@ -303,22 +331,31 @@ async function callbackUrl(): Promise<string> {
 }
 
 /**
- * Request options for Cuso's Project on the standard Project routes, which
- * find an organization's Project only with its slug header.
+ * Request options in Cuso's workspace for the standard routes, which find an
+ * organization's Project and contacts only with its slug header.
  */
-async function cusoProject() {
+async function inCusoWorkspace(
+  overview: Pick<CmoOverview, "organizationSlug">,
+) {
   const core = await requireCore();
-  const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
   return {
     ...core,
-    path: { id: overview.projectId },
     headers: {
       ...core.headers,
       ...(overview.organizationSlug
         ? { "x-organization-slug": overview.organizationSlug }
         : {}),
     },
+  };
+}
+
+/** Request options for Cuso's Project on the standard Project routes. */
+async function cusoProject() {
+  const overview = await loadOverview();
+  if (!overview) throw new Error("Cuso is not hired yet");
+  return {
+    ...(await inCusoWorkspace(overview)),
+    path: { id: overview.projectId },
   };
 }
 
