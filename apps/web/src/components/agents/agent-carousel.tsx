@@ -103,8 +103,6 @@ function AgentCarousel({
         return;
       }
 
-      // Check if this is primarily horizontal scroll (deltaX is significant)
-      // and ignore if it's primarily vertical scroll
       const absDeltaX = Math.abs(event.deltaX);
       const absDeltaY = Math.abs(event.deltaY);
 
