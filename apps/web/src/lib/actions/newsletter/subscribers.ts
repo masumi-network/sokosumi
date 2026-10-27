@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  type NewsletterAddFromContactsResult,
   type NewsletterImportResult,
   type NewsletterSubscriber,
   NewsletterSubscriberStatus,
@@ -17,6 +18,7 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import {
   NEWSLETTER_CSV_MAX_BYTES,
   type NewsletterSubscriberError,
+  newsletterFromContactsSchema,
   newsletterImportSchema,
   newsletterSubscriberSchema,
 } from "@/lib/schemas/newsletter-subscribers";
@@ -55,9 +57,9 @@ export const addNewsletterSubscriber = withSession<
     return toActionResult(err({ message: t("Add.error") }));
   try {
     const subscriber = await newsletterService.addSubscriber(projectId, {
-      ...parsed.data,
+      email: parsed.data.email,
       name: parsed.data.name || null,
-      consent: "CONFIRMED",
+      consent: parsed.data.consent,
     });
     revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(subscriber));
@@ -94,7 +96,8 @@ export const importNewsletterSubscribers = withSession<
     }
     const parsed = newsletterImportSchema(t).safeParse({
       csv: csv instanceof Blob ? await csv.text() : undefined,
-      consent: form?.get("consent") === "true",
+      consent: form?.get("consent"),
+      consentConfirmed: form?.get("consentConfirmed") === "true",
     });
     if (!parsed.success)
       return toActionResult(
@@ -105,7 +108,7 @@ export const importNewsletterSubscribers = withSession<
       );
     const summary = await newsletterService.importSubscribers(projectId, {
       csv: parsed.data.csv,
-      consent: "CONFIRMED",
+      consent: parsed.data.consent,
     });
     revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(summary));
@@ -118,6 +121,37 @@ export const importNewsletterSubscribers = withSession<
             : t("Import.error"),
       }),
     );
+  }
+});
+
+export const addNewsletterSubscribersFromContacts = withSession<
+  SubscriberInput,
+  ActionResultDto<NewsletterAddFromContactsResult, NewsletterSubscriberError>
+>(async ({ projectId, values }) => {
+  const t = await getTranslations("App.Projects.Newsletter.Subscribers");
+  const parsed = newsletterFromContactsSchema(t).safeParse(values);
+  if (!parsed.success)
+    return toActionResult(
+      err({
+        message: t("invalid"),
+        fieldErrors: z.flattenError(parsed.error).fieldErrors,
+      }),
+    );
+  if (!z.uuid().safeParse(projectId).success)
+    return toActionResult(err({ message: t("FromContacts.error") }));
+  try {
+    const summary = await newsletterService.addSubscribersFromContacts(
+      projectId,
+      {
+        contactIds: parsed.data.contactIds,
+        listIds: parsed.data.listIds,
+        consent: parsed.data.consent,
+      },
+    );
+    revalidatePath("/newsletter/subscribers");
+    return toActionResult(ok(summary));
+  } catch {
+    return toActionResult(err({ message: t("FromContacts.error") }));
   }
 });
 

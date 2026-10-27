@@ -3188,7 +3188,7 @@
           "cancel": "Cancelar",
           "done": "Listo",
           "emptyTitle": "Aún no hay suscriptores",
-          "emptyDescription": "Añade a alguien que haya aceptado recibir tu boletín o importa una lista CSV con consentimiento.",
+          "emptyDescription": "Añade personas desde Contactos, importa un CSV o añade un suscriptor a mano.",
           "search": "Buscar por correo",
           "searchPlaceholder": "nombre@ejemplo.es",
           "searchButton": "Buscar",
@@ -3230,16 +3230,16 @@
           "Validation": {
             "email": "Introduce un correo electrónico válido.",
             "name": "Usa como máximo 200 caracteres.",
-            "consent": "Confirma el consentimiento antes de continuar."
+            "consent": "Elige cómo dieron su consentimiento y confírmalo antes de continuar."
           },
           "Add": {
-            "description": "Añade a una persona que haya aceptado recibir este boletín.",
+            "description": "Añade una persona a este boletín.",
             "email": "Correo electrónico",
             "name": "Nombre (opcional)",
-            "consent": "Esta persona ha aceptado recibir este boletín",
             "duplicate": "Este correo ya está en la lista. Búscalo para gestionar el suscriptor existente.",
             "error": "No se pudo añadir el suscriptor. Inténtalo de nuevo.",
-            "success": "Suscriptor añadido"
+            "success": "Suscriptor añadido",
+            "pendingConfirmation": "Correo de confirmación enviado"
           },
           "Remove": {
             "title": "¿Eliminar suscriptor?",
@@ -3256,7 +3256,6 @@
             "fileType": "Elige un archivo con la extensión .csv.",
             "fileSize": "Elige un archivo CSV de 5 MB como máximo.",
             "fileRequired": "Elige un archivo CSV para importar.",
-            "consent": "Todas las personas de este CSV han aceptado recibir este boletín",
             "importing": "Importando suscriptores…",
             "error": "No se pudieron importar los suscriptores. Inténtalo de nuevo.",
             "invalidCsv": "Revisa el CSV: incluye una cabecera email, otra opcional name y un máximo de 50.000 filas. Después, inténtalo de nuevo.",
@@ -3264,13 +3263,56 @@
             "result": {
               "imported": "Importados",
               "skippedExisting": "Ya están en la lista",
-              "invalid": "Filas no válidas notificadas"
+              "invalid": "Filas no válidas notificadas",
+              "skippedUnsubscribed": "Omitidos por haberse dado de baja",
+              "skippedBounced": "Omitidos por correos devueltos",
+              "pendingConfirmation": "En espera de confirmación"
             },
             "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
             "invalidRow": "Fila {row}: {value}",
             "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
           },
-          "dismiss": "Cerrar"
+          "dismiss": "Cerrar",
+          "fromContacts": "Añadir desde Contactos",
+          "openContactList": "Abrir lista en Contactos",
+          "Consent": {
+            "question": "¿Cómo aceptaron recibir este boletín?",
+            "CONFIRMED": "Ya dieron su consentimiento (añadir ahora)",
+            "ASK": "Preguntar primero (enviar un correo de confirmación)",
+            "confirm": "Confirmo que estas personas aceptaron recibir este boletín",
+            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». Las personas que se dieron de baja nunca se vuelven a añadir."
+          },
+          "FromContacts": {
+            "description": "Elige personas y listas de los Contactos de tu espacio de trabajo.",
+            "people": "Personas",
+            "lists": "Listas",
+            "search": "Buscar personas",
+            "noEmail": "Sin correo electrónico",
+            "loading": "Cargando contactos…",
+            "noPeople": "No se encontraron personas. Prueba otra búsqueda.",
+            "noLists": "Aún no hay listas. Crea una lista en Contactos.",
+            "loadPeopleError": "No se pudieron cargar las personas. Inténtalo de nuevo.",
+            "loadListsError": "No se pudieron cargar las listas. Inténtalo de nuevo.",
+            "retry": "Intentar de nuevo",
+            "loadMore": "Cargar más personas",
+            "members": "{count, plural, one {# miembro} other {# miembros}}",
+            "peopleSelected": "{count, plural, one {# persona seleccionada} other {# personas seleccionadas}}",
+            "listsSelected": "{count, plural, one {# lista seleccionada} other {# listas seleccionadas}}",
+            "selectionRequired": "Elige al menos una persona o lista.",
+            "selectionLimit": "Elige como máximo 1.000 personas y 20 listas a la vez.",
+            "add": "Añadir",
+            "adding": "Añadiendo suscriptores…",
+            "error": "No se pudieron añadir los suscriptores. Inténtalo de nuevo.",
+            "doneDescription": "Suscriptores añadidos. Revisa los resultados a continuación.",
+            "result": {
+              "added": "Añadidos",
+              "alreadySubscribed": "Ya suscritos",
+              "skippedUnsubscribed": "Omitidos por haberse dado de baja",
+              "skippedBounced": "Omitidos por correos devueltos",
+              "skippedNoEmail": "Omitidos por no tener correo electrónico",
+              "pendingConfirmation": "En espera de confirmación"
+            }
+          }
         },
         "Issues": {
           "title": "Ediciones",
