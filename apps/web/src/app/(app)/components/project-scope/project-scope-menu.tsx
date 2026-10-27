@@ -216,9 +216,7 @@ export function ProjectScopeMenu({
                   <Layers className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words">
-                    {t("workspaceView")}
-                  </span>
+                  <span className="block break-words">{t("allProjects")}</span>
                   <span className="text-muted-foreground mt-0.5 block text-xs font-normal leading-relaxed">
                     {t("workspaceDescription")}
                   </span>

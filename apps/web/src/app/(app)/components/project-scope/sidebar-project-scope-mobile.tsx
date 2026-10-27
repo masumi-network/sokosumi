@@ -49,14 +49,14 @@ export function useCurrentScope() {
   // A project still loading reads as "Project", never as the workspace.
   const name =
     scope.projectId === null
-      ? t("workspaceView")
+      ? t("allProjects")
       : (selectedProject?.name ?? t("label"));
 
   return {
     ...scope,
     name,
-    /** "Project: Acme", for accessible names. */
-    label: scope.projectId === null ? name : `${t("label")}: ${name}`,
+    /** "Project: Acme", "Project: All projects", for accessible names. */
+    label: `${t("label")}: ${name}`,
     mark:
       scope.projectId === null ? (
         <Layers className="shrink-0" aria-hidden />

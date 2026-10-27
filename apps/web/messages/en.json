@@ -8828,7 +8828,6 @@
       "label": "Project",
       "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceView": "Everything",
       "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
       "recent": "Recent",

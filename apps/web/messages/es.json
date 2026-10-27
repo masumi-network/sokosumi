@@ -8828,7 +8828,6 @@
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceView": "Todo",
       "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
       "recent": "Recientes",

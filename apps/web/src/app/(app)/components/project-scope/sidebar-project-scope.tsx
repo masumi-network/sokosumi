@@ -40,11 +40,8 @@ export function SidebarProjectScope() {
   const { isMobile, setOpenMobile } = useSidebar();
   const sheetOpen = useScopeSheetOpen();
   const [open, setOpen] = useState(false);
-  const { projectId, name, mark, select } = useCurrentScope();
+  const { projectId, name, label, mark, select } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
-
-  const value = projectId === null ? t("allProjects") : name;
-  const label = `${t("label")}: ${value}`;
 
   const content = (
     <>
@@ -53,7 +50,7 @@ export function SidebarProjectScope() {
         <span className="text-muted-foreground truncate text-xs leading-4 font-normal">
           {t("label")}
         </span>
-        <span className="truncate leading-5">{value}</span>
+        <span className="truncate leading-5">{name}</span>
       </span>
       <ChevronsUpDown
         className="text-muted-foreground size-4 shrink-0"
