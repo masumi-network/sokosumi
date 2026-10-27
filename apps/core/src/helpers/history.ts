@@ -176,8 +176,6 @@ export function buildHistoryStatusFilter(
         archivedAt: null,
       });
     } else if (includesActive) {
-      // `active` alone used to match CONVERSATION rows; after that kind was
-      // dropped, map it to non-archived tasks (kinds that support archivedAt).
       taskBranches.push({
         kind: HistoryKind.TASK,
         archivedAt: null,
