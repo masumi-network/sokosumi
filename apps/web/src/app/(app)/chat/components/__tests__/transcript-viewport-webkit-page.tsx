@@ -170,38 +170,57 @@ function reportAtEnd(atEnd: boolean) {
 
 function DividerRoom() {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const [rows, setRows] = useState(DIVIDER_ROWS);
   return (
-    <RoomShellLayout
-      rootClassName="flex h-[600px] min-h-0 min-w-0 flex-col overflow-hidden"
-      reserveDesktopHeader={false}
-      listScrollerRef={setScroller}
-      listContent={
-        <TranscriptViewport
-          ref={() => {}}
-          scroller={scroller}
-          rows={DIVIDER_ROWS}
-          initialPosition={DIVIDER_POSITION}
-          renderRow={(row) =>
-            row.kind === "boundary" ? (
-              <div
-                className="h-10"
-                data-testid={row.isGap ? "gap-row" : "older-row"}
-              />
-            ) : (
-              <>
-                {row.message.id === DIVIDER_MESSAGE_ID ? (
-                  <UnreadDivider dayLabel={null} />
-                ) : null}
-                {renderRow(row)}
-              </>
-            )
-          }
-          holdOffBottom={false}
-          onAtEndChange={reportAtEnd}
-        />
-      }
-      composer={null}
-    />
+    <>
+      <button
+        data-testid="arrive"
+        onClick={() =>
+          setRows((current) => [
+            ...current,
+            {
+              kind: "message",
+              message: { ...message(current.length), id: "arrival" },
+              previousMessage: undefined,
+              dayPreviousMessage: undefined,
+            },
+          ])
+        }
+      >
+        Arrive
+      </button>
+      <RoomShellLayout
+        rootClassName="flex h-[600px] min-h-0 min-w-0 flex-col overflow-hidden"
+        reserveDesktopHeader={false}
+        listScrollerRef={setScroller}
+        listContent={
+          <TranscriptViewport
+            ref={() => {}}
+            scroller={scroller}
+            rows={rows}
+            initialPosition={DIVIDER_POSITION}
+            renderRow={(row) =>
+              row.kind === "boundary" ? (
+                <div
+                  className="h-10"
+                  data-testid={row.isGap ? "gap-row" : "older-row"}
+                />
+              ) : (
+                <>
+                  {row.message.id === DIVIDER_MESSAGE_ID ? (
+                    <UnreadDivider dayLabel={null} />
+                  ) : null}
+                  {renderRow(row)}
+                </>
+              )
+            }
+            holdOffBottom={false}
+            onAtEndChange={reportAtEnd}
+          />
+        }
+        composer={null}
+      />
+    </>
   );
 }
 
