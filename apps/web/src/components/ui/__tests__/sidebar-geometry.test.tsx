@@ -63,6 +63,28 @@ describe("Sidebar hidden", () => {
     );
   });
 
+  it("takes its rows out of the tab order and the accessibility tree", () => {
+    const { container } = renderSidebar({ open: false });
+    const panel = container.querySelector('[data-slot="sidebar-container"]');
+
+    // Off-canvas is only off-screen: without this a keyboard reader tabs
+    // through every row of a sidebar they cannot see.
+    expect(panel).toHaveAttribute("inert");
+    // The same, before React hydrates, when the boot script hid the markup:
+    // `visibility` keeps it out, and is in the transition so it flips only
+    // once the panel has slid out.
+    const classes = tokens(panel);
+    expect(classes).toContain("group-data-[collapsible=offcanvas]:invisible");
+    expect(classes).toContain("transition-[left,right,width,visibility]");
+  });
+
+  it("leaves the shown panel reachable", () => {
+    const { container } = renderSidebar({ open: true });
+    const panel = container.querySelector('[data-slot="sidebar-container"]');
+
+    expect(panel).not.toHaveAttribute("inert");
+  });
+
   it("keeps no rail-only rule anywhere in its markup", () => {
     const { container } = renderSidebar({ open: false });
 

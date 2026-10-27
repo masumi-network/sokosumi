@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
-  SIDEBAR_COLLAPSE_TRANSITION,
+  SIDEBAR_HIDE_TRANSITION,
   SIDEBAR_ROW_CLASS,
 } from "@/components/ui/sidebar-classes";
 
@@ -297,7 +297,7 @@ function Sidebar({
             // width back as the panel slides out. A reader who asks for less
             // motion gets the end state on the next frame instead — the
             // geometry is identical either way, only the travel goes.
-            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_COLLAPSE_TRANSITION}`,
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION}`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
           )}
@@ -305,7 +305,11 @@ function Sidebar({
         <div
           data-slot="sidebar-container"
           className={cn(
-            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] ${SIDEBAR_COLLAPSE_TRANSITION} md:flex`,
+            // `visibility` takes the hidden panel's rows out of the tab order
+            // and the accessibility tree even before React hydrates, when the
+            // boot script is what hid it. Transitioned, it flips only once
+            // the panel has slid out, and before it slides back in.
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -315,6 +319,9 @@ function Sidebar({
               : "group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
+          // Off-canvas is only off-screen: a hidden sidebar must not keep its
+          // rows in the tab order.
+          inert={state === "collapsed"}
           {...props}
         >
           <div

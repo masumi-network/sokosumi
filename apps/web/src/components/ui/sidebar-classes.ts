@@ -10,7 +10,7 @@
  */
 
 /** The gap and the panel share this, so hiding the sidebar is one movement. */
-export const SIDEBAR_COLLAPSE_TRANSITION =
+export const SIDEBAR_HIDE_TRANSITION =
   "duration-200 ease-linear motion-reduce:transition-none";
 
 /**

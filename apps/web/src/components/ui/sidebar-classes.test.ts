@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const UI_DIR = dirname(fileURLToPath(import.meta.url));
 
 const CLASS_NAMES = [
-  "SIDEBAR_COLLAPSE_TRANSITION",
+  "SIDEBAR_HIDE_TRANSITION",
   "SIDEBAR_ROW_CLASS",
   "SIDEBAR_ROW_LABEL_CLASS",
   "SIDEBAR_ROW_LABEL_INSET_CLASS",
