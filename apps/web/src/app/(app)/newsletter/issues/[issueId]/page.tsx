@@ -47,6 +47,11 @@ export default async function NewsletterIssuePage({
     getTranslations("App.Projects.Newsletter"),
   ]);
   if (!issue) notFound();
+  // After the issue check, so a missing project shows not found, not an error.
+  const subscribers = await newsletterService.listSubscribers(project.id, {
+    limit: 1,
+    status: "ACTIVE",
+  });
 
   return (
     <NewsletterPageShell
@@ -63,6 +68,7 @@ export default async function NewsletterIssuePage({
         key={issue.id}
         issue={issue}
         projectId={project.id}
+        activeSubscribers={subscribers.data.counts.ACTIVE}
       />
     </NewsletterPageShell>
   );

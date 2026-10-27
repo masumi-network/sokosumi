@@ -76,6 +76,7 @@ import type {
   GetWorkspacesCalendarSourcesData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
+  NewsletterIssueRevisionRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -148,6 +149,7 @@ import type {
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
+  ScheduleNewsletterIssueRequest,
   UpdateAdminBadgeCampaignData,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
@@ -439,6 +441,11 @@ import {
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdNewsletterIssues as corePostProjectsByIdNewsletterIssues,
+  postProjectsByIdNewsletterIssuesByIssueIdApprove as corePostProjectsByIdNewsletterIssuesByIssueIdApprove,
+  postProjectsByIdNewsletterIssuesByIssueIdCancel as corePostProjectsByIdNewsletterIssuesByIssueIdCancel,
+  postProjectsByIdNewsletterIssuesByIssueIdSchedule as corePostProjectsByIdNewsletterIssuesByIssueIdSchedule,
+  postProjectsByIdNewsletterIssuesByIssueIdSendNow as corePostProjectsByIdNewsletterIssuesByIssueIdSendNow,
+  postProjectsByIdNewsletterIssuesByIssueIdSubmit as corePostProjectsByIdNewsletterIssuesByIssueIdSubmit,
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
@@ -701,6 +708,91 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id, issueId },
         }),
       "Failed to delete newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesByIssueIdApprove(
+    id: string,
+    issueId: string,
+    body: NewsletterIssueRevisionRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesByIssueIdApprove({
+          client,
+          path: { id, issueId },
+          body,
+        }),
+      "Failed to approve newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesByIssueIdCancel(
+    id: string,
+    issueId: string,
+    body: NewsletterIssueRevisionRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesByIssueIdCancel({
+          client,
+          path: { id, issueId },
+          body,
+        }),
+      "Failed to cancel newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesByIssueIdSchedule(
+    id: string,
+    issueId: string,
+    body: ScheduleNewsletterIssueRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesByIssueIdSchedule({
+          client,
+          path: { id, issueId },
+          body,
+        }),
+      "Failed to schedule newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesByIssueIdSendNow(
+    id: string,
+    issueId: string,
+    body: NewsletterIssueRevisionRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesByIssueIdSendNow({
+          client,
+          path: { id, issueId },
+          body,
+        }),
+      "Failed to sendnow newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesByIssueIdSubmit(
+    id: string,
+    issueId: string,
+    body: NewsletterIssueRevisionRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesByIssueIdSubmit({
+          client,
+          path: { id, issueId },
+          body,
+        }),
+      "Failed to submit newsletter issue",
     );
   }
 
@@ -6476,6 +6568,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdNewsletterIssues,
     patchProjectsByIdNewsletterIssuesByIssueId,
     deleteProjectsByIdNewsletterIssuesByIssueId,
+    postProjectsByIdNewsletterIssuesByIssueIdApprove,
+    postProjectsByIdNewsletterIssuesByIssueIdCancel,
+    postProjectsByIdNewsletterIssuesByIssueIdSchedule,
+    postProjectsByIdNewsletterIssuesByIssueIdSendNow,
+    postProjectsByIdNewsletterIssuesByIssueIdSubmit,
     postProjectsByIdNewsletterIssuesPreview,
     getProjectsByIdNewsletter,
     putProjectsByIdNewsletter,

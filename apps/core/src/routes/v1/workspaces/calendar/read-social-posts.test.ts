@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // Not the newsletter beta org, so newsletter issues stay out of these reads.
+    workspace: { findUnique: async () => null },
     taskScheduleRun: { findMany: mocks.tasks, count: mocks.taskCount },
     task: { findMany: mocks.runAtTasks, count: mocks.runAtTaskCount },
     socialPost: {

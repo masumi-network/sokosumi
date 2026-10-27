@@ -24,6 +24,7 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
+import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import {
   type AuthenticationContext,
   requirePersonalSokoBotAuthContext,
@@ -41,6 +42,10 @@ import {
   taskScheduleVisibilityWhere,
 } from "@/services/task-schedule.service";
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
+import {
+  readNewsletterCalendar,
+  scheduledNewsletterIssueWhere,
+} from "./read-newsletter-issues.js";
 
 import {
   getCalendarBrowseEnd,
@@ -274,6 +279,8 @@ export async function readWorkspaceCalendar(
     !query.assigneeId &&
     !query.assigneeUserId &&
     !query.status;
+  const includeNewsletters =
+    includePosts && (await isNewsletterWorkspaceEnabled(workspaceId));
   if (query.to.getTime() > Date.now() + RUN_HORIZON_MS) {
     const latestPost = includePosts
       ? await prisma.socialPost.aggregate({
@@ -286,12 +293,24 @@ export async function readWorkspaceCalendar(
           _max: { scheduledAt: true },
         })
       : null;
-    if (
-      query.to >
-      getCalendarBrowseEnd(new Date(), latestPost?._max.scheduledAt ?? null)
-    ) {
+    const latestIssue = includeNewsletters
+      ? await prisma.newsletterIssue.aggregate({
+          where: scheduledNewsletterIssueWhere(
+            workspaceId,
+            userId,
+            query.scope,
+            options.projectId,
+          ),
+          _max: { scheduledAt: true },
+        })
+      : null;
+    const latest =
+      [latestPost?._max.scheduledAt, latestIssue?._max.scheduledAt]
+        .filter((at): at is Date => at != null)
+        .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    if (query.to > getCalendarBrowseEnd(new Date(), latest)) {
       throw badRequest(
-        "Calendar browse range cannot extend beyond the next 90 days or the latest scheduled Social post's month",
+        "Calendar browse range cannot extend beyond the next 90 days or the latest scheduled publication's month",
       );
     }
   }
@@ -643,10 +662,19 @@ export async function readWorkspaceCalendar(
       sourceType: "PROJECT",
     });
   });
+  const newsletters = includeNewsletters
+    ? await readNewsletterCalendar(
+        workspaceId,
+        userId,
+        query,
+        options.projectId,
+      )
+    : { items: [], total: 0 };
   const merged: z.infer<typeof workspaceCalendarEntrySchema>[] = [
     ...runItems,
     ...runAtItems,
     ...socialItems,
+    ...newsletters.items,
   ];
   merged.sort(
     (a, b) =>
@@ -661,7 +689,7 @@ export async function readWorkspaceCalendar(
     pagination: {
       cursor: query.requestedCursor,
       limit: query.limit,
-      total: runTotal + runAtTotal + postCount,
+      total: runTotal + runAtTotal + postCount + newsletters.total,
       nextCursor: hasMore
         ? encodeCursor({
             id: page[page.length - 1]!.id,
