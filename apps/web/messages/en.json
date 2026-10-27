@@ -8140,7 +8140,7 @@
       },
       "Stickers": {
         "title": "Stickers",
-        "hint": "PNG, JPEG or WebP, up to 2 MiB. Select a sticker, then send.",
+        "hint": "PNG, JPEG or WebP images up to 2 MiB. Select a sticker, then send.",
         "upload": "Upload sticker",
         "invalid": "Choose a PNG, JPEG or WebP image no larger than 2 MiB.",
         "uploadFailed": "Unable to save sticker. Try uploading again.",
