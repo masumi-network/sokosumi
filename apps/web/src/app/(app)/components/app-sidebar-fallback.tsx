@@ -14,7 +14,7 @@ import { SidebarAccountChipFallback } from "./sidebar-deferred-account";
  * The sidebar while `AuthenticatedAppFrame` is still suspended.
  *
  * Logo and nav are static client components with no session behind them —
- * `MenuItems` already soft-reads its dialog providers for exactly this shell —
+ * `MenuItems` already soft-reads its badge provider for exactly this shell —
  * so they render for real rather than as placeholders. Nothing here redraws
  * when the real sidebar streams in, and a hidden preference is already applied
  * by `SidebarBootScript`, so the first frame is already the finished state.
@@ -26,7 +26,9 @@ export function AppSidebarFallback() {
   return (
     <Sidebar>
       {/* Mirrors `Sidebar`'s own header so the hairline lands on the same
-          line across the shell/sidebar swap. */}
+          line across the shell/sidebar swap. New task is left out: it needs
+          the wizard and a seat this frame has not loaded, and a button that
+          appears once is cheaper than one that appears and then goes away. */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2">
           <SidebarLogo />
