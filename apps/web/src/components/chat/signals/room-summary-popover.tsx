@@ -18,6 +18,28 @@ interface RoomSummaryPopoverProps {
   onJump: (messageId: string) => Promise<boolean>;
 }
 
+/**
+ * One room's written summary. Core answers from the reader's read state, so
+ * it has to be asked while the room is still unread: asked once the room is
+ * read, it comes back empty. The catch-up line therefore starts it on open.
+ */
+export function useRoomSummary(roomId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["chat-room-summary", roomId],
+    queryFn: async (): Promise<ChatCatchUpSummary | null> => {
+      const result = await getChatCatchUpSummaryAction(roomId);
+      if (!result.ok) throw new Error(result.error.message ?? "");
+      return result.value;
+    },
+    enabled,
+    staleTime: Number.POSITIVE_INFINITY,
+    // Kept for the visit only: the next visit has a different unread set.
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
 /** One room's "while you were away", written, behind a quiet text button. */
 export function RoomSummaryPopover({
   roomId,
@@ -25,18 +47,7 @@ export function RoomSummaryPopover({
 }: RoomSummaryPopoverProps) {
   const t = useTranslations("App.Channels.Signals");
   const [open, setOpen] = useState(false);
-  const { data, isError } = useQuery({
-    queryKey: ["chat-room-summary", roomId],
-    queryFn: async (): Promise<ChatCatchUpSummary | null> => {
-      const result = await getChatCatchUpSummaryAction(roomId);
-      if (!result.ok) throw new Error(result.error.message ?? "");
-      return result.value;
-    },
-    enabled: open,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const { data, isError } = useRoomSummary(roomId, true);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
