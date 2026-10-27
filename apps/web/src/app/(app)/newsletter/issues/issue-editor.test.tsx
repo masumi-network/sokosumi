@@ -12,7 +12,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
-import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
+import {
+  NEWSLETTER_ISSUE,
+  NEWSLETTER_PROJECT_ID,
+  PUBLIC_NEWSLETTER_SLUG,
+} from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   save: vi.fn(),
@@ -44,6 +48,7 @@ function renderEditor(
         projectId={NEWSLETTER_PROJECT_ID}
         issue={issue}
         activeSubscribers={3}
+        newsletterSlug={PUBLIC_NEWSLETTER_SLUG}
       />
     </NextIntlClientProvider>,
   );
@@ -63,6 +68,25 @@ beforeEach(() => {
 });
 
 describe("newsletter issue editor", () => {
+  it.each([
+    "SENT",
+    "DRAFT",
+    "NEEDS_APPROVAL",
+    "SCHEDULED",
+    "SENDING",
+    "FAILED",
+    "CANCELED",
+  ] as const)("shows View on web only for SENT issues: %s", (status) => {
+    renderEditor({ ...NEWSLETTER_ISSUE, status });
+    const link = screen.queryByRole("link", { name: "View on web" });
+    if (status === "SENT") {
+      expect(link).toHaveAttribute(
+        "href",
+        `/n/${PUBLIC_NEWSLETTER_SLUG}/p/${NEWSLETTER_ISSUE.publicSlug}`,
+      );
+    } else expect(link).not.toBeInTheDocument();
+  });
+
   it("saves edited fields with the current revision and marks later edits dirty", async () => {
     const user = userEvent.setup();
     renderEditor({ ...NEWSLETTER_ISSUE, status: "NEEDS_APPROVAL" });

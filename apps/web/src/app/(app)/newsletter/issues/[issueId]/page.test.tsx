@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
+import {
+  NEWSLETTER_ISSUE,
+  NEWSLETTER_PROJECT_ID,
+  PUBLIC_NEWSLETTER_SLUG,
+} from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
@@ -65,7 +69,10 @@ beforeEach(() => {
     id: NEWSLETTER_PROJECT_ID,
     name: "Launch",
   });
-  mocks.settings.mockResolvedValue({ id: "n1" });
+  mocks.settings.mockResolvedValue({
+    id: "n1",
+    publicSlug: PUBLIC_NEWSLETTER_SLUG,
+  });
   mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
@@ -81,6 +88,7 @@ describe("newsletter issue page", () => {
       expect.objectContaining({
         issue: NEWSLETTER_ISSUE,
         projectId: NEWSLETTER_PROJECT_ID,
+        newsletterSlug: PUBLIC_NEWSLETTER_SLUG,
       }),
     );
     expect(mocks.marker).toHaveBeenCalledWith({

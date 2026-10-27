@@ -5,10 +5,16 @@ import {
   APP_MESSAGE_PATHS,
   APP_SHELL_MESSAGE_PATHS,
   AUTH_MESSAGE_PATHS,
+  PUBLIC_NEWSLETTER_MESSAGE_PATHS,
   SOKO_BOT_MESSAGE_PATHS,
 } from "@/i18n/message-namespaces";
 
 describe("message namespaces", () => {
+  it("provides public archive copy to clients outside the app group", () => {
+    expect(PUBLIC_NEWSLETTER_MESSAGE_PATHS).toContain("PublicNewsletter");
+    expect(PUBLIC_NEWSLETTER_MESSAGE_PATHS).toContain("Components");
+    expect(PUBLIC_NEWSLETTER_MESSAGE_PATHS).toContain("CookieConsent");
+  });
   it("includes DesignMd on the auth bag so the setup wizard can generate brand copy", () => {
     expect(AUTH_MESSAGE_PATHS).toContain("App.DesignMd");
     expect(AUTH_MESSAGE_PATHS).toContain("Components");

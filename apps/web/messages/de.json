@@ -3406,8 +3406,10 @@
             "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
             "noSender": "Der Newsletter-Versand ist nicht eingerichtet. Bitte einen Workspace-Administrator, die Einrichtung abzuschließen.",
             "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
-          }
-        }
+          },
+          "viewOnWeb": "Im Web ansehen"
+        },
+        "publicArchive": "Öffentliches Archiv"
       }
     },
     "Studio": {
@@ -9767,5 +9769,18 @@
       "skip": "Überspringen",
       "continue": "Weiter"
     }
+  },
+  "PublicNewsletter": {
+    "archive": "Archiv",
+    "subscribe": "Abonnieren",
+    "emptyTitle": "Noch keine Ausgaben",
+    "emptyDescription": "Veröffentlichte Ausgaben erscheinen hier.",
+    "loadMore": "Mehr laden",
+    "loadError": "Ausgaben konnten nicht geladen werden. Versuche es erneut.",
+    "unavailable": "Dieses Archiv ist nicht mehr verfügbar. Lade die Seite neu.",
+    "metadataTitle": "Archiv von {name}",
+    "metadataDescription": "Lies frühere Ausgaben von {name}.",
+    "backToArchive": "Zurück zum Archiv",
+    "issueContent": "Newsletter-Ausgabe: {subject}"
   }
 }
