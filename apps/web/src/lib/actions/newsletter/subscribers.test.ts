@@ -76,9 +76,7 @@ describe("newsletter subscriber actions", () => {
       name: "Person",
       consent: true,
     });
-    expect(revalidatePath).toHaveBeenCalledWith(
-      `/projects/${TARGET.projectId}/newsletter/subscribers`,
-    );
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter/subscribers");
   });
 
   it.each([false, undefined, "true"])(

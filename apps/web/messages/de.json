@@ -4122,7 +4122,10 @@
     },
     "Newsletter": {
       "title": "Newsletter",
-      "description": "Wähle ein Projekt aus, um seinen Newsletter zu verwalten.",
+      "description": "Jedes Projekt hat seinen eigenen Newsletter. Wähle ein Projekt aus, um ihn zu verwalten.",
+      "pickProject": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "projectTitle": "Newsletter von {project}",
       "nextPage": "Weitere Projekte",
       "empty": {
         "title": "Noch keine Projekte",

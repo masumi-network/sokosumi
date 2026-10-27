@@ -358,9 +358,9 @@ describe("MenuItems", () => {
 
   it.each([
     "/newsletter",
-    "/projects/project-1/newsletter",
-    "/projects/project-1/newsletter/issues/issue-1",
-    "/projects/project-1/newsletter/subscribers",
+    "/newsletter/issues",
+    "/newsletter/issues/issue-1",
+    "/newsletter/subscribers",
   ])("marks Newsletter active on %s", (pathname) => {
     pathnameRef.current = pathname;
     renderMenu(true, false, false, true);
@@ -372,15 +372,18 @@ describe("MenuItems", () => {
     ).toContainElement(newsletter);
   });
 
-  it("does not mark Newsletter active on another project section", () => {
-    pathnameRef.current = "/projects/project-1/newsletter-settings";
-    renderMenu(true, false, false, true);
+  it.each(["/projects/project-1/newsletter", "/newsletter-archive"])(
+    "does not mark Newsletter active on %s",
+    (pathname) => {
+      pathnameRef.current = pathname;
+      renderMenu(true, false, false, true);
 
-    expect(
-      screen.getByRole("link", { name: "newsletter" }),
-    ).not.toHaveAttribute("aria-current");
-    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
-  });
+      expect(
+        screen.getByRole("link", { name: "newsletter" }),
+      ).not.toHaveAttribute("aria-current");
+      expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+    },
+  );
 
   it("keeps the separator under New Task on the collapsed rail", () => {
     const { container } = render(

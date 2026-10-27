@@ -138,6 +138,24 @@ describe("switchScopeHref", () => {
     expect(readProjectScope("/newsletter", params())).toBeNull();
   });
 
+  it("keeps the newsletter tab when switching project", () => {
+    for (const tab of ["/newsletter/issues", "/newsletter/subscribers"]) {
+      expect(scopedHref(tab, "p1")).toBe(`${tab}?projectId=p1`);
+      expect(switchScopeHref(tab, "p2")).toBe(`${tab}?projectId=p2`);
+      expect(switchScopeHref(tab, null)).toBe(tab);
+      expect(readProjectScope(tab, params("projectId=p1"))).toBe("p1");
+    }
+  });
+
+  it("sends a newsletter issue back to the issues list of the next project", () => {
+    expect(switchScopeHref("/newsletter/issues/i1", "p2")).toBe(
+      "/newsletter/issues?projectId=p2",
+    );
+    expect(switchScopeHref("/newsletter/issues/i1", null)).toBe(
+      "/newsletter/issues",
+    );
+  });
+
   it("opens the project from an unscoped page", () => {
     expect(switchScopeHref("/agents", "p 1")).toBe("/projects/p%201");
     expect(switchScopeHref("/agents", null)).toBe("/agents");
@@ -158,6 +176,10 @@ describe("detailPageOf", () => {
       path: "/schedules/s1",
       list: "/schedules",
     });
+    expect(detailPageOf("/newsletter/issues/i1")).toEqual({
+      path: "/newsletter/issues/i1",
+      list: "/newsletter/issues",
+    });
   });
 
   it("is null on lists and other pages", () => {
@@ -165,5 +187,7 @@ describe("detailPageOf", () => {
     expect(detailPageOf("/schedules")).toBeNull();
     expect(detailPageOf("/tasksboard/t1")).toBeNull();
     expect(detailPageOf("/projects/p1")).toBeNull();
+    expect(detailPageOf("/newsletter/issues")).toBeNull();
+    expect(detailPageOf("/newsletter/subscribers")).toBeNull();
   });
 });

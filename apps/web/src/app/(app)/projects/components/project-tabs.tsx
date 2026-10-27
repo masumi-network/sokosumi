@@ -29,18 +29,21 @@ export interface ProjectTab {
  * tab's route — a future `/studio/settings`, say — still highlights its tab.
  * A route that belongs to no tab, such as `/projects/:id/edit`, highlights
  * nothing, which is why the overview tab is matched exactly.
+ *
+ * A tab's query (the newsletter's `?projectId=`) is not part of its path.
  */
 export function activeProjectTabId(
   pathname: string,
   tabs: readonly ProjectTab[],
 ): string | null {
-  let best: ProjectTab | null = null;
+  let best: { id: string; path: string } | null = null;
   for (const tab of tabs) {
+    const path = tab.href.split("?")[0] ?? tab.href;
     const matches = tab.exact
-      ? pathname === tab.href
-      : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+      ? pathname === path
+      : pathname === path || pathname.startsWith(`${path}/`);
     if (!matches) continue;
-    if (!best || tab.href.length > best.href.length) best = tab;
+    if (!best || path.length > best.path.length) best = { id: tab.id, path };
   }
   return best?.id ?? null;
 }

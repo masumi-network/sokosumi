@@ -4122,7 +4122,10 @@
     },
     "Newsletter": {
       "title": "Boletín",
-      "description": "Elige un proyecto para gestionar su boletín.",
+      "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
+      "pickProject": "Elige un proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "projectTitle": "Boletín de {project}",
       "nextPage": "Siguientes proyectos",
       "empty": {
         "title": "Aún no hay proyectos",
