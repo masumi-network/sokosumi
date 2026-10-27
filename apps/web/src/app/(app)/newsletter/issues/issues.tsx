@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { newsletterHref } from "../newsletter-tabs";
 import { IssueDeleteButton } from "./issue-delete-button";
 import { NewIssueDialog } from "./new-issue-dialog";
 import { issueSearchParams } from "./search-params";
@@ -85,7 +86,10 @@ export function Issues({
               <TableRow key={issue.id}>
                 <TableCell className="min-w-44 whitespace-normal">
                   <Link
-                    href={`/projects/${projectId}/newsletter/issues/${issue.id}`}
+                    href={newsletterHref(
+                      `/newsletter/issues/${encodeURIComponent(issue.id)}`,
+                      projectId,
+                    )}
                     className="font-medium break-words underline-offset-4 hover:underline"
                   >
                     {issue.subject}

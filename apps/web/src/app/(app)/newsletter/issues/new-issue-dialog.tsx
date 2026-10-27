@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createNewsletterIssue } from "@/lib/actions/newsletter/issues";
+import { newsletterHref } from "../newsletter-tabs";
 import { newsletterTemplateContent } from "./templates";
 
 export function NewIssueDialog({
@@ -48,7 +49,10 @@ export function NewIssueDialog({
         return;
       }
       router.push(
-        `/projects/${projectId}/newsletter/issues/${result.value.id}`,
+        newsletterHref(
+          `/newsletter/issues/${encodeURIComponent(result.value.id)}`,
+          projectId,
+        ),
       );
       onClose();
     } catch {
