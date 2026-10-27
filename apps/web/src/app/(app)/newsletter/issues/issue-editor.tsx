@@ -33,6 +33,7 @@ import {
   type NewsletterIssueValues,
   newsletterIssueInputSchema,
 } from "@/lib/schemas/newsletter-issues";
+import { newsletterHref } from "../newsletter-tabs";
 import { IssueBlockFields } from "./issue-block-fields";
 import { NewsletterIssuePreview } from "./issue-preview";
 
@@ -137,7 +138,7 @@ export function NewsletterIssueEditor({
     <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="outline">
-          <Link href={`/projects/${projectId}/newsletter/issues`}>
+          <Link href={newsletterHref("/newsletter/issues", projectId)}>
             {t("back")}
           </Link>
         </Button>

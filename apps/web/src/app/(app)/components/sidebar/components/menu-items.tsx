@@ -101,13 +101,6 @@ function ScopedMenuItems({
   }
 
   const isPathActive = (href: string) => {
-    if (
-      href === "/newsletter" &&
-      /^\/projects\/[^/]+\/newsletter(?:\/|$)/.test(pathname)
-    ) {
-      return true;
-    }
-
     if (pathname === href) {
       return true;
     }
