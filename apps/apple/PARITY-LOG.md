@@ -5216,3 +5216,23 @@ Fixes from the second code review of the integration branch, built from spec SOK
 Tests: `UnreadDividerTests.thePlacementWaitsForTheDividerRowAndEndsWhenThereIsNone`, `aRoomShowingRoomUnreadAsksForBothPagesAtOnce` (its transport holds the answer until the newest page is asked for, and fails it after five seconds otherwise), `aRoomShowingNoRoomUnreadAsksOnce`; `TranscriptScrollTests.aPlacementTheReaderInterruptsSettlesAtTheNextRest`. `UnreadDividerPlacementTests.aShortUnreadRunOpensAtTheEnd` stays a smoke test of the wiring, as its comment says: without the settle it fails only about one run in six, and the package tests are the guard.
 
 Verification: from `apps/apple`, `swift test --package-path Packages/SokosumiChat` (1358 tests) and `Packages/SokosumiWorkspace` (207 tests) passed; `xcodebuild test … -only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests -test-iterations 3` passed; SwiftFormat and strict SwiftLint clean. Unverified: the running app against a real Core, and the placement after a mount that precedes the first page, which no window test reproduces.
+
+## A large image no longer exempts the body from the clamp (10c follow-up), 2026-10-27
+
+Mirrors web [#6636](https://github.com/masumi-network/sokosumi/pull/6636) (open at the time, branch `claude/bot-show-more-less-buttons-a289a0`), which replaced `line-clamp-[16]` with a 384 px cap and a fade and deleted `hasLargeSoloImageAttachment`, so a long Soko Bot or coworker report ending in a chart offers Show more. Started on `origin/main` `9f8c3f265`; not a `/apple-parity-next` row, the user asked for it as its own task.
+
+### Behaviour
+
+- Every body but jumbo emoji clamps. `MessageMarkdown.clampsLongBody` was the exemption alone (web's `ChannelMessageBody` now clamps every non-jumbo body, and Apple's jumbo branch never reached the clamp), so it and `ExpandableMessageBody.clampHeight` are deleted.
+- The fence-skip scan stays: `MarkdownBareDomains.attachmentRuns()` also builds the segments, the gallery and `endsWithAttachmentRun` (row 31b3). What only the exemption needed was the grouping of embedded media into rows; `attachmentRows(in:)` became `embeddedAttachments(in:)`, a flat list for the gallery.
+- Apple's sixteen `.body` lines measure about 256 pt and its large image is capped at 320 pt (`MessageAttachmentView`), unlike web's 320 px image under a 384 px cap. Measured before the allowance: a two-line caption over the fixture's 2400 × 1600 image collapsed to 81 pt with Show more and the image cut away whole (the cut is at the last complete text line). The large image (a lone card or an image embedded in text) now reports its whole height through `messageClampAllowance()`, as row 10d's figure reports its own, so it counts as none of the sixteen lines when it starts above the cut. Text past the sixteenth line before the image still collapses.
+- Recorded deviations: Apple keeps its whole-line cut and draws no fade; a body with a few lines before an image shows the image whole plus up to sixteen lines, where web cuts once text and image pass 384 px. Web #6636 also moves the Mermaid figure under the same height cap, which row 10d's line-box allowance no longer mirrors; left for row 10d.
+
+### Tests
+
+- Red first: `MessageBodyClampTests.longTextWithOneImageClamps` (flipped) and `MessageBodyPresentationTests.aLongMessageWithASoloImageOffersShowMore` (was `…IsNotClamped`) failed on the old rule; `aCaptionAndASoloImageOfferNoShowMore` (new) failed once the exemption was gone and passes with the allowance.
+- `MessageBodyClampTests` is deleted with the property it tested; its fence cases are now file-run assertions in `MessageAttachmentRunTests` (`aLinkInsideAFenceIsNoAttachment`, `anIndentedCloserEndsTheFence`, `aLinkInIndentedCodeIsAnAttachment`). `MermaidDiagramTests.aBodyThatDrawsADiagramStillClamps` and the `clampsLongBody` expectations in `MessageAttachmentRunTests` and `MessageInlineFileLinkTests` went with it.
+
+### Verification
+
+From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1338 tests) passed. The workspace scheme ran 2926 tests: 2924 passed, and `RoomOlderPageTests.anOlderPageKeepsTheReadingPosition` and `anOlderPageWaitsForTheScrollToRest` failed in the full run only (text-only fixtures this change does not reach) and passed 3 of 3 alone (`-test-iterations 3`). SwiftFormat and strict SwiftLint clean. The recorded `message-body-image-collapsed.png` shows sixteen lines and Show more; `message-body-caption-image.png` shows the caption and the whole image with no control. Unverified: the running app against a real Core, and a portrait or small image, which the fixture does not cover.

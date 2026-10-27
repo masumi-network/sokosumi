@@ -4,7 +4,6 @@ import SwiftUI
 /// Use native line bounds so headings, lists and paragraph spacing cannot split a line.
 struct ExpandableMessageBody<Content: View>: View {
   let source: String
-  var clampHeight = true
   var collapsedLines = 16
   var measurementFont: Font = .body
   /// The toggle's titles: the body's "Show more" / "Show less", a quote's "More" / "Less" (web `Quote.showMore`).
@@ -24,7 +23,7 @@ struct ExpandableMessageBody<Content: View>: View {
   }
 
   private var overflows: Bool {
-    clampHeight && collapsedHeight > 0 && contentHeight > clampLimit + 1
+    collapsedHeight > 0 && contentHeight > clampLimit + 1
   }
 
   var body: some View {
@@ -57,7 +56,7 @@ struct ExpandableMessageBody<Content: View>: View {
         .frame(height: !expanded && overflows ? completeLineHeight ?? clampLimit : nil, alignment: .top)
         .clipped()
         .contentShape(Rectangle())
-      if clampHeight, expanded || overflows {
+      if expanded || overflows {
         Button(expanded ? titles.collapse : titles.expand) {
           expanded.toggle()
         }
@@ -86,8 +85,8 @@ struct ExpandableMessageBody<Content: View>: View {
 }
 
 /// Height inside a body that the sixteen-line clamp does not count as lines: a block that draws no line box of its own
-/// (row 10d's Mermaid figure: its caption row, scrolling preview and padding). The body adds it to its sixteen lines
-/// when the block starts above the cut.
+/// (row 10d's Mermaid figure: its caption row, scrolling preview and padding; row 10c's large image). The body adds it
+/// to its sixteen lines when the block starts above the cut.
 struct MessageClampAllowance: Equatable {
   static let space = "MessageClampBody"
   /// The block's top in the body.
@@ -103,13 +102,13 @@ struct MessageClampAllowance: Equatable {
 }
 
 extension View {
-  /// Reports `uncounted` points of this view as outside the enclosing body's line count.
-  func messageClampAllowance(_ uncounted: CGFloat) -> some View {
+  /// Reports `uncounted` points of this view, or all of it, as outside the enclosing body's line count.
+  func messageClampAllowance(_ uncounted: CGFloat? = nil) -> some View {
     background {
       GeometryReader { proxy in
         Color.clear.preference(
           key: MessageClampAllowance.Key.self,
-          value: [MessageClampAllowance(top: proxy.frame(in: .named(MessageClampAllowance.space)).minY, uncounted: uncounted)]
+          value: [MessageClampAllowance(top: proxy.frame(in: .named(MessageClampAllowance.space)).minY, uncounted: uncounted ?? proxy.size.height)]
         )
       }
     }

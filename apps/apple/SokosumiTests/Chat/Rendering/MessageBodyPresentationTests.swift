@@ -10,13 +10,16 @@
   import Vision
 
   extension NativeWindowTests {
-    /// Row 10c: a long body clamps at 16 lines with Show more / Show less, a file attachment included
-    /// (web exempts only a large solo image), and a fenced block shows no language label, as on web.
+    /// Row 10c: a long body clamps at 16 lines with Show more / Show less, a file or a large image included,
+    /// and a fenced block shows no language label, as on web.
     @MainActor struct MessageBodyPresentationTests {
       private static let width: CGFloat = 480
       private static let inset: CGFloat = 16
       private static let longText = (1 ... 30).map { "Line \($0) of a very long chat message." }.joined(separator: "\n")
       private static let fileLink = "[report.pdf](https://example.com/report.pdf)"
+      private static let imageLink = "[photo.png](https://scroll-fixture.invalid/photo.png)"
+      /// `ScrollMediaProtocol`'s 2400 × 1600 PNG fitted to the body's width under the large image's 320 pt cap.
+      private static let imageHeight = min((width - 2 * inset) * 1600 / 2400, 320)
       private static let code = """
       func greet(name: String) -> String {
         let count = 3 // three times
@@ -59,18 +62,42 @@
         #expect(abs(collapsedAgain - collapsed) <= 1, "Show less returns to the clamped height: \(collapsedAgain) vs \(collapsed).")
       }
 
-      @Test func aLongMessageWithASoloImageIsNotClamped() async throws {
+      /// Web #6636: a long report ending in a chart collapses behind Show more; the image exempts nothing.
+      @Test func aLongMessageWithASoloImageOffersShowMore() async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        let fixture = try Self.fixture(source: Self.longText + "\n\n[photo.png](https://scroll-fixture.invalid/photo.png)", dark: false)
+        let fixture = try Self.fixture(source: Self.longText + "\n\n" + Self.imageLink, dark: false)
+        defer { fixture.window.orderOut(nil) }
+        let collapsed = try await Self.settledHeight(fixture)
+        let textAlone = Self.naturalHeight(of: Self.longText, dark: false)
+        let showMore = Self.buttonSize("Show more")
+        #expect(collapsed <= Self.collapsedLinesHeight() + 4 + showMore.height + 2 * Self.inset + 1, "At most 16 lines plus the control: \(collapsed) pt.")
+        let collapsedBitmap = try Self.record(fixture.host, named: "message-body-image-collapsed.png")
+        if let lines = try Self.recognizedText(in: collapsedBitmap) {
+          let read = lines.map(\.text)
+          #expect(read.contains { $0.contains("Show more") }, "OCR read: \(read)")
+          #expect(!read.contains { $0.contains("Line 30") }, "OCR read: \(read)")
+        }
+
+        try Self.click(control: "Show more", in: fixture, bitmap: collapsedBitmap)
+        let expanded = try await Self.settledHeight(fixture, after: collapsed)
+        #expect(expanded >= textAlone + Self.imageHeight + 2 * Self.inset - 1, "Thirty lines and the image are all shown: \(expanded) pt.")
+      }
+
+      /// A caption over one large image still fits the collapsed body, as on web (a 320 px image under a 384 px cap).
+      @Test func aCaptionAndASoloImageOfferNoShowMore() async throws {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+        let caption = "Here is this week's chart.\nThe second line explains it."
+        let fixture = try Self.fixture(source: caption + "\n\n" + Self.imageLink, dark: false)
         defer { fixture.window.orderOut(nil) }
         let height = try await Self.settledHeight(fixture)
-        let textAlone = Self.naturalHeight(of: Self.longText, dark: false)
-        #expect(height >= textAlone + 2 * Self.inset - 1, "Thirty lines and the image are all shown: \(height) pt, text alone \(textAlone) pt.")
-        if let lines = try Self.recognizedText(in: Self.bitmap(fixture.host)) {
+        let captionHeight = Self.naturalHeight(of: caption, dark: false)
+        #expect(height >= captionHeight + Self.imageHeight + 2 * Self.inset - 1, "The caption and the whole image are shown: \(height) pt.")
+        if let lines = try Self.recognizedText(in: Self.record(fixture.host, named: "message-body-caption-image.png")) {
           let read = lines.map(\.text)
           #expect(!read.contains { $0.contains("Show more") }, "OCR read: \(read)")
-          #expect(read.contains { $0.contains("Line 30") }, "OCR read: \(read)")
+          #expect(read.contains { $0.contains("second line") }, "OCR read: \(read)")
         }
       }
 
