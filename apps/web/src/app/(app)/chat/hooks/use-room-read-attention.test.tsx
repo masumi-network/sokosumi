@@ -387,9 +387,9 @@ describe("useRoomReadAttention", () => {
   });
 
   it("tells the sidebar about a Look above the end, where the room is not read", async () => {
-    const sidebarEvents: string[] = [];
-    const record = (event: Event) => sidebarEvents.push(event.type);
-    window.addEventListener("organization-chat-room-read", record);
+    const changes: unknown[] = [];
+    const record = (event: Event) =>
+      changes.push((event as CustomEvent).detail);
     window.addEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, record);
     try {
       renderHook(() =>
@@ -404,9 +404,8 @@ describe("useRoomReadAttention", () => {
       expect(markThreadReadAction).toHaveBeenCalledTimes(1);
       expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
       // The sidebar's inset Thread row only drops once it refetches the room.
-      expect(sidebarEvents).not.toEqual([]);
+      expect(changes).toEqual([{ collections: ["active"], roomId: "room-1" }]);
     } finally {
-      window.removeEventListener("organization-chat-room-read", record);
       window.removeEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, record);
     }
   });
