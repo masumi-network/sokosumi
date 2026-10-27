@@ -130,7 +130,7 @@ export default defineConfig({
       process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true"
         ? ["src/test/postgres-worker-databases.ts"]
         : [],
-    /** Same cap as web, for the same reason — see `apps/web/vitest.config.ts`. */
+    /** Same cap as web, for the same reason — see `apps/web/vitest.config.mts`. */
     maxWorkers: process.env.CI ? undefined : "50%",
   },
 });

@@ -24,7 +24,7 @@
     "test": "pnpm messages:parity && vitest run",
     "test:ci": "pnpm messages:parity && vitest run",
     "test:watch": "vitest",
-    "test:webkit": "vitest run --config vitest.webkit.config.ts"
+    "test:webkit": "vitest run --config vitest.webkit.config.mts"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.158",
