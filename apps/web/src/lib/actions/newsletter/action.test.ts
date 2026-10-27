@@ -82,9 +82,7 @@ describe("saveNewsletterSettings", () => {
       welcomeBody: "Welcome!",
     });
     expect(result).toEqual({ ok: true, value: NEWSLETTER });
-    expect(revalidatePath).toHaveBeenCalledWith(
-      `/projects/${PROJECT_ID}/newsletter`,
-    );
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter", "layout");
   });
 
   it("validates incoming settings on the server and returns inline errors", async () => {
