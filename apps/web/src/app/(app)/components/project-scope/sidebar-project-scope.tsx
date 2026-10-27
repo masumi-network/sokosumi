@@ -17,7 +17,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_HOVER_REVEAL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 
 import { useCurrentScope } from "./sidebar-project-scope-mobile";
@@ -28,7 +31,7 @@ import {
 } from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
-const SCOPE_ROW_CLASS = "font-medium data-[state=open]:bg-sidebar-accent";
+const SCOPE_ROW_CLASS = "data-[state=open]:bg-sidebar-accent";
 
 /**
  * The project scope row above the navigation links it scopes. Two lines,
@@ -53,7 +56,10 @@ export function SidebarProjectScope() {
         <span className="truncate leading-5">{name}</span>
       </span>
       <ChevronsUpDown
-        className="text-muted-foreground size-4 shrink-0"
+        className={cn(
+          "text-muted-foreground size-4 shrink-0 in-data-[state=open]:opacity-100!",
+          SIDEBAR_ROW_HOVER_REVEAL_CLASS,
+        )}
         aria-hidden
       />
     </>

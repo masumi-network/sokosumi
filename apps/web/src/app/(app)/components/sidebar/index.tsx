@@ -116,7 +116,6 @@ export default function Sidebar({
             <SidebarProjectScope />
           </Suspense>
           <PersonalAssistantNav />
-          <SidebarSeparator className="-mt-px" />
           <MenuItems socialBetaEnabled={socialBetaEnabled} />
           <SidebarSeparator />
           {chatList}

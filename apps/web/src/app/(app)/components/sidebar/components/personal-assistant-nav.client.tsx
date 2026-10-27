@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   SIDEBAR_ICON_ACTION_CLASS,
+  SIDEBAR_ROW_HOVER_REVEAL_CLASS,
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
@@ -157,10 +158,7 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
               className={cn(SIDEBAR_ROW_LABEL_CLASS, "flex flex-col gap-0.5")}
             >
               <span
-                className={cn(
-                  SIDEBAR_FEATURE_LABEL_CLASS,
-                  "font-medium leading-tight",
-                )}
+                className={cn(SIDEBAR_FEATURE_LABEL_CLASS, "leading-tight")}
               >
                 <SidebarFeatureLabel
                   label={bot.name ?? t("fallbackName")}
@@ -175,7 +173,12 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
           </Link>
         </SheetClose>
       </SidebarMenuButton>
-      <div className="absolute top-1/2 right-1 z-10 -translate-y-1/2">
+      <div
+        className={cn(
+          "absolute top-1/2 right-1 z-10 -translate-y-1/2",
+          !isTeamActive && SIDEBAR_ROW_HOVER_REVEAL_CLASS,
+        )}
+      >
         <SheetClose asChild>
           <Link
             href={SOKO_BOTS_ROUTE}

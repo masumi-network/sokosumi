@@ -61,5 +61,12 @@ export const SIDEBAR_ROW_LINK_CLASS =
  * link, Mark all as read, reorder Pinned): 28px, with a pseudo-element that
  * keeps its target at 44px on phones.
  */
+/**
+ * A row's trailing control, quiet until the row is hovered or holds focus.
+ * Where nothing hovers (touch) it stays shown, so it is never out of reach.
+ */
+export const SIDEBAR_ROW_HOVER_REVEAL_CLASS =
+  "motion-safe:transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/menu-item:opacity-100 [@media(hover:hover)]:group-focus-within/menu-item:opacity-100";
+
 export const SIDEBAR_ICON_ACTION_CLASS =
   "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] md:before:-inset-0.5";
