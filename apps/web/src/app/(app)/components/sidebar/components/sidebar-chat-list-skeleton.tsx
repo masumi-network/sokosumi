@@ -94,9 +94,9 @@ function RoomRowSkeleton({
   );
 }
 
-/** `ChannelKindGlyph`: the 16px kind glyph. */
+/** `ChannelKindGlyph`: the kind glyph, at the size the row slot gives it. */
 function ChannelMarkSkeleton() {
-  return <Skeleton className="size-4" />;
+  return <Skeleton className="size-4 md:size-3.5" />;
 }
 
 /** `DirectRoomAvatarStack`: overlapping round faces. */

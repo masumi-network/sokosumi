@@ -180,22 +180,50 @@ describe("every sidebar row uses the shared leading slot", () => {
     }
   });
 
-  it("holds every row to one height", () => {
+  it("holds every row to the primitive's height, and no list to its own", () => {
     const { container } = renderSidebar();
+    const ROW_HEIGHT = ["h-11", "min-h-11", "md:h-7", "md:min-h-7"];
+    // A two-line row (a guest room's host organisation line) releases the
+    // height and keeps the primitive's floor; it names no height either.
+    const TWO_LINE_HEIGHT = ["h-auto", "min-h-11", "md:h-auto", "md:min-h-7"];
+    let twoLineRows = 0;
 
     for (const button of container.querySelectorAll(
       '[data-slot="sidebar-menu-button"]',
     )) {
-      const tokens = button.className.split(/\s+/);
-      // The guest row is one of the items allowed to differ: its host
-      // organisation line needs a second line no 32px row can hold.
-      if (tokens.includes("h-auto")) {
-        expect(tokens).toContain("md:min-h-8");
+      const heights = button.className
+        .split(/\s+/)
+        .filter((token) => /^(md:)?(min-)?h-/.test(token))
+        .sort();
+      if (heights.includes("h-auto")) {
+        twoLineRows += 1;
+        expect(heights, button.textContent ?? "").toEqual(
+          [...TWO_LINE_HEIGHT].sort(),
+        );
+        // Both lines sit inside the element that takes the hover, so the
+        // highlight covers the whole row and not just its first line.
+        expect(button.className).toContain("hover:bg-sidebar-accent");
+        expect(button.textContent).toContain("hostOrganization");
         continue;
       }
-      expect(tokens).toContain("h-11");
-      expect(tokens).toContain("md:h-8");
-      expect(button.className).not.toContain("min-h-10");
+      expect(heights, button.textContent ?? "").toEqual([...ROW_HEIGHT].sort());
+    }
+    expect(twoLineRows).toBeGreaterThan(0);
+  });
+
+  it("lets the slot size every row icon, so no list sets its own", () => {
+    const { container } = renderSidebar();
+    const icons = container.querySelectorAll(`${SLOT} > svg`);
+    expect(icons.length).toBeGreaterThan(10);
+
+    for (const icon of icons) {
+      const sizes = (icon.getAttribute("class") ?? "")
+        .split(/\s+/)
+        .filter((token) => /^(md:)?(size|w|h)-/.test(token));
+      // A section heading's disclosure chevron is the one glyph that is not
+      // the row's mark, and keeps its own smaller size.
+      if (icon.classList.contains("lucide-chevron-down")) continue;
+      expect(sizes, icon.getAttribute("class") ?? "").toEqual([]);
     }
   });
 });

@@ -87,7 +87,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     const button = screen.getByRole("link", { name: "sokoBot" });
 
     expect(tokens(button?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-11", "md:h-8"]),
+      expect.arrayContaining(["h-11", "md:h-7"]),
     );
     // The card that is gone: its own border and radius.
     expect(tokens(button?.className ?? "")).not.toContain("border");

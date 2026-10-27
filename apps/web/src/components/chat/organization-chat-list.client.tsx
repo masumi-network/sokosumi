@@ -569,7 +569,7 @@ export function OrganizationChatList({
                         )}
                       >
                         <SidebarRowSlot>
-                          <CheckCheck className="size-4" aria-hidden />
+                          <CheckCheck aria-hidden />
                         </SidebarRowSlot>
                         <span className="min-w-0 truncate">
                           {t("UnreadNav.caughtUp")}
@@ -796,7 +796,7 @@ export function OrganizationChatList({
                           >
                             <SidebarRowSlot>
                               <Globe2
-                                className="text-muted-foreground size-4"
+                                className="text-muted-foreground"
                                 aria-hidden
                               />
                             </SidebarRowSlot>

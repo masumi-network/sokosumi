@@ -38,7 +38,10 @@ import {
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
 
-/** The current scope as a name and a mark, for any trigger. */
+/**
+ * The current scope as a name and a mark, for any trigger. The mark's glyph
+ * names no size: the trigger's box gives it one.
+ */
 export function useCurrentScope() {
   const t = useTranslations("App.ProjectScope");
   const scope = useProjectScopeSwitch();
@@ -56,7 +59,7 @@ export function useCurrentScope() {
     label: scope.projectId === null ? name : `${t("label")}: ${name}`,
     mark:
       scope.projectId === null ? (
-        <Layers className="size-4 shrink-0" aria-hidden />
+        <Layers className="shrink-0" aria-hidden />
       ) : selectedProject ? (
         <ProjectAvatar
           name={selectedProject.name}
@@ -64,7 +67,7 @@ export function useCurrentScope() {
           className="size-5 shrink-0"
         />
       ) : (
-        <FolderKanban className="size-4 shrink-0" aria-hidden />
+        <FolderKanban className="shrink-0" aria-hidden />
       ),
   };
 }
@@ -105,7 +108,9 @@ export function SidebarScopeMobileChip() {
               onPointerDown={prefetch}
               className="h-11 max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent"
             >
-              <span aria-hidden className="flex shrink-0">
+              {/* The sidebar row's slot sizes the mark's glyph; outside it,
+                  this box does. */}
+              <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
                 {mark}
               </span>
               <span className="min-w-0 truncate">{name}</span>

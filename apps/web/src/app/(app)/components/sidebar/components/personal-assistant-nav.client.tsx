@@ -70,11 +70,7 @@ export default function PersonalAssistantNav({
                   )}
                 >
                   <SidebarRowSlot>
-                    {bot ? (
-                      <BotFace bot={bot} />
-                    ) : (
-                      <Bot className="size-4" aria-hidden />
-                    )}
+                    {bot ? <BotFace bot={bot} /> : <Bot aria-hidden />}
                   </SidebarRowSlot>
                   <span
                     className={cn(

@@ -19,14 +19,17 @@ export const SIDEBAR_COLLAPSE_TRANSITION =
  * static row, the loading skeleton. They are not buttons, but they stand in
  * the same list, so the rule that keeps rows aligned has to reach them.
  *
- * `h-11 md:h-8` is the vertical half of it: 32px with a pointer, and 44px on
- * the phone sheet so a thumb keeps its target there.
+ * `h-11 md:h-7` is the vertical half of it: 28px with a pointer, so more rooms
+ * and destinations fit above the fold, and 44px on the phone sheet so a thumb
+ * keeps its target there. The matching `min-h` is the floor a two-line row
+ * keeps when it releases the height with `h-auto md:h-auto`, so no list ever
+ * names a row height of its own.
  *
  * `px-2` with `gap-2` is the horizontal half: it puts the 24px
  * `SidebarRowSlot` 16px in, centred on the 28px axis, and the label at 48px.
  */
 export const SIDEBAR_ROW_CLASS =
-  "flex h-11 w-full items-center gap-2 px-2 md:h-8";
+  "flex h-11 min-h-11 w-full items-center gap-2 px-2 md:h-7 md:min-h-7";
 
 /**
  * Where a row's label starts, for text that carries no mark of its own — a

@@ -213,7 +213,7 @@ function ScopedMenuItems({
                 const content = (
                   <>
                     <SidebarRowSlot>
-                      <Icon className="size-4" aria-hidden />
+                      <Icon aria-hidden />
                     </SidebarRowSlot>
                     <span
                       className={cn(

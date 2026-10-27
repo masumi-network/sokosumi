@@ -90,14 +90,27 @@ describe("Sidebar hidden", () => {
  * new kind of row cannot drift from it.
  */
 describe("Sidebar row geometry", () => {
-  it("is 32px with a pointer and 44px on a phone", () => {
+  it("is 28px with a pointer and 44px on a phone", () => {
     const { container } = renderSidebar({ open: true });
     const button = tokens(
       container.querySelector('[data-slot="sidebar-menu-button"]'),
     );
 
     expect(button).toContain("h-11");
-    expect(button).toContain("md:h-8");
+    expect(button).toContain("md:h-7");
+    expect(button).not.toContain("md:h-8");
+  });
+
+  it("holds a two-line row to at least one row's height", () => {
+    const { container } = renderSidebar({ open: true });
+    const button = tokens(
+      container.querySelector('[data-slot="sidebar-menu-button"]'),
+    );
+
+    // A two-line row releases the height with `h-auto md:h-auto` and keeps
+    // this floor, so it never has to name a height of its own.
+    expect(button).toContain("min-h-11");
+    expect(button).toContain("md:min-h-7");
   });
 
   it("puts the mark in one 24px slot on one axis", () => {
@@ -120,5 +133,19 @@ describe("Sidebar row geometry", () => {
       expect.arrayContaining(["h-6", "min-w-6", "shrink-0"]),
     );
     expect(slot).not.toContain("size-6");
+  });
+
+  it("sizes the row's icon: 14px with a pointer, 16px on a phone", () => {
+    const { container } = renderSidebar({ open: true });
+    const slot = tokens(
+      container.querySelector('[data-slot="sidebar-row-slot"]'),
+    );
+
+    // The slot sizes a bare icon, so a list passes one without a size of its
+    // own. `:where()` takes the rule's specificity to zero: a mark that does
+    // name its own size (a 20px face, a disclosure chevron) keeps it, and
+    // only an svg that names none takes the row's.
+    expect(slot).toContain("[:where(&>svg)]:size-4");
+    expect(slot).toContain("md:[:where(&>svg)]:size-3.5");
   });
 });

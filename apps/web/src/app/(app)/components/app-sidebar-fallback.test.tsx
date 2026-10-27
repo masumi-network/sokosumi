@@ -107,7 +107,8 @@ describe("AppSidebarFallback", () => {
       ),
     ).toContain("w-24");
 
-    // Channel rows carry the 16px kind glyph. Direct rows carry one face,
+    // Channel rows carry the kind glyph: 16px on a phone, 14px with a
+    // pointer, as the row slot sizes it. Direct rows carry one face,
     // except the group row whose second face grows the slot right.
     const channelRows = [
       ...(menus[0]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
@@ -118,7 +119,9 @@ describe("AppSidebarFallback", () => {
         '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
       );
       expect(marks).toHaveLength(1);
-      expect(tokens(marks[0]?.className ?? "")).toContain("size-4");
+      expect(tokens(marks[0]?.className ?? "")).toEqual(
+        expect.arrayContaining(["size-4", "md:size-3.5"]),
+      );
       expect(
         row.querySelectorAll(
           '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
@@ -210,7 +213,7 @@ describe("AppSidebarFallback", () => {
     // the 28px axis and the name bar starts on the 48px column.
     for (const el of [header, row]) {
       expect(tokens(el?.className ?? "")).toEqual(
-        expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-8"]),
+        expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-7"]),
       );
     }
     expect(tokens(headerName?.className ?? "")).toContain("w-16");
