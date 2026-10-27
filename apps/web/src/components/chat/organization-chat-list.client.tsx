@@ -93,7 +93,11 @@ import {
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
 } from "./pinned-rooms-dnd";
-import { resolveSectionAttention, roomUnreadReads } from "./room-attention";
+import {
+  resolveChatsAttention,
+  resolveSectionAttention,
+  roomUnreadReads,
+} from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { SidebarSectionShowMoreRow } from "./sidebar-section-show-more-row";
 import {
@@ -1099,7 +1103,7 @@ export function OrganizationChatList({
                 folded section's does. */}
             <ChatSidebarSectionHeader
               isOpen={chatsOpen}
-              closedAttention={resolveSectionAttention(roomRows, {
+              closedAttention={resolveChatsAttention(roomRows, {
                 hasPendingInvitation: pendingRows.length > 0,
               })}
               inlineAction={

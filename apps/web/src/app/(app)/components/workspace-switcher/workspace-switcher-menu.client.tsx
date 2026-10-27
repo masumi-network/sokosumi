@@ -23,7 +23,7 @@ import {
   WORKSPACE_SWITCHER_AVATAR_CLASS,
   WORKSPACE_SWITCHER_NAME_CLASS,
   WORKSPACE_SWITCHER_ROW_CLASS,
-  WorkspaceSwitcherChevron,
+  WorkspaceSwitcherArrows,
   type WorkspaceSwitcherPlacement,
   WorkspaceSwitcherSkeletonParts,
 } from "./workspace-switcher-skeleton";
@@ -167,7 +167,7 @@ export default function WorkspaceSwitcherMenu({
                 <WorkspaceSwitcherSkeletonParts />
               </span>
             )}
-            <WorkspaceSwitcherChevron placement={placement} />
+            <WorkspaceSwitcherArrows placement={placement} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align={MENU_ALIGN[placement]}>

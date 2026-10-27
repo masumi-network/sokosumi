@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 import { useCurrentScope } from "./sidebar-project-scope-mobile";
 import {
-  SCOPE_TITLE_CHEVRON_CLASS,
+  SCOPE_TITLE_ARROWS_CLASS,
   SCOPE_TITLE_GROUP_CLASS,
   SCOPE_TITLE_ROW_CLASS,
 } from "./sidebar-project-scope-shape";
@@ -48,7 +48,7 @@ export function SidebarProjectScope() {
   const content = (
     <>
       <span className="min-w-0 truncate">{name}</span>
-      <ArrowLeftRight className={SCOPE_TITLE_CHEVRON_CLASS} aria-hidden />
+      <ArrowLeftRight className={SCOPE_TITLE_ARROWS_CLASS} aria-hidden />
     </>
   );
 

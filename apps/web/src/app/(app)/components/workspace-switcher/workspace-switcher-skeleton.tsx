@@ -37,13 +37,16 @@ export const WORKSPACE_SWITCHER_NAME_CLASS =
  * read alike and neither reads as a section's fold: small in the sidebar, the
  * size the chevron had in the phone's top bar.
  */
-export function WorkspaceSwitcherChevron({
+export function WorkspaceSwitcherArrows({
   placement,
 }: WorkspaceSwitcherPlacementProps) {
-  return placement === "sidebar" ? (
-    <ArrowLeftRight className="text-muted-foreground size-3 shrink-0" />
-  ) : (
-    <ArrowLeftRight className="text-muted-foreground size-4 shrink-0" />
+  return (
+    <ArrowLeftRight
+      className={cn(
+        "text-muted-foreground shrink-0",
+        placement === "sidebar" ? "size-3" : "size-4",
+      )}
+    />
   );
 }
 
@@ -73,7 +76,7 @@ export function WorkspaceSwitcherSkeleton({
       data-testid="workspace-switcher-chrome-skeleton"
     >
       <WorkspaceSwitcherSkeletonParts />
-      <WorkspaceSwitcherChevron placement={placement} />
+      <WorkspaceSwitcherArrows placement={placement} />
     </div>
   );
 }

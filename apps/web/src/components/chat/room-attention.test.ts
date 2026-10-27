@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveChatsAttention,
   resolveRoomAttention,
   resolveSectionAttention,
   resolveUnreadThreadsAttention,
@@ -556,6 +557,52 @@ describe("resolveUnreadThreadsAttention", () => {
         }),
       ]),
     ).toEqual({ threadCount: 4, mentionCount: 3 });
+  });
+});
+
+// The Chats heading folds Catch up with the sections, and Catch up counts
+// unread Threads, which a section's own heading does not.
+describe("resolveChatsAttention", () => {
+  const threadOnly = room("a", { threadUnreadCount: 2, unreadThreadCount: 1 });
+
+  it("holds nothing when every room is read, or there are none", () => {
+    expect(resolveChatsAttention([])).toBeNull();
+    expect(
+      resolveChatsAttention([room("a", { channelUnreadCount: 0 })]),
+    ).toBeNull();
+  });
+
+  it("is unread for a room whose only unread is in a Thread", () => {
+    expect(resolveSectionAttention([threadOnly])).toBeNull();
+    expect(resolveChatsAttention([threadOnly])).toBe("unread");
+  });
+
+  it("is a mention when an unread Thread names the reader", () => {
+    expect(
+      resolveChatsAttention([
+        room("a", {
+          unreadThreadCount: 1,
+          unreadThreads: [unreadThread(1)],
+        }),
+      ]),
+    ).toBe("mention");
+  });
+
+  it("leaves out a muted room's Threads, as Catch up does", () => {
+    expect(
+      resolveChatsAttention([
+        { ...threadOnly, mutedAt: "2026-09-01T00:00:00Z" },
+      ]),
+    ).toBeNull();
+  });
+
+  it("keeps a section's own attention, a pending invitation included", () => {
+    expect(resolveChatsAttention([room("a", { channelUnreadCount: 3 })])).toBe(
+      "unread",
+    );
+    expect(resolveChatsAttention([], { hasPendingInvitation: true })).toBe(
+      "mention",
+    );
   });
 });
 

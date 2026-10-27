@@ -264,6 +264,24 @@ export function resolveUnreadThreadsAttention(
 }
 
 /**
+ * What the sidebar's Chats heading holds while it is folded: its sections'
+ * attention, and the unread Threads Catch up counts. A section's own heading
+ * leaves a Thread-only room quiet, as that room's row is; but Catch up sits
+ * under this heading too, and folding hides its count, so the heading says
+ * what that count did. An unread Thread naming the reader is a mention.
+ */
+export function resolveChatsAttention(
+  rooms: readonly (RoomUnreadSummary & { mutedAt?: unknown })[],
+  options: { hasPendingInvitation?: boolean } = {},
+): SectionAttention {
+  const sections = resolveSectionAttention(rooms, options);
+  if (sections === "mention") return sections;
+  const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);
+  if (mentionCount > 0) return "mention";
+  return sections ?? (threadCount > 0 ? "unread" : null);
+}
+
+/**
  * What reading a room would still clear, as the room's two reads
  * (ADR-0037): `readRoom` while its row is bold, `lookThreads` while it holds
  * an unread Thread. A room needing neither is read.

@@ -34,6 +34,8 @@ export function AppSidebarFallback() {
           is a placeholder in its shape, desktop only like Search. */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2">
+          {/* The Workspace switcher's workspaces are session-backed, so it
+              is a placeholder in the switcher's own shape. */}
           <div className="flex min-w-0 flex-1 max-md:hidden">
             <WorkspaceSwitcherSkeleton placement="sidebar" />
           </div>

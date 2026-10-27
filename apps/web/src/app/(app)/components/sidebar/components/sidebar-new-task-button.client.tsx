@@ -21,17 +21,20 @@ import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-targe
 import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
 
 // Alt+N (Option+N on a Mac). Matched by physical key: on a Mac, Option+N is
-// a dead key that starts "ñ", so `event.key` never reads "n".
+// a dead key that starts "ñ", so `event.key` never reads "n". The cost is that
+// on a layout where N sits elsewhere (Dvorak, AZERTY) the shortcut is the key
+// at QWERTY's N, not the one printed "N".
 const SHORTCUT_CODE = "KeyN";
+const SHORTCUT_KEYS = "Alt+N";
 const OPEN_SURFACE_SELECTOR =
   '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
 /**
  * New task, the sidebar header's main action, so it alone sits on a quiet
- * filled surface: opens the New Task wizard scoped
- * to the reader's project, from a click or from Alt+N (Option+N) anywhere
- * outside an editable field. Absent, shortcut included, when the reader cannot create a
- * Task (no assigned seat, or the Instant Nav shell outside the wizard).
+ * filled surface: opens the New Task wizard scoped to the reader's project,
+ * from a click or from Alt+N (Option+N) anywhere outside an editable field.
+ * Absent, shortcut included, when the reader cannot create a Task (no
+ * assigned seat, or the Instant Nav shell outside the wizard).
  */
 export function SidebarNewTaskButton() {
   return (
@@ -56,7 +59,7 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-  const shortcutLabel = useIsApplePlatform() ? "⌥N" : "Alt+N";
+  const shortcutLabel = useIsApplePlatform() ? "⌥N" : SHORTCUT_KEYS;
 
   function handleOpen() {
     markFeatureSeen(AnnouncedFeature.NEW_TASK);
@@ -76,9 +79,9 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
       }
       if (event.code !== SHORTCUT_CODE) return;
       if (isEditableKeyboardTarget(event.target)) return;
-      // Inside an open dialog (the wizard itself included) or menu, the key belongs
-      // to that surface; opening again would remount the wizard and drop
-      // what the reader entered.
+      // Inside an open dialog (the wizard itself included) or menu, the key
+      // belongs to that surface; opening again would remount the wizard and
+      // drop what the reader entered.
       if (
         event.target instanceof Element &&
         event.target.closest(OPEN_SURFACE_SELECTOR)
@@ -100,7 +103,7 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
           type="button"
           variant="ghost"
           size="icon"
-          aria-keyshortcuts="Alt+N"
+          aria-keyshortcuts={SHORTCUT_KEYS}
           onClick={handleOpen}
           className="bg-quinary hover:bg-quaternary relative size-10 shrink-0 md:size-8"
         >

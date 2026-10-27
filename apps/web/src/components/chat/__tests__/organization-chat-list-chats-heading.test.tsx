@@ -109,6 +109,32 @@ describe("OrganizationChatList under its Chats heading", () => {
     expect(chatsHeading()).toHaveTextContent("App.Channels.RoomUnread.unread");
   });
 
+  // Catch up sits under the heading and counts unread Threads, which a
+  // section's own heading leaves quiet: folded, the heading says so for it.
+  it("marks the folded heading for a room whose only unread is a Thread", async () => {
+    const threadOnlyChannel = makeRoom({
+      id: "threads",
+      name: "threads",
+      kind: "channel",
+      myAccess: "member",
+      unreadCount: 1,
+      channelUnreadCount: 0,
+      threadUnreadCount: 1,
+      unreadThreadCount: 1,
+    });
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([threadOnlyChannel, readDirect]),
+    );
+    renderOrganizationChatList({
+      rooms: [threadOnlyChannel, readDirect],
+      withChatsHeading: true,
+    });
+
+    await userEvent.click(chatsHeading());
+
+    expect(chatsHeading()).toHaveTextContent("App.Channels.RoomUnread.unread");
+  });
+
   it("carries the Unreads chip beside its title, not on the Catch up row", async () => {
     renderOrganizationChatList({
       rooms: [unreadChannel, readDirect],

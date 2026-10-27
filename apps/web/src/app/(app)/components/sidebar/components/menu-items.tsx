@@ -112,7 +112,7 @@ function ScopedMenuItems({
   const markFeatureSeen = useMarkFeatureSeen();
 
   const allDestinations: NavDestination[] = [
-    // The phone's top bar leads to Home from its Sokosumi icon.
+    // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
     {
       key: "home",
       href: "/",
@@ -196,7 +196,7 @@ function ScopedMenuItems({
           } satisfies NavDestination,
         ]
       : []),
-    // The phone keeps Files on the You page account surface.
+    // Desktop only: mobile keeps Files on the You page account surface.
     {
       key: "drive",
       href: "/drive",
