@@ -7,15 +7,22 @@ import { SidebarGroup } from "@/components/ui/sidebar";
  * the strings and not client references.
  */
 
-/** No bottom padding: the nav's line starts right under the title. */
-export const SCOPE_TITLE_GROUP_CLASS = "w-full px-2 pt-2 pb-0";
+/**
+ * No bottom padding: the nav's line starts right under the title. No top
+ * padding either: the Soko Bot group's own bottom padding is the gap, so the
+ * title stays close to the bot above it.
+ */
+export const SCOPE_TITLE_GROUP_CLASS = "w-full px-2 pt-0 pb-0";
 
 /**
  * Not a Sidebar row: no leading mark, so the name starts where a section
- * heading's title does. 44px on the phone sheet, for a thumb.
+ * heading's title does. 44px on the phone sheet, for a thumb. As wide as its
+ * name and arrows, like the workspace switcher, so the hover and open fill
+ * cover the control and not the sidebar's width; capped at the group's width
+ * so a long name still shortens with "…".
  */
 export const SCOPE_TITLE_ROW_CLASS =
-  "flex h-11 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-semibold md:h-8";
+  "flex h-11 w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-semibold md:h-8";
 
 /** The switch arrows, so the selector does not read as a section's fold. */
 export const SCOPE_TITLE_CHEVRON_CLASS =

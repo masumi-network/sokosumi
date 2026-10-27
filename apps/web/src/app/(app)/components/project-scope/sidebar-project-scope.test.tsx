@@ -197,6 +197,16 @@ describe("sidebar project scope", () => {
     );
   });
 
+  // As the workspace switcher: the hover and open fill cover the name and its
+  // arrows, not the sidebar's width, and a long name still shortens to fit.
+  it("is only as wide as its name and arrows", () => {
+    renderHarness();
+
+    const classes = tokens(title());
+    expect(classes).not.toContain("w-full");
+    expect(classes).toEqual(expect.arrayContaining(["w-fit", "max-w-full"]));
+  });
+
   it("titles the nav All projects when no project is picked", () => {
     renderHarness();
 
