@@ -373,17 +373,40 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+const SIDEBAR_SCROLL_IDLE_MS = 1000;
+
+function SidebarContent({
+  className,
+  onScroll,
+  ...props
+}: React.ComponentProps<"div">) {
+  const idleTimer = React.useRef<number | undefined>(undefined);
+
+  // Set on the node directly: a state flag would re-render the whole sidebar
+  // on every scroll frame just to flip one attribute.
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    onScroll?.(event);
+    const scroller = event.currentTarget;
+    scroller.dataset.scrolling = "";
+    window.clearTimeout(idleTimer.current);
+    idleTimer.current = window.setTimeout(() => {
+      delete scroller.dataset.scrolling;
+    }, SIDEBAR_SCROLL_IDLE_MS);
+  };
+
   return (
     <div
       data-slot="sidebar-content"
       data-sidebar="content"
       // scrollbar-gutter: stable reserves the scrollbar's width whether or not
       // it is showing, so rows don't widen when a filter shrinks the list.
+      // The thumb stays transparent until the list scrolls (or the pointer is
+      // on it), so the reserved gutter reads as empty space at rest.
       className={cn(
-        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]",
+        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] not-data-scrolling:[--scrollbar-thumb:transparent]",
         className,
       )}
+      onScroll={handleScroll}
       {...props}
     />
   );
