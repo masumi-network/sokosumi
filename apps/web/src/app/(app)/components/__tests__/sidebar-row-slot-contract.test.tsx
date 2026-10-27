@@ -181,18 +181,20 @@ const SIDEBAR_LIST_SOURCES = [
 ];
 
 const SLOT = '[data-slot="sidebar-row-slot"]';
-// Not `data-slot`: a Popover trigger wrapping a row (the project picker)
-// renames that to `popover-trigger`, and the row would drop out unseen.
+// Not `data-slot`: a Popover trigger wrapping a row (as the project picker
+// once did) renames that to `popover-trigger`, and the row would drop out
+// unseen.
 const ROW = '[data-sidebar="menu-button"]';
 
 describe("every sidebar row uses the shared leading slot", () => {
   it("renders one for Soko Bots, nav, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // The project picker, Soko Bots, the nav rows, five rooms, the archived row, the
+    // Soko Bots, the nav rows, five rooms, the archived row, the
     // invitation's card, and six skeleton room slots. Section headings have
-    // none: their title leads and the chevron follows it, and New task is
-    // the header's button, not a row. Counting by row type rather than by
+    // none: their title leads and the chevron follows it, the project title
+    // titles the nav rather than standing in it, and New task is the
+    // header's button, not a row. Counting by row type rather than by
     // total, so adding a nav item does not edit a number here.
     expect(container.querySelectorAll(SLOT).length).toBeGreaterThanOrEqual(20);
 
@@ -221,8 +223,8 @@ describe("every sidebar row uses the shared leading slot", () => {
   it("holds every row to the primitive's height, and no list to its own", () => {
     const { container } = renderSidebar();
     const ROW_HEIGHT = ["h-11", "min-h-11", "md:h-7", "md:min-h-7"];
-    // A two-line row (the project picker, a guest room's host organisation
-    // line, the live Soko Bot row) asks the primitive for `lines={2}`, which
+    // A two-line row (a guest room's host organisation line, the live Soko
+    // Bot row) asks the primitive for `lines={2}`, which
     // marks it `data-row-lines` and releases the height down to the floor.
     // A list that wrote a height of its own, one line or two, fails here.
     const TWO_LINE_HEIGHT = ["h-auto", "min-h-11", "md:h-auto", "md:min-h-7"];
@@ -245,7 +247,22 @@ describe("every sidebar row uses the shared leading slot", () => {
       }
       expect(heights, button.textContent ?? "").toEqual([...ROW_HEIGHT].sort());
     }
-    expect(twoLineRows).toBeGreaterThanOrEqual(3);
+    expect(twoLineRows).toBeGreaterThanOrEqual(2);
+  });
+
+  // The project scope titles the nav rather than standing in it, so it is
+  // the one control in the list that is not a row: no slot, no row height.
+  // A row primitive here would put its name on the 48px column, not the
+  // title's 16px.
+  it("keeps the project title out of the rows it titles", () => {
+    const { container } = renderSidebar();
+    const title = container.querySelector(
+      '[data-testid="project-scope-sidebar-title"]',
+    );
+
+    expect(title).not.toBeNull();
+    expect(title?.matches(ROW)).toBe(false);
+    expect(title?.querySelector(SLOT)).toBeNull();
   });
 
   it("leaves a two-line row's height to the primitive's `lines`", () => {

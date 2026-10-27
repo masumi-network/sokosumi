@@ -5,6 +5,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import MenuItems from "./sidebar/components/menu-items";
 import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
 import SidebarLogo from "./sidebar/components/sidebar-logo.client";
@@ -46,7 +47,11 @@ export function AppSidebarFallback() {
               this frame has not loaded yet, so both are left out rather than
               guessed: a row that appears once is cheaper than one that
               appears and then goes away. */}
-          <MenuItems />
+          {/* The project title is left out like Soko Bot's row, but its line
+              stays so the nav does not shift sideways when it streams in. */}
+          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+            <MenuItems />
+          </div>
           <SidebarSeparator />
           <SidebarChatListSkeleton />
         </div>

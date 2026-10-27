@@ -57,6 +57,14 @@ export const SIDEBAR_ROW_LINK_CLASS =
   "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
 /**
+ * What the project scope scopes: the nav groups under the project title, tied
+ * to it by a hairline down their leading side. The line starts 16px in, under
+ * the title's first letter, so the groups read as inside the project; the
+ * chat sections below sit outside it.
+ */
+export const SIDEBAR_PROJECT_SCOPED_CLASS = "border-sidebar-border ms-4 border-s";
+
+/**
  * An icon action beside a row or a section's title (+ new channel, the team
  * link, Mark all as read, reorder Pinned): 28px, with a pseudo-element that
  * keeps its target at 44px on phones.

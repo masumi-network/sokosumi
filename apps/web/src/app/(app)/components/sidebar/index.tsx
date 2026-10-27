@@ -9,6 +9,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import type { CreditUsage } from "@/lib/types/credit";
 
 import type { CreditWalletScope } from "./components/account-summary-types";
@@ -123,14 +124,18 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
+          <PersonalAssistantNav />
+          {/* The project scope titles the nav groups it scopes; the chat
+              sections after the separator are outside it. */}
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          <PersonalAssistantNav />
-          <MenuItems
-            socialBetaEnabled={socialBetaEnabled}
-            newsletterEnabled={newsletterEnabled}
-          />
+          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+            <MenuItems
+              socialBetaEnabled={socialBetaEnabled}
+              newsletterEnabled={newsletterEnabled}
+            />
+          </div>
           <SidebarSeparator />
           {chatList}
         </div>

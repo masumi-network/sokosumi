@@ -72,6 +72,20 @@ describe("AppSidebarFallback", () => {
     }
   });
 
+  // The loaded sidebar indents the nav groups behind the project's line, so
+  // the shell does too: nothing moves sideways when the title streams in.
+  it("keeps the nav groups behind the project scope's line", () => {
+    renderFallback();
+    const tasks = screen.getByRole("link", {
+      name: (_, element) => element.getAttribute("href") === "/tasks",
+    });
+    const line = tasks.closest(".border-s");
+
+    expect(tokens(line?.className ?? "")).toEqual(
+      expect.arrayContaining(["ms-4", "border-sidebar-border"]),
+    );
+  });
+
   // New task needs the wizard and a seat, neither of which this frame has, so
   // the shell header leaves it out rather than showing one that may go away.
   it("holds a Workspace switcher placeholder in the header, without New task", () => {

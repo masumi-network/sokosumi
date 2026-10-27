@@ -1,4 +1,4 @@
-import { render, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -105,5 +105,43 @@ describe("Sidebar header", () => {
     expect(wordmark).toHaveAttribute("href", "/");
     expect(tokens(wordmark.parentElement)).toContain("md:hidden");
     expect(tokens(switcher.parentElement)).toContain("max-md:hidden");
+  });
+});
+
+function follows(first: Element, second: Element): boolean {
+  return Boolean(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+}
+
+describe("Sidebar project scope", () => {
+  it("titles the nav with the project scope, directly under Soko Bot", () => {
+    renderSidebar();
+
+    const sokoBot = screen.getByRole("link", { name: "sokoBot" });
+    const title = screen.getByRole("button", { name: "projectTitle" });
+    const nav = screen.getByRole("navigation", { name: "menuItems" });
+
+    expect(follows(sokoBot, title)).toBe(true);
+    expect(follows(title, nav)).toBe(true);
+  });
+
+  // Work, Records and Marketing read as inside the project; the chat
+  // sections are the workspace's, so they sit outside the line.
+  it("ties the nav groups to the title with a line, and leaves chat outside it", () => {
+    renderSidebar();
+
+    const scoped = screen.getByRole("navigation", {
+      name: "menuItems",
+    }).parentElement;
+    const chatList = screen.getByRole("navigation", { name: "chatList" });
+
+    expect(tokens(scoped)).toEqual(
+      expect.arrayContaining(["border-s", "border-sidebar-border"]),
+    );
+    expect(scoped?.contains(chatList)).toBe(false);
+    expect(
+      scoped?.contains(screen.getByRole("button", { name: "projectTitle" })),
+    ).toBe(false);
   });
 });
