@@ -198,7 +198,7 @@ export function SocialWeekNumberSlot() {
         ? createPortal(
             <span
               aria-hidden
-              className="text-muted-foreground absolute end-full top-1 flex h-6 w-8 items-center justify-center text-2xs tabular-nums"
+              className="text-muted-foreground absolute end-full top-1 flex h-5 w-8 items-center justify-center text-2xs tabular-nums"
               data-testid="calendar-week-number"
               title={label ?? undefined}
             >

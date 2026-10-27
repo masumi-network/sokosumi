@@ -22,6 +22,7 @@ import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
+  endOfMonth,
   endOfWeek,
   format,
   startOfMonth,
@@ -103,6 +104,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
+  calendarZoneInstant,
   formatTimezoneLabel,
   getDefaultTimezone,
   getTimezoneOptions,
@@ -305,16 +307,26 @@ function calendarTodayKey(timeZone: string): string {
   return Temporal.Now.plainDateISO(timeZone).toString();
 }
 
+/** The first and last `yyyy-MM-dd` day of the week or month the header names. */
+function periodDayKeys(
+  date: Date,
+  view: CalendarView,
+): { firstDayKey: string; lastDayKey: string } {
+  return view === "week"
+    ? {
+        firstDayKey: format(startOfWeek(date), "yyyy-MM-dd"),
+        lastDayKey: format(endOfWeek(date), "yyyy-MM-dd"),
+      }
+    : {
+        firstDayKey: format(startOfMonth(date), "yyyy-MM-dd"),
+        lastDayKey: format(endOfMonth(date), "yyyy-MM-dd"),
+      };
+}
+
 /** Whether a `yyyy-MM-dd` day is in the week or month the header names. */
 function isInPeriod(dayKey: string, date: Date, view: CalendarView): boolean {
-  if (view === "week") {
-    return (
-      dayKey >= format(startOfWeek(date), "yyyy-MM-dd") &&
-      dayKey <= format(endOfWeek(date), "yyyy-MM-dd")
-    );
-  }
-
-  return format(date, "yyyy-MM") === dayKey.slice(0, 7);
+  const { firstDayKey, lastDayKey } = periodDayKeys(date, view);
+  return dayKey >= firstDayKey && dayKey <= lastDayKey;
 }
 
 function isShowingToday(
@@ -834,16 +846,9 @@ function CalendarView({
   return (
     <>
       <div
-        className={cn(
-          "app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl",
-          // Social's grid is one white card ruled by hairlines.
-          socialChips
-            ? "bg-background border-quinary border"
-            : "bg-card-background",
-        )}
+        className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
         ref={calendarRef}
         data-can-create={canCreate ? "true" : undefined}
-        data-social-grid={socialChips ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
       >
@@ -853,13 +858,7 @@ function CalendarView({
             canCreate
               ? "hover:bg-muted motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
               : socialChips
-                ? (cell: { dow: number }) =>
-                    cn(
-                      "group/day relative",
-                      // Weekends sit back a step.
-                      (cell.dow === 0 || cell.dow === 6) &&
-                        "bg-card-background",
-                    )
+                ? "group/day relative"
                 : undefined
           }
           key={`${dateKey}-${timeZone}-${view}`}
@@ -893,37 +892,25 @@ function CalendarView({
                 // A day shows its first few posts; the rest are one tap away
                 // in FullCalendar's day popover, drawn with the same chips.
                 dayMaxEvents: view === "month" ? 3 : false,
-                moreLinkClass: "text-muted-foreground hover:text-foreground",
                 moreLinkContent: ({ num }: { num: number }) =>
                   t("socialPost.more", { count: num }),
                 moreLinkHint: (num: number) =>
                   t("socialPost.moreHint", { count: num }),
                 // The month leaves a narrow gutter on the left for each row's
-                // ISO week number.
-                viewClass: view === "month" ? "!ps-8" : undefined,
-                dayCellTopClass: "!justify-start",
+                // ISO week number, outside the grid's border so the boxes
+                // stay whole.
+                viewClass: view === "month" ? "!ms-8" : undefined,
                 dayCellTopContent: (cell: {
                   dayNumberText: string;
                   inPopover: boolean;
-                  isOther: boolean;
-                  isToday: boolean;
                 }) => (
                   <>
-                    <span
-                      className={cn(
-                        "inline-flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
-                        cell.isToday
-                          ? "bg-primary text-primary-foreground font-semibold"
-                          : cell.isOther && "text-muted-foreground",
-                      )}
-                    >
-                      {cell.dayNumberText}
-                    </span>
+                    {cell.dayNumberText}
                     {cell.inPopover ? null : (
                       <>
                         <SocialWeekNumberSlot />
                         <SocialDayAddSlot
-                          className="absolute top-1 end-1 z-10 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+                          className="absolute top-1 start-1 z-10 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                           timeZone={timeZone}
                           todayKey={todayKey}
                         />
@@ -931,23 +918,10 @@ function CalendarView({
                     )}
                   </>
                 ),
-                dayHeaderAlign: "start" as const,
-                dayHeaderClass: "relative !border-s-0",
-                dayHeaderContent: (header: {
-                  isToday: boolean;
-                  text: string;
-                }) => (
+                dayHeaderClass: "relative",
+                dayHeaderContent: (header: { text: string }) => (
                   <>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        view === "week" && header.isToday
-                          ? "bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-semibold"
-                          : "text-muted-foreground font-medium",
-                      )}
-                    >
-                      {header.text}
-                    </span>
+                    {header.text}
                     {view === "week" ? (
                       <SocialDayAddSlot
                         className="absolute end-1 top-1/2 z-10 -translate-y-1/2"
@@ -1135,6 +1109,11 @@ export function WorkspaceCalendar({
         : isMobile
           ? "agenda"
           : "week";
+  // The zone's name (summer or standard time) as of the shown period.
+  const zoneInstant = calendarZoneInstant({
+    ...periodDayKeys(date, view),
+    timeZone,
+  });
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1561,8 +1540,8 @@ export function WorkspaceCalendar({
       value: timeZone,
       options: getTimezoneOptions(timeZone).map((timezone) => ({
         value: timezone,
-        label: formatTimezoneLabel(timezone, locale, date),
-        shortLabel: formatTimezoneLabel(timezone, locale, date, "short"),
+        label: formatTimezoneLabel(timezone, locale, zoneInstant),
+        shortLabel: formatTimezoneLabel(timezone, locale, zoneInstant, "short"),
         searchKeywords: [timezone],
       })),
       onChange: (timezone: string | null) =>
@@ -1641,7 +1620,7 @@ export function WorkspaceCalendar({
             <Clock3 className="size-3.5 shrink-0" aria-hidden />
             <span>
               {t("timezone.showing", {
-                zone: formatTimezoneLabel(timeZone, locale, date),
+                zone: formatTimezoneLabel(timeZone, locale, zoneInstant),
               })}
             </span>
           </span>

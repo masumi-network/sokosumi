@@ -624,29 +624,25 @@ describe("Social post calendar event", () => {
   });
 
   describe("Social calendar chips", () => {
-    it("draws the month chip as status dot, platform, time and first words", () => {
+    it("draws the month chip as status, platform, time and first words", () => {
       renderCard({}, "month");
       const chip = screen.getByTestId("calendar-social-post");
       expect(chip).toHaveAttribute("data-density", "month");
       expect(chip).toHaveTextContent("12:00 PMLaunch news");
       expect(chip).not.toHaveTextContent("Launch project");
-      // Borderless: one dot says the status; no rail, no glyph.
-      expect(chip).not.toHaveClass("border");
+      // A bordered chip: a status rail and glyph lead.
+      expect(chip).toHaveClass("border");
       expect(
-        within(chip).getByTestId("calendar-social-post-dot"),
-      ).toHaveAttribute("aria-hidden", "true");
-      expect(
-        within(chip).queryByTestId("social-post-status-SCHEDULED"),
-      ).not.toBeInTheDocument();
+        within(chip).getByTestId("social-post-status-SCHEDULED"),
+      ).toHaveAccessibleName("Scheduled");
       expect(
         within(chip).getByTestId("social-post-provider-icon"),
       ).toBeInTheDocument();
+      expect(
+        within(chip).getByTestId("calendar-social-post-rail"),
+      ).toBeInTheDocument();
       expect(chip).toHaveAccessibleName(
         "X · @team, 12:00 PM, Project: Launch project, Launch news, Scheduled, Scheduled by Albina, 2 attachments",
-      );
-      expect(chip).toHaveAttribute(
-        "title",
-        "Scheduled · 12:00 PM · Launch news",
       );
     });
 
@@ -695,10 +691,10 @@ describe("Social post calendar event", () => {
       renderCard(waiting, "month");
       const month = screen.getByTestId("calendar-social-post");
       expect(month).toHaveAccessibleName(/Waiting for the quoted post/);
-      expect(month).toHaveAttribute(
-        "title",
-        "Waiting for the quoted post · 12:00 PM · Launch news",
-      );
+      // The one-line chip keeps to the glyph, which names the wait.
+      const glyph = within(month).getByTestId("social-post-status-SCHEDULED");
+      expect(glyph).toHaveAccessibleName("Waiting for the quoted post");
+      expect(glyph).not.toHaveTextContent("Waiting for the quoted post");
     });
 
     it("shows a grip and a drag hint only on posts that can move", () => {
@@ -722,9 +718,10 @@ describe("Social post calendar event", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("strikes a canceled post through, and dashes its edge on the week", () => {
+    it("strikes a canceled post through and dashes its edge", () => {
       const { unmount } = renderCard({ status: "CANCELED" }, "month");
       const month = screen.getByTestId("calendar-social-post");
+      expect(month).toHaveClass("border-dashed");
       expect(within(month).getByText("Launch news")).toHaveClass(
         "line-through",
       );
@@ -741,7 +738,7 @@ describe("Social post calendar event", () => {
       ["MISSED", "Missed"],
       ["NEEDS_APPROVAL", "Needs approval"],
     ] as const)(
-      "names a %s post in words on the week, and in the month chip's name and tooltip",
+      "names a %s post in words on the week, and by glyph on the month",
       (status, word) => {
         const { unmount } = renderCard({ status }, "week");
         expect(
@@ -750,13 +747,13 @@ describe("Social post calendar event", () => {
         unmount();
 
         renderCard({ status }, "month");
-        const chip = screen.getByTestId("calendar-social-post");
-        expect(chip).toHaveAccessibleName(expect.stringContaining(word));
-        expect(chip.getAttribute("title")).toMatch(new RegExp(`^${word} · `));
+        expect(
+          screen.getByTestId(`social-post-status-${status}`),
+        ).toHaveAccessibleName(word);
       },
     );
 
-    it("marks a failed month chip with a diamond and says why in its tooltip", () => {
+    it("says why a failed month chip failed on its glyph", () => {
       renderCard(
         {
           status: "FAILED",
@@ -765,13 +762,9 @@ describe("Social post calendar event", () => {
         "month",
       );
       const chip = screen.getByTestId("calendar-social-post");
-      expect(within(chip).getByTestId("calendar-social-post-dot")).toHaveClass(
-        "rotate-45",
-      );
-      expect(chip).toHaveAttribute(
-        "title",
-        "Failed · The platform rejected this post. · 12:00 PM · Launch news",
-      );
+      expect(
+        within(chip).getByTestId("social-post-status-reason"),
+      ).toHaveAccessibleDescription("The platform rejected this post.");
     });
 
     it("keeps a published week chip to the glyph", () => {

@@ -166,7 +166,7 @@ describe("Social calendar days", () => {
     ).toBeInTheDocument();
   });
 
-  it("draws today as a circle behind its day number, top-left", () => {
+  it("washes today's box rather than circling its day number", () => {
     vi.useFakeTimers({
       now: new Date("2030-01-16T12:00:00.000Z"),
       toFake: ["Date"],
@@ -177,9 +177,8 @@ describe("Social calendar days", () => {
       });
       const today = document.querySelector('[data-date="2030-01-16"]');
       expect(today).toHaveAttribute("aria-current", "date");
-      expect(within(today as HTMLElement).getByText("16")).toHaveClass(
+      expect(within(today as HTMLElement).getByText("16")).not.toHaveClass(
         "rounded-full",
-        "bg-primary",
       );
     } finally {
       vi.useRealTimers();

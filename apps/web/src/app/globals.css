@@ -865,17 +865,6 @@
 }
 
 /*
- * Social's grid: white, ruled by hairlines a step lighter than --border, and
- * today marked by the filled circle behind its day number rather than a wash
- * over the whole cell.
- */
-.workspace-calendar-theme[data-social-grid="true"] {
-  --fc-classic-border: var(--quinary);
-  --fc-classic-background: var(--background);
-  --fc-classic-today: transparent;
-}
-
-/*
  * Week chips must not grow past the day column. FullCalendar's event host
  * sizes to content; clip here so the thumb stays inside the chip.
  */

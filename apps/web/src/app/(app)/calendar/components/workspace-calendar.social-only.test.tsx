@@ -13,7 +13,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 /**
  * The Social-only view of the calendar.
@@ -523,11 +523,21 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it.each([
-      ["2026-10-05", "Central European Summer Time (Prague)"],
-      ["2026-01-15", "Central European Standard Time (Prague)"],
+      // Another month: the zone as of its first day.
+      ["2026-10-05", "2027-03-10", "Central European Summer Time (Prague)"],
+      ["2026-01-15", "2027-03-10", "Central European Standard Time (Prague)"],
+      // Today's month: the zone as of now, after the switch to standard time.
+      ["2026-10-01", "2026-10-27", "Central European Standard Time (Prague)"],
     ])(
-      "names the time zone for the shown date %s in its legend and picker",
-      (date, label) => {
+      "names the time zone for the shown date %s, today %s, in its legend and picker",
+      (date, today, label) => {
+        vi.useFakeTimers({
+          now: new Date(`${today}T09:00:00.000Z`),
+          toFake: ["Date"],
+        });
+        onTestFinished(() => {
+          vi.useRealTimers();
+        });
         renderCalendar(
           { includeSocialPosts: true, socialPostsOnly: true },
           `?timezone=Europe/Prague&date=${date}`,
@@ -546,7 +556,7 @@ describe("WorkspaceCalendar Social-only view", () => {
                   expect.objectContaining({
                     value: "Europe/Prague",
                     label,
-                    shortLabel: date.includes("10-05") ? "GMT+2" : "GMT+1",
+                    shortLabel: label.includes("Summer") ? "GMT+2" : "GMT+1",
                     searchKeywords: ["Europe/Prague"],
                   }),
                 ]),
