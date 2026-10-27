@@ -120,6 +120,21 @@ describe("publishXPost", () => {
     });
   });
 
+  it("passes the preceding thread part id to the Composio reply argument", async () => {
+    const fetchMock = stubSession(() =>
+      Response.json({
+        data: { data: { id: "1908" } },
+        successful: true,
+        error: null,
+      }),
+    );
+    await publishXPost({ ...publishInput, replyToExternalId: "1907" });
+    expect(calls(fetchMock)[1].body.arguments).toMatchObject({
+      text: "Hello world",
+      reply_in_reply_to_tweet_id: "1907",
+    });
+  });
+
   it("creates a restricted session, executes the create-post tool, and deletes the session", async () => {
     const fetchMock = stubSession(
       () =>

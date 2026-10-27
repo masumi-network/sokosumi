@@ -65,6 +65,7 @@ import mountPublishProjectSocialPost from "./[id]/social-posts/[postId]/publish/
 import mountRejectProjectSocialPost from "./[id]/social-posts/[postId]/reject/post.js";
 import mountScheduleProjectSocialPost from "./[id]/social-posts/[postId]/schedule/post.js";
 import mountRefreshProjectSocialPostStatistics from "./[id]/social-posts/[postId]/statistics/refresh/post.js";
+import mountResumeProjectSocialPostThread from "./[id]/social-posts/[postId]/thread/resume/post.js";
 import mountListProjectSocialPosts from "./[id]/social-posts/get.js";
 import mountCreateProjectSocialPost from "./[id]/social-posts/post.js";
 import mountListProjectSocialPostStatistics from "./[id]/social-posts/statistics/get.js";
@@ -146,6 +147,7 @@ mountGetProjectSocialPost(app);
 mountPatchProjectSocialPost(app);
 mountScheduleProjectSocialPost(app);
 mountApproveProjectSocialPost(app);
+mountResumeProjectSocialPostThread(app);
 mountRejectProjectSocialPost(app);
 mountCancelProjectSocialPost(app);
 mountDuplicateProjectSocialPost(app);

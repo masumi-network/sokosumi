@@ -8,6 +8,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { publishFailureCopy } from "@/app/projects/components/social-posts/social-post-publish-failure";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostStatusReasonTooltip } from "@/app/projects/components/social-posts/social-post-status-reason-tooltip";
+import { SocialPostThreadBadge } from "@/app/projects/components/social-posts/social-post-thread-badge";
 import { useSocialCalendarPreview } from "@/app/social/components/social-calendar-preview";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
@@ -26,7 +27,8 @@ function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
     status === "FAILED" ||
     status === "MISSED" ||
     status === "CANCELED" ||
-    status === "PUBLISHING"
+    status === "PUBLISHING" ||
+    status === "NEEDS_APPROVAL"
   );
 }
 
@@ -44,12 +46,15 @@ function CalendarSocialPostStatus({
   const copy = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const { enabledProviders } = useSocialProviderAvailability();
-  const label = statuses(item.status);
+  const label = item.partiallyPublished
+    ? copy("thread.partlyPosted")
+    : statuses(item.status);
   const labeled = showLabel ?? needsStatusLabel(item.status);
   const badge = (
     <SocialPostStatusBadge
       className={className}
       status={item.status}
+      partiallyPublished={item.partiallyPublished}
       label={label}
       showLabel={labeled}
     />
@@ -128,6 +133,7 @@ function CompactSocialPostCalendarEvent({
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
+  const social = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const label = t("compactLabel", {
@@ -163,8 +169,15 @@ function CompactSocialPostCalendarEvent({
   const accessibleName = [
     formatter.dateTime(item.scheduledAt, "time", { timeZone }),
     label,
-    statuses(item.status),
-  ].join(", ");
+    item.partiallyPublished
+      ? social("thread.partlyPosted")
+      : statuses(item.status),
+    item.threadPartCount > 1
+      ? social("thread.positionLabel", { part: 1, total: item.threadPartCount })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -185,6 +198,7 @@ function CompactSocialPostCalendarEvent({
                 <span className="flex min-w-0 flex-nowrap items-center gap-0.5">
                   {logo}
                   {time}
+                  <SocialPostThreadBadge count={item.threadPartCount} />
                   <span className="shrink-0">{status}</span>
                 </span>
                 <span className="w-full min-w-0 truncate">{label}</span>
@@ -196,6 +210,7 @@ function CompactSocialPostCalendarEvent({
               {logo}
               {time}
               <span className="min-w-0 flex-1 truncate">{label}</span>
+              <SocialPostThreadBadge count={item.threadPartCount} />
               {status}
             </>
           )}
@@ -216,6 +231,7 @@ function SocialPostPreviewCard({
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
+  const social = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const openPreview = useSocialCalendarPreview();
@@ -232,7 +248,12 @@ function SocialPostPreviewCard({
     formatter.dateTime(item.scheduledAt, "time", { timeZone }),
     t("project", { name: item.projectName }),
     item.text || t("mediaOnly"),
-    statuses(item.status),
+    item.partiallyPublished
+      ? social("thread.partlyPosted")
+      : statuses(item.status),
+    item.threadPartCount > 1
+      ? social("thread.positionLabel", { part: 1, total: item.threadPartCount })
+      : null,
     scheduler,
     item.attachmentCount > 1
       ? t("attachments", { count: item.attachmentCount })
@@ -275,6 +296,7 @@ function SocialPostPreviewCard({
         {item.text || t("mediaOnly")}
       </span>
       <span className="flex w-full min-w-0 items-center gap-1">
+        <SocialPostThreadBadge count={item.threadPartCount} />
         <CalendarSocialPostStatus item={item} />
         <span aria-hidden className="flex shrink-0" title={scheduler}>
           <UserProfileAvatar

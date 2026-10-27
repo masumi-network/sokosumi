@@ -19,7 +19,11 @@ import {
 } from "@/clients/social-post-providers";
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
-import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
+import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-providers/tools";
+import type {
+  SocialPostPublishContext,
+  SocialPostPublishResult,
+} from "@/clients/social-post-providers/types";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -101,6 +105,7 @@ export interface PublishSocialPostNowInput {
 }
 
 const publisherInclude = {
+  threadParts: { orderBy: { position: "asc" } },
   project: { select: socialProviderProjectSelect },
   scheduledByCoworker: { select: { id: true, vendorId: true } },
   workspace: { select: { organizationId: true } },
@@ -132,6 +137,8 @@ interface ClaimedPost {
   firstComment: string | null;
   /** Raw `media` Json column; parsed strictly at publish time. */
   media: unknown;
+  threadParts: PublisherPostRecord["threadParts"];
+  publishedExternalId: string | null;
   scheduledAt: Date | null;
   attemptCount: number;
   leaseToken: string;
@@ -337,6 +344,195 @@ async function checkSchedulingCoworkerAccess(
   }
 }
 
+class PublishLeaseLostError extends Error {}
+
+class ThreadPartPublishError extends Error {
+  readonly classification;
+
+  constructor(position: number, error: unknown) {
+    const classified = classifyPublishError(error, "x");
+    const summary = `Thread part ${position} failed: ${classified.summary}`;
+    super(summary, { cause: error });
+    this.classification = {
+      ...classified,
+      transient: classified.kind === "unknown" ? false : classified.transient,
+      summary,
+    };
+  }
+}
+
+function requireValidPublishMedia(
+  raw: unknown,
+  provider: SocialPostProvider,
+  id: string,
+): SocialPostMediaRef[] {
+  const media = requireSocialPostMedia(raw, id);
+  const requirement = socialPostMediaRequirementMessage(provider);
+  if (requirement && !socialPostMeetsMediaRequirement(provider, media)) {
+    throw new SocialPostMediaError("media_missing", requirement);
+  }
+  if (!validateSocialPostMedia(provider, media).ok) {
+    throw new SocialPostMediaError(
+      "media_type_mismatch",
+      `The attached media no longer matches ${socialPostProviderLabel(provider)} publishing rules`,
+    );
+  }
+  return media;
+}
+
+/** The parent row fences both its own progress and the child write in one transaction. */
+async function writeThreadProgress(
+  post: ClaimedPost,
+  data: Prisma.SocialPostUncheckedUpdateManyInput,
+  part?: { id: string; data: Prisma.SocialPostThreadPartUpdateInput },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const owned = await tx.socialPost.updateMany({
+      where: {
+        id: post.id,
+        leaseToken: post.leaseToken,
+        leaseExpiresAt: { gt: new Date() },
+      },
+      data,
+    });
+    if (owned.count === 0) throw new PublishLeaseLostError();
+    if (part) {
+      await tx.socialPostThreadPart.update({
+        where: { id: part.id },
+        data: part.data,
+      });
+    }
+  });
+}
+
+async function publishThread(
+  post: ClaimedPost,
+  context: SocialPostPublishContext,
+): Promise<{
+  published: SocialPostPublishResult;
+  publishedAt: Date | null;
+  lastExternalId: string;
+}> {
+  let published: SocialPostPublishResult | null = null;
+  let headPublishedAt: Date | null = null;
+  let previousId: string | undefined;
+  for (let position = 1; position <= post.threadParts.length + 1; position++) {
+    context.signal?.throwIfAborted();
+    // Read durable ids before every call, including recovery after a worker crash.
+    const current = await prisma.socialPost.findFirst({
+      where: {
+        id: post.id,
+        leaseToken: post.leaseToken,
+        leaseExpiresAt: { gt: new Date() },
+      },
+      include: { threadParts: { orderBy: { position: "asc" } } },
+    });
+    if (!current) throw new PublishLeaseLostError();
+    const part = position === 1 ? null : current.threadParts[position - 2];
+    const existingId = part ? part.externalPostId : current.publishedExternalId;
+    if (existingId) {
+      if (position === 1) {
+        headPublishedAt = current.publishedAt;
+        published = {
+          externalId: existingId,
+          publishedUrl: current.publishedUrl,
+        };
+      }
+      previousId = existingId;
+      continue;
+    }
+
+    let result: SocialPostPublishResult;
+    let unconfirmed = current.publishingThreadPartPosition != null;
+    try {
+      if (unconfirmed) throw new ComposioPublishOutcomeUnknownError("X");
+      const media = requireValidPublishMedia(
+        part?.media ?? current.media,
+        "x",
+        part?.id ?? post.id,
+      );
+      const owned = await prisma.socialPost.updateMany({
+        where: {
+          id: post.id,
+          leaseToken: post.leaseToken,
+          leaseExpiresAt: { gt: new Date() },
+          publishingThreadPartPosition: null,
+        },
+        data: { publishingThreadPartPosition: position },
+      });
+      if (owned.count === 0) throw new PublishLeaseLostError();
+      unconfirmed = true;
+      result = await publishSocialPostToProvider({
+        ...context,
+        text: part?.text ?? current.text,
+        media,
+        ...(previousId ? { replyToExternalId: previousId } : {}),
+      });
+      // The next part replies to this id, so a post without one is unconfirmed.
+      if (!result.externalId) throw new ComposioPublishOutcomeUnknownError("X");
+    } catch (error) {
+      if (error instanceof PublishLeaseLostError) throw error;
+      const failure = new ThreadPartPublishError(position, error);
+      await writeThreadProgress(
+        post,
+        {
+          publishingThreadPartPosition:
+            unconfirmed && failure.classification.kind === "unknown"
+              ? position
+              : null,
+        },
+        part ? { id: part.id, data: { error: failure.message } } : undefined,
+      );
+      throw failure;
+    }
+
+    const publishedAt = new Date();
+    try {
+      await writeThreadProgress(
+        post,
+        {
+          publishingThreadPartPosition: null,
+          ...(position === 1
+            ? {
+                publishedExternalId: result.externalId,
+                publishedAt,
+                publishedUrl: result.publishedUrl,
+              }
+            : {}),
+        },
+        part
+          ? {
+              id: part.id,
+              data: {
+                externalPostId: result.externalId,
+                publishedAt,
+                error: null,
+              },
+            }
+          : undefined,
+      );
+    } catch (error) {
+      if (error instanceof PublishLeaseLostError) throw error;
+      // X may have succeeded before storage failed. Keep the in-flight marker.
+      throw new ThreadPartPublishError(
+        position,
+        new ComposioPublishOutcomeUnknownError("X"),
+      );
+    }
+    if (position === 1) {
+      published = result;
+      headPublishedAt = publishedAt;
+    }
+    previousId = result.externalId;
+  }
+  if (!published || !previousId) throw new PublishLeaseLostError();
+  return {
+    published,
+    publishedAt: headPublishedAt,
+    lastExternalId: previousId,
+  };
+}
+
 async function attemptPublish(
   post: ClaimedPost,
   options: AttemptOptions,
@@ -365,6 +561,8 @@ async function attemptPublish(
     if (previous?.finishedAt) {
       switch (previous.outcome) {
         case "succeeded": {
+          // Thread ids are already durable; finish the loop and its last-part comment.
+          if (post.threadParts.length > 0) break;
           // The platform confirmed the post; a missing id only drops the link.
           const settled = await settle(post, {
             status: "PUBLISHED",
@@ -432,11 +630,16 @@ async function attemptPublish(
         }
       }
     }
-    const settled = await settle(post, {
-      status: "FAILED",
-      lastError: `The previous publishing attempt could not be confirmed. Check ${socialPostProviderLabel(provider)} before retrying to avoid a duplicate post.`,
-    });
-    return settled ? "failed" : "skipped";
+    if (
+      post.threadParts.length === 0 ||
+      (previous?.finishedAt && previous.outcome !== "succeeded")
+    ) {
+      const settled = await settle(post, {
+        status: "FAILED",
+        lastError: `The previous publishing attempt could not be confirmed. Check ${socialPostProviderLabel(provider)} before retrying to avoid a duplicate post.`,
+      });
+      return settled ? "failed" : "skipped";
+    }
   }
 
   const projectOutcome = await checkProjectPublishingAccess(post, options);
@@ -491,6 +694,7 @@ async function attemptPublish(
 
   if (
     post.attemptCount === 0 &&
+    !post.publishedExternalId &&
     post.scheduledAt &&
     now.getTime() - post.scheduledAt.getTime() > MISSED_AFTER_MS
   ) {
@@ -540,24 +744,15 @@ async function attemptPublish(
     ? AbortSignal.any([options.execution.abortSignal, timeoutSignal])
     : timeoutSignal;
   let published: SocialPostPublishResult;
+  let lastExternalId: string | undefined;
+  let threadPublishedAt: Date | null = null;
   let media: SocialPostMediaRef[] = [];
   let subscriptionType = connection.subscriptionType;
   try {
     if (Date.now() >= deadlineMs)
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
     signal.throwIfAborted();
-    media = requireSocialPostMedia(post.media, post.id);
-    const mediaRequirement = socialPostMediaRequirementMessage(provider);
-    if (mediaRequirement && !socialPostMeetsMediaRequirement(provider, media)) {
-      throw new SocialPostMediaError("media_missing", mediaRequirement);
-    }
-    const mediaValidation = validateSocialPostMedia(provider, media);
-    if (!mediaValidation.ok) {
-      throw new SocialPostMediaError(
-        "media_type_mismatch",
-        `The attached media no longer matches ${socialPostProviderLabel(provider)} publishing rules`,
-      );
-    }
+    media = requireValidPublishMedia(post.media, provider, post.id);
     if (provider === "x") {
       subscriptionType = await resolveXSubscriptionType(
         { ...connection, provider, projectId: post.projectId },
@@ -567,10 +762,20 @@ async function attemptPublish(
       const account = connection.externalHandle
         ? `@${connection.externalHandle.replace(/^@/, "")}`
         : "this account";
-      for (const [subject, text] of [
-        ["This post", post.text],
+      // Parts already on X are not re-checked; a resumed thread only needs the rest to fit.
+      const unpublished: [string, string][] = [
+        ...(post.publishedExternalId
+          ? []
+          : [["This post", post.text] as [string, string]]),
+        ...post.threadParts
+          .filter((part) => !part.externalPostId)
+          .map((part): [string, string] => [
+            `Thread part ${part.position}`,
+            part.text,
+          ]),
         ["The first comment", post.firstComment ?? ""],
-      ]) {
+      ];
+      for (const [subject, text] of unpublished) {
         const length = socialPostTextLength(provider, text);
         if (length > limit) {
           throw new SocialPostTextLimitError(
@@ -591,7 +796,7 @@ async function attemptPublish(
       attempt.id,
     );
     if (projectOutcome) return projectOutcome;
-    published = await publishSocialPostToProvider({
+    const context: SocialPostPublishContext = {
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
@@ -600,10 +805,25 @@ async function attemptPublish(
       text: post.text,
       media,
       signal,
-    });
+    };
+    if (post.threadParts.length > 0) {
+      if (provider !== "x")
+        throw badRequest("Thread parts are only supported for X accounts");
+      ({
+        published,
+        publishedAt: threadPublishedAt,
+        lastExternalId,
+      } = await publishThread(post, context));
+    } else {
+      published = await publishSocialPostToProvider(context);
+    }
   } catch (error) {
+    if (error instanceof PublishLeaseLostError) return "skipped";
     const finishedAt = new Date();
-    const classified = classifyPublishError(error, provider);
+    const classified =
+      error instanceof ThreadPartPublishError
+        ? error.classification
+        : classifyPublishError(error, provider);
     const backoff = RETRY_BACKOFF_MS[post.attemptCount];
     const retryAt =
       backoff === undefined ? null : new Date(finishedAt.getTime() + backoff);
@@ -629,7 +849,9 @@ async function attemptPublish(
         externalId: null,
       },
     });
-    if (shouldRequestReauthorization(error, classified)) {
+    const providerError =
+      error instanceof ThreadPartPublishError ? error.cause : error;
+    if (shouldRequestReauthorization(providerError, classified)) {
       try {
         await prisma.projectSocialConnection.updateMany({
           where: { id: connection.id, status: "active" },
@@ -675,7 +897,7 @@ async function attemptPublish(
   });
   const settled = await settle(post, {
     status: "PUBLISHED",
-    publishedAt: finishedAt,
+    publishedAt: threadPublishedAt ?? finishedAt,
     publishedExternalId: published.externalId,
     publishedUrl: published.publishedUrl,
     lastError: null,
@@ -690,7 +912,7 @@ async function attemptPublish(
         connectedAccountId: connection.composioConnectedAccountId,
         executorUserId: projectExecutorUserId(post.projectId),
         externalAccountId: connection.externalAccountId,
-        externalId: published.externalId,
+        externalId: lastExternalId ?? published.externalId,
         text: firstComment,
         signal,
       });
@@ -754,6 +976,8 @@ async function claimDuePost(): Promise<ClaimResult> {
       text: candidate.text,
       firstComment: candidate.firstComment,
       media: candidate.media,
+      threadParts: candidate.threadParts,
+      publishedExternalId: candidate.publishedExternalId,
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
       leaseToken,
@@ -844,6 +1068,11 @@ export async function publishSocialPostNow(
       if (post.revision !== input.revision) {
         throw conflict(REVISION_CONFLICT_MESSAGE);
       }
+      if (post.publishingThreadPartPosition != null) {
+        throw conflict(
+          `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
+        );
+      }
       requireSocialProviderEnabled(post.provider, post.project);
       if (post.socialConnection) {
         requireSocialProviderEnabled(
@@ -904,6 +1133,8 @@ export async function publishSocialPostNow(
       text: post.text,
       firstComment: post.firstComment,
       media: post.media,
+      threadParts: post.threadParts,
+      publishedExternalId: post.publishedExternalId,
       scheduledAt: now,
       attemptCount: 0,
       leaseToken,

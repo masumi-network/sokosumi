@@ -31,6 +31,10 @@ vi.mock("@/app/social/components/social-calendar-preview", () => ({
 
 const item: SocialPostCalendarItem = {
   kind: "socialPost",
+  threadPartCount: 1,
+  publishedThreadPartCount: 0,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
   revision: 4,
   provider: "x",
   id: "social:post",
@@ -81,6 +85,40 @@ describe("Social post calendar event", () => {
   beforeEach(() => {
     openPreview.current = null;
   });
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows a compact part count in the %s calendar chip (week: %s)",
+    (variant, showThumb) => {
+      renderCard({ threadPartCount: 3 }, variant, showThumb);
+      const badge = screen.getByTestId("social-post-thread-count");
+      expect(badge).toHaveTextContent("1/3");
+      expect(badge).toHaveAttribute("data-slot", "badge");
+      expect(badge).toHaveClass("w-fit", "shrink-0");
+      expect(badge.parentElement).toHaveClass("flex", "items-center");
+      expect(screen.getByLabelText("Part 1 of 3")).toBeVisible();
+      if (variant === "compact") {
+        expect(screen.getByText("X post")).toBeVisible();
+      }
+    },
+  );
+
+  it("shows a warning for a partly published thread", () => {
+    renderCard({
+      status: "FAILED",
+      threadPartCount: 3,
+      publishedThreadPartCount: 1,
+      partiallyPublished: true,
+      failedThreadPartPosition: 2,
+    });
+    expect(screen.getByText("Partly posted")).toBeVisible();
+    expect(screen.getByTestId("social-post-status-FAILED")).toHaveTextContent(
+      "Partly posted",
+    );
+  });
+
   it("names the compact workspace card in one phrase", () => {
     renderCard({}, "compact");
     expect(

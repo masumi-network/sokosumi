@@ -9,7 +9,7 @@ import type { SocialPostStatus } from "@sokosumi/core-client";
 export type SectionKey = "drafts" | "attention";
 export const SECTION_STATUSES: Record<SectionKey, readonly SocialPostStatus[]> =
   {
-    drafts: ["DRAFT", "PUBLISHING"],
+    drafts: ["DRAFT", "NEEDS_APPROVAL", "PUBLISHING"],
     attention: ["FAILED", "MISSED"],
   };
 export const SECTION_ORDER: SectionKey[] = ["drafts", "attention"];

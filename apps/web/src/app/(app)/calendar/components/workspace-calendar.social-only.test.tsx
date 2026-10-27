@@ -140,6 +140,10 @@ const RUN: WorkspaceCalendarItem = {
 
 const POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  threadPartCount: 1,
+  publishedThreadPartCount: 0,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
   revision: 4,
   id: "social:post-1",
   postId: "post-1",

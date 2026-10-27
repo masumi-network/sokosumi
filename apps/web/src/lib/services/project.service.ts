@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  ApproveSocialPostRequest,
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
@@ -19,6 +20,7 @@ import type {
   ProjectStatsEntry,
   PublishSocialPostRequest,
   RecycleSocialAccountPostRequest,
+  ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
   SocialPost,
   SocialPostStatus,
@@ -493,6 +495,33 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function approveSocialPost(
+    projectId: string,
+    postId: string,
+    input: ApproveSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdApprove(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function resumeSocialPostThread(
+    projectId: string,
+    postId: string,
+    input: ResumeSocialPostThreadRequest,
+  ): Promise<SocialPost> {
+    const result =
+      await coreClient.postProjectsByIdSocialPostsByPostIdThreadResume(
+        projectId,
+        postId,
+        input,
+      );
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -619,6 +648,8 @@ export const projectService = (() => {
     duplicateSocialPost,
     recycleSocialAccountPost,
     publishSocialPost,
+    approveSocialPost,
+    resumeSocialPostThread,
     listProjectJobs,
     listProjectTasks,
     addJob,
