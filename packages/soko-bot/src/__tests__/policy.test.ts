@@ -16,6 +16,12 @@ import {
   getSokoBotVersion,
 } from "../versions/index.js";
 
+const ADS_WRITES = [
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+] as const;
+
 describe("Soko Bot route capability ceilings", () => {
   it.each([
     "MEMORY",
@@ -109,6 +115,7 @@ describe("Soko Bot route capability ceilings", () => {
         "list_ad_campaigns",
         "find_ad_targeting",
         "get_market_keywords",
+        "get_ad_campaign",
       ] as const) {
         expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain(read);
         expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).not.toContain(read);
@@ -118,27 +125,25 @@ describe("Soko Bot route capability ceilings", () => {
       }
   });
 
-  it("creates ad campaigns only on MANAGE_WORK, and never from a page's instructions", () => {
-    for (const route of SOKO_BOT_ROUTES)
-      expect(
-        SOKO_BOT_ROUTE_CAPABILITIES[route].includes("create_ad_campaign"),
-      ).toBe(route === "MANAGE_WORK");
-    expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(
-      "create_ad_campaign",
-    );
-    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
-      "create_ad_campaign",
-    );
+  it("creates and changes ad campaigns only on MANAGE_WORK, and never from a page's instructions", () => {
+    for (const write of ADS_WRITES) {
+      for (const route of SOKO_BOT_ROUTES)
+        expect(SOKO_BOT_ROUTE_CAPABILITIES[route].includes(write)).toBe(
+          route === "MANAGE_WORK",
+        );
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(write);
+      expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(write);
+    }
   });
 
-  it("lets an ADS change create the campaign and its images, nothing else", () => {
+  it("lets an ADS change manage campaigns and make their images, nothing else", () => {
     const granted = capabilitiesForClassification({
       schemaVersion: 1,
       route: "MANAGE_WORK",
       writeScope: "ADS",
       confidence: 1,
       rationaleSummary: "explicit",
-      requestedOutcome: "create a campaign",
+      requestedOutcome: "manage a campaign",
       candidateProjectIds: [],
       candidateCoworkerIds: [],
       candidateAgentIds: [],
@@ -146,11 +151,7 @@ describe("Soko Bot route capability ceilings", () => {
       requiresClarification: false,
     });
     expect(granted).toEqual(
-      expect.arrayContaining([
-        "create_ad_campaign",
-        "generate_image",
-        "upload_file",
-      ]),
+      expect.arrayContaining([...ADS_WRITES, "generate_image", "upload_file"]),
     );
     expect(granted).not.toContain("create_social_post");
     expect(granted).not.toContain("create_task");

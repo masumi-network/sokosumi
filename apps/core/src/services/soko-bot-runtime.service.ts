@@ -264,7 +264,10 @@ import {
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
-import { googleCampaignSpecSchema } from "@/schemas/project-ad-account.schema";
+import {
+  googleCampaignEditSpecSchema,
+  googleCampaignSpecSchema,
+} from "@/schemas/project-ad-account.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
@@ -296,10 +299,13 @@ import {
 } from "@/services/image-studio-jobs.service";
 import {
   createProjectAdCampaign,
+  editProjectAdCampaign,
+  getProjectAdCampaignDetails,
   listProjectAdAccounts,
   listProjectAdCampaigns,
   listProjectAdLanguages,
   searchProjectAdLocations,
+  updateProjectAdCampaign,
 } from "@/services/project-ad-accounts.service";
 import {
   getProjectAdMarketProfile,
@@ -628,6 +634,35 @@ function adCampaignLink(
   campaignId: string,
 ): string {
   return `/ads/campaigns/${encodeURIComponent(campaignId)}?${new URLSearchParams({ projectId, accountId })}`;
+}
+
+/** The Project's ad account, or a refusal the model can fix with list_ad_accounts. */
+async function findAdAccount(
+  projectId: string,
+  accountId: string,
+  workspaceId: string,
+) {
+  const account = (
+    await callAds(() => listProjectAdAccounts({ projectId, workspaceId }))
+  ).find((candidate) => candidate.id === accountId);
+  if (!account)
+    throw new SokoBotRefusedUnsentError(
+      "Ad account not found in this Project; use an id from list_ad_accounts",
+    );
+  return account;
+}
+
+/** Core's Google rules, worded for the model: the first few issues. */
+function parseAdSpec<S extends z.ZodType>(schema: S, value: unknown) {
+  const spec = schema.safeParse(value);
+  if (!spec.success)
+    throw new SokoBotRefusedUnsentError(
+      spec.error.issues
+        .slice(0, 3)
+        .map(({ path, message }) => `${path.join(".")}: ${message}`)
+        .join("; "),
+    );
+  return spec.data;
 }
 
 /**
@@ -4966,11 +5001,17 @@ export class SokoBotRuntimeService {
         ) {
           await this.requireSocialAccess(authorized);
         }
-        if (input.capability === "create_ad_campaign")
+        const adWrite = (
+          [
+            "create_ad_campaign",
+            "update_ad_campaign",
+            "edit_ad_campaign",
+          ] as const
+        ).find((capability) => capability === input.capability);
+        if (adWrite)
           await this.requireAdsAccess(
             authorized,
-            SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input)
-              .projectId,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS[adWrite].parse(input.input).projectId,
           );
         if (input.capability === "refresh_social_post_statistics") {
           const params =
@@ -5017,6 +5058,7 @@ export class SokoBotRuntimeService {
           input.capability === "list_ad_campaigns" ||
           input.capability === "find_ad_targeting" ||
           input.capability === "get_market_keywords" ||
+          input.capability === "get_ad_campaign" ||
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
           input.capability === "list_social_account_statistics" ||
@@ -5559,18 +5601,13 @@ export class SokoBotRuntimeService {
         const { projectId, accountId, name, dailyBudget, google } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input);
         const workspace = await this.requireAdsAccess(authorized, projectId);
-        const account = (
-          await callAds(() => listProjectAdAccounts({ projectId, workspaceId }))
-        ).find((candidate) => candidate.id === accountId);
-        if (!account)
-          throw new SokoBotRefusedUnsentError(
-            "Ad account not found in this Project; use an id from list_ad_accounts",
-          );
+        const account = await findAdAccount(projectId, accountId, workspaceId);
         if (account.provider !== "google_ads")
           throw new SokoBotRefusedUnsentError(
             "Meta campaigns can be created on the Ads page",
           );
-        const spec = googleCampaignSpecSchema.safeParse(
+        const spec = parseAdSpec(
+          googleCampaignSpecSchema,
           google.type === "DISPLAY"
             ? {
                 ...google,
@@ -5578,13 +5615,6 @@ export class SokoBotRuntimeService {
               }
             : google,
         );
-        if (!spec.success)
-          throw new SokoBotRefusedUnsentError(
-            spec.error.issues
-              .slice(0, 3)
-              .map(({ path, message }) => `${path.join(".")}: ${message}`)
-              .join("; "),
-          );
         const { id } = await callAds(() =>
           createProjectAdCampaign({
             projectId,
@@ -5594,14 +5624,99 @@ export class SokoBotRuntimeService {
             organizationId: workspace.organizationId,
             name,
             dailyBudget,
-            google: spec.data,
+            google: spec,
           }),
         );
         return {
           campaignId: id,
           status: "PAUSED" as const,
           link: adCampaignLink(projectId, accountId, id),
-          note: "Created paused. A person activates it on the Ads page.",
+          note: "Created paused. Resume it with update_ad_campaign only when the owner asks.",
+        };
+      }
+      case "get_ad_campaign": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, campaignId } = params;
+        const details = await callAds(() =>
+          getProjectAdCampaignDetails({ ...params, workspaceId }),
+        );
+        return {
+          ...details,
+          link: adCampaignLink(projectId, accountId, campaignId),
+        };
+      }
+      case "update_ad_campaign": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_ad_campaign.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, campaignId, status, dailyBudget } =
+          params;
+        const account = await findAdAccount(projectId, accountId, workspaceId);
+        await callAds(() =>
+          updateProjectAdCampaign({ ...params, workspaceId }),
+        );
+        return {
+          campaignId,
+          updated: true as const,
+          ...(status !== undefined ? { status } : {}),
+          ...(dailyBudget !== undefined ? { dailyBudget } : {}),
+          // Only Google campaigns have a details page.
+          ...(account.provider === "google_ads"
+            ? { link: adCampaignLink(projectId, accountId, campaignId) }
+            : {}),
+        };
+      }
+      case "edit_ad_campaign": {
+        const { projectId, accountId, campaignId, name, dailyBudget, google } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign.parse(input.input);
+        const workspace = await this.requireAdsAccess(authorized, projectId);
+        const account = await findAdAccount(projectId, accountId, workspaceId);
+        if (account.provider !== "google_ads")
+          throw new SokoBotRefusedUnsentError(
+            "Meta campaigns are edited on the Ads page",
+          );
+        // New images (`fileId`) are resolved and cropped; kept ones (`assetId`)
+        // stay as the details gave them, each in its place.
+        let newIndex = 0;
+        const added =
+          google.type === "DISPLAY"
+            ? await this.resolveAdImages(
+                authorized,
+                google.images.filter((image) => "fileId" in image),
+              )
+            : [];
+        const spec = parseAdSpec(
+          googleCampaignEditSpecSchema,
+          google.type === "DISPLAY"
+            ? {
+                ...google,
+                images: google.images.map((image) =>
+                  "fileId" in image ? added[newIndex++] : image,
+                ),
+              }
+            : google,
+        );
+        await callAds(() =>
+          editProjectAdCampaign({
+            projectId,
+            accountId,
+            campaignId,
+            workspaceId,
+            userId: actingMemberOf(authorized),
+            organizationId: workspace.organizationId,
+            name,
+            dailyBudget,
+            google: spec,
+          }),
+        );
+        return {
+          campaignId,
+          edited: true as const,
+          link: adCampaignLink(projectId, accountId, campaignId),
         };
       }
       default:
@@ -5915,6 +6030,9 @@ export class SokoBotRuntimeService {
       case "find_ad_targeting":
       case "get_market_keywords":
       case "create_ad_campaign":
+      case "get_ad_campaign":
+      case "update_ad_campaign":
+      case "edit_ad_campaign":
         return this.executeAdsTool(input, authorized);
       case "start_background_run":
       case "list_background_runs":

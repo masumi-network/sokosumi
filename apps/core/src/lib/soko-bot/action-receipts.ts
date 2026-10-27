@@ -13,6 +13,9 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "publish_social_post",
   // Creates a campaign at Google; never repeated after an unclear failure.
   "create_ad_campaign",
+  // Change a campaign at the provider; never repeated after an unclear failure.
+  "update_ad_campaign",
+  "edit_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
@@ -20,6 +23,9 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "send_email_draft",
   "save_email_attachment",
 ]);
+
+/** A Google campaign id: digits only. */
+const adCampaignIdSchema = z.string().regex(/^\d{1,20}$/);
 
 export const ACTION_CAPABILITIES = new Set([
   ...EXTERNAL_EFFECT_CAPABILITIES,
@@ -261,10 +267,17 @@ export function externalActionReceipt(capability: string, result: unknown) {
     if (acknowledged.success) targetId = acknowledged.data.id;
   } else if (capability === "create_ad_campaign") {
     const acknowledged = z
-      .object({
-        campaignId: z.string().regex(/^\d{1,20}$/),
-        status: z.literal("PAUSED"),
-      })
+      .object({ campaignId: adCampaignIdSchema, status: z.literal("PAUSED") })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.campaignId;
+  } else if (capability === "update_ad_campaign") {
+    const acknowledged = z
+      .object({ campaignId: adCampaignIdSchema, updated: z.literal(true) })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.campaignId;
+  } else if (capability === "edit_ad_campaign") {
+    const acknowledged = z
+      .object({ campaignId: adCampaignIdSchema, edited: z.literal(true) })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.campaignId;
   } else if (

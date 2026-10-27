@@ -52,6 +52,35 @@ describe("external action receipts", () => {
       );
   });
 
+  it.each([
+    ["update_ad_campaign", "updated"],
+    ["edit_ad_campaign", "edited"],
+  ])(
+    "verifies %s only on a campaign id and its done flag",
+    (capability, flag) => {
+      expect(EXTERNAL_EFFECT_CAPABILITIES.has(capability)).toBe(true);
+      expect(
+        externalActionReceipt(capability, { campaignId: "123", [flag]: true }),
+      ).toEqual({
+        targetId: "123",
+        disposition: "APPLIED",
+        verification: "PROVIDER_ACK",
+        committedAt: expect.any(Date),
+      });
+      for (const result of [
+        { campaignId: "123", [flag]: false },
+        { campaignId: "123" },
+        { campaignId: "abc", [flag]: true },
+        { [flag]: true },
+      ])
+        expect(externalActionReceipt(capability, result)).toMatchObject({
+          targetId: null,
+          disposition: "UNKNOWN",
+          verification: "NONE",
+        });
+    },
+  );
+
   it("requires a provider publication identity before verifying social publication", () => {
     expect(
       externalActionReceipt("publish_social_post", {
