@@ -29,7 +29,13 @@ export const CLAMP_BODIES = {
   paragraphs: numbered(40, (index) => `Paragraph ${index}\n`),
   table: `Results\n\n| # | Result |\n| - | - |\n${numbered(40, (index) => `| ${index} | Row ${index} |`)}`,
   code: `Script\n\n\`\`\`\n${numbered(40, (index) => `line ${index}`)}\n\`\`\``,
+  /** A Soko Bot stand-up, which renders as a brief card. */
+  brief: `Stand-up ready.\n\n### Results\n\n| # | Result |\n| - | - |\n${numbered(40, (index) => `| ${index} | Row ${index} |`)}`,
 } as const;
+
+const BRIEF_METADATA = {
+  soko_bot: { turn_id: "turn-1", source: "SCHEDULE", schedule_key: "standup" },
+};
 
 function message(kind: keyof typeof CLAMP_BODIES): ChatRoomMessage {
   return {
@@ -46,7 +52,7 @@ function message(kind: keyof typeof CLAMP_BODIES): ChatRoomMessage {
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
-    metadata: null,
+    metadata: kind === "brief" ? BRIEF_METADATA : null,
     quote: null,
     membership: null,
     groupNameChange: null,

@@ -48,9 +48,14 @@ describe.each([
     await browser?.close();
   });
 
-  it.each(["paragraphs", "table", "code"])(
+  it.each([
+    ["paragraphs", "room-message-body"],
+    ["table", "room-message-body"],
+    ["code", "room-message-body"],
+    ["brief", "soko-bot-brief-body"],
+  ])(
     "collapses a long %s body behind Show more",
-    async (kind) => {
+    async (kind, bodyTestId) => {
       const address = server.httpServer?.address();
       if (!address || typeof address === "string")
         throw new Error("Missing fixture port");
@@ -74,7 +79,7 @@ describe.each([
           renderClampPage();`,
       });
       const row = page.locator(`[data-row="${kind}"]`);
-      const body = row.getByTestId("room-message-body");
+      const body = row.getByTestId(bodyTestId);
       await body.waitFor();
 
       await expect

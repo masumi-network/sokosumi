@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -27,6 +28,7 @@ describe("SokoBotBriefCard", () => {
     if (!brief) throw new Error("expected a brief");
     render(
       <SokoBotBriefCard
+        messageId="msg-1"
         brief={brief}
         metadata={meta({
           source: "SCHEDULE",
@@ -44,6 +46,42 @@ describe("SokoBotBriefCard", () => {
     expect(screen.getByText("11 Tasks")).toBeInTheDocument();
     expect(screen.getByText("9 completed")).toBeInTheDocument();
     expect(screen.getByText("Updated memory.")).toBeInTheDocument();
+  });
+
+  it("collapses a long brief behind Show more", async () => {
+    const user = userEvent.setup();
+    const scroll = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockReturnValue(900);
+    const client = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(384);
+    try {
+      const brief = parseSokoBotBrief(
+        "Stand-up ready.\n\n### Results\n- one\n- two",
+      );
+      if (!brief) throw new Error("expected a brief");
+      render(
+        <SokoBotBriefCard
+          messageId="msg-1"
+          brief={brief}
+          metadata={meta({ source: "SCHEDULE", schedule_key: "standup" })}
+          createdAt="2026-10-26T08:00:00Z"
+          renderMarkdown={(content) => <p>{content}</p>}
+        />,
+      );
+      const body = screen.getByTestId("soko-bot-brief-body");
+      expect(body.className).toContain("max-h-96");
+
+      await user.click(screen.getByRole("button", { name: "showMore" }));
+      expect(body.className).not.toContain("max-h-96");
+      expect(
+        screen.getByRole("button", { name: "showLess" }),
+      ).toBeInTheDocument();
+    } finally {
+      scroll.mockRestore();
+      client.mockRestore();
+    }
   });
 
   it("uses cards only for the bot's own check-ins", () => {
