@@ -1,6 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
-import { isNewsletterEnabled } from "@/lib/newsletter/feature";
 import { newsletterIssueCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
 import type { WorkspaceCalendarReadQuery } from "./read";
 
@@ -12,6 +11,7 @@ export function scheduledNewsletterIssueWhere(
 ): Prisma.NewsletterIssueWhereInput {
   return {
     workspaceId,
+    project: { workspaceId },
     ...(projectId ? { projectId } : {}),
     ...(scope === "owned" ? { approvedByUserId: userId } : {}),
     status: { in: ["SCHEDULED", "SENDING"] },
@@ -25,7 +25,6 @@ export async function readNewsletterCalendar(
   query: WorkspaceCalendarReadQuery,
   projectId?: string,
 ) {
-  if (!isNewsletterEnabled()) return { items: [], total: 0 };
   const base = scheduledNewsletterIssueWhere(
     workspaceId,
     userId,

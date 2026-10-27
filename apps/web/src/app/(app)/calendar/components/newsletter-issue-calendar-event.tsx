@@ -5,6 +5,8 @@ import { Mail } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
+
 export function NewsletterIssueCalendarEvent({
   item,
   timeZone,
@@ -17,7 +19,10 @@ export function NewsletterIssueCalendarEvent({
   const format = useFormatter();
   return (
     <Link
-      href={`/projects/${item.sourceProjectId}/newsletter/issues/${item.issueId}`}
+      href={newsletterHref(
+        `/newsletter/issues/${encodeURIComponent(item.issueId)}`,
+        item.sourceProjectId,
+      )}
       className="bg-background text-foreground hover:bg-muted border-border focus-visible:ring-ring-halo block w-full min-w-0 rounded border p-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
       data-testid="calendar-newsletter-issue"
     >

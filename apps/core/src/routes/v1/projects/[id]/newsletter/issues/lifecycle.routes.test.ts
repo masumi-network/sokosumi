@@ -21,10 +21,10 @@ import mountSubmit from "./[issueId]/submit/post";
 
 const m = vi.hoisted(() => ({
   users: vi.fn(),
-  enabled: true,
   domain: "news.example.com",
   authorized: true,
   project: vi.fn(),
+  workspace: vi.fn(),
   newsletter: vi.fn(),
   issue: vi.fn(),
   update: vi.fn(),
@@ -45,7 +45,6 @@ vi.mock("@/config/env", async (original) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.enabled,
       NEWSLETTER_FROM_DOMAIN: m.domain || undefined,
     }),
   };
@@ -89,6 +88,7 @@ vi.mock("@/lib/db/prisma", () => {
       ...tx,
       user: { findMany: m.users },
       project: { findFirst: m.project },
+      workspace: { findUnique: m.workspace },
       newsletter: { findUnique: m.newsletter },
       newsletterIssue: { ...tx.newsletterIssue, findUnique: m.issue },
       $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
@@ -168,9 +168,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
-  m.enabled = true;
   m.domain = "news.example.com";
   m.authorized = true;
+  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     closingAt: null,
@@ -250,6 +250,41 @@ describe("newsletter approval and delivery", () => {
     ).toBe(403);
     expect(m.createTask).not.toHaveBeenCalled();
   });
+  it.each(["submit", "approve", "schedule", "send-now", "cancel"])(
+    "hides %s outside the beta workspace before lifecycle changes",
+    async (action) => {
+      m.workspace.mockResolvedValue({ organization: { slug: "other" } });
+      const response = await request(action, {
+        revision: 0,
+        scheduledAt: "2026-10-24T10:00:00Z",
+        timezone: "UTC",
+      });
+      expect(response.status).toBe(404);
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.createTask).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["workspace", "project"] as const)(
+    "applies the beta gate to shared %s Soko Bots",
+    async (scope) => {
+      m.workspace.mockResolvedValue({ organization: { slug: "other" } });
+      const actor: AuthenticationContext = {
+        actor: "sokoBot",
+        scope,
+        sokoBotId: BOT.sokoBotId,
+        userId: null,
+        organizationId: "org_1",
+        workspaceId: NEWSLETTER_WORKSPACE_ID,
+        projectId: scope === "project" ? NEWSLETTER_PROJECT_ID : null,
+      };
+      expect((await request("submit", { revision: 0 }, actor)).status).toBe(
+        404,
+      );
+      expect(m.createTask).not.toHaveBeenCalled();
+      expect(m.project).not.toHaveBeenCalled();
+    },
+  );
   it("updates the approval Task title when an edited issue is resubmitted", async () => {
     issue("DRAFT");
     m.task.mockResolvedValue({
@@ -572,16 +607,15 @@ describe("newsletter approval and delivery", () => {
     expect(m.createTask).not.toHaveBeenCalled();
   });
   it.each(["submit", "approve", "schedule", "send-now", "cancel"])(
-    "hides %s behind the flag and project access",
+    "hides %s behind the beta gate and project access",
     async (action) => {
       const input = {
         revision: 0,
         scheduledAt: "2026-10-24T10:00:00Z",
         timezone: "UTC",
       };
-      m.enabled = false;
+      m.workspace.mockResolvedValueOnce({ organization: { slug: "other" } });
       expect((await request(action, input)).status).toBe(404);
-      m.enabled = true;
       m.project.mockResolvedValue(null);
       expect((await request(action, input)).status).toBe(404);
       expect(m.updateMany).not.toHaveBeenCalled();

@@ -11,7 +11,7 @@ const m = vi.hoisted(() => ({
   runs: vi.fn(),
 }));
 vi.mock("@/lib/newsletter/feature", () => ({
-  isNewsletterEnabled: () => m.enabled,
+  isNewsletterWorkspaceEnabled: async () => m.enabled,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -169,6 +169,7 @@ describe("newsletter issues on the project and Social calendar", () => {
       expect.objectContaining({
         where: {
           workspaceId,
+          project: { workspaceId },
           projectId,
           status: { in: ["SCHEDULED", "SENDING"] },
         },

@@ -289,7 +289,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     expect(renderedEventTitles()).toEqual(["Launch news", "Weekly newsletter"]);
     expect(screen.getByTestId("calendar-newsletter-issue")).toHaveAttribute(
       "href",
-      "/projects/project-1/newsletter/issues/issue-1",
+      "/newsletter/issues/issue-1?projectId=project-1",
     );
     const props = fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps;
     expect(

@@ -65,12 +65,11 @@ describe("newsletter lifecycle actions", () => {
       expect(m[action]).toHaveBeenCalledWith(TARGET.projectId, TARGET.issueId, {
         revision: 2,
       });
-      for (const path of [
-        `/projects/${TARGET.projectId}/newsletter/issues`,
-        "/social",
-        "/calendar",
-        "/tasks/task_1",
-      ])
+      expect(revalidatePath).toHaveBeenCalledWith(
+        "/newsletter/issues",
+        "layout",
+      );
+      for (const path of ["/social", "/calendar", "/tasks/task_1"])
         expect(revalidatePath).toHaveBeenCalledWith(path);
     },
   );

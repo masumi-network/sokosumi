@@ -79,7 +79,7 @@ export const changeNewsletterIssue = withSession<
         });
         break;
     }
-    revalidatePath(`/projects/${projectId}/newsletter/issues`);
+    revalidatePath("/newsletter/issues", "layout");
     revalidatePath("/social");
     revalidatePath("/calendar");
     revalidatePath("/tasks");
