@@ -9,10 +9,12 @@ vi.mock("@/hooks/use-mobile", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) =>
+  useTranslations: () => (key: string, values?: { shortcut?: string }) =>
     ({
       show: "Show sidebar",
       hide: "Hide sidebar",
+      showShortcut: `Show sidebar (${values?.shortcut})`,
+      hideShortcut: `Hide sidebar (${values?.shortcut})`,
       unreadChats: "Unread chats",
     })[key] ?? key,
 }));
@@ -92,6 +94,20 @@ describe("SidebarToggle", () => {
       screen.getByRole("button", { name: "Hide sidebar" }),
     ).not.toHaveTextContent("Unread chats");
     expect(presence).not.toHaveBeenCalled();
+  });
+
+  it("shows what it does and its shortcut in a tooltip on keyboard focus", async () => {
+    renderToggle();
+    const toggle = screen.getByRole("button", { name: "Hide sidebar" });
+
+    // A native `title` shows only under a pointer; the tooltip also answers
+    // focus. The label and shortcut come as one translated message.
+    expect(toggle).not.toHaveAttribute("title");
+    fireEvent.focus(toggle);
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Hide sidebar (Ctrl+B)",
+    );
   });
 
   it("is desktop only: the phone opens its sheet elsewhere", () => {

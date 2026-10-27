@@ -7,6 +7,11 @@ import { useId } from "react";
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 
 /**
@@ -64,23 +69,31 @@ function ToggleButton({
   const t = useTranslations("App.Sidebar");
   const { toggleSidebar } = useSidebar();
   const isApple = useIsApplePlatform();
-  const label = open ? t("hide") : t("show");
+  const shortcut = isApple ? "⌘B" : "Ctrl+B";
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label={label}
-      aria-expanded={open}
-      aria-describedby={describedBy}
-      aria-keyshortcuts="Meta+B Control+B"
-      title={`${label} (${isApple ? "⌘B" : "Ctrl+B"})`}
-      onClick={toggleSidebar}
-      className="relative -ml-2 hidden size-10 shrink-0 md:inline-flex md:size-8"
-    >
-      <PanelLeft aria-hidden />
-      {children}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={open ? t("hide") : t("show")}
+          aria-expanded={open}
+          aria-describedby={describedBy}
+          aria-keyshortcuts="Meta+B Control+B"
+          onClick={toggleSidebar}
+          className="relative -ml-2 hidden size-10 shrink-0 md:inline-flex md:size-8"
+        >
+          <PanelLeft aria-hidden />
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6}>
+        {open
+          ? t("hideShortcut", { shortcut })
+          : t("showShortcut", { shortcut })}
+      </TooltipContent>
+    </Tooltip>
   );
 }

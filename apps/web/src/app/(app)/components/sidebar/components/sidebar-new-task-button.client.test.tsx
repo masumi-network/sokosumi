@@ -75,12 +75,25 @@ describe("SidebarNewTaskButton", () => {
     expect(openNewTaskWizardMock).toHaveBeenCalledWith({ projectId: "p-1" });
   });
 
-  it("names its C shortcut in the tooltip and to assistive technology", () => {
+  it("names its C shortcut to assistive technology", () => {
     renderButton();
     const button = screen.getByRole("button", { name: "newTask" });
 
-    expect(button).toHaveAttribute("title", "newTaskShortcut(C)");
     expect(button).toHaveAttribute("aria-keyshortcuts", "C");
+  });
+
+  it("shows its C shortcut in a tooltip on keyboard focus", async () => {
+    renderButton();
+    const button = screen.getByRole("button", { name: "newTask" });
+
+    // A native `title` shows only under a pointer; the tooltip also answers
+    // focus, so a keyboard reader learns the shortcut too.
+    expect(button).not.toHaveAttribute("title");
+    fireEvent.focus(button);
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "newTaskShortcut(C)",
+    );
   });
 
   it("opens the wizard on C", () => {

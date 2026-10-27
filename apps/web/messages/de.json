@@ -4083,6 +4083,8 @@
       },
       "show": "Seitenleiste einblenden",
       "hide": "Seitenleiste ausblenden",
+      "showShortcut": "Seitenleiste einblenden ({shortcut})",
+      "hideShortcut": "Seitenleiste ausblenden ({shortcut})",
       "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {

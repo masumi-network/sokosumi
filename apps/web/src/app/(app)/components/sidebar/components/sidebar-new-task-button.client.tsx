@@ -3,11 +3,17 @@
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import { SquarePen } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Suspense, useEffect, useEffectEvent } from "react";
+import { Suspense, useEffectEvent } from "react";
 
 import { useNewTaskOpener } from "@/app/components/new-task-button.client";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
@@ -35,10 +41,13 @@ function ScopedNewTaskButton() {
 
   // Mounted only when the reader can create a Task, so the shortcut is bound
   // only then.
-  return openNewTask ? <NewTaskButton openNewTask={openNewTask} /> : null;
+  return openNewTask ? (
+    <NewTaskShortcutButton openNewTask={openNewTask} />
+  ) : null;
 }
 
-function NewTaskButton({ openNewTask }: { openNewTask: () => void }) {
+/** The icon button and the C shortcut it binds while mounted. */
+function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
@@ -53,7 +62,7 @@ function NewTaskButton({ openNewTask }: { openNewTask: () => void }) {
 
   const handleShortcut = useEffectEvent(handleOpen);
 
-  useEffect(() => {
+  useMountEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || event.repeat) return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
@@ -76,24 +85,30 @@ function NewTaskButton({ openNewTask }: { openNewTask: () => void }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  });
 
   return (
-    <Button
-      type="button"
-      variant="primary"
-      size="icon"
-      title={t("newTaskShortcut", { shortcut: SHORTCUT_KEY.toUpperCase() })}
-      aria-keyshortcuts={SHORTCUT_KEY.toUpperCase()}
-      onClick={handleOpen}
-      className="relative size-10 shrink-0 md:size-8"
-    >
-      <SquarePen aria-hidden />
-      <span className="sr-only">{t("newTask")}</span>
-      <Suspense fallback={null}>
-        <NewBadge />
-      </Suspense>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="primary"
+          size="icon"
+          aria-keyshortcuts={SHORTCUT_KEY.toUpperCase()}
+          onClick={handleOpen}
+          className="relative size-10 shrink-0 md:size-8"
+        >
+          <SquarePen aria-hidden />
+          <span className="sr-only">{t("newTask")}</span>
+          <Suspense fallback={null}>
+            <NewBadge />
+          </Suspense>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6}>
+        {t("newTaskShortcut", { shortcut: SHORTCUT_KEY.toUpperCase() })}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

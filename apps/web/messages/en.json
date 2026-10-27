@@ -4083,6 +4083,8 @@
       },
       "show": "Show sidebar",
       "hide": "Hide sidebar",
+      "showShortcut": "Show sidebar ({shortcut})",
+      "hideShortcut": "Hide sidebar ({shortcut})",
       "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {
