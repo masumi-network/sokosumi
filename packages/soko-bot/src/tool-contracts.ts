@@ -1089,9 +1089,9 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   manage_reminder:
     "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. It cannot create reminders; for a reminder at a time, use create_schedule with runAt. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:
-    "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead.",
+    "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead. Google Ads and Meta Ads are never used this way: use the ad tools (list_ad_accounts, create_ad_campaign, …).",
   run_integration_tool:
-    "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes.",
+    "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes, Google Ads or Meta Ads (use the ad tools).",
   list_chats:
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat. When your owner asks, `ownerUnread` lists every chat of theirs with unread messages, as their sidebar counts them, including rooms you are not in (`youAreMember: false`: you see the name and count, but can only read rooms you belong to).",
   read_chat:

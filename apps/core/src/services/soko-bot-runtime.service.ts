@@ -332,6 +332,7 @@ import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
+  adToolkitRefusal,
   createInboxDraft,
   fetchCalendarEvents,
   fetchInboxAttachment,
@@ -6507,9 +6508,14 @@ export class SokoBotRuntimeService {
           sokoBotReadFileInputSchema.parse(input.input),
         );
       case "list_integrations":
+        // A bot's own ad connection is unusable: ads go through the Project's
+        // ad account. The owner still sees it in Settings to disconnect it.
         return listSokoBotIntegrationsForBot(authorized.turn.sokoBotId).then(
           (result) =>
-            result.integrations.filter((i) => i.status !== "DISCONNECTED"),
+            result.integrations.filter(
+              (i) =>
+                i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
+            ),
         );
       case "search_inbox": {
         const parsed = sokoBotSearchInboxInputSchema.parse(input.input);
@@ -6622,6 +6628,8 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(
           input.input,
         );
+        const refusal = adToolkitRefusal(parsed.provider);
+        if (refusal) throw new SokoBotRuntimeValidationError(refusal);
         const [integration] = await activeIntegrationsForBot(
           authorized.turn.sokoBotId,
           "generic",
@@ -6641,6 +6649,9 @@ export class SokoBotRuntimeService {
       }
       case "run_integration_tool": {
         const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
+        // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
+        const refusal = adToolkitRefusal(parsed.provider, parsed.tool);
+        if (refusal) throw new SokoBotRefusedUnsentError(refusal);
         const [integration] = await activeIntegrationsForBot(
           authorized.turn.sokoBotId,
           "generic",

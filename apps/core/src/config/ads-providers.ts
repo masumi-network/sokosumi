@@ -19,9 +19,13 @@ export function isProjectAdProvider(
   return Object.hasOwn(PROJECT_AD_PROVIDERS, provider);
 }
 
-/** The Ad provider that uses this Composio toolkit, if any. */
+/**
+ * The Ad provider behind this Composio toolkit, if any. A Soko Bot reaches it
+ * only through the Project's ad account, never a connection of its own.
+ */
 export function adProviderForToolkit(toolkitSlug: string) {
+  const slug = toolkitSlug.trim().toLowerCase();
   return Object.values(PROJECT_AD_PROVIDERS).find(
-    (provider) => provider.toolkitSlug === toolkitSlug,
+    (provider) => provider.toolkitSlug === slug,
   );
 }

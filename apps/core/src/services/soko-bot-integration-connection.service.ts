@@ -3,7 +3,6 @@ import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
-import { getEnv } from "@/config/env";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotIntegrationReplace } from "@/helpers/soko-bot-management";
@@ -57,22 +56,8 @@ export async function requireBot(
   return bot;
 }
 
-/**
- * Ad toolkits use the auth config Project Ads uses (our own OAuth apps) and
- * are refused without it; others use a Composio-managed one, created on first use.
- */
-async function resolveAuthConfigId(toolkit: string): Promise<string> {
-  const adProvider = adProviderForToolkit(toolkit);
-  if (adProvider) {
-    const authConfigId = getEnv()[adProvider.authConfigEnv];
-    if (!authConfigId) {
-      throw new SokoBotIntegrationError(
-        `${adProvider.name} connections are not configured on this environment`,
-        "NOT_CONFIGURED",
-      );
-    }
-    return authConfigId;
-  }
+/** Composio-managed auth config per toolkit, created on first use. */
+async function ensureAuthConfigId(toolkit: string): Promise<string> {
   const composio = requireComposio();
   const existing = await composio.authConfigs.list({ toolkit });
   const managed = existing.items.find(
@@ -96,16 +81,20 @@ export async function connectSokoBotIntegration(input: {
   selector?: SokoBotSelector;
 }): Promise<{ redirectUrl: string }> {
   const provider = resolveProvider(input.provider);
+  const adProvider = adProviderForToolkit(provider.id);
+  if (adProvider) {
+    throw new SokoBotIntegrationError(
+      `${adProvider.name} is connected on the Project's Ads page; your Soko Bot uses that account`,
+    );
+  }
   const bot = await requireBot(input.userId, input.workspaceId, input.selector);
   // Resolving proved the caller reaches a shared bot; it has no owner.
   const sharedBot = isSharedSokoBot(bot);
-  // Ads auth is env-only: resolve before requireComposio so a missing ads
-  // config refuses even when COMPOSIO_API_KEY is unset.
-  const authConfigId = await withComposio("auth config", () =>
-    resolveAuthConfigId(provider.id),
-  );
   const composio = requireComposio();
   const toolkit = await lookupToolkit(provider.id);
+  const authConfigId = await withComposio("auth config", () =>
+    ensureAuthConfigId(provider.id),
+  );
   const request = await withComposio("start OAuth", () =>
     composio.connectedAccounts.link(composioEntityId(bot.id), authConfigId, {
       callbackUrl: input.returnUrl,

@@ -2929,6 +2929,8 @@ describe("SokoBotRuntimeService authorization", () => {
           integrations: [
             { provider: "gmail", status: "ACTIVE" },
             { provider: "slack", status: "DISCONNECTED" },
+            // Ads go through the Project's ad account, so the bot's own is hidden.
+            { provider: "googleads", status: "ACTIVE" },
           ],
         });
         await expect(
@@ -6394,6 +6396,8 @@ describe("Soko Bot project social tools", () => {
     "find_ad_targeting",
     "get_market_keywords",
     "create_ad_campaign",
+    "list_integration_tools",
+    "run_integration_tool",
     "list_social_posts",
     "list_social_post_statistics",
     "refresh_social_post_statistics",
@@ -7370,6 +7374,38 @@ describe("Soko Bot project social tools", () => {
           input: { projectId, accountId: adAccountId },
         }),
       ).rejects.toThrow("The ads provider could not complete the request.");
+    });
+  });
+
+  describe("integration tools on ad toolkits", () => {
+    const lastReceipt = () =>
+      toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+    const refusal = /Google Ads is used through the Project's ad account/;
+
+    it("refuses run_integration_tool as unsent: REJECTED, not UNKNOWN", async () => {
+      const refused = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "run_integration_tool",
+        toolCallId: "ad-run",
+        input: { provider: "googleads", tool: "GOOGLEADS_SEARCH" },
+      });
+      await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+      await expect(refused).rejects.toThrow(refusal);
+      expect(lastReceipt()).toMatchObject({
+        status: "FAILED",
+        disposition: "REJECTED",
+      });
+    });
+
+    it("refuses list_integration_tools with the same pointer", async () => {
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_integration_tools",
+          toolCallId: "ad-list",
+          input: { provider: "GoogleAds" },
+        }),
+      ).rejects.toThrow(refusal);
     });
   });
 
