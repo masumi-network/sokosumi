@@ -1,0 +1,63 @@
+import { createRoute } from "@hono/zod-openapi";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import {
+  newsletterIssueParamsSchema,
+  newsletterIssueSchema,
+  scheduleNewsletterIssueRequestSchema,
+} from "@/schemas/newsletter.schema";
+import { scheduleNewsletterIssue } from "@/services/newsletter-issues.service";
+
+import { newsletterIssueScope } from "../../../context";
+
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/newsletter/issues/{issueId}/schedule",
+    tags: ["Projects"],
+    description:
+      "Schedule a newsletter issue using its current revision. Requires a human interactive session.",
+    request: {
+      params: newsletterIssueParamsSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": { schema: scheduleNewsletterIssueRequestSchema },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        newsletterIssueSchema,
+        "Newsletter issue updated",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
+
+export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
+  app.openapi(route, async (c) => {
+    const { id, issueId } = c.req.valid("param");
+    const scope = await newsletterIssueScope(c, id);
+    requireInteractiveUserAuthContext(c.var.authContext);
+    const input = c.req.valid("json");
+    const issue = await scheduleNewsletterIssue(
+      scope,
+      issueId,
+      input.revision,
+      new Date(input.scheduledAt),
+      input.timezone,
+    );
+    return ok(c, newsletterIssueSchema.parse(issue));
+  });
+}

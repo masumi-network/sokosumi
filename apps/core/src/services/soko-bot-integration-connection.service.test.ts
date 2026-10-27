@@ -16,7 +16,9 @@ const mocks = vi.hoisted(() => ({
   createAuthConfig: vi.fn(),
   getToolkit: vi.fn(),
   getComposio: vi.fn(),
+  env: {} as Record<string, string | undefined>,
 }));
+vi.mock("@/config/env", () => ({ getEnv: () => mocks.env }));
 vi.mock("@/helpers/soko-bot-resolver", () => ({
   ME_SOKO_BOT: { kind: "me" },
   memberSokoBot: mocks.memberSokoBot,
@@ -83,6 +85,7 @@ function finalize(userId: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.env = {};
   mocks.getComposio.mockReturnValue({
     connectedAccounts: {
       link: mocks.link,
@@ -280,6 +283,14 @@ describe("choosing the Composio auth config", () => {
       type: "use_composio_managed_auth",
       name: "sokosumi-gmail",
     });
+  });
+
+  it("links X through the Project socials auth config when Composio manages none", async () => {
+    mocks.env = { COMPOSIO_X_AUTH_CONFIG_ID: "ac_x" };
+    mocks.listAuthConfigs.mockResolvedValue({ items: [] });
+    await connect("connector", "twitter");
+    expect(linkedAuthConfigId()).toBe("ac_x");
+    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
   });
 
   it.each([

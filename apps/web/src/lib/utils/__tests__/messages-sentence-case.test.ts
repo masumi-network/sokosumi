@@ -19,7 +19,6 @@ const PROPER_PHRASES = [
   "Soko Bot",
   "Soko Bots",
   "Content Studio",
-  "Social Scheduling",
   "Sokosumi Projects",
   "Agent Identities",
   // Ad platforms.
@@ -57,6 +56,7 @@ const PHRASES_LONGEST_FIRST = [...PROPER_PHRASES].sort(
 );
 
 const PROPER_WORDS = new Set([
+  "Contacts",
   "Sokosumi",
   "Google",
   "Microsoft",

@@ -51,6 +51,7 @@ const PERSON: NewsletterSubscriber = {
   newsletterId: "n1",
   email: "ada@example.com",
   name: "Ada",
+  contact: null,
   status: NewsletterSubscriberStatus.ACTIVE,
   source: NewsletterSubscriberSource.MANUAL,
   createdAt: new Date("2026-10-01T12:00:00Z"),
@@ -97,7 +98,13 @@ function renderSubscribers({
         onUrlUpdate={mocks.url}
         hasMemory
       >
-        <Subscribers projectId="p1" data={data} pagination={pagination} />
+        <Subscribers
+          projectId="p1"
+          newsletterName="Weekly"
+          contactListId="list1"
+          data={data}
+          pagination={pagination}
+        />
       </NuqsTestingAdapter>
     </NextIntlClientProvider>,
   );
@@ -130,12 +137,29 @@ function chooseCsv(
   return file;
 }
 
+async function confirmConsent(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: ReturnType<typeof within>,
+) {
+  await user.click(dialog.getByRole("radio", { name: COPY.Consent.CONFIRMED }));
+  await user.click(
+    dialog.getByRole("checkbox", { name: COPY.Consent.confirm }),
+  );
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.add.mockResolvedValue({ ok: true, value: PERSON });
   mocks.import.mockResolvedValue({
     ok: true,
-    value: { imported: 1, skippedExisting: 0, invalid: [] },
+    value: {
+      imported: 1,
+      skippedExisting: 0,
+      skippedUnsubscribed: 0,
+      skippedBounced: 0,
+      pendingConfirmation: 0,
+      invalid: [],
+    },
   });
   mocks.status.mockResolvedValue({ ok: true, value: PERSON });
   mocks.remove.mockResolvedValue({ ok: true, value: null });
@@ -164,7 +188,7 @@ describe("newsletter subscribers", () => {
     },
   );
 
-  it("shows counts and both empty-state entry actions", () => {
+  it("shows counts and all three empty-state entry actions", () => {
     renderSubscribers({ data: EMPTY });
     expect(
       screen.getByRole("heading", { name: COPY.emptyTitle }),
@@ -173,6 +197,10 @@ describe("newsletter subscribers", () => {
     expect(
       screen.getByRole("button", { name: COPY.import }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: COPY.fromContacts }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(COPY.emptyDescription)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
@@ -201,6 +229,72 @@ describe("newsletter subscribers", () => {
     expect(params.get("search")).toBe("example.com");
     expect(params.get("status")).toBe("ACTIVE");
     expect(params.has("cursor")).toBe(false);
+  });
+
+  it("links the subscriber's current contact name and the newsletter's list to Contacts", () => {
+    renderSubscribers({
+      data: {
+        ...DATA,
+        subscribers: [
+          {
+            ...PERSON,
+            name: "Old name",
+            contact: { id: "c1", name: "Ada Lovelace" },
+          },
+        ],
+      },
+    });
+    expect(screen.getByRole("link", { name: "Ada Lovelace" })).toHaveAttribute(
+      "href",
+      "/contacts?contact=c1",
+    );
+    expect(
+      screen.getByRole("link", { name: COPY.openContactList }),
+    ).toHaveAttribute("href", "/contacts?list=list1");
+    expect(screen.queryByText("Old name")).not.toBeInTheDocument();
+  });
+
+  it("keeps names without a contact as plain text", () => {
+    renderSubscribers();
+    expect(screen.getByText("Ada")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ada" })).not.toBeInTheDocument();
+  });
+
+  it("asks a manual subscriber to confirm and reports the pending state", async () => {
+    mocks.add.mockResolvedValue({
+      ok: true,
+      value: { ...PERSON, status: "PENDING" },
+    });
+    renderSubscribers();
+    const { user, dialog } = await openAdd();
+    await user.type(dialog.getByLabelText(COPY.Add.email), PERSON.email);
+    await user.click(dialog.getByRole("radio", { name: COPY.Consent.ASK }));
+    expect(dialog.queryByRole("checkbox")).not.toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: COPY.add }));
+    await waitFor(() =>
+      expect(mocks.add).toHaveBeenCalledWith({
+        projectId: "p1",
+        values: {
+          email: PERSON.email,
+          name: "",
+          consent: "ASK",
+          consentConfirmed: false,
+        },
+      }),
+    );
+    expect(mocks.success).toHaveBeenCalledWith(COPY.Add.pendingConfirmation);
+  });
+
+  it("passes ASK for a CSV without claiming prior consent", async () => {
+    renderSubscribers();
+    const { user, dialog } = await openImport();
+    chooseCsv(dialog);
+    await user.click(dialog.getByRole("radio", { name: COPY.Consent.ASK }));
+    await user.click(dialog.getByRole("button", { name: COPY.import }));
+    await waitFor(() => expect(mocks.import).toHaveBeenCalled());
+    const values: FormData = mocks.import.mock.lastCall?.[0].values;
+    expect(values.get("consent")).toBe("ASK");
+    expect(values.get("consentConfirmed")).toBe("false");
   });
 
   it("filters status and resets pagination", async () => {
@@ -257,17 +351,28 @@ describe("newsletter subscribers", () => {
     renderSubscribers({ data: EMPTY });
     const { user, dialog } = await openAdd();
     await user.type(dialog.getByLabelText(COPY.Add.email), "new@example.com");
-    await user.click(dialog.getByRole("button", { name: COPY.add }));
+    expect(dialog.getByRole("button", { name: COPY.add })).toBeDisabled();
     expect(
-      await dialog.findByText(COPY.Validation.consent),
-    ).toBeInTheDocument();
+      dialog.queryByRole("radio", { checked: true }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      dialog.getByRole("radio", { name: COPY.Consent.CONFIRMED }),
+    );
+    expect(dialog.getByRole("button", { name: COPY.add })).toBeDisabled();
     expect(mocks.add).not.toHaveBeenCalled();
-    await user.click(dialog.getByRole("checkbox", { name: COPY.Add.consent }));
+    await user.click(
+      dialog.getByRole("checkbox", { name: COPY.Consent.confirm }),
+    );
     await user.click(dialog.getByRole("button", { name: COPY.add }));
     await waitFor(() =>
       expect(mocks.add).toHaveBeenCalledWith({
         projectId: "p1",
-        values: { email: "new@example.com", name: "", consent: true },
+        values: {
+          email: "new@example.com",
+          name: "",
+          consent: "CONFIRMED",
+          consentConfirmed: true,
+        },
       }),
     );
     await waitFor(() =>
@@ -287,7 +392,7 @@ describe("newsletter subscribers", () => {
     renderSubscribers();
     const { user, dialog } = await openAdd();
     await user.type(dialog.getByLabelText(COPY.Add.email), PERSON.email);
-    await user.click(dialog.getByRole("checkbox", { name: COPY.Add.consent }));
+    await confirmConsent(user, dialog);
     await user.click(dialog.getByRole("button", { name: COPY.add }));
     expect(await dialog.findByText(COPY.Add.duplicate)).toBeInTheDocument();
     expect(dialog.getByLabelText(COPY.Add.email)).toHaveValue(PERSON.email);
@@ -307,7 +412,7 @@ describe("newsletter subscribers", () => {
     renderSubscribers();
     const { user, dialog } = await openAdd();
     await user.type(dialog.getByLabelText(COPY.Add.email), PERSON.email);
-    await user.click(dialog.getByRole("checkbox", { name: COPY.Add.consent }));
+    await confirmConsent(user, dialog);
     await user.click(dialog.getByRole("button", { name: COPY.add }));
     expect(dialog.getByRole("button", { name: COPY.add })).toHaveAttribute(
       "aria-disabled",
@@ -333,7 +438,7 @@ describe("newsletter subscribers", () => {
     renderSubscribers();
     const { user, dialog } = await openAdd();
     await user.type(dialog.getByLabelText(COPY.Add.email), PERSON.email);
-    await user.click(dialog.getByRole("checkbox", { name: COPY.Add.consent }));
+    await confirmConsent(user, dialog);
     await user.click(dialog.getByRole("button", { name: COPY.add }));
     expect(await dialog.findByRole("alert")).toHaveTextContent(COPY.Add.error);
   });
@@ -352,14 +457,31 @@ describe("newsletter subscribers", () => {
     },
   );
 
-  it("requires a file and explicit import consent", async () => {
+  it("requires an explicit import consent choice and confirmation", async () => {
     renderSubscribers();
     const { user, dialog } = await openImport();
+    chooseCsv(dialog);
+    expect(
+      dialog.queryByRole("radio", { checked: true }),
+    ).not.toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: COPY.import })).toBeDisabled();
+    await user.click(
+      dialog.getByRole("radio", { name: COPY.Consent.CONFIRMED }),
+    );
+    expect(dialog.getByRole("button", { name: COPY.import })).toBeDisabled();
+    expect(mocks.import).not.toHaveBeenCalled();
+    await user.click(
+      dialog.getByRole("checkbox", { name: COPY.Consent.confirm }),
+    );
+    expect(dialog.getByRole("button", { name: COPY.import })).toBeEnabled();
+  });
+
+  it("requires a CSV file after choosing consent", async () => {
+    renderSubscribers();
+    const { user, dialog } = await openImport();
+    await user.click(dialog.getByRole("radio", { name: COPY.Consent.ASK }));
     await user.click(dialog.getByRole("button", { name: COPY.import }));
     expect(dialog.getByText(COPY.Import.fileRequired)).toBeInTheDocument();
-    expect(dialog.getByText(COPY.Validation.consent)).toBeInTheDocument();
-    chooseCsv(dialog);
-    await user.click(dialog.getByRole("button", { name: COPY.import }));
     expect(mocks.import).not.toHaveBeenCalled();
   });
 
@@ -369,6 +491,9 @@ describe("newsletter subscribers", () => {
       value: {
         imported: 3,
         skippedExisting: 2,
+        skippedUnsubscribed: 1,
+        skippedBounced: 1,
+        pendingConfirmation: 0,
         invalid: Array.from({ length: 7 }, (_, i) => ({
           row: i + 4,
           value: `invalid-${i}`,
@@ -378,16 +503,15 @@ describe("newsletter subscribers", () => {
     renderSubscribers();
     const { user, dialog } = await openImport();
     const file = chooseCsv(dialog, "subscribers.csv", 5_000_000);
-    await user.click(
-      dialog.getByRole("checkbox", { name: COPY.Import.consent }),
-    );
+    await confirmConsent(user, dialog);
     await user.click(dialog.getByRole("button", { name: COPY.import }));
     await waitFor(() => expect(mocks.import).toHaveBeenCalled());
     const values: FormData = mocks.import.mock.lastCall?.[0].values;
     const csv = values.get("csv");
     expect(csv).toBeInstanceOf(Blob);
     expect(csv instanceof Blob && (await csv.text())).toBe(await file.text());
-    expect(values.get("consent")).toBe("true");
+    expect(values.get("consent")).toBe("CONFIRMED");
+    expect(values.get("consentConfirmed")).toBe("true");
     expect(await dialog.findByText("Row 4: invalid-0")).toBeInTheDocument();
     expect(dialog.queryByText("Row 9: invalid-5")).not.toBeInTheDocument();
     expect(
@@ -395,6 +519,11 @@ describe("newsletter subscribers", () => {
     ).toBeInTheDocument();
     for (const label of Object.values(COPY.Import.result))
       expect(dialog.getByText(label)).toBeInTheDocument();
+    expect(
+      dialog
+        .getAllByText(COPY.Import.doneDescription)
+        .filter((node) => !node.closest(".sr-only")),
+    ).toHaveLength(1);
     expect(mocks.refresh).toHaveBeenCalled();
     await user.click(dialog.getByRole("button", { name: COPY.done }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -408,9 +537,7 @@ describe("newsletter subscribers", () => {
     renderSubscribers();
     const { user, dialog } = await openImport();
     chooseCsv(dialog);
-    await user.click(
-      dialog.getByRole("checkbox", { name: COPY.Import.consent }),
-    );
+    await confirmConsent(user, dialog);
     await user.click(dialog.getByRole("button", { name: COPY.import }));
     expect(await dialog.findByRole("alert")).toHaveTextContent(
       COPY.Import.invalidCsv,
@@ -428,9 +555,7 @@ describe("newsletter subscribers", () => {
       if (failure === "read")
         vi.spyOn(file, "text").mockRejectedValue(new Error("Unreadable"));
       else mocks.import.mockRejectedValue(new Error("Network"));
-      await user.click(
-        dialog.getByRole("checkbox", { name: COPY.Import.consent }),
-      );
+      await confirmConsent(user, dialog);
       await user.click(dialog.getByRole("button", { name: COPY.import }));
       expect(await dialog.findByRole("alert")).toHaveTextContent(
         COPY.Import.error,
@@ -444,15 +569,20 @@ describe("newsletter subscribers", () => {
   it("keeps the import dialog open while running and restores focus when done", async () => {
     const deferred = Promise.withResolvers<{
       ok: true;
-      value: { imported: number; skippedExisting: number; invalid: [] };
+      value: {
+        imported: number;
+        skippedExisting: number;
+        skippedUnsubscribed: number;
+        skippedBounced: number;
+        pendingConfirmation: number;
+        invalid: [];
+      };
     }>();
     mocks.import.mockReturnValue(deferred.promise);
     renderSubscribers();
     const { user, dialog } = await openImport();
     chooseCsv(dialog);
-    await user.click(
-      dialog.getByRole("checkbox", { name: COPY.Import.consent }),
-    );
+    await confirmConsent(user, dialog);
     await user.click(dialog.getByRole("button", { name: COPY.import }));
     expect(dialog.getByRole("button", { name: COPY.import })).toHaveAttribute(
       "aria-busy",
@@ -465,7 +595,14 @@ describe("newsletter subscribers", () => {
     await act(async () =>
       deferred.resolve({
         ok: true,
-        value: { imported: 1, skippedExisting: 0, invalid: [] },
+        value: {
+          imported: 1,
+          skippedExisting: 0,
+          skippedUnsubscribed: 0,
+          skippedBounced: 0,
+          pendingConfirmation: 0,
+          invalid: [],
+        },
       }),
     );
     await user.click(dialog.getByRole("button", { name: COPY.done }));
@@ -474,47 +611,57 @@ describe("newsletter subscribers", () => {
     );
   });
 
-  it.each([
-    [
-      NewsletterSubscriberStatus.ACTIVE,
-      COPY.unsubscribe,
-      NewsletterSubscriberStatus.UNSUBSCRIBED,
-    ],
-  ])("changes status only for %s", async (status, label, target) => {
+  it("unsubscribes an active subscriber", async () => {
     const user = userEvent.setup();
     renderSubscribers({
-      data: { ...DATA, subscribers: [{ ...PERSON, status }] },
+      data: { ...DATA, subscribers: [PERSON] },
     });
     await user.click(
       screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
     );
-    await user.click(screen.getByRole("menuitem", { name: label }));
+    await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
     expect(mocks.status).toHaveBeenCalledWith({
       projectId: "p1",
       subscriberId: PERSON.id,
-      status: target,
+      status: NewsletterSubscriberStatus.UNSUBSCRIBED,
     });
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
-  it.each([NewsletterSubscriberStatus.PENDING])(
-    "offers removal only for %s",
-    async (status) => {
-      const user = userEvent.setup();
-      renderSubscribers({
-        data: { ...DATA, subscribers: [{ ...PERSON, status }] },
-      });
-      await user.click(
-        screen.getByRole("button", {
-          name: `Manage subscriber ${PERSON.email}`,
-        }),
-      );
-      expect(screen.getAllByRole("menuitem")).toHaveLength(1);
-      expect(
-        screen.getByRole("menuitem", { name: COPY.remove }),
-      ).toBeInTheDocument();
-    },
-  );
+  it("offers removal only for a pending subscriber", async () => {
+    const user = userEvent.setup();
+    renderSubscribers({
+      data: {
+        ...DATA,
+        subscribers: [
+          { ...PERSON, status: NewsletterSubscriberStatus.PENDING },
+        ],
+      },
+    });
+    await user.click(
+      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
+    );
+    expect(screen.getAllByRole("menuitem")).toHaveLength(1);
+    expect(
+      screen.getByRole("menuitem", { name: COPY.remove }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    NewsletterSubscriberStatus.UNSUBSCRIBED,
+    NewsletterSubscriberStatus.BOUNCED,
+  ])("offers no reactivation or removal for %s", (status) => {
+    renderSubscribers({
+      data: { ...DATA, subscribers: [{ ...PERSON, status }] },
+    });
+    expect(
+      screen.queryByRole("button", {
+        name: `Manage subscriber ${PERSON.email}`,
+      }),
+    ).not.toBeInTheDocument();
+    expect(mocks.status).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
 
   it("reports stale status errors without claiming success", async () => {
     mocks.status.mockResolvedValue({
@@ -577,17 +724,19 @@ describe("newsletter subscribers", () => {
         locale,
         data: {
           ...DATA,
-          subscribers: statuses.map((status, i) => ({
+          subscribers: sources.map((source, i) => ({
             ...PERSON,
             id: `s${i}`,
-            status,
-            source: sources[i],
+            status: statuses[i % statuses.length],
+            source,
           })),
         },
       });
       const table = within(screen.getByRole("table"));
       for (const status of statuses)
-        expect(table.getByText(copy.statuses[status])).toBeInTheDocument();
+        expect(
+          table.getAllByText(copy.statuses[status]).length,
+        ).toBeGreaterThan(0);
       for (const source of sources)
         expect(table.getByText(copy.sources[source])).toBeInTheDocument();
       expect(

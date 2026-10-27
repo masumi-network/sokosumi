@@ -23,11 +23,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SIDEBAR_ICON_ACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { getInitials } from "@/lib/utils/text";
-import {
-  CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-  useChatComposeRoster,
-} from "./chat-compose-dialog";
+import { useChatComposeRoster } from "./chat-compose-dialog";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
@@ -224,7 +222,7 @@ export function CreateDirectDialog() {
         <button
           type="button"
           aria-label={t("Draft.title")}
-          className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+          className={SIDEBAR_ICON_ACTION_CLASS}
         >
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>

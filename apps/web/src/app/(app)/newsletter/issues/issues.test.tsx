@@ -14,6 +14,7 @@ import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  change: vi.fn(),
   remove: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
@@ -25,6 +26,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/actions/newsletter/issues", () => ({
   createNewsletterIssue: mocks.create,
   deleteNewsletterIssue: mocks.remove,
+}));
+
+vi.mock("@/lib/actions/newsletter/issue-lifecycle", () => ({
+  changeNewsletterIssue: mocks.change,
 }));
 
 import { Issues } from "./issues";
@@ -54,6 +59,7 @@ function renderIssues(
           projectId={NEWSLETTER_PROJECT_ID}
           issues={issues}
           pagination={pagination}
+          activeSubscribers={3}
         />
       </NuqsTestingAdapter>
     </NextIntlClientProvider>,
@@ -67,6 +73,15 @@ beforeEach(() => {
 });
 
 describe("newsletter issues list", () => {
+  it.each([{ issues: [] }, { issues: [NEWSLETTER_ISSUE] }])(
+    "offers Write it for me with empty and populated lists: %#",
+    ({ issues }) => {
+      renderIssues(issues);
+      expect(
+        screen.getByRole("button", { name: COPY.Ai.action }),
+      ).toBeInTheDocument();
+    },
+  );
   it("shows all translated statuses, delivery dates, editor links, and deletion only for drafts", () => {
     renderIssues(
       Object.values(NewsletterIssueStatus).map((status, index) => ({

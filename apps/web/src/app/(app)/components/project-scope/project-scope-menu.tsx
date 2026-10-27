@@ -132,7 +132,7 @@ export function ProjectScopeMenu({
       label={t("searchPlaceholder")}
       shouldFilter={false}
       className={cn(
-        "app-scrollbar h-auto min-h-0 overflow-y-auto overscroll-contain [&_[data-slot=command-input-wrapper]]:shrink-0 [&_[cmdk-group]]:p-1.5 [&_[cmdk-group-heading]]:px-2.5 [&_[data-slot=command-input-wrapper]]:has-focus-visible:ring-2 [&_[data-slot=command-input-wrapper]]:has-focus-visible:ring-inset [&_[data-slot=command-input-wrapper]]:has-focus-visible:ring-ring",
+        "app-scrollbar h-auto min-h-0 overflow-y-auto overscroll-contain [&_[data-slot=command-input-wrapper]]:shrink-0 [&_[cmdk-group]]:p-1.5 [&_[cmdk-group-heading]]:px-2.5 [&_[data-slot=command-input-wrapper]]:has-focus-visible:border-ring",
         className,
       )}
     >
@@ -216,9 +216,7 @@ export function ProjectScopeMenu({
                   <Layers className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words">
-                    {t("workspaceView")}
-                  </span>
+                  <span className="block break-words">{t("allProjects")}</span>
                   <span className="text-muted-foreground mt-0.5 block text-xs font-normal leading-relaxed">
                     {t("workspaceDescription")}
                   </span>

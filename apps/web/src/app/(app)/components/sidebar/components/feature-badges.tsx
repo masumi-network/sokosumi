@@ -25,6 +25,7 @@ import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { isPathActive } from "@/lib/utils/is-path-active";
 
 export type BadgeCampaignSummary = UserBadgeCampaigns["badgeCampaigns"][number];
 
@@ -48,9 +49,7 @@ const FEATURE_PATHS: Record<AnnouncedFeature, readonly string[]> = {
 };
 
 function isFeatureOpen(feature: AnnouncedFeature, pathname: string) {
-  return FEATURE_PATHS[feature].some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
+  return FEATURE_PATHS[feature].some((path) => isPathActive(pathname, path));
 }
 
 interface FeatureBadgesValue {

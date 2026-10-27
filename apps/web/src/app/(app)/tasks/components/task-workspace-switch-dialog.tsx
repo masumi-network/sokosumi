@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
+import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
   AlertDialog,
@@ -86,7 +86,7 @@ export function TaskWorkspaceSwitchDialog({
             })}
             className="flex items-center justify-center gap-3 py-2"
           >
-            <HeaderWorkspaceAvatar
+            <WorkspaceAvatar
               className="size-10 md:size-10"
               logoSize={20}
               organization={currentOrganization}
@@ -96,7 +96,7 @@ export function TaskWorkspaceSwitchDialog({
               aria-hidden
               className="text-muted-foreground size-4 shrink-0"
             />
-            <HeaderWorkspaceAvatar
+            <WorkspaceAvatar
               className="size-10 md:size-10"
               logoSize={20}
               organization={targetOrganization}

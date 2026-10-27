@@ -47,6 +47,13 @@ export const ROOM_QUOTE_MARKDOWN_CLASSNAME =
  */
 export const ROOM_QUOTE_CLAMP_CLASSNAME = "line-clamp-4 max-h-[6.5rem]";
 
+/**
+ * Collapsed preview height for primary message bodies (taller than quotes).
+ * A height, not line-clamp: Chromium's line-clamp skips lines inside tables
+ * and code blocks, so bodies made of them never collapsed. 16 lines at 24px.
+ */
+export const MESSAGE_BODY_CLAMP_CLASS = "max-h-96 overflow-hidden";
+
 export interface DirectParticipantPreview {
   id: string;
   name: string;
@@ -677,13 +684,15 @@ export function getFormerMemberNames(room: ChatRoom): string[] {
   return room.formerUserMembers.map((member) => member.name || member.email);
 }
 
+/** `selfLabel` names the Self Direct from the reader's own name. */
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
-  selfLabel: string,
+  selfLabel: (name: string) => string,
 ): string {
   if (room.isSelfDirect) {
-    return selfLabel;
+    const self = room.userMembers.find((member) => member.id === currentUserId);
+    return selfLabel(self?.name || self?.email || room.name);
   }
   if (room.kind !== "direct") {
     return room.name;

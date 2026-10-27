@@ -60,6 +60,22 @@ describe("action lines the owner reads", () => {
     vi.resetAllMocks();
   });
 
+  it("links a verified newsletter draft to the editor for human review", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "newsletter_draft_issue",
+        targetId: "issue-one",
+        result: { projectId, status: "DRAFT" },
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Drafted newsletter issue for review ([Review draft](/newsletter/issues/issue-one?projectId=${projectId}&draftedBySokoBot=true)).`,
+    );
+    expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",

@@ -86,7 +86,7 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("with a project", () => {
-    it("shows setup for the named project with only a Settings tab", async () => {
+    it("shows setup for the named project without a lone Settings tab", async () => {
       render(
         await NewsletterSettingsPage(props({ projectId: ` ${PROJECT_ID} ` })),
       );
@@ -95,16 +95,11 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: "Launch newsletter" }),
       ).toBeInTheDocument();
+      // The form introduces setup itself; one tab is not navigation.
       expect(
-        screen.getByRole("heading", { name: SETTINGS.emptyTitle }),
-      ).toBeInTheDocument();
-      const tabs = screen.getAllByRole("link");
-      expect(tabs).toHaveLength(1);
-      expect(tabs[0]).toHaveAttribute(
-        "href",
-        `/newsletter/settings?projectId=${PROJECT_ID}`,
-      );
-      expect(tabs[0]).toHaveAttribute("aria-current", "page");
+        screen.queryByRole("navigation", { name: SETTINGS.navigation }),
+      ).toBeNull();
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({
           newsletter: null,
@@ -122,7 +117,7 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.getProject).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
     });
 
-    it("loads existing settings and offers Issues, Subscribers, Settings", async () => {
+    it("loads existing settings and offers Issues, Calendar, Subscribers, Settings", async () => {
       const newsletter: Pick<Newsletter, "id" | "name"> = {
         id: "n1",
         name: "Weekly",
@@ -131,9 +126,6 @@ describe("NewsletterSettingsPage", () => {
       render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
 
       expect(mocks.getSettings).toHaveBeenCalledWith(PROJECT_ID);
-      expect(
-        screen.queryByRole("heading", { name: SETTINGS.emptyTitle }),
-      ).not.toBeInTheDocument();
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({ newsletter }),
       );
@@ -148,8 +140,16 @@ describe("NewsletterSettingsPage", () => {
       ).toEqual([
         [SETTINGS.Issues.title, `/newsletter/issues?projectId=${PROJECT_ID}`],
         [
+          SETTINGS.Calendar.title,
+          `/newsletter/calendar?projectId=${PROJECT_ID}`,
+        ],
+        [
           SETTINGS.Subscribers.title,
           `/newsletter/subscribers?projectId=${PROJECT_ID}`,
+        ],
+        [
+          SETTINGS.Analytics.title,
+          `/newsletter/analytics?projectId=${PROJECT_ID}`,
         ],
         [SETTINGS.settings, `/newsletter/settings?projectId=${PROJECT_ID}`],
       ]);

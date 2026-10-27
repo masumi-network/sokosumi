@@ -29,9 +29,19 @@ export function getNewsletterTabs(
       label: t("Issues.title"),
     },
     {
+      id: "calendar",
+      href: newsletterHref("/newsletter/calendar", projectId),
+      label: t("Calendar.title"),
+    },
+    {
       id: "subscribers",
       href: newsletterHref("/newsletter/subscribers", projectId),
       label: t("Subscribers.title"),
+    },
+    {
+      id: "analytics",
+      href: newsletterHref("/newsletter/analytics", projectId),
+      label: t("Analytics.title"),
     },
     settings,
   ];

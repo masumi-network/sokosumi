@@ -102,6 +102,10 @@ describe("public newsletter unsubscribe", () => {
       expect(response.status).toBe(200);
       expect(await response.text()).toContain("You are unsubscribed");
     }
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { id: NEWSLETTER_SUBSCRIBER_ID, newsletterId: NEWSLETTER_ID },
+      include: { newsletter: { select: { name: true } } },
+    });
     expect(m.updateMany).toHaveBeenCalledWith({
       where: {
         id: NEWSLETTER_SUBSCRIBER_ID,
@@ -122,6 +126,22 @@ describe("public newsletter unsubscribe", () => {
 
   it("accepts the plain confirmation form POST without a body", async () => {
     expect((await app().request(URL, { method: "POST" })).status).toBe(200);
+    expect(m.eventCreate).toHaveBeenCalledOnce();
+  });
+
+  it("unsubscribes after contact deletion without contact or beta-workspace lookups", async () => {
+    m.findUnique.mockResolvedValue({
+      ...NEWSLETTER_SUBSCRIBER,
+      contactId: null,
+      newsletter: NEWSLETTER,
+    });
+    const response = await app().request(URL, { method: "POST" });
+    expect(response.status).toBe(200);
+    expect(m.findUnique).toHaveBeenCalledExactlyOnceWith({
+      where: { id: NEWSLETTER_SUBSCRIBER_ID, newsletterId: NEWSLETTER_ID },
+      include: { newsletter: { select: { name: true } } },
+    });
+    expect(m.updateMany).toHaveBeenCalledOnce();
     expect(m.eventCreate).toHaveBeenCalledOnce();
   });
 

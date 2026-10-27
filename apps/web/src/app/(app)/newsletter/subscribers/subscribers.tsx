@@ -7,6 +7,7 @@ import {
   type PaginationMetadata,
 } from "@sokosumi/core-client";
 import { Plus, Upload, Users } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { type FormEvent, useRef, useState, useTransition } from "react";
@@ -15,6 +16,10 @@ import { createAppColumnHelper } from "@/components/data-table/create-data-table
 import DataTable from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,6 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { AddFromContactsDialog } from "./add-from-contacts-dialog";
 import { AddSubscriberDialog } from "./add-subscriber-dialog";
 import { ImportSubscribersDialog } from "./import-subscribers-dialog";
 import { subscriberSearchParams } from "./search-params";
@@ -34,11 +41,19 @@ const STATUSES = Object.values(NewsletterSubscriberStatus);
 
 interface SubscribersProps {
   projectId: string;
+  newsletterName: string;
+  contactListId: string | null;
   data: NewsletterSubscriberList;
   pagination: PaginationMetadata;
 }
 
-export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
+export function Subscribers({
+  projectId,
+  newsletterName,
+  contactListId,
+  data,
+  pagination,
+}: SubscribersProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
   const format = useFormatter();
   const [pending, startTransition] = useTransition();
@@ -49,9 +64,12 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
     shallow: false,
     startTransition,
   });
-  const [dialog, setDialog] = useState<"add" | "import" | null>(null);
+  const [dialog, setDialog] = useState<"add" | "import" | "contacts" | null>(
+    null,
+  );
   const addButton = useRef<HTMLButtonElement>(null);
   const importButton = useRef<HTMLButtonElement>(null);
+  const contactsButton = useRef<HTMLButtonElement>(null);
   const total = Object.values(data.counts).reduce(
     (sum, count) => sum + count,
     0,
@@ -67,9 +85,19 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
     columnHelper.accessor("name", {
       header: t("columns.name"),
       size: 180,
-      cell: ({ row }) => (
-        <span className="break-words">{row.original.name ?? t("noName")}</span>
-      ),
+      cell: ({ row }) =>
+        row.original.contact ? (
+          <Link
+            href={`/contacts?contact=${encodeURIComponent(row.original.contact.id)}`}
+            className="rounded-sm break-words underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            {row.original.contact.name}
+          </Link>
+        ) : (
+          <span className="break-words">
+            {row.original.name ?? t("noName")}
+          </span>
+        ),
     }),
     columnHelper.accessor("status", {
       header: t("columns.status"),
@@ -121,6 +149,14 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
   const actions = (
     <div className="flex flex-wrap justify-center gap-2">
       <Button
+        ref={contactsButton}
+        variant="outline"
+        onClick={() => setDialog("contacts")}
+      >
+        <Users />
+        {t("fromContacts")}
+      </Button>
+      <Button
         ref={addButton}
         variant="primary"
         onClick={() => setDialog("add")}
@@ -142,13 +178,26 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
   return (
     <section aria-label={t("title")} className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold">{t("title")}</h3>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+          <h3 className="text-base font-semibold">{t("title")}</h3>
+          {contactListId ? (
+            <Link
+              href={`/contacts?list=${encodeURIComponent(contactListId)}`}
+              className="text-muted-foreground rounded-sm text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              {t("openContactList")}
+            </Link>
+          ) : null}
+        </div>
         {total > 0 ? actions : null}
       </div>
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <dl className={cn(HOLDER_CLASS, "grid grid-cols-2 gap-2 lg:grid-cols-4")}>
         {STATUSES.map((status) => (
-          <div key={status} className="space-y-1">
-            <dt className="text-muted-foreground text-sm">
+          <div
+            key={status}
+            className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-1 px-4 py-3")}
+          >
+            <dt className="text-muted-foreground truncate text-sm">
               {t(`statuses.${status}`)}
             </dt>
             <dd className="text-2xl font-semibold tabular-nums">
@@ -158,12 +207,14 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
         ))}
       </dl>
       {total === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={t("emptyTitle")}
-          description={t("emptyDescription")}
-          action={actions}
-        />
+        <div className={HOLDER_CLASS}>
+          <EmptyState
+            icon={Users}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={actions}
+          />
+        </div>
       ) : (
         <>
           <div className="flex flex-wrap items-end gap-3">
@@ -237,13 +288,14 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
               </Button>
             ) : null}
           </div>
-          <div aria-busy={pending}>
+          <div aria-busy={pending} className={cn(HOLDER_CLASS, "min-w-0")}>
             <DataTable
               columns={columns}
               data={data.subscribers}
               enableRowSelection={false}
               showPagination={false}
               manualSorting
+              tableClassName={HOLDER_ITEM_CLASS}
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -253,7 +305,7 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
             >
               {t("results", { count: pagination.total })}
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 disabled={!pagination.cursor || pending}
@@ -283,6 +335,7 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
       {dialog === "add" ? (
         <AddSubscriberDialog
           projectId={projectId}
+          newsletterName={newsletterName}
           onClose={() => setDialog(null)}
           onCloseAutoFocus={() => addButton.current?.focus()}
         />
@@ -290,8 +343,17 @@ export function Subscribers({ projectId, data, pagination }: SubscribersProps) {
       {dialog === "import" ? (
         <ImportSubscribersDialog
           projectId={projectId}
+          newsletterName={newsletterName}
           onClose={() => setDialog(null)}
           onCloseAutoFocus={() => importButton.current?.focus()}
+        />
+      ) : null}
+      {dialog === "contacts" ? (
+        <AddFromContactsDialog
+          projectId={projectId}
+          newsletterName={newsletterName}
+          onClose={() => setDialog(null)}
+          onCloseAutoFocus={() => contactsButton.current?.focus()}
         />
       ) : null}
     </section>
