@@ -146,7 +146,7 @@ function ScopedMenuItems({
     {
       key: "social",
       href: "/social",
-      label: t("socialPosts"),
+      label: t("social"),
       Icon: Share2,
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",

@@ -182,7 +182,7 @@ describe("MenuItems", () => {
   it("names the Social destination Social posts", () => {
     renderMenu();
 
-    expect(screen.getByRole("link", { name: "socialPosts" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
       "href",
       "/social",
     );
@@ -268,7 +268,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
-      "socialPosts",
+      "social",
       "ads",
     ]);
   });
@@ -295,7 +295,7 @@ describe("MenuItems groups", () => {
 
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "socialPosts" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "social" })).toBeNull();
     // Only its own rows go.
     expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
 
@@ -319,7 +319,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
-      "socialPosts",
+      "social",
     ]);
   });
 });

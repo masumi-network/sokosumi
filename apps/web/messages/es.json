@@ -323,7 +323,7 @@
       "studio": "Content Studio",
       "design-md": "Diseño",
       "memory": "Memoria",
-      "social": "Programación social",
+      "social": "Publicaciones sociales",
       "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos",
       "catch-up": "Ponerse al día",
@@ -4051,8 +4051,7 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Programación social",
-          "socialPosts": "Publicaciones sociales",
+          "social": "Publicaciones sociales",
           "ads": "Anuncios",
           "contacts": "Contactos",
           "groups": {
