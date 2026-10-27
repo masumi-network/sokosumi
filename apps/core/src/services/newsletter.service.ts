@@ -14,6 +14,7 @@ import {
 } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
+import type { AuthenticationContext } from "@/middleware/auth";
 import type {
   AddNewsletterSubscriberRequest,
   ListNewsletterSubscribersQuery,
@@ -21,8 +22,8 @@ import type {
   PutNewsletterRequest,
 } from "@/schemas/newsletter.schema";
 import {
-  type ContactActor,
   inContactTransaction,
+  resolveContactActor,
   resolveContactSummaries,
 } from "@/services/contacts.service";
 import { linkNewsletterContacts } from "@/services/newsletter-contacts.service";
@@ -141,9 +142,10 @@ export async function listNewsletterSubscribers(
 export async function addNewsletterSubscriber(
   scope: NewsletterScope,
   input: AddNewsletterSubscriberRequest,
-  actor: ContactActor,
+  auth: AuthenticationContext,
 ) {
   const newsletter = await getNewsletter(scope);
+  const actor = await resolveContactActor(auth, scope.workspaceId);
   return inContactTransaction(async (tx) => {
     const contacts = await linkNewsletterContacts(
       tx,
@@ -215,9 +217,9 @@ export async function patchNewsletterSubscriber(
       },
       data: {
         name: input.name,
-        status: input.status,
         ...(unsubscribed
           ? {
+              status: "UNSUBSCRIBED",
               unsubscribedAt: now,
               events: {
                 create: {
@@ -271,9 +273,10 @@ export async function deleteNewsletterSubscriber(
 export async function importNewsletterSubscribers(
   scope: NewsletterScope,
   csv: string,
-  actor: ContactActor,
+  auth: AuthenticationContext,
 ) {
   const newsletter = await getNewsletter(scope);
+  const actor = await resolveContactActor(auth, scope.workspaceId);
   const { subscribers, validRows, invalid } = parseNewsletterCsv(csv);
   const consentAt = new Date();
   let imported = 0;
