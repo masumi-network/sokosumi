@@ -361,6 +361,7 @@ describe("MenuItems", () => {
     "/newsletter/issues",
     "/newsletter/issues/issue-1",
     "/newsletter/subscribers",
+    "/newsletter/settings",
   ])("marks Newsletter active on %s", (pathname) => {
     pathnameRef.current = pathname;
     renderMenu(true, false, false, true);

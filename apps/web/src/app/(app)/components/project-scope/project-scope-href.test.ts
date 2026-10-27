@@ -139,7 +139,11 @@ describe("switchScopeHref", () => {
   });
 
   it("keeps the newsletter tab when switching project", () => {
-    for (const tab of ["/newsletter/issues", "/newsletter/subscribers"]) {
+    for (const tab of [
+      "/newsletter/issues",
+      "/newsletter/subscribers",
+      "/newsletter/settings",
+    ]) {
       expect(scopedHref(tab, "p1")).toBe(`${tab}?projectId=p1`);
       expect(switchScopeHref(tab, "p2")).toBe(`${tab}?projectId=p2`);
       expect(switchScopeHref(tab, null)).toBe(tab);

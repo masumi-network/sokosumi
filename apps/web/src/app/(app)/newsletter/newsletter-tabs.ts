@@ -18,10 +18,8 @@ export function getNewsletterTabs(
 ): ProjectTab[] {
   const settings: ProjectTab = {
     id: "settings",
-    href: newsletterHref("/newsletter", projectId),
+    href: newsletterHref("/newsletter/settings", projectId),
     label: t("settings"),
-    // Exact: every other tab sits below `/newsletter`.
-    exact: true,
   };
   if (!hasNewsletter) return [settings];
   return [

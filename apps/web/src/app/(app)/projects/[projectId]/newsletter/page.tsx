@@ -12,5 +12,5 @@ export default async function ProjectNewsletterRedirect({
   searchParams: Promise<SearchParams>;
 }) {
   const { projectId } = await params;
-  return redirectToNewsletter("/newsletter", projectId, searchParams);
+  return redirectToNewsletter("/newsletter/settings", projectId, searchParams);
 }

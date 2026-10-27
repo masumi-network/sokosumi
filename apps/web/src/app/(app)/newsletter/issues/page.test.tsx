@@ -74,7 +74,7 @@ describe("newsletter issues page", () => {
   it("returns to newsletter settings until configured", async () => {
     mocks.settings.mockResolvedValue(null);
     await expect(NewsletterIssuesPage(PROPS)).rejects.toThrow(
-      `REDIRECT:/newsletter?projectId=${NEWSLETTER_PROJECT_ID}`,
+      `REDIRECT:/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(mocks.list).not.toHaveBeenCalled();
   });

@@ -36,7 +36,7 @@ export default async function NewsletterIssuesPage({
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
-  if (!newsletter) redirect(newsletterHref("/newsletter", project.id));
+  if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
 
   const query = await loadIssueSearchParams(searchParams);
   const cursor = z.uuid().safeParse(query.cursor);

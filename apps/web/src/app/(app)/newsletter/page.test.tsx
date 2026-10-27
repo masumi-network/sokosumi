@@ -1,4 +1,3 @@
-import type { Newsletter } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { createTranslator } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,8 +9,6 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
-  form: vi.fn(),
-  pathname: { current: "/newsletter" },
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -22,7 +19,7 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
     throw new Error(`REDIRECT:${path}`);
   },
-  usePathname: () => mocks.pathname.current,
+  usePathname: () => "/newsletter",
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: "App.Newsletter") =>
@@ -40,18 +37,11 @@ vi.mock("@/lib/services/project.service", () => ({
     listProjects: mocks.listProjects,
   },
 }));
-vi.mock("./newsletter-settings-form", () => ({
-  NewsletterSettingsForm: (props: object) => {
-    mocks.form(props);
-    return <div>Settings form</div>;
-  },
-}));
 
 import NewsletterPage, { generateMetadata } from "./page";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const PAGE = messages.App.Newsletter;
-const SETTINGS = messages.App.Projects.Newsletter;
 
 function props(searchParams: Record<string, string | string[]> = {}) {
   return { searchParams: Promise.resolve(searchParams) };
@@ -59,13 +49,8 @@ function props(searchParams: Record<string, string | string[]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.pathname.current = "/newsletter";
   mocks.enabled.mockResolvedValue(true);
-  mocks.getProject.mockResolvedValue({
-    id: PROJECT_ID,
-    name: "Launch",
-    logo: "https://example.com/logo.png",
-  });
+  mocks.getProject.mockResolvedValue({ id: PROJECT_ID, name: "Launch" });
   mocks.getSettings.mockResolvedValue(null);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
@@ -85,161 +70,42 @@ describe("NewsletterPage", () => {
     await expect(generateMetadata()).resolves.toEqual({ title: "Newsletter" });
   });
 
-  describe("with a project", () => {
-    it("shows setup for the named project with only a Settings tab", async () => {
-      render(await NewsletterPage(props({ projectId: ` ${PROJECT_ID} ` })));
-
-      expect(mocks.getProject).toHaveBeenCalledWith(PROJECT_ID);
-      expect(
-        screen.getByRole("heading", { level: 2, name: "Launch newsletter" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("heading", { name: SETTINGS.emptyTitle }),
-      ).toBeInTheDocument();
-      const tabs = screen.getAllByRole("link");
-      expect(tabs).toHaveLength(1);
-      expect(tabs[0]).toHaveAttribute(
-        "href",
-        `/newsletter?projectId=${PROJECT_ID}`,
-      );
-      expect(tabs[0]).toHaveAttribute("aria-current", "page");
-      expect(mocks.form).toHaveBeenCalledWith(
-        expect.objectContaining({
-          newsletter: null,
-          projectId: PROJECT_ID,
-          projectName: "Launch",
-          projectLogo: "https://example.com/logo.png",
-        }),
-      );
-    });
-
-    it("uses the first project scope when the query parameter is repeated", async () => {
-      await NewsletterPage(props({ projectId: [PROJECT_ID, "ignored"] }));
-      expect(mocks.getProject).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
-    });
-
-    it("loads existing settings and offers Issues, Subscribers, Settings", async () => {
-      const newsletter: Pick<Newsletter, "id" | "name"> = {
-        id: "n1",
-        name: "Weekly",
-      };
-      mocks.getSettings.mockResolvedValue(newsletter);
-      render(await NewsletterPage(props({ projectId: PROJECT_ID })));
-
-      expect(mocks.getSettings).toHaveBeenCalledWith(PROJECT_ID);
-      expect(
-        screen.queryByRole("heading", { name: SETTINGS.emptyTitle }),
-      ).not.toBeInTheDocument();
-      expect(mocks.form).toHaveBeenCalledWith(
-        expect.objectContaining({ newsletter }),
-      );
-      const nav = screen.getByRole("navigation", {
-        name: SETTINGS.navigation,
-      });
-      expect(
-        Array.from(nav.querySelectorAll("a")).map((link) => [
-          link.textContent,
-          link.getAttribute("href"),
-        ]),
-      ).toEqual([
-        [SETTINGS.Issues.title, `/newsletter/issues?projectId=${PROJECT_ID}`],
-        [
-          SETTINGS.Subscribers.title,
-          `/newsletter/subscribers?projectId=${PROJECT_ID}`,
-        ],
-        [SETTINGS.settings, `/newsletter?projectId=${PROJECT_ID}`],
-      ]);
-      expect(
-        screen.getByRole("link", { name: SETTINGS.settings }),
-      ).toHaveAttribute("aria-current", "page");
-    });
-
-    it("does not disguise a failed settings read as an empty newsletter", async () => {
-      mocks.getSettings.mockRejectedValue(new Error("Core unavailable"));
-      await expect(
-        NewsletterPage(props({ projectId: PROJECT_ID })),
-      ).rejects.toThrow("Core unavailable");
-      expect(mocks.form).not.toHaveBeenCalled();
-    });
+  it("opens the issues of an existing newsletter", async () => {
+    mocks.getSettings.mockResolvedValue({ id: "n1", name: "Weekly" });
+    await expect(
+      NewsletterPage(props({ projectId: PROJECT_ID })),
+    ).rejects.toThrow(`REDIRECT:/newsletter/issues?projectId=${PROJECT_ID}`);
+    expect(mocks.getSettings).toHaveBeenCalledWith(PROJECT_ID);
   });
 
-  describe("without a project", () => {
-    it("lists workspace projects linking to their newsletter", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [
-          { id: "project-1", name: "Launch plan" },
-          { id: "project-2", name: "Weekly update" },
-        ],
-        pagination: null,
-      });
-
-      render(await NewsletterPage(props()));
-
-      expect(
-        screen.getByRole("heading", { level: 1, name: PAGE.title }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.description)).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-        "href",
-        "/newsletter?projectId=project-1",
-      );
-      expect(
-        screen.getByRole("link", { name: "Weekly update" }),
-      ).toHaveAttribute("href", "/newsletter?projectId=project-2");
-      expect(mocks.getProject).not.toHaveBeenCalled();
-      expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();
-    });
-
-    it("shows an empty state with a way to create a project", async () => {
-      render(await NewsletterPage(props({ projectId: " " })));
-
-      expect(
-        screen.getByRole("heading", { name: PAGE.empty.title }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.empty.description)).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: PAGE.empty.action }),
-      ).toHaveAttribute("href", "/projects?create=true");
-      expect(mocks.getProject).not.toHaveBeenCalled();
-    });
-
-    it("keeps later projects reachable through Core's pagination", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [{ id: "project-2", name: "Later project" }],
-        pagination: { nextCursor: "next/page" },
-      });
-
-      render(await NewsletterPage(props({ cursor: "current-page" })));
-
-      expect(mocks.listProjects).toHaveBeenCalledWith({
-        limit: 20,
-        cursor: "current-page",
-      });
-      expect(screen.getByRole("link", { name: PAGE.nextPage })).toHaveAttribute(
-        "href",
-        "/newsletter?cursor=next%2Fpage",
-      );
-    });
+  it("opens setup while the project has no newsletter", async () => {
+    await expect(
+      NewsletterPage(props({ projectId: PROJECT_ID })),
+    ).rejects.toThrow(`REDIRECT:/newsletter/settings?projectId=${PROJECT_ID}`);
   });
 
-  describe("with an unknown project", () => {
-    it("says so above the project list instead of 404-ing", async () => {
-      mocks.getProject.mockResolvedValue(null);
-      render(await NewsletterPage(props({ projectId: PROJECT_ID })));
-
-      expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.listProjects).toHaveBeenCalled();
-      expect(mocks.getSettings).not.toHaveBeenCalled();
+  it("lists the projects, linking back to the index, without a project", async () => {
+    mocks.listProjects.mockResolvedValue({
+      projects: [{ id: "project-1", name: "Launch plan" }],
+      pagination: null,
     });
+    render(await NewsletterPage(props()));
 
-    it("does not ask Core about a malformed project ID", async () => {
-      render(await NewsletterPage(props({ projectId: "missing" })));
+    expect(
+      screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
+      "href",
+      "/newsletter?projectId=project-1",
+    );
+    expect(mocks.getSettings).not.toHaveBeenCalled();
+  });
 
-      expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.getProject).not.toHaveBeenCalled();
-    });
+  it("says an unknown project is unavailable instead of redirecting", async () => {
+    mocks.getProject.mockResolvedValue(null);
+    render(await NewsletterPage(props({ projectId: PROJECT_ID })));
+
+    expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
+    expect(mocks.getSettings).not.toHaveBeenCalled();
   });
 });

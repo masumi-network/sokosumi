@@ -47,12 +47,11 @@ describe("activeProjectTabId", () => {
       },
       {
         id: "settings",
-        href: "/newsletter?projectId=p1",
+        href: "/newsletter/settings?projectId=p1",
         label: "Settings",
-        exact: true,
       },
     ];
-    expect(activeProjectTabId("/newsletter", tabs)).toBe("settings");
+    expect(activeProjectTabId("/newsletter/settings", tabs)).toBe("settings");
     expect(activeProjectTabId("/newsletter/issues/i1", tabs)).toBe("issues");
     expect(activeProjectTabId("/newsletter/subscribers", tabs)).toBeNull();
   });

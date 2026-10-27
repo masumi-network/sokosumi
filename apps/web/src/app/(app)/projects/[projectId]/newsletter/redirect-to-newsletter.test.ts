@@ -32,7 +32,7 @@ beforeEach(() => {
 
 describe("old project newsletter routes", () => {
   it.each([
-    [ProjectNewsletterRedirect, "/newsletter?projectId=p+1"],
+    [ProjectNewsletterRedirect, "/newsletter/settings?projectId=p+1"],
     [ProjectNewsletterIssuesRedirect, "/newsletter/issues?projectId=p+1"],
     [ProjectNewsletterIssueRedirect, "/newsletter/issues/i%2F1?projectId=p+1"],
     [

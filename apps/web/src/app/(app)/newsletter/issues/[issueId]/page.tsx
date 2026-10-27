@@ -39,7 +39,7 @@ export default async function NewsletterIssuePage({
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
-  if (!newsletter) redirect(newsletterHref("/newsletter", project.id));
+  if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
 
   const [issue, page, t] = await Promise.all([
     newsletterService.getIssue(project.id, issueId),

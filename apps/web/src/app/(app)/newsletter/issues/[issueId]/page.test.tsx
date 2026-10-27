@@ -99,7 +99,7 @@ describe("newsletter issue page", () => {
   it("returns to settings until a newsletter exists", async () => {
     mocks.settings.mockResolvedValue(null);
     await expect(NewsletterIssuePage(PROPS)).rejects.toThrow(
-      `REDIRECT:/newsletter?projectId=${NEWSLETTER_PROJECT_ID}`,
+      `REDIRECT:/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(mocks.get).not.toHaveBeenCalled();
   });

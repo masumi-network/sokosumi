@@ -37,7 +37,7 @@ export default async function SubscribersPage({
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
-  if (!newsletter) redirect(newsletterHref("/newsletter", project.id));
+  if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
 
   const query = await loadSubscriberSearchParams(searchParams);
   const search = query.search.trim().slice(0, 254);

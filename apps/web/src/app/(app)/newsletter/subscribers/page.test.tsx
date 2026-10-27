@@ -79,7 +79,7 @@ describe("newsletter subscribers page", () => {
   it("returns to settings until a newsletter exists", async () => {
     mocks.settings.mockResolvedValue(null);
     await expect(SubscribersPage(PROPS)).rejects.toThrow(
-      `REDIRECT:/newsletter?projectId=${P1}`,
+      `REDIRECT:/newsletter/settings?projectId=${P1}`,
     );
     expect(mocks.list).not.toHaveBeenCalled();
   });
@@ -90,7 +90,7 @@ describe("newsletter subscribers page", () => {
     ).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "settings" })).toHaveAttribute(
       "href",
-      `/newsletter?projectId=${P1}`,
+      `/newsletter/settings?projectId=${P1}`,
     );
     expect(mocks.list).toHaveBeenCalledWith(P1, { limit: 25 });
     expect(mocks.subscribers).toHaveBeenCalledWith({
