@@ -70,6 +70,8 @@ const POST: SocialPostCalendarItem = {
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
   partiallyPublished: false,
+  quotedPostId: null,
+  needsAttentionReason: null,
   scheduledAt: new Date("2030-01-16T09:00:00.000Z"),
   lastAttempt: null,
   sourceId: "project:project-1",

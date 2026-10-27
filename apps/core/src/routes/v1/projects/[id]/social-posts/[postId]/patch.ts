@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/{id}/social-posts/{postId}",
     description:
-      "Edit a draft or scheduled Social post. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
+      "Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -68,7 +68,12 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         firstComment: input.firstComment,
         media: input.media,
         threadParts: input.threadParts,
+        quotedPostId: input.quotedPostId,
         socialConnectionId: input.socialConnectionId,
+        scheduledAt: input.scheduledAt
+          ? new Date(input.scheduledAt)
+          : undefined,
+        timezone: input.timezone,
         revision: input.revision,
       });
       return ok(

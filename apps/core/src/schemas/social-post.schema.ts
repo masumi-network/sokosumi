@@ -162,6 +162,34 @@ export const socialPostSocialConnectionSchema = z
   })
   .openapi("SocialPostSocialConnection");
 
+export const socialPostQuotedPostSchema = z
+  .object({
+    id: z.uuid(),
+    provider: z.literal("x"),
+    status: socialPostStatusSchema,
+    scheduledAt: dateTimeSchema.nullable(),
+    timezone: z.string().nullable(),
+    publishedExternalId: z.string().nullable(),
+    publishedUrl: z.string().nullable(),
+    account: z.union([socialPostSocialConnectionSchema, z.null()]),
+    text: z.string(),
+    media: z.array(socialPostMediaRefSchema).max(1),
+  })
+  .openapi("SocialPostQuotedPost");
+
+export const socialPostQuoteSummaryShape = {
+  quotedPostId: z.uuid().nullable(),
+  quotedPost: z.union([socialPostQuotedPostSchema, z.null()]),
+  needsAttentionReason: z.string().nullable().openapi({
+    description:
+      "Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.",
+  }),
+  waitingForQuotedPost: z.boolean().optional().openapi({
+    description:
+      "A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post's state; no publish attempt is consumed.",
+  }),
+};
+
 export const socialPostCreatorSchema = z
   .object({
     kind: z.enum(["user", "coworker", "sokoBot"]).openapi({ example: "user" }),
@@ -203,6 +231,14 @@ export const socialPostSchema = z
     text: z.string(),
     firstComment: z.string().nullable(),
     media: z.array(socialPostMediaRefSchema),
+    ...socialPostQuoteSummaryShape,
+    movedQuotes: z
+      .array(z.object({ id: z.uuid(), scheduledAt: dateTimeSchema }))
+      .optional()
+      .openapi({
+        description:
+          "Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.",
+      }),
     threadParts: z.array(socialPostThreadPartSchema),
     publishingThreadPartPosition: z
       .number()
@@ -214,7 +250,7 @@ export const socialPostSchema = z
     status: socialPostStatusSchema,
     scheduledAt: dateTimeSchema.nullable(),
     timezone: z.string().nullable().openapi({ example: "Europe/Zurich" }),
-    socialConnection: socialPostSocialConnectionSchema.nullable(),
+    socialConnection: z.union([socialPostSocialConnectionSchema, z.null()]),
     creator: socialPostCreatorSchema,
     scheduledByUserId: z.string().nullable(),
     scheduledByCoworkerId: z.string().nullable().optional().openapi({
@@ -266,6 +302,10 @@ export const createSocialPostRequestSchema = z
     firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     threadParts: socialPostThreadPartsRequestSchema.optional(),
+    quotedPostId: z.uuid().nullable().optional().openapi({
+      description:
+        "Another X post in the same project. Only the thread's first part quotes it. Until its X id is confirmed, schedule strictly after its scheduledAt; publish now is unavailable.",
+    }),
     socialConnectionId: z.string().uuid().optional(),
     scheduledAt: dateTimeSchema.optional(),
     timezone: socialPostTimezoneSchema.optional(),
@@ -281,7 +321,13 @@ export const updateSocialPostRequestSchema = z
     firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     threadParts: socialPostThreadPartsRequestSchema.optional(),
+    quotedPostId: z.uuid().nullable().optional().openapi({
+      description:
+        "Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.",
+    }),
     socialConnectionId: z.string().uuid().nullable().optional(),
+    scheduledAt: dateTimeSchema.optional(),
+    timezone: socialPostTimezoneSchema.optional(),
     revision: socialPostRevisionSchema,
   })
   .openapi("UpdateSocialPostRequest");
@@ -333,6 +379,22 @@ function isSocialPostStatus(
 }
 
 export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
+  provider: socialPostProviderSchema.optional(),
+  quoteCandidates: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === "true"))
+    .openapi({
+      description:
+        "List X posts in SCHEDULED, NEEDS_APPROVAL, or PUBLISHED, newest created first. Combine with excludePostId and search for the quote picker.",
+    }),
+  excludePostId: z.uuid().optional(),
+  search: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .openapi({ description: "Case-insensitive text search" }),
   cursor: z
     .string()
     .uuid()

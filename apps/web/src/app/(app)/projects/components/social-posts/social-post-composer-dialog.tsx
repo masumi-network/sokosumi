@@ -100,6 +100,8 @@ import {
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
 import { publishFailureCopy } from "./social-post-publish-failure";
+import { useReportMovedSocialPostQuotes } from "./social-post-quote";
+import { SocialPostQuotePicker } from "./social-post-quote-picker";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -114,7 +116,7 @@ export type SocialPostComposerMode =
       /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
       scheduledAt?: string;
     }
-  | { kind: "edit"; post: SocialPost }
+  | { kind: "edit"; post: SocialPost; chooseQuote?: boolean }
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
@@ -159,7 +161,7 @@ export function SocialPostComposerDialog({
   onError,
   onOpenChange,
   onCloseAutoFocus,
-  onSaved,
+  onSaved: onPostSaved,
   open,
   projectId,
 }: SocialPostComposerDialogProps) {
@@ -167,6 +169,11 @@ export function SocialPostComposerDialog({
     useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
   const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
+  function handleSaved(post: SocialPost) {
+    reportMovedQuotes(post);
+    onPostSaved(post);
+  }
   const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
@@ -177,15 +184,18 @@ export function SocialPostComposerDialog({
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
+  const quoteScheduleErrorId = useId();
   const tooLongId = useId();
   const threadLimitId = useId();
   const publishHintId = useId();
   const saveHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const quoteButtonRef = useRef<HTMLButtonElement>(null);
   const mediaTargetRef = useRef<string | null>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const revisionRef = useRef(post?.revision ?? 0);
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -229,6 +239,23 @@ export function SocialPostComposerDialog({
     lastSharedEditId: null,
   });
   const [firstComment, setFirstComment] = useState(post?.firstComment ?? "");
+  const [quotedPostId, setQuotedPostId] = useState(post?.quotedPostId ?? null);
+  const [quotedPost, setQuotedPost] = useState(post?.quotedPost ?? null);
+  const [quotePickerOpen, setQuotePickerOpen] = useState(
+    mode.kind === "edit" && Boolean(mode.chooseQuote),
+  );
+  const quoteChanged = quotedPostId !== (post?.quotedPostId ?? null);
+  const quotePayload =
+    quotedPostId || post?.quotedPostId || post?.needsAttentionReason
+      ? { quotedPostId }
+      : {};
+  const quotePending = Boolean(
+    quotedPostId && !quotedPost?.publishedExternalId,
+  );
+  const quoteTime = quotedPost?.scheduledAt;
+  const quoteTimeLabel = quoteTime
+    ? `${formatter.dateTime(quoteTime, "dateTimeWithYear", { timeZone: viewerTimezone })} · ${formatTimezoneLabel(viewerTimezone, locale, quoteTime)}`
+    : null;
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
     mode.kind === "create"
       ? [...(mode.media ?? [])]
@@ -424,6 +451,7 @@ export function SocialPostComposerDialog({
   const threadAccountsInvalid =
     isThread && providers.some((candidate) => candidate !== "x");
   const canAddThread = providers.every((candidate) => candidate === "x");
+  const quoteAccountsInvalid = Boolean(quotedPostId) && !canAddThread;
   const accountTexts =
     selectedConnections.length > 0
       ? selectedConnections.map((connection) => ({
@@ -524,11 +552,13 @@ export function SocialPostComposerDialog({
   );
   const textValid =
     !threadAccountsInvalid &&
+    !quoteAccountsInvalid &&
     threadPartsValid &&
     (isScheduleOnly ||
       (composerIssue === null && !overLimit && !overFirstComment));
   const draftValid =
     !threadAccountsInvalid &&
+    !quoteAccountsInvalid &&
     threadPartsValid &&
     (isScheduleOnly ||
       (draftIssue === null && !overLimit && !overFirstComment));
@@ -538,10 +568,18 @@ export function SocialPostComposerDialog({
     scheduledDate !== null &&
     !Number.isNaN(scheduledDate.getTime()) &&
     scheduledDate.getTime() <= earliestScheduledAt;
+  const scheduledBeforeQuote =
+    quotePending &&
+    scheduledDate !== null &&
+    (!quoteTime || scheduledDate.getTime() <= quoteTime.getTime());
+  const quoteScheduleHint = !quoteTime
+    ? t("quote.scheduleTargetFirst")
+    : t("quote.scheduleAfter", { time: quoteTimeLabel! });
   const scheduledAtValid =
     scheduledDate !== null &&
     !Number.isNaN(scheduledDate.getTime()) &&
-    !scheduledAtTooSoon;
+    !scheduledAtTooSoon &&
+    !scheduledBeforeQuote;
   const canSchedule =
     textValid &&
     mediaValid &&
@@ -553,10 +591,18 @@ export function SocialPostComposerDialog({
     !isBusy &&
     (!post ||
       isProviderEnabled(post.provider) ||
-      selectedConnections.length > 0);
+      selectedConnections.length > 0) &&
+    !(
+      post?.status === "SCHEDULED" &&
+      quotePending &&
+      (!quoteTime ||
+        !post.scheduledAt ||
+        post.scheduledAt.getTime() <= quoteTime.getTime())
+    );
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
+    !quotePending &&
     textValid &&
     mediaValid &&
     selectedConnections.length > 0 &&
@@ -763,7 +809,7 @@ export function SocialPostComposerDialog({
           onError(result.error);
           return 0;
         }
-        onSaved(result.value);
+        handleSaved(result.value);
         if (socialConnectionId) saved.push(socialConnectionId);
         created += 1;
       }
@@ -810,6 +856,7 @@ export function SocialPostComposerDialog({
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           ...threadPayload,
+          ...quotePayload,
           socialConnectionId: connection.id,
         });
         if (!created.ok) {
@@ -829,7 +876,7 @@ export function SocialPostComposerDialog({
         });
         done.push(connection.id);
         if (!result.ok) {
-          onSaved(created.value);
+          handleSaved(created.value);
           onError({
             ...result.error,
             message: nameIfMany(
@@ -839,7 +886,7 @@ export function SocialPostComposerDialog({
           });
           return;
         }
-        onSaved(result.value);
+        handleSaved(result.value);
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
@@ -932,15 +979,16 @@ export function SocialPostComposerDialog({
           firstComment: trimmedFirstComment,
           media,
           ...threadPayload,
+          ...quotePayload,
           socialConnectionId: connectionId || null,
-          revision: mode.post.revision,
+          revision: revisionRef.current,
         });
         if (!result.ok) {
           onError(result.error);
           return;
         }
         toast.success(t("toasts.updated"));
-        onSaved(result.value);
+        handleSaved(result.value);
         onOpenChange(false);
         return;
       }
@@ -952,6 +1000,7 @@ export function SocialPostComposerDialog({
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           ...threadPayload,
+          ...quotePayload,
           socialConnectionId,
         }),
       );
@@ -982,6 +1031,7 @@ export function SocialPostComposerDialog({
               : {}),
             media,
             ...threadPayload,
+            ...quotePayload,
             socialConnectionId,
             scheduledAt: scheduledAtIso,
             timezone,
@@ -994,12 +1044,44 @@ export function SocialPostComposerDialog({
         return;
       }
 
-      let revision = mode.post.revision;
+      const postId = mode.post.id;
+      async function persistSchedule(): Promise<SocialPost | null> {
+        const result = await scheduleProjectSocialPost({
+          projectId,
+          postId,
+          scheduledAt: scheduledAtIso,
+          timezone,
+          socialConnectionId: connectionId,
+          revision: revisionRef.current,
+        });
+        if (!result.ok) {
+          onError(result.error);
+          return null;
+        }
+        revisionRef.current = result.value.revision;
+        handleSaved(result.value);
+        return result.value;
+      }
+
+      // Core validates a new quote against the saved time, so move that time first when needed.
+      const scheduleFirst =
+        mode.kind === "edit" &&
+        quoteChanged &&
+        quotePending &&
+        mode.post.status === "SCHEDULED" &&
+        quoteTime &&
+        mode.post.scheduledAt &&
+        quoteTime.getTime() >= mode.post.scheduledAt.getTime();
+      if (scheduleFirst && !(await persistSchedule())) return;
+      const connectionChanged =
+        connectionId !== (mode.post.socialConnection?.id ?? "");
       const contentChanged =
         trimmedText !== mode.post.text ||
         trimmedFirstComment !== (mode.post.firstComment ?? "") ||
         !sameSocialPostMedia(media, mode.post.media) ||
-        threadChanged;
+        threadChanged ||
+        quoteChanged ||
+        connectionChanged;
       if (mode.kind === "edit" && contentChanged) {
         const updated = await updateProjectSocialPost({
           projectId,
@@ -1008,30 +1090,22 @@ export function SocialPostComposerDialog({
           firstComment: trimmedFirstComment,
           media,
           ...threadPayload,
-          socialConnectionId: connectionId,
-          revision,
+          ...quotePayload,
+          ...(connectionChanged
+            ? { socialConnectionId: connectionId || null }
+            : {}),
+          revision: revisionRef.current,
         });
         if (!updated.ok) {
           onError(updated.error);
           return;
         }
-        revision = updated.value.revision;
+        revisionRef.current = updated.value.revision;
+        handleSaved(updated.value);
       }
 
-      const result = await scheduleProjectSocialPost({
-        projectId,
-        postId: mode.post.id,
-        scheduledAt: scheduledAtIso,
-        timezone,
-        socialConnectionId: connectionId,
-        revision,
-      });
-      if (!result.ok) {
-        onError(result.error);
-        return;
-      }
+      if (!scheduleFirst && !(await persistSchedule())) return;
       toast.success(t("toasts.scheduled", { count: 1 }));
-      onSaved(result.value);
       onOpenChange(false);
     } catch (error) {
       onError(toActionRejectionError(error));
@@ -1121,11 +1195,13 @@ export function SocialPostComposerDialog({
   }
 
   const hasContent =
+    quotedPostId !== null ||
     threadParts.length > 0 ||
     media.length > 0 ||
     accountTexts.some((account) => account.text.trim() !== "");
   const isDirty =
-    mode.kind === "create"
+    quoteChanged ||
+    (mode.kind === "create"
       ? threadChanged ||
         firstComment.trim() !== "" ||
         copy.shared.trim() !== "" ||
@@ -1137,7 +1213,7 @@ export function SocialPostComposerDialog({
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||
         scheduledAt !== initial.scheduledAt ||
-        (connectionIds[0] ?? "") !== initial.connectionId;
+        (connectionIds[0] ?? "") !== initial.connectionId);
 
   function handleComposerOpenChange(nextOpen: boolean): void {
     if (!nextOpen && isDirty) {
@@ -1147,10 +1223,12 @@ export function SocialPostComposerDialog({
     onOpenChange(nextOpen);
   }
 
-  const footerMessage = scheduledAtTooSoon ? (
-    <p id={scheduledAtErrorId} className="text-destructive">
-      {t("composer.scheduledAtTooSoon")}
-    </p>
+  const footerMessage = scheduledBeforeQuote ? (
+    <p className="text-destructive">{quoteScheduleHint}</p>
+  ) : quotePending && primaryAction === "publish" ? (
+    <p id={`${publishHintId}-quote`}>{t("quote.postNowUnavailable")}</p>
+  ) : scheduledAtTooSoon ? (
+    <p className="text-destructive">{t("composer.scheduledAtTooSoon")}</p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
   ) : overFirstComment ? (
@@ -1207,7 +1285,13 @@ export function SocialPostComposerDialog({
       disabled={!primaryEnabled}
       loading={pending === primaryAction}
       onClick={runPrimary}
-      aria-describedby={showRequirementHint ? publishHintId : undefined}
+      aria-describedby={
+        quotePending && primaryAction === "publish"
+          ? `${publishHintId}-quote`
+          : showRequirementHint
+            ? publishHintId
+            : undefined
+      }
     >
       {primaryLabel}
       {primaryEnabled ? (
@@ -1657,6 +1741,43 @@ export function SocialPostComposerDialog({
                       {t("thread.onlyX")}
                     </p>
                   ) : null}
+                  {canAddThread ||
+                  quotedPostId ||
+                  post?.needsAttentionReason ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isBusy || !canAddThread}
+                          ref={quoteButtonRef}
+                          onClick={() => setQuotePickerOpen(true)}
+                        >
+                          {t(quotedPostId ? "quote.change" : "quote.choose")}
+                        </Button>
+                        {quotedPostId || post?.needsAttentionReason ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={isBusy}
+                            onClick={() => {
+                              setQuotedPostId(null);
+                              setQuotedPost(null);
+                            }}
+                          >
+                            {t("quote.remove")}
+                          </Button>
+                        ) : null}
+                      </div>
+                      {quoteAccountsInvalid ? (
+                        <p className="text-destructive text-sm" role="alert">
+                          {t("quote.onlyX")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {showFirstComment ? (
                     <div className="space-y-2">
                       <label
@@ -1715,16 +1836,39 @@ export function SocialPostComposerDialog({
                 <SocialPostSchedulePicker
                   allowNow={canPostNow}
                   describedBy={
-                    scheduledAtTooSoon ? scheduledAtErrorId : undefined
+                    [
+                      scheduledAtTooSoon ? scheduledAtErrorId : null,
+                      scheduledBeforeQuote ? quoteScheduleErrorId : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || undefined
                   }
                   disabled={isBusy}
                   earliest={new Date(earliestScheduledAt)}
-                  invalid={scheduledAtTooSoon}
+                  invalid={scheduledAtTooSoon || scheduledBeforeQuote}
                   labelledBy={scheduledAtId}
                   onChange={setScheduledAt}
                   suggestedHours={suggestedTimes?.hours}
                   value={scheduledAt}
                 />
+                {quotePending ? (
+                  <div className="space-y-1 text-sm">
+                    <p className="text-muted-foreground">
+                      {quoteTimeLabel
+                        ? t("quote.publishesAfter", { time: quoteTimeLabel })
+                        : t("quote.scheduleTargetFirst")}
+                    </p>
+                    {scheduledBeforeQuote ? (
+                      <p
+                        className="text-destructive"
+                        id={quoteScheduleErrorId}
+                        role="alert"
+                      >
+                        {quoteScheduleHint}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {scheduledAtTooSoon ? (
                   <p
                     className="text-destructive text-sm"
@@ -1837,6 +1981,7 @@ export function SocialPostComposerDialog({
                   className={cn(!hasContent && "opacity-60")}
                   media={media}
                   threadParts={threadParts}
+                  quotedPost={quotedPost}
                   provider={previewProvider}
                   text={hasContent ? displayedText : t("composer.previewEmpty")}
                   timestamp={scheduledAtValid ? scheduledDate : null}
@@ -1922,6 +2067,33 @@ export function SocialPostComposerDialog({
         onOpenChange={setPickerOpen}
         onSelect={handleSelectDriveFile}
       />
+      {quotePickerOpen ? (
+        <SocialPostQuotePicker
+          projectId={projectId}
+          excludePostId={post?.id}
+          onOpenChange={setQuotePickerOpen}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            quoteButtonRef.current?.focus();
+          }}
+          onSelect={(selected) => {
+            setQuotedPostId(selected.id);
+            setQuotedPost({
+              id: selected.id,
+              provider: "x",
+              status: selected.status,
+              scheduledAt: selected.scheduledAt,
+              timezone: selected.timezone,
+              publishedExternalId: selected.publishedExternalId,
+              publishedUrl: selected.publishedUrl,
+              account: selected.socialConnection,
+              text: selected.text,
+              media: selected.media.slice(0, 1),
+            });
+            setQuotePickerOpen(false);
+          }}
+        />
+      ) : null}
 
       <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <AlertDialogContent data-task-form-portal="">

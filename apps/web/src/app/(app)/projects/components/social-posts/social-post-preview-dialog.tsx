@@ -85,14 +85,24 @@ export function SocialPostPreviewDialog({
                 />
               </>
             ) : post ? (
-              t(`status.${post.status}`)
+              t(
+                post.waitingForQuotedPost
+                  ? "quote.waiting"
+                  : `status.${post.status}`,
+              )
             ) : null}
           </DialogDescription>
         </DialogHeader>
-        {post?.status === "NEEDS_APPROVAL" ? (
+        {post &&
+        (post.waitingForQuotedPost || post.status === "NEEDS_APPROVAL") ? (
           <SocialPostStatusBadge
             status={post.status}
-            label={t("status.NEEDS_APPROVAL")}
+            label={t(
+              post.waitingForQuotedPost
+                ? "quote.waiting"
+                : "status.NEEDS_APPROVAL",
+            )}
+            waitingForQuotedPost={post.waitingForQuotedPost}
           />
         ) : null}
         {post?.connectionNeedsReconnect ? (
@@ -124,6 +134,7 @@ export function SocialPostPreviewDialog({
             }
             className="max-h-[70dvh] overflow-y-auto"
             media={post.media}
+            quotedPost={post.quotedPost}
             threadParts={post.threadParts}
             publishedExternalId={
               post.threadPartCount > 1 ? post.publishedExternalId : undefined

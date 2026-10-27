@@ -65,6 +65,7 @@ interface SocialPostStatusBadgeProps {
   showLabel?: boolean;
   className?: string;
   partiallyPublished?: boolean;
+  waitingForQuotedPost?: boolean;
 }
 
 /** A post's status, drawn the way the Task board draws a task's. */
@@ -74,10 +75,16 @@ export function SocialPostStatusBadge({
   showLabel = true,
   className,
   partiallyPublished = false,
+  waitingForQuotedPost = false,
 }: SocialPostStatusBadgeProps) {
   const marker: StatusMarkerSpec = partiallyPublished
     ? { tone: { hue: "blocked", weight: "filled" }, icon: MARKER_ICONS.warning }
-    : STATUS_MARKERS[status];
+    : waitingForQuotedPost
+      ? {
+          tone: { hue: "staged", weight: "outline" },
+          icon: MARKER_ICONS.awaiting,
+        }
+      : STATUS_MARKERS[status];
   const style = getToneStyle(marker.tone);
   return (
     <span

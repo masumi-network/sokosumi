@@ -51,6 +51,8 @@ const post = {
   scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
   attempts: [],
   threadParts: [],
+  quotedPostId: null,
+  needsAttentionReason: null,
   publishedExternalId: null,
   publishingThreadPartPosition: null,
   lastError: null,
@@ -191,6 +193,38 @@ describe("Social posts in the calendar", () => {
       publishedThreadPartCount: 1,
       failedThreadPartPosition: 2,
       partiallyPublished: true,
+    });
+  });
+
+  it("returns the quote indicator and attention reason for calendar items", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        quotedPostId: "77777777-7777-4777-8777-777777777777",
+        needsAttentionReason: "The post it quotes failed to publish",
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      quotedPostId: "77777777-7777-4777-8777-777777777777",
+      needsAttentionReason: "The post it quotes failed to publish",
+    });
+  });
+
+  it("derives the waiting state for a due quote whose target is not live", async () => {
+    vi.setSystemTime(new Date(at));
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        quotedPostId: "77777777-7777-4777-8777-777777777777",
+        quotedPost: { status: "SCHEDULED", publishedExternalId: null },
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      waitingForQuotedPost: true,
+      status: "SCHEDULED",
     });
   });
 
