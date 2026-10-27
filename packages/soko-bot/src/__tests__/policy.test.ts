@@ -137,9 +137,15 @@ describe("Soko Bot route capability ceilings", () => {
     }
   });
 
-  it("reads newsletters on every owner route and drafts only on write routes", () => {
+  it("reads newsletters on every owner route and writes them only on write routes", () => {
+    const writes = [
+      "newsletter_draft_issue",
+      "create_newsletter_issue",
+      "update_newsletter_issue",
+      "delete_newsletter_issue",
+    ];
     const reads = SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
-      (capability) => capability !== "newsletter_draft_issue",
+      (capability) => !writes.includes(capability),
     );
     expect(reads).toEqual([
       "get_newsletter",
@@ -151,10 +157,25 @@ describe("Soko Bot route capability ceilings", () => {
     for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
       for (const read of reads)
         expect(capabilities as readonly string[]).toContain(read);
-    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const)
-      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain(
-        "newsletter_draft_issue",
-      );
+    for (const write of writes) {
+      for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const)
+        expect(
+          SOKO_BOT_ROUTE_CAPABILITIES[route] as readonly string[],
+        ).not.toContain(write);
+      for (const route of [
+        "DELEGATE_TASK",
+        "HIRE_AGENT",
+        "MANAGE_WORK",
+      ] as const)
+        expect(
+          SOKO_BOT_ROUTE_CAPABILITIES[route] as readonly string[],
+        ).toContain(write);
+      // A page the bot read must not be able to write or delete an issue.
+      expect(
+        SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[],
+      ).toContain(write);
+      expect(isSokoBotNewsletterCapability(write)).toBe(true);
+    }
     for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES) {
       expect(isSokoBotNewsletterCapability(capability)).toBe(true);
       expect(
@@ -167,9 +188,6 @@ describe("Soko Bot route capability ceilings", () => {
       expect(
         SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[],
       ).not.toContain(read);
-    expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(
-      "newsletter_draft_issue",
-    );
   });
 
   it("has no newsletter tool that approves, schedules or sends", () => {

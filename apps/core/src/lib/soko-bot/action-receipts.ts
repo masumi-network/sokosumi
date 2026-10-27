@@ -21,6 +21,9 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
 
 export const ACTION_CAPABILITIES = new Set([
   "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
   ...EXTERNAL_EFFECT_CAPABILITIES,
   "create_task",
   "create_table",

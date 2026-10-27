@@ -225,7 +225,10 @@ import {
   mailSendRefusal,
   ownerAskedToSend,
 } from "@/lib/soko-bot/mail-send-guard";
-import { runNewsletterReadTool } from "@/lib/soko-bot/newsletter-tools";
+import {
+  runNewsletterReadTool,
+  runNewsletterWriteTool,
+} from "@/lib/soko-bot/newsletter-tools";
 import {
   persistedToolResult,
   sanitizePersistedValue,
@@ -5677,6 +5680,61 @@ export class SokoBotRuntimeService {
           projectId,
           workspaceId: scope.workspaceId,
         });
+      }
+      case "create_newsletter_issue":
+      case "update_newsletter_issue":
+      case "delete_newsletter_issue": {
+        const { capability } = input;
+        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
+          input.input,
+        );
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          capability,
+          projectId,
+        );
+        // Deleting loses the issue for good: only on the owner's word.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          capability === "delete_newsletter_issue" &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Newsletter issues are only deleted when the owner asks in chat; ask them first",
+          );
+        try {
+          return await serializableTransaction(async (tx) => {
+            await this.requireMutationAuthority(
+              tx,
+              authorized,
+              false,
+              capability,
+              { projectIds: [projectId] },
+            );
+            const result = await runNewsletterWriteTool(
+              capability,
+              input.input,
+              { projectId, workspaceId: scope.workspaceId },
+              { client: tx, creatorSokoBotId: authorized.turn.sokoBotId },
+            );
+            await commitActionReceipt(tx, {
+              turnId: authorized.turn.id,
+              toolCallId: input.toolCallId,
+              actorBotId: authorized.turn.sokoBotId,
+              targetId: result.id,
+              observedVersion: String(result.revision),
+              result: persistedToolResult(result),
+            });
+            return result;
+          }, "Newsletter issue changed concurrently");
+        } catch (error) {
+          // Stale revision or a status that no longer allows the change.
+          if (error instanceof HTTPException && error.status === 409)
+            throw new SokoBotRuntimeConflictError(
+              `${error.message}. Read the issue again with get_newsletter_issue, keep any human edits, and retry with its current revision only if the change still applies.`,
+            );
+          throw error;
+        }
       }
       case "list_project_social_accounts":
       case "list_social_posts":

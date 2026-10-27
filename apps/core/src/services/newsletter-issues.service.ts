@@ -32,7 +32,12 @@ import {
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 
-async function withApproverNames(issues: NewsletterIssue[]) {
+type NewsletterClient = Prisma.TransactionClient | typeof prisma;
+
+async function withApproverNames(
+  issues: NewsletterIssue[],
+  client: NewsletterClient = prisma,
+) {
   const ids = [
     ...new Set(
       issues.flatMap((issue) =>
@@ -41,7 +46,7 @@ async function withApproverNames(issues: NewsletterIssue[]) {
     ),
   ];
   const users = ids.length
-    ? await prisma.user.findMany({
+    ? await client.user.findMany({
         where: { id: { in: ids } },
         select: { id: true, name: true },
       })
@@ -92,7 +97,7 @@ export async function createNewsletterIssue(
     client = prisma,
     creatorSokoBotId,
   }: {
-    client?: Prisma.TransactionClient | typeof prisma;
+    client?: NewsletterClient;
     creatorSokoBotId?: string;
   } = {},
 ) {
@@ -119,21 +124,31 @@ export async function createNewsletterIssue(
 export async function getNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
+  client: NewsletterClient = prisma,
 ) {
-  const newsletter = await getNewsletter(scope);
-  const issue = await prisma.newsletterIssue.findUnique({
+  const newsletter = await getNewsletter(scope, client);
+  const issue = await client.newsletterIssue.findUnique({
     where: { ...scope, id: issueId, newsletterId: newsletter.id },
   });
   if (!issue) throw notFound("Newsletter issue not found");
-  return (await withApproverNames([issue]))[0]!;
+  return (await withApproverNames([issue], client))[0]!;
+}
+
+/** Runs in the caller's transaction when given one, else in its own. */
+function inTransaction<T>(
+  client: Prisma.TransactionClient | undefined,
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+) {
+  return client ? operation(client) : prisma.$transaction(operation);
 }
 
 export async function patchNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
   input: PatchNewsletterIssueRequest,
+  client?: Prisma.TransactionClient,
 ) {
-  const issue = await getNewsletterIssue(scope, issueId);
+  const issue = await getNewsletterIssue(scope, issueId, client);
   if (issue.status !== "DRAFT" && issue.status !== "NEEDS_APPROVAL") {
     throw conflict("Only draft or needs-approval issues can be edited");
   }
@@ -142,7 +157,7 @@ export async function patchNewsletterIssue(
   }
   const { revision, ...content } = input;
   // Guard both revision and status against concurrent edits or scheduling.
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.updateMany({
       where: {
         ...scope,
@@ -395,10 +410,17 @@ export function cancelNewsletterIssue(
 export async function deleteNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
+  {
+    revision,
+    client,
+  }: { revision?: number; client?: Prisma.TransactionClient } = {},
 ) {
-  const issue = await getNewsletterIssue(scope, issueId);
+  const issue = await getNewsletterIssue(scope, issueId, client);
   if (issue.status !== "DRAFT" && issue.status !== "CANCELED") {
     throw conflict("Only draft or canceled issues can be deleted");
+  }
+  if (revision !== undefined && issue.revision !== revision) {
+    throw conflict("Newsletter issue changed; refresh and try again");
   }
   const where: Prisma.NewsletterIssueWhereInput = {
     ...scope,
@@ -407,7 +429,7 @@ export async function deleteNewsletterIssue(
     revision: issue.revision,
     status: { in: ["DRAFT", "CANCELED"] },
   };
-  await prisma.$transaction(async (tx) => {
+  await inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.deleteMany({ where });
     if (!count) throw conflict("Only draft or canceled issues can be deleted");
     if (!issue.taskId) return;
