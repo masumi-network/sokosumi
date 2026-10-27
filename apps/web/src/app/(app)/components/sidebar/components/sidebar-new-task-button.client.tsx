@@ -93,7 +93,7 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
       <TooltipTrigger asChild>
         <Button
           type="button"
-          variant="primary"
+          variant="ghost"
           size="icon"
           aria-keyshortcuts={SHORTCUT_KEY.toUpperCase()}
           onClick={handleOpen}
