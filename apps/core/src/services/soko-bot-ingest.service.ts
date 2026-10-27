@@ -32,7 +32,20 @@ const DELTA_INTERVAL_MS = HOUR_MS;
 /** The briefing summarises this much mail; a fresh connection starts here. */
 const LOOKBACK_MS = 24 * HOUR_MS;
 const BRIEFING_HOUR = 7;
-const MAX_MAIL_PER_PACKET = 20;
+/**
+ * An hourly check reads every mail since the last one, up to this many: the
+ * cursor moves past whatever it read, so a lower cap left the rest of a busy
+ * hour untriaged and unread for good.
+ */
+const MAX_MAIL_PER_CHECK = 100;
+/**
+ * Mail can land after mail with a later timestamp: a mailbox that collects
+ * another account's mail gets it in batches stamped with the original time.
+ * A check therefore looks this far behind the newest mail it saw and skips
+ * the ids it already handled, instead of trusting the timestamp alone.
+ */
+const LATE_MAIL_MS = 6 * HOUR_MS;
+const MAX_MAIL_PER_FETCH = 300;
 const MAX_MAIL_PER_BRIEFING = 40;
 const MAX_EVENTS_PER_PACKET = 15;
 
@@ -139,7 +152,7 @@ export function buildIngestMessage(input: {
       timeZone: input.timeZone,
       mail: input.mail,
       limit:
-        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
     }),
   );
   if (input.mail.length === 0 && input.events.length === 0) {
@@ -166,14 +179,14 @@ export async function buildIngestDeltaMessageForBot(
     mail.push(
       ...(await fetchInboxMessages(integration, {
         since,
-        limit: MAX_MAIL_PER_PACKET,
+        limit: MAX_MAIL_PER_CHECK,
       })),
     );
   }
   mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
   const triage = await triageMail({
     sokoBotId,
-    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    mail: mail.slice(0, MAX_MAIL_PER_CHECK),
     source: "lab",
   });
   triage.log.emit();
@@ -276,18 +289,21 @@ export class SokoBotIngestSyncService {
     if (!briefing && dueMail.length === 0) return "skipped";
 
     const mail: SokoBotInboxMessage[] = [];
-    const cursors = new Map<string, { previous: string; newest: string }>();
+    const cursors = new Map<string, MailCursor>();
     const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
     for (const integration of dueMail) {
       const previous = cursorDate(integration.cursor, "newestSeenAt");
       // The briefing summarises the whole last day, mail the hourly checks
       // already looked at included; a check reads only what is new.
-      const since = briefing ? dayAgo : (previous ?? dayAgo);
+      const since =
+        briefing || !previous
+          ? dayAgo
+          : new Date(previous.getTime() - LATE_MAIL_MS);
       let messages: SokoBotInboxMessage[];
       try {
         messages = await fetchInboxMessages(integration, {
           since,
-          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_FETCH,
         });
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
@@ -299,17 +315,42 @@ export class SokoBotIngestSyncService {
         });
         continue;
       }
-      const fresh = messages.filter(
-        (message) =>
-          !message.receivedAt || new Date(message.receivedAt) > since,
-      );
+      // A cursor from before `seenIds` handled everything up to its newest.
+      const seen =
+        cursorIds(integration.cursor, "seenIds") ??
+        new Set(
+          messages
+            .filter((m) => previous && new Date(m.receivedAt) <= previous)
+            .map((m) => m.id),
+        );
+      const fresh = messages
+        .filter(
+          (message) =>
+            (briefing || !seen.has(message.id)) &&
+            (!message.receivedAt || new Date(message.receivedAt) > since),
+        )
+        .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+        .slice(0, briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK);
       mail.push(...fresh);
       const floor = (previous ?? since).toISOString();
       const newest =
         [...fresh.map((message) => message.receivedAt).filter(Boolean), floor]
           .sort()
           .at(-1) ?? floor;
-      cursors.set(integration.id, { previous: floor, newest });
+      // Ids outside a check's window can no longer come back, so the list
+      // stays as long as one window of mail. The briefing reads only part of
+      // the day and keeps the list whole.
+      const shown = new Set(fresh.map((message) => message.id));
+      const inWindow = (ids: Set<string>) =>
+        briefing
+          ? [...ids]
+          : messages.filter((m) => ids.has(m.id)).map((m) => m.id);
+      cursors.set(integration.id, {
+        previous: floor,
+        newest,
+        seenBefore: inWindow(seen),
+        seenAfter: inWindow(new Set([...seen, ...shown])),
+      });
     }
     mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 
@@ -349,6 +390,7 @@ export class SokoBotIngestSyncService {
             lastIngestAt: now,
             cursor: {
               newestSeenAt: consumed ? cursor.newest : cursor.previous,
+              seenIds: consumed ? cursor.seenAfter : cursor.seenBefore,
               lastIngestAt: now.toISOString(),
             },
           },
@@ -385,7 +427,7 @@ export class SokoBotIngestSyncService {
       if (bot.mailAutoRead && mail.length > 0) {
         const tagged = await triageMail({
           sokoBotId: bot.id,
-          mail: mail.slice(0, MAX_MAIL_PER_BRIEFING),
+          mail: mail.slice(0, MAX_MAIL_PER_CHECK),
           source: kind,
         });
         tagged.log.set({
@@ -404,7 +446,7 @@ export class SokoBotIngestSyncService {
       sokoBotId: bot.id,
       mail: mail.slice(
         0,
-        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
       ),
       source: kind,
     });
@@ -468,6 +510,20 @@ export class SokoBotIngestSyncService {
     }
     return briefing ? "briefings" : "deltas";
   }
+}
+
+interface MailCursor {
+  previous: string;
+  newest: string;
+  seenBefore: string[];
+  seenAfter: string[];
+}
+
+function cursorIds(cursor: unknown, key: string): Set<string> | null {
+  if (!cursor || typeof cursor !== "object") return null;
+  const value = (cursor as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) return null;
+  return new Set(value.filter((id): id is string => typeof id === "string"));
 }
 
 function cursorDate(cursor: unknown, key: string): Date | null {

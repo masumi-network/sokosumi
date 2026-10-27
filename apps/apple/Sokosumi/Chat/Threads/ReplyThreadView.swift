@@ -191,7 +191,6 @@ import SwiftUI
             loadOlderRepliesAutomatically()
           }
           .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
-            // Every scroll step lands here: write the state only when it changed.
             var next = scroll
             next.edgesChanged(from: oldEdges, to: edges, userIsScrolling: userIsScrolling, anchored: anchored)
             if next != scroll {
