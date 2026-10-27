@@ -125,3 +125,65 @@ describe("ChatSidebarSectionHeader", () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * The Chats heading carries the Unreads chip: a word, wider than the icon
+ * slots, so it sits in the row's flow after the title. It is its own stop in
+ * the tab order, and pressing it filters without folding the block.
+ */
+describe("ChatSidebarSectionHeader with an inline action", () => {
+  function ChatsSection({ onChip }: { onChip: () => void }) {
+    const [open, setOpen] = useState(true);
+
+    return (
+      <SidebarProvider defaultOpen>
+        <Sidebar>
+          <SidebarContent>
+            <Collapsible open={open} onOpenChange={setOpen}>
+              <ChatSidebarSectionHeader
+                isOpen={open}
+                inlineAction={
+                  <button type="button" onClick={onChip}>
+                    Unreads
+                  </button>
+                }
+              >
+                Chats
+              </ChatSidebarSectionHeader>
+              <SidebarSectionContent>rooms</SidebarSectionContent>
+            </Collapsible>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>
+    );
+  }
+
+  it("sets the action after the title, outside the fold's button", () => {
+    const onChip = vi.fn();
+    render(<ChatsSection onChip={onChip} />);
+    const heading = screen.getByRole("button", { name: "Chats" });
+    const chip = screen.getByRole("button", { name: "Unreads" });
+
+    expect(heading.contains(chip)).toBe(false);
+    expect(
+      heading.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // In flow, so the title gives way to the chip's width in any language.
+    expect(chip.closest(".absolute")).toBeNull();
+
+    fireEvent.click(chip);
+
+    expect(onChip).toHaveBeenCalledTimes(1);
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("rooms")).toBeInTheDocument();
+  });
+
+  it("keeps the action reachable while the block is folded", () => {
+    render(<ChatsSection onChip={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Chats" }));
+
+    expect(screen.queryByText("rooms")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unreads" })).toBeInTheDocument();
+  });
+});

@@ -5,7 +5,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import MenuItems from "./sidebar/components/menu-items";
@@ -64,7 +63,6 @@ export function AppSidebarFallback() {
           <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
             <MenuItems />
           </div>
-          <SidebarSeparator />
           <SidebarChatListSkeleton />
         </div>
       </SidebarContent>

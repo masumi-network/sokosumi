@@ -7,7 +7,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import type { CreditUsage } from "@/lib/types/credit";
@@ -133,7 +132,7 @@ export default function Sidebar({
         <div className="flex w-full flex-col gap-0">
           <PersonalAssistantNav />
           {/* The project scope titles the nav groups it scopes; the chat
-              sections after the separator are outside it. */}
+              area after them, under its own Chats heading, is outside it. */}
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
@@ -143,7 +142,6 @@ export default function Sidebar({
               newsletterEnabled={newsletterEnabled}
             />
           </div>
-          <SidebarSeparator />
           {chatList}
         </div>
       </SidebarContent>

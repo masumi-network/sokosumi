@@ -153,4 +153,21 @@ describe("Sidebar project scope", () => {
       scoped?.contains(screen.getByRole("button", { name: "projectTitle" })),
     ).toBe(false);
   });
+
+  // The chat area is headed like the nav groups (its Chats heading lives in
+  // the list), so no rule cuts the sidebar in two between them.
+  it("runs the nav straight into the chat area, with no rule between", () => {
+    const { container } = renderSidebar();
+    const scoped = screen.getByRole("navigation", {
+      name: "menuItems",
+    }).parentElement;
+    const chatList = screen.getByRole("navigation", { name: "chatList" });
+
+    expect(
+      container.querySelector(
+        '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
+      ),
+    ).toBeNull();
+    expect(scoped?.nextElementSibling).toBe(chatList);
+  });
 });

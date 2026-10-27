@@ -9,13 +9,19 @@ import { cn } from "@/lib/utils";
 import type { SectionAttention } from "./room-attention";
 
 /**
- * Collapsible section heading for the chat sidebar (Channels, External,
- * Archived, Direct Messages).
+ * Collapsible section heading for the chat sidebar (Chats, Pinned, Channels,
+ * External, Archived, Direct Messages).
  *
  * The trailing padding steps with how many action controls sit in the
  * absolutely-positioned trailing slot, so a long section title truncates
  * before it runs under them. Below `md` each control reaches 44px through a
  * pseudo-element, and the slot's gap keeps those two targets from overlapping.
+ *
+ * `inlineAction` is a control wider than those icon slots — the Unreads chip
+ * on Chats, a word whose width is the reader's language's — so it sits in the
+ * row's flow after the title instead, and the title gives way to it. Its end
+ * lands where the icon slot's does (`right-1`), so the chip lines up with the
+ * `+` buttons under it.
  *
  * A closed section hides its rooms, and with them whatever they held for the
  * reader. `closedAttention` says so on the heading: the row's own bold on the
@@ -28,6 +34,7 @@ export function ChatSidebarSectionHeader({
   closedAttention = null,
   createAction,
   secondaryAction,
+  inlineAction,
 }: {
   /** The section's title. */
   children: string;
@@ -35,6 +42,7 @@ export function ChatSidebarSectionHeader({
   closedAttention?: SectionAttention;
   createAction?: ReactNode;
   secondaryAction?: ReactNode;
+  inlineAction?: ReactNode;
 }) {
   const tChannels = useTranslations("App.Channels");
   const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
@@ -60,6 +68,9 @@ export function ChatSidebarSectionHeader({
           trailingCount >= 2 && "md:pr-14",
         )}
       />
+      {inlineAction ? (
+        <div className="-me-1 flex shrink-0 items-center">{inlineAction}</div>
+      ) : null}
       {trailingCount > 0 ? (
         <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-3.5 md:gap-0">
           {secondaryAction}

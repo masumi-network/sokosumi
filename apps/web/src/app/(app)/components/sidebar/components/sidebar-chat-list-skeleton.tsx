@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
  * depend on data this frame has not loaded, and a section that appeared and
  * then went away would move every row under it. Two headings also put the
  * list's one landmark, the break between sections, where it will really land.
+ * Above them stands the Chats heading the real list hangs from in the sidebar,
+ * also always drawn.
  *
  * Channels is the one section that is not always there: the real list gates it
  * on `hasOrganization`, so a personal workspace has Directs alone. A caller
@@ -128,6 +130,9 @@ export function SidebarChatListSkeleton({
 } = {}) {
   return (
     <SidebarGroup className="w-full" aria-hidden>
+      {/* The Chats heading the whole list hangs from, which every reader
+          has: its row is held so the sections land where they will be. */}
+      <SectionHeaderSkeleton titleWidth="w-10" />
       <SidebarGroupContent className="space-y-2">
         {hasOrganization ? (
           <>

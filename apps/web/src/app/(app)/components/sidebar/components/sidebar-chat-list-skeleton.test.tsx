@@ -87,4 +87,24 @@ describe("SidebarChatListSkeleton", () => {
 
     expect(sectionTitleWidths(container)).toEqual(["w-16", "w-24"]);
   });
+
+  // The real list is one block under its Chats heading, which every reader
+  // has, so the placeholder holds the heading's row above the sections: the
+  // sections land where they will be, not one row higher.
+  it.each([true, false])(
+    "heads the sections with the Chats heading's row (organization: %s)",
+    (hasOrganization) => {
+      const { container } = renderSkeleton({ hasOrganization });
+      const group = container.querySelector('[data-slot="sidebar-group"]');
+      const [heading, sections] = [...(group?.children ?? [])];
+
+      expect(sections).toHaveAttribute("data-slot", "sidebar-group-content");
+      expect(heading?.className.split(/\s+/)).toEqual(
+        expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-7"]),
+      );
+      const bars = heading?.querySelectorAll('[data-slot="skeleton"]') ?? [];
+      expect(bars).toHaveLength(1);
+      expect(bars[0]?.className.split(/\s+/)).toContain("w-10");
+    },
+  );
 });

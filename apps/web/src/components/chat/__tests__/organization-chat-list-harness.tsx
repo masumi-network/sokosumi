@@ -1,6 +1,12 @@
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
+import {
+  type ComponentProps,
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  use,
+} from "react";
 import { vi } from "vitest";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
@@ -133,25 +139,44 @@ vi.mock("../chat-room-sidebar-row", () => ({
 // A marker, not the rows: what they count belongs to
 // `chat-unread-nav-rows.test.tsx`. The list decides where they stand and
 // what the All unreads filter does to the sections, so the marker keeps the
-// toggle.
+// toggle — on the row where the row carries it, and as the chip where a
+// Chats heading does.
+function UnreadsToggleMarker({
+  unreadOnly,
+  onUnreadOnlyChange,
+}: {
+  unreadOnly: boolean;
+  onUnreadOnlyChange: (unreadOnly: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={unreadOnly}
+      onClick={() => onUnreadOnlyChange(!unreadOnly)}
+    >
+      All unreads
+    </button>
+  );
+}
+
 vi.mock("../chat-unread-nav-rows", () => ({
   ChatUnreadNavRows: ({
     unreadOnly,
     onUnreadOnlyChange,
   }: {
     unreadOnly: boolean;
-    onUnreadOnlyChange: (unreadOnly: boolean) => void;
+    onUnreadOnlyChange?: (unreadOnly: boolean) => void;
   }) => (
     <li data-testid="chat-unread-nav-rows">
-      <button
-        type="button"
-        aria-pressed={unreadOnly}
-        onClick={() => onUnreadOnlyChange(!unreadOnly)}
-      >
-        All unreads
-      </button>
+      {onUnreadOnlyChange ? (
+        <UnreadsToggleMarker
+          unreadOnly={unreadOnly}
+          onUnreadOnlyChange={onUnreadOnlyChange}
+        />
+      ) : null}
     </li>
   ),
+  ChatUnreadsFilterChip: UnreadsToggleMarker,
 }));
 
 vi.mock("../direct-room-avatar-stack", () => ({
@@ -235,14 +260,59 @@ vi.mock("@/components/ui/alert-dialog", () => ({
   ),
 }));
 
+// Open state as Radix keeps it — `aria-expanded` on the trigger, `data-state`
+// on the content — but a closed section's rows stay rendered, so a test can
+// still reach Archived, which starts folded.
+const CollapsibleMockContext = createContext<{
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+}>({ open: true });
+
 vi.mock("@/components/ui/collapsible", () => ({
-  Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  CollapsibleContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
+  Collapsible: ({
+    children,
+    open = true,
+    onOpenChange,
+  }: {
+    children: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
+    <CollapsibleMockContext.Provider value={{ open, onOpenChange }}>
+      <div>{children}</div>
+    </CollapsibleMockContext.Provider>
   ),
-  CollapsibleTrigger: ({ children }: { children: ReactNode }) => (
-    <button type="button">{children}</button>
-  ),
+  CollapsibleContent: function CollapsibleContent({
+    children,
+  }: {
+    children: ReactNode;
+  }) {
+    const { open } = use(CollapsibleMockContext);
+    return (
+      <div
+        data-slot="collapsible-content"
+        data-state={open ? "open" : "closed"}
+      >
+        {children}
+      </div>
+    );
+  },
+  CollapsibleTrigger: function CollapsibleTrigger({
+    children,
+  }: {
+    children: ReactNode;
+  }) {
+    const { open, onOpenChange } = use(CollapsibleMockContext);
+    return (
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => onOpenChange?.(!open)}
+      >
+        {children}
+      </button>
+    );
+  },
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
@@ -266,6 +336,8 @@ export interface OrganizationChatListHarnessOptions {
   pendingInvitations?: ChatRoomInvitation[];
   organizationId?: string | null;
   paintOnly?: boolean;
+  /** As the sidebar mounts it; the phone's Chats page leaves it out. */
+  withChatsHeading?: boolean;
 }
 
 export function emptyListResult(rooms: ChatRoom[] = []) {
@@ -351,6 +423,7 @@ export function createOrganizationChatList({
   pendingInvitations,
   organizationId = "org-1",
   paintOnly = false,
+  withChatsHeading = false,
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
     <OrganizationChatList
@@ -362,6 +435,7 @@ export function createOrganizationChatList({
       isOrgOwnerOrAdmin={false}
       dismissSheetOnNavigate={false}
       paintOnly={paintOnly}
+      withChatsHeading={withChatsHeading}
     />
   );
 }

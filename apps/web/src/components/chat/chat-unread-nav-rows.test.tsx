@@ -11,7 +11,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
-import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
+import {
+  ChatUnreadNavRows,
+  ChatUnreadsFilterChip,
+} from "./chat-unread-nav-rows";
 
 const { markAllActionMock, notifyMock } = vi.hoisted(() => ({
   markAllActionMock: vi.fn(),
@@ -288,6 +291,32 @@ describe("ChatUnreadNavRows", () => {
     expect(container.querySelector('[data-slot="catch-up-count"]')).toBeNull();
   });
 
+  // In the sidebar the Chats heading carries the chip, so the row is a plain
+  // Sidebar row: Catch up, then its count. Nothing is drawn over its end, so
+  // nothing holds the label clear.
+  it("leaves the chip to the Chats heading when the row is not given the toggle", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatUnreadNavRows
+          rooms={[makeRoom({ id: "a", unreadNeedsYouCount: 3 })]}
+          dismissSheetOnNavigate={false}
+          unreadOnly={false}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Unreads" })).toBeNull();
+    expect(
+      container.querySelector('[data-slot="catch-up-end-spacer"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-slot="catch-up-count"]'),
+    ).toHaveTextContent("3");
+    expect(catchUpRow()).toHaveAccessibleName(
+      /^Catch up.*3 messages need you$/,
+    );
+  });
+
   it("marks the entry the reader is on", () => {
     sidebarMock.isMobile = true;
     navigation.pathname = "/chat/catch-up";
@@ -412,6 +441,34 @@ describe("ChatUnreadNavRows", () => {
       );
       input.remove();
       expect(onUnreadOnlyChange).not.toHaveBeenCalled();
+    });
+
+    // The chip on its own, as the Chats heading mounts it, keeps the same
+    // keyboard path.
+    it("binds the shortcut on the chip the Chats heading carries", async () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
+      const onUnreadOnlyChange = vi.fn();
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <ChatUnreadsFilterChip
+            unreadOnly
+            onUnreadOnlyChange={onUnreadOnlyChange}
+          />
+        </NextIntlClientProvider>,
+      );
+
+      const chip = screen.getByRole("button", { name: "Unreads" });
+      expect(chip).toHaveAttribute("aria-pressed", "true");
+      expect(chip).toHaveAttribute("aria-keyshortcuts", "Meta+Shift+U");
+      expect(chip).toHaveAttribute("title", "Unreads (⌘⇧U)");
+      expect(chip).toHaveAttribute("data-filter-on", "true");
+
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).toHaveBeenCalledWith(false);
+      await userEvent.click(chip);
+      expect(onUnreadOnlyChange).toHaveBeenLastCalledWith(false);
     });
 
     it("stays unbound below the mobile breakpoint", () => {

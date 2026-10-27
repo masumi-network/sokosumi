@@ -50,33 +50,22 @@ import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-targe
 const UNREADS_CHIP_CLASS =
   "text-muted-foreground border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex h-7 items-center rounded-full border px-2 text-xs font-medium whitespace-nowrap transition-colors before:absolute before:-inset-2 before:content-[''] md:h-6 md:before:-inset-0.5";
 
-interface ChatUnreadNavRowsProps {
-  /** The sidebar's live rooms. The row reads these and nothing of its own. */
-  rooms: readonly ChatRoom[];
-  /** When false, render plain links (page-mounted list outside a Sheet). */
-  dismissSheetOnNavigate?: boolean;
+interface ChatUnreadsFilterChipProps {
   /** The All unreads filter: the list below shows only rooms with unread. */
   unreadOnly: boolean;
   onUnreadOnlyChange: (unreadOnly: boolean) => void;
 }
 
 /**
- * One entry above the channel list for everything the reader missed: Catch
- * up opens the written overview and the unread Threads (tabs of one page).
- * Its count is what waits on the reader (the needs-you pill), else the
- * Threads mark: the `@` pill where a Thread names them, the muted count of
- * unread Threads otherwise. The Unreads chip at its end is the All unreads
- * filter on the list below (⌘⇧U); while it is on, Mark all as read stands
- * beside it.
+ * The All unreads filter's switch (⌘⇧U): the Unreads chip. The sidebar's
+ * Chats heading carries it; the phone's Chats page, which has no such
+ * heading, keeps it at the end of the Catch up row.
  */
-export function ChatUnreadNavRows({
-  rooms,
-  dismissSheetOnNavigate = true,
+export function ChatUnreadsFilterChip({
   unreadOnly,
   onUnreadOnlyChange,
-}: ChatUnreadNavRowsProps) {
+}: ChatUnreadsFilterChipProps) {
   const t = useTranslations("App.Channels.UnreadNav");
-  const pathname = usePathname();
   const { isMobile } = useSidebar();
   // The filter's keyboard path (SOK-1201), split by platform as every web
   // hotkey here is: ⌘⇧U on Apple, Ctrl+Shift+U elsewhere. Below the mobile
@@ -119,6 +108,62 @@ export function ChatUnreadNavRows({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showsShortcut, isApplePlatform]);
+
+  // A mode, not a place: on, it takes the primary tint the app uses for what
+  // is on. Before React reads the remembered filter, the boot script's mark
+  // tints it the same way.
+  return (
+    <button
+      type="button"
+      aria-pressed={unreadOnly}
+      aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
+      title={showsShortcut ? shortcutHint : t("allUnreads")}
+      data-filter-on={unreadOnly ? "true" : undefined}
+      onClick={toggleUnreadOnly}
+      className={cn(
+        UNREADS_CHIP_CLASS,
+        unreadOnly
+          ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant active:bg-primary-quaternary"
+          : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant",
+      )}
+    >
+      {t("allUnreads")}
+    </button>
+  );
+}
+
+interface ChatUnreadNavRowsProps {
+  /** The sidebar's live rooms. The row reads these and nothing of its own. */
+  rooms: readonly ChatRoom[];
+  /** When false, render plain links (page-mounted list outside a Sheet). */
+  dismissSheetOnNavigate?: boolean;
+  /** The All unreads filter: the list below shows only rooms with unread. */
+  unreadOnly: boolean;
+  /**
+   * Given, the Unreads chip stands at this row's end: the phone's Chats page.
+   * Left out where the sidebar's Chats heading carries the chip.
+   */
+  onUnreadOnlyChange?: (unreadOnly: boolean) => void;
+}
+
+/**
+ * One entry for everything the reader missed, first under the Chats heading:
+ * Catch up opens the written overview and the unread Threads (tabs of one
+ * page). Its count is what waits on the reader (the needs-you pill), else the
+ * Threads mark: the `@` pill where a Thread names them, the muted count of
+ * unread Threads otherwise. While the All unreads filter is on, Mark all as
+ * read stands at its end in the count's place, beside the Unreads chip where
+ * the row carries it.
+ */
+export function ChatUnreadNavRows({
+  rooms,
+  dismissSheetOnNavigate = true,
+  unreadOnly,
+  onUnreadOnlyChange,
+}: ChatUnreadNavRowsProps) {
+  const t = useTranslations("App.Channels.UnreadNav");
+  const pathname = usePathname();
+  const showsChip = onUnreadOnlyChange !== undefined;
 
   const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);
   const wrapLink = (link: ReactNode) =>
@@ -209,63 +254,61 @@ export function ChatUnreadNavRows({
               {/* Holds the label clear of the buttons drawn over the end: the
                   same boxes, unseen, so the hole is as wide as the chip's
                   word is in the reader's language. */}
-              <span
-                aria-hidden
-                data-slot="catch-up-end-spacer"
-                className="invisible flex shrink-0 items-center"
-              >
-                {showMarkAll ? (
-                  <span
-                    data-slot="catch-up-end-spacer-action"
-                    className="size-7"
-                  />
-                ) : null}
-                <span className={UNREADS_CHIP_CLASS}>{t("allUnreads")}</span>
-              </span>
+              {showMarkAll || showsChip ? (
+                <span
+                  aria-hidden
+                  data-slot="catch-up-end-spacer"
+                  className="invisible flex shrink-0 items-center"
+                >
+                  {showMarkAll ? (
+                    <span
+                      data-slot="catch-up-end-spacer-action"
+                      className="size-7"
+                    />
+                  ) : null}
+                  {showsChip ? (
+                    <span className={UNREADS_CHIP_CLASS}>
+                      {t("allUnreads")}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
             </Link>,
           )}
         </SidebarMenuButton>
-        <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
-          {showMarkAll ? (
-            <button
-              type="button"
-              aria-label={t("markAllRead")}
-              title={t("markAllRead")}
-              disabled={isMarking}
-              aria-busy={isMarking}
-              onClick={handleMarkAllRead}
-              className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-primary-variant")}
-            >
-              {isMarking ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
-                  aria-hidden
-                />
-              ) : (
-                <CheckCheck className="size-4 md:size-3.5" aria-hidden />
-              )}
-            </button>
-          ) : null}
-          {/* A mode, not a place: on, it takes the primary tint the app uses
-              for what is on. Before React reads the remembered filter, the
-              boot script's mark tints it the same way. */}
-          <button
-            type="button"
-            aria-pressed={unreadOnly}
-            aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
-            title={showsShortcut ? shortcutHint : t("allUnreads")}
-            data-filter-on={unreadOnly ? "true" : undefined}
-            onClick={toggleUnreadOnly}
-            className={cn(
-              UNREADS_CHIP_CLASS,
-              unreadOnly
-                ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant active:bg-primary-quaternary"
-                : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant",
-            )}
-          >
-            {t("allUnreads")}
-          </button>
-        </div>
+        {showMarkAll || showsChip ? (
+          <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
+            {showMarkAll ? (
+              <button
+                type="button"
+                aria-label={t("markAllRead")}
+                title={t("markAllRead")}
+                disabled={isMarking}
+                aria-busy={isMarking}
+                onClick={handleMarkAllRead}
+                className={cn(
+                  SIDEBAR_ICON_ACTION_CLASS,
+                  "text-primary-variant",
+                )}
+              >
+                {isMarking ? (
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
+                    aria-hidden
+                  />
+                ) : (
+                  <CheckCheck className="size-4 md:size-3.5" aria-hidden />
+                )}
+              </button>
+            ) : null}
+            {onUnreadOnlyChange ? (
+              <ChatUnreadsFilterChip
+                unreadOnly={unreadOnly}
+                onUnreadOnlyChange={onUnreadOnlyChange}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </SidebarMenuItem>
     </SidebarMenu>
   );

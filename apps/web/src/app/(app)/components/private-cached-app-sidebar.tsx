@@ -102,6 +102,7 @@ async function PrivateCachedSidebarRooms({
       currentUserId={userId}
       organizationId={activeOrganizationId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+      withChatsHeading
     />
   );
 }
