@@ -14,18 +14,10 @@ import {
 import mount from "./post";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
 }));
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUnique: m.workspace },
@@ -86,7 +78,6 @@ function preview(body: unknown = INPUT, authenticated = true) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
@@ -129,13 +120,6 @@ describe("POST newsletter issue preview", () => {
         workspaceId: NEWSLETTER_WORKSPACE_ID,
       },
     });
-  });
-
-  it("returns 404 before reading project data when disabled", async () => {
-    m.enabled = false;
-    expect((await preview()).status).toBe(404);
-    expect(m.project).not.toHaveBeenCalled();
-    expect(m.workspace).not.toHaveBeenCalled();
   });
 
   it.each([

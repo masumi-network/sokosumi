@@ -19,7 +19,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/availability",
     tags: ["Newsletter"],
     description:
-      "Read newsletter availability for the current workspace, including when newsletters are disabled.",
+      "Read newsletter availability for the current workspace. Newsletters are available only in workspaces of the beta (utxo) organization.",
     responses: {
       200: jsonSuccessResponse(availabilitySchema, "Newsletter availability"),
       401: jsonErrorResponse("Unauthorized"),
