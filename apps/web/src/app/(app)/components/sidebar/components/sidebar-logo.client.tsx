@@ -5,8 +5,12 @@ import Link from "next/link";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
+interface SidebarLogoProps {
+  className?: string;
+}
+
 /** The phone sheet's wordmark; on desktop the Workspace switcher holds its place. */
-export default function SidebarLogo({ className }: { className?: string }) {
+export default function SidebarLogo({ className }: SidebarLogoProps) {
   return (
     <div className={cn("flex h-8 items-center pl-2", className)}>
       <Link href="/" className="hover:opacity-80 transition-opacity">

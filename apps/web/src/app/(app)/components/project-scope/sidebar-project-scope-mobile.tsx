@@ -39,8 +39,9 @@ import {
 } from "./sidebar-project-scope-state";
 
 /**
- * The current scope as a name and a mark, for any trigger. The mark's glyph
- * names no size: the trigger's box gives it one.
+ * The current scope as a name and a mark. The sidebar's title shows the name
+ * alone; the header chip shows both. The mark's glyph names no size: the
+ * chip's box gives it one.
  */
 export function useCurrentScope() {
   const t = useTranslations("App.ProjectScope");
@@ -108,8 +109,7 @@ export function SidebarScopeMobileChip() {
               onPointerDown={prefetch}
               className="h-11 max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent"
             >
-              {/* The sidebar row's slot sizes the mark's glyph; outside it,
-                  this box does. */}
+              {/* The mark's glyph names no size, so this box gives it one. */}
               <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
                 {mark}
               </span>

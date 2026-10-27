@@ -70,6 +70,8 @@ type NavGroup = (typeof NAV_GROUPS)[number];
 /** A page the nav leads to. Each one says which heading it sits under. */
 interface NavDestination extends MenuItemConfig {
   group: NavGroup;
+  /** Left off the phone sheet, which reaches the page another way. */
+  desktopOnly?: true;
 }
 
 /**
@@ -109,19 +111,16 @@ function ScopedMenuItems({
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
 
-  const destinations: NavDestination[] = [
-    // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
-    ...(!isMobile
-      ? [
-          {
-            key: "home",
-            href: "/",
-            label: t("home"),
-            Icon: House,
-            group: "work",
-          } satisfies NavDestination,
-        ]
-      : []),
+  const allDestinations: NavDestination[] = [
+    // The phone's top bar leads to Home from its Sokosumi icon.
+    {
+      key: "home",
+      href: "/",
+      label: t("home"),
+      Icon: House,
+      group: "work",
+      desktopOnly: true,
+    },
     {
       key: "explore-agents",
       href: "/agents",
@@ -197,20 +196,20 @@ function ScopedMenuItems({
           } satisfies NavDestination,
         ]
       : []),
-    // Desktop only: mobile keeps Files on the You page account surface.
-    ...(!isMobile
-      ? [
-          {
-            key: "drive",
-            href: "/drive",
-            label: t("drive"),
-            Icon: HardDrive,
-            feature: AnnouncedFeature.DRIVE,
-            group: "records",
-          } satisfies NavDestination,
-        ]
-      : []),
+    // The phone keeps Files on the You page account surface.
+    {
+      key: "drive",
+      href: "/drive",
+      label: t("drive"),
+      Icon: HardDrive,
+      feature: AnnouncedFeature.DRIVE,
+      group: "records",
+      desktopOnly: true,
+    },
   ];
+  const destinations = isMobile
+    ? allDestinations.filter(({ desktopOnly }) => !desktopOnly)
+    : allDestinations;
 
   function renderItem({ key, href, label, Icon, feature }: MenuItemConfig) {
     const isActive =
