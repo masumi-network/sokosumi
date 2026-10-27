@@ -31,6 +31,8 @@ vi.mock("@/app/social/components/social-calendar-preview", () => ({
 
 const item: SocialPostCalendarItem = {
   kind: "socialPost",
+  quotedPostId: null,
+  needsAttentionReason: null,
   threadPartCount: 1,
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
@@ -82,9 +84,54 @@ function renderCard(
 }
 
 describe("Social post calendar event", () => {
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows waiting on a due quote in %s (week: %s)",
+    (variant, showThumb) => {
+      renderCard(
+        { quotedPostId: "quoted-post", waitingForQuotedPost: true },
+        variant,
+        showThumb,
+      );
+      expect(screen.getByText("Waiting for the quoted post")).toBeVisible();
+      expect(
+        screen.getByTestId("social-post-status-SCHEDULED"),
+      ).toHaveTextContent("Waiting for the quoted post");
+      expect(
+        screen.getByRole(variant === "preview" ? "link" : "button", {
+          name: /Waiting for the quoted post/,
+        }),
+      ).toBeVisible();
+    },
+  );
   beforeEach(() => {
     openPreview.current = null;
   });
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows the quote indicator beside the thread indicator in %s (week: %s)",
+    (variant, showThumb) => {
+      renderCard(
+        { quotedPostId: "quoted-post", threadPartCount: 3 },
+        variant,
+        showThumb,
+      );
+      const quote = screen.getByTestId("social-post-quote-badge");
+      const thread = screen.getByTestId("social-post-thread-count");
+      expect(quote).toHaveTextContent("Quote");
+      expect(thread).toHaveTextContent("1/3");
+      expect(thread.nextElementSibling).toBe(quote);
+      expect(screen.getByTestId("calendar-social-post")).toHaveAccessibleName(
+        /Quote/,
+      );
+    },
+  );
   it.each([
     ["compact", false],
     ["compact", true],

@@ -827,6 +827,12 @@ model SocialPost {
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
   media        Json    @default("[]")
 
+  quotedPostId         String?      @db.Uuid
+  quotedPost           SocialPost?  @relation("SocialPostQuotes", fields: [quotedPostId], references: [id], onDelete: SetNull)
+  quotingPosts         SocialPost[] @relation("SocialPostQuotes")
+  /// Quote dependency failure. Retained by a SQL delete trigger when the FK is cleared.
+  needsAttentionReason String?
+
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
   /// IANA zone the scheduling human used. Display only.
@@ -878,6 +884,7 @@ model SocialPost {
   @@index([status, nextAttemptAt])
   @@index([workspaceId, scheduledAt])
   @@index([socialConnectionId])
+  @@index([quotedPostId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])

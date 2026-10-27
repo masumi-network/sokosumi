@@ -2647,6 +2647,7 @@
           "confirm": "Descartar"
         },
         "toasts": {
+          "movedQuotes": "También se {count, plural, one {movió # cita para que aparezca} other {movieron # citas para que aparezcan}} después de esta publicación",
           "created": "{count, plural, one {Borrador guardado.} other {# borradores guardados.}}",
           "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
@@ -2953,6 +2954,26 @@
           "confirmNotPosted": "No se publicó, continuar",
           "viewPart": "Ver la parte {part} en X",
           "retryDescription": "Solo se publicarán las partes restantes."
+        },
+        "quote": {
+          "label": "Cita",
+          "choose": "Citar una publicación",
+          "pickerDescription": "Elige una publicación de X de este proyecto para citarla.",
+          "search": "Buscar publicaciones",
+          "select": "Citar esta publicación",
+          "empty": "No se encontraron publicaciones. Prueba otra búsqueda o programa una publicación de X en este proyecto.",
+          "loadFailed": "No se pudieron cargar las publicaciones. Inténtalo de nuevo.",
+          "embedded": "Publicación citada",
+          "change": "Elegir otra publicación",
+          "remove": "Quitar cita",
+          "publishesAfter": "Se publicará después de la publicación citada ({time})",
+          "scheduleAfter": "Elige una hora posterior a la publicación citada ({time}).",
+          "scheduleTargetFirst": "Programa la publicación citada antes de programar esta cita.",
+          "postNowUnavailable": "La opción de publicar ahora estará disponible cuando se haya publicado la publicación citada.",
+          "onlyX": "Las citas solo están disponibles para cuentas de X. Quita la cita o selecciona únicamente cuentas de X.",
+          "failed": "No se pudo publicar la publicación citada",
+          "cancelled": "La publicación citada se canceló",
+          "waiting": "Esperando a la publicación citada"
         }
       },
       "Detail": {

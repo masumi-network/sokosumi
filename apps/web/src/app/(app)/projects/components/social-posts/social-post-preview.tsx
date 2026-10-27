@@ -43,6 +43,8 @@ interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
     publishedAt?: Date | null;
   }[];
   publishedExternalId?: string | null;
+  quotedPost?: SocialPost["quotedPost"];
+  embedded?: boolean;
 }
 
 /**
@@ -56,6 +58,8 @@ export function SocialPostPreview({
   className,
   threadParts = [],
   publishedExternalId,
+  quotedPost,
+  embedded,
   ...content
 }: SocialPostPreviewProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
@@ -72,6 +76,8 @@ export function SocialPostPreview({
         <>
           <XPreview
             {...content}
+            quotedPost={quotedPost}
+            embedded={embedded}
             threadContinues={threadParts.length > 0}
             publishedUrl={
               publishedExternalId
@@ -179,12 +185,17 @@ function XPreview({
   threadContinues,
   publishedUrl,
   publishedLabel,
+  quotedPost,
+  embedded,
 }: SocialPostPreviewContentProps & {
   threadContinues?: boolean;
   publishedUrl?: string;
   publishedLabel: string;
+  quotedPost?: SocialPost["quotedPost"];
+  embedded?: boolean;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
+  const quote = useTranslations("App.Projects.SocialPosts.quote");
   const name = accountName(account, t("accountFallback"));
   const handle = accountHandle(account);
   const time = usePreviewTime(timestamp, timestampLabel);
@@ -199,11 +210,19 @@ function XPreview({
 
   return (
     <div
-      className="flex gap-3 px-4 pt-3 pb-2"
+      className={cn(
+        embedded
+          ? "grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2 p-3"
+          : "flex gap-3 px-4 pt-3 pb-2",
+      )}
       data-testid="social-post-x-preview"
     >
-      <div className="relative w-10 shrink-0">
-        <PreviewAvatar account={account} name={name} className="size-10" />
+      <div className={cn("relative shrink-0", embedded ? "w-5" : "w-10")}>
+        <PreviewAvatar
+          account={account}
+          name={name}
+          className={embedded ? "size-5" : "size-10"}
+        />
         {threadContinues ? (
           <span
             aria-hidden
@@ -212,7 +231,7 @@ function XPreview({
           />
         ) : null}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className={cn("min-w-0 flex-1", embedded && "contents")}>
         <div className="flex min-w-0 items-start gap-1 leading-5">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1">
             <span className="min-w-0 truncate font-bold">{name}</span>
@@ -220,13 +239,20 @@ function XPreview({
               {handle ? `${handle} · ${time}` : time}
             </span>
           </div>
-          <MoreHorizontal
-            className="text-muted-foreground mt-0.5 size-4 shrink-0"
-            aria-hidden
-          />
+          {!embedded ? (
+            <MoreHorizontal
+              className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              aria-hidden
+            />
+          ) : null}
         </div>
         {text ? (
-          <p className="mt-0.5 leading-5 whitespace-pre-wrap break-words">
+          <p
+            className={cn(
+              "mt-0.5 leading-5 whitespace-pre-wrap break-words",
+              embedded && "col-span-2",
+            )}
+          >
             <PreviewRichText
               text={visibleText}
               linkClassName="text-social-x-link"
@@ -249,8 +275,34 @@ function XPreview({
         <PreviewMediaGrid
           compact={compact}
           media={media}
-          className="mt-3 rounded-2xl border"
+          className={cn("mt-3 rounded-2xl border", embedded && "col-span-2")}
         />
+        {quotedPost ? (
+          <div
+            className="mt-3"
+            role="group"
+            aria-label={quote("embedded")}
+            data-testid="social-post-quoted-preview"
+          >
+            <SocialPostPreview
+              provider="x"
+              embedded
+              account={
+                quotedPost.account
+                  ? {
+                      handle: quotedPost.account.externalHandle,
+                      displayName: quotedPost.account.displayName,
+                      avatarUrl: quotedPost.account.avatarUrl,
+                    }
+                  : null
+              }
+              text={quotedPost.text}
+              media={quotedPost.media}
+              timestamp={quotedPost.scheduledAt}
+              compact={compact}
+            />
+          </div>
+        ) : null}
         {publishedUrl ? (
           <a
             className="text-primary mt-2 inline-flex min-h-10 items-center gap-1 text-xs underline-offset-4 hover:underline"
@@ -262,18 +314,20 @@ function XPreview({
             <ExternalLink className="size-3" />
           </a>
         ) : null}
-        <div
-          aria-hidden
-          className="text-muted-foreground mt-3 flex items-center justify-between pe-8"
-        >
-          {actions.map(({ Icon, key }) => (
-            <Icon key={key} className="size-4" />
-          ))}
-          <span className="flex gap-3">
-            <Bookmark className="size-4" />
-            <Share className="size-4" />
-          </span>
-        </div>
+        {!embedded ? (
+          <div
+            aria-hidden
+            className="text-muted-foreground mt-3 flex items-center justify-between pe-8"
+          >
+            {actions.map(({ Icon, key }) => (
+              <Icon key={key} className="size-4" />
+            ))}
+            <span className="flex gap-3">
+              <Bookmark className="size-4" />
+              <Share className="size-4" />
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

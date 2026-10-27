@@ -81,6 +81,7 @@ import {
   duplicateProjectSocialPost,
   publishProjectSocialPost,
   resumeProjectSocialPostThread,
+  updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import {
@@ -105,7 +106,13 @@ import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
+import { SocialPostPreviewFailure } from "./social-post-preview-failure";
 import { publishFailureCopy } from "./social-post-publish-failure";
+import {
+  SocialPostQuoteBadge,
+  socialPostQuoteAttentionCopy,
+  useReportMovedSocialPostQuotes,
+} from "./social-post-quote";
 import { SocialPostStatistics } from "./social-post-statistics";
 import { SocialPostThreadBadge } from "./social-post-thread-badge";
 import { getSocialReconnections } from "./social-reconnection";
@@ -314,6 +321,7 @@ export function ProjectSocialPosts({
   const router = useRouter();
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
   const formatter = useFormatter();
   const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
@@ -449,6 +457,7 @@ export function ProjectSocialPosts({
             remaining.push(target);
           } else {
             setPosts((current) => upsertPost(current, result.value));
+            reportMovedQuotes(result.value);
             if (result.value.status !== "PUBLISHED") {
               remaining.push(result.value);
               toast.error(
@@ -542,6 +551,13 @@ export function ProjectSocialPosts({
     }
     if (isTimeoutRejection(cause)) {
       toast.error(t("toasts.timeout"));
+      return;
+    }
+    if (error.status === 409) {
+      toast.error(error.message || t("toasts.failed"), {
+        duration: Infinity,
+        closeButton: true,
+      });
       return;
     }
     toast.error(error.message || t("toasts.failed"));
@@ -681,6 +697,7 @@ export function ProjectSocialPosts({
       }
       const post = result.value;
       handleSaved(post);
+      reportMovedQuotes(post);
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
       } else if (post.lastError || post.lastAttempt?.errorKind) {
@@ -797,7 +814,9 @@ export function ProjectSocialPosts({
     setSelectedRetryIds(new Set());
     setBulkRetryResults(results);
     setBulkRetryPending(false);
-    if (sawConflict) router.refresh();
+    const movedQuotes = updated.flatMap((post) => post.movedQuotes ?? []);
+    reportMovedQuotes({ movedQuotes });
+    if (sawConflict || movedQuotes.length > 0) router.refresh();
   }
 
   async function handleApprove(post: SocialPost): Promise<void> {
@@ -845,6 +864,28 @@ export function ProjectSocialPosts({
     }
   }
 
+  async function handleRemoveQuote(post: SocialPost): Promise<void> {
+    setActionPendingPostId(post.id);
+    try {
+      const result = await updateProjectSocialPost({
+        projectId,
+        postId: post.id,
+        quotedPostId: null,
+        revision: post.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.updated"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
   function renderPostActions(post: SocialPost, preview = false) {
     const providerEnabled = isProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
@@ -867,6 +908,32 @@ export function ProjectSocialPosts({
         className="ms-auto flex flex-wrap items-center gap-2"
         data-testid={preview ? `social-post-${post.id}` : undefined}
       >
+        {post.needsAttentionReason && post.canEdit ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-h-11 whitespace-normal md:min-h-10"
+              disabled={Boolean(actionPendingPostId)}
+              onClick={() => {
+                if (preview) setPreviewOpen(false);
+                setComposer({ kind: "edit", post, chooseQuote: true });
+              }}
+            >
+              {t("quote.change")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 md:min-h-10"
+              disabled={Boolean(actionPendingPostId)}
+              loading={actionPendingPostId === post.id}
+              onClick={() => void handleRemoveQuote(post)}
+            >
+              {t("quote.remove")}
+            </Button>
+          </>
+        ) : null}
         {!preview ? (
           <Button
             type="button"
@@ -1046,7 +1113,9 @@ export function ProjectSocialPosts({
 
   function renderDraft(post: SocialPost) {
     const showStatus =
-      post.status === "PUBLISHING" || post.status === "NEEDS_APPROVAL";
+      post.waitingForQuotedPost ||
+      post.status === "PUBLISHING" ||
+      post.status === "NEEDS_APPROVAL";
 
     function openPreview() {
       setPreviewTarget(post);
@@ -1064,23 +1133,33 @@ export function ProjectSocialPosts({
           account={previewAccountFor(post, connections)}
           compact
           media={post.media}
+          quotedPost={post.quotedPost}
           onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
           timestamp={null}
         />
-        {post.threadPartCount > 1 || showStatus ? (
+        {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
             {showStatus ? (
               <SocialPostStatusBadge
-                label={t(`status.${post.status}`)}
+                label={t(
+                  post.waitingForQuotedPost
+                    ? "quote.waiting"
+                    : `status.${post.status}`,
+                )}
+                waitingForQuotedPost={post.waitingForQuotedPost}
                 status={post.status}
               />
             ) : null}
             <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
           </div>
         ) : null}
         {renderReconnectWarning(post)}
+        {post.needsAttentionReason ? (
+          <SocialPostPreviewFailure post={post} />
+        ) : null}
         <div className="mt-auto">{renderPostActions(post)}</div>
       </li>
     );
@@ -1098,8 +1177,9 @@ export function ProjectSocialPosts({
     const failedAt = post.lastAttempt?.finishedAt ?? null;
     const leadingAt =
       post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
-    const failureReason =
-      post.status === "FAILED" || post.status === "MISSED"
+    const failureReason = post.needsAttentionReason
+      ? socialPostQuoteAttentionCopy(post.needsAttentionReason, t)
+      : post.status === "FAILED" || post.status === "MISSED"
         ? publishFailureCopy(
             post,
             t,
@@ -1141,12 +1221,16 @@ export function ProjectSocialPosts({
               label={t(
                 post.partiallyPublished
                   ? "thread.partlyPosted"
-                  : `status.${post.status}`,
+                  : post.waitingForQuotedPost
+                    ? "quote.waiting"
+                    : `status.${post.status}`,
               )}
               partiallyPublished={post.partiallyPublished}
+              waitingForQuotedPost={post.waitingForQuotedPost}
               status={post.status}
             />
             <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
             {leadingAt ? (
               <time
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
@@ -1206,7 +1290,9 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {(post.status === "FAILED" || post.status === "MISSED") &&
+          {(post.needsAttentionReason ||
+            post.status === "FAILED" ||
+            post.status === "MISSED") &&
           (failureReason || failedAt) ? (
             <div className="space-y-0.5 text-xs">
               {failureReason ? (

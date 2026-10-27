@@ -64,6 +64,7 @@ import {
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
+import { useReportMovedSocialPostQuotes } from "@/app/projects/components/social-posts/social-post-quote";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
@@ -596,6 +597,7 @@ function CalendarView({
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
   const reportSocialRescheduleFailure = useReportSocialRescheduleFailure();
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<
@@ -674,6 +676,7 @@ function CalendarView({
           reportSocialRescheduleFailure(result.error);
           return;
         }
+        reportMovedQuotes(result.value);
         router.refresh();
       } catch {
         clearPendingMove(item.id);
