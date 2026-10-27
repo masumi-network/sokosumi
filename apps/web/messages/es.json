@@ -8708,6 +8708,7 @@
       "previous": "Periodo anterior",
       "next": "Periodo siguiente",
       "today": "Hoy",
+      "weekNumber": "Semana {week}",
       "view": {
         "month": "Mes",
         "week": "Semana",
@@ -8790,7 +8791,28 @@
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
         "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}",
-        "platform": "Plataforma"
+        "platform": "Plataforma",
+        "more": "+{count} más",
+        "moreHint": "Mostrar {count, plural, one {# publicación más} other {# publicaciones más}} de este día",
+        "newOnDay": "Nueva publicación el {date}",
+        "newPost": "Nueva publicación",
+        "dragHint": "Arrastra a otro día para reprogramar.",
+        "dayEmpty": "No hay nada programado este día.",
+        "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "statusFilter": "Mostrar publicaciones por estado",
+        "postCount": "{count, plural, =0 {Sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "dayAttention": "{count, plural, one {# requiere atención} other {# requieren atención}}",
+        "reschedule": "Reprogramar",
+        "rescheduleNamed": "Reprogramar la publicación de las {time}: {text}"
+      },
+      "socialMove": {
+        "title": "Reprogramar publicación",
+        "description": "Elige una nueva fecha y hora. Las horas están en {zone}.",
+        "label": "Nueva fecha y hora",
+        "confirm": "Reprogramar",
+        "cancel": "Cancelar",
+        "invalid": "Elige una fecha y hora válidas.",
+        "past": "Elige una hora en el futuro."
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"

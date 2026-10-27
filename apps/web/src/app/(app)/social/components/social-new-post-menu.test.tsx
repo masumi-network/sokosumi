@@ -7,6 +7,8 @@ import messages from "@/../messages/en.json";
 const mocks = vi.hoisted(() => ({
   setOpen: vi.fn(),
   push: vi.fn(),
+  compose: { open: false, scheduledAt: null as string | null },
+  onSelect: { current: null as null | ((projectId: string) => void) },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -14,7 +16,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("./social-compose-context", () => ({
-  useSocialCompose: () => ({ open: false, setOpen: mocks.setOpen }),
+  useSocialCompose: () => ({ ...mocks.compose, setOpen: mocks.setOpen }),
 }));
 
 vi.mock("@/app/chat/actions", () => ({
@@ -22,7 +24,10 @@ vi.mock("@/app/chat/actions", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
-  ProjectScopeMenu: () => <div data-testid="project-scope-menu" />,
+  ProjectScopeMenu: (props: { onSelect: (projectId: string) => void }) => {
+    mocks.onSelect.current = props.onSelect;
+    return <div data-testid="project-scope-menu" />;
+  },
 }));
 
 import { SocialNewPostMenu } from "./social-new-post-menu";
@@ -38,7 +43,10 @@ function setup() {
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.compose = { open: false, scheduledAt: null };
+});
 
 describe("SocialNewPostMenu", () => {
   it("gives New post a 40px desktop target and 44px menu rows", async () => {
@@ -56,5 +64,24 @@ describe("SocialNewPostMenu", () => {
     expect(
       screen.getByRole("menuitem", { name: /Post with Soko Bot/ }),
     ).toHaveClass("min-h-11");
+  });
+
+  it("turns a calendar day's request into a project pick that keeps the day", async () => {
+    const user = userEvent.setup();
+    mocks.compose = { open: true, scheduledAt: "2030-01-16T09:00" };
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SocialNewPostMenu project={null} sokoBotId="bot-1" />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByTestId("project-scope-menu")).toBeInTheDocument();
+    mocks.onSelect.current?.("p2");
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/social?projectId=p2&compose=new&composeAt=2030-01-16T09%3A00",
+    );
+
+    await user.keyboard("{Escape}");
+    expect(mocks.setOpen).toHaveBeenCalledWith(false);
   });
 });

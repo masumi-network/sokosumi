@@ -8708,6 +8708,7 @@
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
       "today": "Heute",
+      "weekNumber": "Kalenderwoche {week}",
       "view": {
         "month": "Monat",
         "week": "Woche",
@@ -8790,7 +8791,28 @@
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
-        "platform": "Plattform"
+        "platform": "Plattform",
+        "more": "+{count} weitere",
+        "moreHint": "{count, plural, one {# weiteren Beitrag} other {# weitere Beiträge}} an diesem Tag anzeigen",
+        "newOnDay": "Neuer Beitrag am {date}",
+        "newPost": "Neuer Beitrag",
+        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen.",
+        "dayEmpty": "An diesem Tag ist nichts geplant.",
+        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "statusFilter": "Beiträge nach Status anzeigen",
+        "postCount": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "dayAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
+        "reschedule": "Neu planen",
+        "rescheduleNamed": "Beitrag um {time} neu planen: {text}"
+      },
+      "socialMove": {
+        "title": "Beitrag neu planen",
+        "description": "Wähle ein neues Datum und eine neue Uhrzeit. Zeiten in {zone}.",
+        "label": "Neues Datum und Uhrzeit",
+        "confirm": "Neu planen",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+        "past": "Wähle einen Zeitpunkt in der Zukunft."
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
