@@ -35,6 +35,8 @@ vi.mock("next/link", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({ relativeTime: () => "2h ago" }),
+  useNow: () => new Date(),
 }));
 
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
@@ -70,7 +72,7 @@ vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async () => ({ rooms: [], nextCursor: null }),
 }));
 
-import type { ChatRoomInvitation } from "@sokosumi/core-client";
+import { type ChatRoomInvitation, SokoBotStatus } from "@sokosumi/core-client";
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { SidebarChatListSkeleton } from "@/app/components/sidebar/components/sidebar-chat-list-skeleton";
@@ -121,7 +123,15 @@ function renderSidebar() {
         <Sidebar>
           <SidebarContent>
             <PersonalAssistantNav
-              bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
+              bot={{
+                id: "bot-1",
+                imageUrl: null,
+                seed: "seed",
+                name: "Mo",
+                status: SokoBotStatus.RUNNING,
+                lastActivityAt: null,
+                isYours: true,
+              }}
             />
             <MenuItems />
             <OrganizationChatList

@@ -2,12 +2,17 @@ import { render, screen } from "@testing-library/react";
 import { cloneElement, isValidElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+const { pathnameRef, relativeTime } = vi.hoisted(() => ({
+  pathnameRef: { current: "/" },
+  relativeTime: vi.fn(() => "2h ago"),
 }));
 
-const { pathnameRef } = vi.hoisted(() => ({
-  pathnameRef: { current: "/" },
+// Values show up in the text, so a test can tell "Active {time}" got its time.
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key}(${Object.values(values).join(",")})` : key,
+  useFormatter: () => ({ relativeTime }),
+  useNow: () => NOW,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -53,12 +58,25 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
+import { SokoBotStatus } from "@sokosumi/core-client";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
-import PersonalAssistantNav from "./personal-assistant-nav.client";
+import PersonalAssistantNav, {
+  type SidebarSokoBotLive,
+} from "./personal-assistant-nav.client";
 
-const bot = { id: "bot-1", imageUrl: "https://example.com/1.png", seed: "a" };
+const NOW = new Date("2026-10-27T12:00:00Z");
+
+const bot: SidebarSokoBotLive = {
+  id: "bot-1",
+  imageUrl: "https://example.com/1.png",
+  seed: "a",
+  name: "Mo",
+  status: SokoBotStatus.IDLE,
+  lastActivityAt: null,
+  isYours: true,
+};
 
 function tokens(className: string): string[] {
   return className.split(/\s+/).filter(Boolean);
@@ -83,7 +101,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   });
 
   it("takes the row primitive's height rather than a card's", () => {
-    renderNav({ bot });
+    renderNav();
     const button = screen.getByRole("link", { name: "sokoBot" });
 
     expect(tokens(button?.className ?? "")).toEqual(
@@ -115,7 +133,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   });
 
   it("links the named row to the team's Soko Bots", () => {
-    renderNav({ bot });
+    renderNav();
     expect(screen.getByRole("link", { name: "sokoBot" })).toHaveAttribute(
       "href",
       SOKO_BOTS_ROUTE,
@@ -123,7 +141,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   });
 });
 
-describe("PersonalAssistantNav current destination", () => {
+describe("PersonalAssistantNav static entry current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     pathnameRef.current = "/";
@@ -135,18 +153,125 @@ describe("PersonalAssistantNav current destination", () => {
 
   it("marks the row when the reader is on Soko Bots", () => {
     pathnameRef.current = SOKO_BOTS_ROUTE;
-    renderNav({ bot });
+    renderNav();
     expect(link()).toHaveAttribute("aria-current", "page");
   });
 
   it("marks the row from a personal-assistant page too", () => {
     pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
-    renderNav({ bot });
+    renderNav();
     expect(link()).toHaveAttribute("aria-current", "page");
   });
 
   it("marks nothing on a route it does not own", () => {
-    renderNav({ bot });
+    renderNav();
     expect(link()).not.toHaveAttribute("aria-current");
+  });
+});
+
+/**
+ * With the team's bot data the entry is a live two-line row: the bot's face
+ * with a status dot, its name, and a line saying what it is doing.
+ */
+describe("PersonalAssistantNav live Soko Bot row", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+  });
+
+  function row(name: RegExp = /Mo/) {
+    return screen.getByRole("link", { name });
+  }
+
+  it("names the row after the bot", () => {
+    renderNav({ bot });
+    expect(row()).toHaveTextContent("Mo");
+  });
+
+  it("falls back to Soko Bot when the bot has no name", () => {
+    renderNav({ bot: { ...bot, name: null } });
+    expect(row(/fallbackName/)).toBeInTheDocument();
+  });
+
+  it("says a running bot is working now, with a pulsing ring", () => {
+    renderNav({ bot: { ...bot, status: SokoBotStatus.RUNNING } });
+    expect(row()).toHaveAccessibleName(/workingNow/);
+    expect(screen.getByTestId("soko-bot-pulse")).toBeInTheDocument();
+  });
+
+  it("holds the pulse still under reduced motion", () => {
+    renderNav({ bot: { ...bot, status: SokoBotStatus.RUNNING } });
+    const tokens = screen.getByTestId("soko-bot-pulse").className.split(/\s+/);
+    // Animated only with motion allowed; no unconditional animation.
+    expect(tokens).toContain("motion-safe:animate-ping");
+    expect(tokens).not.toContain("animate-ping");
+  });
+
+  it.each([
+    [SokoBotStatus.PAUSED, /paused/],
+    [SokoBotStatus.ERROR, /needsAttention/],
+    [SokoBotStatus.IDLE, /ready/],
+  ])("gives a %s bot its status line and no pulse", (status, line) => {
+    renderNav({ bot: { ...bot, status } });
+    expect(row()).toHaveAccessibleName(line);
+    expect(screen.queryByTestId("soko-bot-pulse")).toBeNull();
+  });
+
+  it("says when an idle bot was last active, in the reader's locale", () => {
+    const lastActivityAt = new Date("2026-10-27T10:00:00Z");
+    renderNav({ bot: { ...bot, lastActivityAt } });
+
+    expect(row()).toHaveAccessibleName(/activeAgo\(2h ago\)/);
+    expect(relativeTime).toHaveBeenCalledWith(lastActivityAt, {
+      now: NOW,
+      style: "narrow",
+    });
+  });
+
+  it("opens your own bot", () => {
+    renderNav({ bot });
+    expect(row()).toHaveAttribute("href", SOKO_BOT_ROUTE);
+  });
+
+  it("opens the team's Soko Bots when the bot is a teammate's", () => {
+    renderNav({ bot: { ...bot, isYours: false } });
+    expect(row()).toHaveAttribute("href", SOKO_BOTS_ROUTE);
+  });
+
+  it("marks the row while its bot is open", () => {
+    pathnameRef.current = SOKO_BOT_ROUTE;
+    renderNav({ bot });
+    expect(row()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("does not mark your bot's row on the team page", () => {
+    pathnameRef.current = SOKO_BOTS_ROUTE;
+    renderNav({ bot });
+    expect(row()).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("marks a teammate's row on the team page", () => {
+    pathnameRef.current = SOKO_BOTS_ROUTE;
+    renderNav({ bot: { ...bot, isYours: false } });
+    expect(row()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("offers the team's Soko Bots from a people icon at the end", () => {
+    renderNav({ bot });
+    expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
+      "href",
+      SOKO_BOTS_ROUTE,
+    );
+  });
+
+  it("covers both lines with one pressable row", () => {
+    renderNav({ bot });
+    const tokens = row().className.split(/\s+/);
+    expect(row()).toHaveAttribute("data-slot", "sidebar-menu-button");
+    expect(tokens).toEqual(expect.arrayContaining(["h-auto", "md:min-h-8"]));
   });
 });
