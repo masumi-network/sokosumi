@@ -110,9 +110,14 @@ jobs:
         uses: ./.github/actions/playwright
 
       # Fails rather than saving a cache that would not spare the mirror.
+      # apt leaves its `lock` and `partial/` readable by root only, which
+      # the save's tar cannot open, so they go and the rest is the runner's.
       - name: Check apt kept the packages
         if: steps.playwright.outputs.cache-hit != 'true'
-        run: test -n "$(find "$HOME/.cache/playwright-apt" -maxdepth 1 -name '*.deb' -print -quit)"
+        run: |
+          test -n "$(find "$HOME/.cache/playwright-apt" -maxdepth 1 -name '*.deb' -print -quit)"
+          sudo rm -rf "$HOME/.cache/playwright-apt/lock" "$HOME/.cache/playwright-apt/partial"
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/playwright-apt"
 
       - name: Save Playwright cache
         if: steps.playwright.outputs.cache-hit != 'true'
@@ -121,11 +126,15 @@ jobs:
           path: ${{ steps.playwright.outputs.paths }}
           key: ${{ steps.playwright.outputs.key }}
 
+      # actions/cache/save only warns when it fails, so this checks the
+      # entry exists before deleting the older ones.
       - name: Delete superseded Playwright caches
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: >-
-          gh cache list --ref "$GITHUB_REF" --key js-playwright- --sort created_at
-          --order desc --limit 100 --json id --jq '.[1:][].id'
-          | xargs -r -n1 gh cache delete
+          KEY: ${{ steps.playwright.outputs.key }}
+        run: |
+          test "$(gh cache list --ref "$GITHUB_REF" --key "$KEY" --json key --jq length)" -gt 0
+          gh cache list --ref "$GITHUB_REF" --key js-playwright- --sort created_at \
+            --order desc --limit 100 --json id --jq '.[1:][].id' \
+            | xargs -r -n1 gh cache delete
