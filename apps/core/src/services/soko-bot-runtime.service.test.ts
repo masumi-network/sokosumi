@@ -6443,6 +6443,7 @@ describe("Soko Bot project social tools", () => {
         displayName: "Launch channel",
         avatarUrl: null,
         subscriptionType: null,
+        accountType: null,
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,
