@@ -3484,7 +3484,7 @@ export class SokoBotRuntimeService {
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       const task = await tx.task.findFirst({
         where: {
@@ -3616,7 +3616,7 @@ export class SokoBotRuntimeService {
         : { allowed: true, claimId: null };
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       const task = await tx.task.findFirst({
         where: {
@@ -3971,7 +3971,7 @@ export class SokoBotRuntimeService {
         : { allowed: true, claimId: null };
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       if (approved) {
         await tx.sokoBotToolCall.upsert({
@@ -4115,7 +4115,7 @@ export class SokoBotRuntimeService {
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       if (approved) {
         await tx.sokoBotToolCall.upsert({
@@ -4356,7 +4356,7 @@ export class SokoBotRuntimeService {
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       if (approved) {
         await tx.sokoBotToolCall.upsert({
@@ -4591,7 +4591,10 @@ export class SokoBotRuntimeService {
     let markdown: string;
     try {
       markdown = renderSokoBotMemory(
-        parseSokoBotMemory(input.markdown, { secretHandling: "reject" }),
+        parseSokoBotMemory(input.markdown, {
+          secretHandling: "reject",
+          unknownSections: "reject",
+        }),
       );
     } catch (error) {
       throw new SokoBotRuntimeValidationError(

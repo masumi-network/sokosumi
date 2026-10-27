@@ -81,7 +81,7 @@ Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
 1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
 2. If the fixture works: UI Enter-submit. Cookie bootstrap runs **only if UI fails**, not as a second step on success.
-3. If the fixture fails: the harness types the vault profile's username on step 1, then `agent-browser auth login sokosumi --no-navigate` with `[data-testid="auth-field-username"]` / `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
+3. If the fixture fails: the harness fills the vault profile's email into `[data-testid="auth-field-email"]` on step 1, then `agent-browser auth login sokosumi --no-navigate` fills the hidden `[data-testid="auth-field-username"]` and `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
@@ -192,7 +192,7 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
 - `/agents` stacks the Coworker gallery above an Agent catalog (`Browse all agents` when catalog data is present). Empty coworker data omits the whole gallery tier (hero included); the catalog stays independent. App Hire stays off. Cookie **Accept all** covers lower catalog cards until dismissed.
 - Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop (`md+`) `/chat` redirects to `/`; mobile may keep `/chat`.
-- Desktop main nav (after Agents / Tasks): **Schedules**, **Content Studio**, **Files** (`/drive`). **Calendar** is the **Calendar** tab on `/tasks` (`/calendar` redirects there) — not a sidebar row and not on the You page. **Credit history** is `/history` via the account menu / You page, not a sidebar row. **Social** is a sidebar row only when the org has social beta (`socialMenuEnabled`). **Projects** is not a desktop sidebar row — open `/projects` directly (or ProjectScope **Manage projects**). Mobile keeps Files on the You page, not the sidebar.
+- Desktop main nav: **Soko Bots**, **New task**, **Agents**, **Tasks**, **Schedules**, **Contacts**, **Content Studio**, **Social Scheduling**, **Files** (`/drive`). **Ads** (`/ads`) is an extra row only when social beta is on (`socialBetaEnabled`); Social Scheduling is always on. **Calendar** is the **Calendar** tab on `/tasks` (`/calendar` redirects there) — not a sidebar row and not on the You page. **Credit history** is `/history` via the account menu / You page, not a sidebar row. **Projects** is not a desktop sidebar row — open `/projects` directly (or ProjectScope **Manage projects**). Mobile keeps Files on the You page, not the sidebar.
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)

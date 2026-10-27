@@ -1622,7 +1622,7 @@ struct WorkspaceRealtimeTests {
     #expect(fake.typingLog == ["watch \(roomA)"])
     state.applyTypingChannel(roomId: roomA, canPublish: true)
     state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(1))
-    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(5))
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(3))
     // Only the open room's composer announces.
     state.composerEdited(roomId: roomB, hasText: true, now: typingOrigin.addingTimeInterval(6))
     state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(11))

@@ -2664,7 +2664,8 @@
           "publishFailed": "Publishing failed: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
-          "duplicated": "Draft created."
+          "duplicated": "Draft created.",
+          "approved": "Post approved."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -2676,7 +2677,8 @@
           "publishNow": "Post now",
           "retry": "Retry",
           "dismiss": "Dismiss",
-          "duplicate": "Duplicate as draft"
+          "duplicate": "Duplicate as draft",
+          "approve": "Approve"
         },
         "publishDialog": {
           "title": "Post this now?",
@@ -2929,7 +2931,30 @@
           "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
           "later": "Later"
         },
-        "moreActions": "Post actions"
+        "moreActions": "Post actions",
+        "thread": {
+          "add": "Add to thread",
+          "limit": "Threads can have up to {max} parts.",
+          "part": "Part {part}",
+          "text": "Part {part} text",
+          "position": "{part}/{total}",
+          "positionLabel": "Part {part} of {total}",
+          "moveUp": "Move part {part} up",
+          "moveDown": "Move part {part} down",
+          "remove": "Remove part {part}",
+          "onlyX": "Thread parts are only supported for X accounts. Deselect other accounts or remove the extra parts.",
+          "empty": "Part {part} is empty. Add text or media.",
+          "tooLong": "Part {part} is over the limit.",
+          "mediaInvalid": "Part {part}: {error}",
+          "partlyPosted": "Partly posted",
+          "progress": "Partly posted: {published} of {total} parts posted.",
+          "failedPart": "Part {part} failed.",
+          "retry": "Retry remaining parts",
+          "outcomeUnknown": "We couldn’t confirm whether part {part} was posted. Check X, then confirm it was not posted to continue, or leave it.",
+          "confirmNotPosted": "It was not posted, continue",
+          "viewPart": "View part {part} on X",
+          "retryDescription": "Only the remaining parts will be posted."
+        }
       },
       "Detail": {
         "back": "Back to projects",

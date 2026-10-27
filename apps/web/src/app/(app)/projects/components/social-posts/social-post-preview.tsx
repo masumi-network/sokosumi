@@ -5,6 +5,7 @@ import { socialPostProviderLabel, splitYouTubePostText } from "@sokosumi/utils";
 import {
   BarChart2,
   Bookmark,
+  ExternalLink,
   Globe,
   Heart,
   MessageCircle,
@@ -33,6 +34,14 @@ import {
 interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
   provider: SocialPost["provider"];
   className?: string;
+  threadParts?: readonly {
+    id: string;
+    text: string;
+    media: SocialPost["media"];
+    externalPostId?: string | null;
+    publishedAt?: Date | null;
+  }[];
+  publishedExternalId?: string | null;
 }
 
 /**
@@ -44,9 +53,12 @@ interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
 export function SocialPostPreview({
   provider,
   className,
+  threadParts = [],
+  publishedExternalId,
   ...content
 }: SocialPostPreviewProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
+  const thread = useTranslations("App.Projects.SocialPosts.thread");
   return (
     <figure
       aria-label={t("label", { provider: socialPostProviderLabel(provider) })}
@@ -59,7 +71,34 @@ export function SocialPostPreview({
       data-testid="social-post-preview"
     >
       {provider === "x" ? (
-        <XPreview {...content} />
+        <>
+          <XPreview
+            {...content}
+            threadContinues={threadParts.length > 0}
+            publishedUrl={
+              publishedExternalId
+                ? `https://x.com/i/web/status/${encodeURIComponent(publishedExternalId)}`
+                : undefined
+            }
+            publishedLabel={thread("viewPart", { part: 1 })}
+          />
+          {threadParts.map((part, index) => (
+            <XPreview
+              key={part.id}
+              {...content}
+              text={part.text}
+              media={part.media}
+              timestamp={part.publishedAt ?? content.timestamp}
+              threadContinues={index < threadParts.length - 1}
+              publishedUrl={
+                part.externalPostId
+                  ? `https://x.com/i/web/status/${encodeURIComponent(part.externalPostId)}`
+                  : undefined
+              }
+              publishedLabel={thread("viewPart", { part: index + 2 })}
+            />
+          ))}
+        </>
       ) : provider === "linkedin" ? (
         <LinkedInPreview {...content} />
       ) : provider === "instagram" ? (
@@ -139,7 +178,14 @@ function XPreview({
   timestampLabel,
   compact,
   onSeeMore,
-}: SocialPostPreviewContentProps) {
+  threadContinues,
+  publishedUrl,
+  publishedLabel,
+}: SocialPostPreviewContentProps & {
+  threadContinues?: boolean;
+  publishedUrl?: string;
+  publishedLabel: string;
+}) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
   const handle = accountHandle(account);
@@ -154,8 +200,20 @@ function XPreview({
   ];
 
   return (
-    <div className="flex gap-3 px-4 pt-3 pb-2">
-      <PreviewAvatar account={account} name={name} className="size-10" />
+    <div
+      className="flex gap-3 px-4 pt-3 pb-2"
+      data-testid="social-post-x-preview"
+    >
+      <div className="relative w-10 shrink-0">
+        <PreviewAvatar account={account} name={name} className="size-10" />
+        {threadContinues ? (
+          <span
+            aria-hidden
+            className="bg-border absolute top-12 -bottom-5 start-5 w-px"
+            data-testid="social-post-thread-connector"
+          />
+        ) : null}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-start gap-1 leading-5">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1">
@@ -195,6 +253,17 @@ function XPreview({
           media={media}
           className="mt-3 rounded-2xl border"
         />
+        {publishedUrl ? (
+          <a
+            className="text-primary mt-2 inline-flex min-h-10 items-center gap-1 text-xs underline-offset-4 hover:underline"
+            href={publishedUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {publishedLabel}
+            <ExternalLink className="size-3" />
+          </a>
+        ) : null}
         <div
           aria-hidden
           className="text-muted-foreground mt-3 flex items-center justify-between pe-8"

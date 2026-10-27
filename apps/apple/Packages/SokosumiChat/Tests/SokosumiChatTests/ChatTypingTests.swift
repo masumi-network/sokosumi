@@ -41,7 +41,7 @@ private func room(_ members: [(id: String, name: String)]) -> Components.Schemas
 struct ChatTypingTests {
   @Test func typingRidesItsOwnRoomChannel() {
     #expect(chatTypingEventName == "chat_typing")
-    #expect(ChatTypingTiming.heartbeatThrottle == 10)
+    #expect(ChatTypingTiming.heartbeatThrottle == 4)
     #expect(ChatTypingTiming.expiry == 12)
   }
 
@@ -176,8 +176,8 @@ struct ChatTypingTests {
 
   @Test func announcesTheFirstEditAndThenOncePerThrottleWindow() {
     #expect(nextTypingPublishAction(composerHasText: true, startedPublishedAt: nil, now: at(1)) == .start)
-    #expect(nextTypingPublishAction(composerHasText: true, startedPublishedAt: at(1), now: at(1 + 10 - 0.001)) == TypingPublishAction.none)
-    #expect(nextTypingPublishAction(composerHasText: true, startedPublishedAt: at(1), now: at(11)) == .start)
+    #expect(nextTypingPublishAction(composerHasText: true, startedPublishedAt: at(1), now: at(1 + 4 - 0.001)) == TypingPublishAction.none)
+    #expect(nextTypingPublishAction(composerHasText: true, startedPublishedAt: at(1), now: at(5)) == .start)
   }
 
   @Test func stopsWhenTheComposerIsClearedAndSaysNothingIfNobodyWasTold() {

@@ -76,9 +76,11 @@ import {
 } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   duplicateProjectSocialPost,
   publishProjectSocialPost,
+  resumeProjectSocialPostThread,
 } from "@/lib/actions/project/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import {
@@ -105,6 +107,7 @@ import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { publishFailureCopy } from "./social-post-publish-failure";
 import { SocialPostStatistics } from "./social-post-statistics";
+import { SocialPostThreadBadge } from "./social-post-thread-badge";
 import { getSocialReconnections } from "./social-reconnection";
 
 interface ProjectSocialPostsProps {
@@ -355,6 +358,9 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [actionPendingPostId, setActionPendingPostId] = useState<string | null>(
+    null,
+  );
   const [duplicatePending, setDuplicatePending] = useState(false);
   const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
     new Set(),
@@ -568,6 +574,7 @@ export function ProjectSocialPosts({
   }
 
   function handleSaved(post: SocialPost): void {
+    setPreviewTarget((current) => (current?.id === post.id ? post : current));
     setPosts((current) => upsertPost(current, post));
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
@@ -657,8 +664,10 @@ export function ProjectSocialPosts({
     }
   }
 
-  async function handleConfirmPublish(): Promise<void> {
-    const target = publishTarget;
+  async function handleConfirmPublish(
+    confirmedTarget?: SocialPost,
+  ): Promise<void> {
+    const target = confirmedTarget ?? publishTarget;
     if (!target || publishPending) return;
     setPublishPending(true);
     try {
@@ -792,6 +801,51 @@ export function ProjectSocialPosts({
     if (sawConflict) router.refresh();
   }
 
+  async function handleApprove(post: SocialPost): Promise<void> {
+    if (actionPendingPostId) return;
+    setActionPendingPostId(post.id);
+    try {
+      const result = await approveProjectSocialPost({
+        projectId,
+        postId: post.id,
+        revision: post.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.approved"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
+  async function handleResume(post: SocialPost): Promise<void> {
+    if (actionPendingPostId || publishPending) return;
+    setActionPendingPostId(post.id);
+    try {
+      const result = await resumeProjectSocialPostThread({
+        projectId,
+        postId: post.id,
+        revision: post.revision,
+        confirmedNotPosted: true,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      await handleConfirmPublish(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
   function renderPostActions(post: SocialPost, preview = false) {
     const providerEnabled = isProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
@@ -811,7 +865,7 @@ export function ProjectSocialPosts({
     const subject = actionSubject(post, t("thisDraft"));
     return (
       <div
-        className="ms-auto flex items-center gap-2"
+        className="ms-auto flex flex-wrap items-center gap-2"
         data-testid={preview ? `social-post-${post.id}` : undefined}
       >
         {!preview ? (
@@ -830,6 +884,32 @@ export function ProjectSocialPosts({
             <Eye className="size-4" aria-hidden />
           </Button>
         ) : null}
+        {post.canApprove ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="min-h-11 md:min-h-10"
+            disabled={Boolean(actionPendingPostId)}
+            loading={actionPendingPostId === post.id}
+            onClick={() => void handleApprove(post)}
+          >
+            {t("actions.approve")}
+          </Button>
+        ) : null}
+        {preview &&
+        post.status === "FAILED" &&
+        post.publishingThreadPartPosition != null ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="h-auto min-h-11 whitespace-normal md:min-h-10"
+            disabled={Boolean(actionPendingPostId) || publishPending}
+            loading={actionPendingPostId === post.id}
+            onClick={() => void handleResume(post)}
+          >
+            {t("thread.confirmNotPosted")}
+          </Button>
+        ) : null}
         {canRetry ? (
           <Button
             type="button"
@@ -842,7 +922,7 @@ export function ProjectSocialPosts({
             }}
           >
             <RotateCcw className="size-4" aria-hidden />
-            {t("actions.retry")}
+            {t(post.threadPartCount > 1 ? "thread.retry" : "actions.retry")}
           </Button>
         ) : null}
         {hasMenu ? (
@@ -926,6 +1006,8 @@ export function ProjectSocialPosts({
     publishTarget && RETRY_STATUSES.includes(publishTarget.status)
       ? "retryDialog"
       : "publishDialog";
+  const isThreadRetry =
+    publishCopy === "retryDialog" && (publishTarget?.threadPartCount ?? 1) > 1;
   const cancelCopy =
     cancelTarget && RETRY_STATUSES.includes(cancelTarget.status)
       ? "dismissDialog"
@@ -964,6 +1046,9 @@ export function ProjectSocialPosts({
   }
 
   function renderDraft(post: SocialPost) {
+    const showStatus =
+      post.status === "PUBLISHING" || post.status === "NEEDS_APPROVAL";
+
     function openPreview() {
       setPreviewTarget(post);
       setPreviewOpen(true);
@@ -985,11 +1070,16 @@ export function ProjectSocialPosts({
           text={post.text}
           timestamp={null}
         />
-        {post.status === "PUBLISHING" ? (
-          <SocialPostStatusBadge
-            label={t("status.PUBLISHING")}
-            status={post.status}
-          />
+        {post.threadPartCount > 1 || showStatus ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {showStatus ? (
+              <SocialPostStatusBadge
+                label={t(`status.${post.status}`)}
+                status={post.status}
+              />
+            ) : null}
+            <SocialPostThreadBadge count={post.threadPartCount} />
+          </div>
         ) : null}
         {renderReconnectWarning(post)}
         <div className="mt-auto">{renderPostActions(post)}</div>
@@ -1048,6 +1138,16 @@ export function ProjectSocialPosts({
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <SocialPostStatusBadge
+              label={t(
+                post.partiallyPublished
+                  ? "thread.partlyPosted"
+                  : `status.${post.status}`,
+              )}
+              partiallyPublished={post.partiallyPublished}
+              status={post.status}
+            />
+            <SocialPostThreadBadge count={post.threadPartCount} />
             {leadingAt ? (
               <time
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
@@ -1063,11 +1163,6 @@ export function ProjectSocialPosts({
               </time>
             ) : null}
             <span className="min-w-0 truncate">{accountLabel}</span>
-            <SocialPostStatusBadge
-              className="order-first"
-              label={t(`status.${post.status}`)}
-              status={post.status}
-            />
           </p>
           <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
           {post.media.length > 0 ? (
@@ -1587,9 +1682,15 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t(`${publishCopy}.title`)}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(isThreadRetry ? "thread.retry" : `${publishCopy}.title`)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t(`${publishCopy}.description`)}
+              {t(
+                isThreadRetry
+                  ? "thread.retryDescription"
+                  : `${publishCopy}.description`,
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1603,7 +1704,7 @@ export function ProjectSocialPosts({
                 void handleConfirmPublish();
               }}
             >
-              {t(`${publishCopy}.confirm`)}
+              {t(isThreadRetry ? "thread.retry" : `${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

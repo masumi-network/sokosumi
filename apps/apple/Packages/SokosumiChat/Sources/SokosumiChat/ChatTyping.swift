@@ -16,10 +16,11 @@ public let chatTypingEventName = "chat_typing"
 
 enum ChatTypingTiming {
   /// One heartbeat per typist per window, and only on an edit: nothing is sent on a timer.
-  static let heartbeatThrottle: TimeInterval = 10
-  /// A typist with no heartbeat for this long is gone (the throttle plus Ably's 2 s grace).
+  static let heartbeatThrottle: TimeInterval = 4
+  /// A typist with no heartbeat for this long is gone. Counted from the last heartbeat, so a
+  /// reader keeps the line at least 8 s after the last edit and a pause to think does not blink it.
   /// The explicit `stopped` is an optimisation; this is what clears a quit app or a lost connection.
-  static let expiry: TimeInterval = heartbeatThrottle + 2
+  static let expiry: TimeInterval = 12
 }
 
 /// What a typing event says: they picked it up, or they put it down.

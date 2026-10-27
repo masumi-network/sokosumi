@@ -63,14 +63,37 @@ describe("claimTaskEventAction for a Task the reported one blocked", () => {
 
   it("refuses when no completed blocker is part of this wake", async () => {
     tx.sokoBotEventInbox.findFirst.mockResolvedValue(null);
-    expect(await claim()).toEqual({ allowed: false, claimId: null });
+    expect(await claim()).toMatchObject({ allowed: false, claimId: null });
     tx.taskLink.findMany.mockResolvedValue([]);
-    expect(await claim()).toEqual({ allowed: false, claimId: null });
+    expect(await claim()).toMatchObject({ allowed: false, claimId: null });
     expect(tx.sokoBotTaskActionClaim.create).not.toHaveBeenCalled();
   });
 
   it("refuses when another bot handles the blocked Task", async () => {
     tx.task.findFirst.mockResolvedValue({ assigneeSokoBotId: "bot_2" });
-    expect(await claim()).toEqual({ allowed: false, claimId: null });
+    expect(await claim()).toMatchObject({ allowed: false, claimId: null });
+  });
+});
+
+describe("claimTaskEventAction when someone else answered first", () => {
+  it("tells the bot it was superseded, not that it lacks permission", async () => {
+    vi.clearAllMocks();
+    tx.sokoBotEventInbox.findMany.mockResolvedValue([
+      { eventId: "event_plan", designatedHandlerBotId: "bot_1" },
+    ]);
+    // Elena approved Hannah's plan four seconds before Joseph tried to.
+    tx.task.findFirst.mockResolvedValue({
+      assigneeSokoBotId: null,
+      events: [{ id: "event_elena_approval", sokoBotId: null }],
+    });
+    const result = await claimTaskEventAction(
+      tx as unknown as Prisma.TransactionClient,
+      actor,
+      "task_hannah",
+      "TASK_STATE",
+    );
+    expect(result.allowed).toBe(false);
+    expect(result.refusal).toMatch(/Someone else answered/);
+    expect(result.refusal).toMatch(/not a permission problem/);
   });
 });
