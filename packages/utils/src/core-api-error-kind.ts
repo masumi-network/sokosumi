@@ -23,6 +23,9 @@ export const CORE_API_ERROR_KINDS = {
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  NEWSLETTER_APPROVAL_REQUIRED: "newsletter_approval_required",
+  NEWSLETTER_SENDER_NOT_CONFIGURED: "newsletter_sender_not_configured",
+  NEWSLETTER_NO_ACTIVE_SUBSCRIBERS: "newsletter_no_active_subscribers",
   /** The user has no workspace, or a coworker may not act in the preferred one. */
   NO_PREFERRED_WORKSPACE: "no_preferred_workspace",
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",

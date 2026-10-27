@@ -10,6 +10,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -17,6 +18,7 @@ import {
   workspaceCalendarSourcesQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
 import { canCreateTaskSchedules } from "@/services/task-schedule.service";
+import { scheduledNewsletterIssueWhere } from "../read-newsletter-issues.js";
 import { scheduledSocialPostWhere } from "../social-post-range.js";
 
 const route = withCoworkerContextHeaderParameters(
@@ -50,39 +52,53 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       requireInteractiveUserAuthContext(c.var.authContext);
     }
     const workspaceId = workspaceContext.workspaceId;
+    const includeNewsletters =
+      includeSocialPosts && (await isNewsletterWorkspaceEnabled(workspaceId));
     const isSchedulable = await canCreateTaskSchedules(c.var);
 
-    const [workspace, projects, latestPostDates] = await Promise.all([
-      prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        select: {
-          organization: { select: { name: true, logo: true } },
-          user: { select: { name: true, image: true } },
-        },
-      }),
-      prisma.project.findMany({
-        where: { workspaceId },
-        orderBy: [{ name: "asc" }, { id: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          logo: true,
-          closingAt: true,
-          closedAt: true,
-        },
-      }),
-      includeSocialPosts
-        ? prisma.socialPost.groupBy({
-            by: ["projectId"],
-            where: scheduledSocialPostWhere(
-              workspaceId,
-              userContext.userId,
-              query.scope,
-            ),
-            _max: { scheduledAt: true },
-          })
-        : [],
-    ]);
+    const [workspace, projects, latestPostDates, latestIssueDates] =
+      await Promise.all([
+        prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: {
+            organization: { select: { name: true, logo: true } },
+            user: { select: { name: true, image: true } },
+          },
+        }),
+        prisma.project.findMany({
+          where: { workspaceId },
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            closingAt: true,
+            closedAt: true,
+          },
+        }),
+        includeSocialPosts
+          ? prisma.socialPost.groupBy({
+              by: ["projectId"],
+              where: scheduledSocialPostWhere(
+                workspaceId,
+                userContext.userId,
+                query.scope,
+              ),
+              _max: { scheduledAt: true },
+            })
+          : [],
+        includeNewsletters
+          ? prisma.newsletterIssue.groupBy({
+              by: ["projectId"],
+              where: scheduledNewsletterIssueWhere(
+                workspaceId,
+                userContext.userId,
+                query.scope,
+              ),
+              _max: { scheduledAt: true },
+            })
+          : [],
+      ]);
     if (!workspace) {
       throw notFound("Workspace not found");
     }
@@ -90,6 +106,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceOwner = workspace.organization ?? workspace.user;
     const latestPostByProject = new Map(
       latestPostDates.map((post) => [post.projectId, post._max.scheduledAt]),
+    );
+    const latestIssueByProject = new Map(
+      latestIssueDates.map((issue) => [
+        issue.projectId,
+        issue._max.scheduledAt,
+      ]),
     );
     const sources = [
       workspaceCalendarSourceSchema.parse({
@@ -123,6 +145,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? {
                 latestScheduledSocialPostAt:
                   latestPostByProject.get(project.id) ?? null,
+                ...(includeNewsletters
+                  ? {
+                      latestScheduledNewsletterIssueAt:
+                        latestIssueByProject.get(project.id) ?? null,
+                    }
+                  : {}),
               }
             : {}),
         }),

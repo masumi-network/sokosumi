@@ -34,6 +34,7 @@ import {
   newsletterIssueInputSchema,
 } from "@/lib/schemas/newsletter-issues";
 import { newsletterHref } from "../newsletter-tabs";
+import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
 import { NewsletterIssuePreview } from "./issue-preview";
 
@@ -42,13 +43,16 @@ const BLOCK_TYPES = ["heading", "text", "image", "button", "divider"] as const;
 export function NewsletterIssueEditor({
   projectId,
   issue,
+  activeSubscribers,
 }: {
   projectId: string;
   issue: NewsletterIssue;
+  activeSubscribers: number;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
-  const [revision, setRevision] = useState(issue.revision);
-  const [status, setStatus] = useState(issue.status);
+  const [currentIssue, setCurrentIssue] = useState(issue);
+  const [lifecyclePending, setLifecyclePending] = useState(false);
+  const { revision, status } = currentIssue;
   const editable =
     status === NewsletterIssueStatus.DRAFT ||
     status === NewsletterIssueStatus.NEEDS_APPROVAL;
@@ -101,8 +105,7 @@ export function NewsletterIssueEditor({
         );
         return;
       }
-      setRevision(result.value.revision);
-      setStatus(result.value.status);
+      setCurrentIssue(result.value);
       form.reset({
         subject: result.value.subject,
         previewText: result.value.previewText ?? "",
@@ -142,8 +145,25 @@ export function NewsletterIssueEditor({
             {t("back")}
           </Link>
         </Button>
-        <Badge variant="secondary">{t(`statuses.${status}`)}</Badge>
+        <Badge variant="secondary">
+          {currentIssue.approvedAt && status === "NEEDS_APPROVAL"
+            ? t("Lifecycle.approved")
+            : t(`statuses.${status}`)}
+        </Badge>
       </div>
+      <IssueActions
+        issue={currentIssue}
+        projectId={projectId}
+        activeSubscribers={activeSubscribers}
+        disabled={isDirty || isSubmitting}
+        onChanged={setCurrentIssue}
+        onBusyChange={setLifecyclePending}
+      />
+      {isDirty ? (
+        <p className="text-muted-foreground text-sm">
+          {t("Lifecycle.saveFirst")}
+        </p>
+      ) : null}
       {!editable ? (
         <p className="text-muted-foreground text-sm" role="note">
           {t("readOnly")}
@@ -157,7 +177,7 @@ export function NewsletterIssueEditor({
             className="min-w-0 space-y-6"
           >
             <fieldset
-              disabled={!editable || isSubmitting}
+              disabled={!editable || isSubmitting || lifecyclePending}
               className="min-w-0 space-y-6"
             >
               <FormField
@@ -260,7 +280,7 @@ export function NewsletterIssueEditor({
                       <IssueBlockFields
                         index={index}
                         block={block}
-                        disabled={!editable || isSubmitting}
+                        disabled={!editable || isSubmitting || lifecyclePending}
                       />
                     </li>
                   ))}
@@ -303,7 +323,12 @@ export function NewsletterIssueEditor({
                 <p role="status" className="text-muted-foreground text-sm">
                   {isDirty ? t("unsaved") : t("saved")}
                 </p>
-                <Button type="submit" variant="primary" loading={isSubmitting}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={isSubmitting}
+                  disabled={lifecyclePending}
+                >
                   {t("save")}
                 </Button>
               </div>
