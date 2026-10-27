@@ -212,11 +212,7 @@ function ScopedMenuItems({
     : allDestinations;
 
   function renderItem({ key, href, label, Icon, feature }: MenuItemConfig) {
-    const isActive =
-      isPathActive(pathname, href) ||
-      // A project's newsletter pages live under /projects/<id>/newsletter.
-      (href === "/newsletter" &&
-        /^\/projects\/[^/]+\/newsletter(?:\/|$)/.test(pathname));
+    const isActive = isPathActive(pathname, href);
 
     return (
       <SidebarMenuItem key={key}>
