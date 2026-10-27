@@ -378,8 +378,10 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sidebar-content"
       data-sidebar="content"
+      // scrollbar-gutter: stable reserves the scrollbar's width whether or not
+      // it is showing, so rows don't widen when a filter shrinks the list.
       className={cn(
-        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden",
+        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]",
         className,
       )}
       {...props}
