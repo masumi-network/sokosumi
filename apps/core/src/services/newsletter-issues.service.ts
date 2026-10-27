@@ -61,7 +61,19 @@ export async function listNewsletterIssues(
 ) {
   const newsletter = await getNewsletter(scope);
   const { cursor, take, skip } = parseCursorPagination(query);
-  const where = { ...scope, newsletterId: newsletter.id, status: query.status };
+  const range =
+    query.from && query.to
+      ? { gte: new Date(query.from), lt: new Date(query.to) }
+      : null;
+  const where: Prisma.NewsletterIssueWhereInput = {
+    ...scope,
+    newsletterId: newsletter.id,
+    status: query.status,
+    // An issue is delivered at its schedule; an issue sent without one, at sentAt.
+    ...(range
+      ? { OR: [{ scheduledAt: range }, { scheduledAt: null, sentAt: range }] }
+      : {}),
+  };
   const [issues, total] = await Promise.all([
     prisma.newsletterIssue.findMany({
       where,

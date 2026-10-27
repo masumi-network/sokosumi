@@ -109,11 +109,42 @@ export const newsletterIssueSchema = z
   })
   .openapi("NewsletterIssue");
 
-export const listNewsletterIssuesQuerySchema =
-  cursorPaginationQuerySchema.extend({
-    cursor: z.uuid().optional(),
+const NEWSLETTER_ISSUE_RANGE_MAX_MS = 62 * 24 * 60 * 60 * 1000;
+
+const newsletterIssuePageQuerySchema = cursorPaginationQuerySchema.extend({
+  cursor: z.uuid().optional(),
+});
+
+export const listNewsletterIssuesQuerySchema = newsletterIssuePageQuerySchema
+  .extend({
     status: newsletterIssueStatusSchema.optional(),
-  });
+    from: z.iso.datetime().optional().openapi({
+      description:
+        "Inclusive start of a delivery range: only issues scheduled (or, without a schedule, sent) at or after this time. Requires to.",
+      example: "2026-10-01T00:00:00.000Z",
+    }),
+    to: z.iso.datetime().optional().openapi({
+      description:
+        "Exclusive end of the delivery range, at most 62 days after from. Requires from.",
+      example: "2026-11-01T00:00:00.000Z",
+    }),
+  })
+  .refine((query) => !query.from === !query.to, {
+    message: "from and to must be provided together",
+    path: ["to"],
+  })
+  .refine(
+    (query) =>
+      !query.from ||
+      !query.to ||
+      (Date.parse(query.to) > Date.parse(query.from) &&
+        Date.parse(query.to) - Date.parse(query.from) <=
+          NEWSLETTER_ISSUE_RANGE_MAX_MS),
+    {
+      message: "to must be after from and at most 62 days later",
+      path: ["to"],
+    },
+  );
 
 export type CreateNewsletterIssueRequest = z.infer<
   typeof createNewsletterIssueRequestSchema
@@ -191,7 +222,7 @@ export const publicNewsletterIssueParamsSchema =
   });
 
 export const listPublicNewsletterIssuesQuerySchema =
-  listNewsletterIssuesQuerySchema.omit({ status: true });
+  newsletterIssuePageQuerySchema;
 
 export const publicNewsletterIssueSummarySchema = z
   .object({

@@ -3314,6 +3314,17 @@
             }
           }
         },
+        "Calendar": {
+          "title": "Calendario",
+          "description": "Consulta cuándo está programada o se envió cada edición del boletín.",
+          "navigation": "Cambiar de mes",
+          "previous": "Mes anterior",
+          "next": "Mes siguiente",
+          "today": "Hoy",
+          "emptyTitle": "No hay boletines este mes",
+          "emptyDescription": "Las ediciones programadas y enviadas aparecen aquí en su fecha de envío. Programa una edición para planificar tu próximo envío.",
+          "viewIssues": "Ver ediciones"
+        },
         "Issues": {
           "title": "Ediciones",
           "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
@@ -8939,8 +8950,7 @@
       },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros.",
-        "socialOnly": "No hay publicaciones sociales programadas en este periodo.",
-        "publications": "No hay publicaciones ni boletines programados en este periodo."
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -8985,11 +8995,7 @@
         "past": "Elige una hora en el futuro."
       },
       "socialOnly": {
-        "label": "Solo publicaciones sociales",
-        "newslettersLabel": "Solo publicaciones y boletines"
-      },
-      "newsletter": {
-        "label": "Boletín"
+        "label": "Solo publicaciones sociales"
       }
     },
     "You": {
