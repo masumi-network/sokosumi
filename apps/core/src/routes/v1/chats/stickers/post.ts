@@ -19,16 +19,15 @@ const route = createRoute({
   operationId: "uploadChatSticker",
   tags: ["Chat Rooms"],
   description:
-    "Upload a PNG, JPEG or WebP sticker, up to 2 MiB, to the signed-in user's collection. Checks file bytes before storing. Like chat attachments, sent sticker URLs are public Blob URLs.",
+    "Upload raw PNG, JPEG or WebP image bytes (not multipart), up to 2 MiB, to the signed-in user's collection. Send the image MIME type in Content-Type and the original filename in the filename query parameter. Checks declared type and file bytes before storing. Like chat attachments, sent sticker URLs are public Blob URLs.",
   request: {
+    query: z.object({ filename: z.string().min(1).max(255) }),
     body: {
       required: true,
       content: {
-        "multipart/form-data": {
-          schema: z.object({
-            file: z.any().openapi({ type: "string", format: "binary" }),
-          }),
-        },
+        "image/png": { schema: z.string().openapi({ format: "binary" }) },
+        "image/jpeg": { schema: z.string().openapi({ format: "binary" }) },
+        "image/webp": { schema: z.string().openapi({ format: "binary" }) },
       },
     },
   },
@@ -38,6 +37,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     413: jsonErrorResponse("Image too large"),
+    422: jsonErrorResponse("Invalid filename"),
     503: jsonErrorResponse("Storage unavailable"),
   },
 });
@@ -45,7 +45,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.use(
     "/",
     bodyLimit({
-      maxSize: CHAT_STICKER_MAX_SIZE_BYTES + 256 * 1024,
+      maxSize: CHAT_STICKER_MAX_SIZE_BYTES,
       onError: () => {
         throw payloadTooLarge("Choose an image no larger than 2 MiB.");
       },
@@ -53,21 +53,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   );
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    const body = await c.req.parseBody({ all: true });
-    const file = body.file;
-    if (!(file instanceof File) || file.size === 0)
-      throw badRequest("Choose an image file.");
-    if (file.size > CHAT_STICKER_MAX_SIZE_BYTES)
-      throw payloadTooLarge("Choose an image no larger than 2 MiB.");
-    if (!CHAT_STICKER_CONTENT_TYPES.includes(file.type))
+    const { filename } = c.req.valid("query");
+    const declaredType = c.req
+      .header("Content-Type")
+      ?.split(";")[0]
+      ?.trim()
+      .toLowerCase();
+    if (!declaredType || !CHAT_STICKER_CONTENT_TYPES.includes(declaredType))
       throw badRequest("Choose a PNG, JPEG or WebP image.");
-    const bytes = Buffer.from(await file.arrayBuffer());
+    const bytes = Buffer.from(await c.req.arrayBuffer());
+    if (bytes.length === 0) throw badRequest("Choose an image file.");
+    if (bytes.length > CHAT_STICKER_MAX_SIZE_BYTES)
+      throw payloadTooLarge("Choose an image no larger than 2 MiB.");
     const contentType = sniffImageMimeFromBytes(bytes);
-    if (!contentType || !CHAT_STICKER_CONTENT_TYPES.includes(contentType))
-      throw badRequest("File content must be a PNG, JPEG or WebP image.");
+    if (
+      !contentType ||
+      !CHAT_STICKER_CONTENT_TYPES.includes(contentType) ||
+      contentType !== declaredType
+    )
+      throw badRequest(
+        "File content must match its PNG, JPEG or WebP image type.",
+      );
     return created(
       c,
-      await saveChatSticker(userId, bytes, file.name, contentType),
+      await saveChatSticker(userId, bytes, filename, contentType),
     );
   });
 }

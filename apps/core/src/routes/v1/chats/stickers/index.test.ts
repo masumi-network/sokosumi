@@ -1,3 +1,5 @@
+import { crc32 } from "node:zlib";
+import { put } from "@vercel/blob";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGet from "./get";
@@ -53,15 +55,20 @@ const png = Buffer.from(
   "base64",
 );
 function upload(bytes: Uint8Array = png, type = "image/png") {
-  const body = new FormData();
-  body.set("file", new File([new Uint8Array(bytes)], "wave.png", { type }));
-  return { method: "POST", body };
+  return {
+    method: "POST",
+    body: new Uint8Array(bytes),
+    headers: { "Content-Type": type },
+  };
 }
 
 describe("saved chat stickers", () => {
   beforeEach(() => blobs.clear());
   it("persists uploads across requests and isolates each user's collection", async () => {
-    const uploaded = await appFor("alice").request("/", upload());
+    const uploaded = await appFor("alice").request(
+      "/?filename=wave.png",
+      upload(),
+    );
     expect(uploaded.status).toBe(201);
     const sticker = (await uploaded.json()).data;
     expect(sticker.name).toBe("wave.png");
@@ -78,20 +85,62 @@ describe("saved chat stickers", () => {
       400,
     ],
     [png, "text/html", 400],
+    [png, "application/octet-stream", 400],
+    [
+      new TextEncoder().encode("https://example.com/private.png"),
+      "image/png",
+      400,
+    ],
+    [png, "image/jpeg", 400],
     [new Uint8Array(2 * 1024 * 1024 + 1), "image/png", 413],
   ])(
     "rejects invalid content/type/size before storage",
     async (bytes, type, status) => {
-      const response = await appFor("alice").request("/", upload(bytes, type));
+      const response = await appFor("alice").request(
+        "/?filename=wave.png",
+        upload(bytes, type),
+      );
       expect(response.status).toBe(status);
       expect(blobs.size).toBe(0);
     },
   );
+  it("accepts exactly 2 MiB of raw PNG bytes without changing stored content", async () => {
+    const data = Buffer.alloc(2 * 1024 * 1024 - png.length - 12, 0x20);
+    const chunk = Buffer.alloc(data.length + 12);
+    chunk.writeUInt32BE(data.length, 0);
+    chunk.write("npAD", 4);
+    data.copy(chunk, 8);
+    chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+    const bytes = Buffer.concat([
+      png.subarray(0, -12),
+      chunk,
+      png.subarray(-12),
+    ]);
+    const response = await appFor("alice").request(
+      "/?filename=wave.png",
+      upload(bytes),
+    );
+    expect(response.status).toBe(201);
+    expect(put).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^stickers\/alice\//),
+      bytes,
+      expect.objectContaining({ contentType: "image/png" }),
+    );
+  });
+  it("rejects missing filename metadata", async () => {
+    expect((await appFor("alice").request("/", upload())).status).toBe(422);
+    expect(blobs.size).toBe(0);
+  });
   it("rejects URL-only submissions", async () => {
     const body = new FormData();
     body.set("file", "https://example.com/private.png");
     expect(
-      (await appFor("alice").request("/", { method: "POST", body })).status,
+      (
+        await appFor("alice").request("/?filename=wave.png", {
+          method: "POST",
+          body,
+        })
+      ).status,
     ).toBe(400);
     expect(blobs.size).toBe(0);
   });
@@ -108,7 +157,9 @@ describe("saved chat stickers", () => {
     mountGet(app);
     mountPost(app);
     expect((await app.request("/")).status).toBe(403);
-    expect((await app.request("/", upload())).status).toBe(403);
+    expect((await app.request("/?filename=wave.png", upload())).status).toBe(
+      403,
+    );
     expect(blobs.size).toBe(0);
   });
 });

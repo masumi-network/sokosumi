@@ -26608,11 +26608,11 @@ export type ListChatStickersResponses = {
 export type ListChatStickersResponse = ListChatStickersResponses[keyof ListChatStickersResponses];
 
 export type UploadChatStickerData = {
-    body: {
-        file?: Blob | File;
-    };
+    body: Blob | File;
     path?: never;
-    query?: never;
+    query: {
+        filename: string;
+    };
     url: '/chats/stickers';
 };
 
@@ -26666,6 +26666,21 @@ export type UploadChatStickerErrors = {
      * Image too large
      */
     413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid filename
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

@@ -12,7 +12,9 @@ export async function getSavedChatStickers() {
 export async function saveChatSticker(file: File) {
   const response = await uploadChatSticker({
     client: getBrowserCoreClient(),
-    body: { file },
+    body: file,
+    query: { filename: file.name },
+    headers: { "Content-Type": file.type },
     throwOnError: true,
   });
   return response.data.data;

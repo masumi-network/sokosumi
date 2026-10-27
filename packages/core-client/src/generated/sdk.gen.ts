@@ -1450,15 +1450,15 @@ export const listChatStickers = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Upload a PNG, JPEG or WebP sticker, up to 2 MiB, to the signed-in user's collection. Checks file bytes before storing. Like chat attachments, sent sticker URLs are public Blob URLs.
+ * Upload raw PNG, JPEG or WebP image bytes (not multipart), up to 2 MiB, to the signed-in user's collection. Send the image MIME type in Content-Type and the original filename in the filename query parameter. Checks declared type and file bytes before storing. Like chat attachments, sent sticker URLs are public Blob URLs.
  */
 export const uploadChatSticker = <ThrowOnError extends boolean = false>(options: Options<UploadChatStickerData, ThrowOnError>): RequestResult<UploadChatStickerResponses, UploadChatStickerErrors, ThrowOnError> => (options.client ?? client).post<UploadChatStickerResponses, UploadChatStickerErrors, ThrowOnError>({
-    ...formDataBodySerializer,
+    bodySerializer: null,
     responseTransformer: uploadChatStickerResponseTransformer,
     url: '/chats/stickers',
     ...options,
     headers: {
-        'Content-Type': null,
+        'Content-Type': 'image/png',
         ...options.headers
     }
 });
