@@ -1,10 +1,10 @@
 import { defineConfig } from "vitest/config";
 
-import baseConfig from "./vitest.config";
+import baseConfig from "./vitest.config.mts";
 
 /**
  * Tests that drive a real browser through Playwright: layout the DOM doubles in
- * `vitest.config.ts` cannot compute, and that Chromium computes differently.
+ * `vitest.config.mts` cannot compute, and that Chromium computes differently.
  * Each test serves its own page and opens it; this picks the files and shares
  * the main config's module resolution, so a test can render real components.
  *
