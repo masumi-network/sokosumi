@@ -14,10 +14,10 @@ import {
 import mount from "./post";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   project: vi.fn(),
   newsletter: vi.fn(),
   availableNewsletter: vi.fn(),
+  workspace: vi.fn(),
   posts: vi.fn(),
   assets: vi.fn(),
   create: vi.fn(),
@@ -29,16 +29,10 @@ const m = vi.hoisted(() => ({
   copy: vi.fn(),
   head: vi.fn(),
 }));
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findFirst: m.project },
+    workspace: { findUnique: m.workspace },
     newsletter: {
       findUnique: m.newsletter,
       findFirst: m.availableNewsletter,
@@ -119,7 +113,6 @@ function draft(body: unknown = INPUT, authenticated = true) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     name: "Launch",
@@ -130,6 +123,7 @@ beforeEach(() => {
   });
   m.newsletter.mockResolvedValue(NEWSLETTER);
   m.availableNewsletter.mockResolvedValue({ id: NEWSLETTER.id });
+  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.posts.mockResolvedValue([{ text: "Recent post" }]);
   m.assets.mockResolvedValue([]);
   m.eval.mockResolvedValue(1);
@@ -277,12 +271,8 @@ describe("POST newsletter draft-with-ai with an injected fake model", () => {
     },
   );
 
-  it("requires authentication, enabled newsletters and project access before generation", async () => {
+  it("requires authentication and project access before generation", async () => {
     expect((await draft(INPUT, false)).status).toBe(401);
-    m.enabled = false;
-    expect((await draft()).status).toBe(404);
-    expect(m.project).not.toHaveBeenCalled();
-    m.enabled = true;
     m.project.mockResolvedValue(null);
     expect((await draft()).status).toBe(404);
     m.project.mockResolvedValue({ id: NEWSLETTER_PROJECT_ID });
@@ -311,7 +301,7 @@ describe("POST newsletter draft-with-ai with an injected fake model", () => {
       where: {
         projectId: NEWSLETTER_PROJECT_ID,
         workspaceId: NEWSLETTER_WORKSPACE_ID,
-        workspace: { organization: { slug: "utxo" } },
+        project: { workspaceId: NEWSLETTER_WORKSPACE_ID },
       },
       select: { id: true },
     });
@@ -322,6 +312,13 @@ describe("POST newsletter draft-with-ai with an injected fake model", () => {
     expect(m.generate).not.toHaveBeenCalled();
     expect(m.create).not.toHaveBeenCalled();
     expect(m.eval).not.toHaveBeenCalled();
+  });
+
+  it("rejects a project whose current workspace is outside the beta organization", async () => {
+    m.workspace.mockResolvedValue({ organization: { slug: "other" } });
+    expect((await draft()).status).toBe(404);
+    expect(m.availableNewsletter).not.toHaveBeenCalled();
+    expect(m.generate).not.toHaveBeenCalled();
   });
 
   it("limits generation with a shared project counter before model calls", async () => {

@@ -48,7 +48,7 @@ export const draftNewsletterIssue = withSession<
     return toActionResult(err({ message: t("error") }));
   try {
     const issue = await newsletterService.draftIssue(projectId, parsed.data);
-    revalidatePath(`/projects/${projectId}/newsletter/issues`);
+    revalidatePath("/newsletter/issues", "layout");
     return toActionResult(ok(issue));
   } catch (error) {
     return toActionResult(

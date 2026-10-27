@@ -49,9 +49,7 @@ describe("newsletter AI actions", () => {
       NEWSLETTER_PROJECT_ID,
       newsletterDraftInputSchema.parse(values),
     );
-    expect(revalidatePath).toHaveBeenCalledWith(
-      `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues`,
-    );
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter/issues", "layout");
   });
   it("forwards all source choices, template and selected asset ids", async () => {
     const values = {

@@ -175,7 +175,7 @@ function actionTarget(
   if (call.capability === "newsletter_draft_issue") {
     const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return issue.success
-      ? `([Review draft](/projects/${issue.data.projectId}/newsletter/issues/${encodeURIComponent(id)}?draftedBySokoBot=true))`
+      ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
       : "";
   }
   if (TABLE_CAPABILITIES.has(call.capability))

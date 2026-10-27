@@ -1,21 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isNewsletterDraftAvailable } from "./newsletter-draft.service";
 
-const m = vi.hoisted(() => ({ enabled: true, find: vi.fn() }));
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: m.enabled }),
+const m = vi.hoisted(() => ({
+  find: vi.fn(),
+  workspace: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { newsletter: { findFirst: m.find } },
+  default: {
+    newsletter: { findFirst: m.find },
+    workspace: { findUnique: m.workspace },
+  },
 }));
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.find.mockResolvedValue({ id: "newsletter" });
+  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
 });
 describe("newsletter draft tool availability", () => {
-  it("does not offer the tool when the feature is disabled", async () => {
-    m.enabled = false;
+  it("does not offer the tool outside the beta workspace", async () => {
+    m.workspace.mockResolvedValue({ organization: { slug: "other" } });
     expect(
       await isNewsletterDraftAvailable({
         workspaceId: "workspace",
@@ -30,7 +33,7 @@ describe("newsletter draft tool availability", () => {
     expect(m.find).toHaveBeenCalledWith({
       where: {
         ...scope,
-        workspace: { organization: { slug: "utxo" } },
+        project: { workspaceId: "workspace" },
       },
       select: { id: true },
     });
@@ -47,7 +50,7 @@ describe("newsletter draft tool availability", () => {
     expect(m.find).toHaveBeenCalledWith({
       where: {
         workspaceId: "workspace",
-        workspace: { organization: { slug: "utxo" } },
+        project: { workspaceId: "workspace" },
       },
       select: { id: true },
     });
