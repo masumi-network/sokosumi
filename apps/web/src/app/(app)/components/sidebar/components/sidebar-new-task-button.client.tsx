@@ -14,20 +14,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
 
-const SHORTCUT_KEY = "c";
+// Alt+N (Option+N on a Mac). Matched by physical key: on a Mac, Option+N is
+// a dead key that starts "ñ", so `event.key` never reads "n".
+const SHORTCUT_CODE = "KeyN";
 const OPEN_SURFACE_SELECTOR =
   '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
 /**
  * New task, the sidebar header's main action, so it alone sits on a quiet
  * filled surface: opens the New Task wizard scoped
- * to the reader's project, from a click or from C anywhere outside an
- * editable field. Absent, shortcut included, when the reader cannot create a
+ * to the reader's project, from a click or from Alt+N (Option+N) anywhere
+ * outside an editable field. Absent, shortcut included, when the reader cannot create a
  * Task (no assigned seat, or the Instant Nav shell outside the wizard).
  */
 export function SidebarNewTaskButton() {
@@ -48,11 +51,12 @@ function ScopedNewTaskButton() {
   ) : null;
 }
 
-/** The icon button and the C shortcut it binds while mounted. */
+/** The icon button and the Alt+N shortcut it binds while mounted. */
 function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
+  const shortcutLabel = useIsApplePlatform() ? "⌥N" : "Alt+N";
 
   function handleOpen() {
     markFeatureSeen(AnnouncedFeature.NEW_TASK);
@@ -67,12 +71,12 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
   useMountEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || event.repeat) return;
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
         return;
       }
-      if (event.key.toLowerCase() !== SHORTCUT_KEY) return;
+      if (event.code !== SHORTCUT_CODE) return;
       if (isEditableKeyboardTarget(event.target)) return;
-      // Inside an open dialog (the wizard itself included) or menu, C belongs
+      // Inside an open dialog (the wizard itself included) or menu, the key belongs
       // to that surface; opening again would remount the wizard and drop
       // what the reader entered.
       if (
@@ -96,7 +100,7 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
           type="button"
           variant="ghost"
           size="icon"
-          aria-keyshortcuts={SHORTCUT_KEY.toUpperCase()}
+          aria-keyshortcuts="Alt+N"
           onClick={handleOpen}
           className="bg-quinary hover:bg-quaternary relative size-10 shrink-0 md:size-8"
         >
@@ -113,7 +117,7 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
         className="flex items-center gap-2"
       >
         {t("newTask")}
-        <Kbd className="opacity-70">{SHORTCUT_KEY.toUpperCase()}</Kbd>
+        <Kbd className="opacity-70">{shortcutLabel}</Kbd>
       </TooltipContent>
     </Tooltip>
   );

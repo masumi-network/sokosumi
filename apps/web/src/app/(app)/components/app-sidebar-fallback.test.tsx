@@ -125,7 +125,8 @@ describe("AppSidebarFallback", () => {
       ) ?? []),
     ];
 
-    // Shaped like the loaded switcher: avatar, name bar, its small chevron.
+    // Shaped like the loaded switcher: avatar, name bar, its small selector
+    // chevron.
     expect(placeholder).not.toBeNull();
     const [avatar, name, chevron] = [...(placeholder?.children ?? [])];
     expect(tokens(avatar?.className ?? "")).toEqual(
@@ -134,7 +135,7 @@ describe("AppSidebarFallback", () => {
     expect(tokens(name?.className ?? "")).toEqual(
       expect.arrayContaining(["h-3", "w-20"]),
     );
-    expect(chevron?.getAttribute("class")).toContain("lucide-chevron-down");
+    expect(chevron?.getAttribute("class")).toContain("lucide-chevrons-up-down");
     expect(tokens(placeholder?.parentElement?.className ?? "")).toEqual(
       expect.arrayContaining(["flex-1", "max-md:hidden"]),
     );
