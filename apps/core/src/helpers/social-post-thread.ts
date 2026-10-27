@@ -1,5 +1,5 @@
 /** Includes the main post, which remains on SocialPost. */
-export const SOCIAL_POST_THREAD_MAX_PARTS = 25;
+export { SOCIAL_POST_THREAD_MAX_PARTS } from "@sokosumi/utils";
 
 interface ThreadProgress {
   publishedExternalId: string | null;
