@@ -15,7 +15,7 @@ const WORKSPACE_SWITCHER_ROW_CLASS =
 
 export const WORKSPACE_SWITCHER_TRIGGER_CLASS = cn(
   WORKSPACE_SWITCHER_ROW_CLASS,
-  "text-foreground press transition-[opacity,background-color] max-md:hover:opacity-80 md:hover:bg-sidebar-accent md:data-[state=open]:bg-sidebar-accent",
+  "text-foreground press ring-sidebar-ring transition-[opacity,background-color] max-md:hover:opacity-80 md:outline-hidden md:hover:bg-sidebar-accent md:focus-visible:ring-2 md:data-[state=open]:bg-sidebar-accent",
 );
 
 export const WORKSPACE_SWITCHER_AVATAR_CLASS = "size-4 shrink-0 md:size-5";
