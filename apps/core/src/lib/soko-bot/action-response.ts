@@ -190,11 +190,11 @@ function actionTarget(
   if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
     const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
     if (!issue.success) return "";
-    const issues = `/projects/${issue.data.projectId}/newsletter/issues`;
+    const query = `?projectId=${encodeURIComponent(issue.data.projectId)}`;
     // A deleted issue has no editor left to open.
     return call.capability === "delete_newsletter_issue"
-      ? `([Open issues](${issues}))`
-      : `([Open issue](${issues}/${encodeURIComponent(id)}))`;
+      ? `([Open issues](/newsletter/issues${query}))`
+      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
   }
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;

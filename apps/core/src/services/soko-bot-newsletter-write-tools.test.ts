@@ -35,7 +35,7 @@ const m = vi.hoisted(() => ({
   count: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: true }),
+  getEnv: () => ({}),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -231,7 +231,7 @@ describe("Soko Bot newsletter issue writes", () => {
       projectId: NEWSLETTER_PROJECT_ID,
       subject: "Launch week",
       status: "DRAFT",
-      url: `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ISSUE_ID}`,
+      url: `/newsletter/issues/${NEWSLETTER_ISSUE_ID}?projectId=${NEWSLETTER_PROJECT_ID}`,
     });
     expect(m.issueCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({

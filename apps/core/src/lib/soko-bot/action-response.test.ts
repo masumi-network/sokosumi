@@ -79,15 +79,15 @@ describe("action lines the owner reads", () => {
   it.each([
     [
       "create_newsletter_issue",
-      "Created newsletter draft ([Open issue](/projects/{p}/newsletter/issues/issue-one)).",
+      "Created newsletter draft ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
     ],
     [
       "update_newsletter_issue",
-      "Updated newsletter issue ([Open issue](/projects/{p}/newsletter/issues/issue-one)).",
+      "Updated newsletter issue ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
     ],
     [
       "delete_newsletter_issue",
-      "Deleted newsletter issue ([Open issues](/projects/{p}/newsletter/issues)).",
+      "Deleted newsletter issue ([Open issues](/newsletter/issues?projectId={p})).",
     ],
   ])("links a verified %s to the Newsletter", async (capability, line) => {
     const projectId = "11111111-1111-4111-8111-111111111111";
