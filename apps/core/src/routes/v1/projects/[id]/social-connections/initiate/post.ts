@@ -1,4 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
+import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
+import { unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
@@ -58,6 +60,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const input = c.req.valid("json");
+    if (input.callbackUrl && !isFirstPartyAppUrl(input.callbackUrl)) {
+      throw unprocessableEntity("Unknown return address");
+    }
 
     try {
       const connection = await initiateProjectSocialConnection({

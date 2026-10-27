@@ -114,7 +114,6 @@ import {
   describeCmoStep,
   finishCmoAccountsStep,
   hasActiveCmoSubscription,
-  isCmoAppUrl,
   keepCalendarWork,
   listCmoChannels,
   mergeBrandVisual,
@@ -1258,20 +1257,6 @@ describe("startCmoOnboarding", () => {
     });
     expect(getUserWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();
-  });
-});
-
-describe("CMO return addresses", () => {
-  it("accepts CMO.xyz and its previews, nothing else", () => {
-    expect(isCmoAppUrl("https://app.cmo.xyz/connect/callback")).toBe(true);
-    expect(
-      isCmoAppUrl(
-        "https://sokosumi-cmo-git-x.preview.cmo.xyz/connect/callback",
-      ),
-    ).toBe(true);
-    expect(isCmoAppUrl("https://evil.example/cmo.xyz")).toBe(false);
-    expect(isCmoAppUrl("http://app.cmo.xyz/connect/callback")).toBe(false);
-    expect(isCmoAppUrl("https://cmo.xyz.evil.example/")).toBe(false);
   });
 });
 

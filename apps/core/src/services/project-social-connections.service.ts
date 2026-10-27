@@ -47,7 +47,7 @@ export type InitiateProjectSocialConnectionInput = {
   userId: string;
   /**
    * Where the provider sends the owner back. Defaults to Web's popup
-   * callback; CMO.xyz passes its own page, already checked by the caller.
+   * callback; a first-party app passes its own page, checked by the route.
    */
   callbackUrl?: string;
 } & (

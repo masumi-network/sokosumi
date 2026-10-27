@@ -24,13 +24,11 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
-import { isLocalDevHostname } from "@/config/cors-allow-origin";
 import {
   getEnv,
   getWebAppBaseUrl,
   isProductionEnvironment,
 } from "@/config/env";
-import type { ProjectSocialProvider } from "@/config/social-providers";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
@@ -670,74 +668,6 @@ export async function cmoWork(
     sectionsSaved: cmoBrandSectionsSaved(hire.brandBrain).length,
     sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
   };
-}
-
-/**
- * Pages of CMO.xyz itself: social connect may send the owner back there and
- * nowhere else. Local CMO runs on localhost in development.
- */
-export function isCmoAppUrl(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
-  }
-  const host = url.hostname.toLowerCase();
-  if (url.protocol === "https:") {
-    return host === "cmo.xyz" || host.endsWith(".cmo.xyz");
-  }
-  return (
-    getEnv().NODE_ENV === "development" &&
-    url.protocol === "http:" &&
-    isLocalDevHostname(host)
-  );
-}
-
-/**
- * Starts connecting one of the strategy's networks to Cuso's Project through
- * Sokosumi's Project social flow; the provider returns to CMO afterwards.
- */
-export async function connectCmoChannel(input: {
-  userId: string;
-  provider: ProjectSocialProvider;
-  callbackUrl: string;
-}): Promise<{ redirectUrl: string }> {
-  if (!isCmoAppUrl(input.callbackUrl)) {
-    throw new CmoConflictError("Unknown return address");
-  }
-  const hire = await getCmoHireForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const { initiateProjectSocialConnection } = await import(
-    "@/services/project-social-connections.service"
-  );
-  const { redirectUrl } = await initiateProjectSocialConnection({
-    projectId: hire.projectId,
-    workspaceId: hire.workspaceId,
-    userId: input.userId,
-    action: "connect",
-    provider: input.provider,
-    callbackUrl: input.callbackUrl,
-  });
-  return { redirectUrl };
-}
-
-/** Finishes a connection the provider just confirmed. */
-export async function finalizeCmoChannel(input: {
-  userId: string;
-  connectionId: string;
-}): Promise<void> {
-  const hire = await getCmoHireForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const { finalizeProjectSocialConnection } = await import(
-    "@/services/project-social-connections.service"
-  );
-  await finalizeProjectSocialConnection({
-    projectId: hire.projectId,
-    workspaceId: hire.workspaceId,
-    userId: input.userId,
-    connectionId: input.connectionId,
-  });
 }
 
 /** The founder connected or skipped the Accounts step; a reload resumes on the plan. */

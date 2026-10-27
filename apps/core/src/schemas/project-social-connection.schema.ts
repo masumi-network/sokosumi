@@ -70,19 +70,28 @@ export const disconnectProjectSocialConnectionResponseSchema =
     })
     .openapi("DisconnectProjectSocialConnectionResponse");
 
+const socialConnectionCallbackUrlSchema = z.url().max(2048).optional().openapi({
+  description:
+    "Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.",
+  example: "https://app.cmo.xyz/connect/callback",
+});
+
 export const initiateProjectSocialConnectionRequestSchema = z
   .discriminatedUnion("action", [
     z.object({
       action: z.literal("connect"),
       provider: projectSocialProviderSchema,
+      callbackUrl: socialConnectionCallbackUrlSchema,
     }),
     z.object({
       action: z.literal("reconnect"),
       socialConnectionId: z.string().uuid(),
+      callbackUrl: socialConnectionCallbackUrlSchema,
     }),
     z.object({
       action: z.literal("replace"),
       socialConnectionId: z.string().uuid(),
+      callbackUrl: socialConnectionCallbackUrlSchema,
     }),
   ])
   .openapi("InitiateProjectSocialConnectionRequest");

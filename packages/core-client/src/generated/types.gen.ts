@@ -6946,12 +6946,24 @@ export type InitiateProjectSocialConnectionResponse = {
 export type InitiateProjectSocialConnectionRequest = {
     action: 'connect';
     provider: ProjectSocialProvider;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 } | {
     action: 'replace';
     socialConnectionId: string;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
@@ -9290,10 +9302,6 @@ export type CmoBrandBrainRequest = {
 
 export type CmoStrategyRequest = {
     note?: string;
-};
-
-export type CmoChannelConnect = {
-    redirectUrl: string;
 };
 
 export type SokoBotApiKey = {
@@ -61257,187 +61265,6 @@ export type PauseCmoCalendarEntryResponses = {
 };
 
 export type PauseCmoCalendarEntryResponse = PauseCmoCalendarEntryResponses[keyof PauseCmoCalendarEntryResponses];
-
-export type ConnectCmoChannelData = {
-    body?: {
-        provider: ProjectSocialProvider;
-        callbackUrl: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/channels/connect';
-};
-
-export type ConnectCmoChannelErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unknown return address
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Connecting this network is not set up
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ConnectCmoChannelError = ConnectCmoChannelErrors[keyof ConnectCmoChannelErrors];
-
-export type ConnectCmoChannelResponses = {
-    /**
-     * Provider sign-in started
-     */
-    200: {
-        data: CmoChannelConnect;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ConnectCmoChannelResponse = ConnectCmoChannelResponses[keyof ConnectCmoChannelResponses];
-
-export type FinalizeCmoChannelData = {
-    body?: {
-        connectionId: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/channels/finalize';
-};
-
-export type FinalizeCmoChannelErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unknown or expired connection
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type FinalizeCmoChannelError = FinalizeCmoChannelErrors[keyof FinalizeCmoChannelErrors];
-
-export type FinalizeCmoChannelResponses = {
-    /**
-     * Account connected
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type FinalizeCmoChannelResponse = FinalizeCmoChannelResponses[keyof FinalizeCmoChannelResponses];
 
 export type ImportCmoMailingListData = {
     body?: {

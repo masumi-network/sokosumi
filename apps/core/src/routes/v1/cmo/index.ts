@@ -2,8 +2,6 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountUpdateCmoBrandBrain from "./brand-brain/put.js";
 import mountPauseCmoCalendarEntry from "./calendar/[id]/pause/post.js";
-import mountConnectCmoChannel from "./channels/connect/post.js";
-import mountFinalizeCmoChannel from "./channels/finalize/post.js";
 import mountGetCmoOverview from "./get.js";
 import mountImportCmoMailingList from "./mailing-list/post.js";
 import mountChooseCmoMockPlan from "./mock-plan/post.js";
@@ -33,8 +31,6 @@ mountRequestCmoStrategy(app);
 mountApproveCmoStrategy(app);
 mountRevertCmoUpdate(app);
 mountPauseCmoCalendarEntry(app);
-mountConnectCmoChannel(app);
-mountFinalizeCmoChannel(app);
 mountImportCmoMailingList(app);
 
 export default app;

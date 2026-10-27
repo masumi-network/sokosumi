@@ -5,8 +5,6 @@ import {
   type CmoOverview,
   chooseCmoMockPlan,
   completeCmoOnboarding,
-  connectCmoChannel,
-  finalizeCmoChannel,
   finishCmoAccountsStep,
   getChatsRoomsByIdMessages,
   getCmoOverview,
@@ -14,6 +12,8 @@ import {
   importCmoMailingList,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
+  postProjectsByIdSocialConnectionsFinalize,
+  postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategy,
   retryCmoOnboarding,
   revertCmoUpdate,
@@ -302,14 +302,33 @@ async function callbackUrl(): Promise<string> {
   return `${proto}://${host}/connect/callback`;
 }
 
+/**
+ * Request options for Cuso's Project on the standard Project routes, which
+ * find an organization's Project only with its slug header.
+ */
+async function cusoProject() {
+  const core = await requireCore();
+  const overview = await loadOverview();
+  if (!overview) throw new Error("Cuso is not hired yet");
+  return {
+    ...core,
+    path: { id: overview.projectId },
+    headers: {
+      ...core.headers,
+      ...(overview.organizationSlug
+        ? { "x-organization-slug": overview.organizationSlug }
+        : {}),
+    },
+  };
+}
+
 /** Starts connecting a network; the browser goes to the returned URL. */
 export async function connectChannel(
   provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
 ): Promise<{ url: string | null; error: string | null }> {
-  const core = await requireCore();
-  const { data, error } = await connectCmoChannel({
-    ...core,
-    body: { provider, callbackUrl: await callbackUrl() },
+  const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
+    ...(await cusoProject()),
+    body: { action: "connect", provider, callbackUrl: await callbackUrl() },
   });
   if (!data) {
     return { url: null, error: errorText(error, "Could not start connecting") };
@@ -319,9 +338,8 @@ export async function connectChannel(
 
 /** Finishes a connection after the provider sent the founder back. */
 export async function finalizeChannel(connectionId: string): Promise<boolean> {
-  const core = await requireCore();
-  const { error } = await finalizeCmoChannel({
-    ...core,
+  const { error } = await postProjectsByIdSocialConnectionsFinalize({
+    ...(await cusoProject()),
     body: { connectionId },
   });
   return !error;

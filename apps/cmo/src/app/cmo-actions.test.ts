@@ -1,17 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const startCmoOnboarding = vi.fn();
+const getCmoOverview = vi.fn();
+const postProjectsByIdSocialConnectionsInitiate = vi.fn();
+const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const revalidatePath = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath }));
 
-vi.mock("../lib/core", () => ({
-  coreForCurrentUser: async () => ({ client: {} }),
+vi.mock("next/headers", () => ({
+  headers: async () =>
+    new Headers({ host: "app.cmo.xyz", "x-forwarded-proto": "https" }),
 }));
 
-vi.mock("@sokosumi/core-client", () => ({ startCmoOnboarding }));
+vi.mock("../lib/core", () => ({
+  coreForCurrentUser: async () => ({
+    client: {},
+    headers: { authorization: "Bearer t" },
+  }),
+}));
 
-const { onboard } = await import("./cmo-actions");
+vi.mock("@sokosumi/core-client", () => ({
+  startCmoOnboarding,
+  getCmoOverview,
+  postProjectsByIdSocialConnectionsInitiate,
+  postProjectsByIdSocialConnectionsFinalize,
+}));
+
+const { connectChannel, finalizeChannel, onboard } = await import(
+  "./cmo-actions"
+);
 
 const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
 
@@ -91,5 +109,53 @@ describe("onboard", () => {
     expect(state.errors).toEqual({ form: "That did not work. Try again." });
     expect(state.websiteUrl).toBe("acme.io");
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("social accounts", () => {
+  // Cuso's Project in an organization: the Project routes need its slug.
+  const projectCall = {
+    path: { id: "project-1" },
+    headers: { authorization: "Bearer t", "x-organization-slug": "acme" },
+  };
+
+  beforeEach(() => {
+    getCmoOverview.mockResolvedValue({
+      data: { data: { projectId: "project-1", organizationSlug: "acme" } },
+      response: { status: 200 },
+    });
+  });
+
+  it("connects through Cuso's Project and comes back to CMO", async () => {
+    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+      data: { data: { redirectUrl: "https://connect.example/x" } },
+    });
+
+    expect(await connectChannel("x")).toEqual({
+      url: "https://connect.example/x",
+      error: null,
+    });
+    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...projectCall,
+        body: {
+          action: "connect",
+          provider: "x",
+          callbackUrl: "https://app.cmo.xyz/connect/callback",
+        },
+      }),
+    );
+  });
+
+  it("finishes the connection on Cuso's Project", async () => {
+    postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({ data: {} });
+
+    expect(await finalizeChannel("ca_1")).toBe(true);
+    expect(postProjectsByIdSocialConnectionsFinalize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...projectCall,
+        body: { connectionId: "ca_1" },
+      }),
+    );
   });
 });

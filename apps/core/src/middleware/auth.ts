@@ -33,6 +33,12 @@ export interface UserAuthenticationContext {
   /** Credential class used to authenticate this request. */
   authenticationMethod?: "session" | "api_key" | "oauth";
   /**
+   * An OAuth token from a first-party client (`skipConsent`, ADR 0046), such
+   * as CMO or the Apple app: a person signed in right there, so it counts as
+   * interactive.
+   */
+  firstPartyClient?: boolean;
+  /**
    * Admin user id when this session impersonates another user (Better Auth
    * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
    * effective (target) user.
@@ -401,7 +407,11 @@ export function requireInteractiveUserAuthContext(
 ): UserAuthenticationContext {
   const userAuthContext = requireUserAuthContext(authContext);
 
-  if (userAuthContext.authenticationMethod !== "session") {
+  const interactive =
+    userAuthContext.authenticationMethod === "session" ||
+    (userAuthContext.authenticationMethod === "oauth" &&
+      userAuthContext.firstPartyClient === true);
+  if (!interactive) {
     throw forbidden("Interactive session required to manage credentials");
   }
 
@@ -607,6 +617,7 @@ async function verifyOAuthToken(
       organizationId: null,
       role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
+      ...(client.skipConsent ? { firstPartyClient: true } : {}),
     },
   });
   return true;
