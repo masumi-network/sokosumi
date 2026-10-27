@@ -208,13 +208,33 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
   });
 
   it.each([
-    [SokoBotStatus.PAUSED, /paused/],
+    // "Paused" is the status badge's own word, so it is the badge's string.
+    [SokoBotStatus.PAUSED, /PAUSED/],
     [SokoBotStatus.ERROR, /needsAttention/],
     [SokoBotStatus.IDLE, /ready/],
   ])("gives a %s bot its status line and no pulse", (status, line) => {
     renderNav({ bot: { ...bot, status } });
     expect(row()).toHaveAccessibleName(line);
     expect(screen.queryByTestId("soko-bot-pulse")).toBeNull();
+  });
+
+  // The tones the Soko Bot status badge paints, so a bot reads the same in
+  // the sidebar as on its console: paused waits on someone (warning), not
+  // muted, and an idle bot is at rest, not a success.
+  it.each([
+    [SokoBotStatus.RUNNING, "status-working"],
+    [SokoBotStatus.PAUSED, "semantic-warning"],
+    [SokoBotStatus.ERROR, "semantic-destructive"],
+    [SokoBotStatus.IDLE, "muted-foreground"],
+  ])("paints a %s bot's dot and line in the badge's tone", (status, hue) => {
+    const { container } = renderNav({ bot: { ...bot, status } });
+
+    expect(
+      container.querySelector('[data-slot="soko-bot-status-dot"]'),
+    ).toHaveClass(`bg-${hue}`);
+    expect(
+      container.querySelector('[data-slot="soko-bot-status-line"]')?.className,
+    ).toMatch(new RegExp(`\\btext-${hue}(-label)?\\b`));
   });
 
   it("says when an idle bot was last active, in the reader's locale", () => {

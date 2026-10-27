@@ -4075,7 +4075,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Arbeitet gerade",
-          "paused": "Pausiert",
           "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",

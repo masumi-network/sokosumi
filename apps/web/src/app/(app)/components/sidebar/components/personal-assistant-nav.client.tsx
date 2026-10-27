@@ -9,6 +9,11 @@ import type { ReactNode } from "react";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
+import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
+import {
+  STATUS_TONE_DOT_CLASS,
+  STATUS_TONE_TEXT_CLASS,
+} from "@/components/soko-bot/status-badge";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -46,13 +51,6 @@ export interface SidebarSokoBotLive extends SidebarSokoBotAvatar {
   lastActivityAt: Date | null;
   isYours: boolean;
 }
-
-const STATUS_DOT_CLASS: Record<SokoBotStatus, string> = {
-  [SokoBotStatus.RUNNING]: "bg-status-working",
-  [SokoBotStatus.IDLE]: "bg-semantic-success",
-  [SokoBotStatus.PAUSED]: "bg-muted-foreground",
-  [SokoBotStatus.ERROR]: "bg-semantic-destructive",
-};
 
 const ROW_LINK_CLASS =
   "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
@@ -199,34 +197,35 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
   );
 }
 
+/**
+ * What the bot is doing, in the tone the Soko Bot status badge paints it.
+ * The words are the sidebar's where a row says more than the badge's one
+ * word ("Working now", "Needs attention", when an idle bot was last active),
+ * and the badge's own where they agree ("Paused").
+ */
 function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
-  let text: ReactNode;
-  let className = "text-muted-foreground";
-
-  switch (bot.status) {
-    case SokoBotStatus.RUNNING:
-      text = t("workingNow");
-      className = "text-status-working";
-      break;
-    case SokoBotStatus.PAUSED:
-      text = t("paused");
-      break;
-    case SokoBotStatus.ERROR:
-      text = t("needsAttention");
-      className = "text-semantic-destructive";
-      break;
-    default:
-      text = bot.lastActivityAt ? (
-        <LastActive at={bot.lastActivityAt} />
-      ) : (
-        t("ready")
-      );
-  }
+  const tStatus = useTranslations("Components.SokoBot.BotStatus");
+  const text: Record<SokoBotStatus, ReactNode> = {
+    [SokoBotStatus.RUNNING]: t("workingNow"),
+    [SokoBotStatus.PAUSED]: tStatus(SokoBotStatus.PAUSED),
+    [SokoBotStatus.ERROR]: t("needsAttention"),
+    [SokoBotStatus.IDLE]: bot.lastActivityAt ? (
+      <LastActive at={bot.lastActivityAt} />
+    ) : (
+      t("ready")
+    ),
+  };
 
   return (
-    <span className={cn("truncate text-xs leading-tight", className)}>
-      {text}
+    <span
+      data-slot="soko-bot-status-line"
+      className={cn(
+        "truncate text-xs leading-tight",
+        STATUS_TONE_TEXT_CLASS[SOKO_BOT_STATUS_TONE[bot.status]],
+      )}
+    >
+      {text[bot.status]}
     </span>
   );
 }
@@ -267,9 +266,10 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
       )}
       <span
         aria-hidden
+        data-slot="soko-bot-status-dot"
         className={cn(
           "ring-sidebar absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2",
-          STATUS_DOT_CLASS[bot.status],
+          STATUS_TONE_DOT_CLASS[SOKO_BOT_STATUS_TONE[bot.status]],
         )}
       />
     </span>
