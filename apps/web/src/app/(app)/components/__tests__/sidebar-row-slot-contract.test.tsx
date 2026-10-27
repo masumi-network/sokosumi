@@ -158,12 +158,12 @@ describe("every sidebar row uses the shared leading slot", () => {
   it("renders one for Soko Bots, nav, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // Soko Bots, eight nav rows, five rooms, the archived row, the
+    // Soko Bots, the nav rows, five rooms, the archived row, the
     // invitation's card, and six skeleton room slots. Section headings have
-    // none: their title leads and the chevron follows it. Counting by row
-    // type rather than by total, so adding a nav item does not edit a number
-    // here.
-    expect(container.querySelectorAll(SLOT).length).toBeGreaterThan(20);
+    // none: their title leads and the chevron follows it, and New task is
+    // the header's button, not a row. Counting by row type rather than by
+    // total, so adding a nav item does not edit a number here.
+    expect(container.querySelectorAll(SLOT).length).toBeGreaterThanOrEqual(20);
 
     for (const slot of container.querySelectorAll(SLOT)) {
       const tokens = slot.className.split(/\s+/);

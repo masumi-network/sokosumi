@@ -17,6 +17,7 @@ import AnnouncementCards from "./components/announcement-cards";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
+import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
 
 export type SidebarCreditsSubscription =
   GetUsersByIdCreditsResponse["data"]["subscription"];
@@ -100,11 +101,12 @@ export default function Sidebar({
         h-16 border-b must match HeaderChrome's desktop control row so the
         hairline is one continuous rule across the sidebar/content seam. The
         sidebar is shown and hidden from the top bar's toggle, so its own
-        header carries no collapse control.
+        header carries no collapse control: New task is its one action.
       */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2">
           <SidebarLogo />
+          <SidebarNewTaskButton />
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">

@@ -5,8 +5,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const setOpenMobileMock = vi.fn();
-const openNewTaskWizardMock = vi.fn();
 const { pathnameRef, searchRef } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   searchRef: { current: "" },
@@ -19,14 +17,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-}));
-
-let newTaskWizardValue: {
-  openNewTaskWizard: typeof openNewTaskWizardMock;
-} | null = { openNewTaskWizard: openNewTaskWizardMock };
-
-vi.mock("@/app/components/new-task-wizard-provider", () => ({
-  useOptionalNewTaskWizard: () => newTaskWizardValue,
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -68,10 +58,7 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children, ...props }: { children: React.ReactNode }) => (
     <li {...props}>{children}</li>
   ),
-  useSidebar: () => ({
-    isMobile: sidebarIsMobile,
-    setOpenMobile: setOpenMobileMock,
-  }),
+  useSidebar: () => ({ isMobile: sidebarIsMobile }),
 }));
 
 vi.mock("next/link", () => ({
@@ -114,7 +101,6 @@ describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -123,24 +109,13 @@ describe("MenuItems", () => {
     expect(screen.queryByRole("link", { name: /history/i })).toBeNull();
   });
 
-  it("opens the New Task wizard in place and closes the mobile sidebar for seated members", () => {
-    renderMenu();
+  // New task is the sidebar header's action (`SidebarNewTaskButton`).
+  it("has no New task row, and no separator under one", () => {
+    const { container } = renderMenu();
 
     expect(screen.queryByRole("link", { name: /newTask/i })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /newTask/i }));
-
-    expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
-  });
-
-  it("links New Task to the Task Manager while the wizard is unavailable", () => {
-    newTaskWizardValue = null;
-    renderMenu();
-
-    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
-      "href",
-      "/tasks?create=true",
-    );
+    expect(screen.queryByRole("button", { name: /newTask/i })).toBeNull();
+    expect(container.querySelector('li[aria-hidden="true"]')).toBeNull();
   });
 
   it("leaves Search to the app header", () => {
@@ -152,10 +127,6 @@ describe("MenuItems", () => {
   it("keeps product destinations when the member has no assigned seat", () => {
     renderMenu(false);
 
-    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
-      "href",
-      "/tasks?create=true",
-    );
     expect(
       screen.getByRole("link", { name: /taskManager/i }),
     ).toBeInTheDocument();
@@ -243,20 +214,6 @@ describe("MenuItems", () => {
     );
   });
 
-  it("sets New Task apart from the destinations with a separator", () => {
-    const { container } = render(
-      <TestQueryProvider>
-        <MenuItems />
-      </TestQueryProvider>,
-    );
-    const separator = container.querySelector('li[aria-hidden="true"]');
-
-    expect(separator).not.toBeNull();
-    expect(separator?.firstElementChild?.className.split(/\s+/)).toContain(
-      "bg-sidebar-border",
-    );
-  });
-
   it("puts each destination's icon in the shared row slot", () => {
     render(
       <TestQueryProvider>
@@ -269,15 +226,6 @@ describe("MenuItems", () => {
     const slot = link.querySelector('[data-slot="sidebar-row-slot"]');
     expect(slot?.querySelector("svg")).not.toBeNull();
     expect(slot?.nextElementSibling).toHaveTextContent("exploreAgents");
-  });
-
-  it("keeps the New Task pill's + on the rows' leading axis", () => {
-    renderMenu(true, false);
-    const pill = document.querySelector("[data-sidebar-new-task]");
-    // A 4px inset plus 4px padding is the 8px every other row's `px-2` gives.
-    expect(pill?.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(["ml-1", "pl-1", "w-[calc(100%-0.5rem)]"]),
-    );
   });
 });
 
@@ -296,7 +244,6 @@ function destinationsUnder(heading: string) {
 describe("MenuItems groups", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/";
     searchRef.current = "";
   });
@@ -372,7 +319,6 @@ describe("MenuItems current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/";
   });
 
@@ -396,7 +342,7 @@ describe("MenuItems current destination", () => {
     expect(markedHrefs()).toEqual(["/tasks"]);
   });
 
-  // The actions (new task, search) are not destinations, so nothing is open.
+  // A route no destination owns has nothing open.
   it("marks nothing on a route no nav item owns", () => {
     pathnameRef.current = "/";
     renderMenu();
@@ -407,7 +353,6 @@ describe("MenuItems current destination", () => {
 describe("MenuItems project scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/tasks";
     searchRef.current = "";
   });
@@ -449,26 +394,6 @@ describe("MenuItems project scope", () => {
     expect(screen.getByRole("link", { name: "exploreAgents" })).toHaveAttribute(
       "href",
       "/agents",
-    );
-  });
-
-  it("passes the current project when opening New Task", () => {
-    searchRef.current = "projectId=p-1";
-    renderMenu();
-
-    fireEvent.click(screen.getByRole("button", { name: /newTask/i }));
-
-    expect(openNewTaskWizardMock).toHaveBeenCalledWith({ projectId: "p-1" });
-  });
-
-  it("keeps the current project in the New Task fallback link", () => {
-    searchRef.current = "projectId=p-1";
-    newTaskWizardValue = null;
-    renderMenu();
-
-    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
-      "href",
-      "/tasks?projectId=p-1&create=true",
     );
   });
 
