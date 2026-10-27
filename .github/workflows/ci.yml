@@ -136,6 +136,11 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter web exec playwright install --with-deps webkit chromium
 
+      # The Seen by picture test launches Chromium with its sandbox on, which
+      # Ubuntu 24.04's AppArmor blocks by default ("No usable sandbox!").
+      - name: Allow the Chromium sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Run Tests
         run: pnpm --filter web test:webkit
 
