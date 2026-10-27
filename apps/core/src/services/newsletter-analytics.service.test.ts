@@ -137,13 +137,21 @@ describe("newsletter analytics aggregation", () => {
     expect(m.raw).not.toHaveBeenCalled();
   });
 
-  it("does no aggregates for an inaccessible project or missing newsletter", async () => {
-    m.newsletter.mockRejectedValue(notFound("Newsletter not found"));
-    await expect(getNewsletterAnalytics(SCOPE, {})).rejects.toMatchObject({
-      status: 404,
-    });
-    expect(m.raw).not.toHaveBeenCalled();
-  });
+  it.each(["project", "issue"])(
+    "rejects %s analytics for an inaccessible newsletter before aggregation",
+    async (kind) => {
+      m.newsletter.mockRejectedValue(notFound("Newsletter not found"));
+      await expect(
+        kind === "project"
+          ? getNewsletterAnalytics(SCOPE, {})
+          : getNewsletterIssueAnalytics(SCOPE, ISSUE_ID),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(m.newsletter).toHaveBeenCalledExactlyOnceWith(SCOPE);
+      expect(m.raw).not.toHaveBeenCalled();
+      expect(m.sent).not.toHaveBeenCalled();
+      expect(m.issue).not.toHaveBeenCalled();
+    },
+  );
 
   it("reports unavailable issue unsubscribe attribution instead of zero", async () => {
     expect(
