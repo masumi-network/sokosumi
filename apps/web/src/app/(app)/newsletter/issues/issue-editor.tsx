@@ -12,7 +12,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import { IssueAnalyticsSummary } from "@/app/projects/[projectId]/newsletter/analytics/issue-analytics-summary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +34,7 @@ import {
   type NewsletterIssueValues,
   newsletterIssueInputSchema,
 } from "@/lib/schemas/newsletter-issues";
+import { IssueAnalyticsSummary } from "../analytics/issue-analytics-summary";
 import { newsletterHref } from "../newsletter-tabs";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";

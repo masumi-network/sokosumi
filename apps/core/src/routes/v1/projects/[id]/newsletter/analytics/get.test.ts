@@ -11,17 +11,13 @@ import mountIssue from "../issues/[issueId]/analytics/get";
 import mountGet from "./get";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   analytics: vi.fn(),
   issue: vi.fn(),
+  workspace: vi.fn(),
 }));
-vi.mock("@/config/env", async (original) => {
-  const actual = await original<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
+vi.mock("@/lib/db/prisma", () => ({
+  default: { workspace: { findUnique: m.workspace } },
+}));
 vi.mock("@/services/newsletter-analytics.service", () => ({
   getNewsletterAnalytics: m.analytics,
   getNewsletterIssueAnalytics: m.issue,
@@ -77,7 +73,7 @@ function app(
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
+  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.analytics.mockResolvedValue({
     from: "2026-10-01",
     to: "2026-10-02",
@@ -113,13 +109,13 @@ describe("newsletter analytics routes", () => {
       ISSUE_ID,
     );
   });
-  it("returns 404 before access or data work when disabled", async () => {
-    m.enabled = false;
+  it("returns 404 outside the utxo workspace for both endpoints", async () => {
+    m.workspace.mockResolvedValue({ organization: { slug: "other" } });
     for (const path of [
       `${BASE}/analytics`,
       `${BASE}/issues/${ISSUE_ID}/analytics`,
     ])
-      expect((await app(AUTH, null).request(path)).status).toBe(404);
+      expect((await app().request(path)).status).toBe(404);
     expect(m.analytics).not.toHaveBeenCalled();
     expect(m.issue).not.toHaveBeenCalled();
   });

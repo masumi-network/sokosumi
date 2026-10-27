@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { newsletterHref } from "../newsletter-tabs";
 import {
   NewsletterAnalyticsNotes,
   NewsletterMetrics,
@@ -125,7 +126,7 @@ export function NewsletterAnalyticsView({
               description={t("emptyDescription")}
               action={
                 <Button asChild variant="outline">
-                  <Link href={`/projects/${projectId}/newsletter/issues`}>
+                  <Link href={newsletterHref("/newsletter/issues", projectId)}>
                     {t("viewIssues")}
                   </Link>
                 </Button>
@@ -282,7 +283,10 @@ export function NewsletterAnalyticsView({
                       <TableCell className="min-w-40 whitespace-normal">
                         <Link
                           className="underline underline-offset-4"
-                          href={`/projects/${projectId}/newsletter/issues/${issue.id}`}
+                          href={newsletterHref(
+                            `/newsletter/issues/${encodeURIComponent(issue.id)}`,
+                            projectId,
+                          )}
                         >
                           {issue.subject}
                         </Link>

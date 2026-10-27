@@ -14,7 +14,6 @@ const m = vi.hoisted(() => ({
   sent: vi.fn(),
   active: vi.fn(),
   issue: vi.fn(),
-  workspace: vi.fn(),
 }));
 vi.mock("@/services/newsletter.service", () => ({
   getNewsletter: m.newsletter,
@@ -25,7 +24,6 @@ vi.mock("@/lib/db/prisma", () => ({
     newsletterSend: { count: m.sent },
     newsletterSubscriber: { count: m.active },
     newsletterIssue: { findUnique: m.issue },
-    workspace: { findFirst: m.workspace },
   },
 }));
 
@@ -47,7 +45,6 @@ const COUNTS = {
 beforeEach(() => {
   vi.resetAllMocks();
   m.newsletter.mockResolvedValue({ id: NEWSLETTER_ID });
-  m.workspace.mockResolvedValue({ id: SCOPE.workspaceId });
   m.issue.mockResolvedValue({ id: ISSUE_ID });
   m.sent.mockResolvedValue(10);
   m.active.mockResolvedValue(9);
@@ -147,25 +144,6 @@ describe("newsletter analytics aggregation", () => {
     });
     expect(m.raw).not.toHaveBeenCalled();
   });
-
-  it.each(["project", "issue"])(
-    "rejects %s analytics outside the project's utxo workspace before aggregation",
-    async (kind) => {
-      m.workspace.mockResolvedValue(null);
-      await expect(
-        kind === "project"
-          ? getNewsletterAnalytics(SCOPE, {})
-          : getNewsletterIssueAnalytics(SCOPE, ISSUE_ID),
-      ).rejects.toMatchObject({ status: 404 });
-      expect(m.workspace).toHaveBeenCalledWith({
-        where: { id: SCOPE.workspaceId, organization: { slug: "utxo" } },
-        select: { id: true },
-      });
-      expect(m.raw).not.toHaveBeenCalled();
-      expect(m.sent).not.toHaveBeenCalled();
-      expect(m.issue).not.toHaveBeenCalled();
-    },
-  );
 
   it("reports unavailable issue unsubscribe attribution instead of zero", async () => {
     expect(
