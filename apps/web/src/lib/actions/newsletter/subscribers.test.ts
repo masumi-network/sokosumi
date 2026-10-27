@@ -215,9 +215,7 @@ describe("newsletter subscriber actions", () => {
           consent,
         },
       );
-      expect(revalidatePath).toHaveBeenCalledWith(
-        `/projects/${TARGET.projectId}/newsletter/subscribers`,
-      );
+      expect(revalidatePath).toHaveBeenCalledWith("/newsletter/subscribers");
     },
   );
 

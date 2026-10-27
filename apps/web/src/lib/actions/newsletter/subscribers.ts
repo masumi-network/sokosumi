@@ -148,7 +148,7 @@ export const addNewsletterSubscribersFromContacts = withSession<
         consent: parsed.data.consent,
       },
     );
-    revalidatePath(`/projects/${projectId}/newsletter/subscribers`);
+    revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(summary));
   } catch {
     return toActionResult(err({ message: t("FromContacts.error") }));
