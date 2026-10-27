@@ -11,6 +11,7 @@ export type TaskScheduleStateAction = "pause" | "resume" | "end";
 import type {
   ActivateEnterpriseContractRequest,
   AddNewsletterSubscriberRequest,
+  AddNewsletterSubscribersFromContactsRequest,
   AgentStatus,
   AggregateAdminTaskX402PaymentsByAgentData,
   CreateAdminBadgeCampaignData,
@@ -29,6 +30,7 @@ import type {
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
   DeleteTasksByIdShareError,
+  DraftNewsletterIssueRequest,
   GetAgentsByIdJobsData,
   GetAgentsByIdReviewsData,
   GetAgentsData,
@@ -56,6 +58,7 @@ import type {
   GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdNewsletterAnalyticsData,
   GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
   GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData,
@@ -299,8 +302,10 @@ import {
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
+  getProjectsByIdNewsletterAnalytics as coreGetProjectsByIdNewsletterAnalytics,
   getProjectsByIdNewsletterIssues as coreGetProjectsByIdNewsletterIssues,
   getProjectsByIdNewsletterIssuesByIssueId as coreGetProjectsByIdNewsletterIssuesByIssueId,
+  getProjectsByIdNewsletterIssuesByIssueIdAnalytics as coreGetProjectsByIdNewsletterIssuesByIssueIdAnalytics,
   getProjectsByIdNewsletterSubscribers as coreGetProjectsByIdNewsletterSubscribers,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
@@ -451,8 +456,10 @@ import {
   postProjectsByIdNewsletterIssuesByIssueIdSchedule as corePostProjectsByIdNewsletterIssuesByIssueIdSchedule,
   postProjectsByIdNewsletterIssuesByIssueIdSendNow as corePostProjectsByIdNewsletterIssuesByIssueIdSendNow,
   postProjectsByIdNewsletterIssuesByIssueIdSubmit as corePostProjectsByIdNewsletterIssuesByIssueIdSubmit,
+  postProjectsByIdNewsletterIssuesDraftWithAi as corePostProjectsByIdNewsletterIssuesDraftWithAi,
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
+  postProjectsByIdNewsletterSubscribersFromContacts as corePostProjectsByIdNewsletterSubscribersFromContacts,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
@@ -707,6 +714,39 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdNewsletterAnalytics(
+    id: string,
+    query: GetProjectsByIdNewsletterAnalyticsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletterAnalytics({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch newsletter analytics",
+    );
+  }
+
+  async function getProjectsByIdNewsletterIssuesByIssueIdAnalytics(
+    id: string,
+    issueId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletterIssuesByIssueIdAnalytics({
+          client,
+          path: { id, issueId },
+          cache: "no-store",
+        }),
+      "Failed to fetch newsletter issue analytics",
+    );
+  }
+
   async function getProjectsByIdNewsletterIssues(
     id: string,
     query: GetProjectsByIdNewsletterIssuesData["query"],
@@ -749,6 +789,22 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         corePostProjectsByIdNewsletterIssues({ client, path: { id }, body }),
       "Failed to create newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesDraftWithAi(
+    id: string,
+    body: DraftNewsletterIssueRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesDraftWithAi({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to draft newsletter issue",
     );
   }
 
@@ -964,6 +1020,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to import newsletter subscribers",
+    );
+  }
+
+  async function postProjectsByIdNewsletterSubscribersFromContacts(
+    id: string,
+    body: AddNewsletterSubscribersFromContactsRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterSubscribersFromContacts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to add newsletter subscribers from Contacts",
     );
   }
 
@@ -6548,6 +6620,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     pinProject,
     unpinProject,
     getProjectsById,
+    postProjectsByIdNewsletterIssuesDraftWithAi,
     getProjectsByIdCalendar,
     getProjectsByIdClose,
     getProjectsByIdContextMd,
@@ -6640,6 +6713,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPublicNewslettersByPublicSlugIssues,
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
+    getProjectsByIdNewsletterAnalytics,
+    getProjectsByIdNewsletterIssuesByIssueIdAnalytics,
     getProjectsByIdNewsletterIssues,
     getProjectsByIdNewsletterIssuesByIssueId,
     postProjectsByIdNewsletterIssues,
@@ -6655,6 +6730,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     putProjectsByIdNewsletter,
     getProjectsByIdNewsletterSubscribers,
     postProjectsByIdNewsletterSubscribers,
+    postProjectsByIdNewsletterSubscribersFromContacts,
     postProjectsByIdNewsletterSubscribersImport,
     patchProjectsByIdNewsletterSubscribersBySubscriberId,
     deleteProjectsByIdNewsletterSubscribersBySubscriberId,

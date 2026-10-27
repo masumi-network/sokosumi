@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type NewsletterIssue,
+  type NewsletterIssueAnalytics,
   NewsletterIssueStatus,
 } from "@sokosumi/core-client";
 import type { NewsletterBlock } from "@sokosumi/utils";
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +35,9 @@ import {
   type NewsletterIssueValues,
   newsletterIssueInputSchema,
 } from "@/lib/schemas/newsletter-issues";
+import { IssueAnalyticsSummary } from "../analytics/issue-analytics-summary";
 import { newsletterHref } from "../newsletter-tabs";
+import { DraftIssueButton } from "./draft-issue-dialog";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
 import { NewsletterIssuePreview } from "./issue-preview";
@@ -45,11 +49,15 @@ export function NewsletterIssueEditor({
   issue,
   activeSubscribers,
   newsletterSlug,
+  analytics,
+  draftedBySokoBot = false,
 }: {
   projectId: string;
   issue: NewsletterIssue;
   activeSubscribers: number;
   newsletterSlug: string;
+  analytics?: NewsletterIssueAnalytics | null;
+  draftedBySokoBot?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [currentIssue, setCurrentIssue] = useState(issue);
@@ -141,6 +149,11 @@ export function NewsletterIssueEditor({
 
   return (
     <div className="min-w-0 space-y-4">
+      {draftedBySokoBot && status === NewsletterIssueStatus.DRAFT ? (
+        <Alert role="note">
+          <AlertDescription>{t("Ai.notice")}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="outline">
           <Link href={newsletterHref("/newsletter/issues", projectId)}>
@@ -148,6 +161,9 @@ export function NewsletterIssueEditor({
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-3">
+          {editable && !blocks.fields.length ? (
+            <DraftIssueButton projectId={projectId} template={template} />
+          ) : null}
           {status === NewsletterIssueStatus.SENT ? (
             <Button asChild variant="outline">
               <Link
@@ -181,6 +197,9 @@ export function NewsletterIssueEditor({
         <p className="text-muted-foreground text-sm" role="note">
           {t("readOnly")}
         </p>
+      ) : null}
+      {status === NewsletterIssueStatus.SENT && analytics ? (
+        <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
       <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
         <Form {...form}>

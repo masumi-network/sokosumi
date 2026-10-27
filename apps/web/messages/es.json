@@ -3188,7 +3188,7 @@
           "cancel": "Cancelar",
           "done": "Listo",
           "emptyTitle": "Aún no hay suscriptores",
-          "emptyDescription": "Añade a alguien que haya aceptado recibir tu boletín o importa una lista CSV con consentimiento.",
+          "emptyDescription": "Añade personas desde Contactos, importa un CSV o añade un suscriptor a mano.",
           "search": "Buscar por correo",
           "searchPlaceholder": "nombre@ejemplo.es",
           "searchButton": "Buscar",
@@ -3224,21 +3224,22 @@
             "MANUAL": "Añadido manualmente",
             "CSV_IMPORT": "Importación CSV",
             "SIGNUP_FORM": "Formulario de suscripción",
-            "API": "API"
+            "API": "API",
+            "CONTACTS": "Contactos"
           },
           "Validation": {
             "email": "Introduce un correo electrónico válido.",
             "name": "Usa como máximo 200 caracteres.",
-            "consent": "Confirma el consentimiento antes de continuar."
+            "consent": "Elige cómo dieron su consentimiento y confírmalo antes de continuar."
           },
           "Add": {
-            "description": "Añade a una persona que haya aceptado recibir este boletín.",
+            "description": "Añade una persona a este boletín.",
             "email": "Correo electrónico",
             "name": "Nombre (opcional)",
-            "consent": "Esta persona ha aceptado recibir este boletín",
             "duplicate": "Este correo ya está en la lista. Búscalo para gestionar el suscriptor existente.",
             "error": "No se pudo añadir el suscriptor. Inténtalo de nuevo.",
-            "success": "Suscriptor añadido"
+            "success": "Suscriptor añadido",
+            "pendingConfirmation": "Correo de confirmación enviado"
           },
           "Remove": {
             "title": "¿Eliminar suscriptor?",
@@ -3255,7 +3256,6 @@
             "fileType": "Elige un archivo con la extensión .csv.",
             "fileSize": "Elige un archivo CSV de 5 MB como máximo.",
             "fileRequired": "Elige un archivo CSV para importar.",
-            "consent": "Todas las personas de este CSV han aceptado recibir este boletín",
             "importing": "Importando suscriptores…",
             "error": "No se pudieron importar los suscriptores. Inténtalo de nuevo.",
             "invalidCsv": "Revisa el CSV: incluye una cabecera email, otra opcional name y un máximo de 50.000 filas. Después, inténtalo de nuevo.",
@@ -3263,18 +3263,81 @@
             "result": {
               "imported": "Importados",
               "skippedExisting": "Ya están en la lista",
-              "invalid": "Filas no válidas notificadas"
+              "invalid": "Filas no válidas notificadas",
+              "skippedUnsubscribed": "Omitidos por haberse dado de baja",
+              "skippedBounced": "Omitidos por correos devueltos",
+              "pendingConfirmation": "En espera de confirmación"
             },
             "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
             "invalidRow": "Fila {row}: {value}",
             "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
           },
-          "dismiss": "Cerrar"
+          "dismiss": "Cerrar",
+          "fromContacts": "Añadir desde Contactos",
+          "openContactList": "Abrir lista en Contactos",
+          "Consent": {
+            "question": "¿Cómo aceptaron recibir este boletín?",
+            "CONFIRMED": "Ya dieron su consentimiento (añadir ahora)",
+            "ASK": "Preguntar primero (enviar un correo de confirmación)",
+            "confirm": "Confirmo que estas personas aceptaron recibir este boletín",
+            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». Las personas que se dieron de baja nunca se vuelven a añadir."
+          },
+          "FromContacts": {
+            "description": "Elige personas y listas de los Contactos de tu espacio de trabajo.",
+            "people": "Personas",
+            "lists": "Listas",
+            "search": "Buscar personas",
+            "noEmail": "Sin correo electrónico",
+            "loading": "Cargando contactos…",
+            "noPeople": "No se encontraron personas. Prueba otra búsqueda.",
+            "noLists": "Aún no hay listas. Crea una lista en Contactos.",
+            "loadPeopleError": "No se pudieron cargar las personas. Inténtalo de nuevo.",
+            "loadListsError": "No se pudieron cargar las listas. Inténtalo de nuevo.",
+            "retry": "Intentar de nuevo",
+            "loadMore": "Cargar más personas",
+            "members": "{count, plural, one {# miembro} other {# miembros}}",
+            "peopleSelected": "{count, plural, one {# persona seleccionada} other {# personas seleccionadas}}",
+            "listsSelected": "{count, plural, one {# lista seleccionada} other {# listas seleccionadas}}",
+            "selectionRequired": "Elige al menos una persona o lista.",
+            "selectionLimit": "Elige como máximo 1.000 personas y 20 listas a la vez.",
+            "add": "Añadir",
+            "adding": "Añadiendo suscriptores…",
+            "error": "No se pudieron añadir los suscriptores. Inténtalo de nuevo.",
+            "doneDescription": "Suscriptores añadidos. Revisa los resultados a continuación.",
+            "result": {
+              "added": "Añadidos",
+              "alreadySubscribed": "Ya suscritos",
+              "skippedUnsubscribed": "Omitidos por haberse dado de baja",
+              "skippedBounced": "Omitidos por correos devueltos",
+              "skippedNoEmail": "Omitidos por no tener correo electrónico",
+              "pendingConfirmation": "En espera de confirmación"
+            }
+          }
         },
         "Issues": {
           "title": "Ediciones",
           "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
           "newIssue": "Nueva edición",
+          "Ai": {
+            "action": "Escríbelo por mí",
+            "description": "Describe esta edición. Soko Bot creará un borrador para que lo revises antes de aprobarlo.",
+            "brief": "Instrucciones",
+            "placeholder": "Presenta las novedades de nuestro lanzamiento de otoño e invita a la demostración.",
+            "useProjectMemory": "Usar la memoria del proyecto",
+            "useRecentSocialPosts": "Usar publicaciones recientes de redes sociales",
+            "template": "Plantilla",
+            "pickImages": "Elegir imágenes de Content Studio",
+            "images": "Imágenes recientes del proyecto",
+            "imagesHint": "Elige hasta 10 imágenes. Las imágenes seleccionadas tendrán enlaces públicos para poder mostrarse en el correo.",
+            "noImages": "Aún no hay imágenes. Crea una imagen en Content Studio y vuelve a intentarlo.",
+            "imagesError": "No se pudieron cargar las imágenes. Vuelve a intentar seleccionarlas.",
+            "generate": "Generar borrador",
+            "cancel": "Cancelar",
+            "invalid": "Escribe instrucciones de entre 1 y 10.000 caracteres y elige hasta 10 imágenes.",
+            "error": "No se pudo crear el borrador. Conserva tus instrucciones y vuelve a intentarlo.",
+            "rateLimited": "Demasiados borradores para este proyecto. Espera diez minutos y vuelve a intentarlo.",
+            "notice": "Borrador de Soko Bot — revísalo antes de enviarlo para su aprobación"
+          },
           "emptyTitle": "Aún no hay ediciones",
           "emptyDescription": "Elige una plantilla para empezar tu primera edición del boletín.",
           "subject": "Asunto",
@@ -3416,6 +3479,54 @@
           "open": "Abrir página de suscripción",
           "embedCode": "Código de inserción",
           "embedTitle": "Suscripción al boletín"
+        },
+        "Analytics": {
+          "title": "Estadísticas",
+          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
+          "keyMetrics": "Métricas del boletín",
+          "from": "Desde",
+          "to": "Hasta",
+          "lastDays": "Últimos {days} días",
+          "resetRange": "Restablecer fechas",
+          "invalidRange": "Elige fechas válidas que abarquen entre 1 y 366 días, con el inicio antes del final, o restablece las fechas.",
+          "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
+          "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
+          "opensNote": "Las aperturas pueden quedar por debajo de la cifra real porque algunas aplicaciones de correo bloquean las imágenes.",
+          "issueUnsubscribesNote": "Las bajas se aplican a todo el boletín y no se pueden atribuir a una edición concreta.",
+          "emptyTitle": "No hay envíos en este período",
+          "emptyDescription": "Envía una edición para ver sus resultados o elige fechas con actividad anterior.",
+          "viewIssues": "Ver ediciones",
+          "subscriberGrowth": "Crecimiento de suscriptores",
+          "growthMetric": "Métrica del gráfico de suscriptores",
+          "engagement": "Aperturas y clics",
+          "engagementMetric": "Métrica del gráfico de interacciones",
+          "issuePerformance": "Resultados por edición",
+          "subject": "Asunto",
+          "sentAt": "Fecha de envío",
+          "unavailable": "—",
+          "issueSummary": "Estadísticas de la edición",
+          "topLinks": "Enlaces con más clics",
+          "url": "URL",
+          "noLinks": "Aún no se han registrado clics en enlaces.",
+          "metrics": {
+            "sent": "Enviados",
+            "delivered": "Entregados",
+            "uniqueOpens": "Aperturas únicas",
+            "uniqueClicks": "Clics únicos",
+            "unsubscribes": "Bajas",
+            "bounces": "Rebotes",
+            "complaints": "Quejas",
+            "openRate": "Tasa de apertura",
+            "clickRate": "Tasa de clics",
+            "activeSubscribers": "Suscriptores activos"
+          },
+          "growth": {
+            "newActive": "Nuevos suscriptores activos",
+            "unsubscribed": "Dados de baja",
+            "bounced": "Rebotados",
+            "net": "Crecimiento neto",
+            "runningTotal": "Total de suscriptores activos"
+          }
         }
       }
     },

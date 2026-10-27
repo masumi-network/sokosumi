@@ -27,6 +27,7 @@ const NEWSLETTER: Newsletter = {
   id: "n1",
   projectId: "p1",
   workspaceId: "w1",
+  contactListId: null,
   name: "Weekly news",
   senderName: "Ada",
   replyTo: "ada@example.com",

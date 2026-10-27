@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import {
+  NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
   PUBLIC_NEWSLETTER,
   PUBLIC_NEWSLETTER_ISSUE,
@@ -14,8 +15,11 @@ const core = vi.hoisted(() => ({
   getPublicNewslettersByPublicSlugIssues: vi.fn(),
   getPublicNewslettersByPublicSlugIssuesByIssueSlug: vi.fn(),
   getProjectsByIdNewsletterIssues: vi.fn(),
+  getProjectsByIdNewsletterAnalytics: vi.fn(),
+  getProjectsByIdNewsletterIssuesByIssueIdAnalytics: vi.fn(),
   getProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssues: vi.fn(),
+  postProjectsByIdNewsletterIssuesDraftWithAi: vi.fn(),
   patchProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   deleteProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssuesPreview: vi.fn(),
@@ -25,6 +29,7 @@ const core = vi.hoisted(() => ({
   getProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribersImport: vi.fn(),
+  postProjectsByIdNewsletterSubscribersFromContacts: vi.fn(),
   patchProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
   deleteProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
 }));
@@ -43,6 +48,69 @@ beforeEach(() => {
 });
 
 describe("newsletterService", () => {
+  it("drafts through the generated endpoint and preserves Core failures", async () => {
+    const input = { brief: "Launch" };
+    core.postProjectsByIdNewsletterIssuesDraftWithAi.mockResolvedValue({
+      data: NEWSLETTER_ISSUE,
+    });
+    expect(
+      await newsletterService.draftIssue(NEWSLETTER_ISSUE.projectId, input),
+    ).toBe(NEWSLETTER_ISSUE);
+    expect(
+      core.postProjectsByIdNewsletterIssuesDraftWithAi,
+    ).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_ISSUE.projectId, input);
+    const error = new CoreApiRequestError("Unavailable", { status: 503 });
+    core.postProjectsByIdNewsletterIssuesDraftWithAi.mockRejectedValue(error);
+    await expect(
+      newsletterService.draftIssue(NEWSLETTER_ISSUE.projectId, input),
+    ).rejects.toBe(error);
+  });
+  it("loads scoped analytics through the generated Core operations", async () => {
+    core.getProjectsByIdNewsletterAnalytics.mockResolvedValue({
+      data: NEWSLETTER_ANALYTICS,
+    });
+    const query = { from: "2026-10-01", to: "2026-10-02" };
+    expect(
+      await newsletterService.getAnalytics(NEWSLETTER_ISSUE.projectId, query),
+    ).toBe(NEWSLETTER_ANALYTICS);
+    expect(
+      core.getProjectsByIdNewsletterAnalytics,
+    ).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_ISSUE.projectId, query);
+    const issue = { totals: NEWSLETTER_ANALYTICS.totals, topLinks: [] };
+    core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics.mockResolvedValue({
+      data: issue,
+    });
+    expect(
+      await newsletterService.getIssueAnalytics(
+        NEWSLETTER_ISSUE.projectId,
+        NEWSLETTER_ISSUE.id,
+      ),
+    ).toBe(issue);
+    expect(
+      core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics,
+    ).toHaveBeenCalledExactlyOnceWith(
+      NEWSLETTER_ISSUE.projectId,
+      NEWSLETTER_ISSUE.id,
+    );
+  });
+  it("preserves analytics errors for the page to handle", async () => {
+    const error = new CoreApiRequestError("Invalid date range", {
+      status: 422,
+    });
+    core.getProjectsByIdNewsletterAnalytics.mockRejectedValue(error);
+    await expect(
+      newsletterService.getAnalytics(NEWSLETTER_ISSUE.projectId, {}),
+    ).rejects.toBe(error);
+    core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics.mockRejectedValue(
+      error,
+    );
+    await expect(
+      newsletterService.getIssueAnalytics(
+        NEWSLETTER_ISSUE.projectId,
+        NEWSLETTER_ISSUE.id,
+      ),
+    ).rejects.toBe(error);
+  });
   it.each(["x-vercel-forwarded-for", "x-forwarded-for"])(
     "forwards signup inputs and visitor IP for Core rate limiting: %s",
     async (header) => {
@@ -343,7 +411,7 @@ describe("newsletterService", () => {
 
   it("forwards subscriber mutations to generated Core operations", async () => {
     const subscriber = { id: "s1" };
-    const input = { email: "one@example.com", consent: true } as const;
+    const input = { email: "one@example.com", consent: "CONFIRMED" } as const;
     core.postProjectsByIdNewsletterSubscribers.mockResolvedValue({
       data: subscriber,
     });
@@ -353,7 +421,10 @@ describe("newsletterService", () => {
       input,
     );
     const summary = { imported: 1, skippedExisting: 0, invalid: [] };
-    const csv = { csv: "email\none@example.com", consent: true } as const;
+    const csv = {
+      csv: "email\none@example.com",
+      consent: "CONFIRMED",
+    } as const;
     core.postProjectsByIdNewsletterSubscribersImport.mockResolvedValue({
       data: summary,
     });
@@ -394,13 +465,13 @@ describe("newsletterService", () => {
     await expect(
       newsletterService.addSubscriber("p1", {
         email: "one@example.com",
-        consent: true,
+        consent: "CONFIRMED",
       }),
     ).rejects.toBe(error);
     await expect(
       newsletterService.importSubscribers("p1", {
         csv: "email",
-        consent: true,
+        consent: "CONFIRMED",
       }),
     ).rejects.toBe(error);
     await expect(
@@ -409,5 +480,37 @@ describe("newsletterService", () => {
     await expect(newsletterService.removeSubscriber("p1", "s1")).rejects.toBe(
       error,
     );
+  });
+
+  it("adds from Contacts through Core, preserves counts and propagates failures", async () => {
+    const summary = {
+      added: 1,
+      alreadySubscribed: 2,
+      skippedUnsubscribed: 3,
+      skippedBounced: 4,
+      skippedNoEmail: 5,
+      pendingConfirmation: 6,
+    };
+    const body = {
+      contactIds: ["c1"],
+      listIds: ["l1"],
+      consent: "ASK" as const,
+    };
+    core.postProjectsByIdNewsletterSubscribersFromContacts.mockResolvedValue({
+      data: summary,
+    });
+    expect(await newsletterService.addSubscribersFromContacts("p1", body)).toBe(
+      summary,
+    );
+    expect(
+      core.postProjectsByIdNewsletterSubscribersFromContacts,
+    ).toHaveBeenCalledWith("p1", body);
+    const error = new CoreApiRequestError("Unavailable", { status: 503 });
+    core.postProjectsByIdNewsletterSubscribersFromContacts.mockRejectedValue(
+      error,
+    );
+    await expect(
+      newsletterService.addSubscribersFromContacts("p1", body),
+    ).rejects.toBe(error);
   });
 });

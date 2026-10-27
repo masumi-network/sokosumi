@@ -2,7 +2,10 @@ import "server-only";
 
 import type {
   AddNewsletterSubscriberRequest,
+  AddNewsletterSubscribersFromContactsRequest,
   CreateNewsletterIssueRequest,
+  DraftNewsletterIssueRequest,
+  GetProjectsByIdNewsletterAnalyticsData,
   GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
   GetPublicNewslettersByPublicSlugIssuesData,
@@ -22,6 +25,34 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const newsletterService = {
+  async draftIssue(projectId: string, input: DraftNewsletterIssueRequest) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesDraftWithAi(
+        projectId,
+        input,
+      );
+    return response.data;
+  },
+  async getAnalytics(
+    projectId: string,
+    query: GetProjectsByIdNewsletterAnalyticsData["query"],
+  ) {
+    const response = await coreClient.getProjectsByIdNewsletterAnalytics(
+      projectId,
+      query,
+    );
+    return response.data;
+  },
+
+  async getIssueAnalytics(projectId: string, issueId: string) {
+    const response =
+      await coreClient.getProjectsByIdNewsletterIssuesByIssueIdAnalytics(
+        projectId,
+        issueId,
+      );
+    return response.data;
+  },
+
   async subscribe(publicSlug: string, input: SubscribeNewsletterRequest) {
     const requestHeaders = await headers();
     const ip =
@@ -256,6 +287,18 @@ export const newsletterService = {
       projectId,
       input,
     );
+    return response.data;
+  },
+
+  async addSubscribersFromContacts(
+    projectId: string,
+    input: AddNewsletterSubscribersFromContactsRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterSubscribersFromContacts(
+        projectId,
+        input,
+      );
     return response.data;
   },
 
