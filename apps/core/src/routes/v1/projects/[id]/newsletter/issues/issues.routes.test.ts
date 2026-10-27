@@ -21,7 +21,6 @@ import mountList from "./get";
 import mountCreate from "./post";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
@@ -34,13 +33,6 @@ const m = vi.hoisted(() => ({
   deleteMany: vi.fn(),
   transaction: vi.fn(),
 }));
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUnique: m.workspace },
@@ -107,7 +99,6 @@ function app(authenticated = true) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
@@ -335,26 +326,6 @@ describe("newsletter issue routes", () => {
         ).status,
       ).toBe(422);
     }
-  });
-
-  it("hides every operation while disabled", async () => {
-    m.enabled = false;
-    const server = app();
-    const requests = [
-      server.request(BASE),
-      server.request(BASE, json("POST", INPUT)),
-      server.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`),
-      server.request(
-        `${BASE}/${NEWSLETTER_ISSUE_ID}`,
-        json("PATCH", { subject: "Updated", revision: 0 }),
-      ),
-      server.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`, { method: "DELETE" }),
-    ];
-    expect(
-      (await Promise.all(requests)).map((response) => response.status),
-    ).toEqual([404, 404, 404, 404, 404]);
-    expect(m.project).not.toHaveBeenCalled();
-    expect(m.create).not.toHaveBeenCalled();
   });
 
   it("rejects unauthorized and inaccessible project requests", async () => {

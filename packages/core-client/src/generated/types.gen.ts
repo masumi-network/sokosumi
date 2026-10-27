@@ -74040,21 +74040,6 @@ export type PostWebhooksResendNewsletterErrors = {
         };
     };
     /**
-     * Newsletter is not enabled
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Invalid webhook payload
      */
     422: {

@@ -141,17 +141,6 @@ describe("Newsletter environment", () => {
     expectInvalidEnvironment("RESEND_NEWSLETTER_WEBHOOK_SECRET");
   });
 
-  it.each([
-    [undefined, false],
-    ["false", false],
-    ["true", true],
-    [" TRUE ", true],
-    ["1", false],
-  ])("parses %s as enabled=%s", (value, enabled) => {
-    vi.stubEnv("NEWSLETTER_ENABLED", value);
-    expect(validateEnv().NEWSLETTER_ENABLED).toBe(enabled);
-  });
-
   it("allows an omitted sending domain", () => {
     vi.stubEnv("NEWSLETTER_FROM_DOMAIN", undefined);
     expect(validateEnv().NEWSLETTER_FROM_DOMAIN).toBeUndefined();
