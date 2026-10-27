@@ -467,6 +467,10 @@ model Project {
   logo                    String?
   designMdUrl             String?
   designMdExtractionId    String?
+  /// Markdown guidance for drafting this Project's social posts (tone,
+  /// hashtags, CTAs, optional `##` per-platform sections). Separate from
+  /// project memory (contextMd) and DESIGN.md.
+  postingInstructionsMd   String?
 
   projectRevision  Int       @default(0)
   calendarRevision Int       @default(0)

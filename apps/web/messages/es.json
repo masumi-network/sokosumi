@@ -2409,6 +2409,14 @@
         "save": "Guardar",
         "cancel": "Cancelar"
       },
+      "PostingInstructions": {
+        "title": "Instrucciones de publicación",
+        "description": "Indica a Soko Bot, a los Coworkers y a los agentes cómo escribir las publicaciones sociales de este proyecto: tono, hashtags, llamadas a la acción y reglas por plataforma. Solo orienta los borradores sociales y es independiente de la memoria del proyecto y de DESIGN.md.",
+        "placeholder": "# Instrucciones de publicación\nTono: …\nSiempre / nunca: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Guardar instrucciones",
+        "saved": "Instrucciones de publicación guardadas",
+        "saveFailed": "No se pudieron guardar las instrucciones de publicación. Inténtalo de nuevo."
+      },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
         "account": "Cuenta de {provider}",

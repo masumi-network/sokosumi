@@ -116,6 +116,22 @@ export const projectContextMdSchema = projectContextMdMetadataSchema
   })
   .openapi("ProjectContextMd");
 
+export const projectPostingInstructionsMdSchema = z
+  .string()
+  .max(20_000)
+  .openapi({
+    description:
+      "Markdown guidance for drafting this Project's social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.",
+    example:
+      "# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.",
+  });
+
+export const projectPostingInstructionsSchema = z
+  .object({
+    postingInstructionsMd: projectPostingInstructionsMdSchema.nullable(),
+  })
+  .openapi("ProjectPostingInstructions");
+
 export const projectLatestUpdateSchema = z
   .object({
     content: z.string().openapi({
@@ -177,6 +193,7 @@ export const projectSchema = z
       description: "Project-owned brand DESIGN.md, or null when none exists.",
       example: null,
     }),
+    postingInstructionsMd: projectPostingInstructionsMdSchema.nullable(),
     memoryEnabled: z.boolean().openapi({
       description:
         "Whether Core has both AI Gateway and Blob storage credentials and can update project memory.",
@@ -337,6 +354,13 @@ export const patchProjectRequestSchema = z
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
     identifier: projectIdentifierSchema.optional(),
+    postingInstructionsMd: projectPostingInstructionsMdSchema
+      .nullish()
+      .optional()
+      .openapi({
+        description:
+          "Markdown guidance for drafting this Project's social posts. Null or blank clears it.",
+      }),
   })
   .superRefine((data, ctx) => {
     if (
@@ -345,12 +369,13 @@ export const patchProjectRequestSchema = z
       data.briefing === undefined &&
       data.description === undefined &&
       data.websiteUrl === undefined &&
-      data.logo === undefined
+      data.logo === undefined &&
+      data.postingInstructionsMd === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, identifier, briefing, description, websiteUrl, or logo",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, or postingInstructionsMd",
         path: [],
       });
     }
@@ -485,6 +510,7 @@ export function mapProjectForApi(
           extractionId: project.designMdExtractionId,
         }
       : null,
+    postingInstructionsMd: project.postingInstructionsMd ?? null,
     memoryEnabled: isProjectMemoryConfigured(env),
     memoryModel: {
       id: env.PROJECT_MEMORY_MODEL,
