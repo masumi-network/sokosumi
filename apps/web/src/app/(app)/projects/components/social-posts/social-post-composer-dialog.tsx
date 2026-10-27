@@ -109,7 +109,13 @@ import {
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
-  | { kind: "create"; media?: SocialPostMediaRef[]; text?: string }
+  | {
+      kind: "create";
+      media?: SocialPostMediaRef[];
+      text?: string;
+      /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
+      scheduledAt?: string;
+    }
   | { kind: "edit"; post: SocialPost; chooseQuote?: boolean }
   | { kind: "schedule"; post: SocialPost };
 
@@ -339,8 +345,12 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
+  const prefilledScheduledAt =
+    mode.kind === "create" ? (mode.scheduledAt ?? "") : "";
   const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    post?.scheduledAt
+      ? toScheduleValue(post.scheduledAt)
+      : prefilledScheduledAt,
   );
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
@@ -1197,7 +1207,7 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== ""
+        scheduledAt !== prefilledScheduledAt
       : threadChanged ||
         firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
