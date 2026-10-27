@@ -9,6 +9,7 @@ import {
   ImagePlus,
   LifeBuoy,
   LogOut,
+  Mail,
   Megaphone,
   Repeat,
   Scale,
@@ -53,6 +54,7 @@ export interface YouPageClientProps extends AccountSummaryCreditProps {
   adminSettingsChrome: AccountAdminSettingsChrome;
   /** Ads-only beta flag; Social scheduling is public. */
   socialBetaEnabled?: boolean;
+  newsletterEnabled?: boolean;
 }
 
 export function YouPageClient({
@@ -66,6 +68,7 @@ export function YouPageClient({
   buyCreditsPath,
   adminSettingsChrome,
   socialBetaEnabled = false,
+  newsletterEnabled = false,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
@@ -199,6 +202,14 @@ export function YouPageClient({
                 icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
                 label={tMenu("ads")}
                 testId="you-ads"
+              />
+            ) : null}
+            {newsletterEnabled ? (
+              <MobileStackedMenuLink
+                href="/newsletter"
+                icon={<Mail className="size-4 shrink-0" />}
+                label={tMenu("newsletter")}
+                testId="you-newsletter"
               />
             ) : null}
             <MobileStackedMenuLink

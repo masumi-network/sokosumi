@@ -102,6 +102,10 @@ describe("public newsletter unsubscribe", () => {
       expect(response.status).toBe(200);
       expect(await response.text()).toContain("You are unsubscribed");
     }
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { id: NEWSLETTER_SUBSCRIBER_ID, newsletterId: NEWSLETTER_ID },
+      include: { newsletter: { select: { name: true } } },
+    });
     expect(m.updateMany).toHaveBeenCalledWith({
       where: {
         id: NEWSLETTER_SUBSCRIBER_ID,

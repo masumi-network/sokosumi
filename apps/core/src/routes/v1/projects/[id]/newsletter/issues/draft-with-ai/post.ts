@@ -8,7 +8,6 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   draftNewsletterIssueRequestSchema,
   newsletterIssueSchema,
@@ -16,6 +15,8 @@ import {
 } from "@/schemas/newsletter.schema";
 import { generateNewsletterDraft } from "@/services/newsletter-draft.service";
 import { createNewsletterIssue } from "@/services/newsletter-issues.service";
+
+import { newsletterScope } from "../../context";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -54,9 +55,8 @@ export default function mount(
 ) {
   app.openapi(route, async (c) => {
     const user = await requireAuthorizedUserContext(c.var.authContext);
-    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
-    const scope = { projectId, workspaceId };
+    const scope = await newsletterScope(c, projectId);
     const draft = await generateNewsletterDraft(
       { ...scope, userId: user.userId, organizationId: user.organizationId },
       c.req.valid("json"),
