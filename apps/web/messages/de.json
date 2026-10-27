@@ -3314,6 +3314,17 @@
             }
           }
         },
+        "Calendar": {
+          "title": "Kalender",
+          "description": "Sieh, wann jede Newsletter-Ausgabe geplant ist oder versendet wurde.",
+          "navigation": "Monat wechseln",
+          "previous": "Vorheriger Monat",
+          "next": "Nächster Monat",
+          "today": "Heute",
+          "emptyTitle": "Keine Newsletter in diesem Monat",
+          "emptyDescription": "Geplante und versendete Ausgaben erscheinen hier an ihrem Versanddatum. Plane eine Ausgabe für deinen nächsten Versand.",
+          "viewIssues": "Ausgaben ansehen"
+        },
         "Issues": {
           "title": "Ausgaben",
           "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
@@ -8939,8 +8950,7 @@
       },
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
-        "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant.",
-        "publications": "In diesem Zeitraum sind keine Beiträge oder Newsletter geplant."
+        "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
         "link": "Zeitpläne"
@@ -8985,11 +8995,7 @@
         "past": "Wähle einen Zeitpunkt in der Zukunft."
       },
       "socialOnly": {
-        "label": "Nur Social-Beiträge",
-        "newslettersLabel": "Nur Beiträge und Newsletter"
-      },
-      "newsletter": {
-        "label": "Newsletter"
+        "label": "Nur Social-Beiträge"
       }
     },
     "You": {
