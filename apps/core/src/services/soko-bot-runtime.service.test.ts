@@ -7409,6 +7409,93 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
+  describe("ad tools in a Project bot", () => {
+    const accountId = "01960001-0001-7001-8001-000000000031";
+    const otherProjectId = "01960001-0001-7001-8001-000000000099";
+    const projectBot = (botProjectId: string) => ({
+      askedByKind: "OWNER",
+      reader: {
+        userId: SCOPE.userId,
+        audience: "TEAMMATE",
+        sharedScope: {
+          sokoBotId: SCOPE.sokoBotId,
+          workspaceId: SCOPE.workspaceId,
+          projectId: botProjectId,
+        },
+      },
+      turn: {
+        id: SCOPE.turnId,
+        actingUserId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        source: "CHAT",
+        chainDepth: 0,
+      },
+    });
+    const run = (capability: string, input: object, botProjectId: string) =>
+      new SokoBotRuntimeService()["executeAdsTool"](
+        {
+          ...SCOPE,
+          capability,
+          toolCallId: `scope-${capability}`,
+          input,
+        } as never,
+        projectBot(botProjectId) as never,
+      );
+    const search = {
+      type: "SEARCH" as const,
+      locationIds: ["1003854"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "PHRASE" as const }],
+      headlines: ["Run faster", "Light shoes", "Free returns"],
+      descriptions: ["Shoes that carry you.", "Order today, run tomorrow."],
+    };
+
+    beforeEach(() => {
+      for (const mock of Object.values(ads)) mock.mockReset();
+      social.beta.mockResolvedValue(undefined);
+      ads.accounts.mockResolvedValue([]);
+    });
+
+    it.each([
+      ["list_ad_accounts", { projectId }],
+      ["list_ad_campaigns", { projectId, accountId }],
+      ["find_ad_targeting", { projectId, accountId }],
+      ["get_market_keywords", { projectId }],
+      [
+        "create_ad_campaign",
+        {
+          projectId,
+          accountId,
+          name: "Spring",
+          dailyBudget: 25,
+          google: search,
+        },
+      ],
+    ])(
+      "refuses %s outside the bot's own Project, unsent",
+      async (capability, input) => {
+        const call = run(capability, input, otherProjectId);
+        await expect(call).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+        await expect(call).rejects.toThrow("works only in its own Project");
+        for (const mock of Object.values(ads))
+          expect(mock).not.toHaveBeenCalled();
+        expect(social.beta).not.toHaveBeenCalled();
+      },
+    );
+
+    it("allows the ad tools in the bot's own Project", async () => {
+      await expect(
+        run("list_ad_accounts", { projectId }, projectId),
+      ).resolves.toMatchObject({ accounts: [] });
+      expect(ads.accounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+    });
+  });
+
   describe("create_ad_campaign", () => {
     const adAccountId = "01960001-0001-7001-8001-000000000031";
     const metaAccountId = "01960001-0001-7001-8001-000000000032";
