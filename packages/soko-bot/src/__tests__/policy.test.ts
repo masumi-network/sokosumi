@@ -137,6 +137,14 @@ describe("Soko Bot route capability ceilings", () => {
     }
   });
 
+  const subscriberWrites = [
+    "add_newsletter_subscriber",
+    "import_newsletter_subscribers",
+    "add_newsletter_subscribers_from_contacts",
+    "update_newsletter_subscriber",
+    "remove_newsletter_subscriber",
+  ];
+
   it("reads newsletters on every owner route and writes them only on write routes", () => {
     const writes = [
       "newsletter_draft_issue",
@@ -145,6 +153,7 @@ describe("Soko Bot route capability ceilings", () => {
       "delete_newsletter_issue",
       "submit_newsletter_issue",
       "update_newsletter_settings",
+      ...subscriberWrites,
     ];
     const reads = SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
       (capability) => !writes.includes(capability),
@@ -191,6 +200,13 @@ describe("Soko Bot route capability ceilings", () => {
       expect(
         SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[],
       ).not.toContain(read);
+  });
+
+  it("refuses subscriber changes after any web read, even on the owner's own work", () => {
+    for (const write of subscriberWrites)
+      expect(
+        SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+      ).toContain(write);
   });
 
   it("has no newsletter tool that approves, schedules or sends", () => {

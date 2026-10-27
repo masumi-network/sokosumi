@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ evaluate: vi.fn() }));
 vi.mock("./jev", () => ({ evaluateWithJev: mocks.evaluate }));
 
-import { mailSendRefusal, ownerAskedToSend } from "./mail-send-guard";
+import {
+  mailSendRefusal,
+  ownerAskedToSend,
+  ownerConfirmedConsent,
+} from "./mail-send-guard";
 
 const ownerChat = {
   source: "CHAT",
@@ -15,7 +19,7 @@ const draft = { to: ["anna@acme.com"], subject: "Offer" };
 
 function jevSays(probability: number) {
   mocks.evaluate.mockResolvedValue({
-    answers: new Map([["send", { type: "boolean", probability }]]),
+    answers: new Map([["said", { type: "boolean", probability }]]),
     costUsd: 0,
   });
 }
@@ -52,5 +56,32 @@ describe("ownerAskedToSend", () => {
     mocks.evaluate.mockRejectedValue(new Error("timeout"));
     await expect(ownerAskedToSend("send it", draft)).resolves.toBe(false);
     await expect(ownerAskedToSend(null, draft)).resolves.toBe(false);
+  });
+});
+
+describe("ownerConfirmedConsent", () => {
+  it("confirms when the owner says the people agreed", async () => {
+    jevSays(0.9);
+    await expect(
+      ownerConfirmedConsent("They all opted in at the fair", "ada@example.com"),
+    ).resolves.toBe(true);
+    expect(mocks.evaluate.mock.calls[0]?.[0].state).toEqual({
+      ownerMessage: "They all opted in at the fair",
+      people: "ada@example.com",
+    });
+  });
+
+  it("fails closed below the threshold, on errors and without a message", async () => {
+    jevSays(0.7);
+    await expect(
+      ownerConfirmedConsent("add them", "ada@example.com"),
+    ).resolves.toBe(false);
+    mocks.evaluate.mockRejectedValue(new Error("timeout"));
+    await expect(
+      ownerConfirmedConsent("they agreed", "ada@example.com"),
+    ).resolves.toBe(false);
+    await expect(ownerConfirmedConsent(" ", "ada@example.com")).resolves.toBe(
+      false,
+    );
   });
 });

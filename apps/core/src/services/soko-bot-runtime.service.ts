@@ -224,10 +224,14 @@ import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   mailSendRefusal,
   ownerAskedToSend,
+  ownerConfirmedConsent,
 } from "@/lib/soko-bot/mail-send-guard";
 import {
+  isNewsletterSubscriberCapability,
+  newsletterConsentClaim,
   newsletterSettingsNeedOwner,
   runNewsletterReadTool,
+  runNewsletterSubscriberTool,
   runNewsletterWriteTool,
   updateNewsletterSettings,
 } from "@/lib/soko-bot/newsletter-tools";
@@ -2534,20 +2538,41 @@ export class SokoBotRuntimeService {
     return { attached, ...(skipped.length ? { skipped } : {}) };
   }
 
-  private async readFile(
+  private async ownerFile(
     authorized: AuthorizedSokoBotRuntime,
-    input: { fileId: string; maxChars?: number },
+    fileId: string,
   ) {
     const drive = await this.ownerDrive(authorized);
     const [file] = await loadLiveResources({
       workspaceId: drive.key.workspaceId,
       actor: drive.actor,
-      resourceIds: [input.fileId],
+      resourceIds: [fileId],
     });
     if (!file)
       throw new SokoBotRuntimeValidationError(
         "File not found; use an id from list_files",
       );
+    return file;
+  }
+
+  /** A CSV as uploaded; extracted search text may not keep its rows intact. */
+  private async readCsvFile(
+    authorized: AuthorizedSokoBotRuntime,
+    fileId: string,
+  ) {
+    const text = await readDriveText(await this.ownerFile(authorized, fileId));
+    if (text === null)
+      throw new SokoBotRuntimeValidationError(
+        `Import reads an uploaded CSV text file of up to ${MAX_DIRECT_READ_BYTES / 1000} KB from the owner's Files; for other files use the Newsletter's Subscribers page`,
+      );
+    return text;
+  }
+
+  private async readFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; maxChars?: number },
+  ) {
+    const file = await this.ownerFile(authorized, input.fileId);
     const limit = input.maxChars ?? 20_000;
     // Enough chunks to fill the limit, and one more to know there is more.
     const needed = Math.ceil(
@@ -5592,11 +5617,11 @@ export class SokoBotRuntimeService {
     ]);
     if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
     if (
-      capability === "list_newsletter_subscribers" &&
+      isNewsletterSubscriberCapability(capability) &&
       (authorized.reader.sharedScope || authorized.askedByKind !== "OWNER")
     ) {
       throw new SokoBotRuntimeAuthorizationError(
-        "Newsletter subscribers are personal data, read only on your owner's request. Point them to the Newsletter's Subscribers page instead.",
+        "Newsletter subscribers are personal data, handled only on your owner's request. Point them to the Newsletter's Subscribers page instead.",
       );
     }
     const scope = await requireProjectAccess({
@@ -5614,6 +5639,39 @@ export class SokoBotRuntimeService {
     }
     await getNewsletter({ projectId, workspaceId: scope.workspaceId });
     return scope;
+  }
+
+  /**
+   * Subscriber changes reach other people's inboxes, so they run only on the
+   * owner's word in their own chat: never in a turn Core started, another
+   * assistant asked for, or a page steered. "They already agreed" skips the
+   * confirmation email, so the owner must say that themselves, this turn.
+   */
+  private async requireOwnerSubscriberWord(
+    authorized: AuthorizedSokoBotRuntime,
+    capability: Parameters<typeof newsletterConsentClaim>[0],
+    rawInput: unknown,
+  ) {
+    const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+    if (!(await isOwnerDirected(authorized.turn.id)))
+      throw new SokoBotRuntimeValidationError(
+        "Newsletter subscribers change only when the owner asks in their chat; ask them, or point them to the Newsletter's Subscribers page",
+      );
+    const people = newsletterConsentClaim(capability, rawInput);
+    if (!people) return;
+    const turn = await prisma.sokoBotTurn.findUnique({
+      where: { id: authorized.turn.id },
+      select: { userMessage: true, parentTurnId: true },
+    });
+    // A background run's message is a brief the bot wrote, not the owner's.
+    if (
+      !turn ||
+      turn.parentTurnId !== null ||
+      !(await ownerConfirmedConsent(turn.userMessage, people))
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Only the owner can say people already agreed, in their own chat message this turn. Use consent ASK so they confirm by email, or ask the owner whether they agreed.",
+      );
   }
 
   private async executeAuthorizedTool(
@@ -5806,6 +5864,70 @@ export class SokoBotRuntimeService {
             throw new SokoBotRuntimeConflictError(
               `${error.message}. Read the settings again with get_newsletter and retry only if the change still applies.`,
             );
+          throw error;
+        }
+      }
+      case "add_newsletter_subscriber":
+      case "import_newsletter_subscribers":
+      case "add_newsletter_subscribers_from_contacts":
+      case "update_newsletter_subscriber":
+      case "remove_newsletter_subscriber": {
+        const { capability } = input;
+        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
+          input.input,
+        );
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          capability,
+          projectId,
+        );
+        await this.requireOwnerSubscriberWord(
+          authorized,
+          capability,
+          input.input,
+        );
+        const { sokoBotId } = authorized.turn;
+        try {
+          return await runNewsletterSubscriberTool(
+            capability,
+            input.input,
+            { projectId, workspaceId: scope.workspaceId },
+            {
+              adder: {
+                actor: {
+                  workspaceId: scope.workspaceId,
+                  userId: actingMemberOf(authorized),
+                  sokoBotId,
+                },
+                requester: { sokoBotId },
+              },
+              hooks: {
+                authorize: (tx) =>
+                  this.requireMutationAuthority(
+                    tx,
+                    authorized,
+                    false,
+                    capability,
+                    { projectIds: [projectId] },
+                  ),
+                commit: (tx, targetId, result) =>
+                  commitActionReceipt(tx, {
+                    turnId: authorized.turn.id,
+                    toolCallId: input.toolCallId,
+                    actorBotId: sokoBotId,
+                    targetId,
+                    result: persistedToolResult(result),
+                  }),
+              },
+              readCsv: (fileId) => this.readCsvFile(authorized, fileId),
+            },
+          );
+        } catch (error) {
+          // The Subscribers page's refusals: the model reads why.
+          if (error instanceof HTTPException && error.status < 500)
+            throw error.status === 409
+              ? new SokoBotRuntimeConflictError(error.message)
+              : new SokoBotRuntimeValidationError(error.message);
           throw error;
         }
       }
