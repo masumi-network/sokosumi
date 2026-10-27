@@ -113,6 +113,37 @@ jobs:
       - name: Check every shard passed
         run: test "${{ needs.web-shard.result }}" = success
 
+  # Advisory. Web's `*.webkit.test.*` files drive real WebKit and Chromium
+  # through Playwright for layout the DOM doubles cannot compute, so
+  # `test:ci` leaves them out. Not required, so a flaky browser launch
+  # never blocks a merge.
+  web-webkit:
+    name: Test Web WebKit
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
+    runs-on: ubuntu-latest
+    # A hung browser otherwise holds the runner for GitHub's 6-hour default.
+    timeout-minutes: 15
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Build test dependencies
+        run: pnpm exec turbo run build --filter='web^...'
+
+      # Two of the files also compare against Chromium.
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps webkit chromium
+
+      # The Seen by picture test launches Chromium with its sandbox on, which
+      # Ubuntu 24.04's AppArmor blocks by default ("No usable sandbox!").
+      - name: Allow the Chromium sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Run Tests
+        run: pnpm --filter web test:webkit
+
   # Core's unit suite ran 7+ minutes on one runner, so it shards like web.
   # The PostgreSQL work runs beside the shards in `core-db`, and `core`
   # below carries the required `Test Core` name.

@@ -12,7 +12,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook } from "@/lib/hono";
-import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 
 const EVENT_TYPES = new Map<string, NewsletterEventType>([
   ["email.delivered", "DELIVERED"],
@@ -42,7 +41,6 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(z.object({ received: z.boolean() }), "Received"),
     401: jsonErrorResponse("Invalid webhook signature"),
-    404: jsonErrorResponse("Newsletter is not enabled"),
     422: jsonErrorResponse("Invalid webhook payload"),
     500: jsonErrorResponse("Internal Server Error"),
     503: jsonErrorResponse("Newsletter webhooks are not configured"),
@@ -52,7 +50,6 @@ const route = createRoute({
 const app = new OpenAPIHono({ defaultHook: defaultValidationHook });
 
 app.openapi(route, async (c) => {
-  assertNewsletterEnabled();
   const secret = getEnv().RESEND_NEWSLETTER_WEBHOOK_SECRET;
   if (!secret) {
     throw serviceUnavailable(
