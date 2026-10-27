@@ -4068,6 +4068,15 @@
           "title": "Zugewiesener Seat erforderlich",
           "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Arbeitet gerade",
+          "paused": "Pausiert",
+          "needsAttention": "Braucht Aufmerksamkeit",
+          "activeAgo": "Aktiv {time}",
+          "ready": "Bereit",
+          "team": "Soko Bots deines Teams"
         }
       },
       "show": "Seitenleiste einblenden",
