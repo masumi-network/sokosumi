@@ -541,10 +541,10 @@ export function OrganizationChatList({
         }
       />
       {/* One list per mode, so switching fades the new one in instead of
-            swapping rows under the pointer. Not on first render: the sidebar
-            does not fade in on every load. A reader who left the filter on
-            gets no All list until React reads the cookie: the prerendered
-            shell always draws All, and the boot script's mark hides it. */}
+        swapping rows under the pointer. Not on first render: the sidebar
+        does not fade in on every load. A reader who left the filter on
+        gets no All list until React reads the cookie: the prerendered
+        shell always draws All, and the boot script's mark hides it. */}
       <div
         key={unreadOnly ? "unread" : "all"}
         className={cn(
