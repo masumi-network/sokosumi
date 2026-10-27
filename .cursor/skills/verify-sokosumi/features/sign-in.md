@@ -38,7 +38,7 @@ export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NA
 # UI-only proof of signin-submit (fixtures only): … sign-in --method ui
 ```
 
-`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, and cookie bootstrap **only if UI fails**. If Core rejects it: the harness types the vault profile's username on step 1, then `agent-browser auth login --no-navigate` fills the hidden username and the password testids on step 2, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
+`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, and cookie bootstrap **only if UI fails**. If Core rejects it: the harness fills the vault profile's email on step 1, then `agent-browser auth login --no-navigate` fills the hidden username and the password testids on step 2, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
 
 ### Manual UI recipe
 
