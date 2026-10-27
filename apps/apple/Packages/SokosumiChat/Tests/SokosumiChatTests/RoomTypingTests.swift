@@ -63,13 +63,13 @@ private func started(_ userId: String) -> ChatTypingSignal {
     #expect(typing.typistIds == ["user_kim"])
   }
 
-  @Test func announcesTheFirstEditThenHeartbeatsOncePerTenSeconds() {
+  @Test func announcesTheFirstEditThenHeartbeatsOncePerFourSeconds() {
     let typing = typing()
     #expect(typing.composerChanged(hasText: true, now: at(1)) == .started)
     #expect(typing.composerChanged(hasText: true, now: at(2)) == nil)
-    #expect(typing.composerChanged(hasText: true, now: at(10.999)) == nil)
-    #expect(typing.composerChanged(hasText: true, now: at(11)) == .started)
-    #expect(typing.composerChanged(hasText: true, now: at(12)) == nil)
+    #expect(typing.composerChanged(hasText: true, now: at(4.999)) == nil)
+    #expect(typing.composerChanged(hasText: true, now: at(5)) == .started)
+    #expect(typing.composerChanged(hasText: true, now: at(6)) == nil)
   }
 
   @Test func clearingTheComposerStopsOnce() {
@@ -99,7 +99,7 @@ private func started(_ userId: String) -> ChatTypingSignal {
     #expect(typing.composerChanged(hasText: true, now: at(1)) == nil)
     #expect(!typing.stop())
     typing.channelChanged(roomId: "room-a", canPublish: true)
-    // Nobody heard the first edit, so the next one announces without waiting ten seconds.
+    // Nobody heard the first edit, so the next one announces without waiting out a throttle window.
     #expect(typing.composerChanged(hasText: true, now: at(2)) == .started)
   }
 

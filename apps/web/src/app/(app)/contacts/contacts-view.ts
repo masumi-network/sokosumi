@@ -156,8 +156,6 @@ export const STAGE_GROUPS = {
   status: ["DORMANT"],
 } as const satisfies Record<string, readonly ContactStage[]>;
 
-export type StageGroup = keyof typeof STAGE_GROUPS;
-
 export const CONTACT_STAGES: ContactStage[] =
   Object.values(STAGE_GROUPS).flat();
 

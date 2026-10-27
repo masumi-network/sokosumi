@@ -8282,7 +8282,7 @@ describe("create_task on an event turn", () => {
   it("follows up the batch's only Task when none is named", async () => {
     inbox.mockReset().mockResolvedValue([{ entityId: "task-1" }]);
     // The claim is then checked against that Task, as if it had been named.
-    await expect(create({})).rejects.toThrow("no current authority");
+    await expect(create({})).rejects.toThrow("may not change this one");
     expect(inbox).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ entityId: "task-1" }),
