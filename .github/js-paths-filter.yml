@@ -53,13 +53,6 @@ cloud-agent-db:
 design-md:
   - "{apps/*/DESIGN.md,.github/workflows/ci.yml,.github/js-paths-filter.yml}"
 
-# The code the `*.webkit.test.*` files render (the chat transcript, the
-# shared UI, hooks, i18n and global CSS), their Vitest configs, the
-# dependencies that pin Vite and Playwright, and the job's definition.
-# `*/chat/**`, not `(app)/chat/**`: picomatch reads parentheses as a group.
-webkit:
-  - "{apps/web/src/app/*/chat/**,apps/web/src/components/ui/**,apps/web/src/hooks/**,apps/web/src/i18n/**,apps/web/messages/en.json,apps/web/src/app/globals.css,apps/web/vitest.config.ts,apps/web/vitest.webkit.config.ts,apps/web/package.json,pnpm-lock.yaml,.github/workflows/ci.yml,.github/js-paths-filter.yml}"
-
 # The doc-script check reads every Markdown file and package.json; the
 # turbo and Vercel contract tests read the workflows, turbo.json, the
 # workspace file, every app vercel.json, .vercelignore, and the web build

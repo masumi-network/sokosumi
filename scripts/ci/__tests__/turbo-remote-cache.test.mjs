@@ -268,7 +268,6 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["ci-config", "ci-config"],
       ["cloud-agent-db", "cloud-agent-db"],
       ["design-md", "design-md"],
-      ["web-webkit", "webkit"],
     ]) {
       const header = jobBlock(ci, jobId).split(/\n    steps:\n/)[0];
       assert.match(

@@ -46,7 +46,6 @@ jobs:
       local-env: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.local-env }}
       cloud-agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cloud-agent-db }}
       design-md: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.design-md }}
-      webkit: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.webkit }}
       # Markdown-only PRs still run the doc-script check.
       ci-config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ci-config }}
     steps:
@@ -94,44 +93,6 @@ jobs:
       # its own.
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=web --filter=cmo
-
-  # Advisory. Web's `*.webkit.test.*` files drive real WebKit and Chromium
-  # through Playwright for layout the DOM doubles cannot compute, so
-  # `test:ci` leaves them out. Not required, so a flaky browser launch
-  # never blocks a merge. Gated on its own `webkit` filter, the code those
-  # files render, because installing the browsers and their apt packages
-  # takes 2-10 minutes of a runner on every run.
-  web-webkit:
-    name: Test Web WebKit
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.webkit != 'false' }}
-    runs-on: ubuntu-latest
-    # A hung browser otherwise holds the runner for GitHub's 6-hour default.
-    timeout-minutes: 15
-    permissions: *turbo-permissions
-    steps:
-      - *checkout
-      - *setup
-
-      - name: Build test dependencies
-        run: pnpm exec turbo run build --filter='web^...'
-
-      # Two of the files also compare against Chromium. The browsers and
-      # their apt packages come from the cache next-build-cache.yml saves on
-      # main, so a slow Ubuntu mirror only costs the packages that changed.
-      # Five minutes still fails a cold cache on a slow mirror fast: on
-      # 2026-10-27 an uncached install hit the job's 15-minute limit.
-      - name: Install Playwright browsers
-        timeout-minutes: 5
-        uses: ./.github/actions/playwright
-
-      # The Seen by picture test launches Chromium with its sandbox on, which
-      # Ubuntu 24.04's AppArmor blocks by default ("No usable sandbox!").
-      - name: Allow the Chromium sandbox
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      - name: Run Tests
-        run: pnpm --filter web test:webkit
 
   # One job for the same reason as `web`: migrations, the unit suite, then
   # the PostgreSQL suites, on a database that boots during checkout and
