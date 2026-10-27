@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 import {
   NEWSLETTER,
   NEWSLETTER_ISSUE,
@@ -12,7 +13,6 @@ import {
 import router from "../index";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   newsletter: vi.fn(),
   list: vi.fn(),
   count: vi.fn(),
@@ -25,7 +25,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.enabled,
       WEB_APP_BASE_URL: "https://web.example.com",
     }),
   };
@@ -66,7 +65,6 @@ const WHERE = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.newsletter.mockResolvedValue({ id: NEWSLETTER.id });
   m.list.mockResolvedValue([SENT_ISSUE]);
   m.count.mockResolvedValue(1);
@@ -94,7 +92,7 @@ describe("public newsletter archive", () => {
       nextCursor: null,
     });
     expect(m.newsletter).toHaveBeenCalledWith({
-      where: { publicSlug: NEWSLETTER.publicSlug },
+      where: { publicSlug: NEWSLETTER.publicSlug, ...NEWSLETTER_BETA_SCOPE },
       select: { id: true },
     });
     expect(m.list).toHaveBeenCalledWith({
@@ -156,19 +154,6 @@ describe("public newsletter archive", () => {
     },
   );
 
-  it.each([URL, ISSUE_URL])(
-    "returns 404 before data access when disabled: %s",
-    async (url) => {
-      m.enabled = false;
-      const response = await app().request(url);
-      expect(response.status).toBe(404);
-      expect(response.headers.get("Cache-Control")).toBeNull();
-      expect(m.newsletter).not.toHaveBeenCalled();
-      expect(m.issue).not.toHaveBeenCalled();
-      expect(m.list).not.toHaveBeenCalled();
-    },
-  );
-
   it("renders a sent issue in web mode without subscriber data, unsubscribe tokens or email headers", async () => {
     const response = await app().request(`${ISSUE_URL}?locale=de`);
     expect(response.status).toBe(200);
@@ -197,7 +182,10 @@ describe("public newsletter archive", () => {
     expect(m.issue).toHaveBeenCalledWith({
       where: {
         publicSlug: SENT_ISSUE.publicSlug,
-        newsletter: { publicSlug: NEWSLETTER.publicSlug },
+        newsletter: {
+          publicSlug: NEWSLETTER.publicSlug,
+          ...NEWSLETTER_BETA_SCOPE,
+        },
         status: "SENT",
         sentAt: { not: null },
       },
@@ -214,7 +202,7 @@ describe("public newsletter archive", () => {
   });
 
   it.each(["missing-newsletter", NEWSLETTER.publicSlug])(
-    "returns 404 for missing, unsent or other-newsletter issues under %s",
+    "returns 404 for missing, unsent, other-newsletter or non-beta issues under %s",
     async (slug) => {
       m.issue.mockResolvedValue(null);
       const response = await app().request(
@@ -226,7 +214,7 @@ describe("public newsletter archive", () => {
         expect.objectContaining({
           where: {
             publicSlug: SENT_ISSUE.publicSlug,
-            newsletter: { publicSlug: slug },
+            newsletter: { publicSlug: slug, ...NEWSLETTER_BETA_SCOPE },
             status: "SENT",
             sentAt: { not: null },
           },

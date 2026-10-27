@@ -6,6 +6,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 import {
   createNewsletterIssueRequestSchema,
   newsletterBrandSchema,
@@ -40,7 +41,7 @@ export default function mount(app: OpenAPIHono) {
     const issue = await prisma.newsletterIssue.findFirst({
       where: {
         publicSlug: issueSlug,
-        newsletter: { publicSlug },
+        newsletter: { publicSlug, ...NEWSLETTER_BETA_SCOPE },
         status: "SENT",
         sentAt: { not: null },
       },

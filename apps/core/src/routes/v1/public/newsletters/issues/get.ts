@@ -11,6 +11,7 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 import {
   listPublicNewsletterIssuesQuerySchema,
   publicNewsletterIssueSummarySchema,
@@ -42,7 +43,7 @@ export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const { publicSlug } = c.req.valid("param");
     const newsletter = await prisma.newsletter.findUnique({
-      where: { publicSlug },
+      where: { publicSlug, ...NEWSLETTER_BETA_SCOPE },
       select: { id: true },
     });
     if (!newsletter) throw notFound("Newsletter not found");
