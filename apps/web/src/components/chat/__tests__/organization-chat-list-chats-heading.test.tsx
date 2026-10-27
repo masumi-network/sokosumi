@@ -134,6 +134,26 @@ describe("OrganizationChatList under its Chats heading", () => {
     ).toEqual(["launch"]);
   });
 
+  it("puts Mark all as read beside the chip while the filter is on", async () => {
+    renderOrganizationChatList({
+      rooms: [unreadChannel, readDirect],
+      withChatsHeading: true,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Mark all as read" }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+
+    const markAll = screen.getByRole("button", { name: "Mark all as read" });
+    const chip = screen.getByRole("button", { name: "All unreads" });
+    expect(chatsHeading().parentElement?.contains(markAll)).toBe(true);
+    expect(follows(markAll, chip)).toBe(true);
+    expect(
+      within(screen.getByTestId("chat-unread-nav-rows")).queryByRole("button"),
+    ).toBeNull();
+  });
+
   // The phone's Chats page is titled Chats already: no second heading, and
   // the chip stays on the Catch up row there.
   it("leaves the heading out where the page is the Chats page", () => {

@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
 import {
+  ChatMarkAllReadButton,
   ChatUnreadNavRows,
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
@@ -315,6 +316,57 @@ describe("ChatUnreadNavRows", () => {
     expect(catchUpRow()).toHaveAccessibleName(
       /^Catch up.*3 messages need you$/,
     );
+  });
+
+  // Mark all as read goes where the chip goes: on the heading, not this row.
+  it("leaves Mark all as read to the Chats heading with the chip", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatUnreadNavRows
+          rooms={[makeRoom({ id: "a", unreadCount: 2, channelUnreadCount: 2 })]}
+          dismissSheetOnNavigate={false}
+          unreadOnly
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Mark all as read" }),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-slot="catch-up-end-spacer"]'),
+    ).toBeNull();
+  });
+
+  it("offers the heading's Mark all as read only while the filter is on", async () => {
+    const rooms = [
+      makeRoom({ id: "channel", unreadCount: 2, channelUnreadCount: 2 }),
+      makeRoom({ id: "read", channelUnreadCount: 0 }),
+    ];
+    const { rerender } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatMarkAllReadButton rooms={rooms} unreadOnly={false} />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Mark all as read" }),
+    ).toBeNull();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatMarkAllReadButton rooms={rooms} unreadOnly />
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mark all as read" }),
+    );
+
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith({ collections: ["active"] }),
+    );
+    expect(markAllActionMock).toHaveBeenCalledWith([
+      { roomId: "channel", readRoom: true, lookThreads: false },
+    ]);
   });
 
   it("marks the entry the reader is on", () => {

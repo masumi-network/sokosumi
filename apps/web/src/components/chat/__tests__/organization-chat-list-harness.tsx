@@ -177,6 +177,10 @@ vi.mock("../chat-unread-nav-rows", () => ({
     </li>
   ),
   ChatUnreadsFilterChip: UnreadsToggleMarker,
+  // When it shows past the filter is the row's test's; the list decides only
+  // where it stands.
+  ChatMarkAllReadButton: ({ unreadOnly }: { unreadOnly: boolean }) =>
+    unreadOnly ? <button type="button">Mark all as read</button> : null,
 }));
 
 vi.mock("../direct-room-avatar-stack", () => ({

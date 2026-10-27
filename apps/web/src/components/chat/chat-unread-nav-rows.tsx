@@ -132,6 +132,69 @@ export function ChatUnreadsFilterChip({
   );
 }
 
+/** The rooms Mark all as read reads: those with anything unread to clear. */
+function markAllReadTargets(rooms: readonly ChatRoom[]) {
+  return rooms
+    .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
+    .filter((target) => target.readRoom || target.lookThreads);
+}
+
+interface ChatMarkAllReadButtonProps {
+  /** The sidebar's live rooms; it clears what these hold unread. */
+  rooms: readonly ChatRoom[];
+  /** Shown only while the All unreads filter is on. */
+  unreadOnly: boolean;
+}
+
+/**
+ * Mark all as read: it clears what the All unreads filter lists, so it shows
+ * only while the filter is on and something is unread, just before the
+ * Unreads chip, wherever the chip stands.
+ */
+export function ChatMarkAllReadButton({
+  rooms,
+  unreadOnly,
+}: ChatMarkAllReadButtonProps) {
+  const t = useTranslations("App.Channels.UnreadNav");
+  const [isMarking, startMarking] = useTransition();
+  const markAllTargets = markAllReadTargets(rooms);
+  if (!unreadOnly || markAllTargets.length === 0) {
+    return null;
+  }
+
+  function handleMarkAllRead() {
+    startMarking(async () => {
+      const result = await markAllChatUnreadReadAction(markAllTargets);
+      if (!result.ok) {
+        toast.error(t("markAllReadError"));
+      }
+      // What Core holds now, part-read or not, is what the rooms show next.
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={t("markAllRead")}
+      title={t("markAllRead")}
+      disabled={isMarking}
+      aria-busy={isMarking}
+      onClick={handleMarkAllRead}
+      className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-primary-variant")}
+    >
+      {isMarking ? (
+        <Loader2
+          className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
+          aria-hidden
+        />
+      ) : (
+        <CheckCheck className="size-4 md:size-3.5" aria-hidden />
+      )}
+    </button>
+  );
+}
+
 interface ChatUnreadNavRowsProps {
   /** The sidebar's live rooms. The row reads these and nothing of its own. */
   rooms: readonly ChatRoom[];
@@ -153,7 +216,8 @@ interface ChatUnreadNavRowsProps {
  * Threads mark: the `@` pill where a Thread names them, the muted count of
  * unread Threads otherwise. While the All unreads filter is on, Mark all as
  * read stands at its end in the count's place, beside the Unreads chip where
- * the row carries it.
+ * the row carries it. Where the Chats heading carries the chip, Mark all as
+ * read goes with it, and the row keeps neither.
  */
 export function ChatUnreadNavRows({
   rooms,
@@ -177,25 +241,12 @@ export function ChatUnreadNavRows({
       room.mutedAt == null ? sum + (room.unreadNeedsYouCount ?? 0) : sum,
     0,
   );
-  const [isMarking, startMarking] = useTransition();
-  const markAllTargets = rooms
-    .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
-    .filter((target) => target.readRoom || target.lookThreads);
-  const showMarkAll = unreadOnly && markAllTargets.length > 0;
+  const showMarkAll =
+    showsChip && unreadOnly && markAllReadTargets(rooms).length > 0;
   // While the filter is on, the list below is the count; the row makes room
-  // for Mark all instead.
+  // for Mark all instead (where the row carries the chip; on the heading,
+  // Mark all sits beside it there).
   const showCount = !unreadOnly && (needsYouTotal > 0 || threadCount > 0);
-
-  function handleMarkAllRead() {
-    startMarking(async () => {
-      const result = await markAllChatUnreadReadAction(markAllTargets);
-      if (!result.ok) {
-        toast.error(t("markAllReadError"));
-      }
-      // What Core holds now, part-read or not, is what the rooms show next.
-      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
-    });
-  }
 
   return (
     <SidebarMenu className="gap-0" aria-label={t("label")}>
@@ -276,37 +327,13 @@ export function ChatUnreadNavRows({
             </Link>,
           )}
         </SidebarMenuButton>
-        {showMarkAll || showsChip ? (
+        {onUnreadOnlyChange ? (
           <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
-            {showMarkAll ? (
-              <button
-                type="button"
-                aria-label={t("markAllRead")}
-                title={t("markAllRead")}
-                disabled={isMarking}
-                aria-busy={isMarking}
-                onClick={handleMarkAllRead}
-                className={cn(
-                  SIDEBAR_ICON_ACTION_CLASS,
-                  "text-primary-variant",
-                )}
-              >
-                {isMarking ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
-                    aria-hidden
-                  />
-                ) : (
-                  <CheckCheck className="size-4 md:size-3.5" aria-hidden />
-                )}
-              </button>
-            ) : null}
-            {onUnreadOnlyChange ? (
-              <ChatUnreadsFilterChip
-                unreadOnly={unreadOnly}
-                onUnreadOnlyChange={onUnreadOnlyChange}
-              />
-            ) : null}
+            <ChatMarkAllReadButton rooms={rooms} unreadOnly={unreadOnly} />
+            <ChatUnreadsFilterChip
+              unreadOnly={unreadOnly}
+              onUnreadOnlyChange={onUnreadOnlyChange}
+            />
           </div>
         ) : null}
       </SidebarMenuItem>

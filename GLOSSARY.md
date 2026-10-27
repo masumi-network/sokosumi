@@ -385,11 +385,11 @@ Any one-line item in the app sidebar: Soko Bots, a nav destination, a section he
 _Avoid_: A taller featured row, a card in the row list, a per-list leading box, a mark that grows outward from its centre, a Channel avatar or a colour per Channel (Channels have no image, and five hues repeat across a dozen Channels so the repeats read as meaning)
 
 **Chats** (sidebar):
-The sidebar's chat area as one block under a heading that reads like Work, Records and Marketing: Catch up first, then Pinned, Channels, External, Archived and Direct Messages. The heading folds the whole block, in memory only like the nav groups, and while folded it is marked when a room inside holds something for the reader, as a folded chat section is. It carries the Unreads filter's chip at its end. Outside the project scope's hairline, so its heading starts at 16px. The phone's Chats page is this list titled by the page itself, so it draws no second heading.
+The sidebar's chat area as one block under a heading that reads like Work, Records and Marketing: Catch up first, then Pinned, Channels, External, Archived and Direct Messages. The heading folds the whole block, in memory only like the nav groups, and while folded it is marked when a room inside holds something for the reader, as a folded chat section is. It carries the Unreads filter's chip at its end, and while the filter is on, Mark all as read just before the chip. Outside the project scope's hairline, so its heading starts at 16px. The phone's Chats page is this list titled by the page itself, so it draws no second heading.
 _Avoid_: A rule between the nav and the chat area, Catch up floating between them
 
 **Catch up**:
-The first row of the Chats block: one entry for everything the reader missed, opening the written overview and the unread Threads. A plain Sidebar row whose one count is what waits on the reader (the needs-you pill), else the unread Threads mark, and none at zero; its accessible name states the count in words. While the Unreads filter is on, Mark all as read stands in the count's place.
+The first row of the Chats block: one entry for everything the reader missed, opening the written overview and the unread Threads. A plain Sidebar row whose one count is what waits on the reader (the needs-you pill), else the unread Threads mark, and none at zero; its accessible name states the count in words. While the Unreads filter is on, the count is hidden and Mark all as read stands beside the chip, on the Chats heading (on the phone's Chats page, which has no heading, at this row's end in the count's place).
 _Avoid_: Inbox, a second count, the Unreads chip on this row in the sidebar
 
 **Unreads filter**:

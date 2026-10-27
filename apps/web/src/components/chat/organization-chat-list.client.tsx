@@ -78,6 +78,7 @@ import {
 } from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import {
+  ChatMarkAllReadButton,
   ChatUnreadNavRows,
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
@@ -1102,10 +1103,16 @@ export function OrganizationChatList({
                 hasPendingInvitation: pendingRows.length > 0,
               })}
               inlineAction={
-                <ChatUnreadsFilterChip
-                  unreadOnly={unreadOnly}
-                  onUnreadOnlyChange={handleUnreadOnlyChange}
-                />
+                <>
+                  <ChatMarkAllReadButton
+                    rooms={roomRows}
+                    unreadOnly={unreadOnly}
+                  />
+                  <ChatUnreadsFilterChip
+                    unreadOnly={unreadOnly}
+                    onUnreadOnlyChange={handleUnreadOnlyChange}
+                  />
+                </>
               }
             >
               {t("chats")}
