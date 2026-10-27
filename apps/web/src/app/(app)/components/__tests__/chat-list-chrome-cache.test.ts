@@ -167,20 +167,21 @@ describe("chat list chrome single-source composition contract", () => {
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
 
-    const workspaceSwitcher = readFileSync(
+    const frame = readFileSync(
       join(
         dirname(fileURLToPath(import.meta.url)),
-        "../workspace-switcher/workspace-switcher.tsx",
+        "../authenticated-app-frame.tsx",
       ),
       "utf8",
     );
 
-    // ADR 0051: the switcher lists workspaces from one Core read.
-    expect(workspaceSwitcher).toMatch(
-      /userService\s*\.\s*getMyWorkspaces\s*\(/,
+    // ADR 0051: the switcher lists workspaces from one Core read, the frame's,
+    // handed to its one provider.
+    expect(frame).toMatch(/userService\s*\.\s*getMyWorkspaces\s*\(/);
+    expect(frame).toMatch(
+      /<WorkspaceSwitcherProvider[\s\S]*workspaces=\{workspaces\}/,
     );
-    expect(workspaceSwitcher).not.toMatch(/getPrivateCachedChatListChrome/);
-    expect(workspaceSwitcher).not.toMatch(
+    expect(frame).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
 
@@ -215,10 +216,6 @@ describe("chat list chrome single-source composition contract", () => {
       "utf8",
     );
     const switcherDir = join(headerDir, "../workspace-switcher");
-    const workspaceSwitcher = readFileSync(
-      join(switcherDir, "workspace-switcher.tsx"),
-      "utf8",
-    );
     const switcherSkeleton = readFileSync(
       join(switcherDir, "workspace-switcher-skeleton.tsx"),
       "utf8",
@@ -226,14 +223,11 @@ describe("chat list chrome single-source composition contract", () => {
 
     // Trailing tools (Notification Center + mobile Search) must stay outside
     // the members Suspense so chrome remains interactive while members load.
-    // The Suspense is the Workspace switcher's own, so the tools follow it.
+    // The switcher has none: its workspaces arrive with the frame.
     expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
-    expect(workspaceSwitcher).toMatch(
-      /<Suspense[\s\S]*WorkspaceSwitcherLoader[\s\S]*<\/Suspense>/,
-    );
     expect(headerProfile).not.toMatch(/<Suspense/);
     expect(headerProfile).toMatch(
-      /<WorkspaceSwitcher[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
+      /<WorkspaceSwitcherMenu[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
     );
 
     const fallback = switcherSkeleton.slice(

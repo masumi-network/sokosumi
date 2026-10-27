@@ -58,4 +58,22 @@ describe("AppHeaderFallback", () => {
     // Nothing else in the trailing area stands in for the old desktop chip.
     expect(trailing?.children).toHaveLength(1);
   });
+
+  // The phone's switcher is the avatar alone up to md (MOBILE_BREAKPOINT
+  // 768), so its placeholder draws no name bar there either.
+  it("leaves the name bar out of the phone's placeholder", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <AppHeaderFallback />
+      </SidebarProvider>,
+    );
+    const placeholder = container.querySelector(
+      '[data-testid="header-trailing"] [data-testid="workspace-switcher-chrome-skeleton"]',
+    );
+    const [, name] = [...(placeholder?.children ?? [])];
+
+    expect(tokens(name)).toEqual(
+      expect.arrayContaining(["h-3", "max-md:hidden"]),
+    );
+  });
 });

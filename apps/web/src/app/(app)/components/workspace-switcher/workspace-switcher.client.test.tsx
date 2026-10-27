@@ -1,29 +1,35 @@
 import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
-import { act, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import WorkspaceSwitcherClient from "@/app/components/workspace-switcher/workspace-switcher.client";
+import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
+import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
 
-const useSessionMock = vi.fn();
-const workspaceSwitcherMenuMock = vi.fn();
-const useWorkspaceSwitcherMock = vi.fn();
+const mocks = vi.hoisted(() => ({
+  useSession: vi.fn(),
+  useWorkspaceSwitcher: vi.fn(),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: (...args: unknown[]) => useSessionMock(...args),
+  useSession: () => mocks.useSession(),
 }));
 
 vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
-  useWorkspaceSwitcher: (...args: unknown[]) =>
-    useWorkspaceSwitcherMock(...args),
+  useWorkspaceSwitcher: () => mocks.useWorkspaceSwitcher(),
 }));
 
+// The wizard is its own seam; here only how many of it mount matters.
 vi.mock(
-  "@/app/components/workspace-switcher/workspace-switcher-menu.client",
+  "@/components/organizations/create-organization-wizard/create-organization-wizard",
   () => ({
-    default: (props: unknown) => {
-      workspaceSwitcherMenuMock(props);
-      return <div data-testid="workspace-switcher-menu-mock" />;
-    },
+    CreateOrganizationWizard: () => (
+      <div data-testid="create-organization-wizard" />
+    ),
   }),
 );
 
@@ -39,188 +45,158 @@ const sessionUser: SessionUser = {
   marketingOptIn: false,
 };
 
-const workspaces: UserWorkspace[] = [
-  {
-    id: "ws-a",
+function organization(id: string, name: string): UserWorkspace {
+  return {
+    id: `ws-${id}`,
     kind: "organization",
-    name: "Org A",
-    organizationId: "org-a",
-    slug: "org-a",
+    name,
+    organizationId: id,
+    slug: id,
     logo: null,
     websiteUrl: null,
     preferred: false,
-    enabledSocialProviders: ["x", "youtube", "linkedin"],
-  },
-  {
-    id: "ws-b",
-    kind: "organization",
-    name: "Org B",
-    organizationId: "org-b",
-    slug: "org-b",
-    logo: null,
-    websiteUrl: null,
-    preferred: false,
-    enabledSocialProviders: ["x", "youtube", "linkedin"],
-  },
-];
-
-async function renderProfileSection(props: {
-  sessionUser: SessionUser;
-  workspaces: UserWorkspace[];
-  hasPersonalWorkspace?: boolean;
-  activeOrganizationId: string | null;
-}) {
-  await act(async () => {
-    render(
-      <WorkspaceSwitcherClient
-        {...props}
-        hasPersonalWorkspace={props.hasPersonalWorkspace ?? true}
-      />,
-    );
-  });
+    enabledSocialProviders: [],
+  };
 }
 
-describe("WorkspaceSwitcherClient", () => {
+const workspaces = [
+  organization("org-a", "Org A"),
+  organization("org-b", "Org B"),
+];
+
+/** Both placements, as the app chrome mounts them: CSS shows one. */
+function renderChrome(activeOrganizationId: string | null = "org-a") {
+  return render(
+    <WorkspaceSwitcherProvider
+      sessionUser={sessionUser}
+      workspaces={workspaces}
+      activeOrganizationId={activeOrganizationId}
+    >
+      <aside data-testid="sidebar">
+        <WorkspaceSwitcherMenu placement="sidebar" />
+      </aside>
+      <header data-testid="top-bar">
+        <WorkspaceSwitcherMenu placement="topBar" />
+      </header>
+    </WorkspaceSwitcherProvider>,
+  );
+}
+
+function trigger(placement: "sidebar" | "top-bar") {
+  return within(screen.getByTestId(placement)).getByRole("button");
+}
+
+function menuItems(): string[] {
+  return within(screen.getByRole("menu"))
+    .getAllByRole("menuitem")
+    .map((item) => item.textContent ?? "");
+}
+
+describe("WorkspaceSwitcherProvider", () => {
   beforeEach(() => {
-    useWorkspaceSwitcherMock.mockReturnValue({
+    mocks.useSession.mockReturnValue({
+      data: { session: { activeOrganizationId: "org-a" } },
+    });
+    mocks.useWorkspaceSwitcher.mockReturnValue({
       isPending: false,
       handleSelectWorkspace: vi.fn(),
     });
-    workspaceSwitcherMenuMock.mockClear();
   });
 
-  it("shows Workspace switch on mobile and desktop", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: "org-a",
-        },
-      },
-    });
+  // One owner: both triggers are on the page, but the create dialog and the
+  // organization wizard behind them exist once.
+  it("mounts one organization wizard for both placements", () => {
+    renderChrome();
 
-    await renderProfileSection({
-      sessionUser,
-      workspaces,
-      activeOrganizationId: "org-a",
-    });
-
-    const chrome = screen.getByTestId("workspace-switcher-chrome");
-    expect(chrome.className).toContain("flex");
-    expect(chrome.className).not.toContain("hidden");
-    expect(chrome.className).not.toContain("md:flex");
-    expect(screen.getByTestId("workspace-switcher-menu-mock")).toBeTruthy();
+    expect(trigger("sidebar")).toHaveAccessibleName("Org A");
+    expect(trigger("top-bar")).toHaveAccessibleName("Org A");
+    expect(screen.getAllByTestId("create-organization-wizard")).toHaveLength(1);
   });
 
-  it("prefers the client session active organization when it matches the server", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: "org-b",
-        },
-      },
-    });
+  it("opens one create dialog whichever placement asked for it", async () => {
+    const user = userEvent.setup();
+    renderChrome();
 
-    await renderProfileSection({
-      sessionUser,
-      workspaces,
-      activeOrganizationId: "org-b",
-    });
+    await user.click(trigger("top-bar"));
+    await user.click(screen.getByRole("menuitem", { name: /createWorkspace/ }));
 
-    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeOrganizationId: "org-b",
-      }),
-    );
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(
+      screen.getByTestId("workspace-switcher-create-choice"),
+    ).toBeInTheDocument();
   });
 
-  it("prefers the client session active organization when client and server differ", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: "org-b",
-        },
-      },
-    });
+  it("opens the same menu from either placement, one at a time", async () => {
+    const user = userEvent.setup();
+    renderChrome();
 
-    await renderProfileSection({
-      sessionUser,
-      workspaces,
-      activeOrganizationId: "org-a",
-    });
+    await user.click(trigger("sidebar"));
+    const fromSidebar = menuItems();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
 
-    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeOrganizationId: "org-b",
-        isPending: false,
-      }),
-    );
+    await user.click(trigger("top-bar"));
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(menuItems()).toEqual(fromSidebar);
+    expect(fromSidebar).toEqual(["Org A", "Org B", "createWorkspace"]);
   });
 
-  it("falls back to the server active organization when client session is unavailable", async () => {
-    useSessionMock.mockReturnValue({
-      data: null,
-    });
+  // Under the trigger's own edge: its start in the sidebar, its end at the
+  // top bar's right. The placement says which, not the viewport.
+  it.each([
+    ["sidebar", "start"],
+    ["top-bar", "end"],
+  ] as const)("aligns the %s menu to its %s", async (placement, align) => {
+    const user = userEvent.setup();
+    renderChrome();
 
-    await renderProfileSection({
-      sessionUser,
-      workspaces,
-      activeOrganizationId: "org-a",
-    });
+    await user.click(trigger(placement));
 
-    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeOrganizationId: "org-a",
-      }),
-    );
+    expect(screen.getByRole("menu")).toHaveAttribute("data-align", align);
   });
 
-  it("shows personal account from client session when active organization is null", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: null,
-        },
-      },
-    });
+  it("shows the name in the sidebar, and only reads it out in the top bar", () => {
+    renderChrome();
 
-    await renderProfileSection({
-      sessionUser,
-      workspaces,
-      activeOrganizationId: "org-a",
-    });
+    const sidebarName = within(trigger("sidebar")).getByText("Org A");
+    const topBarName = within(trigger("top-bar")).getByText("Org A");
 
-    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeOrganizationId: null,
-        isPending: false,
-      }),
-    );
+    expect(sidebarName.className.split(/\s+/)).not.toContain("sr-only");
+    // The phone/desktop split is md (MOBILE_BREAKPOINT 768): the top bar
+    // shows the avatar alone up to it.
+    expect(topBarName.className.split(/\s+/)).toContain("max-md:sr-only");
   });
 
-  it("keeps the server active organization visible while a switch is pending", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: "org-b",
-        },
-      },
+  it("prefers the client session's active organization over the server's", () => {
+    mocks.useSession.mockReturnValue({
+      data: { session: { activeOrganizationId: "org-b" } },
     });
-    useWorkspaceSwitcherMock.mockReturnValue({
+
+    renderChrome("org-a");
+
+    expect(trigger("sidebar")).toHaveAccessibleName("Org B");
+  });
+
+  it("falls back to the server's active organization without a client session", () => {
+    mocks.useSession.mockReturnValue({ data: null });
+
+    renderChrome("org-b");
+
+    expect(trigger("sidebar")).toHaveAccessibleName("Org B");
+  });
+
+  it("keeps the server's active organization while a switch is pending", () => {
+    mocks.useSession.mockReturnValue({
+      data: { session: { activeOrganizationId: "org-b" } },
+    });
+    mocks.useWorkspaceSwitcher.mockReturnValue({
       isPending: true,
       handleSelectWorkspace: vi.fn(),
     });
 
-    await renderProfileSection({
-      sessionUser,
-      workspaces,
-      activeOrganizationId: "org-a",
-    });
+    renderChrome("org-a");
 
-    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeOrganizationId: "org-a",
-        isPending: true,
-      }),
-    );
+    expect(trigger("sidebar")).toHaveAccessibleName("Org A");
+    expect(trigger("top-bar")).toBeDisabled();
   });
 });

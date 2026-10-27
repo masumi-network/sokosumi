@@ -1,24 +1,10 @@
 "use client";
 
-import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
-import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
-import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,79 +13,64 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useIsMobile } from "@/hooks/use-mobile";
-import useModal from "@/hooks/use-modal";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { cn } from "@/lib/utils";
+import {
+  useWorkspaceSwitcherState,
+  type WorkspaceItem,
+  type WorkspaceSwitcherPlacement,
+} from "./workspace-switcher.client";
 import {
   WORKSPACE_SWITCHER_AVATAR_CLASS,
   WORKSPACE_SWITCHER_CHEVRON_CLASS,
   WORKSPACE_SWITCHER_NAME_CLASS,
-  WORKSPACE_SWITCHER_TRIGGER_CLASS,
+  WORKSPACE_SWITCHER_ROW_CLASS,
   WorkspaceSwitcherSkeletonParts,
 } from "./workspace-switcher-skeleton";
 
-type WorkspaceChoice = "personal" | "organization";
+/**
+ * Each placement's own interaction: the sidebar's row fills on hover like the
+ * rows under it; the top bar's avatar dims like the icons beside it.
+ */
+const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
+  sidebar: cn(
+    WORKSPACE_SWITCHER_ROW_CLASS,
+    "text-foreground press ring-sidebar-ring outline-hidden transition-[opacity,background-color] hover:bg-sidebar-accent focus-visible:ring-2 data-[state=open]:bg-sidebar-accent",
+  ),
+  topBar: cn(
+    WORKSPACE_SWITCHER_ROW_CLASS,
+    "text-foreground press transition-opacity hover:opacity-80",
+  ),
+};
 
-interface WorkspaceSwitcherMenuProps {
-  sessionUser: SessionUser;
-  /** Core's workspaces list; the switcher lists its organizations. */
-  workspaces: UserWorkspace[];
-  hasPersonalWorkspace: boolean;
-  activeOrganizationId: string | null;
-  isPending: boolean;
-  onSelectWorkspace: (workspaceId: string | null) => void | Promise<void>;
-}
-
-interface WorkspaceItem {
-  id: string | null;
-  name: string;
-  organization?: OrganizationLogoSource;
-}
+/** Under the trigger's own edge: its start in the sidebar, its end at the top bar's right. */
+const MENU_ALIGN: Record<WorkspaceSwitcherPlacement, "start" | "end"> = {
+  sidebar: "start",
+  topBar: "end",
+};
 
 function getWorkspaceKey(workspace: WorkspaceItem): string {
   return workspace.id ?? "personal-account";
 }
 
-function getOrderedWorkspaces(
-  workspaces: WorkspaceItem[],
-  activeOrganizationId: string | null,
-): WorkspaceItem[] {
-  const activeIndex = workspaces.findIndex(
-    (workspace) => workspace.id === activeOrganizationId,
-  );
-
-  if (activeIndex <= 0) {
-    return workspaces;
-  }
-
-  return [
-    workspaces[activeIndex],
-    ...workspaces.slice(0, activeIndex),
-    ...workspaces.slice(activeIndex + 1),
-  ];
+interface WorkspaceMenuItemProps {
+  sessionUser: SessionUser;
+  workspace: WorkspaceItem;
+  isSelected: boolean;
+  disabled: boolean;
+  onSelect: (workspaceId: string | null) => void;
 }
 
 function WorkspaceMenuItem({
   sessionUser,
   workspace,
   isSelected,
-  isPending,
+  disabled,
   onSelect,
-}: {
-  sessionUser: SessionUser;
-  workspace: WorkspaceItem;
-  isSelected: boolean;
-  isPending: boolean;
-  onSelect: (workspaceId: string | null) => void;
-}) {
+}: WorkspaceMenuItemProps) {
   return (
     <DropdownMenuItem
       className="flex cursor-pointer items-center gap-2 py-2"
-      disabled={isPending}
+      disabled={disabled}
       onClick={() => onSelect(workspace.id)}
     >
       <WorkspaceAvatar
@@ -116,148 +87,53 @@ function WorkspaceMenuItem({
   );
 }
 
+interface WorkspaceSwitcherMenuProps {
+  placement: WorkspaceSwitcherPlacement;
+}
+
+/**
+ * One placement of the **Workspace switcher** (GLOSSARY.md): its trigger and
+ * its menu. The menu's items mount only while this placement's menu is open;
+ * everything else is the provider's, once.
+ */
 export default function WorkspaceSwitcherMenu({
-  sessionUser,
-  workspaces,
-  hasPersonalWorkspace,
-  activeOrganizationId,
-  isPending,
-  onSelectWorkspace,
+  placement,
 }: WorkspaceSwitcherMenuProps) {
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
   const {
-    Component: CreateOrganizationModal,
-    showModal: showCreateOrganizationModal,
-  } = useModal(CreateOrganizationWizard);
-  const isMobile = useIsMobile();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isChoiceDialogOpen, setIsChoiceDialogOpen] = useState(false);
-  const [workspaceChoice, setWorkspaceChoice] =
-    useState<WorkspaceChoice>("personal");
-  const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
-  const tIdentity = useTranslations("WorkspaceGate.Identity");
-  const canCreatePersonal = !hasPersonalWorkspace;
-
-  async function activateCreatedPersonalWorkspace(): Promise<void> {
-    try {
-      await onSelectWorkspace(null);
-    } catch (error) {
-      console.error("Create personal workspace activation failed", error);
-      toast.error(tIdentity("personalActivateError"));
-    }
-  }
-
-  async function createAndActivatePersonal(): Promise<boolean> {
-    try {
-      const createResult = await createPersonalWorkspaceAction({});
-      if (!createResult.ok) {
-        if (
-          createResult.error.code ===
-          WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
-        ) {
-          await activateCreatedPersonalWorkspace();
-          return true;
-        }
-        console.error("Create personal workspace failed", createResult.error);
-        toast.error(tIdentity("personalCreateError"));
-        return false;
-      }
-      await activateCreatedPersonalWorkspace();
-      return true;
-    } catch (error) {
-      console.error("Create personal workspace failed", error);
-      toast.error(tIdentity("personalCreateError"));
-      return false;
-    }
-  }
-
-  function handleOpenCreateWorkspace() {
-    setIsDropdownOpen(false);
-    if (!canCreatePersonal) {
-      showCreateOrganizationModal();
-      return;
-    }
-    setWorkspaceChoice("personal");
-    setIsChoiceDialogOpen(true);
-  }
-
-  async function handleChoiceContinue() {
-    if (workspaceChoice === "organization") {
-      setIsChoiceDialogOpen(false);
-      showCreateOrganizationModal();
-      return;
-    }
-
-    setIsCreatingPersonal(true);
-    try {
-      if (await createAndActivatePersonal()) {
-        setIsChoiceDialogOpen(false);
-      }
-    } finally {
-      setIsCreatingPersonal(false);
-    }
-  }
-
-  const personalWorkspace = useMemo<WorkspaceItem>(
-    () => ({
-      id: null,
-      name:
-        sessionUser.name ??
-        sessionUser.email ??
-        tOrganizationSwitcher("personalAccount"),
-    }),
-    [sessionUser.email, sessionUser.name, tOrganizationSwitcher],
-  );
-
-  const organizationWorkspaces = useMemo(
-    () =>
-      getOrderedWorkspaces(
-        workspaces.flatMap(({ organizationId, name, logo, websiteUrl }) =>
-          organizationId
-            ? [
-                {
-                  id: organizationId,
-                  name,
-                  organization: { name, logo, websiteUrl },
-                },
-              ]
-            : [],
-        ),
-        activeOrganizationId,
-      ),
-    [activeOrganizationId, workspaces],
-  );
-
-  const activeWorkspace =
-    activeOrganizationId === null
-      ? hasPersonalWorkspace
-        ? personalWorkspace
-        : null
-      : (organizationWorkspaces.find(
-          (workspace) => workspace.id === activeOrganizationId,
-        ) ?? null);
-
-  const handleWorkspaceSelect = (workspaceId: string | null) => {
-    if (workspaceId === null && !hasPersonalWorkspace) {
-      return;
-    }
-    setIsDropdownOpen(false);
-    onSelectWorkspace(workspaceId);
-  };
+    sessionUser,
+    personalWorkspace,
+    organizationWorkspaces,
+    activeOrganizationId,
+    activeWorkspace,
+    isPending,
+    isBusy,
+    openPlacement,
+    setMenuOpen,
+    selectWorkspace,
+    openCreateWorkspace,
+  } = useWorkspaceSwitcherState();
 
   return (
-    <>
-      {CreateOrganizationModal}
-      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+    <div
+      className={cn(
+        "flex h-auto min-w-0 flex-1 items-center gap-1.5",
+        isPending
+          ? "pointer-events-none animate-pulse opacity-60"
+          : "transition-opacity",
+      )}
+      data-testid="workspace-switcher-chrome"
+    >
+      <DropdownMenu
+        open={openPlacement === placement}
+        onOpenChange={(open) => setMenuOpen(placement, open)}
+      >
         <DropdownMenuTrigger asChild>
-          {/* One shape for both homes, which never show at once: the phone's
-              top bar (name read out, not shown) and, from md, the row that
-              fills the sidebar header. */}
           <button
             type="button"
-            className={WORKSPACE_SWITCHER_TRIGGER_CLASS}
+            className={TRIGGER_CLASS[placement]}
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
@@ -291,24 +167,19 @@ export default function WorkspaceSwitcherMenu({
             <ChevronsUpDown className={WORKSPACE_SWITCHER_CHEVRON_CLASS} />
           </button>
         </DropdownMenuTrigger>
-        {/* Under the trigger's own edge: its start in the sidebar, its end
-            at the phone top bar's right. */}
-        <DropdownMenuContent
-          className="w-72"
-          align={isMobile ? "end" : "start"}
-        >
-          {hasPersonalWorkspace ? (
+        <DropdownMenuContent className="w-72" align={MENU_ALIGN[placement]}>
+          {personalWorkspace ? (
             <WorkspaceMenuItem
               sessionUser={sessionUser}
               workspace={personalWorkspace}
               isSelected={activeOrganizationId === null}
-              isPending={isPending || isCreatingPersonal}
-              onSelect={handleWorkspaceSelect}
+              disabled={isBusy}
+              onSelect={selectWorkspace}
             />
           ) : null}
           {organizationWorkspaces.length > 0 ? (
             <>
-              {hasPersonalWorkspace ? <DropdownMenuSeparator /> : null}
+              {personalWorkspace ? <DropdownMenuSeparator /> : null}
               <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
                 {tOrganizationSwitcher("organizationsHeading")}
               </DropdownMenuLabel>
@@ -318,8 +189,8 @@ export default function WorkspaceSwitcherMenu({
                   sessionUser={sessionUser}
                   workspace={workspace}
                   isSelected={workspace.id === activeOrganizationId}
-                  isPending={isPending || isCreatingPersonal}
-                  onSelect={handleWorkspaceSelect}
+                  disabled={isBusy}
+                  onSelect={selectWorkspace}
                 />
               ))}
             </>
@@ -327,8 +198,8 @@ export default function WorkspaceSwitcherMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2 py-2"
-            disabled={isPending || isCreatingPersonal}
-            onClick={handleOpenCreateWorkspace}
+            disabled={isBusy}
+            onClick={openCreateWorkspace}
           >
             <Avatar className="bg-primary-quinary flex size-6 items-center justify-center gap-2">
               <Plus className="text-primary size-4" />
@@ -337,84 +208,6 @@ export default function WorkspaceSwitcherMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Dialog open={isChoiceDialogOpen} onOpenChange={setIsChoiceDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {tOrganizationSwitcher("createWorkspace")}
-            </DialogTitle>
-            <DialogDescription>{tIdentity("choiceHint")}</DialogDescription>
-          </DialogHeader>
-          <RadioGroup
-            value={workspaceChoice}
-            onValueChange={(value) => {
-              if (value === "personal" || value === "organization") {
-                setWorkspaceChoice(value);
-              }
-            }}
-            aria-label={tIdentity("choiceLabel")}
-            className="grid gap-3"
-            data-testid="workspace-switcher-create-choice"
-            disabled={isCreatingPersonal}
-          >
-            <Label
-              htmlFor="switcher-workspace-choice-personal"
-              className={cn(
-                "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                workspaceChoice === "personal" &&
-                  "border-primary bg-card-background",
-              )}
-            >
-              <RadioGroupItem
-                value="personal"
-                id="switcher-workspace-choice-personal"
-                className="mt-0.5"
-              />
-              <span className="space-y-1">
-                <span className="block text-sm font-medium">
-                  {tIdentity("personalTitle")}
-                </span>
-                <span className="text-muted-foreground block text-sm font-normal">
-                  {tIdentity("personalDescription")}
-                </span>
-              </span>
-            </Label>
-            <Label
-              htmlFor="switcher-workspace-choice-organization"
-              className={cn(
-                "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                workspaceChoice === "organization" &&
-                  "border-primary bg-card-background",
-              )}
-            >
-              <RadioGroupItem
-                value="organization"
-                id="switcher-workspace-choice-organization"
-                className="mt-0.5"
-              />
-              <span className="space-y-1">
-                <span className="block text-sm font-medium">
-                  {tIdentity("organizationTitle")}
-                </span>
-                <span className="text-muted-foreground block text-sm font-normal">
-                  {tIdentity("organizationDescription")}
-                </span>
-              </span>
-            </Label>
-          </RadioGroup>
-          <DialogFooter>
-            <Button
-              type="button"
-              loading={isCreatingPersonal}
-              onClick={() => {
-                void handleChoiceContinue();
-              }}
-            >
-              {tIdentity("continue")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   );
 }
