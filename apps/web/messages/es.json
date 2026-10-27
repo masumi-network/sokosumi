@@ -8624,6 +8624,17 @@
       "Disabled": {
         "title": "Soko Bot no está disponible temporalmente",
         "description": "Un administrador ha desactivado Soko Bot por ahora. No se pierde nada de lo que hizo tu asistente; retomará donde lo dejó."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Tu asistente usa las cuentas publicitarias del proyecto de la página de Ads.",
+        "openInAds": "Abrir en Ads",
+        "empty": "Aún no hay cuentas publicitarias conectadas.",
+        "connectOnAds": "Conecta una en la página de Ads",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
