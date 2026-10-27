@@ -15,6 +15,12 @@ import {
 import { type Client, createClient } from "@sokosumi/core-client/client";
 import { describe, expect, it, vi } from "vitest";
 import { createCoreClient } from "@/lib/clients/core.shared";
+import {
+  PUBLIC_NEWSLETTER,
+  PUBLIC_NEWSLETTER_ISSUE,
+  PUBLIC_NEWSLETTER_ISSUE_SUMMARY,
+  PUBLIC_NEWSLETTER_SLUG,
+} from "@/test/newsletter";
 
 vi.mock("@sokosumi/core-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sokosumi/core-client")>();
@@ -33,6 +39,128 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => {
     startAdminImpersonation: vi.fn(),
     stopAdminImpersonation: vi.fn(),
   };
+});
+
+describe("createCoreClient public newsletter reads", () => {
+  it("uses the generated subscribe operation and preserves its generic 202 response", async () => {
+    const requests: Request[] = [];
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async (input, init) => {
+        requests.push(new Request(input, init));
+        return new Response(JSON.stringify({ status: "check_your_inbox" }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+    const core = createCoreClient(() => client);
+    const input = {
+      email: "reader@example.com",
+      name: "Ada",
+      source: "SIGNUP_FORM",
+      website: "",
+      locale: "de",
+    } as const;
+    expect(
+      await core.postPublicNewslettersByPublicSlugSubscribe(
+        PUBLIC_NEWSLETTER_SLUG,
+        input,
+        { "x-forwarded-for": "203.0.113.4" },
+      ),
+    ).toEqual({ status: "check_your_inbox" });
+    const request = requests[0];
+    expect(request.url).toBe(
+      `https://core.example.com/v1/public/newsletters/${PUBLIC_NEWSLETTER_SLUG}/subscribe`,
+    );
+    expect(request.method).toBe("POST");
+    expect(request.cache).toBe("no-store");
+    expect(request.headers.get("x-forwarded-for")).toBe("203.0.113.4");
+    expect(await request.json()).toEqual(input);
+  });
+
+  it("uses generated public routes with no-store and transforms issue dates", async () => {
+    const meta = {
+      requestId: "public_test",
+      timestamp: new Date(),
+      pagination: { cursor: null, limit: 20, total: 1, nextCursor: null },
+    };
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const { pathname } = new URL(new Request(input, init).url);
+        const data = pathname.endsWith("/issues/hello")
+          ? PUBLIC_NEWSLETTER_ISSUE
+          : pathname.endsWith("/issues")
+            ? [PUBLIC_NEWSLETTER_ISSUE_SUMMARY]
+            : PUBLIC_NEWSLETTER;
+        return new Response(JSON.stringify({ data, meta }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    );
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: fetchMock,
+    });
+    const core = createCoreClient(() => client);
+    expect(
+      (await core.getPublicNewslettersByPublicSlug(PUBLIC_NEWSLETTER_SLUG))
+        .data,
+    ).toEqual(PUBLIC_NEWSLETTER);
+    const page = await core.getPublicNewslettersByPublicSlugIssues(
+      PUBLIC_NEWSLETTER_SLUG,
+      { limit: 1 },
+    );
+    expect(page.data[0].sentAt).toEqual(PUBLIC_NEWSLETTER_ISSUE.sentAt);
+    expect(page.meta.pagination.nextCursor).toBeNull();
+    const issue = await core.getPublicNewslettersByPublicSlugIssuesByIssueSlug(
+      PUBLIC_NEWSLETTER_SLUG,
+      "hello",
+      "es",
+    );
+    expect(issue.data).toEqual(PUBLIC_NEWSLETTER_ISSUE);
+    const requests = fetchMock.mock.calls.map(
+      ([input, init]) => new Request(input, init),
+    );
+    expect(requests.map((request) => request.url)).toEqual([
+      `https://core.example.com/v1/public/newsletters/${PUBLIC_NEWSLETTER_SLUG}`,
+      `https://core.example.com/v1/public/newsletters/${PUBLIC_NEWSLETTER_SLUG}/issues?limit=1`,
+      `https://core.example.com/v1/public/newsletters/${PUBLIC_NEWSLETTER_SLUG}/issues/hello?locale=es`,
+    ]);
+    for (const request of requests) {
+      expect(request.cache).toBe("no-store");
+      expect(request.headers.get("authorization")).toBeNull();
+    }
+  });
+
+  it("preserves public 404s for the service to map to notFound", async () => {
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            error: "Not Found",
+            message: "Newsletter not found",
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        ),
+    });
+    const core = createCoreClient(() => client);
+    await expect(
+      core.getPublicNewslettersByPublicSlug("missing"),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      core.getPublicNewslettersByPublicSlugIssues("missing", {}),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      core.getPublicNewslettersByPublicSlugIssuesByIssueSlug(
+        "missing",
+        "hello",
+        "en",
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+  });
 });
 
 describe("createCoreClient calendar sources", () => {

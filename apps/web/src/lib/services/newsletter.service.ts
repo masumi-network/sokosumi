@@ -5,6 +5,7 @@ import type {
   CreateNewsletterIssueRequest,
   GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
+  GetPublicNewslettersByPublicSlugIssuesData,
   ImportNewsletterSubscribersRequest,
   Newsletter,
   NewsletterIssue,
@@ -13,11 +14,73 @@ import type {
   PatchNewsletterSubscriberRequest,
   PutNewsletterRequest,
   ScheduleNewsletterIssueRequest,
+  SubscribeNewsletterRequest,
 } from "@sokosumi/core-client";
+import { DEFAULT_LOCALE, parseLocalePreference } from "@sokosumi/utils";
+import { headers } from "next/headers";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const newsletterService = {
+  async subscribe(publicSlug: string, input: SubscribeNewsletterRequest) {
+    const requestHeaders = await headers();
+    const ip =
+      requestHeaders.get("x-vercel-forwarded-for") ??
+      requestHeaders.get("x-forwarded-for");
+    // Preserve Core's per-visitor signup limit across the server-action hop.
+    return coreClient.postPublicNewslettersByPublicSlugSubscribe(
+      publicSlug,
+      input,
+      ip ? { "x-vercel-forwarded-for": ip, "x-forwarded-for": ip } : {},
+    );
+  },
+
+  getPublicNewsletter: cache(async (publicSlug: string) => {
+    try {
+      const response =
+        await coreClient.getPublicNewslettersByPublicSlug(publicSlug);
+      return response.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404)
+        return null;
+      throw error;
+    }
+  }),
+
+  async listPublicIssues(
+    publicSlug: string,
+    query: GetPublicNewslettersByPublicSlugIssuesData["query"],
+  ) {
+    try {
+      return await coreClient.getPublicNewslettersByPublicSlugIssues(
+        publicSlug,
+        query,
+      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404)
+        return null;
+      throw error;
+    }
+  },
+
+  getPublicIssue: cache(
+    async (publicSlug: string, issueSlug: string, locale: string) => {
+      try {
+        const response =
+          await coreClient.getPublicNewslettersByPublicSlugIssuesByIssueSlug(
+            publicSlug,
+            issueSlug,
+            parseLocalePreference(locale) ?? DEFAULT_LOCALE,
+          );
+        return response.data;
+      } catch (error) {
+        if (error instanceof CoreApiRequestError && error.status === 404)
+          return null;
+        throw error;
+      }
+    },
+  ),
+
   async listIssues(
     projectId: string,
     query: GetProjectsByIdNewsletterIssuesData["query"],

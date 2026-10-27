@@ -64,6 +64,7 @@ import type {
   GetProjectsByIdSocialPostsStatisticsData,
   GetProjectsData,
   GetProjectsStatsData,
+  GetPublicNewslettersByPublicSlugIssuesData,
   GetShareByTokenError,
   GetTasksByIdEventsData,
   GetTasksData,
@@ -150,6 +151,7 @@ import type {
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
   ScheduleNewsletterIssueRequest,
+  SubscribeNewsletterRequest,
   UpdateAdminBadgeCampaignData,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
@@ -309,6 +311,9 @@ import {
   getProjectsByIdSocialPostsStatistics as coreGetProjectsByIdSocialPostsStatistics,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
+  getPublicNewslettersByPublicSlug as coreGetPublicNewslettersByPublicSlug,
+  getPublicNewslettersByPublicSlugIssues as coreGetPublicNewslettersByPublicSlugIssues,
+  getPublicNewslettersByPublicSlugIssuesByIssueSlug as coreGetPublicNewslettersByPublicSlugIssuesByIssueSlug,
   getShareByToken as coreGetShareByToken,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
@@ -463,6 +468,7 @@ import {
   postProjectsByIdSocialPostsByPostIdThreadResume as corePostProjectsByIdSocialPostsByPostIdThreadResume,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
+  postPublicNewslettersByPublicSlugSubscribe as corePostPublicNewslettersByPublicSlugSubscribe,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
@@ -634,6 +640,73 @@ function nullWhenNotFound(error: unknown): null {
 }
 
 export function createCoreClient(getClient: GetCoreClient) {
+  async function postPublicNewslettersByPublicSlugSubscribe(
+    publicSlug: string,
+    body: SubscribeNewsletterRequest,
+    headers: HeadersInit,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostPublicNewslettersByPublicSlugSubscribe({
+          client,
+          path: { publicSlug },
+          body,
+          headers,
+          cache: "no-store",
+        }),
+      "Failed to subscribe to newsletter",
+    );
+  }
+
+  async function getPublicNewslettersByPublicSlug(publicSlug: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetPublicNewslettersByPublicSlug({
+          client,
+          path: { publicSlug },
+          cache: "no-store",
+        }),
+      "Failed to fetch public newsletter",
+    );
+  }
+
+  async function getPublicNewslettersByPublicSlugIssues(
+    publicSlug: string,
+    query: GetPublicNewslettersByPublicSlugIssuesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetPublicNewslettersByPublicSlugIssues({
+          client,
+          path: { publicSlug },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch public newsletter issues",
+    );
+  }
+
+  async function getPublicNewslettersByPublicSlugIssuesByIssueSlug(
+    publicSlug: string,
+    issueSlug: string,
+    locale: "en" | "de" | "es",
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetPublicNewslettersByPublicSlugIssuesByIssueSlug({
+          client,
+          path: { publicSlug, issueSlug },
+          query: { locale },
+          cache: "no-store",
+        }),
+      "Failed to fetch public newsletter issue",
+    );
+  }
+
   async function getProjectsByIdNewsletterIssues(
     id: string,
     query: GetProjectsByIdNewsletterIssuesData["query"],
@@ -6562,6 +6635,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
+    postPublicNewslettersByPublicSlugSubscribe,
+    getPublicNewslettersByPublicSlug,
+    getPublicNewslettersByPublicSlugIssues,
+    getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
     getProjectsByIdNewsletterIssues,
     getProjectsByIdNewsletterIssuesByIssueId,

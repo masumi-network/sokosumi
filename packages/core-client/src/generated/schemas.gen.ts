@@ -27293,6 +27293,64 @@ export const PublicNewsletterSchema = {
     ]
 } as const;
 
+export const PublicNewsletterIssueSummarySchema = {
+    type: 'object',
+    properties: {
+        publicSlug: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sentAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'publicSlug',
+        'subject',
+        'previewText',
+        'sentAt'
+    ]
+} as const;
+
+export const PublicNewsletterIssueSchema = {
+    type: 'object',
+    properties: {
+        subject: {
+            type: 'string'
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sentAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        html: {
+            type: 'string'
+        }
+    },
+    required: [
+        'subject',
+        'previewText',
+        'sentAt',
+        'html'
+    ]
+} as const;
+
 export const NewsletterSignupAcceptedSchema = {
     type: 'object',
     properties: {

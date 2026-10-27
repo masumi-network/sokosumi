@@ -173,6 +173,28 @@ export const publicNewsletterSchema = newsletterSchema
   .pick({ name: true, senderName: true, brand: true })
   .openapi("PublicNewsletter");
 
+export const publicNewsletterIssueParamsSchema =
+  publicNewsletterParamsSchema.extend({
+    issueSlug: z.string().min(1).max(300),
+  });
+
+export const listPublicNewsletterIssuesQuerySchema =
+  listNewsletterIssuesQuerySchema.omit({ status: true });
+
+export const publicNewsletterIssueSummarySchema = z
+  .object({
+    publicSlug: z.string(),
+    subject: z.string(),
+    previewText: z.string().nullable(),
+    sentAt: dateTimeSchema,
+  })
+  .openapi("PublicNewsletterIssueSummary");
+
+export const publicNewsletterIssueSchema = publicNewsletterIssueSummarySchema
+  .omit({ publicSlug: true })
+  .extend({ html: z.string() })
+  .openapi("PublicNewsletterIssue");
+
 export const subscribeNewsletterRequestSchema = z
   .object({
     email: newsletterEmailSchema,

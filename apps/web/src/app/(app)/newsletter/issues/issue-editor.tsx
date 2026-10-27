@@ -44,10 +44,12 @@ export function NewsletterIssueEditor({
   projectId,
   issue,
   activeSubscribers,
+  newsletterSlug,
 }: {
   projectId: string;
   issue: NewsletterIssue;
   activeSubscribers: number;
+  newsletterSlug: string;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [currentIssue, setCurrentIssue] = useState(issue);
@@ -145,11 +147,22 @@ export function NewsletterIssueEditor({
             {t("back")}
           </Link>
         </Button>
-        <Badge variant="secondary">
-          {currentIssue.approvedAt && status === "NEEDS_APPROVAL"
-            ? t("Lifecycle.approved")
-            : t(`statuses.${status}`)}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-3">
+          {status === NewsletterIssueStatus.SENT ? (
+            <Button asChild variant="outline">
+              <Link
+                href={`/n/${encodeURIComponent(newsletterSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
+              >
+                {t("viewOnWeb")}
+              </Link>
+            </Button>
+          ) : null}
+          <Badge variant="secondary">
+            {currentIssue.approvedAt && status === "NEEDS_APPROVAL"
+              ? t("Lifecycle.approved")
+              : t(`statuses.${status}`)}
+          </Badge>
+        </div>
       </div>
       <IssueActions
         issue={currentIssue}

@@ -3148,7 +3148,6 @@
         "brand": "Brand",
         "welcome": "Welcome email",
         "welcomeDescription": "Send a welcome email after a subscriber confirms their email address.",
-        "publicAddress": "Public newsletter address",
         "colorHint": "Use a hex color, such as #1a2b3c, or leave blank.",
         "save": "Save settings",
         "success": "Newsletter settings saved",
@@ -3406,7 +3405,17 @@
             "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
             "noSender": "Newsletter sending is not configured. Ask a workspace administrator to finish setup.",
             "approvalRequired": "Submit this issue and get a person’s approval before scheduling or sending."
-          }
+          },
+          "viewOnWeb": "View on web"
+        },
+        "publicArchive": "Public archive",
+        "SignupForm": {
+          "title": "Signup form",
+          "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "hostedPage": "Hosted signup page",
+          "open": "Open signup page",
+          "embedCode": "Embed code",
+          "embedTitle": "Newsletter signup"
         }
       }
     },
@@ -9766,6 +9775,36 @@
       "later": "Later",
       "skip": "Skip",
       "continue": "Continue"
+    }
+  },
+  "PublicNewsletter": {
+    "archive": "Archive",
+    "subscribe": "Subscribe",
+    "emptyTitle": "No issues yet",
+    "emptyDescription": "Published issues will appear here.",
+    "loadMore": "Load more",
+    "loadError": "Failed to load issues. Try again.",
+    "unavailable": "This archive is no longer available. Reload the page.",
+    "metadataTitle": "{name} archive",
+    "metadataDescription": "Read past issues of {name}.",
+    "backToArchive": "Back to archive",
+    "issueContent": "Newsletter issue: {subject}",
+    "Signup": {
+      "title": "Subscribe to {name}",
+      "description": "Get new issues delivered to your inbox.",
+      "email": "Email address",
+      "name": "Name (optional)",
+      "consent": "I agree to receive this newsletter. You can unsubscribe at any time.",
+      "website": "Website",
+      "archive": "Browse the archive",
+      "success": "Check your inbox to confirm your subscription",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidName": "Use a name with 200 characters or fewer.",
+      "consentRequired": "Agree to receive the newsletter to subscribe.",
+      "invalid": "Check the highlighted fields and try again.",
+      "rateLimit": "Too many signup attempts. Wait a few minutes and try again.",
+      "unavailable": "This newsletter is unavailable. Reload the page and try again.",
+      "error": "Failed to subscribe. Try again."
     }
   }
 }
