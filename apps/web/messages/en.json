@@ -3968,7 +3968,7 @@
       }
     },
     "Social": {
-      "title": "Social Scheduling",
+      "title": "Social posts",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
         "label": "New post",

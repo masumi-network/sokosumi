@@ -3968,7 +3968,7 @@
       }
     },
     "Social": {
-      "title": "Programación social",
+      "title": "Publicaciones sociales",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
         "label": "Nueva publicación",
