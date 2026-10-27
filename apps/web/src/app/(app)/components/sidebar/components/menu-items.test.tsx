@@ -265,6 +265,7 @@ describe("MenuItems groups", () => {
     renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
+      "home",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -311,7 +312,21 @@ describe("MenuItems groups", () => {
     ).toBeInTheDocument();
   });
 
-  it("groups the phone sheet the same way", () => {
+  // The wordmark's link to `/` became this row when the Workspace switcher
+  // took the sidebar header.
+  it("leads Work with Home, a plain link to the home page", () => {
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, false);
+
+    expect(destinationsUnder("groups.work")[0]).toBe("home");
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  // The phone keeps Home on the Sokosumi icon in its top bar.
+  it("groups the phone sheet the same way, without Home", () => {
     renderMenu(true, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
@@ -429,10 +444,16 @@ describe("MenuItems current destination", () => {
     expect(markedHrefs()).toEqual(["/tasks"]);
   });
 
+  it("marks Home on the home page, and only there", () => {
+    pathnameRef.current = "/";
+    renderMenu(true, false);
+    expect(markedHrefs()).toEqual(["/"]);
+  });
+
   // A route no destination owns has nothing open.
   it("marks nothing on a route no nav item owns", () => {
-    pathnameRef.current = "/";
-    renderMenu();
+    pathnameRef.current = "/account";
+    renderMenu(true, false);
     expect(markedHrefs()).toEqual([]);
   });
 });

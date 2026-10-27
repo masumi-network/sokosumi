@@ -4,6 +4,7 @@ import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
   HardDrive,
+  House,
   ImagePlus,
   ListTodo,
   Mail,
@@ -109,6 +110,18 @@ function ScopedMenuItems({
   const markFeatureSeen = useMarkFeatureSeen();
 
   const destinations: NavDestination[] = [
+    // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
+    ...(!isMobile
+      ? [
+          {
+            key: "home",
+            href: "/",
+            label: t("home"),
+            Icon: House,
+            group: "work",
+          } satisfies NavDestination,
+        ]
+      : []),
     {
       key: "explore-agents",
       href: "/agents",
