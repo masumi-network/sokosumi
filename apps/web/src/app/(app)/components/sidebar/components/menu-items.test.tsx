@@ -235,6 +235,15 @@ describe("MenuItems", () => {
     expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
 
+  it("names the Social destination Social posts", () => {
+    renderMenu();
+
+    expect(screen.getByRole("link", { name: "socialPosts" })).toHaveAttribute(
+      "href",
+      "/social",
+    );
+  });
+
   it("shows public Social scoped like the rows above it", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
