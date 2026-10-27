@@ -4051,7 +4051,12 @@
           "schedules": "Zeitpläne",
           "social": "Social-Planung",
           "ads": "Ads",
-          "contacts": "Kontakte"
+          "contacts": "Kontakte",
+          "groups": {
+            "work": "Arbeit",
+            "records": "Unterlagen",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Letzte Chats",

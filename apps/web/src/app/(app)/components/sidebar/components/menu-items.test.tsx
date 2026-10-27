@@ -2,7 +2,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: null, isPending: false }),
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const setOpenMobileMock = vi.fn();
@@ -183,33 +183,6 @@ describe("MenuItems", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Schedules and the studio on desktop", () => {
-    const { container } = renderMenu(true, false);
-    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
-      (element) => element.textContent ?? "",
-    );
-
-    const primaryOrder = [
-      "exploreAgents",
-      "taskManager",
-      "schedules",
-      "contacts",
-      "contentStudio",
-      "social",
-      "drive",
-    ];
-    const positions = primaryOrder.map((label) =>
-      menuLabels.findIndex((text) => text.includes(label)),
-    );
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    expect(screen.getByRole("link", { name: /drive/i })).toHaveAttribute(
-      "href",
-      "/drive",
-    );
-  });
-
   it("orders primary destinations Agents, Tasks, Schedules, Studio", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
@@ -250,21 +223,6 @@ describe("MenuItems", () => {
     );
   });
 
-  it("puts Social after the studio and before Files", () => {
-    const { container } = renderMenu(true, false, true);
-    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
-      (element) => element.textContent ?? "",
-    );
-
-    const order = ["contentStudio", "social", "drive"];
-    const positions = order.map((label) =>
-      menuLabels.findIndex((text) => text.includes(label)),
-    );
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-  });
-
   /** The retained beta flag gates Ads only. */
   it("leaves Ads out until the frame resolves the beta", () => {
     renderMenu();
@@ -283,21 +241,6 @@ describe("MenuItems", () => {
       "href",
       "/ads?projectId=project-1",
     );
-  });
-
-  it("puts Ads after Social and before Files", () => {
-    const { container } = renderMenu(true, false, true);
-    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
-      (element) => element.textContent ?? "",
-    );
-
-    const order = ["social", "ads", "drive"];
-    const positions = order.map((label) =>
-      menuLabels.findIndex((text) => text.includes(label)),
-    );
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
   it("sets New Task apart from the destinations with a separator", () => {
@@ -335,6 +278,93 @@ describe("MenuItems", () => {
     expect(pill?.className.split(/\s+/)).toEqual(
       expect.arrayContaining(["ml-1", "pl-1", "w-[calc(100%-0.5rem)]"]),
     );
+  });
+});
+
+/** The destinations a nav heading folds, in order, by its `aria-controls`. */
+function destinationsUnder(heading: string) {
+  const button = screen.getByRole("button", { name: heading });
+  const group = document.getElementById(
+    button.getAttribute("aria-controls") ?? "",
+  );
+  if (!group) return [];
+  return within(group)
+    .getAllByRole("link")
+    .map((link) => link.textContent);
+}
+
+describe("MenuItems groups", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
+    pathnameRef.current = "/";
+    searchRef.current = "";
+  });
+
+  it("files each destination under its Work, Records or Marketing heading", () => {
+    renderMenu(true, false, true);
+
+    expect(destinationsUnder("groups.work")).toEqual([
+      "exploreAgents",
+      "taskManager",
+      "schedules",
+    ]);
+    expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
+    expect(destinationsUnder("groups.marketing")).toEqual([
+      "contentStudio",
+      "social",
+      "ads",
+    ]);
+  });
+
+  it("puts the headings in the order Work, Records, Marketing", () => {
+    renderMenu(true, false);
+
+    const headings = screen
+      .getAllByRole("button", { name: /^groups\./ })
+      .map((button) => button.textContent);
+    expect(headings).toEqual([
+      "groups.work",
+      "groups.records",
+      "groups.marketing",
+    ]);
+  });
+
+  it("folds a group from its heading and opens it again", () => {
+    renderMenu(true, false);
+    const heading = screen.getByRole("button", { name: "groups.marketing" });
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(heading);
+
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "social" })).toBeNull();
+    // Only its own rows go.
+    expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
+
+    fireEvent.click(heading);
+
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("link", { name: "contentStudio" }),
+    ).toBeInTheDocument();
+  });
+
+  it("groups the phone sheet the same way", () => {
+    renderMenu(true, true);
+
+    expect(destinationsUnder("groups.work")).toEqual([
+      "exploreAgents",
+      "taskManager",
+      "schedules",
+    ]);
+    // Files stays on the You page there.
+    expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
+    expect(destinationsUnder("groups.marketing")).toEqual([
+      "contentStudio",
+      "social",
+    ]);
   });
 });
 

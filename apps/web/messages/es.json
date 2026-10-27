@@ -4051,7 +4051,12 @@
           "schedules": "Programaciones",
           "social": "Programación social",
           "ads": "Anuncios",
-          "contacts": "Contactos"
+          "contacts": "Contactos",
+          "groups": {
+            "work": "Trabajo",
+            "records": "Registros",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Chats recientes",

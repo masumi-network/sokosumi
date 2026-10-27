@@ -4051,7 +4051,12 @@
           "schedules": "Schedules",
           "social": "Social Scheduling",
           "ads": "Ads",
-          "contacts": "Contacts"
+          "contacts": "Contacts",
+          "groups": {
+            "work": "Work",
+            "records": "Records",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Recent chats",
