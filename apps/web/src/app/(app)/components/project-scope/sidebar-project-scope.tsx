@@ -18,7 +18,7 @@ import {
   SCOPE_TITLE_CHEVRON_CLASS,
   SCOPE_TITLE_GROUP_CLASS,
   SCOPE_TITLE_ROW_CLASS,
-} from "./sidebar-project-scope-skeleton";
+} from "./sidebar-project-scope-shape";
 import {
   openScopeCreate,
   openScopeSheet,

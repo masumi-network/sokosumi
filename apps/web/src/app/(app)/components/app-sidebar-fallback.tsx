@@ -1,4 +1,4 @@
-import { SidebarProjectScopeSkeleton } from "@/app/components/project-scope/sidebar-project-scope-skeleton";
+import { SidebarProjectScopeSkeleton } from "@/app/components/project-scope/sidebar-project-scope-shape";
 import { WorkspaceSwitcherSkeleton } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import {
   Sidebar,
@@ -29,17 +29,26 @@ export function AppSidebarFallback() {
   return (
     <Sidebar>
       {/* Mirrors `Sidebar`'s own header so the hairline lands on the same
-          line across the shell/sidebar swap. New task is left out: it needs
-          the wizard and a seat this frame has not loaded, and a button that
-          appears once is cheaper than one that appears and then goes away. */}
+          line across the shell/sidebar swap: the switcher at the start, then
+          Search and New task. All three need what this frame has not loaded
+          (the workspaces, the search dialog, the wizard and a seat), so each
+          is a placeholder in its shape, desktop only like Search. */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2">
-          {/* The Workspace switcher's workspaces are session-backed, so it
-              is a placeholder in the switcher's own shape. */}
           <div className="flex min-w-0 flex-1 max-md:hidden">
-            <WorkspaceSwitcherSkeleton />
+            <WorkspaceSwitcherSkeleton placement="sidebar" />
           </div>
           <SidebarLogo className="md:hidden" />
+          <div className="flex shrink-0 items-center gap-1 max-md:hidden">
+            {["search", "new-task"].map((action) => (
+              <div
+                key={action}
+                aria-hidden
+                data-testid="sidebar-header-action-skeleton"
+                className="bg-muted size-10 animate-pulse rounded-md md:size-8"
+              />
+            ))}
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">

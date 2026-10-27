@@ -1,4 +1,4 @@
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /*
@@ -8,20 +8,43 @@ import { cn } from "@/lib/utils";
  *
  * It has two homes that never show at once, split at md (the phone/desktop
  * boundary, `MOBILE_BREAKPOINT`): below it the phone's top bar, where only the
- * avatar and chevron show, and from it the row that fills the sidebar header.
- * So the md: half of each class is the sidebar's.
+ * avatar and chevron show, and from it the start of the sidebar header, as
+ * wide as its content. So the md: half of each class is the sidebar's.
  */
+
+/**
+ * Where a Workspace switcher trigger sits. CSS decides which one shows; the
+ * placement decides what differs between them.
+ */
+export type WorkspaceSwitcherPlacement = "sidebar" | "topBar";
+
+interface WorkspaceSwitcherPlacementProps {
+  placement: WorkspaceSwitcherPlacement;
+}
+
+/** As wide as its content, and no wider than its slot: the name gives way. */
 export const WORKSPACE_SWITCHER_ROW_CLASS =
-  "flex h-8 min-w-0 items-center gap-1.5 rounded-md text-sm md:w-full md:gap-2 md:px-2";
+  "flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md text-sm md:gap-2 md:px-2";
 
 export const WORKSPACE_SWITCHER_AVATAR_CLASS = "size-4 shrink-0 md:size-5";
 
 /** Shortened with "…" in the sidebar; read out but not shown on a phone. */
 export const WORKSPACE_SWITCHER_NAME_CLASS =
-  "min-w-0 flex-1 truncate text-left font-medium max-md:sr-only";
+  "min-w-0 truncate text-left font-medium max-md:sr-only";
 
-export const WORKSPACE_SWITCHER_CHEVRON_CLASS =
-  "text-muted-foreground size-4 shrink-0";
+/**
+ * The sidebar's small down chevron, as in Linear; the phone's top bar keeps
+ * the up-down selector chevron it had.
+ */
+export function WorkspaceSwitcherChevron({
+  placement,
+}: WorkspaceSwitcherPlacementProps) {
+  return placement === "sidebar" ? (
+    <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
+  ) : (
+    <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
+  );
+}
 
 /** The avatar and name placeholders, in the order the loaded ones take. */
 export function WorkspaceSwitcherSkeletonParts() {
@@ -39,7 +62,9 @@ export function WorkspaceSwitcherSkeletonParts() {
 }
 
 /** The switcher while its workspaces load, in the shape it loads into. */
-export function WorkspaceSwitcherSkeleton() {
+export function WorkspaceSwitcherSkeleton({
+  placement,
+}: WorkspaceSwitcherPlacementProps) {
   return (
     <div
       className={WORKSPACE_SWITCHER_ROW_CLASS}
@@ -47,7 +72,7 @@ export function WorkspaceSwitcherSkeleton() {
       data-testid="workspace-switcher-chrome-skeleton"
     >
       <WorkspaceSwitcherSkeletonParts />
-      <ChevronsUpDown className={WORKSPACE_SWITCHER_CHEVRON_CLASS} />
+      <WorkspaceSwitcherChevron placement={placement} />
     </div>
   );
 }

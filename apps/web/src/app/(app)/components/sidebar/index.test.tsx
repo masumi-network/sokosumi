@@ -42,6 +42,12 @@ vi.mock(
     SidebarNewTaskButton: () => <button type="button">newTask</button>,
   }),
 );
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-search-button.client",
+  () => ({
+    SidebarSearchButton: () => <button type="button">search</button>,
+  }),
+);
 
 import Sidebar from "@/app/components/sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -73,21 +79,24 @@ function sidebarHeader(container: HTMLElement): HTMLElement {
 }
 
 describe("Sidebar header", () => {
-  it("fills the row with the Workspace switcher, then New task", () => {
+  // As in Linear: the switcher at the start, Search and New task pushed to
+  // the end.
+  it("leads with the Workspace switcher, then Search, then New task", () => {
     const { container } = renderSidebar();
     const header = sidebarHeader(container);
 
     const switcher = within(header).getByRole("button", { name: "Acme" });
+    const search = within(header).getByRole("button", { name: "search" });
     const newTask = within(header).getByRole("button", { name: "newTask" });
 
-    expect(
-      switcher.compareDocumentPosition(newTask) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    // It takes the room New task leaves, and shortens its name inside it.
+    expect(follows(switcher, search)).toBe(true);
+    expect(follows(search, newTask)).toBe(true);
+    // The switcher's slot takes the room the buttons leave, so they sit at
+    // the end and its name shortens before it reaches them.
     expect(tokens(switcher.parentElement)).toEqual(
       expect.arrayContaining(["min-w-0", "flex-1"]),
     );
+    expect(switcher.parentElement?.contains(search)).toBe(false);
     // The same 64px row as the top bar, so the hairline runs straight across.
     expect(tokens(header)).toEqual(
       expect.arrayContaining(["h-16", "border-b"]),

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { WorkspaceSwitcherSkeleton } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
-import { cn } from "@/lib/utils";
 
 import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
@@ -8,7 +7,6 @@ import {
   HeaderLeadingBrandFallback,
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
-import { HEADER_SEARCH_BOX_CLASS } from "./header/header-search-box";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 
@@ -33,19 +31,11 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
       </HeaderCenter>
 
-      <div
-        aria-hidden
-        className={cn(
-          HEADER_SEARCH_BOX_CLASS,
-          "bg-quinary animate-pulse rounded-md",
-        )}
-      />
-
       {/* The phone's Workspace switcher, as `HeaderProfileSection` places
           it; from md the switcher is the sidebar header's. */}
       <HeaderTrailing>
         <div className="flex md:hidden">
-          <WorkspaceSwitcherSkeleton />
+          <WorkspaceSwitcherSkeleton placement="topBar" />
         </div>
       </HeaderTrailing>
     </HeaderChrome>

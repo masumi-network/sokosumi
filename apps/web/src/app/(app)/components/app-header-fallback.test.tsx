@@ -59,6 +59,24 @@ describe("AppHeaderFallback", () => {
     expect(trailing?.children).toHaveLength(1);
   });
 
+  // From md, Search sits in the sidebar header, so the shell's top bar
+  // holds no placeholder for it.
+  it("holds no Search placeholder in the top bar", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <AppHeaderFallback />
+      </SidebarProvider>,
+    );
+
+    expect(
+      container.querySelector('[data-testid="header-search-skeleton"]'),
+    ).toBeNull();
+    const desktopPlaceholders = [
+      ...container.querySelectorAll(".animate-pulse"),
+    ].filter((element) => tokens(element).includes("md:flex"));
+    expect(desktopPlaceholders).toHaveLength(0);
+  });
+
   // The phone's switcher is the avatar alone up to md (MOBILE_BREAKPOINT
   // 768), so its placeholder draws no name bar there either.
   it("leaves the name bar out of the phone's placeholder", () => {

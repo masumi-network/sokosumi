@@ -10,7 +10,6 @@ import {
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
 import HeaderProfileSection from "./header/header-profile-section";
-import { HeaderSearchTrigger } from "./header/header-search-trigger.client";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 
@@ -37,8 +36,6 @@ export default function Header({ className }: HeaderProps) {
         <SidebarScopeMobileChip />
         <ProjectScopeGuard />
       </Suspense>
-
-      <HeaderSearchTrigger />
 
       <HeaderTrailing>
         <HeaderProfileSection />

@@ -167,6 +167,22 @@ describe("WorkspaceSwitcherProvider", () => {
     expect(topBarName.className.split(/\s+/)).toContain("max-md:sr-only");
   });
 
+  // As in Linear: the sidebar's switcher is a pill as wide as its content,
+  // with a small down chevron; the phone's top bar keeps its up-down one.
+  it("gives the sidebar trigger a down chevron and its content's width", () => {
+    renderChrome();
+
+    expect(
+      trigger("sidebar").querySelector("svg.lucide-chevron-down"),
+    ).not.toBeNull();
+    expect(trigger("sidebar").className.split(/\s+/)).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/(^|:)w-full$/)]),
+    );
+    expect(
+      trigger("top-bar").querySelector("svg.lucide-chevrons-up-down"),
+    ).not.toBeNull();
+  });
+
   it("prefers the client session's active organization over the server's", () => {
     mocks.useSession.mockReturnValue({
       data: { session: { activeOrganizationId: "org-b" } },

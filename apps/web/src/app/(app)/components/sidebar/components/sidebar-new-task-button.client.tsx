@@ -24,7 +24,8 @@ const OPEN_SURFACE_SELECTOR =
   '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
 /**
- * New task, the sidebar header's one action: opens the New Task wizard scoped
+ * New task, the sidebar header's main action, so it alone sits on a quiet
+ * filled surface: opens the New Task wizard scoped
  * to the reader's project, from a click or from C anywhere outside an
  * editable field. Absent, shortcut included, when the reader cannot create a
  * Task (no assigned seat, or the Instant Nav shell outside the wizard).
@@ -97,7 +98,7 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
           size="icon"
           aria-keyshortcuts={SHORTCUT_KEY.toUpperCase()}
           onClick={handleOpen}
-          className="relative size-10 shrink-0 md:size-8"
+          className="bg-quinary hover:bg-quaternary relative size-10 shrink-0 md:size-8"
         >
           <SquarePen aria-hidden />
           <span className="sr-only">{t("newTask")}</span>

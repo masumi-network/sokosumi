@@ -2,10 +2,10 @@ import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace
 import { HeaderTrailingTools } from "./header-trailing-tools";
 
 /**
- * The top bar's trailing chrome. From md the Workspace switcher lives in the
- * sidebar header, so the desktop end is Notification Center alone (Search
- * sits before it); the phone keeps its switcher here, avatar only. The
- * provider behind both placements is the app frame's.
+ * The top bar's trailing chrome. From md the Workspace switcher and Search
+ * live in the sidebar header, so the desktop end is Notification Center
+ * alone; the phone keeps its switcher here, avatar only, and its Search. The
+ * provider behind both switcher placements is the app frame's.
  */
 export default function HeaderProfileSection() {
   return (

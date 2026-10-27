@@ -24,12 +24,7 @@ import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspa
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
-
-/**
- * Where a Workspace switcher trigger sits: the sidebar header from md, the
- * phone's top bar below it. CSS decides which one shows.
- */
-export type WorkspaceSwitcherPlacement = "sidebar" | "topBar";
+import type { WorkspaceSwitcherPlacement } from "./workspace-switcher-skeleton";
 
 type WorkspaceChoice = "personal" | "organization";
 

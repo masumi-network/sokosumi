@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
 import { Avatar } from "@/components/ui/avatar";
@@ -18,25 +18,26 @@ import { cn } from "@/lib/utils";
 import {
   useWorkspaceSwitcherState,
   type WorkspaceItem,
-  type WorkspaceSwitcherPlacement,
 } from "./workspace-switcher.client";
 import {
   WORKSPACE_SWITCHER_AVATAR_CLASS,
-  WORKSPACE_SWITCHER_CHEVRON_CLASS,
   WORKSPACE_SWITCHER_NAME_CLASS,
   WORKSPACE_SWITCHER_ROW_CLASS,
+  WorkspaceSwitcherChevron,
+  type WorkspaceSwitcherPlacement,
   WorkspaceSwitcherSkeletonParts,
 } from "./workspace-switcher-skeleton";
 
 /**
- * Each placement's own interaction: the sidebar's row fills on hover like the
- * rows under it; the top bar's avatar dims like the icons beside it.
+ * Each placement's own interaction: the sidebar's pill fills on hover and
+ * while open, like the controls under it; the top bar's avatar dims like the
+ * icons beside it.
  */
 const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
   sidebar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
     SIDEBAR_CONTROL_INTERACTION_CLASS,
-    "text-foreground press transition-[opacity,background-color]",
+    "text-foreground press rounded-full transition-[opacity,background-color]",
   ),
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
@@ -166,7 +167,7 @@ export default function WorkspaceSwitcherMenu({
                 <WorkspaceSwitcherSkeletonParts />
               </span>
             )}
-            <ChevronsUpDown className={WORKSPACE_SWITCHER_CHEVRON_CLASS} />
+            <WorkspaceSwitcherChevron placement={placement} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align={MENU_ALIGN[placement]}>

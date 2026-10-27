@@ -19,6 +19,7 @@ import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
 import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
+import { SidebarSearchButton } from "./components/sidebar-search-button.client";
 
 export type SidebarCreditsSubscription =
   GetUsersByIdCreditsResponse["data"]["subscription"];
@@ -86,7 +87,7 @@ export function mapAccountCreditsChrome(
 }
 
 interface SidebarProps {
-  /** The Workspace switcher, which fills the header row on desktop. */
+  /** The Workspace switcher, at the start of the header on desktop. */
   workspaceSwitcher: ReactNode;
   accountFooter: ReactNode;
   chatList: ReactNode;
@@ -107,18 +108,24 @@ export default function Sidebar({
         h-16 border-b must match HeaderChrome's desktop control row so the
         hairline is one continuous rule across the sidebar/content seam. The
         sidebar is shown and hidden from the top bar's toggle, so its own
-        header carries no collapse control: New task is its one action.
+        header carries no collapse control: Search and New task are its
+        actions.
       */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2">
-          {/* Hides with the sidebar, as in Linear: nothing stands in for it
-              in the top bar. The phone keeps its switcher in the top bar
-              instead, so its sheet keeps the wordmark. */}
+          {/* As in Linear: the switcher at the start, as wide as its content,
+              and the actions at the end. It hides with the sidebar: nothing
+              stands in for it in the top bar. The phone keeps its switcher
+              and Search in the top bar instead, so its sheet keeps the
+              wordmark. */}
           <div className="flex min-w-0 flex-1 max-md:hidden">
             {workspaceSwitcher}
           </div>
           <SidebarLogo className="md:hidden" />
-          <SidebarNewTaskButton />
+          <div className="flex shrink-0 items-center gap-1">
+            <SidebarSearchButton />
+            <SidebarNewTaskButton />
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
