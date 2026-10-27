@@ -150,6 +150,7 @@ import {
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
   type GoogleDisplayImageRole,
 } from "@/lib/ads/campaigns";
+import { fitDisplayImage } from "@/lib/ads/display-image-fit";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { FileActor } from "@/lib/files/actor";
@@ -282,7 +283,10 @@ import {
   searchFiles,
 } from "@/services/file-search.service";
 import { getJob } from "@/services/image-studio-assets.service";
-import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
+import {
+  ensureStudioAssetDriveFile,
+  writeStudioDriveFile,
+} from "@/services/image-studio-drive.service";
 import {
   createImageJob,
   createVideoJob,
@@ -2351,7 +2355,9 @@ export class SokoBotRuntimeService {
 
   /**
    * A Display campaign's images given as `{ fileId, role }` become the Drive
-   * references the ads service stores. Google takes JPEG, PNG and GIF only.
+   * references the ads service stores. Google takes JPEG, PNG and GIF only
+   * and refuses a ratio more than 1% off the role's, so an image that does
+   * not fit is centre-cropped to it into a new image in Content Studio.
    */
   private async resolveAdImages(
     authorized: AuthorizedSokoBotRuntime,
@@ -2370,19 +2376,53 @@ export class SokoBotRuntimeService {
           throw new SokoBotRefusedUnsentError(
             `File ${fileId} is not in the owner's Files; use an id from list_files, get_image or upload_file`,
           );
-        const mimeType = GOOGLE_DISPLAY_IMAGE_MIME_TYPES.find(
-          (allowed) => allowed === file.mimeType,
-        );
-        if (!mimeType)
+        const mimeType = file.mimeType ?? "";
+        if (
+          !GOOGLE_DISPLAY_IMAGE_MIME_TYPES.some((m) => m === mimeType) &&
+          mimeType !== "image/webp"
+        )
           throw new SokoBotRefusedUnsentError(
-            `"${file.displayName}" is not a JPEG, PNG or GIF image`,
+            `"${file.displayName}" is not a JPEG, PNG, GIF or WebP image`,
+          );
+        const bytes = await downloadBlob(file.sourceId);
+        if (!bytes)
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}" could not be read; try again`,
+          );
+        const fit = await fitDisplayImage(bytes, mimeType, role);
+        if (fit.kind === "refused")
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}": ${fit.reason}`,
+          );
+        if (fit.kind === "unchanged")
+          return {
+            pathname: file.sourceId,
+            fileUrl: (await head(file.sourceId)).url,
+            name: file.displayName,
+            size: file.sizeBytes ?? 0,
+            mimeType: fit.mimeType,
+            role,
+          };
+        const cropped = await writeStudioDriveFile({
+          workspaceId: drive.key.workspaceId,
+          organizationId:
+            drive.key.scope === "organization" ? drive.key.ownerId : null,
+          userId: drive.actor.userId,
+          // The source id's random tail keeps two sources with one name apart.
+          name: `${file.displayName.replace(/\.[^.]*$/, "")}-${role.toLowerCase()}-${fileId.slice(-8)}.jpg`,
+          bytes: fit.bytes,
+          contentType: "image/jpeg",
+        });
+        if (!cropped)
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}" could not be saved after cropping; try again`,
           );
         return {
-          pathname: file.sourceId,
-          fileUrl: (await head(file.sourceId)).url,
-          name: file.displayName,
-          size: file.sizeBytes ?? 0,
-          mimeType,
+          pathname: cropped.pathname,
+          fileUrl: cropped.url,
+          name: cropped.name,
+          size: cropped.size,
+          mimeType: "image/jpeg" as const,
           role,
         };
       }),

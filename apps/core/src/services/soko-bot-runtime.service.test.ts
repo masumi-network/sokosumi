@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { badRequest } from "@/helpers/error";
@@ -7246,6 +7247,9 @@ describe("Soko Bot project social tools", () => {
     const squareId = "01960001-0001-7001-8001-000000000042";
     const gifId = "01960001-0001-7001-8001-000000000043";
     const webpId = "01960001-0001-7001-8001-000000000044";
+    const pdfId = "01960001-0001-7001-8001-000000000045";
+    const wide169Id = "01960001-0001-7001-8001-000000000046";
+    const tinyLogoId = "01960001-0001-7001-8001-000000000047";
     const account = {
       id: adAccountId,
       provider: "google_ads",
@@ -7302,9 +7306,31 @@ describe("Soko Bot project social tools", () => {
       });
     const lastReceipt = () =>
       toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+    const solid = (width: number, height: number) =>
+      sharp({ create: { width, height, channels: 3, background: "#336699" } });
+    const orgPath = "drive/organizations/organization-one";
 
-    beforeEach(() => {
+    beforeEach(async () => {
       for (const mock of Object.values(ads)) mock.mockReset();
+      const bytes = new Map<string, Uint8Array>([
+        [`${orgPath}/wide.png`, await solid(1910, 1000).png().toBuffer()],
+        [`${orgPath}/square.jpg`, await solid(1000, 1000).jpeg().toBuffer()],
+        [`${orgPath}/moving.gif`, await solid(200, 200).gif().toBuffer()],
+        [`${orgPath}/photo.webp`, await solid(1200, 1200).webp().toBuffer()],
+        [`${orgPath}/wide169.png`, await solid(1920, 1080).png().toBuffer()],
+        [`${orgPath}/tiny.png`, await solid(100, 100).png().toBuffer()],
+      ]);
+      files.download.mockImplementation(async (pathname: string) =>
+        bytes.get(pathname),
+      );
+      files.reserve.mockResolvedValue({
+        resourceId: "file-new",
+        versionId: "v",
+      });
+      files.activate.mockResolvedValue({ resourceId: "file-new" });
+      files.put.mockImplementation(async (pathname: string) => ({
+        url: `https://x.public.blob.vercel-storage.com/${pathname}`,
+      }));
       social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([
         account,
@@ -7320,10 +7346,20 @@ describe("Soko Bot project social tools", () => {
         driveFile(squareId, "square.jpg", "image/jpeg"),
         driveFile(gifId, "moving.gif", "image/gif"),
         driveFile(webpId, "photo.webp", "image/webp"),
+        driveFile(pdfId, "brief.pdf", "application/pdf"),
+        driveFile(wide169Id, "wide169.png", "image/png"),
+        driveFile(tinyLogoId, "tiny.png", "image/png"),
       ]);
       files.head.mockImplementation(async (pathname: string) => ({
         url: `https://x.public.blob.vercel-storage.com/${pathname}`,
       }));
+    });
+
+    afterEach(() => {
+      files.download.mockReset();
+      files.put.mockReset();
+      files.reserve.mockReset();
+      files.activate.mockReset();
     });
 
     it("creates a Search campaign paused and links it", async () => {
@@ -7375,6 +7411,61 @@ describe("Soko Bot project social tools", () => {
       ]);
     });
 
+    it("passes an image that already fits through untouched", async () => {
+      await run(display);
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("centre-crops a 16:9 LANDSCAPE image into a new Content Studio file", async () => {
+      await run({
+        ...display,
+        images: [
+          { fileId: wide169Id, role: "LANDSCAPE" },
+          { fileId: squareId, role: "SQUARE" },
+        ],
+      });
+      const pathname = `${orgPath}/Content Studio/wide169-landscape-${wide169Id.slice(-8)}.jpg`;
+      expect(files.put).toHaveBeenCalledTimes(1);
+      expect(files.put).toHaveBeenCalledWith(
+        pathname,
+        expect.any(Buffer),
+        expect.objectContaining({ contentType: "image/jpeg" }),
+      );
+      const bytes = files.put.mock.calls[0][1] as Buffer;
+      expect(await sharp(bytes).metadata()).toMatchObject({
+        width: 1920,
+        height: 1005,
+      });
+      expect(ads.create.mock.calls[0][0].google.images[0]).toEqual({
+        pathname,
+        fileUrl: `https://x.public.blob.vercel-storage.com/${pathname}`,
+        name: `wide169-landscape-${wide169Id.slice(-8)}.jpg`,
+        size: bytes.byteLength,
+        mimeType: "image/jpeg",
+        role: "LANDSCAPE",
+      });
+    });
+
+    it("converts a WebP, which Google does not take, into a Content Studio JPEG", async () => {
+      await run({
+        ...display,
+        images: [
+          { fileId: landscapeId, role: "LANDSCAPE" },
+          { fileId: webpId, role: "SQUARE" },
+        ],
+      });
+      expect(files.put).toHaveBeenCalledWith(
+        `${orgPath}/Content Studio/photo-square-${webpId.slice(-8)}.jpg`,
+        expect.any(Buffer),
+        expect.anything(),
+      );
+      expect(ads.create.mock.calls[0][0].google.images[1]).toMatchObject({
+        name: `photo-square-${webpId.slice(-8)}.jpg`,
+        mimeType: "image/jpeg",
+        role: "SQUARE",
+      });
+    });
+
     /** Refused before anything was sent: the receipt is REJECTED and a retry is allowed. */
     const refused = async (refusal: Promise<unknown>, message: string) => {
       await expect(refusal).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
@@ -7391,16 +7482,42 @@ describe("Soko Bot project social tools", () => {
       expect(ads.create).not.toHaveBeenCalled();
     });
 
-    it("refuses a Display image Google does not accept", async () => {
+    it("refuses a Display image that is not an image Core can convert", async () => {
       await refused(
         run({
           ...display,
           images: [
-            { fileId: webpId, role: "LANDSCAPE" },
+            { fileId: pdfId, role: "LANDSCAPE" },
             { fileId: squareId, role: "SQUARE" },
           ],
         }),
-        '"photo.webp" is not a JPEG, PNG or GIF image',
+        '"brief.pdf" is not a JPEG, PNG, GIF or WebP image',
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a logo smaller than 128x128", async () => {
+      await refused(
+        run({
+          ...display,
+          images: [...display.images, { fileId: tinyLogoId, role: "LOGO" }],
+        }),
+        "at least 128x128",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses when the cropped image cannot be saved to Files", async () => {
+      files.activate.mockResolvedValue(null);
+      await refused(
+        run({
+          ...display,
+          images: [
+            { fileId: wide169Id, role: "LANDSCAPE" },
+            { fileId: squareId, role: "SQUARE" },
+          ],
+        }),
+        "could not be saved after cropping",
       );
       expect(ads.create).not.toHaveBeenCalled();
     });

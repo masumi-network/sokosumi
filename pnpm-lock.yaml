@@ -438,6 +438,9 @@ importers:
       resumable-stream:
         specifier: 2.2.13
         version: 2.2.13
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@24.19.2)
       slugify:
         specifier: 1.6.9
         version: 1.6.9
