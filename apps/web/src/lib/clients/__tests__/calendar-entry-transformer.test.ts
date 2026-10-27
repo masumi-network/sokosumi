@@ -14,11 +14,15 @@ describe("calendar entry dates", () => {
         {
           sourceId: "project:scheduled",
           latestScheduledSocialPostAt: "2027-02-15T12:00:00.000Z",
+          latestScheduledNewsletterIssueAt: "2027-06-15T12:00:00.000Z",
         },
       ],
       meta: { timestamp: "2026-01-10T12:00:00.000Z" },
     });
 
+    expect(result.data[2]?.latestScheduledNewsletterIssueAt).toEqual(
+      new Date("2027-06-15T12:00:00.000Z"),
+    );
     expect(result.data[0]?.latestScheduledSocialPostAt).toBeUndefined();
     expect(result.data[1]?.latestScheduledSocialPostAt).toBeNull();
     expect(result.data[2]?.latestScheduledSocialPostAt).toEqual(
@@ -29,7 +33,7 @@ describe("calendar entry dates", () => {
   it.each([
     getWorkspacesCalendarResponseTransformer,
     getProjectsByIdCalendarResponseTransformer,
-  ])("transforms dates for both entry types", async (transform) => {
+  ])("transforms dates for all entry types", async (transform) => {
     const result = await transform({
       data: [
         {
@@ -42,12 +46,18 @@ describe("calendar entry dates", () => {
           id: "social:post",
           scheduledAt: "2026-09-23T12:00:00.000Z",
         },
+        {
+          kind: "newsletter_issue",
+          id: "newsletter:issue",
+          scheduledAt: "2026-09-23T12:00:00.000Z",
+        },
       ],
       meta: { timestamp: "2026-09-23T12:00:00.000Z" },
     });
     expect(result.data[0]?.scheduledAt).toBeInstanceOf(Date);
     expect(result.data[0]?.originalScheduledAt).toBeInstanceOf(Date);
     expect(result.data[1]?.scheduledAt).toBeInstanceOf(Date);
+    expect(result.data[2]?.scheduledAt).toBeInstanceOf(Date);
     expect(result.data[1]?.originalScheduledAt).toBeUndefined();
   });
 });

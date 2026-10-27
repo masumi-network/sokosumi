@@ -112,6 +112,7 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
+import { NewsletterIssueCalendarEvent } from "./newsletter-issue-calendar-event";
 import {
   type ChangeableRun,
   changeRun,
@@ -575,6 +576,7 @@ function CalendarView({
   runHandlers,
   showProject,
   socialOnly,
+  newsletterEnabled,
   socialPostVariant,
   sources,
   timeZone,
@@ -589,6 +591,7 @@ function CalendarView({
   /** Off on one project's calendar, where every chip would repeat its name. */
   showProject: boolean;
   socialOnly: boolean;
+  newsletterEnabled: boolean;
   /** Social's own calendar draws its chips; the workspace Calendar lists posts. */
   socialPostVariant: "compact" | "month" | "week";
   sources: WorkspaceCalendarSource[];
@@ -649,7 +652,8 @@ function CalendarView({
     return current.kind === "socialPost"
       ? move.item.kind === "socialPost" &&
           current.revision === move.item.revision
-      : move.item.kind !== "socialPost" &&
+      : (current.kind === "RUN" || current.kind === "RUN_AT") &&
+          (move.item.kind === "RUN" || move.item.kind === "RUN_AT") &&
           current.scheduleRevision === move.item.scheduleRevision;
   });
   if (retainedMoves.length !== Object.keys(pendingMoves).length) {
@@ -788,7 +792,13 @@ function CalendarView({
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
           <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+            {t(
+              socialOnly
+                ? newsletterEnabled
+                  ? "empty.publications"
+                  : "empty.socialOnly"
+                : "empty.title",
+            )}
           </p>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
@@ -820,6 +830,11 @@ function CalendarView({
                       item={item}
                       timeZone={timeZone}
                       variant={socialPostVariant}
+                    />
+                  ) : item.kind === "newsletter_issue" ? (
+                    <NewsletterIssueCalendarEvent
+                      item={item}
+                      timeZone={timeZone}
                     />
                   ) : (
                     <CalendarEvent
@@ -867,7 +882,12 @@ function CalendarView({
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title: item.kind === "socialPost" ? item.text : item.taskName,
+            title:
+              item.kind === "socialPost"
+                ? item.text
+                : item.kind === "newsletter_issue"
+                  ? item.subject
+                  : item.taskName,
             start: (
               pendingMoves[item.id]?.scheduledAt ?? item.scheduledAt
             ).toISOString(),
@@ -971,6 +991,10 @@ function CalendarView({
                 </div>
               );
             }
+            if (item.kind === "newsletter_issue")
+              return (
+                <NewsletterIssueCalendarEvent item={item} timeZone={timeZone} />
+              );
             return (
               <CalendarEvent
                 item={item}
@@ -1136,6 +1160,10 @@ export function WorkspaceCalendar({
   // reader turns it on, and only where Social posts are on the calendar at all.
   const socialOnly =
     socialPostsOnly || (includeSocialPosts && state.socialOnly);
+  const newsletterEnabled =
+    sources.some(
+      (source) => source.latestScheduledNewsletterIssueAt !== undefined,
+    ) || loadedItems.some((item) => item.kind === "newsletter_issue");
   const canCreate =
     !socialPostsOnly &&
     sources.some(
@@ -1159,10 +1187,27 @@ export function WorkspaceCalendar({
   }, [isMobile, state.view, setState, socialPostsOnly]);
 
   function isVisible(item: WorkspaceCalendarEntry, anyPostStatus = false) {
-    // Only Social posts survive the toggle. The grid views drain every page
-    // in range before they paint, so filtering the loaded entries here shows
-    // the same posts a Social-only request would have returned.
-    if (socialOnly && item.kind !== "socialPost") return false;
+    // Publications survive the toggle. Grid views drain every page in range
+    // before filtering, so scheduled newsletters remain beside Social posts.
+    if (
+      socialOnly &&
+      item.kind !== "socialPost" &&
+      item.kind !== "newsletter_issue"
+    )
+      return false;
+    if (item.kind === "newsletter_issue")
+      return (
+        (view !== "agenda" ||
+          (["SCHEDULED", "SENDING"].includes(item.status) &&
+            getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+              Temporal.Now.plainDateISO(timeZone).toString())) &&
+        state.assigneeId === null &&
+        state.assigneeUserId === null &&
+        state.status === null &&
+        state.postStatus === null &&
+        state.provider === null &&
+        (selectedSourceId === null || item.sourceId === selectedSourceId)
+      );
     if (item.kind === "socialPost")
       return (
         (view !== "agenda" ||
@@ -1690,7 +1735,11 @@ export function WorkspaceCalendar({
               variant={socialOnly ? "secondary" : "outline"}
             >
               <Share2 aria-hidden className="size-4" />
-              {t("socialOnly.label")}
+              {t(
+                newsletterEnabled
+                  ? "socialOnly.newslettersLabel"
+                  : "socialOnly.label",
+              )}
             </Button>
           ) : null}
           {lockedProjectId && !socialPostsOnly ? (
@@ -1749,7 +1798,13 @@ export function WorkspaceCalendar({
         ) : null}
         {visibleItems.length === 0 && view !== "agenda" ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+            {t(
+              socialOnly
+                ? newsletterEnabled
+                  ? "empty.publications"
+                  : "empty.socialOnly"
+                : "empty.title",
+            )}
           </div>
         ) : null}
         <CalendarView
@@ -1762,6 +1817,7 @@ export function WorkspaceCalendar({
           runHandlers={runHandlers}
           showProject={!lockedProjectId}
           socialOnly={socialOnly}
+          newsletterEnabled={newsletterEnabled}
           socialPostVariant={
             socialPostsOnly ? (view === "week" ? "week" : "month") : "compact"
           }

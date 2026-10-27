@@ -200,6 +200,7 @@ export const workspaceCalendarSourceSchema = z
       description:
         "Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.",
     }),
+    latestScheduledNewsletterIssueAt: dateTimeSchema.nullable().optional(),
   })
   .openapi("WorkspaceCalendarSource");
 
@@ -268,11 +269,32 @@ export const socialPostCalendarItemSchema = z
   })
   .openapi("SocialPostCalendarItem");
 
-// Keep dates outside the union so the generated client transforms both entry types.
+export const newsletterIssueCalendarItemSchema = z
+  .object({
+    kind: z.literal("newsletter_issue"),
+    id: z.string(),
+    issueId: z.uuid(),
+    subject: z.string(),
+    status: z.enum(["SCHEDULED", "SENDING", "SENT"]),
+    scheduledAt: dateTimeSchema,
+    sourceId: z.string(),
+    sourceProjectId: z.uuid(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.literal("PROJECT"),
+  })
+  .openapi("NewsletterIssueCalendarItem");
+
+// Keep dates outside the union so the generated client transforms all entry types.
 export const workspaceCalendarEntrySchema = z
   .object({
     scheduledAt: dateTimeSchema,
     originalScheduledAt: dateTimeSchema.nullable().optional(),
   })
-  .and(z.union([workspaceCalendarItemSchema, socialPostCalendarItemSchema]))
+  .and(
+    z.union([
+      workspaceCalendarItemSchema,
+      socialPostCalendarItemSchema,
+      newsletterIssueCalendarItemSchema,
+    ]),
+  )
   .openapi("WorkspaceCalendarEntry");
