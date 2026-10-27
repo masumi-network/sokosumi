@@ -108,6 +108,7 @@ interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   firstComment?: string | null;
   media?: SocialPostMediaRef[];
   threadParts?: CreateSocialPostRequest["threadParts"];
+  quotedPostId?: string | null;
   socialConnectionId?: string | null;
   /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
   scheduledAt?: string | null;
@@ -121,7 +122,10 @@ interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
   firstComment?: string | null;
   media?: SocialPostMediaRef[];
   threadParts?: CreateSocialPostRequest["threadParts"];
+  quotedPostId?: string | null;
   socialConnectionId?: string | null;
+  scheduledAt?: string;
+  timezone?: string | null;
   revision: number;
 }
 
@@ -636,6 +640,7 @@ const createProjectSocialPostSchema = z
     firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     threadParts: socialPostThreadPartsSchema.optional(),
+    quotedPostId: z.uuid().nullish(),
     socialConnectionId: optionalConnectionId,
     scheduledAt: isoTimestamp.nullish(),
     timezone: optionalTimezone,
@@ -653,7 +658,10 @@ const updateProjectSocialPostSchema = z
     firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     threadParts: socialPostThreadPartsSchema.optional(),
+    quotedPostId: z.uuid().nullish(),
     socialConnectionId: optionalConnectionId,
+    scheduledAt: isoTimestamp.optional(),
+    timezone: optionalTimezone,
     revision: revisionSchema,
   })
   .refine(
@@ -725,6 +733,7 @@ export const createProjectSocialPost = withSession<
     firstComment,
     media,
     threadParts,
+    quotedPostId,
     socialConnectionId,
     scheduledAt,
     timezone,
@@ -735,6 +744,7 @@ export const createProjectSocialPost = withSession<
       firstComment,
       media,
       threadParts,
+      quotedPostId,
       socialConnectionId,
       scheduledAt,
       timezone,
@@ -754,6 +764,9 @@ export const createProjectSocialPost = withSession<
           ...(parsed.data.media ? { media: parsed.data.media } : {}),
           ...(parsed.data.threadParts !== undefined
             ? { threadParts: parsed.data.threadParts }
+            : {}),
+          ...(parsed.data.quotedPostId !== undefined
+            ? { quotedPostId: parsed.data.quotedPostId }
             : {}),
           ...(parsed.data.socialConnectionId
             ? { socialConnectionId: parsed.data.socialConnectionId }
@@ -783,7 +796,10 @@ export const updateProjectSocialPost = withSession<
     firstComment,
     media,
     threadParts,
+    quotedPostId,
     socialConnectionId,
+    scheduledAt,
+    timezone,
     revision,
   }) => {
     const parsed = updateProjectSocialPostSchema.safeParse({
@@ -793,7 +809,10 @@ export const updateProjectSocialPost = withSession<
       firstComment,
       media,
       threadParts,
+      quotedPostId,
       socialConnectionId,
+      scheduledAt,
+      timezone,
       revision,
     });
     if (!parsed.success) {
@@ -815,9 +834,16 @@ export const updateProjectSocialPost = withSession<
           ...(parsed.data.threadParts !== undefined
             ? { threadParts: parsed.data.threadParts }
             : {}),
+          ...(parsed.data.quotedPostId !== undefined
+            ? { quotedPostId: parsed.data.quotedPostId }
+            : {}),
           ...(parsed.data.socialConnectionId !== undefined
             ? { socialConnectionId: parsed.data.socialConnectionId }
             : {}),
+          ...(parsed.data.scheduledAt
+            ? { scheduledAt: new Date(parsed.data.scheduledAt) }
+            : {}),
+          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
           revision: parsed.data.revision,
         },
       );

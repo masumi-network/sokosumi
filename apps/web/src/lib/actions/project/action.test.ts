@@ -875,6 +875,54 @@ describe("project actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/social");
     });
 
+    it("preserves, removes and validates quote references through create and edit actions", async () => {
+      const { createProjectSocialPost, updateProjectSocialPost } = await import(
+        "./action"
+      );
+      const quotedPostId = "77777777-7777-4777-8777-777777777777";
+      projectServiceMock.createSocialPost.mockResolvedValue({
+        ...post,
+        quotedPostId,
+      });
+      projectServiceMock.updateSocialPost.mockResolvedValue({
+        ...post,
+        quotedPostId: null,
+      });
+      expect(
+        await createProjectSocialPost({
+          projectId: "project-1",
+          text: "Quote",
+          quotedPostId,
+        }),
+      ).toMatchObject({ ok: true, value: { quotedPostId } });
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        { text: "Quote", quotedPostId },
+      );
+      expect(
+        await updateProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          quotedPostId: null,
+          revision: 0,
+        }),
+      ).toMatchObject({ ok: true, value: { quotedPostId: null } });
+      expect(projectServiceMock.updateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { quotedPostId: null, revision: 0 },
+      );
+      projectServiceMock.createSocialPost.mockClear();
+      expect(
+        await createProjectSocialPost({
+          projectId: "project-1",
+          text: "Quote",
+          quotedPostId: "not-a-uuid",
+        }),
+      ).toMatchObject({ ok: false });
+      expect(projectServiceMock.createSocialPost).not.toHaveBeenCalled();
+    });
+
     it("keeps thread text and attachments through draft create, edit and duplicate actions", async () => {
       const {
         createProjectSocialPost,

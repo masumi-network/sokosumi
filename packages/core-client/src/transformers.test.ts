@@ -10,6 +10,32 @@ import {
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
 
+it.each([null, { scheduledAt: meta.timestamp, account: null }])(
+  "revives quote dates and keeps nullable quotes/accounts safe (%j)",
+  async (quotedPost) => {
+    const result = await getProjectsByIdSocialPostsByPostIdResponseTransformer({
+      data: {
+        createdAt: meta.timestamp,
+        updatedAt: meta.timestamp,
+        socialConnection: null,
+        lastAttempt: null,
+        threadParts: [],
+        quotedPost,
+      },
+      meta: { ...meta },
+    });
+    expect(result.data.socialConnection).toBeNull();
+    if (quotedPost) {
+      expect(result.data.quotedPost?.scheduledAt).toEqual(
+        new Date(meta.timestamp),
+      );
+      expect(result.data.quotedPost?.account).toBeNull();
+    } else {
+      expect(result.data.quotedPost).toBeNull();
+    }
+  },
+);
+
 it("revives X thread part dates and preserves unpublished parts", async () => {
   const result = await getProjectsByIdSocialPostsByPostIdResponseTransformer({
     data: {

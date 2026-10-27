@@ -56,6 +56,7 @@ const {
   pushMock,
   refreshMock,
   toastErrorMock,
+  toastSuccessMock,
 } = vi.hoisted(() => ({
   calendarRealtimeBridgeMock: vi.fn(),
   changeTaskScheduleRunMock: vi.fn(),
@@ -69,6 +70,7 @@ const {
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
@@ -157,6 +159,7 @@ vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => toastErrorMock(...args),
     info: vi.fn(),
+    success: (...args: unknown[]) => toastSuccessMock(...args),
   },
 }));
 
@@ -252,6 +255,8 @@ const RUN_AT_ITEM: WorkspaceCalendarItem = {
 
 const SOCIAL_POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  quotedPostId: null,
+  needsAttentionReason: null,
   threadPartCount: 1,
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
@@ -1107,6 +1112,56 @@ describe("WorkspaceCalendar editing", () => {
       await request.promise;
     });
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+  });
+
+  it("reports quotes moved by a drag and refreshes the calendar", async () => {
+    const request = createDeferred<{
+      ok: true;
+      value: { id: string; movedQuotes: { id: string; scheduledAt: Date }[] };
+    }>();
+    scheduleProjectSocialPostMock.mockReturnValue(request.promise);
+    renderCalendar({ items: [SOCIAL_POST] });
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const revert = vi.fn();
+    const droppedAt = new Date("2030-01-04T14:00:00.000Z");
+
+    await act(async () => {
+      props.eventDrop?.({
+        event: { id: SOCIAL_POST.id, start: droppedAt },
+        revert,
+      });
+    });
+
+    expect(scheduleProjectSocialPostMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      postId: "post-1",
+      scheduledAt: droppedAt.toISOString(),
+      revision: 4,
+    });
+    const optimistic = (
+      fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps
+    ).events?.find((candidate) => candidate.id === SOCIAL_POST.id);
+    expect(optimistic?.start).toBe(droppedAt.toISOString());
+    expect(revert).not.toHaveBeenCalled();
+
+    await act(async () => {
+      request.resolve({
+        ok: true,
+        value: {
+          id: "post-1",
+          movedQuotes: [
+            {
+              id: "quote-1",
+              scheduledAt: new Date(droppedAt.getTime() + 60_000),
+            },
+          ],
+        },
+      });
+      await request.promise;
+    });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(toastSuccessMock).toHaveBeenCalledWith("movedQuotes");
   });
 
   it("retires a confirmed social move when fresh server items arrive", async () => {
