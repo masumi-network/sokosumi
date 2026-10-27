@@ -2409,6 +2409,14 @@
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
+      "PostingInstructions": {
+        "title": "Posting-Anweisungen",
+        "description": "Sag Soko Bot, Coworkern und Agents, wie die Social-Posts dieses Projekts geschrieben werden: Tonalität, Hashtags, Calls to Action und Regeln pro Plattform. Das gilt nur für Social-Entwürfe und ist getrennt vom Projektgedächtnis und von DESIGN.md.",
+        "placeholder": "# Posting-Anweisungen\nTonalität: …\nImmer / nie: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Anweisungen speichern",
+        "saved": "Posting-Anweisungen gespeichert",
+        "saveFailed": "Posting-Anweisungen konnten nicht gespeichert werden. Versuch es erneut."
+      },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
         "account": "{provider}-Konto",

@@ -55,6 +55,7 @@ import mountListNewsletterSubscribers from "./[id]/newsletter/subscribers/get.js
 import mountImportNewsletterSubscribers from "./[id]/newsletter/subscribers/import/post.js";
 import mountAddNewsletterSubscriber from "./[id]/newsletter/subscribers/post.js";
 import mountPatchProject from "./[id]/patch.js";
+import mountGetProjectPostingInstructions from "./[id]/posting-instructions/get.js";
 import mountRecycleSocialAccountPost from "./[id]/social-account-posts/[accountPostId]/recycle/post.js";
 import mountDeleteProjectSocialConnection from "./[id]/social-connections/[connectionId]/delete.js";
 import mountRefreshSocialAccountStatistics from "./[id]/social-connections/[connectionId]/statistics/refresh/post.js";
@@ -101,6 +102,7 @@ mountDeleteProjectJob(app);
 mountPostProjectTask(app);
 mountDeleteProjectTask(app);
 mountGetProjectContextMd(app);
+mountGetProjectPostingInstructions(app);
 mountPutProjectDesignMd(app);
 mountDeleteProjectDesignMd(app);
 mountGetProjectCalendar(app);

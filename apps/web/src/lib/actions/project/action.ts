@@ -59,6 +59,13 @@ interface UpdateProjectParameters extends AuthenticatedRequest {
   logo?: string | null;
 }
 
+interface UpdateProjectPostingInstructionsParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  /** Markdown; blank clears it. */
+  postingInstructionsMd: string;
+}
+
 interface ResolveProjectSiteIconParameters extends AuthenticatedRequest {
   url: string;
   projectId: string;
@@ -360,6 +367,31 @@ export const updateProject = withSession<
     if (isIdentifierTaken(error)) return identifierTaken();
     console.error("Failed to update project", error);
     throwCoreActionError(error, "Failed to update project");
+  }
+});
+
+export const updateProjectPostingInstructions = withSession<
+  UpdateProjectPostingInstructionsParameters,
+  ActionResultDto<{ postingInstructionsMd: string | null }, ActionError>
+>(async ({ projectId, postingInstructionsMd }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    throw new Error("Project required");
+  }
+
+  try {
+    const project = await projectService.patchProject(normalizedProjectId, {
+      postingInstructionsMd: postingInstructionsMd.trim() || null,
+    });
+
+    revalidateProjectMutationRoutes(normalizedProjectId);
+    revalidatePath("/social");
+    return toActionResult(
+      ok({ postingInstructionsMd: project.postingInstructionsMd }),
+    );
+  } catch (error) {
+    console.error("Failed to update project posting instructions", error);
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 

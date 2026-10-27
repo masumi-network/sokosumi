@@ -2409,6 +2409,14 @@
         "save": "Save",
         "cancel": "Cancel"
       },
+      "PostingInstructions": {
+        "title": "Posting instructions",
+        "description": "Tell Soko Bot, Coworkers and agents how to write this project's social posts: tone, hashtags, calls to action, and rules per platform. This only guides social drafts. It is separate from project memory and DESIGN.md.",
+        "placeholder": "# Posting instructions\nTone: …\nAlways / never: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Save instructions",
+        "saved": "Posting instructions saved",
+        "saveFailed": "Could not save posting instructions. Try again."
+      },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
         "account": "{provider} account",

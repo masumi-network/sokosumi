@@ -98,7 +98,7 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).toContain("enabledProviders");
@@ -143,10 +143,34 @@ describe("versions", () => {
     );
   });
 
+  it("lets v32 read and follow a Project's posting instructions before drafting", () => {
+    const v31 = getSokoBotVersion("v31");
+    const v32 = getSokoBotVersion("v32");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
+    expect(v32.model).toBe(v31.model);
+    expect(v32.systemPrompt).toBe(v31.systemPrompt);
+    expect(v32.skills).toEqual(
+      v31.skills.map((skill) =>
+        skill === "social" ? "social-posting-instructions" : skill,
+      ),
+    );
+    const prompt = composeSystemPrompt(v32);
+    expect(prompt).toContain("get_posting_instructions");
+    expect(prompt).toMatch(/separate from project memory and DESIGN\.md/);
+    expect(prompt).toContain("ask me to create the post and I will");
+    expect(composeSystemPrompt(v31)).not.toContain("get_posting_instructions");
+    // Everything else stays the frozen v31 social skill.
+    expect(
+      getSokoBotSkill("social-posting-instructions")
+        .content.replace(/- Before drafting or rewriting post text[^\n]*\n/, "")
+        .replace(" \`get_posting_instructions\`,", ""),
+    ).toBe(getSokoBotSkill("social").content);
+  });
+
   it("lets v31 wait on delegated work with follow-up plans and read contact kind, relationship and reply state", () => {
     const v30 = getSokoBotVersion("v30");
     const v31 = getSokoBotVersion("v31");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
     expect(v31.model).toBe(v30.model);
     expect(v31.skills).toHaveLength(v30.skills.length);
     expect(v31.skills).toContain("jev-triage");

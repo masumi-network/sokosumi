@@ -35,6 +35,7 @@ const media = {
 };
 const reads = [
   "list_project_social_accounts",
+  "get_posting_instructions",
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
@@ -52,6 +53,7 @@ const writes = [
 const schemas = SOKO_BOT_TOOL_INPUT_SCHEMAS;
 const inputs = {
   list_project_social_accounts: { projectId },
+  get_posting_instructions: { projectId },
   list_social_posts: { projectId },
   list_social_post_statistics: { projectId },
   refresh_social_post_statistics: { projectId, postId },
@@ -192,7 +194,16 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
+  });
+
+  it("tells the bot to read posting instructions before drafting", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_social_post).toMatch(
+      /^Before drafting, call get_posting_instructions/,
+    );
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.get_posting_instructions).toContain(
+      "separate from project memory and DESIGN.md",
+    );
   });
 
   it("describes available publishing platforms while retaining all-provider history", () => {

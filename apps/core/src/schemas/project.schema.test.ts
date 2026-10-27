@@ -39,6 +39,7 @@ function createDatabaseProject(
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,
+    postingInstructionsMd: null,
     projectRevision: 0,
     calendarRevision: 0,
     closingAt: null,
@@ -138,6 +139,25 @@ describe("project schemas", () => {
     expect(
       mapProjectForApi(createDatabaseProject({ identifier: "LAU" })).identifier,
     ).toBe("LAU");
+  });
+
+  it("maps posting instructions and accepts them alone on PATCH", () => {
+    expect(
+      mapProjectForApi(createDatabaseProject()).postingInstructionsMd,
+    ).toBe(null);
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({ postingInstructionsMd: "Tone: warm" }),
+      ).postingInstructionsMd,
+    ).toBe("Tone: warm");
+    expect(
+      patchProjectRequestSchema.parse({ postingInstructionsMd: null }),
+    ).toMatchObject({ postingInstructionsMd: null });
+    expect(
+      patchProjectRequestSchema.safeParse({
+        postingInstructionsMd: "a".repeat(20_001),
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts deprecated description as a briefing alias", () => {

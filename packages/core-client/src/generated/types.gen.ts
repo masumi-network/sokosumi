@@ -6266,6 +6266,10 @@ export type Project = {
      */
     designMd: ProjectDesignMd | null;
     /**
+     * Markdown guidance for drafting this Project's social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.
+     */
+    postingInstructionsMd: string | null;
+    /**
      * Whether Core has both AI Gateway and Blob storage credentials and can update project memory.
      */
     memoryEnabled: boolean;
@@ -6354,6 +6358,13 @@ export type AddProjectTaskRequest = {
 
 export type ProjectContextMd = ProjectContextMdMetadata & {
     content: string;
+};
+
+export type ProjectPostingInstructions = {
+    /**
+     * Markdown guidance for drafting this Project's social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.
+     */
+    postingInstructionsMd: string | null;
 };
 
 export type ProjectDesignMdWrite = {
@@ -8032,6 +8043,10 @@ export type PatchProjectRequest = {
      * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
      */
     identifier?: string;
+    /**
+     * Markdown guidance for drafting this Project's social posts. Null or blank clears it.
+     */
+    postingInstructionsMd?: string | null;
 };
 
 export type PublicNewsletter = {
@@ -46550,6 +46565,110 @@ export type GetProjectsByIdContextMdResponses = {
 };
 
 export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
+
+export type GetProjectsByIdPostingInstructionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/posting-instructions';
+};
+
+export type GetProjectsByIdPostingInstructionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdPostingInstructionsError = GetProjectsByIdPostingInstructionsErrors[keyof GetProjectsByIdPostingInstructionsErrors];
+
+export type GetProjectsByIdPostingInstructionsResponses = {
+    /**
+     * Project posting instructions
+     */
+    200: {
+        data: ProjectPostingInstructions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdPostingInstructionsResponse = GetProjectsByIdPostingInstructionsResponses[keyof GetProjectsByIdPostingInstructionsResponses];
 
 export type DeleteProjectsByIdDesignMdData = {
     body?: never;

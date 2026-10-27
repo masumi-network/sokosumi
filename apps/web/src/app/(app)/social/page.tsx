@@ -10,6 +10,7 @@ import {
   type LoadedWorkspaceCalendarPage,
   loadWorkspaceCalendarPage,
 } from "@/app/calendar/load-calendar-page";
+import { ProjectPostingInstructions } from "@/app/projects/components/project-posting-instructions";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import {
   SECTION_ORDER,
@@ -205,11 +206,20 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           <ProjectSocialPosts
             connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
-              <ProjectSocialAccounts
-                projectId={project.id}
-                connections={connections}
-                connectDisabled={Boolean(project.closingAt || project.closedAt)}
-              />
+              <div className="space-y-6">
+                <ProjectSocialAccounts
+                  projectId={project.id}
+                  connections={connections}
+                  connectDisabled={Boolean(
+                    project.closingAt || project.closedAt,
+                  )}
+                />
+                <ProjectPostingInstructions
+                  projectId={project.id}
+                  postingInstructionsMd={project.postingInstructionsMd}
+                  disabled={Boolean(project.closingAt || project.closedAt)}
+                />
+              </div>
             }
             actions={
               <SocialNewPostMenu

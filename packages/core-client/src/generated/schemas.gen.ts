@@ -21284,6 +21284,15 @@ export const ProjectSchema = {
             description: 'Project-owned brand DESIGN.md, or null when none exists.',
             example: null
         },
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        },
         memoryEnabled: {
             type: 'boolean',
             description: 'Whether Core has both AI Gateway and Blob storage credentials and can update project memory.',
@@ -21364,6 +21373,7 @@ export const ProjectSchema = {
         'websiteUrl',
         'logo',
         'designMd',
+        'postingInstructionsMd',
         'memoryEnabled',
         'memoryModel',
         'contextMd',
@@ -21603,6 +21613,24 @@ export const ProjectContextMdSchema = {
                 'content'
             ]
         }
+    ]
+} as const;
+
+export const ProjectPostingInstructionsSchema = {
+    type: 'object',
+    properties: {
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        }
+    },
+    required: [
+        'postingInstructionsMd'
     ]
 } as const;
 
@@ -27610,6 +27638,15 @@ export const PatchProjectRequestSchema = {
             pattern: '^[A-Z][A-Z0-9]{1,6}$',
             description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
             example: 'SOK'
+        },
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts. Null or blank clears it.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
         }
     }
 } as const;
