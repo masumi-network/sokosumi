@@ -1,5 +1,4 @@
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
-import { SOCIAL_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import {
@@ -14,19 +13,6 @@ import {
 } from "@/services/newsletter.service";
 
 const DAY_MS = 86_400_000;
-
-async function getAnalyticsNewsletter(scope: NewsletterScope) {
-  const newsletter = await getNewsletter(scope);
-  const workspace = await prisma.workspace.findFirst({
-    where: {
-      id: scope.workspaceId,
-      organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG },
-    },
-    select: { id: true },
-  });
-  if (!workspace) throw notFound("Newsletter is not enabled");
-  return newsletter;
-}
 
 export function newsletterAnalyticsRange(query: NewsletterAnalyticsQuery) {
   const to = query.to ?? new Date().toISOString().slice(0, 10);
@@ -143,7 +129,7 @@ export async function getNewsletterAnalytics(
 ) {
   const range = newsletterAnalyticsRange(query);
   const { cursor, take } = parseCursorPagination(query);
-  const newsletter = await getAnalyticsNewsletter(scope);
+  const newsletter = await getNewsletter(scope);
   const [summary, subscriberGrowth, engagement, issues] = await Promise.all([
     totals(newsletter.id, range),
     prisma.$queryRaw<
@@ -285,7 +271,7 @@ export async function getNewsletterIssueAnalytics(
   scope: NewsletterScope,
   issueId: string,
 ) {
-  const newsletter = await getAnalyticsNewsletter(scope);
+  const newsletter = await getNewsletter(scope);
   const issue = await prisma.newsletterIssue.findUnique({
     where: { ...scope, newsletterId: newsletter.id, id: issueId },
     select: { id: true },

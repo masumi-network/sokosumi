@@ -24,7 +24,6 @@ vi.mock("@/services/newsletter.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $queryRaw: m.raw,
-    workspace: { findFirst: vi.fn(async () => ({ id: "workspace" })) },
     newsletterSend: { count: vi.fn(async () => 2) },
     newsletterSubscriber: { count: vi.fn(async () => 2) },
     newsletterIssue: { findUnique: vi.fn(async () => ({ id: "issue" })) },

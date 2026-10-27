@@ -1,14 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import { NEWSLETTER_ANALYTICS } from "@/test/newsletter";
+import { NEWSLETTER_ANALYTICS, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const m = vi.hoisted(() => ({
   enabled: vi.fn(),
   project: vi.fn(),
+  listProjects: vi.fn(),
   settings: vi.fn(),
   analytics: vi.fn(),
 }));
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NOT_FOUND");
@@ -16,9 +18,9 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
     throw new Error(`REDIRECT:${path}`);
   },
+  usePathname: () => "/newsletter/analytics",
 }));
 vi.mock("next-intl/server", () => ({
-  getFormatter: async () => ({ dateTime: () => "Oct 1, 2026" }),
   getTranslations: async () => (key: string) => key,
 }));
 vi.mock("@/lib/services/newsletter.service", () => ({
@@ -29,19 +31,10 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
-  projectService: { getProjectById: m.project },
-}));
-vi.mock("@/app/projects/components/project-workspace-shell", () => ({
-  getProjectWorkspaceLabels: async () => ({}),
-  ProjectWorkspaceShell: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-vi.mock("@/app/projects/components/project-header-actions", () => ({
-  ProjectHeaderActions: () => null,
-}));
-vi.mock("@/app/projects/components/project-tabs", () => ({
-  ProjectTabs: () => null,
+  projectService: {
+    getProjectById: m.project,
+    listProjects: m.listProjects,
+  },
 }));
 vi.mock("./newsletter-analytics-view", () => ({
   NewsletterAnalyticsView: ({
@@ -54,39 +47,47 @@ vi.mock("./newsletter-analytics-view", () => ({
 import NewsletterAnalyticsPage from "./page";
 
 const PROPS = {
-  params: Promise.resolve({ projectId: "p1" }),
-  searchParams: Promise.resolve({ from: "2026-10-01", to: "2026-10-02" }),
+  searchParams: Promise.resolve({
+    projectId: NEWSLETTER_PROJECT_ID,
+    from: "2026-10-01",
+    to: "2026-10-02",
+  }),
 };
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled.mockResolvedValue(true);
-  m.project.mockResolvedValue({ id: "p1", name: "Launch" });
+  m.project.mockResolvedValue({ id: NEWSLETTER_PROJECT_ID, name: "Launch" });
+  m.listProjects.mockResolvedValue({ projects: [], pagination: null });
   m.settings.mockResolvedValue({ id: "n1" });
   m.analytics.mockResolvedValue(NEWSLETTER_ANALYTICS);
 });
 describe("newsletter analytics page", () => {
   it("loads authorized project analytics and forwards the URL range", async () => {
     render(await NewsletterAnalyticsPage(PROPS));
-    expect(m.analytics).toHaveBeenCalledExactlyOnceWith("p1", {
+    expect(m.analytics).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_PROJECT_ID, {
       from: "2026-10-01",
       to: "2026-10-02",
       cursor: undefined,
     });
     expect(screen.getByText("2026-10-01")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Analytics.title" }),
+    ).toHaveAttribute("aria-current", "page");
   });
-  it("hides disabled or inaccessible projects before analytics reads", async () => {
+  it("hides disabled newsletters and inaccessible projects before analytics reads", async () => {
     m.enabled.mockResolvedValue(false);
     await expect(NewsletterAnalyticsPage(PROPS)).rejects.toThrow("NOT_FOUND");
     expect(m.project).not.toHaveBeenCalled();
     m.enabled.mockResolvedValue(true);
     m.project.mockResolvedValue(null);
-    await expect(NewsletterAnalyticsPage(PROPS)).rejects.toThrow("NOT_FOUND");
+    render(await NewsletterAnalyticsPage(PROPS));
+    expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(m.analytics).not.toHaveBeenCalled();
   });
   it("returns to settings until a newsletter is configured", async () => {
     m.settings.mockResolvedValue(null);
     await expect(NewsletterAnalyticsPage(PROPS)).rejects.toThrow(
-      "REDIRECT:/projects/p1/newsletter",
+      `REDIRECT:/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(m.analytics).not.toHaveBeenCalled();
   });

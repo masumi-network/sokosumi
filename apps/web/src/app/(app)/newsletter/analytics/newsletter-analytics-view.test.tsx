@@ -48,7 +48,7 @@ describe("newsletter analytics", () => {
     ).toBeVisible();
     expect(screen.getByRole("link", { name: "Weekly news" })).toHaveAttribute(
       "href",
-      `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ANALYTICS.issues[0]?.id}`,
+      `/newsletter/issues/${NEWSLETTER_ANALYTICS.issues[0]?.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     const row = screen.getByRole("link", { name: "Weekly news" }).closest("tr");
     expect(row).not.toBeNull();
@@ -95,7 +95,7 @@ describe("newsletter analytics", () => {
     expect(screen.getByText("No sends in this period")).toBeVisible();
     expect(screen.getByRole("link", { name: "View issues" })).toHaveAttribute(
       "href",
-      `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues`,
+      `/newsletter/issues?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(
       screen.getByRole("figure", { name: "Active subscriber total" }),

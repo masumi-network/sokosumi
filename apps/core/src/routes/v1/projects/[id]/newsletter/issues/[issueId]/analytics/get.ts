@@ -6,7 +6,6 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 import { newsletterIssueParamsSchema } from "@/schemas/newsletter.schema";
 import { newsletterIssueAnalyticsSchema } from "@/schemas/newsletter-analytics.schema";
 import { getNewsletterIssueAnalytics } from "@/services/newsletter-analytics.service";
@@ -36,7 +35,6 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    assertNewsletterEnabled();
     const { id, issueId } = c.req.valid("param");
     const scope = await newsletterScope(c, id);
     return ok(
