@@ -28,7 +28,8 @@ Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.
 
 ## Session behavior
 
-- When present, load [Caveman](.agents/skills/caveman/SKILL.md) for replies. Load [Ponytail](.agents/skills/ponytail/SKILL.md) for coding work (default full). Their documented off switches remain supported.
+- When present, load [I have ADHD](.agents/skills/i-have-adhd/SKILL.md) for replies. Load [Ponytail](.agents/skills/ponytail/SKILL.md) for coding work (default full). Their documented off switches remain supported.
+- Quote code, commands, paths, and error text exactly. Never delete or shorten an existing comment in a file you edit unless asked.
 - For engineering flow selection, use [Ask Matt](.agents/skills/ask-matt/SKILL.md). For app work, resolve named skills in `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Load only skills whose triggers apply.
 - Before changing this instruction layout, read [writing-for-agents](.agents/skills/writing-for-agents/SKILL.md). Keep universal guardrails here; put task-specific detail behind explicit loading triggers. Preserve requirements and repair incoming links when moving sections.
 
