@@ -96,6 +96,11 @@ import { head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
+import {
+  ComposioApiError,
+  ComposioConfigError,
+} from "@/clients/composio.client";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { socialProviderWorkspaceForProject } from "@/config/social-providers";
@@ -118,6 +123,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
@@ -279,6 +285,12 @@ import {
   type ImageJobSettings,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
+import {
+  listProjectAdAccounts,
+  listProjectAdCampaigns,
+  listProjectAdLanguages,
+  searchProjectAdLocations,
+} from "@/services/project-ad-accounts.service";
 import {
   listProjectSocialConnections,
   requireScopedProject,
@@ -568,6 +580,29 @@ export class SokoBotRuntimeValidationError extends Error {}
 export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
+
+/**
+ * Runs an ads service read. Its refusals and provider failures reach the model
+ * as a message it can read, worded as the Ads page words them; anything else
+ * is a bug and propagates.
+ */
+async function readAds<T>(read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof HTTPException)
+      throw new SokoBotRuntimeValidationError(error.message);
+    if (error instanceof ComposioConfigError)
+      throw new SokoBotRuntimeValidationError(
+        "Ads are not configured on this environment.",
+      );
+    if (error instanceof ComposioApiError || error instanceof ComposioToolError)
+      throw new SokoBotRuntimeValidationError(
+        "The ads provider could not complete the request.",
+      );
+    throw error;
+  }
+}
 
 /**
  * The member a tool runs as. A shared Soko Bot acting on its own acts for
@@ -4870,6 +4905,9 @@ export class SokoBotRuntimeService {
         }
         if (
           input.capability === "list_project_social_accounts" ||
+          input.capability === "list_ad_accounts" ||
+          input.capability === "list_ad_campaigns" ||
+          input.capability === "find_ad_targeting" ||
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
           input.capability === "list_social_account_statistics" ||
@@ -5268,6 +5306,96 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  /** Ads share the social gate and its beta: the same owner-only turn, then the Ads page's membership check. */
+  private async requireAdsAccess(authorized: AuthorizedSokoBotRuntime) {
+    await this.requireSocialAccess(authorized);
+    await requireSocialBetaAccess(actingMemberOf(authorized), prisma);
+  }
+
+  /**
+   * Ads reach the provider only through the Project's ad account and the
+   * services behind the Ads page, never a Composio connection of the bot's
+   * own. A service refusal or provider failure becomes a message the model
+   * can read.
+   */
+  private async executeAdsTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { workspaceId } = authorized.turn;
+    switch (input.capability) {
+      case "list_ad_accounts": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_accounts.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized);
+        const accounts = await readAds(() =>
+          listProjectAdAccounts({ ...params, workspaceId }),
+        );
+        return {
+          accounts: accounts.map(
+            ({ id, provider, externalAccountId, name, currency }) => ({
+              id,
+              provider,
+              externalAccountId,
+              name,
+              currency,
+            }),
+          ),
+          ...(accounts.length === 0
+            ? {
+                note: "No ad account is connected to this Project. A person connects one on the Ads page; you never connect Google Ads or Meta Ads yourself.",
+              }
+            : {}),
+        };
+      }
+      case "list_ad_campaigns": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized);
+        const { projectId, accountId } = params;
+        const [accounts, result] = await readAds(() =>
+          Promise.all([
+            listProjectAdAccounts({ projectId, workspaceId }),
+            listProjectAdCampaigns({ ...params, workspaceId }),
+          ]),
+        );
+        // Only Google campaigns have a details page.
+        const google =
+          accounts.find((account) => account.id === accountId)?.provider ===
+          "google_ads";
+        return {
+          ...result,
+          campaigns: result.campaigns.map((campaign) =>
+            google
+              ? {
+                  ...campaign,
+                  link: `/ads/campaigns/${encodeURIComponent(campaign.id)}?${new URLSearchParams({ projectId, accountId })}`,
+                }
+              : campaign,
+          ),
+        };
+      }
+      case "find_ad_targeting": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_ad_targeting.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized);
+        const { projectId, accountId, locationQuery } = params;
+        const scope = { projectId, accountId, workspaceId };
+        const languages = await readAds(() => listProjectAdLanguages(scope));
+        if (locationQuery === undefined) return languages;
+        const locations = await readAds(() =>
+          searchProjectAdLocations({ ...scope, q: locationQuery }),
+        );
+        return { ...languages, ...locations };
+      }
+      default:
+        throw new SokoBotRuntimeValidationError("Not an ads tool");
+    }
+  }
+
   private async executeSocialTool(
     input: ExecuteSokoBotToolInput,
     authorized: AuthorizedSokoBotRuntime,
@@ -5569,6 +5697,10 @@ export class SokoBotRuntimeService {
       case "cancel_social_post":
       case "publish_social_post":
         return this.executeSocialTool(input, authorized);
+      case "list_ad_accounts":
+      case "list_ad_campaigns":
+      case "find_ad_targeting":
+        return this.executeAdsTool(input, authorized);
       case "start_background_run":
       case "list_background_runs":
       case "stop_background_run": {

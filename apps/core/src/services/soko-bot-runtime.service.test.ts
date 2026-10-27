@@ -259,6 +259,18 @@ const social = vi.hoisted(() => ({
   seat: vi.fn(),
   owner: vi.fn(),
 }));
+const ads = vi.hoisted(() => ({
+  accounts: vi.fn(),
+  campaigns: vi.fn(),
+  locations: vi.fn(),
+  languages: vi.fn(),
+}));
+vi.mock("@/services/project-ad-accounts.service", () => ({
+  listProjectAdAccounts: ads.accounts,
+  listProjectAdCampaigns: ads.campaigns,
+  searchProjectAdLocations: ads.locations,
+  listProjectAdLanguages: ads.languages,
+}));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: social.listAccounts,
   requireScopedProject: social.project,
@@ -6368,6 +6380,9 @@ describe("Soko Bot project social tools", () => {
   };
   const capabilities = [
     "list_project_social_accounts",
+    "list_ad_accounts",
+    "list_ad_campaigns",
+    "find_ad_targeting",
     "list_social_posts",
     "list_social_post_statistics",
     "refresh_social_post_statistics",
@@ -6986,6 +7001,238 @@ describe("Soko Bot project social tools", () => {
       projectId,
       postId,
       workspaceId: SCOPE.workspaceId,
+    });
+  });
+
+  describe("ads reads", () => {
+    const adAccountId = "01960001-0001-7001-8001-000000000031";
+    const metaAccountId = "01960001-0001-7001-8001-000000000032";
+    const adAccount = {
+      id: adAccountId,
+      connectionId: "01960001-0001-7001-8001-000000000033",
+      provider: "google_ads",
+      externalAccountId: "1234567890",
+      name: "Sokosumi Ads",
+      currency: "EUR",
+      timeZone: "Europe/Berlin",
+      loginCustomerId: null,
+      createdAt: new Date("2026-09-28T12:00:00Z"),
+    };
+    const campaign = {
+      id: "23850000000000000",
+      name: "Brand",
+      status: "ACTIVE",
+      objective: "SEARCH",
+      dailyBudget: 25,
+      spend: 10,
+      impressions: 1000,
+      clicks: 50,
+      ctr: 0.05,
+      cpc: 0.2,
+      conversions: 3,
+    };
+
+    beforeEach(() => {
+      for (const mock of Object.values(ads)) mock.mockReset();
+      social.beta.mockResolvedValue(undefined);
+      ads.accounts.mockResolvedValue([
+        adAccount,
+        { ...adAccount, id: metaAccountId, provider: "meta_ads" },
+      ]);
+      ads.campaigns.mockResolvedValue({
+        campaigns: [campaign],
+        range: "LAST_30_DAYS",
+        currency: "EUR",
+      });
+      ads.languages.mockResolvedValue({
+        languages: [{ id: "1000", code: "en", name: "English" }],
+      });
+      ads.locations.mockResolvedValue({
+        locations: [
+          {
+            id: "1003854",
+            name: "Berlin",
+            canonicalName: "Berlin,Germany",
+            targetType: "City",
+            countryCode: "DE",
+          },
+        ],
+      });
+    });
+
+    it("lists the Project's ad accounts without connection internals", async () => {
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_accounts",
+        toolCallId: "ad-accounts",
+        input: { projectId },
+      });
+      expect(ads.accounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
+      expect(result).toEqual({
+        accounts: [
+          {
+            id: adAccountId,
+            provider: "google_ads",
+            externalAccountId: "1234567890",
+            name: "Sokosumi Ads",
+            currency: "EUR",
+          },
+          expect.objectContaining({ id: metaAccountId, provider: "meta_ads" }),
+        ],
+      });
+    });
+
+    it("says a person connects the first ad account when there are none", async () => {
+      ads.accounts.mockResolvedValue([]);
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_accounts",
+        toolCallId: "no-ad-accounts",
+        input: { projectId },
+      });
+      expect(result).toEqual({
+        accounts: [],
+        note: expect.stringContaining("Ads page"),
+      });
+    });
+
+    it("lists campaigns over the default range and links Google ones only", async () => {
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_campaigns",
+        toolCallId: "ad-campaigns",
+        input: { projectId, accountId: adAccountId },
+      });
+      expect(ads.campaigns).toHaveBeenCalledWith({
+        projectId,
+        accountId: adAccountId,
+        range: "LAST_30_DAYS",
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        campaigns: [
+          {
+            ...campaign,
+            link: `/ads/campaigns/23850000000000000?projectId=${projectId}&accountId=${adAccountId}`,
+          },
+        ],
+        range: "LAST_30_DAYS",
+        currency: "EUR",
+      });
+
+      const meta = (await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_campaigns",
+        toolCallId: "meta-campaigns",
+        input: { projectId, accountId: metaAccountId, range: "LAST_7_DAYS" },
+      })) as { campaigns: object[] };
+      expect(ads.campaigns).toHaveBeenLastCalledWith(
+        expect.objectContaining({ range: "LAST_7_DAYS" }),
+      );
+      expect(meta.campaigns[0]).not.toHaveProperty("link");
+    });
+
+    it("finds languages, and locations only when asked for a place", async () => {
+      const input = { projectId, accountId: adAccountId };
+      const withoutPlace = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_ad_targeting",
+        toolCallId: "targeting-languages",
+        input,
+      });
+      expect(withoutPlace).toEqual({
+        languages: [{ id: "1000", code: "en", name: "English" }],
+      });
+      expect(ads.locations).not.toHaveBeenCalled();
+
+      const withPlace = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_ad_targeting",
+        toolCallId: "targeting-locations",
+        input: { ...input, locationQuery: "Berlin" },
+      });
+      expect(ads.locations).toHaveBeenCalledWith({
+        ...input,
+        q: "Berlin",
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(withPlace).toMatchObject({
+        languages: [expect.objectContaining({ id: "1000" })],
+        locations: [expect.objectContaining({ id: "1003854" })],
+      });
+    });
+
+    it.each(["TEAMMATE", "ASSISTANT"])(
+      "refuses ad reads on a turn %s asked",
+      async (kind) => {
+        const turn = await turnFindUniqueMock();
+        turnFindUniqueMock.mockResolvedValue({
+          ...turn,
+          contextSnapshot: {
+            packet: { memory: { version: 1 }, trigger: { askedBy: { kind } } },
+          },
+        });
+        await expect(
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "list_ad_accounts",
+            toolCallId: "ads-wrong-audience",
+            input: { projectId },
+          }),
+        ).rejects.toThrow("only available for the owner");
+        expect(ads.accounts).not.toHaveBeenCalled();
+      },
+    );
+
+    it("refuses ad reads without the ads beta", async () => {
+      social.beta.mockRejectedValue(new Error("Ads is beta only"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "find_ad_targeting",
+          toolCallId: "ads-no-beta",
+          input: { projectId, accountId: adAccountId },
+        }),
+      ).rejects.toThrow("Ads is beta only");
+      expect(ads.languages).not.toHaveBeenCalled();
+    });
+
+    it("hands the model a service 404 as a readable refusal", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      ads.languages.mockRejectedValue(
+        new HTTPException(404, {
+          message: "Targeting is only available for Google Ads accounts",
+        }),
+      );
+      const refusal = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_ad_targeting",
+        toolCallId: "ads-404",
+        input: { projectId, accountId: metaAccountId },
+      });
+      await expect(refusal).rejects.toBeInstanceOf(
+        SokoBotRuntimeValidationError,
+      );
+      await expect(refusal).rejects.toThrow(
+        "Targeting is only available for Google Ads accounts",
+      );
+    });
+
+    it("says the provider could not complete when Composio fails", async () => {
+      const { ComposioApiError } = await import("@/clients/composio.client");
+      ads.campaigns.mockRejectedValue(new ComposioApiError(500, "boom"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_ad_campaigns",
+          toolCallId: "ads-composio",
+          input: { projectId, accountId: adAccountId },
+        }),
+      ).rejects.toThrow("The ads provider could not complete the request.");
     });
   });
 

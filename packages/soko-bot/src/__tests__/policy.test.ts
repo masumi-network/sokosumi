@@ -6,6 +6,7 @@ import {
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
+  SOKO_BOT_ROUTES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "../policy.js";
@@ -95,6 +96,21 @@ describe("Soko Bot route capability ceilings", () => {
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("hire_agent");
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("update_memory");
     }
+  });
+
+  it("reads the Project's ad accounts, campaigns and targeting on every owner route", () => {
+    for (const route of SOKO_BOT_ROUTES)
+      for (const read of [
+        "list_ad_accounts",
+        "list_ad_campaigns",
+        "find_ad_targeting",
+      ] as const) {
+        expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain(read);
+        expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).not.toContain(read);
+        expect(
+          SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
+        ).not.toContain(read);
+      }
   });
 
   it("does not leak agent hiring into task delegation", () => {

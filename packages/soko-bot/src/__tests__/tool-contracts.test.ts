@@ -200,3 +200,49 @@ describe("evaluate_with_jev input", () => {
     expect(jsonSchema.required).toEqual(["state", "questions"]);
   });
 });
+
+describe("Ads read tool contracts", () => {
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const accountId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const inputs = {
+    list_ad_accounts: { projectId },
+    list_ad_campaigns: { projectId, accountId },
+    find_ad_targeting: { projectId, accountId },
+  } as const;
+
+  it.each(Object.keys(inputs) as (keyof typeof inputs)[])(
+    "%s takes strict ids and says the bot never connects ad accounts itself",
+    (capability) => {
+      const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+      expect(schema.safeParse(inputs[capability]).success).toBe(true);
+      expect(
+        schema.safeParse({ ...inputs[capability], projectId: "nope" }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({ ...inputs[capability], workspaceId: "x" }).success,
+      ).toBe(false);
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(/never connect/i);
+    },
+  );
+
+  it("defaults the campaign range and rejects unknown ranges", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns;
+    expect(schema.parse(inputs.list_ad_campaigns).range).toBe("LAST_30_DAYS");
+    expect(
+      schema.safeParse({ ...inputs.list_ad_campaigns, range: "LAST_YEAR" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("searches locations only for a non-empty query", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_ad_targeting;
+    expect(
+      schema.safeParse({ ...inputs.find_ad_targeting, locationQuery: "Berlin" })
+        .success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ ...inputs.find_ad_targeting, locationQuery: "" })
+        .success,
+    ).toBe(false);
+  });
+});

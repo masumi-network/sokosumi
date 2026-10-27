@@ -1,6 +1,8 @@
+import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 
 import {
+  AD_RANGES,
   buildAdCampaign,
   completeDaysRange,
   fromMinorUnits,
@@ -68,5 +70,18 @@ describe("buildAdCampaign", () => {
         { spend: 2.349, impressions: 0, clicks: 0, conversions: null },
       ),
     ).toMatchObject({ dailyBudget: 1.13, spend: 2.35, ctr: null, cpc: null });
+  });
+});
+
+describe("Soko Bot list_ad_campaigns", () => {
+  // The bot's contract cannot import Core, so it lists the ranges itself.
+  it.each(AD_RANGES)("accepts the %s range", (range) => {
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.safeParse({
+        projectId: "01960001-0001-7001-8001-000000000001",
+        accountId: "01960001-0001-7001-8001-000000000002",
+        range,
+      }).success,
+    ).toBe(true);
   });
 });
