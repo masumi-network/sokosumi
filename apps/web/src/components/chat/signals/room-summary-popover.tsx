@@ -9,6 +9,7 @@ import {
   isCatchUpSummaryEmpty,
 } from "@/components/chat/signals/catch-up-summary-body";
 import { fetchRoomSummary } from "@/components/chat/signals/fetch-room-summary";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -38,6 +39,9 @@ export function useRoomSummary(roomId: string, enabled: boolean) {
     gcTime: 0,
     refetchOnWindowFocus: false,
     retry: false,
+    // The popover mounts after the line started this; without it a failed
+    // read would be silently asked again, a second model call.
+    retryOnMount: false,
   });
 }
 
@@ -48,7 +52,7 @@ export function RoomSummaryPopover({
 }: RoomSummaryPopoverProps) {
   const t = useTranslations("App.Channels.Signals");
   const [open, setOpen] = useState(false);
-  const { data, isError } = useRoomSummary(roomId, true);
+  const { data, isError, isFetching, refetch } = useRoomSummary(roomId, true);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -82,7 +86,17 @@ export function RoomSummaryPopover({
             />
           )
         ) : isError ? (
-          <p className="text-muted-foreground text-sm">{t("error")}</p>
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-muted-foreground text-sm">{t("error")}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={isFetching}
+              onClick={() => void refetch()}
+            >
+              {t("retry")}
+            </Button>
+          </div>
         ) : (
           <div className="flex flex-col gap-2" aria-busy>
             <span className="sr-only">{t("summarizing")}</span>

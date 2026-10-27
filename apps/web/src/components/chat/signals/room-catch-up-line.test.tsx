@@ -79,6 +79,22 @@ describe("RoomCatchUpLine", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/chat/room-1/summary");
   });
 
+  it("offers a retry when the summary could not be read", async () => {
+    fetchMock.mockImplementationOnce(
+      async () => new Response("{}", { status: 502 }),
+    );
+    renderLine();
+    await screen.findByTestId("room-catch-up-line");
+
+    fireEvent.click(screen.getByTestId("room-summary-trigger"));
+    fireEvent.click(await screen.findByRole("button", { name: "retry" }));
+
+    expect(
+      await screen.findByText("Albina needs a call on the launch."),
+    ).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("says the reader is caught up when the summary has nothing in it", async () => {
     core.roomRead = true;
     renderLine();
