@@ -52,6 +52,7 @@ export function RoomCatchUpLine({
     retry: false,
   });
 
+  // Started now for the popover to read: asked later, the room is read.
   useRoomSummary(roomId, busy);
 
   if (!busy || dismissed || !data || data.buckets.length === 0) return null;

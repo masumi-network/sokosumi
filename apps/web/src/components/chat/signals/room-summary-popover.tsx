@@ -1,11 +1,14 @@
 "use client";
 
-import type { ChatCatchUpSummary } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { getChatCatchUpSummaryAction } from "@/app/chat/signal-actions";
-import { CatchUpSummaryBody } from "@/components/chat/signals/catch-up-summary-body";
+import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
+import {
+  CatchUpSummaryBody,
+  isCatchUpSummaryEmpty,
+} from "@/components/chat/signals/catch-up-summary-body";
+import { fetchRoomSummary } from "@/components/chat/signals/fetch-room-summary";
 import {
   Popover,
   PopoverContent,
@@ -21,16 +24,14 @@ interface RoomSummaryPopoverProps {
 /**
  * One room's written summary. Core answers from the reader's read state, so
  * it has to be asked while the room is still unread: asked once the room is
- * read, it comes back empty. The catch-up line therefore starts it on open.
+ * read, it comes back empty. The catch-up line therefore starts it on open,
+ * over a background route so the model call cannot hold up marking the room
+ * read behind it in the server action queue.
  */
 export function useRoomSummary(roomId: string, enabled: boolean) {
   return useQuery({
     queryKey: ["chat-room-summary", roomId],
-    queryFn: async (): Promise<ChatCatchUpSummary | null> => {
-      const result = await getChatCatchUpSummaryAction(roomId);
-      if (!result.ok) throw new Error(result.error.message ?? "");
-      return result.value;
-    },
+    queryFn: () => fetchRoomSummary(roomId),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,
     // Kept for the visit only: the next visit has a different unread set.
@@ -66,13 +67,20 @@ export function RoomSummaryPopover({
         className="max-h-[min(32rem,70dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-3"
       >
         {data ? (
-          <CatchUpSummaryBody
-            summary={data}
-            onJump={(messageId) => {
-              setOpen(false);
-              void onJump(messageId);
-            }}
-          />
+          isCatchUpSummaryEmpty(data) ? (
+            <ChatCaughtUp
+              title={t("caughtUpTitle")}
+              description={t("caughtUpDescription")}
+            />
+          ) : (
+            <CatchUpSummaryBody
+              summary={data}
+              onJump={(messageId) => {
+                setOpen(false);
+                void onJump(messageId);
+              }}
+            />
+          )
         ) : isError ? (
           <p className="text-muted-foreground text-sm">{t("error")}</p>
         ) : (
