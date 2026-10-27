@@ -6,6 +6,7 @@ import { useId } from "react";
 
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -89,10 +90,13 @@ function ToggleButton({
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6}>
-        {open
-          ? t("hideShortcut", { shortcut })
-          : t("showShortcut", { shortcut })}
+      <TooltipContent
+        side="bottom"
+        sideOffset={6}
+        className="flex items-center gap-2"
+      >
+        {open ? t("hide") : t("show")}
+        <Kbd className="opacity-70">{shortcut}</Kbd>
       </TooltipContent>
     </Tooltip>
   );

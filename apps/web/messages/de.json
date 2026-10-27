@@ -4061,7 +4061,6 @@
         "MenuItems": {
           "new": "Neu",
           "newTask": "Neue Aufgabe",
-          "newTaskShortcut": "Neue Aufgabe ({shortcut})",
           "search": "Suche",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
@@ -4107,8 +4106,6 @@
       },
       "show": "Seitenleiste einblenden",
       "hide": "Seitenleiste ausblenden",
-      "showShortcut": "Seitenleiste einblenden ({shortcut})",
-      "hideShortcut": "Seitenleiste ausblenden ({shortcut})",
       "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {

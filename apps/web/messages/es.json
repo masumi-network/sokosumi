@@ -4061,7 +4061,6 @@
         "MenuItems": {
           "new": "Nuevo",
           "newTask": "Nueva tarea",
-          "newTaskShortcut": "Nueva tarea ({shortcut})",
           "search": "Buscar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
@@ -4107,8 +4106,6 @@
       },
       "show": "Mostrar barra lateral",
       "hide": "Ocultar barra lateral",
-      "showShortcut": "Mostrar barra lateral ({shortcut})",
-      "hideShortcut": "Ocultar barra lateral ({shortcut})",
       "unreadChats": "Chats sin leer"
     },
     "HistorySearchDialog": {

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let isMobile = false;
@@ -9,12 +9,10 @@ vi.mock("@/hooks/use-mobile", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: { shortcut?: string }) =>
+  useTranslations: () => (key: string) =>
     ({
       show: "Show sidebar",
       hide: "Hide sidebar",
-      showShortcut: `Show sidebar (${values?.shortcut})`,
-      hideShortcut: `Hide sidebar (${values?.shortcut})`,
       unreadChats: "Unread chats",
     })[key] ?? key,
 }));
@@ -101,13 +99,13 @@ describe("SidebarToggle", () => {
     const toggle = screen.getByRole("button", { name: "Hide sidebar" });
 
     // A native `title` shows only under a pointer; the tooltip also answers
-    // focus. The label and shortcut come as one translated message.
+    // focus. The shortcut sits in a key cap after the label, as search's does.
     expect(toggle).not.toHaveAttribute("title");
     fireEvent.focus(toggle);
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "Hide sidebar (Ctrl+B)",
-    );
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Hide sidebar");
+    expect(within(tooltip).getByText("Ctrl+B").tagName).toBe("KBD");
   });
 
   it("is desktop only: the phone opens its sheet elsewhere", () => {

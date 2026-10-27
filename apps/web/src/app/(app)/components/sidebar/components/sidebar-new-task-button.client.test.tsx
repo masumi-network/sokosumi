@@ -1,5 +1,5 @@
 import { AnnouncedFeature } from "@sokosumi/core-client";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { searchRef, wizardRef, sidebarRef, badgeRef, markFeatureSeenMock } =
@@ -91,9 +91,9 @@ describe("SidebarNewTaskButton", () => {
     expect(button).not.toHaveAttribute("title");
     fireEvent.focus(button);
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "newTaskShortcut(C)",
-    );
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("newTask");
+    expect(within(tooltip).getByText("C").tagName).toBe("KBD");
   });
 
   it("opens the wizard on C", () => {

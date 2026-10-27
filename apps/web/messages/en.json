@@ -4061,7 +4061,6 @@
         "MenuItems": {
           "new": "New",
           "newTask": "New task",
-          "newTaskShortcut": "New task ({shortcut})",
           "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
@@ -4107,8 +4106,6 @@
       },
       "show": "Show sidebar",
       "hide": "Hide sidebar",
-      "showShortcut": "Show sidebar ({shortcut})",
-      "hideShortcut": "Hide sidebar ({shortcut})",
       "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {

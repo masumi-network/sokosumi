@@ -7,6 +7,7 @@ import { Suspense, useEffectEvent } from "react";
 
 import { useNewTaskOpener } from "@/app/components/new-task-button.client";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -105,8 +106,13 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
           </Suspense>
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6}>
-        {t("newTaskShortcut", { shortcut: SHORTCUT_KEY.toUpperCase() })}
+      <TooltipContent
+        side="bottom"
+        sideOffset={6}
+        className="flex items-center gap-2"
+      >
+        {t("newTask")}
+        <Kbd className="opacity-70">{SHORTCUT_KEY.toUpperCase()}</Kbd>
       </TooltipContent>
     </Tooltip>
   );

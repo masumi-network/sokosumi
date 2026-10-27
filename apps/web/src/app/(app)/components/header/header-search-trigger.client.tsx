@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
+import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 import { HEADER_SEARCH_BOX_CLASS } from "./header-search-box";
 
@@ -35,12 +36,9 @@ export function HeaderSearchTrigger() {
       <span className="hidden flex-1 truncate text-left lg:inline">
         {t("searchPlaceholder")}
       </span>
-      <kbd
-        aria-hidden
-        className="hidden shrink-0 font-sans text-2xs leading-none tracking-widest lg:inline"
-      >
+      <Kbd aria-hidden className="hidden lg:inline">
         {historySearch.searchShortcutLabel}
-      </kbd>
+      </Kbd>
     </button>
   );
 }
