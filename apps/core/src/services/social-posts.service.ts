@@ -360,6 +360,20 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
   throw internalServerError("Social post has no creator");
 }
 
+/** The post's provider, and its connection's, are available to the owning Project. */
+export function isSocialPostProviderEnabled(
+  record: Pick<SocialPostRecord, "provider" | "project"> & {
+    socialConnection: { provider: string } | null;
+  },
+): boolean {
+  const workspace = socialProviderWorkspaceForProject(record.project);
+  return (
+    isSocialProviderEnabled(record.provider, workspace) &&
+    (!record.socialConnection ||
+      isSocialProviderEnabled(record.socialConnection.provider, workspace))
+  );
+}
+
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   const media = parseSocialPostMedia(record.media, record.id);
   const provider = isSocialPostProvider(record.provider)
@@ -368,16 +382,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   const quoteReady =
     socialPostQuotePublishDecision(record, record.quotedPost, new Date())
       .kind === "ready";
-  const providerEnabled =
-    isSocialProviderEnabled(
-      record.provider,
-      socialProviderWorkspaceForProject(record.project),
-    ) &&
-    (!record.socialConnection ||
-      isSocialProviderEnabled(
-        record.socialConnection.provider,
-        socialProviderWorkspaceForProject(record.project),
-      ));
+  const providerEnabled = isSocialPostProviderEnabled(record);
   return {
     id: record.id,
     projectId: record.projectId,
@@ -887,13 +892,11 @@ export async function createSocialPost(
       "A social post cannot have both a Coworker and Soko Bot creator",
     );
   }
-  if (input.scheduledAt) {
-    await requireLockedOpenProject(tx, input, {
-      closedMessage: PROJECT_CLOSED_MESSAGE,
-    });
-  } else {
-    await requireScopedProject(input, { client: tx });
-  }
+  const project = input.scheduledAt
+    ? await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_MESSAGE,
+      })
+    : await requireScopedProject(input, { client: tx });
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
@@ -940,6 +943,7 @@ export async function createSocialPost(
     requireMediaRequirement(requireProvider(provider), media);
   }
   const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
+  const needsApproval = agentDraft && project.requireAgentPostApproval;
   await requireSocialPostQuote(
     { ...input, provider, quotedPostId: input.quotedPostId ?? null },
     tx,
@@ -958,7 +962,11 @@ export async function createSocialPost(
       ...(threadParts.length > 0
         ? { threadParts: { create: threadParts } }
         : {}),
-      status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
+      status: needsApproval
+        ? "NEEDS_APPROVAL"
+        : scheduled
+          ? "SCHEDULED"
+          : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
       creatorUserId: input.coworkerId || input.sokoBotId ? null : input.userId,
@@ -1467,7 +1475,7 @@ export async function duplicateSocialPost(
   input: DuplicateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, { client: tx });
+  const project = await requireScopedProject(input, { client: tx });
   const source = await requireScopedPost(input, tx);
   if (!DUPLICATABLE_STATUSES.includes(source.status)) {
     throw conflict(
@@ -1533,7 +1541,10 @@ export async function duplicateSocialPost(
       ...(threadParts.length > 0
         ? { threadParts: { create: threadParts } }
         : {}),
-      status: input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
+      status:
+        input.coworkerId && project.requireAgentPostApproval
+          ? "NEEDS_APPROVAL"
+          : "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
     },

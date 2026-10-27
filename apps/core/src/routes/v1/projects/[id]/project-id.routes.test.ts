@@ -320,6 +320,30 @@ describe("PATCH /projects/{id}", () => {
     expect(body.data.identifier).toBe("WEB");
   });
 
+  it("turns on approval for agent social posts", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      requireAgentPostApproval: true,
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requireAgentPostApproval: true }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: expect.objectContaining({ requireAgentPostApproval: true }),
+    });
+    const body = (await res.json()) as {
+      data: { requireAgentPostApproval: boolean };
+    };
+    expect(body.data.requireAgentPostApproval).toBe(true);
+  });
+
   it("rejects an invalid identifier", async () => {
     const app = createApp();
     mountPatchProject(app);

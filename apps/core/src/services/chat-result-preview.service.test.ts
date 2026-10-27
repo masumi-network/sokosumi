@@ -11,6 +11,8 @@ const {
   studioJob,
   asset,
   socialPost,
+  socialPosts,
+  socialProviderEnabled,
   projectAccess,
   liveFiles,
   job,
@@ -24,6 +26,8 @@ const {
   studioJob: vi.fn(),
   asset: vi.fn(),
   socialPost: vi.fn(),
+  socialPosts: vi.fn(),
+  socialProviderEnabled: vi.fn(),
   projectAccess: vi.fn(),
   liveFiles: vi.fn(),
   job: vi.fn(),
@@ -39,6 +43,7 @@ vi.mock("@/lib/db/prisma", () => ({
       },
     },
     project: { findMany: projects },
+    socialPost: { findMany: socialPosts },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
     sokoBotPendingDecision: { findFirst: decision },
@@ -65,6 +70,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: socialPost,
+  isSocialPostProviderEnabled: socialProviderEnabled,
 }));
 vi.mock("@/services/file-search.service", () => ({
   loadLiveResources: liveFiles,
@@ -291,6 +297,60 @@ describe("authorized chat results", () => {
     await expect(
       hydrateChatResultSnapshots([snapshot], "owner"),
     ).rejects.toThrow("db offline");
+    projects.mockReset();
+  });
+  it("lets a human approve a post awaiting approval from the card", async () => {
+    socialPost.mockResolvedValue({
+      text: "Draft from Soko",
+      status: "NEEDS_APPROVAL",
+      provider: "x",
+      revision: 3,
+      canApprove: true,
+      socialConnection: null,
+      scheduledAt: null,
+      publishedAt: null,
+      timezone: null,
+      media: [],
+    });
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "social_post", id: "post", projectId: "project" },
+      actor,
+    });
+    expect(snapshot.data).toMatchObject({
+      status: "NEEDS_APPROVAL",
+      social: {
+        projectId: "project",
+        postId: "post",
+        revision: 3,
+        canApprove: true,
+      },
+    });
+
+    // The page read re-derives approval from the live row.
+    projects.mockResolvedValue([{ id: "project", workspaceId: "workspace" }]);
+    socialPosts.mockResolvedValue([
+      {
+        id: "post",
+        projectId: "project",
+        workspaceId: "workspace",
+        text: "Draft from Soko",
+        provider: "x",
+        status: "DRAFT",
+        revision: 4,
+        scheduledAt: null,
+        publishedAt: null,
+        timezone: null,
+        media: [],
+        project: { workspace: { organization: null } },
+        socialConnection: null,
+      },
+    ]);
+    socialProviderEnabled.mockReturnValue(true);
+    const [hydrated] = await hydrateChatResultSnapshots([snapshot], "owner");
+    expect(hydrated).toMatchObject({
+      status: "DRAFT",
+      social: { revision: 4, canApprove: false },
+    });
     projects.mockReset();
   });
   it.each(["FAILED", "CANCELLED", "QUEUED"])(

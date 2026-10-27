@@ -196,6 +196,11 @@ export const projectSchema = z
       example: null,
     }),
     contextMdUpdating: z.boolean().openapi({ example: false }),
+    requireAgentPostApproval: z.boolean().openapi({
+      description:
+        "When true, social posts created by a Coworker or Soko Bot land as NEEDS_APPROVAL. When false, they are DRAFT or SCHEDULED like human posts.",
+      example: false,
+    }),
     projectRevision: z.number().int().nonnegative().default(0).openapi({
       description: "Revision used for optimistic Project mutations",
       example: 0,
@@ -337,6 +342,7 @@ export const patchProjectRequestSchema = z
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
     identifier: projectIdentifierSchema.optional(),
+    requireAgentPostApproval: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (
@@ -345,12 +351,13 @@ export const patchProjectRequestSchema = z
       data.briefing === undefined &&
       data.description === undefined &&
       data.websiteUrl === undefined &&
-      data.logo === undefined
+      data.logo === undefined &&
+      data.requireAgentPostApproval === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, identifier, briefing, description, websiteUrl, or logo",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, or requireAgentPostApproval",
         path: [],
       });
     }
@@ -505,6 +512,7 @@ export function mapProjectForApi(
     contextMdUpdating:
       updatingSinceMs !== undefined &&
       now.getTime() - updatingSinceMs < PROJECT_MEMORY_UPDATING_WINDOW_MS,
+    requireAgentPostApproval: project.requireAgentPostApproval ?? false,
     projectRevision: project.projectRevision ?? 0,
     scheduledSocialPostCount,
     closingAt: project.closingAt ?? null,

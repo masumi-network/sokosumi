@@ -584,6 +584,30 @@ describe("project actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/edit");
   });
 
+  it("saves whether agent social posts need approval and revalidates Social", async () => {
+    projectServiceMock.patchProject.mockResolvedValue({
+      id: "project-1",
+      requireAgentPostApproval: true,
+    });
+
+    const { setProjectAgentPostApproval } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await setProjectAgentPostApproval({
+      projectId: " project-1 ",
+      requireAgentPostApproval: true,
+    });
+
+    expect(projectServiceMock.patchProject).toHaveBeenCalledWith("project-1", {
+      requireAgentPostApproval: true,
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { requireAgentPostApproval: true },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/social");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+  });
+
   it("converts social-connection Core errors to a plain action error DTO", async () => {
     projectServiceMock.finalizeSocialConnection.mockRejectedValue(
       new Error("Unknown or expired connection"),

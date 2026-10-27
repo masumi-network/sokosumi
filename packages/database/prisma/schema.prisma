@@ -467,6 +467,9 @@ model Project {
   logo                    String?
   designMdUrl             String?
   designMdExtractionId    String?
+  /// When true, social posts created by a Coworker or Soko Bot land as
+  /// NEEDS_APPROVAL instead of DRAFT/SCHEDULED.
+  requireAgentPostApproval Boolean @default(false)
 
   projectRevision  Int       @default(0)
   calendarRevision Int       @default(0)

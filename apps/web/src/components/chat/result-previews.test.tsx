@@ -1,4 +1,6 @@
 import type { ChatResultAvailable } from "@sokosumi/core-client";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -8,7 +10,17 @@ import {
   ResultPreviews,
 } from "./result-previews";
 
-const { resultQuery } = vi.hoisted(() => ({ resultQuery: vi.fn() }));
+const { resultQuery, approveSocialPost, toastSuccess } = vi.hoisted(() => ({
+  resultQuery: vi.fn(),
+  approveSocialPost: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
+vi.mock("@/lib/actions/project/action", () => ({
+  approveProjectSocialPost: approveSocialPost,
+}));
+vi.mock("sonner", () => ({
+  toast: { success: toastSuccess, error: vi.fn() },
+}));
 vi.mock("@tanstack/react-query", () => ({ useQuery: resultQuery }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: { user: { id: "owner" }, session: {} } }),
@@ -299,6 +311,59 @@ describe("chat result cards", () => {
     );
     expect(html).toContain("now");
     expect(html).not.toContain("2026-10-06");
+  });
+  const pendingSocial = {
+    provider: "x" as const,
+    account: null,
+    timestamp: null,
+    projectId: "project",
+    postId: "post",
+    revision: 2,
+    canApprove: true,
+  };
+  const pendingPost: ChatResultAvailable = {
+    ...task,
+    kind: "social_post",
+    status: "NEEDS_APPROVAL",
+    summary: "Our launch",
+    question: null,
+    social: pendingSocial,
+    outputs: [],
+  };
+  it("lets a person approve a post that needs approval and refreshes the card", async () => {
+    approveSocialPost.mockResolvedValue({ ok: true, value: {} });
+    const onSocialPostApproved = vi.fn();
+    render(
+      <ResultPreviewCard
+        result={pendingPost}
+        onDecisionResolved={() => {}}
+        onSocialPostApproved={onSocialPostApproved}
+      />,
+    );
+    expect(
+      screen.getByTestId("social-post-status-NEEDS_APPROVAL"),
+    ).toHaveTextContent("label");
+    await userEvent.click(screen.getByRole("button", { name: "approve" }));
+    expect(approveSocialPost).toHaveBeenCalledWith({
+      projectId: "project",
+      postId: "post",
+      revision: 2,
+    });
+    await waitFor(() => expect(onSocialPostApproved).toHaveBeenCalled());
+    expect(toastSuccess).toHaveBeenCalledWith("approved");
+  });
+  it("shows Needs approval without Approve when the post cannot be approved", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...pendingPost,
+          social: { ...pendingSocial, canApprove: false },
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain('data-testid="social-post-status-NEEDS_APPROVAL"');
+    expect(html).not.toContain(">approve<");
   });
   it("renders an unavailable card without a resource link", () => {
     const html = renderToStaticMarkup(

@@ -64,6 +64,13 @@ const socialPreviewSchema = z.object({
     })
     .nullable(),
   timestamp: dateTimeSchema.nullable(),
+  // Approve from the chat card. Defaults keep snapshots stored before these
+  // fields parseable; such cards simply link out to Project Social.
+  projectId: z.string().max(200).nullable().default(null),
+  postId: z.string().max(200).nullable().default(null),
+  revision: z.number().int().nonnegative().nullable().default(null),
+  // Chat is human UI; agents never approve, so no agent reads this flag.
+  canApprove: z.boolean().default(false),
 });
 
 export const chatResultAvailableSchema = z

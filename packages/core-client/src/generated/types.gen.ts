@@ -3313,6 +3313,10 @@ export type ChatResultAvailable = {
             avatarUrl: string | null;
         } | null;
         timestamp: Date | null;
+        projectId?: string | null;
+        postId?: string | null;
+        revision?: number | null;
+        canApprove?: boolean;
     } | null;
     actor?: {
         id: string;
@@ -6276,6 +6280,10 @@ export type Project = {
     contextMd: ProjectContextMdMetadata | null;
     contextMdUpdating: boolean;
     /**
+     * When true, social posts created by a Coworker or Soko Bot land as NEEDS_APPROVAL. When false, they are DRAFT or SCHEDULED like human posts.
+     */
+    requireAgentPostApproval: boolean;
+    /**
      * Revision used for optimistic Project mutations
      */
     projectRevision?: number;
@@ -8032,6 +8040,7 @@ export type PatchProjectRequest = {
      * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
      */
     identifier?: string;
+    requireAgentPostApproval?: boolean;
 };
 
 export type PublicNewsletter = {

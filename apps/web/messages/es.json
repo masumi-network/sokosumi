@@ -1015,6 +1015,12 @@
       "copyFailed": "No se pudo copiar. Selecciona el código del diagrama de abajo y cópialo manualmente."
     },
     "ChatResults": {
+      "socialApproval": {
+        "label": "Requiere aprobación",
+        "approve": "Aprobar",
+        "approved": "Publicación aprobada.",
+        "failed": "No se pudo aprobar la publicación."
+      },
       "unavailable": "Resultado no disponible o sin acceso",
       "loading": "Cargando resultados…",
       "loadError": "No se pudieron cargar los resultados",
@@ -2410,6 +2416,9 @@
         "cancel": "Cancelar"
       },
       "ProjectSocialAccounts": {
+        "agentPostApprovalTitle": "Requerir aprobación para publicaciones de agentes",
+        "agentPostApprovalDescription": "Desactivado: las publicaciones de Soko Bot y de los Coworkers se guardan como borradores o programadas, igual que las tuyas. Activado: una persona debe aprobar cada una antes de publicarse.",
+        "agentPostApprovalError": "No se pudo guardar el ajuste de aprobación.",
         "title": "Cuentas sociales",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",

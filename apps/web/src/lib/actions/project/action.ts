@@ -59,6 +59,11 @@ interface UpdateProjectParameters extends AuthenticatedRequest {
   logo?: string | null;
 }
 
+interface SetProjectAgentPostApprovalParameters extends AuthenticatedRequest {
+  projectId: string;
+  requireAgentPostApproval: boolean;
+}
+
 interface ResolveProjectSiteIconParameters extends AuthenticatedRequest {
   url: string;
   projectId: string;
@@ -600,6 +605,31 @@ export const disconnectProjectSocialConnection = withSession<
     );
     revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
     return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const setProjectAgentPostApproval = withSession<
+  SetProjectAgentPostApprovalParameters,
+  ActionResultDto<{ requireAgentPostApproval: boolean }, ActionError>
+>(async ({ projectId, requireAgentPostApproval }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
+    );
+  }
+
+  try {
+    const project = await projectService.patchProject(normalizedProjectId, {
+      requireAgentPostApproval,
+    });
+    revalidateProjectMutationRoutes(normalizedProjectId);
+    revalidatePath("/social");
+    return toActionResult(
+      ok({ requireAgentPostApproval: project.requireAgentPostApproval }),
+    );
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

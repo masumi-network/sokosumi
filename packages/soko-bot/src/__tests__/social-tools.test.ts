@@ -215,6 +215,12 @@ describe("Social tool contracts", () => {
     expect(descriptions.create_social_post).toMatch(/video/);
     expect(descriptions.create_social_post).toMatch(/LinkedIn/);
     expect(descriptions.create_social_post).toMatch(/Needs approval/);
+    expect(descriptions.create_social_post).toMatch(
+      /By default the post is a Draft, or Scheduled/,
+    );
+    expect(descriptions.create_social_post).toMatch(
+      /requires approval for agent posts/,
+    );
     expect(descriptions.publish_social_post).toMatch(/Needs approval/);
   });
 

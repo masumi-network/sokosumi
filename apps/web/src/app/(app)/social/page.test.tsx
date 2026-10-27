@@ -134,6 +134,19 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
   ),
 }));
 
+vi.mock("@/app/projects/components/project-agent-post-approval-toggle", () => ({
+  ProjectAgentPostApprovalToggle: (props: {
+    projectId: string;
+    initial: boolean;
+  }) => (
+    <div
+      data-testid="agent-post-approval"
+      data-project={props.projectId}
+      data-initial={String(props.initial)}
+    />
+  ),
+}));
+
 // The all-projects tab row reads the URL; it is tested on its own. Here it
 // only has to show what the page hands it.
 vi.mock("./components/social-all-projects-tabs", () => ({
@@ -196,6 +209,7 @@ const PROJECT = {
   id: "project-1",
   name: "Launch plan",
   logo: null,
+  requireAgentPostApproval: false,
   workspaceId: "workspace-1",
   updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   createdAt: new Date("2026-05-01T10:00:00.000Z"),
@@ -429,6 +443,10 @@ describe("SocialPage", () => {
     );
     expect(screen.getByTestId("social-accounts")).toHaveAttribute(
       "data-connect-disabled",
+      "false",
+    );
+    expect(screen.getByTestId("agent-post-approval")).toHaveAttribute(
+      "data-initial",
       "false",
     );
     // Scheduled posts also supply the affected-post count for reconnection.

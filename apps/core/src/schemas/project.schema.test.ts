@@ -39,6 +39,7 @@ function createDatabaseProject(
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,
+    requireAgentPostApproval: false,
     projectRevision: 0,
     calendarRevision: 0,
     closingAt: null,
@@ -105,6 +106,20 @@ describe("project schemas", () => {
     expect(
       patchProjectRequestSchema.safeParse({ designMd: null }).success,
     ).toBe(false);
+  });
+
+  it("patches and exposes whether agent social posts need approval", () => {
+    expect(
+      patchProjectRequestSchema.parse({ requireAgentPostApproval: true }),
+    ).toMatchObject({ requireAgentPostApproval: true });
+    expect(
+      mapProjectForApi(createDatabaseProject()).requireAgentPostApproval,
+    ).toBe(false);
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({ requireAgentPostApproval: true }),
+      ).requireAgentPostApproval,
+    ).toBe(true);
   });
 
   it("uppercases and validates a project identifier on create and patch", () => {

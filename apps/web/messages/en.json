@@ -1015,6 +1015,12 @@
       "copyFailed": "Could not copy. Select the diagram source below and copy it manually."
     },
     "ChatResults": {
+      "socialApproval": {
+        "label": "Needs approval",
+        "approve": "Approve",
+        "approved": "Post approved.",
+        "failed": "The post could not be approved."
+      },
       "unavailable": "Result unavailable or no longer accessible",
       "loading": "Loading results…",
       "loadError": "Results could not be loaded",
@@ -2410,6 +2416,9 @@
         "cancel": "Cancel"
       },
       "ProjectSocialAccounts": {
+        "agentPostApprovalTitle": "Require approval for agent posts",
+        "agentPostApprovalDescription": "Off: Soko Bot and Coworker posts save as drafts or scheduled posts, like yours. On: a person has to approve each one before it can go out.",
+        "agentPostApprovalError": "The approval setting could not be saved.",
         "title": "Social accounts",
         "account": "{provider} account",
         "connect": "Connect {provider} account",

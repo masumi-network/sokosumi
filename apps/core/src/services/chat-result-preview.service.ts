@@ -4,6 +4,7 @@ import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { socialProviderProjectSelect } from "@/config/social-providers";
 import {
   requireJobRead,
   requireTaskReadForWorkspace,
@@ -27,7 +28,10 @@ import {
 } from "@/schemas/chat-result-preview.schema";
 import { loadLiveResources } from "@/services/file-search.service";
 import { getAsset, getJob } from "@/services/image-studio-assets.service";
-import { getSocialPost } from "@/services/social-posts.service";
+import {
+  getSocialPost,
+  isSocialPostProviderEnabled,
+} from "@/services/social-posts.service";
 import { taskScheduleVisibilityWhere } from "@/services/task-schedule.service";
 
 export interface ChatResultActor {
@@ -148,6 +152,8 @@ interface SocialHydration {
   text: string;
   provider: string;
   status: string;
+  revision: number;
+  canApprove: boolean;
   scheduledAt: Date | null;
   publishedAt: Date | null;
   timezone: string | null;
@@ -289,12 +295,15 @@ export async function preloadChatResultHydration(
         text: true,
         provider: true,
         status: true,
+        revision: true,
         scheduledAt: true,
         publishedAt: true,
         timezone: true,
         media: true,
+        project: { select: socialProviderProjectSelect },
         socialConnection: {
           select: {
+            provider: true,
             externalHandle: true,
             displayName: true,
             avatarUrl: true,
@@ -397,6 +406,9 @@ export async function preloadChatResultHydration(
         text: post.text,
         provider: post.provider,
         status: post.status,
+        revision: post.revision,
+        canApprove:
+          post.status === "NEEDS_APPROVAL" && isSocialPostProviderEnabled(post),
         scheduledAt: post.scheduledAt,
         publishedAt: post.publishedAt,
         timezone: post.timezone,
@@ -704,6 +716,8 @@ export async function resolveChatResultReference(
               text: loaded.text,
               provider: loaded.provider,
               status: loaded.status,
+              revision: loaded.revision,
+              canApprove: loaded.canApprove,
               scheduledAt: loaded.scheduledAt,
               publishedAt: loaded.publishedAt,
               timezone: loaded.timezone,
@@ -739,6 +753,10 @@ export async function resolveChatResultReference(
               }
             : null,
           timestamp: post.publishedAt ?? post.scheduledAt ?? null,
+          projectId: ref.projectId,
+          postId: ref.id,
+          revision: post.revision,
+          canApprove: post.canApprove,
         },
         status: post.status,
         summary: post.text.slice(0, 4000),
@@ -934,6 +952,21 @@ export async function hydrateChatResultSnapshots(
                 summary: current.data.summary,
                 details: current.data.details,
                 outputs: current.data.outputs,
+              }
+            : {}),
+          // Approval is live, so the card never offers Approve on a stale revision.
+          ...(snapshot.data.kind === "social_post" &&
+          snapshot.data.social &&
+          current.data.social
+            ? {
+                status: current.data.status,
+                social: {
+                  ...snapshot.data.social,
+                  projectId: current.data.social.projectId,
+                  postId: current.data.social.postId,
+                  revision: current.data.social.revision,
+                  canApprove: current.data.social.canApprove,
+                },
               }
             : {}),
           // Auto tags, the project and the assignee usually land seconds

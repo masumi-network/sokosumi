@@ -11900,6 +11900,34 @@ export const ChatResultAvailableSchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                projectId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                },
+                postId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                },
+                revision: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0,
+                    default: null
+                },
+                canApprove: {
+                    type: 'boolean',
+                    default: false
                 }
             },
             default: null,
@@ -21308,6 +21336,11 @@ export const ProjectSchema = {
             type: 'boolean',
             example: false
         },
+        requireAgentPostApproval: {
+            type: 'boolean',
+            description: 'When true, social posts created by a Coworker or Soko Bot land as NEEDS_APPROVAL. When false, they are DRAFT or SCHEDULED like human posts.',
+            example: false
+        },
         projectRevision: {
             type: 'integer',
             minimum: 0,
@@ -21368,6 +21401,7 @@ export const ProjectSchema = {
         'memoryModel',
         'contextMd',
         'contextMdUpdating',
+        'requireAgentPostApproval',
         'createdAt',
         'updatedAt'
     ]
@@ -27610,6 +27644,9 @@ export const PatchProjectRequestSchema = {
             pattern: '^[A-Z][A-Z0-9]{1,6}$',
             description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
             example: 'SOK'
+        },
+        requireAgentPostApproval: {
+            type: 'boolean'
         }
     }
 } as const;

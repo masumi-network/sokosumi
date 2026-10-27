@@ -75,6 +75,7 @@ const CREATED_PROJECT = {
   designMd: null,
   contextMd: null,
   contextMdUpdating: false,
+  requireAgentPostApproval: false,
   latestUpdate: null,
   projectRevision: 0,
   closingAt: null,
