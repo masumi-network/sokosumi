@@ -54,16 +54,14 @@ const DIRECT_ROWS = [
 ] as const;
 
 /**
- * A section heading's box: a titled row. Its create and browse controls are
- * left out — they are chrome that arrives with the real heading, and a grey
- * square standing in for a `+` reads as content that never comes.
+ * A section heading's box: a titled row, title first like the real one. Its
+ * chevron hides at rest and its create and browse controls are left out —
+ * they are chrome that arrives with the real heading, and a grey square
+ * standing in for a `+` reads as content that never comes.
  */
 function SectionHeaderSkeleton({ titleWidth }: { titleWidth: string }) {
   return (
     <div className={SIDEBAR_ROW_CLASS}>
-      <SidebarRowSlot>
-        <Skeleton className="size-4 md:size-3" />
-      </SidebarRowSlot>
       <Skeleton
         className={cn(SIDEBAR_ROW_LABEL_CLASS, "h-3 flex-none", titleWidth)}
       />

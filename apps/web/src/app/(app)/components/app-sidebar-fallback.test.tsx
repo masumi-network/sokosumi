@@ -88,22 +88,21 @@ describe("AppSidebarFallback", () => {
     ];
 
     // The two sections every reader has — Channels and Direct Messages —
-    // each a heading of chevron and title over its own menu of rooms.
+    // each a titled heading over its own menu of rooms. The real heading's
+    // chevron hides at rest, so the placeholder draws the title alone.
     expect(menus).toHaveLength(2);
     expect(headers).toHaveLength(2);
     for (const header of headers) {
-      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(1);
     }
     expect(
       tokens(
-        headers[0]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
-          "",
+        headers[0]?.querySelector('[data-slot="skeleton"]')?.className ?? "",
       ),
     ).toContain("w-16");
     expect(
       tokens(
-        headers[1]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
-          "",
+        headers[1]?.querySelector('[data-slot="skeleton"]')?.className ?? "",
       ),
     ).toContain("w-24");
 
@@ -204,7 +203,7 @@ describe("AppSidebarFallback", () => {
     const name = row?.querySelector(
       '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
     );
-    const headerName = header?.querySelectorAll('[data-slot="skeleton"]')[1];
+    const headerName = header?.querySelector('[data-slot="skeleton"]');
 
     // The same `px-2` + `gap-2` a real row uses, so the 24px slot sits on
     // the 28px axis and the name bar starts on the 48px column.
