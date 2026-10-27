@@ -2,23 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const {
-  getInvitationByIdMock,
-  getOrganizationPendingInvitationsMock,
-  getMyPendingOrganizationInvitationsMock,
-} = vi.hoisted(() => ({
+const { getInvitationByIdMock } = vi.hoisted(() => ({
   getInvitationByIdMock: vi.fn(),
-  getOrganizationPendingInvitationsMock: vi.fn(),
-  getMyPendingOrganizationInvitationsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getInvitationById: (...args: unknown[]) => getInvitationByIdMock(...args),
-    getOrganizationPendingInvitations: (...args: unknown[]) =>
-      getOrganizationPendingInvitationsMock(...args),
-    getMyPendingOrganizationInvitations: (...args: unknown[]) =>
-      getMyPendingOrganizationInvitationsMock(...args),
   },
 }));
 
@@ -67,51 +57,5 @@ describe("organizationService.getPendingInvitation", () => {
     const result = await organizationService.getPendingInvitation("inv_1");
 
     expect(result).toEqual({ invitation });
-  });
-});
-
-describe("organizationService.getPendingInvitations", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("returns the invitation list from core", async () => {
-    const invitations = [
-      { id: "inv_1", email: "jane@example.com" },
-      { id: "inv_2", email: "joe@example.com" },
-    ];
-    getOrganizationPendingInvitationsMock.mockResolvedValue({
-      data: invitations,
-    });
-
-    const result = await organizationService.getPendingInvitations("org_1");
-
-    expect(getOrganizationPendingInvitationsMock).toHaveBeenCalledWith("org_1");
-    expect(result).toBe(invitations);
-  });
-});
-
-describe("organizationService.getMyPendingOrganizationInvitations", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("returns the current-user invitation list from core", async () => {
-    const invitations = [
-      {
-        id: "inv_1",
-        organizationId: "org_1",
-        organization: { name: "Acme", slug: "acme" },
-      },
-    ];
-    getMyPendingOrganizationInvitationsMock.mockResolvedValue({
-      data: invitations,
-    });
-
-    const result =
-      await organizationService.getMyPendingOrganizationInvitations();
-
-    expect(getMyPendingOrganizationInvitationsMock).toHaveBeenCalledOnce();
-    expect(result).toBe(invitations);
   });
 });

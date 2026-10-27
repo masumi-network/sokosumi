@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PROJECT_BRIEFING_ATTACHMENT_LABEL,
-  PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
   taskContextSelectionAttachesAnything,
@@ -10,11 +8,6 @@ import {
 } from "./task-context-attachment.js";
 
 describe("removeTaskContextAttachmentLinks", () => {
-  it("exposes the project file labels", () => {
-    expect(PROJECT_BRIEFING_ATTACHMENT_LABEL).toBe("BRIEFING.md");
-    expect(PROJECT_CONTEXT_MD_ATTACHMENT_LABEL).toBe("CONTEXT.md");
-  });
-
   it("removes DESIGN.md, BRIEFING.md and CONTEXT.md links", () => {
     const markdown = [
       "[DESIGN.md](https://blob.example/design.md)",

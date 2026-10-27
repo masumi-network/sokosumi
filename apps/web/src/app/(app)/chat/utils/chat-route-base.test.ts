@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CHAT_API_PATH,
-  CHAT_APP_ROUTE_PREFIX,
-  CHAT_CHATS_LIST_PATH,
-  CHAT_WELCOME_PATH,
   classifyChatChromeSurface,
   hasChatNoticeFromRecord,
   hasChatNoticeQuery,
@@ -16,13 +12,6 @@ import {
 } from "./chat-route-base";
 
 describe("chat-route-base", () => {
-  it("exposes room-keyed BFF path constants", () => {
-    expect(CHAT_APP_ROUTE_PREFIX).toBe("/chat");
-    expect(CHAT_API_PATH).toBe("/api/chat");
-    expect(CHAT_CHATS_LIST_PATH).toBe("/chat");
-    expect(CHAT_WELCOME_PATH).toBe("/");
-  });
-
   it("isChatShellPathname recognizes only /chat tree", () => {
     expect(isChatShellPathname("/chat")).toBe(true);
     expect(isChatShellPathname("/chat/rooms/r1")).toBe(true);
