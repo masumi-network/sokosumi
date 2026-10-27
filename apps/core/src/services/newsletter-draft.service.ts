@@ -1,4 +1,3 @@
-import { SOCIAL_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { generateText, type LanguageModel, Output } from "ai";
 
@@ -9,10 +8,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import {
-  assertNewsletterEnabled,
-  isNewsletterEnabled,
-} from "@/lib/newsletter/feature";
+import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { allowNewsletterRequest } from "@/lib/newsletter/request-limit";
 import {
   type CreateNewsletterIssueRequest,
@@ -36,12 +32,12 @@ export async function isNewsletterDraftAvailable(scope: {
   workspaceId: string;
   projectId?: string | null;
 }) {
-  if (!isNewsletterEnabled()) return false;
+  if (!(await isNewsletterWorkspaceEnabled(scope.workspaceId))) return false;
   return !!(await prisma.newsletter.findFirst({
     where: {
       workspaceId: scope.workspaceId,
       ...(scope.projectId ? { projectId: scope.projectId } : {}),
-      workspace: { organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG } },
+      project: { workspaceId: scope.workspaceId },
     },
     select: { id: true },
   }));
@@ -57,7 +53,6 @@ export async function generateNewsletterDraft(
   raw: DraftNewsletterIssueRequest,
   model: LanguageModel = getEnv().PROJECT_MEMORY_MODEL,
 ): Promise<CreateNewsletterIssueRequest> {
-  assertNewsletterEnabled();
   const input = draftNewsletterIssueRequestSchema.parse(raw);
   const { projectId, workspaceId } = scope;
   if (!(await isNewsletterDraftAvailable(scope))) {

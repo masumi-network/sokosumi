@@ -44,6 +44,7 @@ import {
   draftNewsletterIssue,
   getNewsletterDraftImages,
 } from "@/lib/actions/newsletter/draft";
+import { newsletterHref } from "../newsletter-tabs";
 
 export function DraftIssueButton({
   projectId,
@@ -144,7 +145,7 @@ function DraftIssueDialog({
         return;
       }
       router.push(
-        `/projects/${projectId}/newsletter/issues/${result.value.id}?draftedBySokoBot=true`,
+        `${newsletterHref(`/newsletter/issues/${result.value.id}`, projectId)}&draftedBySokoBot=true`,
       );
       onClose();
     } catch {

@@ -12,7 +12,6 @@ import {
 } from "@/test/newsletter";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   access: vi.fn(),
   newsletter: vi.fn(),
   generate: vi.fn(),
@@ -30,9 +29,6 @@ const m = vi.hoisted(() => ({
   query: vi.fn(),
   reserve: vi.fn(),
   count: vi.fn(),
-}));
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: m.enabled }),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: { sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish } },
@@ -137,7 +133,6 @@ function execute(runtime = service(), input: unknown = INPUT) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.access.mockResolvedValue({
     projectId: NEWSLETTER_PROJECT_ID,
     workspaceId: NEWSLETTER_WORKSPACE_ID,
@@ -246,10 +241,7 @@ describe("Soko Bot newsletter_draft_issue", () => {
     expect(m.send).not.toHaveBeenCalled();
   });
 
-  it("requires the feature and a configured newsletter even when replaying", async () => {
-    m.enabled = false;
-    await expect(execute()).rejects.toThrow("Newsletter is not enabled");
-    m.enabled = true;
+  it("requires a configured newsletter even when replaying", async () => {
     m.newsletter.mockRejectedValue(new Error("Newsletter not found"));
     await expect(execute()).rejects.toThrow("Newsletter not found");
     expect(m.generate).not.toHaveBeenCalled();

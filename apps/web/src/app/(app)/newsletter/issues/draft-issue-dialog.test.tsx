@@ -35,6 +35,8 @@ const IMAGE: ProjectImageAsset = {
   height: 256,
   bytes: 1000,
   contentType: "image/png",
+  mediaType: "IMAGE",
+  video: null,
   createdAt: new Date(),
   jobId: NEWSLETTER_ISSUE.id,
   settings: {},
@@ -103,7 +105,7 @@ describe("Write it for me", () => {
     await user.click(screen.getByRole("button", { name: COPY.Ai.generate }));
     await waitFor(() =>
       expect(m.push).toHaveBeenCalledWith(
-        `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ISSUE.id}?draftedBySokoBot=true`,
+        `/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}&draftedBySokoBot=true`,
       ),
     );
     expect(m.draft).toHaveBeenCalledExactlyOnceWith({

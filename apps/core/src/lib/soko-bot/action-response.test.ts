@@ -71,7 +71,7 @@ describe("action lines the owner reads", () => {
     ]);
     const result = await buildActionResponse(prisma, "turn-current", "");
     expect(result.answerText).toBe(
-      `Drafted newsletter issue for review ([Review draft](/projects/${projectId}/newsletter/issues/issue-one?draftedBySokoBot=true)).`,
+      `Drafted newsletter issue for review ([Review draft](/newsletter/issues/issue-one?projectId=${projectId}&draftedBySokoBot=true)).`,
     );
     expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
   });

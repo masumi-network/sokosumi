@@ -8,7 +8,6 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   draftNewsletterIssueRequestSchema,
@@ -54,7 +53,6 @@ export default function mount(
   model?: LanguageModel,
 ) {
   app.openapi(route, async (c) => {
-    assertNewsletterEnabled();
     const user = await requireAuthorizedUserContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
