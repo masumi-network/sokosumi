@@ -246,15 +246,16 @@ export function TranscriptViewport({
   // A prop of the virtualizer rather than a ref: it decides per render
   // whether an append pulls the view down. A jump that merges a window while
   // the reader sits at the live edge would otherwise be undone by that pull.
-  const [held, setHeld] = useState(
-    Boolean(initialPosition && !initialPosition.atLiveEdge),
+  // An opening above the end holds only until the reader reaches the end.
+  const [held, setHeld] = useState<false | "opening" | "jump">(
+    initialPosition && !initialPosition.atLiveEdge ? "opening" : false,
   );
   const restoreRef = useRef(initialPosition);
   const openedRef = useRef(false);
   const positionCallbackRef = useRef(onPositionChange);
   positionCallbackRef.current = onPositionChange;
   const lastPositionRef = useRef("");
-  const hold = held || holdOffBottom;
+  const hold = held !== false || holdOffBottom;
   const landingRef = useRef(0);
   // Unmount ends a landing still polling for its row.
   useMountEffect(() => () => {
@@ -350,6 +351,8 @@ export function TranscriptViewport({
     );
     distanceFromEndRef.current = distance;
     setAtEnd(distance <= STICK_TO_BOTTOM_NEAR_PX);
+    if (!restoreRef.current && distance <= STICK_TO_BOTTOM_NEAR_PX)
+      setHeld((current) => (current === "opening" ? false : current));
     if (restoreRef.current || !positionCallbackRef.current) return;
     const edge = element.getBoundingClientRect();
     // Persist measured DOM coordinates, not estimates that can lag a
@@ -648,7 +651,7 @@ export function TranscriptViewport({
       suppressStickToBottom: () => {
         restoreRef.current = undefined;
         landingRef.current += 1;
-        setHeld(true);
+        setHeld("jump");
       },
       releaseStickToBottomSuppress: () => {
         setHeld(false);

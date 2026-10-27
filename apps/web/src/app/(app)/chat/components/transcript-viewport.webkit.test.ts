@@ -506,6 +506,42 @@ it("jumps to latest from the Unread divider", async () => {
   }
 });
 
+it("follows arrivals once the reader has scrolled down from the Unread divider to the end", async () => {
+  const page = await dividerPage();
+  try {
+    await expect
+      .poll(async () => {
+        const geometry = await dividerGeometry(page);
+        return geometry ? Math.abs(geometry.top - geometry.height / 3) : null;
+      })
+      .toBeLessThan(2);
+    // The opening holds the divider in place for a few settled frames.
+    await page.evaluate(async () => {
+      for (let frame = 0; frame < 10; frame += 1)
+        await new Promise(requestAnimationFrame);
+    });
+    // Read down by hand, not through Jump to latest.
+    await expect
+      .poll(async () => {
+        await page
+          .locator(".overflow-y-auto")
+          .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+        return distanceFromEnd(page);
+      })
+      .toBeLessThan(1);
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("true");
+    await page.getByTestId("arrive").click();
+    await expect
+      .poll(() => page.locator('[data-message-id="msg-075"]').count())
+      .toBe(1);
+    await expect.poll(() => distanceFromEnd(page)).toBeLessThan(1);
+  } finally {
+    await page.close();
+  }
+});
+
 it("waits for scrolling to settle after touch release before inserting older rows", async () => {
   const page = await behaviorPage();
   try {
