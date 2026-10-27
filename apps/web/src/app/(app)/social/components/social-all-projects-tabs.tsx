@@ -10,12 +10,15 @@ import {
 import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
 import { SocialPostStatistics } from "@/app/projects/components/social-posts/social-post-statistics";
 import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SOCIAL_TABS_LIST_CLASS_NAME,
+  SOCIAL_TABS_ROW_CLASS_NAME,
+  SocialTabTrigger,
+} from "@/app/projects/components/social-posts/social-tab-trigger";
+import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -68,23 +71,20 @@ export function SocialAllProjectsTabs({
       }}
     >
       <div className="flex flex-row items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
           <TabsList
             aria-label={t("title")}
             className={cn(
               SEGMENTED_TABS_LIST_CLASS_NAME,
-              "app-scrollbar w-fit min-w-0 max-w-full max-sm:justify-start max-sm:overflow-x-auto",
+              SOCIAL_TABS_LIST_CLASS_NAME,
             )}
           >
             {SOCIAL_TABS.map((candidate) => (
-              <TabsTrigger
+              <SocialTabTrigger
                 key={candidate}
-                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-                data-testid={`social-posts-tab-${candidate}`}
-                value={candidate}
-              >
-                {t(`sections.${candidate}`)}
-              </TabsTrigger>
+                label={t(`sections.${candidate}`)}
+                tab={candidate}
+              />
             ))}
           </TabsList>
         </div>

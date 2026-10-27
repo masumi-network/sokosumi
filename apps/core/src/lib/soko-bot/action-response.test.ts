@@ -970,6 +970,59 @@ describe("authoritative action responses", () => {
     },
   );
 
+  it("restates an account's text limit and a post's thread and quote", async () => {
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        receipt({
+          capability: "list_project_social_accounts",
+          result: {
+            enabledProviders: ["x"],
+            accounts: [
+              {
+                id: "account-one",
+                provider: "x",
+                externalHandle: "acme",
+                status: "active",
+                connectedAt: null,
+                disconnectedAt: null,
+                textLimit: 25_000,
+              },
+            ],
+          },
+        }),
+        receipt({
+          capability: "get_social_post",
+          result: {
+            id: "post-one",
+            provider: "x",
+            status: "NEEDS_APPROVAL",
+            text: "Launch",
+            revision: 0,
+            scheduledAt: null,
+            timezone: null,
+            publishedUrl: null,
+            threadPartCount: 3,
+            quotedPostId: "post-zero",
+          },
+        }),
+      ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Done",
+      true,
+      {
+        kind: "REPORT",
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    expect(response.answerText).toContain("Text limit: 25000 characters.");
+    expect(response.answerText).toContain("Thread of 3 posts.");
+    expect(response.answerText).toContain('Quotes post "post-zero".');
+  });
+
   it.each([
     ["list_project_social_accounts", {}],
     ["list_social_posts", { posts: [{ id: "post-one" }] }],
