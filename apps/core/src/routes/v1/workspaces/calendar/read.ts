@@ -13,6 +13,7 @@ import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
+import { isSocialPostWaitingForQuote } from "@/helpers/social-post-quote";
 import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import {
   buildHumanTaskVisibilityWhere,
@@ -570,6 +571,9 @@ export async function readWorkspaceCalendar(
             status: true,
             revision: true,
             publishedExternalId: true,
+            quotedPostId: true,
+            quotedPost: { select: { status: true, publishedExternalId: true } },
+            needsAttentionReason: true,
             publishingThreadPartPosition: true,
             lastError: true,
             threadParts: {
@@ -605,6 +609,13 @@ export async function readWorkspaceCalendar(
       kind: "socialPost",
       id: `social:${post.id}`,
       postId: post.id,
+      quotedPostId: post.quotedPostId,
+      needsAttentionReason: post.needsAttentionReason,
+      waitingForQuotedPost: isSocialPostWaitingForQuote(
+        post,
+        post.quotedPost,
+        new Date(),
+      ),
       ...summarizeSocialPostThread(post),
       provider: post.provider,
       text: post.text,

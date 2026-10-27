@@ -2648,6 +2648,7 @@
           "confirm": "Dismiss"
         },
         "toasts": {
+          "movedQuotes": "Also moved {count, plural, one {# quote} other {# quotes}} to keep {count, plural, one {it} other {them}} after this post",
           "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
@@ -2954,6 +2955,26 @@
           "confirmNotPosted": "It was not posted, continue",
           "viewPart": "View part {part} on X",
           "retryDescription": "Only the remaining parts will be posted."
+        },
+        "quote": {
+          "label": "Quote",
+          "choose": "Quote a post",
+          "pickerDescription": "Choose an X post from this project to quote.",
+          "search": "Search posts",
+          "select": "Quote this post",
+          "empty": "No posts found. Try another search or schedule an X post in this project.",
+          "loadFailed": "Failed to load posts. Try again.",
+          "embedded": "Quoted post",
+          "change": "Choose another post",
+          "remove": "Remove quote",
+          "publishesAfter": "Publishes after the quoted post ({time})",
+          "scheduleAfter": "Choose a time after the quoted post ({time}).",
+          "scheduleTargetFirst": "Schedule the quoted post before scheduling this quote.",
+          "postNowUnavailable": "Post now is unavailable until the quoted post is published.",
+          "onlyX": "Quotes are available for X accounts only. Remove the quote or choose only X accounts.",
+          "failed": "The post it quotes failed to publish",
+          "cancelled": "The quoted post was cancelled",
+          "waiting": "Waiting for the quoted post"
         }
       },
       "Detail": {

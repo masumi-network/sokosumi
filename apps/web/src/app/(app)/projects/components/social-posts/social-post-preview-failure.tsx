@@ -6,8 +6,8 @@ import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import { TimezoneLabel } from "@/components/timezone-label";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
-
 import { publishFailureCopy } from "./social-post-publish-failure";
+import { socialPostQuoteAttentionCopy } from "./social-post-quote";
 
 function failureReason(
   post: SocialPost,
@@ -35,6 +35,18 @@ export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
         )
       : failureReason(post, t("outcomes.authorizationRevoked"));
   const failedAt = post.lastAttempt?.finishedAt ?? null;
+
+  if (post.needsAttentionReason) {
+    return (
+      <p
+        className="text-destructive text-sm"
+        role="alert"
+        data-testid="social-post-quote-attention"
+      >
+        {socialPostQuoteAttentionCopy(post.needsAttentionReason, t)}
+      </p>
+    );
+  }
 
   if (post.status === "MISSED") {
     return reason ? (

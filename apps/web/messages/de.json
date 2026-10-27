@@ -2648,6 +2648,7 @@
           "confirm": "Verwerfen"
         },
         "toasts": {
+          "movedQuotes": "Außerdem {count, plural, one {# Zitat verschoben, damit es nach diesem Beitrag erscheint} other {# Zitate verschoben, damit sie nach diesem Beitrag erscheinen}}",
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
@@ -2954,6 +2955,26 @@
           "confirmNotPosted": "Nicht veröffentlicht, fortfahren",
           "viewPart": "Teil {part} auf X ansehen",
           "retryDescription": "Es werden nur die verbleibenden Teile veröffentlicht."
+        },
+        "quote": {
+          "label": "Zitat",
+          "choose": "Beitrag zitieren",
+          "pickerDescription": "Wähle einen X-Beitrag aus diesem Projekt aus, den du zitieren möchtest.",
+          "search": "Beiträge suchen",
+          "select": "Diesen Beitrag zitieren",
+          "empty": "Keine Beiträge gefunden. Ändere die Suche oder plane einen X-Beitrag in diesem Projekt.",
+          "loadFailed": "Beiträge konnten nicht geladen werden. Versuche es erneut.",
+          "embedded": "Zitierter Beitrag",
+          "change": "Anderen Beitrag auswählen",
+          "remove": "Zitat entfernen",
+          "publishesAfter": "Wird nach dem zitierten Beitrag veröffentlicht ({time})",
+          "scheduleAfter": "Wähle einen Zeitpunkt nach dem zitierten Beitrag ({time}).",
+          "scheduleTargetFirst": "Plane zuerst den zitierten Beitrag und danach dieses Zitat.",
+          "postNowUnavailable": "Sofortiges Veröffentlichen ist erst möglich, wenn der zitierte Beitrag veröffentlicht wurde.",
+          "onlyX": "Zitate sind nur für X-Konten verfügbar. Entferne das Zitat oder wähle ausschließlich X-Konten aus.",
+          "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
+          "cancelled": "Der zitierte Beitrag wurde abgesagt",
+          "waiting": "Wartet auf den zitierten Beitrag"
         }
       },
       "Detail": {

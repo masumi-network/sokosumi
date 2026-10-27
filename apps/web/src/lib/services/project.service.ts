@@ -297,12 +297,18 @@ export const projectService = (() => {
     params: {
       statuses?: readonly SocialPostStatus[];
       cursor?: string | null;
+      quoteCandidates?: boolean;
+      excludePostId?: string;
+      search?: string;
     } = {},
   ): Promise<{ posts: SocialPost[]; nextCursor: string | null }> {
     const result = await coreClient.getProjectsByIdSocialPosts(projectId, {
       status: params.statuses?.join(","),
       cursor: params.cursor ?? undefined,
       limit: 20,
+      ...(params.quoteCandidates ? { quoteCandidates: "true" } : {}),
+      ...(params.excludePostId ? { excludePostId: params.excludePostId } : {}),
+      ...(params.search ? { search: params.search } : {}),
     });
     return {
       posts: result.data,
