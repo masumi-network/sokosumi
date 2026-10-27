@@ -50,6 +50,10 @@ const post = {
   project: { name: "Launch project" },
   scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
   attempts: [],
+  threadParts: [],
+  publishedExternalId: null,
+  publishingThreadPartPosition: null,
+  lastError: null,
   media: [
     {
       pathname: "drive/launch.png",
@@ -169,6 +173,27 @@ describe("Social posts in the calendar", () => {
     expect(JSON.stringify(result.items[0])).not.toContain("403");
     expect(JSON.stringify(result.items[0])).not.toContain("Duplicate");
   });
+  it("returns partial thread progress for calendar chips", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        publishedExternalId: "1907",
+        threadParts: [
+          { position: 2, externalPostId: null, error: "Thread part 2 failed" },
+          { position: 3, externalPostId: null, error: null },
+        ],
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      threadPartCount: 3,
+      publishedThreadPartCount: 1,
+      failedThreadPartPosition: 2,
+      partiallyPublished: true,
+    });
+  });
+
   it("keeps posts visible when the scheduler is deleted and there are no attachments", async () => {
     mocks.posts.mockResolvedValue([
       { ...post, scheduledByUser: null, media: [] },

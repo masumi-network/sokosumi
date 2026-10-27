@@ -6436,6 +6436,16 @@ export type SocialPostCalendarItem = {
     kind: 'socialPost';
     id: string;
     postId: string;
+    /**
+     * Total posts including the main text/media (1 for a single post).
+     */
+    threadPartCount: number;
+    publishedThreadPartCount: number;
+    failedThreadPartPosition: number | null;
+    /**
+     * Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.
+     */
+    partiallyPublished: boolean;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
     status: 'DRAFT' | 'NEEDS_APPROVAL' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
@@ -7560,6 +7570,18 @@ export type SocialPost = {
     text: string;
     firstComment: string | null;
     media: Array<SocialPostMediaRef>;
+    threadParts: Array<SocialPostThreadPart>;
+    publishingThreadPartPosition: number | null;
+    /**
+     * Total posts including the main text/media (1 for a single post).
+     */
+    threadPartCount: number;
+    publishedThreadPartCount: number;
+    failedThreadPartPosition: number | null;
+    /**
+     * Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.
+     */
+    partiallyPublished: boolean;
     status: SocialPostStatus;
     scheduledAt: Date | null;
     timezone: string | null;
@@ -7612,6 +7634,16 @@ export type SocialPostMediaRef = {
     size: number;
     mimeType: string;
     kind: 'image' | 'gif' | 'video';
+};
+
+export type SocialPostThreadPart = {
+    id: string;
+    position: number;
+    text: string;
+    media: Array<SocialPostMediaRef>;
+    externalPostId: string | null;
+    publishedAt: Date | null;
+    error: string | null;
 };
 
 export const SocialPostStatus = {
@@ -7673,11 +7705,24 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    /**
+     * Posted after publishing succeeds. For X threads, replies to the last thread part.
+     */
     firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
+    /**
+     * Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post's text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.
+     */
+    threadParts?: Array<{
+        text: string;
+        /**
+         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         */
+        media?: Array<SocialPostMediaRef>;
+    }>;
     socialConnectionId?: string;
     scheduledAt?: Date;
     timezone?: string;
@@ -7698,11 +7743,24 @@ export type SocialPostStatisticsSummary = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    /**
+     * Posted after publishing succeeds. For X threads, replies to the last thread part.
+     */
     firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
+    /**
+     * Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post's text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.
+     */
+    threadParts?: Array<{
+        text: string;
+        /**
+         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         */
+        media?: Array<SocialPostMediaRef>;
+    }>;
     socialConnectionId?: string | null;
     /**
      * Revision the client last observed; mismatches return 409
@@ -7721,6 +7779,14 @@ export type ScheduleSocialPostRequest = {
 };
 
 export type ApproveSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
+export type ResumeSocialPostThreadRequest = {
+    confirmedNotPosted: true;
     /**
      * Revision the client last observed; mismatches return 409
      */
@@ -54105,6 +54171,148 @@ export type PostProjectsByIdSocialPostsByPostIdApproveResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdApproveResponse = PostProjectsByIdSocialPostsByPostIdApproveResponses[keyof PostProjectsByIdSocialPostsByPostIdApproveResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeData = {
+    body: ResumeSocialPostThreadRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/thread/resume';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeError = PostProjectsByIdSocialPostsByPostIdThreadResumeErrors[keyof PostProjectsByIdSocialPostsByPostIdThreadResumeErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeResponses = {
+    /**
+     * Social thread ready to retry
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeResponse = PostProjectsByIdSocialPostsByPostIdThreadResumeResponses[keyof PostProjectsByIdSocialPostsByPostIdThreadResumeResponses];
 
 export type PostProjectsByIdSocialPostsByPostIdRejectData = {
     body: RejectSocialPostRequest;

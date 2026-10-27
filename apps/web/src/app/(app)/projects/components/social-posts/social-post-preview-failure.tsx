@@ -1,8 +1,11 @@
 "use client";
 
 import type { SocialPost } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
+
+import { TimezoneLabel } from "@/components/timezone-label";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 
 import { publishFailureCopy } from "./social-post-publish-failure";
 
@@ -19,6 +22,7 @@ function failureReason(
 export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
+  const timeZone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const { enabledProviders } = useSocialProviderAvailability();
   const reason =
     post.lastAttempt?.errorKind?.startsWith("provider_coming_soon:") ||
@@ -43,10 +47,32 @@ export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
     ) : null;
   }
 
-  if (post.status !== "FAILED" || (!reason && !failedAt)) return null;
+  if (
+    post.status !== "FAILED" ||
+    (!reason && !failedAt && !post.partiallyPublished)
+  )
+    return null;
 
   return (
     <div className="space-y-0.5" data-testid="social-post-preview-failure">
+      {post.partiallyPublished ? (
+        <p className="text-semantic-warning text-sm" role="status">
+          {t("thread.progress", {
+            published: post.publishedThreadPartCount,
+            total: post.threadPartCount,
+          })}
+          {post.failedThreadPartPosition
+            ? ` ${t("thread.failedPart", { part: post.failedThreadPartPosition })}`
+            : null}
+        </p>
+      ) : null}
+      {post.publishingThreadPartPosition ? (
+        <p className="text-semantic-warning text-sm">
+          {t("thread.outcomeUnknown", {
+            part: post.publishingThreadPartPosition,
+          })}
+        </p>
+      ) : null}
       {reason ? <p className="text-destructive text-sm">{reason}</p> : null}
       {failedAt ? (
         <time
@@ -55,7 +81,8 @@ export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
         >
           {t("failedAt", {
             date: formatter.dateTime(new Date(failedAt), "dateTime"),
-          })}
+          })}{" "}
+          · <TimezoneLabel timeZone={timeZone} at={new Date(failedAt)} />
         </time>
       ) : null}
     </div>

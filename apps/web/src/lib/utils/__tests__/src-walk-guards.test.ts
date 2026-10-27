@@ -1341,12 +1341,13 @@ function openingTags(
       if (quote) {
         if (char === "\\") i++;
         else if (char === quote) quote = null;
-      } else if (depth > 0 && text.startsWith("//", i)) {
-        // A comment in a prop (`section's`) would otherwise open a string.
+      } else if (text.startsWith("//", i)) {
+        // A comment in a prop (`section's`) or between props (`primitive's`)
+        // would otherwise open a string.
         const end = text.indexOf("\n", i);
         i = end === -1 ? text.length : end - 1;
         continue;
-      } else if (depth > 0 && text.startsWith("/*", i)) {
+      } else if (text.startsWith("/*", i)) {
         const end = text.indexOf("*/", i);
         i = end === -1 ? text.length : end + 1;
         continue;
@@ -1449,6 +1450,7 @@ describe("icon touch targets", () => {
       '<Button size="icon" className="size-6 after:absolute after:-inset-2">',
       '<Button size="sm" className="size-8">',
       '<Button size="icon"><X className="size-4" /></Button>',
+      '<SidebarMenuButton\n  asChild\n  // down to the primitive\'s floor\n  className={cn(subtitle && "h-auto")}\n>\n  <Button size="icon"><X className="size-4" /></Button>\n  {t(\'close\')}\n</SidebarMenuButton>',
     ];
     for (const fixture of fixtures) {
       expect(smallIconTargets("f.tsx", fixture), fixture).toEqual([]);
