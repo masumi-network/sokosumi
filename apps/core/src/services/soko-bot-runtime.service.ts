@@ -4967,7 +4967,11 @@ export class SokoBotRuntimeService {
           await this.requireSocialAccess(authorized);
         }
         if (input.capability === "create_ad_campaign")
-          await this.requireAdsAccess(authorized);
+          await this.requireAdsAccess(
+            authorized,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input)
+              .projectId,
+          );
         if (input.capability === "refresh_social_post_statistics") {
           const params =
             SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_post_statistics.parse(
@@ -5411,8 +5415,19 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
-  /** Ads share the social gate and its beta: the same owner-only turn, then the Ads page's membership check. */
-  private async requireAdsAccess(authorized: AuthorizedSokoBotRuntime) {
+  /**
+   * Ads share the social gate and its beta: the same owner-only turn, then the
+   * Ads page's membership check. A Project bot also stays in its own Project,
+   * like the studio tools; that refusal comes before anything is read or sent.
+   */
+  private async requireAdsAccess(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
+      projectId,
+    ]);
+    if (refusal) throw new SokoBotRefusedUnsentError(refusal);
     const workspace = await this.requireSocialAccess(authorized);
     await requireSocialBetaAccess(actingMemberOf(authorized), prisma);
     return workspace;
@@ -5434,7 +5449,7 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_accounts.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized);
+        await this.requireAdsAccess(authorized, params.projectId);
         const accounts = await callAds(() =>
           listProjectAdAccounts({ ...params, workspaceId }),
         );
@@ -5459,7 +5474,7 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized);
+        await this.requireAdsAccess(authorized, params.projectId);
         const { projectId, accountId } = params;
         const [accounts, result] = await callAds(() =>
           Promise.all([
@@ -5487,7 +5502,7 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_ad_targeting.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized);
+        await this.requireAdsAccess(authorized, params.projectId);
         const { projectId, accountId, locationQuery } = params;
         const scope = { projectId, accountId, workspaceId };
         const languages = await callAds(() => listProjectAdLanguages(scope));
@@ -5500,7 +5515,7 @@ export class SokoBotRuntimeService {
       case "get_market_keywords": {
         const { projectId } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.get_market_keywords.parse(input.input);
-        await this.requireAdsAccess(authorized);
+        await this.requireAdsAccess(authorized, projectId);
         const scope = { projectId, workspaceId };
         const profile = await callAds(() => getProjectAdMarketProfile(scope));
         if (!profile)
@@ -5543,7 +5558,7 @@ export class SokoBotRuntimeService {
       case "create_ad_campaign": {
         const { projectId, accountId, name, dailyBudget, google } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input);
-        const workspace = await this.requireAdsAccess(authorized);
+        const workspace = await this.requireAdsAccess(authorized, projectId);
         const account = (
           await callAds(() => listProjectAdAccounts({ projectId, workspaceId }))
         ).find((candidate) => candidate.id === accountId);
