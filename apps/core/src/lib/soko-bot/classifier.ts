@@ -53,7 +53,7 @@ const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   HIRE_AGENT:
     "Explicitly asks to hire, book or run a marketplace Agent. This spends the owner's credits, so choose it only when the owner plainly asks for an Agent.",
   MANAGE_WORK:
-    "Asks for a concrete change the assistant makes itself: draft, create or edit a Project social post (LinkedIn, X and the like), schedule or reschedule it, cancel it or publish it now; create a paused Google Ads campaign (search or display) in a Project's ad account, or pause, resume, change the budget of or edit a Project ad campaign; update, move, unassign, archive or cancel existing Tasks or Jobs, or reassign them to a person or to a role (whoever does design, the research person), whom the assistant finds itself; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; write or save a file for the owner (it goes to their Files, also called Drive), or generate an image; create or change calendar events or email through a connected account; remember something or forget something it was told.",
+    "Asks for a concrete change the assistant makes itself: draft, create or edit a Project social post (LinkedIn, X and the like), schedule or reschedule it, cancel it or publish it now; create a paused Google Ads campaign (search or display) in a Project's ad account, or pause, resume, change the budget of, edit or delete a Project ad campaign; update, move, unassign, archive or cancel existing Tasks or Jobs, or reassign them to a person or to a role (whoever does design, the research person), whom the assistant finds itself; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; write or save a file for the owner (it goes to their Files, also called Drive), or generate an image; create or change calendar events or email through a connected account; remember something or forget something it was told.",
   MIXED:
     "Asks for two or more independent actions that belong to different routes above in one message, for example hiring an Agent and also creating a Task.",
 };
@@ -64,7 +64,7 @@ const WRITE_SCOPE_CRITERIA = {
     "the assistant's own reminders, check-ins or recurring prompt schedules, including its daily stand-up and weekly wrap; not social media posts or calendar events",
   SOCIAL:
     "creating, editing, scheduling, rescheduling, canceling or publishing a Project social media post",
-  ADS: "creating a Project ad campaign (Google Ads search or display), or pausing, resuming, changing the budget of or editing one, including its ads, keywords, images or targeting",
+  ADS: "creating a Project ad campaign (Google Ads search or display), or pausing, resuming, changing the budget of, editing or deleting one, including its ads, keywords, images or targeting",
   CHAT: "posting a message in a chat room or channel, or messaging or asking a person in chat (not by email)",
   FILE: "writing or saving a file or document for the owner, into their Files (Drive), or generating an image",
   INTEGRATION:

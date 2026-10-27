@@ -360,6 +360,58 @@ export async function updateGoogleCampaign(
   );
 }
 
+/**
+ * Removes a campaign of the customer. The campaign is looked up inside the
+ * customer first (404 when it is not there or already removed), and that is
+ * the only refusal point: the removal is one write. Google keeps a removed
+ * campaign's history but it cannot be enabled again.
+ */
+export async function deleteGoogleCampaign(
+  input: AdsConnectedAccount & { customerId: string; campaignId: string },
+): Promise<void> {
+  const { customerId, campaignId, ...connected } = input;
+  requireCampaignId(campaignId);
+  // The id is digits only, so the query cannot be altered by it.
+  const lookupQuery = `SELECT campaign.id, campaign.campaign_budget, campaign_budget.explicitly_shared FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
+
+  await withAdsToolSession(
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
+      toolSlugs: [SEARCH_STREAM_GAQL, MUTATE_CAMPAIGNS],
+    },
+    async (execute) => {
+      const [row] = parseToolRows(
+        requireToolRows(
+          await execute(SEARCH_STREAM_GAQL, {
+            customer_id: customerId,
+            query: lookupQuery,
+          }),
+          "results",
+          "look up Google Ads campaign",
+        ),
+        campaignLookupRowSchema,
+        "look up Google Ads campaign",
+      );
+      if (!row) throw notFound("Campaign not found");
+
+      requireMutated(
+        await executeWrite(execute, MUTATE_CAMPAIGNS, {
+          customer_id: customerId,
+          operations: [
+            {
+              operation_type: "remove",
+              remove: campaignResourceName(customerId, campaignId),
+            },
+          ],
+        }),
+        "results",
+        "remove Google Ads campaign",
+      );
+    },
+  );
+}
+
 type Operation = Record<string, unknown>;
 
 /** A campaign id goes into GAQL queries, so it must be 1-20 digits. */

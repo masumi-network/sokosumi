@@ -269,6 +269,7 @@ const ads = vi.hoisted(() => ({
   details: vi.fn(),
   update: vi.fn(),
   edit: vi.fn(),
+  delete: vi.fn(),
   marketProfile: vi.fn(),
   marketKeywords: vi.fn(),
 }));
@@ -281,6 +282,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   getProjectAdCampaignDetails: ads.details,
   updateProjectAdCampaign: ads.update,
   editProjectAdCampaign: ads.edit,
+  deleteProjectAdCampaign: ads.delete,
   listProjectAdAccounts: ads.accounts,
   listProjectAdCampaigns: ads.campaigns,
   searchProjectAdLocations: ads.locations,
@@ -6405,6 +6407,7 @@ describe("Soko Bot project social tools", () => {
     "get_ad_campaign",
     "update_ad_campaign",
     "edit_ad_campaign",
+    "delete_ad_campaign",
     "list_integration_tools",
     "run_integration_tool",
     "list_social_posts",
@@ -7498,6 +7501,7 @@ describe("Soko Bot project social tools", () => {
           google: search,
         },
       ],
+      ["delete_ad_campaign", { projectId, accountId, campaignId: "123" }],
     ])(
       "refuses %s outside the bot's own Project, unsent",
       async (capability, input) => {
@@ -7903,7 +7907,8 @@ describe("Soko Bot project social tools", () => {
         capability:
           | "get_ad_campaign"
           | "update_ad_campaign"
-          | "edit_ad_campaign",
+          | "edit_ad_campaign"
+          | "delete_ad_campaign",
         input: object,
         accountId = adAccountId,
       ) =>
@@ -8017,6 +8022,77 @@ describe("Soko Bot project social tools", () => {
             runTool("update_ad_campaign", { dailyBudget: 1.234 }),
             "at most 2 decimal places",
           );
+        });
+      });
+
+      describe("delete_ad_campaign", () => {
+        beforeEach(() => {
+          ads.delete.mockResolvedValue(undefined);
+        });
+
+        it("deletes a Google campaign and reports it gone, with no link", async () => {
+          await expect(runTool("delete_ad_campaign", {})).resolves.toEqual({
+            campaignId,
+            deleted: true,
+          });
+          expect(ads.delete).toHaveBeenCalledWith(scope);
+          expect(ads.delete).toHaveBeenCalledTimes(1);
+          expect(lastReceipt()).toMatchObject({
+            disposition: "APPLIED",
+            verification: "PROVIDER_ACK",
+            targetId: campaignId,
+          });
+        });
+
+        it("deletes a Meta campaign", async () => {
+          await expect(
+            runTool("delete_ad_campaign", {}, metaAccountId),
+          ).resolves.toEqual({ campaignId, deleted: true });
+          expect(ads.delete).toHaveBeenCalledWith({
+            ...scope,
+            accountId: metaAccountId,
+          });
+        });
+
+        it("hands the model a service 404 as an unsent refusal", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.delete.mockRejectedValue(
+            new HTTPException(404, { message: "Campaign not found" }),
+          );
+          await refused(
+            runTool("delete_ad_campaign", {}),
+            "Campaign not found",
+          );
+        });
+
+        it("refuses an ad account that is not in the Project, before deleting", async () => {
+          await refused(
+            runTool(
+              "delete_ad_campaign",
+              {},
+              "01960001-0001-7001-8001-000000000099",
+            ),
+            "Ad account not found in this Project",
+          );
+          expect(ads.delete).not.toHaveBeenCalled();
+        });
+
+        it("rechecks ads access before replaying a delete", async () => {
+          const input = { projectId, accountId: adAccountId, campaignId };
+          toolCallFindUniqueMock.mockResolvedValue({
+            inputHash: createHash("sha256")
+              .update(canonicalJson(input))
+              .digest("hex"),
+            capability: "delete_ad_campaign",
+            status: "COMPLETED",
+            disposition: "APPLIED",
+            result: { campaignId, deleted: true },
+          });
+          social.beta.mockRejectedValue(new Error("Ads is beta only"));
+          await expect(runTool("delete_ad_campaign", {})).rejects.toThrow(
+            "Ads is beta only",
+          );
+          expect(ads.delete).not.toHaveBeenCalled();
         });
       });
 

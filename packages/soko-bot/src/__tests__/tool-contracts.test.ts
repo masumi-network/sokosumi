@@ -363,6 +363,30 @@ describe("ad campaign management contracts", () => {
     });
   });
 
+  describe("delete_ad_campaign", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_ad_campaign;
+
+    it("takes the project, account and a digit campaign id, and nothing else", () => {
+      expect(schema.safeParse(base).success).toBe(true);
+      for (const bad of [
+        { ...base, campaignId: "brand" },
+        { projectId: base.projectId, accountId: base.accountId },
+        { ...base, status: "REMOVED" },
+        { ...base, workspaceId: "x" },
+      ])
+        expect(schema.safeParse(bad).success).toBe(false);
+    });
+
+    it("tells the bot it cannot be undone and to prefer pausing", () => {
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_ad_campaign).toMatch(
+        /cannot be undone/i,
+      );
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_ad_campaign).toContain(
+        "update_ad_campaign",
+      );
+    });
+  });
+
   describe("edit_ad_campaign", () => {
     const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign;
     const common = {

@@ -60,6 +60,8 @@ export const ACTION_LABELS: Record<string, string> = {
   create_ad_campaign: "Created paused ad campaign",
   update_ad_campaign: "Updated ad campaign",
   edit_ad_campaign: "Edited ad campaign",
+  // No link: the campaign is gone.
+  delete_ad_campaign: "Deleted ad campaign",
 };
 
 /** A comment that also changed the status says which change it was. */

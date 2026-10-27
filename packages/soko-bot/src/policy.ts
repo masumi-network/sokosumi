@@ -84,6 +84,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
+  "delete_ad_campaign",
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
@@ -174,6 +175,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
+  "delete_ad_campaign",
   // A brief is a prompt for a turn with this one's tools; a page must not write it.
   "start_background_run",
 ] as const satisfies readonly SokoBotCapability[];
@@ -196,6 +198,7 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
+  "delete_ad_campaign",
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
@@ -254,11 +257,12 @@ const SOCIAL_WRITE_CAPABILITIES = [
   "publish_social_post",
 ] as const satisfies readonly SokoBotCapability[];
 
-/** Creates campaigns (always paused) and changes them in the owner's ad account. */
+/** Creates campaigns (always paused), changes and deletes them in the owner's ad account. */
 const ADS_WRITE_CAPABILITIES = [
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
+  "delete_ad_campaign",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Long work the bot hands to itself in the background. */

@@ -20,6 +20,7 @@ const ADS_WRITES = [
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
+  "delete_ad_campaign",
 ] as const;
 
 describe("Soko Bot route capability ceilings", () => {

@@ -811,6 +811,19 @@ describe("authoritative action responses", () => {
     },
   );
 
+  it("reports delete_ad_campaign with no link, since the campaign is gone", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "delete_ad_campaign",
+        targetId: "123",
+        verification: "PROVIDER_ACK",
+        result: { campaignId: "123", deleted: true },
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Deleted ad campaign.");
+  });
+
   it.each([false, true])(
     "quotes connected social account evidence with availability metadata %s",
     async (withAvailability) => {

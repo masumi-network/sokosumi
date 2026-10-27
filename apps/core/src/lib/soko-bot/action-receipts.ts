@@ -13,9 +13,10 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "publish_social_post",
   // Creates a campaign at Google; never repeated after an unclear failure.
   "create_ad_campaign",
-  // Change a campaign at the provider; never repeated after an unclear failure.
+  // Change or delete a campaign at the provider; never repeated after an unclear failure.
   "update_ad_campaign",
   "edit_ad_campaign",
+  "delete_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
@@ -278,6 +279,11 @@ export function externalActionReceipt(capability: string, result: unknown) {
   } else if (capability === "edit_ad_campaign") {
     const acknowledged = z
       .object({ campaignId: adCampaignIdSchema, edited: z.literal(true) })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.campaignId;
+  } else if (capability === "delete_ad_campaign") {
+    const acknowledged = z
+      .object({ campaignId: adCampaignIdSchema, deleted: z.literal(true) })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.campaignId;
   } else if (

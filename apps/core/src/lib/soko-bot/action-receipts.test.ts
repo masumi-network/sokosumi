@@ -55,6 +55,7 @@ describe("external action receipts", () => {
   it.each([
     ["update_ad_campaign", "updated"],
     ["edit_ad_campaign", "edited"],
+    ["delete_ad_campaign", "deleted"],
   ])(
     "verifies %s only on a campaign id and its done flag",
     (capability, flag) => {
