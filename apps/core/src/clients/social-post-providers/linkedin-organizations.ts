@@ -13,6 +13,8 @@ import {
 } from "@/clients/social-post-providers/tools";
 
 const LINKEDIN_ORGANIZATION_ACLS_TOOL_SLUG = "LINKEDIN_GET_COMPANY_INFO";
+/** Page roles that may publish organic posts as the page. */
+const POSTING_ROLES = ["ADMINISTRATOR", "CONTENT_ADMINISTRATOR"] as const;
 const ACL_PAGE_SIZE = 100;
 /** A member administering more pages than this sees the first ones only. */
 const MAX_ORGANIZATIONS = 100;
@@ -68,9 +70,9 @@ function organizationUrnOf(element: Record<string, unknown>): string | null {
 }
 
 /**
- * Organization URNs the connected member administers with an approved role,
- * from `organizationAcls?q=roleAssignee`, or `null` when the connection lacks
- * the scope to read them.
+ * Organization URNs the connected member can post as (approved administrator
+ * or content administrator), from `organizationAcls?q=roleAssignee`, or `null`
+ * when the connection lacks the scope to read them.
  */
 export async function listLinkedInAdministeredOrganizationUrns(
   input: LinkedInConnection,
@@ -85,37 +87,43 @@ export async function listLinkedInAdministeredOrganizationUrns(
   });
   try {
     const urns = new Set<string>();
-    for (let start = 0; urns.size < MAX_ORGANIZATIONS; start += ACL_PAGE_SIZE) {
-      let data: Record<string, unknown> | null;
-      try {
-        data = await executeComposioTool({
-          sessionId,
-          toolSlug: LINKEDIN_ORGANIZATION_ACLS_TOOL_SLUG,
-          arguments: {
-            role: "ADMINISTRATOR",
-            state: "APPROVED",
-            start,
-            count: ACL_PAGE_SIZE,
-          },
-          context: "list LinkedIn administered pages",
-          refused: "LinkedIn refused the page list",
-          signal: input.signal,
-        });
-      } catch (error) {
-        if (isPermissionMissing(error)) return null;
-        throw error;
-      }
-      const elements = Array.isArray(data?.elements) ? data.elements : [];
-      for (const element of elements) {
-        const urn = organizationUrnOf(record(element) ?? {});
-        if (urn && urns.size < MAX_ORGANIZATIONS) urns.add(urn);
-      }
-      const total = record(data?.paging)?.total;
-      if (
-        elements.length < ACL_PAGE_SIZE ||
-        (typeof total === "number" && start + elements.length >= total)
+    for (const role of POSTING_ROLES) {
+      for (
+        let start = 0;
+        urns.size < MAX_ORGANIZATIONS;
+        start += ACL_PAGE_SIZE
       ) {
-        break;
+        let data: Record<string, unknown> | null;
+        try {
+          data = await executeComposioTool({
+            sessionId,
+            toolSlug: LINKEDIN_ORGANIZATION_ACLS_TOOL_SLUG,
+            arguments: {
+              role,
+              state: "APPROVED",
+              start,
+              count: ACL_PAGE_SIZE,
+            },
+            context: "list LinkedIn administered pages",
+            refused: "LinkedIn refused the page list",
+            signal: input.signal,
+          });
+        } catch (error) {
+          if (isPermissionMissing(error)) return null;
+          throw error;
+        }
+        const elements = Array.isArray(data?.elements) ? data.elements : [];
+        for (const element of elements) {
+          const urn = organizationUrnOf(record(element) ?? {});
+          if (urn && urns.size < MAX_ORGANIZATIONS) urns.add(urn);
+        }
+        const total = record(data?.paging)?.total;
+        if (
+          elements.length < ACL_PAGE_SIZE ||
+          (typeof total === "number" && start + elements.length >= total)
+        ) {
+          break;
+        }
       }
     }
     return [...urns];

@@ -97,9 +97,11 @@ describe("LinkedIn administered organizations", () => {
   it("requests the next page while LinkedIn returns full pages", async () => {
     const fetchMock = stub({
       execute: (call) =>
-        call.arguments.start === 0
-          ? acls(Array.from({ length: 100 }, () => 5))
-          : acls([6, 7]),
+        call.arguments.role !== "ADMINISTRATOR"
+          ? acls([])
+          : call.arguments.start === 0
+            ? acls(Array.from({ length: 100 }, () => 5))
+            : acls([6, 7]),
     });
 
     await expect(
@@ -110,8 +112,32 @@ describe("LinkedIn administered organizations", () => {
       "urn:li:organization:7",
     ]);
     expect(executeCalls(fetchMock).map((call) => call.arguments.start)).toEqual(
-      [0, 100],
+      [0, 100, 0],
     );
+  });
+
+  it("includes pages the member manages as content administrator", async () => {
+    const fetchMock = stub({
+      execute: (call) =>
+        call.arguments.role === "ADMINISTRATOR" ? acls([1, 2]) : acls([2, 3]),
+    });
+
+    await expect(
+      listLinkedInAdministeredOrganizationUrns(connection),
+    ).resolves.toEqual([
+      "urn:li:organization:1",
+      "urn:li:organization:2",
+      "urn:li:organization:3",
+    ]);
+    expect(executeCalls(fetchMock).map((call) => call.arguments)).toEqual([
+      { role: "ADMINISTRATOR", state: "APPROVED", start: 0, count: 100 },
+      {
+        role: "CONTENT_ADMINISTRATOR",
+        state: "APPROVED",
+        start: 0,
+        count: 100,
+      },
+    ]);
   });
 
   it("reports a missing page permission instead of failing", async () => {
