@@ -29,7 +29,7 @@ const m = vi.hoisted(() => ({
   count: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: true }),
+  getEnv: () => ({}),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -273,7 +273,7 @@ describe("Soko Bot newsletter read tools", () => {
         createdBy: { kind: "user", id: "user" },
         actions,
         humanOnlyActions,
-        url: `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ISSUE.id}`,
+        url: `/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
       });
       expect(result).not.toHaveProperty("workspaceId");
       expect(result).not.toHaveProperty("approvedByUserId");

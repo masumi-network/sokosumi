@@ -162,7 +162,7 @@ export async function runNewsletterReadTool(
         ...issueDetailSchema.parse(issue),
         createdBy: createdBy(issue),
         ...newsletterIssueActions(issue),
-        url: `/projects/${issue.projectId}/newsletter/issues/${encodeURIComponent(issue.id)}`,
+        url: `/newsletter/issues/${encodeURIComponent(issue.id)}?projectId=${encodeURIComponent(issue.projectId)}`,
       };
     }
     case "get_newsletter_analytics": {
