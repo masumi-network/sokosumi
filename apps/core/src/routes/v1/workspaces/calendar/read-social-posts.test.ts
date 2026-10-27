@@ -9,15 +9,24 @@ const mocks = vi.hoisted(() => ({
   posts: vi.fn(),
   postCount: vi.fn(),
   latestPost: vi.fn(),
+  newsletterIssues: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // Not the newsletter beta org, so newsletter issues stay out of these reads.
+    workspace: { findUnique: async () => null },
     taskScheduleRun: { findMany: mocks.tasks, count: mocks.taskCount },
     task: { findMany: mocks.runAtTasks, count: mocks.runAtTaskCount },
     socialPost: {
       findMany: mocks.posts,
       count: mocks.postCount,
       aggregate: mocks.latestPost,
+    },
+    newsletterIssue: {
+      findMany: mocks.newsletterIssues,
+      count: mocks.newsletterIssues,
+      aggregate: mocks.newsletterIssues,
+      groupBy: mocks.newsletterIssues,
     },
   },
 }));
@@ -149,6 +158,12 @@ describe("Social posts in the calendar", () => {
     expect(mocks.tasks.mock.lastCall?.[0].where.AND.at(-1)).toEqual({
       OR: [{ effectiveScheduledAt: { gt: new Date(at) } }],
     });
+  });
+  it("keeps newsletter issues off the Social calendar", async () => {
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items.map((item) => item.kind)).toEqual(["socialPost"]);
+    expect(result.pagination.total).toBe(1);
+    expect(mocks.newsletterIssues).not.toHaveBeenCalled();
   });
   it("includes the latest attempt outcome and error kind, never the provider error", async () => {
     mocks.posts.mockResolvedValue([

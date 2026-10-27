@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type NewsletterIssue,
+  type NewsletterIssueAnalytics,
   NewsletterIssueStatus,
 } from "@sokosumi/core-client";
 import type { NewsletterBlock } from "@sokosumi/utils";
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +35,10 @@ import {
   type NewsletterIssueValues,
   newsletterIssueInputSchema,
 } from "@/lib/schemas/newsletter-issues";
+import { IssueAnalyticsSummary } from "../analytics/issue-analytics-summary";
 import { newsletterHref } from "../newsletter-tabs";
+import { DraftIssueButton } from "./draft-issue-dialog";
+import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
 import { NewsletterIssuePreview } from "./issue-preview";
 
@@ -42,13 +47,22 @@ const BLOCK_TYPES = ["heading", "text", "image", "button", "divider"] as const;
 export function NewsletterIssueEditor({
   projectId,
   issue,
+  activeSubscribers,
+  newsletterSlug,
+  analytics,
+  draftedBySokoBot = false,
 }: {
   projectId: string;
   issue: NewsletterIssue;
+  activeSubscribers: number;
+  newsletterSlug: string;
+  analytics?: NewsletterIssueAnalytics | null;
+  draftedBySokoBot?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
-  const [revision, setRevision] = useState(issue.revision);
-  const [status, setStatus] = useState(issue.status);
+  const [currentIssue, setCurrentIssue] = useState(issue);
+  const [lifecyclePending, setLifecyclePending] = useState(false);
+  const { revision, status } = currentIssue;
   const editable =
     status === NewsletterIssueStatus.DRAFT ||
     status === NewsletterIssueStatus.NEEDS_APPROVAL;
@@ -101,8 +115,7 @@ export function NewsletterIssueEditor({
         );
         return;
       }
-      setRevision(result.value.revision);
-      setStatus(result.value.status);
+      setCurrentIssue(result.value);
       form.reset({
         subject: result.value.subject,
         previewText: result.value.previewText ?? "",
@@ -136,18 +149,57 @@ export function NewsletterIssueEditor({
 
   return (
     <div className="min-w-0 space-y-4">
+      {draftedBySokoBot && status === NewsletterIssueStatus.DRAFT ? (
+        <Alert role="note">
+          <AlertDescription>{t("Ai.notice")}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="outline">
           <Link href={newsletterHref("/newsletter/issues", projectId)}>
             {t("back")}
           </Link>
         </Button>
-        <Badge variant="secondary">{t(`statuses.${status}`)}</Badge>
+        <div className="flex flex-wrap items-center gap-3">
+          {editable && !blocks.fields.length ? (
+            <DraftIssueButton projectId={projectId} template={template} />
+          ) : null}
+          {status === NewsletterIssueStatus.SENT ? (
+            <Button asChild variant="outline">
+              <Link
+                href={`/n/${encodeURIComponent(newsletterSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
+              >
+                {t("viewOnWeb")}
+              </Link>
+            </Button>
+          ) : null}
+          <Badge variant="secondary">
+            {currentIssue.approvedAt && status === "NEEDS_APPROVAL"
+              ? t("Lifecycle.approved")
+              : t(`statuses.${status}`)}
+          </Badge>
+        </div>
       </div>
+      <IssueActions
+        issue={currentIssue}
+        projectId={projectId}
+        activeSubscribers={activeSubscribers}
+        disabled={isDirty || isSubmitting}
+        onChanged={setCurrentIssue}
+        onBusyChange={setLifecyclePending}
+      />
+      {isDirty ? (
+        <p className="text-muted-foreground text-sm">
+          {t("Lifecycle.saveFirst")}
+        </p>
+      ) : null}
       {!editable ? (
         <p className="text-muted-foreground text-sm" role="note">
           {t("readOnly")}
         </p>
+      ) : null}
+      {status === NewsletterIssueStatus.SENT && analytics ? (
+        <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
       <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
         <Form {...form}>
@@ -157,7 +209,7 @@ export function NewsletterIssueEditor({
             className="min-w-0 space-y-6"
           >
             <fieldset
-              disabled={!editable || isSubmitting}
+              disabled={!editable || isSubmitting || lifecyclePending}
               className="min-w-0 space-y-6"
             >
               <FormField
@@ -260,7 +312,7 @@ export function NewsletterIssueEditor({
                       <IssueBlockFields
                         index={index}
                         block={block}
-                        disabled={!editable || isSubmitting}
+                        disabled={!editable || isSubmitting || lifecyclePending}
                       />
                     </li>
                   ))}
@@ -303,7 +355,12 @@ export function NewsletterIssueEditor({
                 <p role="status" className="text-muted-foreground text-sm">
                   {isDirty ? t("unsaved") : t("saved")}
                 </p>
-                <Button type="submit" variant="primary" loading={isSubmitting}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={isSubmitting}
+                  disabled={lifecyclePending}
+                >
                   {t("save")}
                 </Button>
               </div>

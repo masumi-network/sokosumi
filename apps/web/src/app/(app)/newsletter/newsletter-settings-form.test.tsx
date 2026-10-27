@@ -27,6 +27,7 @@ const NEWSLETTER: Newsletter = {
   id: "n1",
   projectId: "p1",
   workspaceId: "w1",
+  contactListId: null,
   name: "Weekly news",
   senderName: "Ada",
   replyTo: "ada@example.com",
@@ -87,7 +88,7 @@ describe("NewsletterSettingsForm", () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
-  it("loads all saved fields and displays the public address as text", () => {
+  it("loads all saved fields and displays the signup card", () => {
     renderForm(NEWSLETTER);
     for (const [label, value] of [
       ["Newsletter name", NEWSLETTER.name],
@@ -107,7 +108,12 @@ describe("NewsletterSettingsForm", () => {
     expect(
       screen.getByRole("switch", { name: "Send a welcome email" }),
     ).toBeChecked();
-    expect(screen.getByText(NEWSLETTER.publicSlug)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Signup form" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Public archive" }),
+    ).toHaveAttribute("href", `/n/${NEWSLETTER.publicSlug}/archive`);
     expect(
       screen.queryByRole("link", { name: NEWSLETTER.publicSlug }),
     ).not.toBeInTheDocument();
@@ -194,7 +200,9 @@ describe("NewsletterSettingsForm", () => {
     );
     expect(mocks.success).toHaveBeenCalledWith("Newsletter settings saved");
     expect(mocks.refresh).toHaveBeenCalled();
-    expect(screen.getByText(NEWSLETTER.publicSlug)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Signup form" }),
+    ).toBeInTheDocument();
   });
 
   it("preserves welcome text when the welcome email is toggled off and on", async () => {

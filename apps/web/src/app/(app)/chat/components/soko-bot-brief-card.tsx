@@ -3,8 +3,13 @@
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { useClampedOverflow } from "@/app/chat/hooks/use-clamped-overflow";
+import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import type { SokoBotBrief } from "@/lib/soko-bot/brief";
+import { cn } from "@/lib/utils";
 
+import { MessageClampToggle } from "./message-clamp-toggle";
+import { MESSAGE_BODY_CLAMP_CLASS } from "./room-helpers";
 import {
   SOKO_BOT_SOURCE_ICONS,
   sokoBotSourceLabel,
@@ -23,11 +28,13 @@ export function isSokoBotBriefSource(metadata: unknown): boolean {
  * headline, short sections, the numbers, and the bot's housekeeping last.
  */
 export function SokoBotBriefCard({
+  messageId,
   brief,
   metadata,
   createdAt,
   renderMarkdown,
 }: {
+  messageId: string;
   brief: SokoBotBrief;
   metadata: unknown;
   createdAt: Date | string;
@@ -35,6 +42,12 @@ export function SokoBotBriefCard({
 }) {
   const t = useTranslations("App.Chat.SokoBot.source");
   const format = useFormatter();
+  // Header and notes stay in view; the long middle collapses like a body.
+  const { expanded, toggleExpanded, overflows, contentRef } =
+    useClampedOverflow({
+      cacheKey: `brief:${messageId}`,
+      resetKey: JSON.stringify(brief),
+    });
   const label = sokoBotSourceLabel(metadata);
   if (!label) return null;
   const Icon = SOKO_BOT_SOURCE_ICONS[label.kind];
@@ -61,29 +74,46 @@ export function SokoBotBriefCard({
           })}
         </time>
       </header>
-      <div className="space-y-4 p-4">
-        <div className="text-foreground font-semibold tracking-tight [&_p]:text-base">
-          {renderMarkdown(brief.headline)}
+      <div className="p-4">
+        <div
+          ref={contentRef}
+          data-testid="soko-bot-brief-body"
+          className={cn(
+            "space-y-4",
+            expanded ? null : MESSAGE_BODY_CLAMP_CLASS,
+            !expanded && overflows ? COLLAPSED_FADE_CLASS : null,
+          )}
+        >
+          <div className="text-foreground font-semibold tracking-tight [&_p]:text-base">
+            {renderMarkdown(brief.headline)}
+          </div>
+          {brief.sections.map((section) => (
+            <section key={section.title} className="space-y-1.5">
+              <h4 className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+                {section.title}
+              </h4>
+              {renderMarkdown(section.body)}
+            </section>
+          ))}
+          {brief.numbers.length > 0 ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {brief.numbers.map((item) => (
+                <li
+                  key={item}
+                  className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs tabular-nums"
+                >
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
-        {brief.sections.map((section) => (
-          <section key={section.title} className="space-y-1.5">
-            <h4 className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-              {section.title}
-            </h4>
-            {renderMarkdown(section.body)}
-          </section>
-        ))}
-        {brief.numbers.length > 0 ? (
-          <ul className="flex flex-wrap gap-1.5">
-            {brief.numbers.map((item) => (
-              <li
-                key={item}
-                className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs tabular-nums"
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
+        {expanded || overflows ? (
+          <MessageClampToggle
+            expanded={expanded}
+            onToggle={toggleExpanded}
+            className="mt-2"
+          />
         ) : null}
       </div>
       {brief.notes ? (

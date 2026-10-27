@@ -147,6 +147,15 @@ recycle posts; other providers show Coming soon. Existing disabled-provider post
 fail when due with that reason without contacting the platform, preserving their
 content and history. Ads remains restricted to `utxo`.
 
+Newsletters require a project in the beta organization's workspace;
+membership alone does not enable newsletters in another workspace. The beta organization slug for each feature is `utxo`,
+defined in `BETA_ORGANIZATION_SLUGS` in `@sokosumi/utils`, not an environment
+variable. Public newsletter pages and subscription links remain anonymous for
+beta newsletters. Other workspaces' newsletters return not found, do not appear
+on calendars, and are skipped by the sender without changing their state.
+Unsubscribe links are never gated, so anyone who received an issue can always
+leave the list.
+
 #### TikTok setup
 
 TikTok has no Composio-managed OAuth app, so each environment needs its own
