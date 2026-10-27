@@ -321,7 +321,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
-      "social",
+      "socialPosts",
       "ads",
     ]);
   });
@@ -348,7 +348,7 @@ describe("MenuItems groups", () => {
 
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "social" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "socialPosts" })).toBeNull();
     // Only its own rows go.
     expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
 
@@ -372,7 +372,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
-      "social",
+      "socialPosts",
     ]);
   });
 });
