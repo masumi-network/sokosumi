@@ -8137,6 +8137,19 @@
           "overview": "Überblick",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Sticker",
+        "hint": "PNG, JPEG oder WebP, bis zu 2 MiB. Sticker auswählen und senden.",
+        "upload": "Sticker hochladen",
+        "invalid": "Wähle ein PNG-, JPEG- oder WebP-Bild mit höchstens 2 MiB.",
+        "uploadFailed": "Sticker konnte nicht gespeichert werden. Lade ihn erneut hoch.",
+        "loading": "Sticker werden geladen…",
+        "loadFailed": "Sticker konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "empty": "Lade einen Sticker hoch, um deine Sammlung zu beginnen.",
+        "collection": "Gespeicherte Sticker",
+        "select": "{name} auswählen"
       }
     },
     "Drive": {
