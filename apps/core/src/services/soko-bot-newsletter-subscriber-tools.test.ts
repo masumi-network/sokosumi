@@ -44,7 +44,7 @@ const m = vi.hoisted(() => ({
   csv: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: true }),
+  getEnv: () => ({}),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@/lib/redis", () => ({ getRedisClient: () => null }));
@@ -121,7 +121,7 @@ import {
 
 const BOT_ID = "77777777-7777-4777-8777-777777777777";
 const SUBSCRIBER_ID = NEWSLETTER_SUBSCRIBER.id;
-const SUBSCRIBERS_URL = `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/subscribers`;
+const SUBSCRIBERS_URL = `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`;
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
   turn: {
     id: "turn",

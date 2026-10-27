@@ -99,23 +99,23 @@ describe("action lines the owner reads", () => {
     ],
     [
       "add_newsletter_subscriber",
-      "Added newsletter subscriber ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+      "Added newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
     ],
     [
       "import_newsletter_subscribers",
-      "Imported newsletter subscribers ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+      "Imported newsletter subscribers ([Open subscribers](/newsletter/subscribers?projectId={p})).",
     ],
     [
       "add_newsletter_subscribers_from_contacts",
-      "Added contacts to the newsletter ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+      "Added contacts to the newsletter ([Open subscribers](/newsletter/subscribers?projectId={p})).",
     ],
     [
       "update_newsletter_subscriber",
-      "Updated newsletter subscriber ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+      "Updated newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
     ],
     [
       "remove_newsletter_subscriber",
-      "Removed newsletter subscriber ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+      "Removed newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
     ],
   ])("links a verified %s to the Newsletter", async (capability, line) => {
     const projectId = "11111111-1111-4111-8111-111111111111";

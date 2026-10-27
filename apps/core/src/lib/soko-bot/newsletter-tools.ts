@@ -150,7 +150,7 @@ export function newsletterConsentClaim(
 }
 
 function subscribersUrl(projectId: string) {
-  return `/projects/${projectId}/newsletter/subscribers`;
+  return `/newsletter/subscribers?projectId=${encodeURIComponent(projectId)}`;
 }
 
 /**

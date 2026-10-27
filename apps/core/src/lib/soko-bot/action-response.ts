@@ -223,7 +223,7 @@ function actionTarget(
       .object({ projectId: z.uuid() })
       .safeParse(call.result);
     return subscribers.success
-      ? `([Open subscribers](/projects/${subscribers.data.projectId}/newsletter/subscribers))`
+      ? `([Open subscribers](/newsletter/subscribers?projectId=${encodeURIComponent(subscribers.data.projectId)}))`
       : "";
   }
   if (TABLE_CAPABILITIES.has(call.capability))
