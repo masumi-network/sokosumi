@@ -29,7 +29,7 @@ const m = vi.hoisted(() => ({
   count: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ NEWSLETTER_ENABLED: true }),
+  getEnv: () => ({}),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -217,7 +217,7 @@ describe("Soko Bot newsletter settings", () => {
       projectId: NEWSLETTER_PROJECT_ID,
       updated: ["brand.logoUrl", "brand.primaryColor"],
       updatedAt: SAVED_AT.toISOString(),
-      url: `/projects/${NEWSLETTER_PROJECT_ID}/newsletter`,
+      url: `/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
     });
     expect(m.receiptUpdate).toHaveBeenCalledWith(
       expect.objectContaining({

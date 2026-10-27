@@ -202,7 +202,7 @@ function actionTarget(
   if (call.capability === "update_newsletter_settings") {
     const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return newsletter.success
-      ? `([Open settings](/projects/${newsletter.data.projectId}/newsletter))`
+      ? `([Open settings](/newsletter/settings?projectId=${encodeURIComponent(newsletter.data.projectId)}))`
       : "";
   }
   if (TABLE_CAPABILITIES.has(call.capability))

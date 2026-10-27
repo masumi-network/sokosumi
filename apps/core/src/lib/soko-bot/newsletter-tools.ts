@@ -348,7 +348,7 @@ export async function updateNewsletterSettings(
       ...Object.keys(brand).map((field) => `brand.${field}`),
     ],
     updatedAt: saved.updatedAt.toISOString(),
-    url: `/projects/${saved.projectId}/newsletter`,
+    url: `/newsletter/settings?projectId=${encodeURIComponent(saved.projectId)}`,
   };
 }
 
