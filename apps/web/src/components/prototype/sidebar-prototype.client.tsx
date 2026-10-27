@@ -9,6 +9,8 @@
  *      small foldable headings, denser rows
  *   c  b, with search and New task on button shapes (quiet fill, primary)
  *   d  b, with New task as a labelled "New" button
+ *   e  b, with search back in the top bar and New task alone in the sidebar
+ *      header, on primary
  * The choice also lives in sessionStorage, so it survives in-app navigation,
  * which drops the query string. Off in production. Delete once a variant wins.
  */
@@ -23,6 +25,7 @@ const VARIANTS = [
   { key: "b", name: "Linear-style" },
   { key: "c", name: "Linear-style, button shapes" },
   { key: "d", name: "Linear-style, labelled New" },
+  { key: "e", name: "Linear-style, search in top bar" },
 ] as const;
 
 export type SidebarPrototypeVariant = (typeof VARIANTS)[number]["key"];

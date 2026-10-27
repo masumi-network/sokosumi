@@ -2,11 +2,12 @@
 
 /**
  * PROTOTYPE, throwaway: the Linear-style sidebar header and top-bar toggle
- * for variants b, c and d. New task and search leave the nav and the top bar
+ * for variants b–e. New task (and, in b–d, search) leave the nav and the top bar
  * for the sidebar header; how those two read as buttons is the question:
  *   b  plain icons
  *   c  icons on button shapes: search on a quiet fill, New task on primary
  *   d  search on a quiet fill, New task as a labelled "New" button
+ *   e  search stays in the top bar; New task alone, on primary
  * C opens the wizard (no modifiers, never while typing).
  * See `components/prototype/sidebar-prototype.client.tsx`.
  */
@@ -26,7 +27,7 @@ import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-targe
 
 const ICON_BUTTON_CLASS = "size-10 shrink-0 md:size-8";
 
-/** The New task opener in variants b–d (with its C shortcut), else null. */
+/** The New task opener in variants b–e (with its C shortcut), else null. */
 function useNewTaskOpener() {
   const active = useSidebarPrototypeVariant() !== "a";
   const wizard = useOptionalNewTaskWizard();
@@ -71,11 +72,13 @@ export function SidebarHeaderPrototypeActions() {
   if (variant === "a") {
     return null;
   }
-  const shaped = variant === "c" || variant === "d";
+  const shaped = variant !== "b";
+  // e keeps search in the top bar, so New task is the header's only action.
+  const showSearch = variant !== "e";
 
   return (
     <div className="flex shrink-0 items-center gap-1.5 group-data-[collapsible=icon]:hidden">
-      {historySearch ? (
+      {historySearch && showSearch ? (
         <Button
           type="button"
           variant={shaped ? "secondary" : "ghost"}
@@ -119,7 +122,7 @@ export function SidebarHeaderPrototypeActions() {
 }
 
 /**
- * b–d: one sidebar toggle at the start of the top bar, in place of the
+ * b–e: one sidebar toggle at the start of the top bar, in place of the
  * sidebar header's collapse button. ⌘B toggles it too. While the sidebar is
  * hidden it carries the mobile Chats tab's unread dot, since the hidden list
  * cannot show one.

@@ -2,7 +2,7 @@
 
 /**
  * PROTOTYPE, throwaway: the Soko Bot entry with your bot's live state, for
- * sidebar variants b–d. See `sidebar-prototype.client.tsx`.
+ * sidebar variants b–e. See `sidebar-prototype.client.tsx`.
  * Copy is hard-coded English until a variant wins.
  */
 

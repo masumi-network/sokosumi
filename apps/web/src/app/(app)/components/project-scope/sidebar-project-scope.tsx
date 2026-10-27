@@ -41,7 +41,7 @@ export function SidebarProjectScope() {
   const { projectId, name, label, mark, select } = useCurrentScope();
   const collapsed = state === "collapsed" && !isMobile;
   const prefetch = usePrefetchScopeProjects();
-  // PROTOTYPE: variants b–d label the picker and drop its rule.
+  // PROTOTYPE: variants b–e label the picker and drop its rule.
   const prototype = useSidebarPrototypeVariant() !== "a";
 
   const content = (

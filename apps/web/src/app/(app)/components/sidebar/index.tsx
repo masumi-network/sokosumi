@@ -98,7 +98,7 @@ export default function Sidebar({
   socialBetaEnabled,
 }: SidebarProps) {
   return (
-    // PROTOTYPE: variants b–d hide the sidebar completely instead of showing
+    // PROTOTYPE: variants b–e hide the sidebar completely instead of showing
     // the icon rail; variant a keeps `collapsible="icon"`.
     <PrototypeSidebarRoot>
       {/*
@@ -108,7 +108,7 @@ export default function Sidebar({
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
-          {/* PROTOTYPE: variants b–d put search and New task here and drop
+          {/* PROTOTYPE: variants b–e put search and New task here and drop
               the collapse button; the top bar's toggle replaces it. */}
           <Suspense fallback={null}>
             <SidebarHeaderPrototypeActions />
@@ -124,7 +124,7 @@ export default function Sidebar({
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          {/* PROTOTYPE: variants b–d show the Soko Bot first in the nav
+          {/* PROTOTYPE: variants b–e show the Soko Bot first in the nav
               (MenuItems) and separate it by space, not rules. */}
           <SidebarPrototypeOnly variants={["a"]}>
             <PersonalAssistantNav />

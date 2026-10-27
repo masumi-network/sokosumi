@@ -30,7 +30,7 @@ const loadWorkspaceBot = cache(
         id: member.bot.id,
         imageUrl: member.bot.avatarImageUrl,
         seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
-        // PROTOTYPE: live state for sidebar variants b–d.
+        // PROTOTYPE: live state for sidebar variants b–e.
         name: member.bot.name,
         status: member.bot.status,
         lastActivityAt: member.bot.lastActivityAt,
@@ -49,7 +49,7 @@ async function WithBot() {
       <SidebarPrototypeOnly variants={["a"]}>
         <PersonalAssistantNavClient bot={bot} />
       </SidebarPrototypeOnly>
-      <SidebarPrototypeOnly variants={["b", "c", "d"]}>
+      <SidebarPrototypeOnly variants={["b", "c", "d", "e"]}>
         <SokoBotLiveNav bot={bot} />
       </SidebarPrototypeOnly>
     </>

@@ -30,7 +30,7 @@ export default function Header({ className, session }: HeaderProps) {
         </Suspense>
       </div>
 
-      {/* PROTOTYPE: variants b–d toggle the sidebar from here. */}
+      {/* PROTOTYPE: variants b–e toggle the sidebar from here. */}
       <SidebarTogglePrototypeButton />
 
       <HeaderCenter>
@@ -42,8 +42,8 @@ export default function Header({ className, session }: HeaderProps) {
         <ProjectScopeGuard />
       </Suspense>
 
-      {/* PROTOTYPE: variants b–d move search into the sidebar header. */}
-      <SidebarPrototypeOnly variants={["a"]}>
+      {/* PROTOTYPE: variants b–d move search into the sidebar header; e keeps it here. */}
+      <SidebarPrototypeOnly variants={["a", "e"]}>
         <HeaderSearchTrigger />
       </SidebarPrototypeOnly>
 

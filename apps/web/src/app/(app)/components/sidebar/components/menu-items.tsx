@@ -59,7 +59,7 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
-  /** PROTOTYPE: the foldable group variants b–d put this row in. */
+  /** PROTOTYPE: the foldable group variants b–e put this row in. */
   group?: "records" | "marketing";
 }
 
@@ -74,7 +74,7 @@ export default function MenuItems({
   prototypeSokoBot = null,
 }: {
   socialBetaEnabled?: boolean;
-  /** PROTOTYPE: the Soko Bot entry variants b–d show above the nav. */
+  /** PROTOTYPE: the Soko Bot entry variants b–e show above the nav. */
   prototypeSokoBot?: ReactNode;
 } = {}) {
   return (
@@ -101,7 +101,7 @@ function ScopedMenuItems({
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-  // PROTOTYPE: variants b–d move New task to the sidebar header and group
+  // PROTOTYPE: variants b–e move New task to the sidebar header and group
   // the nav under small headings, after the Soko Bot.
   const prototype = useSidebarPrototypeVariant() !== "a";
 
