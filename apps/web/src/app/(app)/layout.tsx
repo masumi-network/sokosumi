@@ -32,7 +32,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
         <AuthSessionGuard />
-        {/* Applies the collapsed preference to the streamed shell before
+        {/* Applies the hidden-sidebar preference to the streamed shell before
             paint; SidebarProvider takes over at hydration. */}
         <SidebarBootScript />
         <SidebarProvider

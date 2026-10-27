@@ -72,6 +72,100 @@ describe("AppSidebarFallback", () => {
     }
   });
 
+  // The loaded sidebar indents the nav groups behind the project's line, so
+  // the shell does too: nothing moves sideways when the title streams in.
+  it("keeps the nav groups behind the project scope's line", () => {
+    renderFallback();
+    const tasks = screen.getByRole("link", {
+      name: (_, element) => element.getAttribute("href") === "/tasks",
+    });
+    const line = tasks.closest(".border-s");
+
+    expect(tokens(line?.className ?? "")).toEqual(
+      expect.arrayContaining(["ms-4", "border-sidebar-border"]),
+    );
+  });
+
+  // The line ties the groups to the project title, so the shell holds the
+  // title's place too: a name bar and the selector chevron, in its order.
+  it("holds a project title placeholder where the line starts", () => {
+    const { container } = renderFallback();
+    const placeholder = container.querySelector(
+      '[data-testid="project-scope-title-skeleton"]',
+    );
+    const tasks = screen.getByRole("link", {
+      name: (_, element) => element.getAttribute("href") === "/tasks",
+    });
+    const line = tasks.closest(".border-s");
+
+    if (!placeholder || !line) throw new Error("no title placeholder or line");
+    expect(placeholder).toHaveAttribute("aria-hidden");
+    expect(line.contains(placeholder)).toBe(false);
+    expect(
+      placeholder.compareDocumentPosition(line) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const [name, chevron] = [...placeholder.children];
+    expect(tokens(name?.getAttribute("class") ?? "")).toContain("h-3");
+    expect(chevron?.getAttribute("class")).toContain("lucide-arrow-left-right");
+  });
+
+  // The header mirrors the loaded one, as in Linear: the switcher as wide as
+  // its content at the start, then Search and New task at the end. Neither
+  // button can work before the frame loads, so both are placeholders.
+  it("holds the sidebar header's switcher and buttons as placeholders", () => {
+    const { container } = renderFallback();
+    const header = container.querySelector('[data-slot="sidebar-header"]');
+    const placeholder = header?.querySelector(
+      '[data-testid="workspace-switcher-chrome-skeleton"]',
+    );
+    const actions = [
+      ...(header?.querySelectorAll(
+        '[data-testid="sidebar-header-action-skeleton"]',
+      ) ?? []),
+    ];
+
+    // Shaped like the loaded switcher: avatar, name bar, its small selector
+    // chevron.
+    expect(placeholder).not.toBeNull();
+    const [avatar, name, chevron] = [...(placeholder?.children ?? [])];
+    expect(tokens(avatar?.className ?? "")).toEqual(
+      expect.arrayContaining(["rounded-full", "size-4", "md:size-5"]),
+    );
+    expect(tokens(name?.className ?? "")).toEqual(
+      expect.arrayContaining(["h-3", "w-20"]),
+    );
+    expect(chevron?.getAttribute("class")).toContain("lucide-arrow-left-right");
+    expect(tokens(placeholder?.parentElement?.className ?? "")).toEqual(
+      expect.arrayContaining(["flex-1", "max-md:hidden"]),
+    );
+
+    // Search, then New task, each an icon button's box, after the switcher.
+    expect(actions).toHaveLength(2);
+    for (const action of actions) {
+      if (!placeholder) break;
+      expect(
+        placeholder.compareDocumentPosition(action) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(tokens(action.getAttribute("class") ?? "")).toContain("md:size-8");
+    }
+    expect(header?.querySelector("button")).toBeNull();
+  });
+
+  // The phone sheet keeps its header as it was: the phone's switcher is in
+  // its top bar.
+  it("keeps the wordmark for the phone sheet only", () => {
+    const { container } = renderFallback();
+    const header = container.querySelector('[data-slot="sidebar-header"]');
+    const wordmark = header?.querySelector('a[href="/"]');
+
+    expect(wordmark).not.toBeNull();
+    expect(tokens(wordmark?.parentElement?.className ?? "")).toContain(
+      "md:hidden",
+    );
+  });
+
   it("leaves the session-backed surfaces as placeholders", () => {
     const { container } = renderFallback();
 
@@ -88,27 +182,27 @@ describe("AppSidebarFallback", () => {
     ];
 
     // The two sections every reader has — Channels and Direct Messages —
-    // each a heading of chevron and title over its own menu of rooms.
+    // each a titled heading over its own menu of rooms. The real heading's
+    // chevron hides at rest, so the placeholder draws the title alone.
     expect(menus).toHaveLength(2);
     expect(headers).toHaveLength(2);
     for (const header of headers) {
-      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(1);
     }
     expect(
       tokens(
-        headers[0]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
-          "",
+        headers[0]?.querySelector('[data-slot="skeleton"]')?.className ?? "",
       ),
     ).toContain("w-16");
     expect(
       tokens(
-        headers[1]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
-          "",
+        headers[1]?.querySelector('[data-slot="skeleton"]')?.className ?? "",
       ),
     ).toContain("w-24");
 
-    // Channel rows carry both of ChannelRoomMark's shapes. Direct rows carry
-    // one face, except the group row whose second face grows the slot right.
+    // Channel rows carry the kind glyph: 16px on a phone, 14px with a
+    // pointer, as the row slot sizes it. Direct rows carry one face,
+    // except the group row whose second face grows the slot right.
     const channelRows = [
       ...(menus[0]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
     ];
@@ -117,19 +211,9 @@ describe("AppSidebarFallback", () => {
       const marks = row.querySelectorAll(
         '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
       );
-      expect(marks).toHaveLength(2);
+      expect(marks).toHaveLength(1);
       expect(tokens(marks[0]?.className ?? "")).toEqual(
-        expect.arrayContaining([
-          "size-4",
-          "group-data-[collapsible=icon]:hidden",
-        ]),
-      );
-      expect(tokens(marks[1]?.className ?? "")).toEqual(
-        expect.arrayContaining([
-          "size-5",
-          "hidden",
-          "group-data-[collapsible=icon]:block",
-        ]),
+        expect.arrayContaining(["size-4", "md:size-3.5"]),
       );
       expect(
         row.querySelectorAll(
@@ -150,11 +234,8 @@ describe("AppSidebarFallback", () => {
       ];
       expect(faces).toHaveLength(rowIndex === 1 ? 2 : 1);
       if (rowIndex === 1) {
-        expect(tokens(faces[0]?.parentElement?.className ?? "")).toEqual(
-          expect.arrayContaining([
-            "pl-0.5",
-            "group-data-[collapsible=icon]:pl-0",
-          ]),
+        expect(tokens(faces[0]?.parentElement?.className ?? "")).toContain(
+          "pl-0.5",
         );
       } else {
         expect(tokens(faces[0]?.parentElement?.className ?? "")).not.toContain(
@@ -166,12 +247,7 @@ describe("AppSidebarFallback", () => {
           expect.arrayContaining(["size-5", "rounded-full"]),
         );
         if (faceIndex > 0) {
-          expect(tokens(face.className)).toEqual(
-            expect.arrayContaining([
-              "-ml-1.5",
-              "group-data-[collapsible=icon]:hidden",
-            ]),
-          );
+          expect(tokens(face.className)).toContain("-ml-1.5");
         } else {
           expect(tokens(face.className)).not.toContain("-ml-1.5");
         }
@@ -191,79 +267,52 @@ describe("AppSidebarFallback", () => {
     ).toBe(3);
   });
 
-  it("keeps both logo states in the DOM so a collapsed boot script can hide the wordmark", () => {
-    const { container } = render(
-      <TestQueryProvider>
-        <SidebarProvider defaultOpen={false}>
-          <AppSidebarFallback />
-        </SidebarProvider>
-      </TestQueryProvider>,
-    );
-
-    expect(container.querySelector('a[href="/"]')).not.toBeNull();
-    const expand = container.querySelector(
-      'button[aria-label="expandSidebar"]',
-    );
-    expect(expand).not.toBeNull();
-    expect(tokens(expand?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "hidden",
-        "group-data-[collapsible=icon]:md:flex",
-      ]),
-    );
-    expect(tokens(expand?.className ?? "")).not.toContain("md:flex");
-  });
-
-  it("gives the room skeleton the rail's collapsed geometry", () => {
+  // As the loaded sidebar: the nav runs into the chat area under its Chats
+  // heading, with no rule between them, so the swap draws none either.
+  it("heads the room list like the loaded sidebar, with no rule above it", () => {
     const { container } = renderFallback();
-    const skeleton = container.querySelector(
+    const tasks = screen.getByRole("link", {
+      name: (_, element) => element.getAttribute("href") === "/tasks",
+    });
+    const scoped = tasks.closest(".border-s");
+    const roomList = container.querySelector(
       '[data-slot="sidebar-group"][aria-hidden]',
     );
-    const header = skeleton?.querySelector(
-      '[data-slot="sidebar-group-content"] > div',
-    );
-    const row = skeleton?.querySelector(
-      '[data-slot="sidebar-menu-item"] > div',
-    );
-    const mark = row?.querySelector('[data-slot="sidebar-row-slot"]');
 
-    // The section header stays on the rail as one 32px square, on the same
-    // 28px leading axis (`ml-1` + `pl-1`) every real row uses there.
-    expect(tokens(header?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "md:h-8",
-        "group-data-[collapsible=icon]:w-8!",
-        "group-data-[collapsible=icon]:ml-1",
-        "group-data-[collapsible=icon]:pl-1!",
-        "group-data-[collapsible=icon]:justify-start!",
-      ]),
+    expect(
+      container.querySelector(
+        '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
+      ),
+    ).toBeNull();
+    expect(scoped?.nextElementSibling).toBe(roomList);
+    const heading = roomList?.firstElementChild;
+    expect(heading?.getAttribute("data-slot")).not.toBe(
+      "sidebar-group-content",
     );
-    expect(tokens(header?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-    // A Sidebar row's height: one rule for both states, so nothing under the
-    // skeleton moves when the real list arrives or the sidebar toggles.
-    expect(tokens(row?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "h-11",
-        "md:h-8",
-        "px-2",
-        "gap-2",
-        "group-data-[collapsible=icon]:w-8!",
-        "group-data-[collapsible=icon]:ml-1",
-        "group-data-[collapsible=icon]:pl-1!",
-        "group-data-[collapsible=icon]:justify-start!",
-      ]),
-    );
-    expect(tokens(row?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:px-0",
-    );
-    // The mark sits in the shared slot at one size, like every real row's.
-    expect(mark?.getAttribute("data-slot")).toBe("sidebar-row-slot");
-    expect(tokens(mark?.className ?? "")).toContain("min-w-6");
+    expect(
+      tokens(heading?.querySelector('[data-slot="skeleton"]')?.className ?? ""),
+    ).toContain("w-10");
   });
 
-  it("keeps the expanded skeleton on the same columns as a real row", () => {
+  it("hides off-canvas, leaving no rail behind", () => {
+    const { container } = renderFallback();
+
+    expect(
+      container
+        .querySelector('[data-slot="sidebar"]')
+        ?.getAttribute("data-collapsible-mode"),
+    ).toBe("offcanvas");
+  });
+
+  it("leaves the collapse control to the top bar", () => {
+    const { container } = renderFallback();
+    const header = container.querySelector('[data-slot="sidebar-header"]');
+
+    expect(header?.querySelector('a[href="/"]')).not.toBeNull();
+    expect(header?.querySelector("button")).toBeNull();
+  });
+
+  it("keeps the skeleton on the same columns as a real row", () => {
     const { container } = renderFallback();
     const skeleton = container.querySelector(
       '[data-slot="sidebar-group"][aria-hidden]',
@@ -278,28 +327,17 @@ describe("AppSidebarFallback", () => {
     const name = row?.querySelector(
       '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
     );
-    const headerName = header?.querySelectorAll('[data-slot="skeleton"]')[1];
+    const headerName = header?.querySelector('[data-slot="skeleton"]');
 
-    // Expanded: the same `px-2` + `gap-2` a real row uses, so the 24px slot
-    // sits on the 28px axis and the name bar starts on the 48px column.
+    // The same `px-2` + `gap-2` a real row uses, so the 24px slot sits on
+    // the 28px axis and the name bar starts on the 48px column.
     for (const el of [header, row]) {
       expect(tokens(el?.className ?? "")).toEqual(
-        expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-8"]),
+        expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-7"]),
       );
     }
     expect(tokens(headerName?.className ?? "")).toContain("w-16");
-    expect(tokens(headerName?.className ?? "")).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(tokens(headerName?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-    expect(tokens(name?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-3", "group-data-[collapsible=icon]:max-w-0"]),
-    );
-    expect(tokens(name?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
+    expect(tokens(name?.className ?? "")).toContain("h-3");
     expect(name?.className).toMatch(/\bw-(14|16|20|24|28|32)\b/);
   });
 });

@@ -176,7 +176,6 @@
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceptable",
       "settings": "Configuración",
-      "expandSidebar": "Expandir barra lateral",
       "creditsSummary": "Resumen de créditos:",
       "monthlyUsageLimit": "Límite de uso mensual",
       "additionalCreditsHero": "{credits, number}",
@@ -324,7 +323,7 @@
       "studio": "Content Studio",
       "design-md": "Diseño",
       "memory": "Memoria",
-      "social": "Programación social",
+      "social": "Publicaciones sociales",
       "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos",
       "catch-up": "Ponerse al día",
@@ -4133,7 +4132,7 @@
       }
     },
     "Social": {
-      "title": "Programación social",
+      "title": "Publicaciones sociales",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
         "label": "Nueva publicación",
@@ -4193,15 +4192,16 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
+        "compactCredits": "{count, plural, =0 {Sin Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
-        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "Nuevo",
           "newTask": "Nueva tarea",
           "search": "Buscar",
+          "home": "Inicio",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
@@ -4215,10 +4215,15 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Programación social",
+          "social": "Publicaciones sociales",
           "ads": "Anuncios",
           "newsletter": "Boletín",
-          "contacts": "Contactos"
+          "contacts": "Contactos",
+          "groups": {
+            "work": "Trabajo",
+            "records": "Registros",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -4230,9 +4235,19 @@
           "title": "Se requiere un Seat asignado",
           "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
           "hint": "Pide a un propietario o admin que te asigne un Seat."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Trabajando ahora",
+          "needsAttention": "Requiere atención",
+          "activeAgo": "Activo {time}",
+          "ready": "Listo",
+          "team": "Los Soko Bots de tu equipo"
         }
       },
-      "toggle": "Mostrar u ocultar la barra lateral"
+      "show": "Mostrar barra lateral",
+      "hide": "Ocultar barra lateral",
+      "unreadChats": "Chats sin leer"
     },
     "HistorySearchDialog": {
       "title": "Buscar",
@@ -7309,6 +7324,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} participantes más",
+      "chats": "Chats",
       "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
@@ -7690,12 +7706,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
         "unreadMessagesCapped": "Más de {max} mensajes no leídos",
-        "railUnread": "Sin leer"
+        "unread": "Sin leer"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "mentionsCapped": "Más de {max} menciones",
-        "railMention": "Te menciona"
+        "mentionsYou": "Te menciona"
       },
       "MembershipStatus": {
         "joined": "{name} se unió",
@@ -7836,6 +7852,7 @@
       "SelfDirect": {
         "messageYourself": "Enviarte un mensaje",
         "you": "Tú",
+        "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
@@ -8994,8 +9011,8 @@
       "clearSearch": "Borrar búsqueda",
       "close": "Cerrar",
       "label": "Proyecto",
+      "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceView": "Todo",
       "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
       "recent": "Recientes",

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
+import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
@@ -86,8 +87,11 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  // One Core read (ADR 0051, cached per request): the Workspace switcher's
+  // list and the active workspace's social providers.
+  const workspaces = (await userService.getMyWorkspaces())?.workspaces ?? [];
   const enabledSocialProviders =
-    (await userService.getMyWorkspaces())?.workspaces.find(
+    workspaces.find(
       (workspace) => workspace.organizationId === activeOrganizationId,
     )?.enabledSocialProviders ?? [];
   // In parallel: the sidebar's Ads row and the seat gate are both single
@@ -136,73 +140,83 @@ export default async function AuthenticatedAppFrame({
                       workspaceId={activeOrganizationId}
                     >
                       <NewTaskWizardProvider>
-                        <FeatureBadgesProvider
-                          userId={session.user.id}
-                          campaigns={loadBadgeCampaigns()}
+                        {/* The sidebar header and the phone's top bar each
+                            place a switcher trigger; this owns what is behind
+                            them, once. */}
+                        <WorkspaceSwitcherProvider
+                          sessionUser={session.user}
+                          workspaces={workspaces}
+                          activeOrganizationId={activeOrganizationId}
                         >
-                          <PrivateCachedAppSidebar
-                            sessionUser={session.user}
-                            activeOrganizationId={activeOrganizationId}
-                            adminMenuEnabled={adminMenuEnabled}
-                            socialBetaEnabled={socialBetaEnabled}
-                            newsletterEnabled={newsletterEnabled}
-                          />
-                        </FeatureBadgesProvider>
-                        <Suspense fallback={null}>
-                          <AppShellOverlays />
-                        </Suspense>
-                        <div
-                          className="flex min-w-0 flex-1 overflow-clip"
-                          data-app-content
-                        >
-                          <div
-                            className="flex min-w-0 flex-1 flex-col overflow-clip"
-                            data-app-content-inner
+                          <FeatureBadgesProvider
+                            userId={session.user.id}
+                            campaigns={loadBadgeCampaigns()}
                           >
-                            <ImpersonationBanner
-                              name={session.user.name}
-                              email={session.user.email}
-                              impersonatedBy={
-                                session.session.impersonatedBy ?? null
-                              }
+                            <PrivateCachedAppSidebar
+                              sessionUser={session.user}
+                              activeOrganizationId={activeOrganizationId}
+                              adminMenuEnabled={adminMenuEnabled}
+                              socialBetaEnabled={socialBetaEnabled}
+                              newsletterEnabled={newsletterEnabled}
                             />
-                            <Header
-                              // Horizontal pad only on md: vertical py would fight the
-                              // shared h-16 hairline with SidebarHeader.
-                              className="px-4 py-3 md:px-4 md:py-0"
-                              session={session}
-                            />
-                            <main
-                              className={cn(
-                                // p-4 is the app's single horizontal gutter. Pages must not add one
-                                // of their own: a rule that spans the view escapes exactly this
-                                // much, so a second level of padding leaves it short.
-                                //
-                                // scrollbar-gutter: stable reserves the scrollbar's width whether
-                                // or not it is showing. Without it this scroll container takes that
-                                // width out of the content box on the right only, and every
-                                // full-bleed rule stops further from the right edge than the left.
-                                "app-scrollbar relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable] md:pt-4",
-                                APP_MAIN_MOBILE_PT_CLASS,
-                                APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
-                                APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
-                              )}
-                              data-app-main
+                          </FeatureBadgesProvider>
+                          <Suspense fallback={null}>
+                            <AppShellOverlays />
+                          </Suspense>
+                          <div
+                            className="flex min-w-0 flex-1 overflow-clip"
+                            data-app-content
+                          >
+                            <div
+                              className="flex min-w-0 flex-1 flex-col overflow-clip"
+                              data-app-content-inner
                             >
-                              <EmergencyDialog />
-                              <div
-                                className="flex min-h-full flex-1 flex-col overflow-visible"
-                                data-app-main-inner
+                              <ImpersonationBanner
+                                name={session.user.name}
+                                email={session.user.email}
+                                impersonatedBy={
+                                  session.session.impersonatedBy ?? null
+                                }
+                              />
+                              <Header
+                                // Horizontal pad only on md: vertical py would fight the
+                                // shared h-16 hairline with SidebarHeader.
+                                className="px-4 py-3 md:px-4 md:py-0"
+                              />
+                              <main
+                                className={cn(
+                                  // p-4 is the app's single horizontal gutter. Pages must not add one
+                                  // of their own: a rule that spans the view escapes exactly this
+                                  // much, so a second level of padding leaves it short.
+                                  //
+                                  // scrollbar-gutter: stable reserves the scrollbar's width whether
+                                  // or not it is showing. Without it this scroll container takes that
+                                  // width out of the content box on the right only, and every
+                                  // full-bleed rule stops further from the right edge than the left.
+                                  "app-scrollbar relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable] md:pt-4",
+                                  APP_MAIN_MOBILE_PT_CLASS,
+                                  APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+                                  APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+                                )}
+                                data-app-main
                               >
-                                <SocialProviderAvailabilityProvider
-                                  enabledProviders={enabledSocialProviders}
+                                <EmergencyDialog />
+                                <div
+                                  className="flex min-h-full flex-1 flex-col overflow-visible"
+                                  data-app-main-inner
                                 >
-                                  <AppMobileChrome>{children}</AppMobileChrome>
-                                </SocialProviderAvailabilityProvider>
-                              </div>
-                            </main>
+                                  <SocialProviderAvailabilityProvider
+                                    enabledProviders={enabledSocialProviders}
+                                  >
+                                    <AppMobileChrome>
+                                      {children}
+                                    </AppMobileChrome>
+                                  </SocialProviderAvailabilityProvider>
+                                </div>
+                              </main>
+                            </div>
                           </div>
-                        </div>
+                        </WorkspaceSwitcherProvider>
                       </NewTaskWizardProvider>
                     </AuthenticatedRoomCache>
                   </BreadcrumbOverrideProvider>
