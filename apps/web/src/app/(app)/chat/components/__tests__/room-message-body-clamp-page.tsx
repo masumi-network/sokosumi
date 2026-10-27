@@ -24,15 +24,23 @@ function numbered(count: number, line: (index: number) => string): string {
   );
 }
 
-/** Each runs well past 16 lines; tables and code blocks scroll sideways. */
+/** The test serves this picture offline. */
+const CLAMP_IMAGE_URL = "https://image-fixture.invalid/chart.png";
+
+/**
+ * The first five run well past 16 lines; tables and code blocks scroll
+ * sideways. `photo` and `captioned` must fit.
+ */
 export const CLAMP_BODIES = {
   paragraphs: numbered(40, (index) => `Paragraph ${index}\n`),
   table: `Results\n\n| # | Result |\n| - | - |\n${numbered(40, (index) => `| ${index} | Row ${index} |`)}`,
   code: `Script\n\n\`\`\`\n${numbered(40, (index) => `line ${index}`)}\n\`\`\``,
   /** A report ending in a chart: one large image does not exempt the text. */
-  image: `${numbered(40, (index) => `Finding ${index}\n`)}\n[chart.png](https://image-fixture.invalid/chart.png)`,
+  image: `${numbered(40, (index) => `Finding ${index}\n`)}\n[chart.png](${CLAMP_IMAGE_URL})`,
   /** A Soko Bot stand-up, which renders as a brief card. */
   brief: `Stand-up ready.\n\n### Results\n\n| # | Result |\n| - | - |\n${numbered(40, (index) => `| ${index} | Row ${index} |`)}`,
+  photo: `[chart.png](${CLAMP_IMAGE_URL})`,
+  captioned: `Here is last week's chart.\n\n[chart.png](${CLAMP_IMAGE_URL})`,
 } as const;
 
 const BRIEF_METADATA = {

@@ -84,6 +84,30 @@ describe("SokoBotBriefCard", () => {
     }
   });
 
+  it("keeps a short brief open, with title and notes outside the clamp", () => {
+    const brief = parseSokoBotBrief(
+      "Updated memory.\n\nStand-up ready.\n\n### Focus\n- Catalyst readiness",
+    );
+    if (!brief) throw new Error("expected a brief");
+    render(
+      <SokoBotBriefCard
+        messageId="msg-1"
+        brief={brief}
+        metadata={meta({ source: "SCHEDULE", schedule_key: "standup" })}
+        createdAt="2026-10-26T08:00:00Z"
+        renderMarkdown={(content) => <p>{content}</p>}
+      />,
+    );
+    const body = screen.getByTestId("soko-bot-brief-body");
+    expect(body).toHaveTextContent("Stand-up ready.");
+    expect(body).not.toHaveTextContent("standup");
+    expect(body).not.toHaveTextContent("Updated memory.");
+    expect(screen.getByText("Updated memory.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "showMore" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("uses cards only for the bot's own check-ins", () => {
     expect(
       isSokoBotBriefSource(
