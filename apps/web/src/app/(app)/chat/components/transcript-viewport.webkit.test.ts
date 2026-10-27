@@ -534,7 +534,7 @@ it("follows arrivals once the reader has scrolled down from the Unread divider t
       .toBe("true");
     await page.getByTestId("arrive").click();
     await expect
-      .poll(() => page.locator('[data-message-id="msg-075"]').count())
+      .poll(() => page.locator('[data-message-id="arrival"]').count())
       .toBe(1);
     await expect.poll(() => distanceFromEnd(page)).toBeLessThan(1);
   } finally {

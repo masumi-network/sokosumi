@@ -180,7 +180,7 @@ function DividerRoom() {
             ...current,
             {
               kind: "message",
-              message: message(current.length),
+              message: { ...message(current.length), id: "arrival" },
               previousMessage: undefined,
               dayPreviousMessage: undefined,
             },
