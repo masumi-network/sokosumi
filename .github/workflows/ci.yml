@@ -141,7 +141,13 @@ jobs:
         run: pnpm exec turbo run build --filter='web^...'
 
       # Two of the files also compare against Chromium.
+      #
+      # `--with-deps` apt-installs ~190 packages (119 MB) from the runner's
+      # Ubuntu mirror. That normally takes about a minute; on 2026-10-27 the
+      # mirror delivered 35 packages in 14 minutes and the job hit its
+      # 15-minute limit holding a runner. Five minutes fails a slow mirror fast.
       - name: Install Playwright browsers
+        timeout-minutes: 5
         run: pnpm --filter web exec playwright install --with-deps webkit chromium
 
       # The Seen by picture test launches Chromium with its sandbox on, which
