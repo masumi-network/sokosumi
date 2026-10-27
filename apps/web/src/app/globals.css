@@ -806,6 +806,10 @@
    taskboard's drag and drop and drag-to-scroll, the chat list's reverse
    column) keep working because nothing here swaps in a widget.
 
+   The sidebar is the exception: `SidebarContent` uses Radix's overlay
+   scrollbar, drawn to the same geometry and colors, so its rows keep their
+   width when the list stops overflowing and the scrollbar goes away.
+
    A utility, not a plain class, so Tailwind puts it in the utilities layer and
    a port that has to hide its scrollbar in one state can still win on
    specificity.

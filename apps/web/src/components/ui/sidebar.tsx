@@ -13,6 +13,7 @@ import {
 } from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -373,17 +374,31 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof ScrollArea>) {
   return (
-    <div
+    // An overlay scrollbar, not the native one: a native scrollbar takes its
+    // width out of the rows, so they widened whenever a filter shortened the
+    // list and the scrollbar went away. Radix floats the thumb over the rows'
+    // right padding and shows it only while the list scrolls; scrolling
+    // itself stays native. The edge fade belongs on the viewport, the element
+    // that scrolls.
+    <ScrollArea
+      type="scroll"
+      shrinkContent
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden",
+        "min-h-0 flex-1 *:data-[slot=scroll-area-viewport]:scroll-edge-y",
         className,
       )}
       {...props}
-    />
+    >
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+    </ScrollArea>
   );
 }
 
