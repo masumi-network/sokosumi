@@ -3273,6 +3273,112 @@
             "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
           },
           "dismiss": "Cerrar"
+        },
+        "Issues": {
+          "title": "Ediciones",
+          "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
+          "newIssue": "Nueva edición",
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Elige una plantilla para empezar tu primera edición del boletín.",
+          "subject": "Asunto",
+          "previewText": "Texto de vista previa",
+          "status": "Estado",
+          "deliveryDate": "Programada / enviada",
+          "updatedAt": "Actualizada",
+          "actions": "Acciones",
+          "sentAt": "Enviada el {date}",
+          "scheduledAt": "Programada para el {date}",
+          "noDate": "Sin programar",
+          "firstPage": "Primera página",
+          "nextPage": "Página siguiente",
+          "results": "{count, plural, one {# edición} other {# ediciones}}",
+          "statuses": {
+            "DRAFT": "Borrador",
+            "NEEDS_APPROVAL": "Pendiente de aprobación",
+            "SCHEDULED": "Programada",
+            "SENDING": "Enviando",
+            "SENT": "Enviada",
+            "FAILED": "Fallida",
+            "CANCELED": "Cancelada"
+          },
+          "createError": "No se pudo crear la edición. Vuelve a elegir la plantilla.",
+          "saveError": "No se pudo guardar la edición. Conserva los cambios e inténtalo de nuevo.",
+          "conflict": "Esta edición ha cambiado o ya no se puede editar. Copia tus cambios, recarga la página e inténtalo de nuevo.",
+          "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
+          "save": "Guardar edición",
+          "saved": "Todos los cambios guardados",
+          "unsaved": "Cambios sin guardar",
+          "readOnly": "Esta edición es de solo lectura. Solo se pueden editar borradores y ediciones pendientes de aprobación.",
+          "back": "Volver a las ediciones",
+          "blocks": "Bloques de contenido",
+          "addBlock": "Añadir bloque",
+          "moveUp": "Subir el bloque {number}",
+          "moveDown": "Bajar el bloque {number}",
+          "removeBlock": "Eliminar el bloque {number}",
+          "blockNumber": "Bloque {number}: {type}",
+          "emptyBlocks": "Añade un bloque para empezar a escribir.",
+          "level": "Nivel del encabezado",
+          "mainHeading": "Encabezado principal",
+          "subheading": "Subtítulo",
+          "text": "Texto",
+          "imageUrl": "URL de la imagen",
+          "alt": "Texto alternativo",
+          "imageLink": "URL del enlace (opcional)",
+          "buttonLabel": "Texto del botón",
+          "buttonUrl": "URL del botón",
+          "httpsHint": "Usa una URL HTTPS completa.",
+          "blockTypes": {
+            "heading": "Encabezado",
+            "text": "Texto",
+            "image": "Imagen",
+            "button": "Botón",
+            "divider": "Separador"
+          },
+          "Validation": {
+            "subject": "Introduce un asunto de entre 1 y 200 caracteres.",
+            "previewText": "El texto de vista previa no puede superar los 500 caracteres.",
+            "content": "Revisa este bloque. Usa URL HTTPS y respeta los límites de los campos de texto."
+          },
+          "Templates": {
+            "title": "Elige una plantilla",
+            "description": "Empieza con un diseño y después edita cada bloque.",
+            "subject": "Edición sin título",
+            "heading": "Lo más destacado de la semana",
+            "text": "Comparte las últimas novedades, una idea útil o una actualización con tus suscriptores.",
+            "closing": "Gracias por leer. Hasta la próxima.",
+            "heroAlt": "Imagen principal",
+            "imageAlt": "Imagen complementaria",
+            "button": "Leer más",
+            "TEXT": {
+              "title": "Texto",
+              "description": "Un encabezado, párrafos y un separador."
+            },
+            "IMAGES": {
+              "title": "Imágenes",
+              "description": "Un encabezado, una imagen principal, texto y otra imagen."
+            },
+            "BUTTONS": {
+              "title": "Botones",
+              "description": "Un encabezado, texto, un botón, un separador y un texto de cierre."
+            }
+          },
+          "Preview": {
+            "title": "Vista previa",
+            "label": "Vista previa del correo del boletín",
+            "mobile": "Móvil",
+            "desktop": "Escritorio",
+            "loading": "Actualizando vista previa…",
+            "error": "No se pudo cargar la vista previa. Inténtalo de nuevo.",
+            "invalid": "Completa el asunto y revisa los bloques para ver la vista previa.",
+            "retry": "Volver a cargar la vista previa"
+          },
+          "Delete": {
+            "title": "¿Eliminar el borrador?",
+            "description": "«{subject}» se eliminará permanentemente. Esta acción no se puede deshacer.",
+            "action": "Eliminar borrador",
+            "cancel": "Cancelar",
+            "error": "No se pudo eliminar la edición. Es posible que haya cambiado de estado. Recarga la página e inténtalo de nuevo."
+          }
         }
       }
     },
@@ -4014,6 +4120,16 @@
         "retry": "Reintentar"
       }
     },
+    "Newsletter": {
+      "title": "Boletín",
+      "description": "Elige un proyecto para gestionar su boletín.",
+      "nextPage": "Siguientes proyectos",
+      "empty": {
+        "title": "Aún no hay proyectos",
+        "description": "Crea un proyecto para empezar un boletín.",
+        "action": "Crear proyecto"
+      }
+    },
     "Social": {
       "title": "Programación social",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
@@ -4099,6 +4215,7 @@
           "schedules": "Programaciones",
           "social": "Programación social",
           "ads": "Anuncios",
+          "newsletter": "Boletín",
           "contacts": "Contactos"
         },
         "ChatLists": {

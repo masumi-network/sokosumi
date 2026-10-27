@@ -926,6 +926,49 @@ describe("social post publisher service", () => {
       ).toHaveLength(1);
     });
 
+    it("flags the connection for reconnect when X refuses the login on a later part", async () => {
+      publishXPostMock
+        .mockResolvedValueOnce(result("1907"))
+        .mockRejectedValueOnce(
+          new ComposioToolError({
+            message: "X refused the post",
+            providerMessage: "Unauthorized: token expired",
+            providerStatus: 401,
+          }),
+        );
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        failed: 1,
+      });
+      expect(state).toMatchObject({
+        status: "FAILED",
+        publishedExternalId: "1907",
+        publishingThreadPartPosition: null,
+      });
+      expect(connectionUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: SOCIAL_CONNECTION_ID, status: "active" },
+        data: { status: "reauthorization_required" },
+      });
+    });
+
+    it("blocks retry when X confirms a part without returning its id", async () => {
+      publishXPostMock
+        .mockResolvedValueOnce(result("1907"))
+        .mockResolvedValueOnce({ externalId: null, publishedUrl: null });
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        failed: 1,
+      });
+      expect(state).toMatchObject({
+        status: "FAILED",
+        publishedExternalId: "1907",
+        publishingThreadPartPosition: 2,
+      });
+      expect(publishXPostMock).toHaveBeenCalledTimes(2);
+      expect(publishFirstCommentMock).not.toHaveBeenCalled();
+      expect(connectionUpdateManyMock).not.toHaveBeenCalled();
+    });
+
     it("resumes an automatic transient retry from the stored head", async () => {
       publishXPostMock
         .mockResolvedValueOnce(result("1907"))

@@ -14,10 +14,17 @@ export function getNewsletterTabs(
     },
   ];
   if (hasNewsletter)
-    tabs.push({
-      id: "subscribers",
-      href: `/projects/${projectId}/newsletter/subscribers`,
-      label: t("Subscribers.title"),
-    });
+    tabs.push(
+      {
+        id: "subscribers",
+        href: `/projects/${projectId}/newsletter/subscribers`,
+        label: t("Subscribers.title"),
+      },
+      {
+        id: "issues",
+        href: `/projects/${projectId}/newsletter/issues`,
+        label: t("Issues.title"),
+      },
+    );
   return tabs;
 }

@@ -88,12 +88,14 @@ interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
   socialBetaEnabled: boolean;
+  newsletterEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
   socialBetaEnabled,
+  newsletterEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -115,7 +117,10 @@ export default function Sidebar({
           </Suspense>
           <PersonalAssistantNav />
           <SidebarSeparator className="-mt-px" />
-          <MenuItems socialBetaEnabled={socialBetaEnabled} />
+          <MenuItems
+            socialBetaEnabled={socialBetaEnabled}
+            newsletterEnabled={newsletterEnabled}
+          />
           <SidebarSeparator />
           {chatList}
         </div>

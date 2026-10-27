@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
+import { PreviewFrame } from "@/components/common/preview-frame";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { cn } from "@/lib/utils";
 import {
@@ -64,12 +65,9 @@ export function SocialPostPreview({
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const thread = useTranslations("App.Projects.SocialPosts.thread");
   return (
-    <figure
+    <PreviewFrame
       aria-label={t("label", { provider: socialPostProviderLabel(provider) })}
-      className={cn(
-        "bg-background text-foreground overflow-hidden rounded-xl border text-sm",
-        className,
-      )}
+      className={className}
       data-compact={content.compact ? "true" : undefined}
       data-provider={provider}
       data-testid="social-post-preview"
@@ -118,7 +116,7 @@ export function SocialPostPreview({
       ) : (
         <GenericPreview provider={provider} {...content} />
       )}
-    </figure>
+    </PreviewFrame>
   );
 }
 
