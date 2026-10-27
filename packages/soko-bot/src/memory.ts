@@ -101,6 +101,12 @@ export interface SokoBotMemory {
 
 export interface ParseSokoBotMemoryOptions {
   secretHandling?: "redact" | "reject";
+  /**
+   * A write rejects entries under a heading it does not know: Joseph merged
+   * "Decisions / preferences" into one heading, and both sections, the
+   * owner's invoice-filing rule among them, were saved as "None".
+   */
+  unknownSections?: "drop" | "reject";
 }
 
 export class SokoBotMemorySecretError extends Error {
@@ -465,16 +471,21 @@ export function parseSokoBotMemory(
     ),
   );
   let currentKey: (typeof SECTION_KEYS)[number] | null = null;
+  let heading = "";
 
   for (const rawLine of markdown.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (line.startsWith("## ")) {
-      currentKey = titleToKey.get(line.slice(3).trim().toLowerCase()) ?? null;
+      heading = line.slice(3).trim();
+      currentKey = titleToKey.get(heading.toLowerCase()) ?? null;
       continue;
     }
-    if (currentKey && line.startsWith("- ") && line !== "- None") {
-      memory[currentKey].push(line.slice(2));
-    }
+    if (!line.startsWith("- ") || line === "- None") continue;
+    if (currentKey) memory[currentKey].push(line.slice(2));
+    else if (options.unknownSections === "reject")
+      throw new Error(
+        `Memory section "${heading}" is not one of ${SECTION_KEYS.map((key) => `"## ${SECTION_TITLES[key]}"`).join(", ")}; nothing was saved. Put each entry under one of those headings and save again.`,
+      );
   }
 
   const secretHandling = options.secretHandling ?? "redact";
