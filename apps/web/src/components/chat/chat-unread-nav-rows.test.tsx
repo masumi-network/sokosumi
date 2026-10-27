@@ -159,6 +159,34 @@ describe("ChatUnreadNavRows", () => {
     expect(catchUpRow()).toHaveTextContent("2 messages need you");
   });
 
+  it("holds the label clear of the end controls at the translated width", () => {
+    const first = renderRows([]);
+    let spacer = first.container.querySelector(
+      '[data-slot="catch-up-end-spacer"]',
+    );
+
+    // The Unreads chip is a word, so its width is the locale's. The hole the
+    // label stops at carries the same word, unseen, rather than a width
+    // measured against English.
+    expect(spacer).toHaveAttribute("aria-hidden", "true");
+    expect(spacer?.className).toMatch(/\binvisible\b/);
+    expect(spacer).toHaveTextContent("Unreads");
+    expect(spacer?.className).not.toMatch(/\bw-\d+/);
+    first.unmount();
+
+    const { container } = renderRows(
+      [makeRoom({ id: "channel", unreadCount: 2, channelUnreadCount: 2 })],
+      { unreadOnly: true },
+    );
+    spacer = container.querySelector('[data-slot="catch-up-end-spacer"]');
+    // With Mark all as read beside the chip, the hole holds its box too.
+    expect(
+      spacer?.querySelector('[data-slot="catch-up-end-spacer-action"]'),
+    ).not.toBeNull();
+    expect(catchUpRow()).toHaveAccessibleName(/Catch up/);
+    expect(catchUpRow()).not.toHaveAccessibleName(/Unreads/);
+  });
+
   it("toggles the All unreads filter rather than navigating", async () => {
     const onUnreadOnlyChange = vi.fn();
     renderRows([], { onUnreadOnlyChange });

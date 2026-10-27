@@ -37,12 +37,14 @@ import {
 import {
   SIDEBAR_ROW_CLASS,
   SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
 import {
   SidebarSectionContent,
   SidebarSectionTrigger,
 } from "@/components/ui/sidebar-section";
 import { cn } from "@/lib/utils";
+import { isPathActive } from "@/lib/utils/is-path-active";
 import { useMarkFeatureSeen } from "./feature-badges";
 import {
   SIDEBAR_FEATURE_LABEL_CLASS,
@@ -96,14 +98,6 @@ function ScopedMenuItems({
   const pathname = usePathname();
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-
-  const isPathActive = (href: string) => {
-    if (pathname === href) {
-      return true;
-    }
-
-    return pathname.startsWith(`${href}/`);
-  };
 
   const destinations: NavDestination[] = [
     {
@@ -186,7 +180,7 @@ function ScopedMenuItems({
   ];
 
   function renderItem({ key, href, label, Icon, feature }: MenuItemConfig) {
-    const isActive = isPathActive(href);
+    const isActive = isPathActive(pathname, href);
 
     return (
       <SidebarMenuItem key={key}>
@@ -199,7 +193,7 @@ function ScopedMenuItems({
               className={cn(
                 isActive
                   ? "text-sidebar-accent-foreground"
-                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  : SIDEBAR_ROW_LINK_CLASS,
               )}
             >
               <SidebarRowSlot>

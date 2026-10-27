@@ -29,11 +29,10 @@ import {
   restoreRoomAction,
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
-import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
-import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
+import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   AlertDialog,
@@ -61,6 +60,7 @@ import {
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
 import {
+  SIDEBAR_ICON_ACTION_CLASS,
   SIDEBAR_ROW_CLASS,
   SIDEBAR_ROW_LABEL_INSET_CLASS,
 } from "@/components/ui/sidebar-classes";
@@ -185,6 +185,7 @@ export function OrganizationChatList({
   paintOnly = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
+  const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
@@ -488,11 +489,7 @@ export function OrganizationChatList({
     return {
       room,
       href: `/chat/rooms/${room.id}`,
-      label: isDirect
-        ? getRoomDisplayName(room, currentUserId, (name) =>
-            t("SelfDirect.youNamed", { name }),
-          )
-        : room.name,
+      label: isDirect ? roomDisplayName(room, currentUserId) : room.name,
       subtitle:
         room.myAccess === "guest" && room.organizationName
           ? tExternal("hostOrganization", {
@@ -652,7 +649,7 @@ export function OrganizationChatList({
                             ? "reorderPinnedDone"
                             : "reorderPinned",
                         )}
-                        className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+                        className={SIDEBAR_ICON_ACTION_CLASS}
                         onClick={() =>
                           setPinnedReorderMode((current) => !current)
                         }

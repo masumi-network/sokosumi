@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
@@ -23,10 +22,15 @@ import {
   SidebarMenuItem,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ICON_ACTION_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
+import { isPathActive } from "@/lib/utils/is-path-active";
 
 import {
   SIDEBAR_FEATURE_LABEL_CLASS,
@@ -50,13 +54,6 @@ export interface SidebarSokoBotLive extends SidebarSokoBotAvatar {
   status: SokoBotStatus;
   lastActivityAt: Date | null;
   isYours: boolean;
-}
-
-const ROW_LINK_CLASS =
-  "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
-
-function isOnRoute(pathname: string, route: string): boolean {
-  return pathname === route || pathname.startsWith(`${route}/`);
 }
 
 /**
@@ -88,7 +85,7 @@ function StaticSokoBotsRow() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
-    isOnRoute(pathname, route),
+    isPathActive(pathname, route),
   );
 
   return (
@@ -99,7 +96,9 @@ function StaticSokoBotsRow() {
             href={SOKO_BOTS_ROUTE}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              isActive ? "text-sidebar-accent-foreground" : ROW_LINK_CLASS,
+              isActive
+                ? "text-sidebar-accent-foreground"
+                : SIDEBAR_ROW_LINK_CLASS,
             )}
           >
             <SidebarRowSlot>
@@ -133,8 +132,8 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const pathname = usePathname();
   const href = bot.isYours ? SOKO_BOT_ROUTE : SOKO_BOTS_ROUTE;
-  const isActive = isOnRoute(pathname, href);
-  const isTeamActive = !isActive && isOnRoute(pathname, SOKO_BOTS_ROUTE);
+  const isActive = isPathActive(pathname, href);
+  const isTeamActive = !isActive && isPathActive(pathname, SOKO_BOTS_ROUTE);
 
   return (
     <SidebarMenuItem className="relative">
@@ -146,7 +145,9 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
             href={href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              isActive ? "text-sidebar-accent-foreground" : ROW_LINK_CLASS,
+              isActive
+                ? "text-sidebar-accent-foreground"
+                : SIDEBAR_ROW_LINK_CLASS,
             )}
           >
             <SidebarRowSlot>
@@ -181,7 +182,7 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
             aria-label={t("team")}
             aria-current={isTeamActive ? "page" : undefined}
             title={t("team")}
-            className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+            className={SIDEBAR_ICON_ACTION_CLASS}
           >
             <Users className="size-4 md:size-3.5" aria-hidden />
           </Link>

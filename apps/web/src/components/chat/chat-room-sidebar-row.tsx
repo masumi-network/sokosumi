@@ -80,7 +80,10 @@ import {
   SidebarMenuItem,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
@@ -455,7 +458,7 @@ export function ChatRoomSidebarRow({
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        SIDEBAR_ROW_LINK_CLASS,
         isMuted && !isActive && "opacity-60",
         // Reorder mode: a press moves the room, so the link stands down.
         reorderHandle && "pointer-events-none",

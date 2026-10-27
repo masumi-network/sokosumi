@@ -7,9 +7,11 @@ const UI_DIR = dirname(fileURLToPath(import.meta.url));
 
 const CLASS_NAMES = [
   "SIDEBAR_HIDE_TRANSITION",
+  "SIDEBAR_ICON_ACTION_CLASS",
   "SIDEBAR_ROW_CLASS",
   "SIDEBAR_ROW_LABEL_CLASS",
   "SIDEBAR_ROW_LABEL_INSET_CLASS",
+  "SIDEBAR_ROW_LINK_CLASS",
 ] as const;
 
 /** Drop comments so the file's `"use client"` docs do not false-positive. */

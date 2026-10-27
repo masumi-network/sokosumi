@@ -13,7 +13,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
-import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CHAT_CATCH_UP_PATH } from "@/app/chat/utils/chat-route-base";
 import { useMarkFeatureSeen } from "@/app/components/sidebar/components/feature-badges";
 import {
@@ -34,14 +33,14 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ICON_ACTION_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
+} from "@/components/ui/sidebar-classes";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
-
-/** A row at rest, as the room rows draw theirs. */
-const THREADS_ROW_CLASS =
-  "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
 /**
  * The Unreads chip: a word, not an icon, so it says what it filters. Its
@@ -161,7 +160,7 @@ export function ChatUnreadNavRows({
             <Link
               href={CHAT_CATCH_UP_PATH}
               aria-current={catchUpActive ? "page" : undefined}
-              className={THREADS_ROW_CLASS}
+              className={SIDEBAR_ROW_LINK_CLASS}
               data-testid="chat-catch-up-row"
             >
               <SidebarRowSlot>
@@ -207,11 +206,22 @@ export function ChatUnreadNavRows({
                   )}
                 </span>
               ) : null}
-              {/* Holds the label clear of the buttons drawn over the end. */}
+              {/* Holds the label clear of the buttons drawn over the end: the
+                  same boxes, unseen, so the hole is as wide as the chip's
+                  word is in the reader's language. */}
               <span
                 aria-hidden
-                className={cn("shrink-0", showMarkAll ? "w-28" : "w-20")}
-              />
+                data-slot="catch-up-end-spacer"
+                className="invisible flex shrink-0 items-center"
+              >
+                {showMarkAll ? (
+                  <span
+                    data-slot="catch-up-end-spacer-action"
+                    className="size-7"
+                  />
+                ) : null}
+                <span className={UNREADS_CHIP_CLASS}>{t("allUnreads")}</span>
+              </span>
             </Link>,
           )}
         </SidebarMenuButton>
@@ -224,10 +234,7 @@ export function ChatUnreadNavRows({
               disabled={isMarking}
               aria-busy={isMarking}
               onClick={handleMarkAllRead}
-              className={cn(
-                CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-                "text-primary-variant",
-              )}
+              className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-primary-variant")}
             >
               {isMarking ? (
                 <Loader2

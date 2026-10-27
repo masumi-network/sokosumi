@@ -47,3 +47,19 @@ export const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
  * the row's trailing controls, clipping rather than pushing them out.
  */
 export const SIDEBAR_ROW_LABEL_CLASS = "min-w-0 flex-1 overflow-hidden";
+
+/**
+ * A row link at rest: quieter than the selected row's
+ * `text-sidebar-accent-foreground`, filled on hover. Nav destinations, Soko
+ * Bots, Catch up and rooms all rest this way, so they read as one list.
+ */
+export const SIDEBAR_ROW_LINK_CLASS =
+  "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+
+/**
+ * An icon action beside a row or a section's title (+ new channel, the team
+ * link, Mark all as read, reorder Pinned): 28px, with a pseudo-element that
+ * keeps its target at 44px on phones.
+ */
+export const SIDEBAR_ICON_ACTION_CLASS =
+  "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] md:before:-inset-0.5";
