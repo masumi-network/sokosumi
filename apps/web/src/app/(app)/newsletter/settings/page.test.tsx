@@ -151,6 +151,10 @@ describe("NewsletterSettingsPage", () => {
           SETTINGS.Subscribers.title,
           `/newsletter/subscribers?projectId=${PROJECT_ID}`,
         ],
+        [
+          SETTINGS.Analytics.title,
+          `/newsletter/analytics?projectId=${PROJECT_ID}`,
+        ],
         [SETTINGS.settings, `/newsletter/settings?projectId=${PROJECT_ID}`],
       ]);
       expect(

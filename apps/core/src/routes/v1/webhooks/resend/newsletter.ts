@@ -126,6 +126,9 @@ app.openapi(route, async (c) => {
         where: {
           id: send.subscriberId,
           status: { not: "UNSUBSCRIBED" },
+          ...(permanentBounce
+            ? { OR: [{ bouncedAt: null }, { bouncedAt: { gt: occurredAt } }] }
+            : {}),
         },
         data:
           type === "COMPLAINED"
