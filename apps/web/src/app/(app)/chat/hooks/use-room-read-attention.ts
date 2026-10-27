@@ -7,6 +7,7 @@ import {
   type RoomReadAttentionSnapshot,
   sameRoomReadAttention,
 } from "@/app/chat/utils/room-read-attention";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { roomAttentionAfterRead } from "@/components/chat/room-attention";
 import {
@@ -116,6 +117,12 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         const result = await markThreadReadAction(roomId, parentMessageId);
         if (result.ok) {
           snapshotRef.current.onThreadLooked?.(parentMessageId);
+          // Core announces no Look, and above the end no room read follows
+          // to carry the fresh room, so the sidebar's Thread row would stay.
+          notifyOrganizationChatRoomsChanged({
+            collections: ["active"],
+            roomId,
+          });
         }
         return result.ok;
       } catch {
