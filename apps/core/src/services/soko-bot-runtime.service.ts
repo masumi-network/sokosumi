@@ -299,6 +299,7 @@ import {
 } from "@/services/image-studio-jobs.service";
 import {
   createProjectAdCampaign,
+  deleteProjectAdCampaign,
   editProjectAdCampaign,
   getProjectAdCampaignDetails,
   listProjectAdAccounts,
@@ -5006,6 +5007,7 @@ export class SokoBotRuntimeService {
             "create_ad_campaign",
             "update_ad_campaign",
             "edit_ad_campaign",
+            "delete_ad_campaign",
           ] as const
         ).find((capability) => capability === input.capability);
         if (adWrite)
@@ -5670,6 +5672,24 @@ export class SokoBotRuntimeService {
             : {}),
         };
       }
+      case "delete_ad_campaign": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_ad_campaign.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, campaignId } = params;
+        await findAdAccount(projectId, accountId, workspaceId);
+        // The service's lookups and 404s come before its one provider write.
+        await callAds(() =>
+          deleteProjectAdCampaign({
+            projectId,
+            workspaceId,
+            accountId,
+            campaignId,
+          }),
+        );
+        return { campaignId, deleted: true as const };
+      }
       case "edit_ad_campaign": {
         const { projectId, accountId, campaignId, name, dailyBudget, google } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign.parse(input.input);
@@ -6033,6 +6053,7 @@ export class SokoBotRuntimeService {
       case "get_ad_campaign":
       case "update_ad_campaign":
       case "edit_ad_campaign":
+      case "delete_ad_campaign":
         return this.executeAdsTool(input, authorized);
       case "start_background_run":
       case "list_background_runs":

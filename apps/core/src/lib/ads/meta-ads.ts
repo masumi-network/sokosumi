@@ -35,6 +35,7 @@ const LIST_CAMPAIGNS = "METAADS_LIST_CAMPAIGNS";
 const GET_INSIGHTS = "METAADS_GET_INSIGHTS";
 const GET_OBJECT = "METAADS_GET_OBJECT";
 const UPDATE_CAMPAIGN = "METAADS_UPDATE_CAMPAIGN";
+const DELETE_CAMPAIGN = "METAADS_DELETE_CAMPAIGN";
 const CREATE_CAMPAIGN = "METAADS_CREATE_CAMPAIGN";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
@@ -304,6 +305,50 @@ export async function updateMetaCampaign(
       if (!updateResultSchema.safeParse(result).success) {
         throw new ComposioToolError({
           message: "update Meta campaign was not applied",
+        });
+      }
+    },
+  );
+}
+
+/**
+ * Deletes a campaign. The delete tool takes only a campaign id, so the object
+ * is read first, as for an update: it must be a campaign of the attached ad
+ * account, else 404. That is the only refusal point; the delete is one call.
+ */
+export async function deleteMetaCampaign(
+  input: AdsConnectedAccount & { adAccountId: string; campaignId: string },
+): Promise<void> {
+  const { adAccountId, campaignId, ...connected } = input;
+
+  await withAdsToolSession(
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.meta_ads,
+      toolSlugs: [GET_OBJECT, DELETE_CAMPAIGN],
+    },
+    async (execute) => {
+      const campaign = parseToolRow(
+        await execute(GET_OBJECT, {
+          object_id: campaignId,
+          fields: ["id", "account_id", "objective"],
+        }),
+        metaCampaignOwnerSchema,
+        "look up Meta campaign",
+      );
+      if (
+        !campaign.objective ||
+        actAccountId(campaign.account_id) !== actAccountId(adAccountId)
+      ) {
+        throw notFound("Campaign not found");
+      }
+
+      const result = await execute(DELETE_CAMPAIGN, {
+        campaign_id: campaignId,
+      });
+      if (!updateResultSchema.safeParse(result).success) {
+        throw new ComposioToolError({
+          message: "delete Meta campaign was not applied",
         });
       }
     },
