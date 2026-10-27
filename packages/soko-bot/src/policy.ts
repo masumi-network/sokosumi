@@ -79,6 +79,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_ad_accounts",
   "list_ad_campaigns",
   "find_ad_targeting",
+  "create_ad_campaign",
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
@@ -166,6 +167,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  "create_ad_campaign",
   // A brief is a prompt for a turn with this one's tools; a page must not write it.
   "start_background_run",
 ] as const satisfies readonly SokoBotCapability[];
@@ -185,6 +187,7 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  "create_ad_campaign",
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
@@ -239,6 +242,11 @@ const SOCIAL_WRITE_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+] as const satisfies readonly SokoBotCapability[];
+
+/** Creates real campaigns in the owner's ad account, always paused. */
+const ADS_WRITE_CAPABILITIES = [
+  "create_ad_campaign",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Long work the bot hands to itself in the background. */
@@ -404,6 +412,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,
+    ...ADS_WRITE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
@@ -478,6 +487,8 @@ export function capabilitiesForClassification(
     // A post's media must be in Files first; images sent in chat get there
     // through upload_file.
     SOCIAL: [...SOCIAL_WRITE_CAPABILITIES, "upload_file"],
+    // One turn can make the images, save them to Files and build the campaign.
+    ADS: [...ADS_WRITE_CAPABILITIES, "generate_image", "upload_file"],
   };
   return [...OWNER_BASE_CAPABILITIES, ...writes[classification.writeScope]];
 }
@@ -490,7 +501,8 @@ export interface TurnClassification {
     | "CHAT"
     | "FILE"
     | "INTEGRATION"
-    | "SOCIAL";
+    | "SOCIAL"
+    | "ADS";
   candidateTaskIds?: string[];
   selectedIntentId?: string;
   continuation?: "NEW" | "CONTINUE" | "CANCEL" | "AMBIGUOUS";

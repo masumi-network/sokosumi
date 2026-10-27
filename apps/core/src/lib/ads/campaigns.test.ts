@@ -1,11 +1,14 @@
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 
+import { googleCampaignSpecSchema } from "@/schemas/project-ad-account.schema";
 import {
   AD_RANGES,
   buildAdCampaign,
   completeDaysRange,
   fromMinorUnits,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
   sumAdMetrics,
 } from "./campaigns";
 
@@ -83,5 +86,80 @@ describe("Soko Bot list_ad_campaigns", () => {
         range,
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("Soko Bot create_ad_campaign", () => {
+  const botSchema = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign;
+  const common = {
+    locationIds: ["1003854"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com/spring",
+  };
+  const search = {
+    type: "SEARCH",
+    ...common,
+    keywords: GOOGLE_KEYWORD_MATCH_TYPES.map((matchType) => ({
+      text: `shoes ${matchType.toLowerCase()}`,
+      matchType,
+    })),
+    headlines: ["Run faster", "Light shoes", "Free returns"],
+    descriptions: ["Shoes that carry you.", "Order today, run tomorrow."],
+    sitelinks: [{ text: "Sale", finalUrl: "https://example.com/sale" }],
+    callouts: ["Free shipping"],
+  };
+  const display = {
+    type: "DISPLAY",
+    ...common,
+    businessName: "Sokosumi",
+    headlines: ["Run faster"],
+    longHeadline: "Light shoes that carry you further",
+    descriptions: ["Order today, run tomorrow."],
+  };
+  const fileIds = [
+    "01960001-0001-7001-8001-000000000041",
+    "01960001-0001-7001-8001-000000000042",
+    "01960001-0001-7001-8001-000000000043",
+  ];
+  const base = {
+    projectId: "01960001-0001-7001-8001-000000000001",
+    accountId: "01960001-0001-7001-8001-000000000002",
+    name: "Spring",
+    dailyBudget: 25,
+  };
+
+  // The bot's contract cannot import Core, so a spec the bot accepts must
+  // stay one Core accepts once the bot's file ids are resolved to Drive refs.
+  it("accepts the same Search spec as Core", () => {
+    expect(botSchema.safeParse({ ...base, google: search }).success).toBe(true);
+    expect(googleCampaignSpecSchema.safeParse(search).success).toBe(true);
+    const unknownMatch = {
+      ...search,
+      keywords: [{ text: "a", matchType: "FUZZY" }],
+    };
+    expect(botSchema.safeParse({ ...base, google: unknownMatch }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts the same Display spec as Core, once images are resolved", () => {
+    const roles = GOOGLE_DISPLAY_IMAGE_ROLES;
+    const bot = {
+      ...display,
+      images: roles.map((role, index) => ({ fileId: fileIds[index], role })),
+    };
+    const core = {
+      ...display,
+      images: roles.map((role, index) => ({
+        pathname: `drive/users/u/${index}.png`,
+        fileUrl: `https://x.public.blob.vercel-storage.com/${index}.png`,
+        name: `${index}.png`,
+        size: 1000,
+        mimeType: "image/png",
+        role,
+      })),
+    };
+    expect(botSchema.safeParse({ ...base, google: bot }).success).toBe(true);
+    expect(googleCampaignSpecSchema.safeParse(core).success).toBe(true);
   });
 });

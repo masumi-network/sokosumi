@@ -11,6 +11,8 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "run_integration_tool",
   "upload_file",
   "publish_social_post",
+  // Creates a campaign at Google; never repeated after an unclear failure.
+  "create_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
@@ -257,6 +259,14 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
+  } else if (capability === "create_ad_campaign") {
+    const acknowledged = z
+      .object({
+        campaignId: z.string().regex(/^\d{1,20}$/),
+        status: z.literal("PAUSED"),
+      })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.campaignId;
   } else if (
     capability === "generate_image" ||
     capability === "generate_video"

@@ -17,33 +17,37 @@ import {
 } from "../versions/index.js";
 
 describe("Soko Bot route capability ceilings", () => {
-  it.each(["MEMORY", "SCHEDULE", "CHAT", "FILE", "INTEGRATION"] as const)(
-    "does not grant task writes to %s requests",
-    (writeScope) => {
-      const capabilities = capabilitiesForClassification({
-        schemaVersion: 1,
-        route: "MANAGE_WORK",
-        writeScope,
-        confidence: 1,
-        rationaleSummary: "explicit",
-        requestedOutcome: "change",
-        candidateProjectIds: [],
-        candidateCoworkerIds: [],
-        candidateAgentIds: [],
-        requiresApproval: false,
-        requiresClarification: false,
-      });
-      for (const capability of [
-        "create_task",
-        "update_task",
-        "archive_task",
-        "assign_task",
-        "hire_agent",
-      ])
-        expect(capabilities).not.toContain(capability);
-      expect(capabilities).toContain("get_task_status");
-    },
-  );
+  it.each([
+    "MEMORY",
+    "SCHEDULE",
+    "CHAT",
+    "FILE",
+    "INTEGRATION",
+    "ADS",
+  ] as const)("does not grant task writes to %s requests", (writeScope) => {
+    const capabilities = capabilitiesForClassification({
+      schemaVersion: 1,
+      route: "MANAGE_WORK",
+      writeScope,
+      confidence: 1,
+      rationaleSummary: "explicit",
+      requestedOutcome: "change",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresApproval: false,
+      requiresClarification: false,
+    });
+    for (const capability of [
+      "create_task",
+      "update_task",
+      "archive_task",
+      "assign_task",
+      "hire_agent",
+    ])
+      expect(capabilities).not.toContain(capability);
+    expect(capabilities).toContain("get_task_status");
+  });
   it("lets a file request make a Files table, not only a text file", () => {
     const capabilities = capabilitiesForClassification({
       schemaVersion: 1,
@@ -111,6 +115,44 @@ describe("Soko Bot route capability ceilings", () => {
           SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
         ).not.toContain(read);
       }
+  });
+
+  it("creates ad campaigns only on MANAGE_WORK, and never from a page's instructions", () => {
+    for (const route of SOKO_BOT_ROUTES)
+      expect(
+        SOKO_BOT_ROUTE_CAPABILITIES[route].includes("create_ad_campaign"),
+      ).toBe(route === "MANAGE_WORK");
+    expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(
+      "create_ad_campaign",
+    );
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "create_ad_campaign",
+    );
+  });
+
+  it("lets an ADS change create the campaign and its images, nothing else", () => {
+    const granted = capabilitiesForClassification({
+      schemaVersion: 1,
+      route: "MANAGE_WORK",
+      writeScope: "ADS",
+      confidence: 1,
+      rationaleSummary: "explicit",
+      requestedOutcome: "create a campaign",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresApproval: false,
+      requiresClarification: false,
+    });
+    expect(granted).toEqual(
+      expect.arrayContaining([
+        "create_ad_campaign",
+        "generate_image",
+        "upload_file",
+      ]),
+    );
+    expect(granted).not.toContain("create_social_post");
+    expect(granted).not.toContain("create_task");
   });
 
   it("does not leak agent hiring into task delegation", () => {

@@ -767,6 +767,26 @@ describe("authoritative action responses", () => {
     );
   });
 
+  it("reports a created ad campaign with a link to open it", async () => {
+    const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_ad_campaign",
+        targetId: "123",
+        verification: "PROVIDER_ACK",
+        result: { campaignId: "123", status: "PAUSED", link },
+      }),
+    ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "The campaign is live.",
+    );
+    expect(response.answerText).toBe(
+      `Created paused ad campaign ([Open campaign](${link})).`,
+    );
+  });
+
   it.each([false, true])(
     "quotes connected social account evidence with availability metadata %s",
     async (withAvailability) => {

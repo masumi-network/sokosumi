@@ -28,6 +28,30 @@ describe("external action receipts", () => {
     }
   });
 
+  it("verifies a created ad campaign only when it came back paused with an id", () => {
+    expect(EXTERNAL_EFFECT_CAPABILITIES.has("create_ad_campaign")).toBe(true);
+    expect(
+      externalActionReceipt("create_ad_campaign", {
+        campaignId: "123",
+        status: "PAUSED",
+      }),
+    ).toEqual({
+      targetId: "123",
+      disposition: "APPLIED",
+      verification: "PROVIDER_ACK",
+      committedAt: expect.any(Date),
+    });
+    for (const result of [
+      { campaignId: "123", status: "ENABLED" },
+      { campaignId: "abc", status: "PAUSED" },
+      { campaignId: "", status: "PAUSED" },
+      { status: "PAUSED" },
+    ])
+      expect(externalActionReceipt("create_ad_campaign", result)).toMatchObject(
+        { targetId: null, disposition: "UNKNOWN", verification: "NONE" },
+      );
+  });
+
   it("requires a provider publication identity before verifying social publication", () => {
     expect(
       externalActionReceipt("publish_social_post", {

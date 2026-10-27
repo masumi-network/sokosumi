@@ -264,8 +264,10 @@ const ads = vi.hoisted(() => ({
   campaigns: vi.fn(),
   locations: vi.fn(),
   languages: vi.fn(),
+  create: vi.fn(),
 }));
 vi.mock("@/services/project-ad-accounts.service", () => ({
+  createProjectAdCampaign: ads.create,
   listProjectAdAccounts: ads.accounts,
   listProjectAdCampaigns: ads.campaigns,
   searchProjectAdLocations: ads.locations,
@@ -6383,6 +6385,7 @@ describe("Soko Bot project social tools", () => {
     "list_ad_accounts",
     "list_ad_campaigns",
     "find_ad_targeting",
+    "create_ad_campaign",
     "list_social_posts",
     "list_social_post_statistics",
     "refresh_social_post_statistics",
@@ -7233,6 +7236,260 @@ describe("Soko Bot project social tools", () => {
           input: { projectId, accountId: adAccountId },
         }),
       ).rejects.toThrow("The ads provider could not complete the request.");
+    });
+  });
+
+  describe("create_ad_campaign", () => {
+    const adAccountId = "01960001-0001-7001-8001-000000000031";
+    const metaAccountId = "01960001-0001-7001-8001-000000000032";
+    const landscapeId = "01960001-0001-7001-8001-000000000041";
+    const squareId = "01960001-0001-7001-8001-000000000042";
+    const gifId = "01960001-0001-7001-8001-000000000043";
+    const webpId = "01960001-0001-7001-8001-000000000044";
+    const account = {
+      id: adAccountId,
+      provider: "google_ads",
+      externalAccountId: "1234567890",
+      name: "Sokosumi Ads",
+      currency: "EUR",
+    };
+    const search = {
+      type: "SEARCH" as const,
+      locationIds: ["1003854"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "PHRASE" as const }],
+      headlines: ["Run faster", "Light shoes", "Free returns"],
+      descriptions: ["Shoes that carry you.", "Order today, run tomorrow."],
+      sitelinks: [{ text: "Sale", finalUrl: "https://example.com/sale" }],
+      callouts: ["Free shipping"],
+    };
+    const display = {
+      type: "DISPLAY" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com/spring",
+      businessName: "Sokosumi",
+      headlines: ["Run faster"],
+      longHeadline: "Light shoes that carry you further",
+      descriptions: ["Order today, run tomorrow."],
+      images: [
+        { fileId: landscapeId, role: "LANDSCAPE" as const },
+        { fileId: squareId, role: "SQUARE" as const },
+      ],
+    };
+    const driveFile = (id: string, name: string, mimeType: string) => ({
+      id,
+      displayName: name,
+      mimeType,
+      sizeBytes: 1000,
+      sourceKind: "DRIVE_UPLOAD",
+      sourceId: `drive/organizations/organization-one/${name}`,
+    });
+    const run = (google: unknown, overrides: object = {}, id = "ad-create") =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_ad_campaign",
+        toolCallId: id,
+        input: {
+          projectId,
+          accountId: adAccountId,
+          name: "Spring",
+          dailyBudget: 25,
+          google,
+          ...overrides,
+        },
+      });
+    const lastReceipt = () =>
+      toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+
+    beforeEach(() => {
+      for (const mock of Object.values(ads)) mock.mockReset();
+      social.beta.mockResolvedValue(undefined);
+      ads.accounts.mockResolvedValue([
+        account,
+        { ...account, id: metaAccountId, provider: "meta_ads" },
+      ]);
+      ads.create.mockResolvedValue({ id: "23850000000000000" });
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "organization-one",
+      });
+      files.loadLive.mockResolvedValue([
+        driveFile(landscapeId, "wide.png", "image/png"),
+        driveFile(squareId, "square.jpg", "image/jpeg"),
+        driveFile(gifId, "moving.gif", "image/gif"),
+        driveFile(webpId, "photo.webp", "image/webp"),
+      ]);
+      files.head.mockImplementation(async (pathname: string) => ({
+        url: `https://x.public.blob.vercel-storage.com/${pathname}`,
+      }));
+    });
+
+    it("creates a Search campaign paused and links it", async () => {
+      const result = await run(search);
+      expect(ads.create).toHaveBeenCalledWith({
+        projectId,
+        accountId: adAccountId,
+        workspaceId: SCOPE.workspaceId,
+        userId: SCOPE.userId,
+        organizationId: "organization-one",
+        name: "Spring",
+        dailyBudget: 25,
+        google: search,
+      });
+      expect(result).toEqual({
+        campaignId: "23850000000000000",
+        status: "PAUSED",
+        link: `/ads/campaigns/23850000000000000?projectId=${projectId}&accountId=${adAccountId}`,
+        note: "Created paused. A person activates it on the Ads page.",
+      });
+      expect(lastReceipt()).toMatchObject({
+        disposition: "APPLIED",
+        verification: "PROVIDER_ACK",
+        targetId: "23850000000000000",
+      });
+    });
+
+    it("resolves Display images from the owner's Files", async () => {
+      await run({
+        ...display,
+        images: [...display.images, { fileId: gifId, role: "LOGO" }],
+      });
+      expect(ads.create.mock.calls[0][0].google.images).toEqual([
+        {
+          pathname: "drive/organizations/organization-one/wide.png",
+          fileUrl:
+            "https://x.public.blob.vercel-storage.com/drive/organizations/organization-one/wide.png",
+          name: "wide.png",
+          size: 1000,
+          mimeType: "image/png",
+          role: "LANDSCAPE",
+        },
+        expect.objectContaining({ name: "square.jpg", role: "SQUARE" }),
+        expect.objectContaining({
+          name: "moving.gif",
+          mimeType: "image/gif",
+          role: "LOGO",
+        }),
+      ]);
+    });
+
+    /** Refused before anything was sent: the receipt is REJECTED and a retry is allowed. */
+    const refused = async (refusal: Promise<unknown>, message: string) => {
+      await expect(refusal).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+      await expect(refusal).rejects.toThrow(message);
+      expect(lastReceipt()).toMatchObject({
+        status: "FAILED",
+        disposition: "REJECTED",
+      });
+    };
+
+    it("refuses a Display image that is not in the owner's Files", async () => {
+      files.loadLive.mockResolvedValue([]);
+      await refused(run(display), "not in the owner's Files");
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a Display image Google does not accept", async () => {
+      await refused(
+        run({
+          ...display,
+          images: [
+            { fileId: webpId, role: "LANDSCAPE" },
+            { fileId: squareId, role: "SQUARE" },
+          ],
+        }),
+        '"photo.webp" is not a JPEG, PNG or GIF image',
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a Meta account and points to the Ads page", async () => {
+      await refused(
+        run(search, { accountId: metaAccountId }),
+        "Meta campaigns can be created on the Ads page",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses an account the Project does not have", async () => {
+      await refused(
+        run(search, { accountId: "01960001-0001-7001-8001-000000000099" }),
+        "use an id from list_ad_accounts",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("tells the model what Core's Google rules reject", async () => {
+      await refused(
+        run({
+          ...display,
+          images: [{ fileId: landscapeId, role: "LANDSCAPE" }],
+        }),
+        "Add at least one SQUARE image",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("hands the model a service refusal so it can fix and retry", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      ads.create.mockRejectedValue(
+        new HTTPException(422, { message: "Google rejected the headline" }),
+      );
+      await refused(run(search), "Google rejected the headline");
+    });
+
+    it("keeps a provider failure unknown so it is never repeated", async () => {
+      const { ComposioApiError } = await import("@/clients/composio.client");
+      ads.create.mockRejectedValue(new ComposioApiError(500, "boom"));
+      const failure = run(search);
+      await expect(failure).rejects.not.toBeInstanceOf(
+        SokoBotRefusedUnsentError,
+      );
+      await expect(failure).rejects.toBeInstanceOf(
+        SokoBotRuntimeValidationError,
+      );
+      expect(lastReceipt()).not.toMatchObject({ disposition: "REJECTED" });
+    });
+
+    it.each(["TEAMMATE", "ASSISTANT"])(
+      "refuses a campaign on a turn %s asked",
+      async (kind) => {
+        const turn = await turnFindUniqueMock();
+        turnFindUniqueMock.mockResolvedValue({
+          ...turn,
+          contextSnapshot: {
+            packet: { memory: { version: 1 }, trigger: { askedBy: { kind } } },
+          },
+        });
+        await expect(run(search)).rejects.toThrow(
+          "only available for the owner",
+        );
+        expect(ads.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rechecks ads access before replaying a created campaign", async () => {
+      const input = {
+        projectId,
+        accountId: adAccountId,
+        name: "Spring",
+        dailyBudget: 25,
+        google: search,
+      };
+      toolCallFindUniqueMock.mockResolvedValue({
+        inputHash: createHash("sha256")
+          .update(canonicalJson(input))
+          .digest("hex"),
+        capability: "create_ad_campaign",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        result: { campaignId: "23850000000000000", status: "PAUSED" },
+      });
+      social.beta.mockRejectedValue(new Error("Ads is beta only"));
+      await expect(run(search)).rejects.toThrow("Ads is beta only");
+      expect(ads.create).not.toHaveBeenCalled();
     });
   });
 

@@ -246,3 +246,64 @@ describe("Ads read tool contracts", () => {
     ).toBe(false);
   });
 });
+
+describe("create_ad_campaign contract", () => {
+  const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign;
+  const base = {
+    projectId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    accountId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    name: "Spring",
+    dailyBudget: 25,
+  };
+  const common = {
+    locationIds: ["1003854"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com",
+  };
+  const search = {
+    type: "SEARCH",
+    ...common,
+    keywords: [{ text: "running shoes", matchType: "EXACT" }],
+    headlines: ["One", "Two", "Three"],
+    descriptions: ["First line.", "Second line."],
+  };
+  const display = {
+    type: "DISPLAY",
+    ...common,
+    businessName: "Sokosumi",
+    headlines: ["One"],
+    longHeadline: "A longer headline",
+    descriptions: ["First line."],
+    images: [
+      { fileId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", role: "LANDSCAPE" },
+      { fileId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", role: "SQUARE" },
+    ],
+  };
+
+  it.each([search, display])("takes a valid $type campaign", (google) => {
+    expect(schema.safeParse({ ...base, google }).success).toBe(true);
+  });
+
+  it("refuses unknown keys, bad ids and a Display image that is not a file id", () => {
+    for (const bad of [
+      { ...base, google: search, workspaceId: "x" },
+      { ...base, google: { ...search, status: "ENABLED" } },
+      { ...base, google: { ...search, locationIds: ["Berlin"] } },
+      { ...base, google: { ...search, headlines: ["One", "Two"] } },
+      { ...base, google: { ...display, images: [{ role: "SQUARE" }] } },
+      {
+        ...base,
+        google: { ...display, images: [{ fileId: "x", role: "SQUARE" }] },
+      },
+      { ...base, dailyBudget: 0, google: search },
+    ])
+      expect(schema.safeParse(bad).success).toBe(false);
+  });
+
+  it("says the campaign is paused and the bot never connects accounts", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toMatch(/paused/i);
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toMatch(
+      /never connect/i,
+    );
+  });
+});

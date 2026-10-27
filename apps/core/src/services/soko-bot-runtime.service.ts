@@ -146,6 +146,10 @@ import {
   type SokoBotTurnReader,
   sokoBotSharedScopeOf,
 } from "@/helpers/task-visibility";
+import {
+  GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
+  type GoogleDisplayImageRole,
+} from "@/lib/ads/campaigns";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { FileActor } from "@/lib/files/actor";
@@ -259,6 +263,7 @@ import {
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
+import { googleCampaignSpecSchema } from "@/schemas/project-ad-account.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
@@ -286,6 +291,7 @@ import {
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import {
+  createProjectAdCampaign,
   listProjectAdAccounts,
   listProjectAdCampaigns,
   listProjectAdLanguages,
@@ -582,18 +588,20 @@ export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
 
 /**
- * Runs an ads service read. Its refusals and provider failures reach the model
- * as a message it can read, worded as the Ads page words them; anything else
- * is a bug and propagates.
+ * Runs an ads service call. Its refusals come before the provider is called,
+ * and Google checks a create as one atomic batch, so a refused call created
+ * no campaign (Display images uploaded before it may remain) and the model may
+ * fix it and retry. A provider failure leaves the outcome unknown and is never
+ * retried. Anything else is a bug and propagates.
  */
-async function readAds<T>(read: () => Promise<T>): Promise<T> {
+async function callAds<T>(call: () => Promise<T>): Promise<T> {
   try {
-    return await read();
+    return await call();
   } catch (error) {
     if (error instanceof HTTPException)
-      throw new SokoBotRuntimeValidationError(error.message);
+      throw new SokoBotRefusedUnsentError(error.message);
     if (error instanceof ComposioConfigError)
-      throw new SokoBotRuntimeValidationError(
+      throw new SokoBotRefusedUnsentError(
         "Ads are not configured on this environment.",
       );
     if (error instanceof ComposioApiError || error instanceof ComposioToolError)
@@ -602,6 +610,15 @@ async function readAds<T>(read: () => Promise<T>): Promise<T> {
       );
     throw error;
   }
+}
+
+/** The campaign's page on the Ads page. */
+function adCampaignLink(
+  projectId: string,
+  accountId: string,
+  campaignId: string,
+): string {
+  return `/ads/campaigns/${encodeURIComponent(campaignId)}?${new URLSearchParams({ projectId, accountId })}`;
 }
 
 /**
@@ -2327,6 +2344,46 @@ export class SokoBotRuntimeService {
           size: file.sizeBytes ?? 0,
           mimeType,
           kind,
+        };
+      }),
+    );
+  }
+
+  /**
+   * A Display campaign's images given as `{ fileId, role }` become the Drive
+   * references the ads service stores. Google takes JPEG, PNG and GIF only.
+   */
+  private async resolveAdImages(
+    authorized: AuthorizedSokoBotRuntime,
+    images: readonly { fileId: string; role: GoogleDisplayImageRole }[],
+  ) {
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: images.map(({ fileId }) => fileId),
+    });
+    return Promise.all(
+      images.map(async ({ fileId, role }) => {
+        const file = files.find((candidate) => candidate.id === fileId);
+        if (!file || file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
+          throw new SokoBotRefusedUnsentError(
+            `File ${fileId} is not in the owner's Files; use an id from list_files, get_image or upload_file`,
+          );
+        const mimeType = GOOGLE_DISPLAY_IMAGE_MIME_TYPES.find(
+          (allowed) => allowed === file.mimeType,
+        );
+        if (!mimeType)
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}" is not a JPEG, PNG or GIF image`,
+          );
+        return {
+          pathname: file.sourceId,
+          fileUrl: (await head(file.sourceId)).url,
+          name: file.displayName,
+          size: file.sizeBytes ?? 0,
+          mimeType,
+          role,
         };
       }),
     );
@@ -4864,6 +4921,8 @@ export class SokoBotRuntimeService {
         ) {
           await this.requireSocialAccess(authorized);
         }
+        if (input.capability === "create_ad_campaign")
+          await this.requireAdsAccess(authorized);
         if (input.capability === "refresh_social_post_statistics") {
           const params =
             SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_post_statistics.parse(
@@ -5308,8 +5367,9 @@ export class SokoBotRuntimeService {
 
   /** Ads share the social gate and its beta: the same owner-only turn, then the Ads page's membership check. */
   private async requireAdsAccess(authorized: AuthorizedSokoBotRuntime) {
-    await this.requireSocialAccess(authorized);
+    const workspace = await this.requireSocialAccess(authorized);
     await requireSocialBetaAccess(actingMemberOf(authorized), prisma);
+    return workspace;
   }
 
   /**
@@ -5329,7 +5389,7 @@ export class SokoBotRuntimeService {
           input.input,
         );
         await this.requireAdsAccess(authorized);
-        const accounts = await readAds(() =>
+        const accounts = await callAds(() =>
           listProjectAdAccounts({ ...params, workspaceId }),
         );
         return {
@@ -5355,7 +5415,7 @@ export class SokoBotRuntimeService {
         );
         await this.requireAdsAccess(authorized);
         const { projectId, accountId } = params;
-        const [accounts, result] = await readAds(() =>
+        const [accounts, result] = await callAds(() =>
           Promise.all([
             listProjectAdAccounts({ projectId, workspaceId }),
             listProjectAdCampaigns({ ...params, workspaceId }),
@@ -5371,7 +5431,7 @@ export class SokoBotRuntimeService {
             google
               ? {
                   ...campaign,
-                  link: `/ads/campaigns/${encodeURIComponent(campaign.id)}?${new URLSearchParams({ projectId, accountId })}`,
+                  link: adCampaignLink(projectId, accountId, campaign.id),
                 }
               : campaign,
           ),
@@ -5384,12 +5444,61 @@ export class SokoBotRuntimeService {
         await this.requireAdsAccess(authorized);
         const { projectId, accountId, locationQuery } = params;
         const scope = { projectId, accountId, workspaceId };
-        const languages = await readAds(() => listProjectAdLanguages(scope));
+        const languages = await callAds(() => listProjectAdLanguages(scope));
         if (locationQuery === undefined) return languages;
-        const locations = await readAds(() =>
+        const locations = await callAds(() =>
           searchProjectAdLocations({ ...scope, q: locationQuery }),
         );
         return { ...languages, ...locations };
+      }
+      case "create_ad_campaign": {
+        const { projectId, accountId, name, dailyBudget, google } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input);
+        const workspace = await this.requireAdsAccess(authorized);
+        const account = (
+          await callAds(() => listProjectAdAccounts({ projectId, workspaceId }))
+        ).find((candidate) => candidate.id === accountId);
+        if (!account)
+          throw new SokoBotRefusedUnsentError(
+            "Ad account not found in this Project; use an id from list_ad_accounts",
+          );
+        if (account.provider !== "google_ads")
+          throw new SokoBotRefusedUnsentError(
+            "Meta campaigns can be created on the Ads page",
+          );
+        const spec = googleCampaignSpecSchema.safeParse(
+          google.type === "DISPLAY"
+            ? {
+                ...google,
+                images: await this.resolveAdImages(authorized, google.images),
+              }
+            : google,
+        );
+        if (!spec.success)
+          throw new SokoBotRefusedUnsentError(
+            spec.error.issues
+              .slice(0, 3)
+              .map(({ path, message }) => `${path.join(".")}: ${message}`)
+              .join("; "),
+          );
+        const { id } = await callAds(() =>
+          createProjectAdCampaign({
+            projectId,
+            accountId,
+            workspaceId,
+            userId: actingMemberOf(authorized),
+            organizationId: workspace.organizationId,
+            name,
+            dailyBudget,
+            google: spec.data,
+          }),
+        );
+        return {
+          campaignId: id,
+          status: "PAUSED" as const,
+          link: adCampaignLink(projectId, accountId, id),
+          note: "Created paused. A person activates it on the Ads page.",
+        };
       }
       default:
         throw new SokoBotRuntimeValidationError("Not an ads tool");
@@ -5700,6 +5809,7 @@ export class SokoBotRuntimeService {
       case "list_ad_accounts":
       case "list_ad_campaigns":
       case "find_ad_targeting":
+      case "create_ad_campaign":
         return this.executeAdsTool(input, authorized);
       case "start_background_run":
       case "list_background_runs":
