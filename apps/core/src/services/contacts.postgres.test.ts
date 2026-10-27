@@ -11,6 +11,7 @@ import {
   createContactList,
   deleteContactList,
   listContactLists,
+  updateContactList,
   updateContactListMembers,
 } from "./contact-lists.service";
 import {
@@ -34,6 +35,7 @@ import {
   exportContactsCsv,
   importContactsFromTable,
 } from "./contacts-import.service";
+import { linkNewsletterContacts } from "./newsletter-contacts.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -883,4 +885,88 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(lines[1]).toContain('"ada@engines.test; ada@personal.test"');
     expect(lines[1]).toContain('"Investors; Friends"');
   });
+  it.each(["deleted", "converted"])(
+    "restores prior newsletter members and merge survivors when its list is %s",
+    async (change) => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: `Newsletter recovery ${randomUUID()}` },
+      });
+      const newsletter = await prisma.newsletter.create({
+        data: {
+          workspaceId,
+          projectId: project.id,
+          name: project.name,
+          senderName: "Alice",
+          replyTo: "alice@example.com",
+          publicSlug: randomUUID(),
+        },
+      });
+      try {
+        const people = ["first", "second"].map((name) => ({
+          name,
+          email: `${name}-${newsletter.id}@example.com`,
+        }));
+        const original = await inContactTransaction((tx) =>
+          linkNewsletterContacts(tx, newsletter.id, asAlice, people, "MANUAL"),
+        );
+        await prisma.newsletterSubscriber.createMany({
+          data: people.map((person, index) => ({
+            newsletterId: newsletter.id,
+            contactId: original.get(person.email)?.id,
+            email: person.email,
+            status: index === 0 ? "ACTIVE" : "BOUNCED",
+          })),
+        });
+        const survivor = await create(asAlice, { name: "Surviving reader" });
+        await inContactTransaction((tx) =>
+          mergeContacts(tx, asAlice, survivor.contact.id, [
+            original.get(people[0].email)!.id,
+          ]),
+        );
+        const { contactListId: oldListId } =
+          await prisma.newsletter.findUniqueOrThrow({
+            where: { id: newsletter.id },
+          });
+        await inContactTransaction(async (tx) => {
+          if (change === "deleted") {
+            await deleteContactList(tx, asAlice, oldListId!);
+          } else {
+            await updateContactList(tx, asAlice, oldListId!, {
+              smartFilter: { stages: ["LEAD"] },
+            });
+          }
+        });
+        const next = { email: `next-${newsletter.id}@example.com` };
+        const added = await inContactTransaction((tx) =>
+          linkNewsletterContacts(tx, newsletter.id, asAlice, [next], "MANUAL"),
+        );
+        const { contactListId } = await prisma.newsletter.findUniqueOrThrow({
+          where: { id: newsletter.id },
+        });
+        expect(contactListId).not.toBe(oldListId);
+        const expected = [
+          survivor.contact.id,
+          original.get(people[1].email)!.id,
+          added.get(next.email)!.id,
+        ].sort();
+        const members = await prisma.contactListMember.findMany({
+          where: { listId: contactListId! },
+        });
+        expect(members.map((member) => member.contactId).sort()).toEqual(
+          expected,
+        );
+        const subscriptions = await prisma.newsletterSubscriber.findMany({
+          where: { newsletterId: newsletter.id },
+          orderBy: { email: "asc" },
+        });
+        expect(subscriptions.map((subscriber) => subscriber.status)).toEqual([
+          "ACTIVE",
+          "BOUNCED",
+        ]);
+      } finally {
+        await prisma.newsletter.delete({ where: { id: newsletter.id } });
+        await prisma.project.delete({ where: { id: project.id } });
+      }
+    },
+  );
 });

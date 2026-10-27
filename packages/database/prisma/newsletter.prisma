@@ -20,6 +20,7 @@ enum NewsletterSubscriberSource {
   CSV_IMPORT
   SIGNUP_FORM
   API
+  CONTACTS
 }
 
 enum NewsletterSendStatus {
@@ -51,6 +52,10 @@ model Newsletter {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "newsletter_workspaceId_fkey")
 
+  /// Manual Contacts list used to file this newsletter's subscribers.
+  contactListId String?      @db.Uuid
+  contactList   ContactList? @relation(fields: [contactListId], references: [id], onDelete: SetNull, map: "newsletter_contactListId_fkey")
+
   name                String
   senderName          String
   replyTo             String
@@ -66,6 +71,7 @@ model Newsletter {
   events      NewsletterEvent[]
 
   @@index([workspaceId], map: "newsletter_workspaceId_idx")
+  @@index([contactListId], map: "newsletter_contactListId_idx")
   @@map("newsletter")
 }
 
@@ -130,6 +136,10 @@ model NewsletterSubscriber {
   newsletterId String     @db.Uuid
   newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade, map: "newsletter_subscriber_newsletterId_fkey")
 
+  /// Person in Contacts; email and name remain snapshots for sending after contact deletion.
+  contactId String?  @db.Uuid
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull, map: "newsletter_subscriber_contactId_fkey")
+
   /// Lowercased by Core before writing so the unique key catches duplicates.
   email          String
   name           String?
@@ -151,6 +161,7 @@ model NewsletterSubscriber {
 
   @@unique([newsletterId, email], map: "newsletter_subscriber_newsletterId_email_key")
   @@index([newsletterId, status], map: "newsletter_subscriber_newsletterId_status_idx")
+  @@index([contactId], map: "newsletter_subscriber_contactId_idx")
   @@index([newsletterId, status, id], map: "newsletter_subscriber_newsletterId_status_id_idx")
   @@index([newsletterId, createdAt, id], map: "newsletter_subscriber_newsletterId_createdAt_id_idx")
   @@index([newsletterId, status, createdAt, id], map: "newsletter_subscriber_newsletterId_status_createdAt_id_idx")

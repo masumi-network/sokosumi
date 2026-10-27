@@ -49,6 +49,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const subscriber = await addNewsletterSubscriber(
       scope,
       c.req.valid("json"),
+      c.var.authContext,
     );
     return created(c, newsletterSubscriberSchema.parse(subscriber));
   });

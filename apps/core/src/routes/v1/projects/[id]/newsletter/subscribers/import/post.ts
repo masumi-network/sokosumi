@@ -38,6 +38,7 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Invalid CSV or missing consent"),
     },
   }),
@@ -50,6 +51,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const result = await importNewsletterSubscribers(
       scope,
       c.req.valid("json").csv,
+      c.var.authContext,
     );
     return ok(c, newsletterImportResultSchema.parse(result));
   });

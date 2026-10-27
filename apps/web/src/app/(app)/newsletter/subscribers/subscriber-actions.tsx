@@ -50,22 +50,19 @@ export function SubscriberActions({
     duration: Infinity,
     cancel: { label: t("dismiss"), onClick: () => undefined },
   };
-  const nextStatus =
-    subscriber.status === NewsletterSubscriberStatus.ACTIVE
-      ? NewsletterSubscriberStatus.UNSUBSCRIBED
-      : null;
+  const canUnsubscribe =
+    subscriber.status === NewsletterSubscriberStatus.ACTIVE;
   const canRemove =
-    subscriber.status === NewsletterSubscriberStatus.ACTIVE ||
-    subscriber.status === NewsletterSubscriberStatus.PENDING;
+    canUnsubscribe || subscriber.status === NewsletterSubscriberStatus.PENDING;
 
   async function handleStatus() {
-    if (!nextStatus) return;
+    if (!canUnsubscribe) return;
     setPending(true);
     try {
       const result = await changeNewsletterSubscriberStatus({
         projectId,
         subscriberId: subscriber.id,
-        status: nextStatus,
+        status: NewsletterSubscriberStatus.UNSUBSCRIBED,
       });
       if (!result.ok) {
         toast.error(result.error.message, errorToastOptions);
@@ -120,7 +117,7 @@ export function SubscriberActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {nextStatus ? (
+          {canUnsubscribe ? (
             <DropdownMenuItem onSelect={() => void handleStatus()}>
               {t("unsubscribe")}
             </DropdownMenuItem>

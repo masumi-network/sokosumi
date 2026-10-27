@@ -125,11 +125,12 @@ model Contact {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  channels        ContactChannel[]
-  interactions    ContactInteraction[]
-  scores          ContactScore[]
-  listMemberships ContactListMember[]
-  activities      ContactActivity[]
+  channels              ContactChannel[]
+  interactions          ContactInteraction[]
+  scores                ContactScore[]
+  listMemberships       ContactListMember[]
+  activities            ContactActivity[]
+  newsletterSubscribers NewsletterSubscriber[]
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
@@ -209,6 +210,7 @@ model ContactList {
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   members              ContactListMember[]
+  newsletters          Newsletter[]
 
   @@unique([workspaceId, nameKey])
   @@map("contact_list")
