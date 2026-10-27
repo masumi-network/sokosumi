@@ -18,6 +18,8 @@
       private static let longText = (1 ... 30).map { "Line \($0) of a very long chat message." }.joined(separator: "\n")
       private static let fileLink = "[report.pdf](https://example.com/report.pdf)"
       private static let imageLink = "[photo.png](https://scroll-fixture.invalid/photo.png)"
+      /// `ScrollMediaProtocol`'s 1600 × 2400 PNG: fitted under the 320 pt cap, it is the cap's full height.
+      private static let portraitLink = "[photo.png](https://scroll-fixture.invalid/portrait.png?shape=portrait)"
       /// `ScrollMediaProtocol`'s 2400 × 1600 PNG fitted to the body's width under the large image's 320 pt cap.
       private static let imageHeight = min((width - 2 * inset) * 1600 / 2400, 320)
       private static let code = """
@@ -84,20 +86,66 @@
         #expect(expanded >= textAlone + Self.imageHeight + 2 * Self.inset - 1, "Thirty lines and the image are all shown: \(expanded) pt.")
       }
 
-      /// A caption over one large image still fits the collapsed body, as on web (a 320 px image under a 384 px cap).
-      @Test func aCaptionAndASoloImageOfferNoShowMore() async throws {
+      /// Web's photo cases (`room-message-body-clamp.webkit.test.ts`): a portrait at the large image's full cap fits
+      /// alone and under a one-line caption.
+      @Test(arguments: ["", "Here is the photo.\n\n"])
+      func aPhotoAloneOrUnderAOneLineCaptionFits(caption: String) async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        let caption = "Here is this week's chart.\nThe second line explains it."
-        let fixture = try Self.fixture(source: caption + "\n\n" + Self.imageLink, dark: false)
+        let fixture = try Self.fixture(source: caption + Self.portraitLink, dark: false)
         defer { fixture.window.orderOut(nil) }
         let height = try await Self.settledHeight(fixture)
-        let captionHeight = Self.naturalHeight(of: caption, dark: false)
-        #expect(height >= captionHeight + Self.imageHeight + 2 * Self.inset - 1, "The caption and the whole image are shown: \(height) pt.")
-        if let lines = try Self.recognizedText(in: Self.record(fixture.host, named: "message-body-caption-image.png")) {
+        let captionHeight = caption.isEmpty ? 0 : Self.naturalHeight(of: caption, dark: false) + 8
+        #expect(height >= captionHeight + 320 + 2 * Self.inset - 1, "The caption and the whole photo are shown: \(height) pt.")
+        if let lines = try Self.recognizedText(in: Self.record(fixture.host, named: "message-body-photo-\(caption.isEmpty ? "alone" : "caption").png")) {
           let read = lines.map(\.text)
           #expect(!read.contains { $0.contains("Show more") }, "OCR read: \(read)")
-          #expect(read.contains { $0.contains("second line") }, "OCR read: \(read)")
+        }
+      }
+
+      /// Web: a second caption paragraph tips a full-cap photo over the cap, so the body collapses with the photo's
+      /// bottom cut until Show more.
+      @Test func aSecondCaptionParagraphCollapsesThePhoto() async throws {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+        let caption = "Here is the photo.\n\nAnd a second paragraph about it."
+        let fixture = try Self.fixture(source: caption + "\n\n" + Self.portraitLink, dark: false)
+        defer { fixture.window.orderOut(nil) }
+        let collapsed = try await Self.settledHeight(fixture)
+        let captionHeight = Self.naturalHeight(of: caption, dark: false)
+        let showMore = Self.buttonSize("Show more")
+        let shownBody = collapsed - showMore.height - 4 - 2 * Self.inset
+        #expect(shownBody < captionHeight + 8 + 320 - 1, "The photo's bottom is cut: \(shownBody) pt of the body shown.")
+        #expect(shownBody > captionHeight + 8 + 320 / 2, "Most of the photo stays in view: \(shownBody) pt of the body shown.")
+        let bitmap = try Self.record(fixture.host, named: "message-body-photo-two-paragraphs.png")
+        if let lines = try Self.recognizedText(in: bitmap) {
+          let read = lines.map(\.text)
+          #expect(read.contains { $0.contains("Show more") }, "OCR read: \(read)")
+          #expect(read.contains { $0.contains("second paragraph") }, "OCR read: \(read)")
+        }
+        try Self.click(control: "Show more", in: fixture, bitmap: bitmap)
+        let expanded = try await Self.settledHeight(fixture, after: collapsed)
+        #expect(expanded >= captionHeight + 8 + 320 + 2 * Self.inset - 1, "Expanded shows the whole photo: \(expanded) pt.")
+      }
+
+      /// Web's table and code cases: blocks that scroll sideways count toward the collapsed height like any text.
+      @Test(arguments: [
+        ("Results\n\n| # | Result |\n| - | - |\n" + (1 ... 40).map { "| \($0) | Row \($0) |" }.joined(separator: "\n"), "Row 40"),
+        ("Script\n\n```\n" + (1 ... 40).map { "line \($0)" }.joined(separator: "\n") + "\n```", "line 40")
+      ])
+      func aLongTableOrCodeBlockCollapses(source: String, last: String) async throws {
+        let fixture = try Self.fixture(source: source, dark: false)
+        defer { fixture.window.orderOut(nil) }
+        let collapsed = try await Self.settledHeight(fixture)
+        let natural = Self.naturalHeight(of: source, dark: false)
+        let showMore = Self.buttonSize("Show more")
+        #expect(collapsed < natural, "The body must be clamped: \(collapsed) pt rendered, \(natural) pt unclamped.")
+        #expect(collapsed <= Self.collapsedLinesHeight() + 4 + showMore.height + 2 * Self.inset + 1, "At most 16 lines plus the control: \(collapsed) pt.")
+        #expect(collapsed >= Self.collapsedLinesHeight() * 0.75 + showMore.height + 2 * Self.inset, "The block's first lines stay visible: \(collapsed) pt.")
+        if let lines = try Self.recognizedText(in: Self.record(fixture.host, named: "message-body-\(last.hasPrefix("Row") ? "table" : "code")-collapsed.png")) {
+          let read = lines.map(\.text)
+          #expect(read.contains { $0.contains("Show more") }, "OCR read: \(read)")
+          #expect(!read.contains { $0.contains(last) }, "OCR read: \(read)")
         }
       }
 

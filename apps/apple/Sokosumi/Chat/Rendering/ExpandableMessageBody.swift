@@ -6,6 +6,9 @@ struct ExpandableMessageBody<Content: View>: View {
   let source: String
   var collapsedLines = 16
   var measurementFont: Font = .body
+  /// Web fades a collapsed body's bottom (`COLLAPSED_FADE_CLASS`), whose cut can land inside an image; a quote's
+  /// line clamp does not.
+  var fadesCut = true
   /// The toggle's titles: the body's "Show more" / "Show less", a quote's "More" / "Less" (web `Quote.showMore`).
   var titles: (expand: LocalizedStringKey, collapse: LocalizedStringKey) = ("Show more", "Show less")
   @ViewBuilder let content: Content
@@ -18,7 +21,7 @@ struct ExpandableMessageBody<Content: View>: View {
   /// Sixteen lines' height, plus the part of each block above it that web's line clamp does not count as lines.
   private var clampLimit: CGFloat {
     allowances.sorted { $0.top < $1.top }.reduce(collapsedHeight) { limit, allowance in
-      allowance.top < limit ? limit + allowance.uncounted : limit
+      allowance.top < limit ? limit + allowance.uncounted(collapsedHeight: collapsedHeight) : limit
     }
   }
 
@@ -44,7 +47,10 @@ struct ExpandableMessageBody<Content: View>: View {
                   line.typographicBounds.rect.offsetBy(dx: origin.x, dy: origin.y)
                 }
               }
-              let height = completeLineBoundary(lines, limit: clampLimit)
+              // A cut through a block without lines of its own stays there: snapping up would hide all of it.
+              let limit = clampLimit
+              let height = allowances.contains { $0.top < limit && limit < $0.top + $0.height }
+                ? limit : completeLineBoundary(lines, limit: limit)
               Color.clear.onChange(of: height, initial: true) { _, height in
                 completeLineHeight = height
               }
@@ -55,6 +61,11 @@ struct ExpandableMessageBody<Content: View>: View {
         .onPreferenceChange(MessageClampAllowance.Key.self) { allowances = $0 }
         .frame(height: !expanded && overflows ? completeLineHeight ?? clampLimit : nil, alignment: .top)
         .clipped()
+        .mask {
+          LinearGradient(stops: [.init(color: .black, location: 0.6),
+                                 .init(color: .black.opacity(fadesCut && !expanded && overflows ? 0 : 1), location: 1)],
+                         startPoint: .top, endPoint: .bottom)
+        }
         .contentShape(Rectangle())
       if expanded || overflows {
         Button(expanded ? titles.collapse : titles.expand) {
@@ -89,9 +100,19 @@ struct ExpandableMessageBody<Content: View>: View {
 /// to its sixteen lines when the block starts above the cut.
 struct MessageClampAllowance: Equatable {
   static let space = "MessageClampBody"
+  /// Web's collapsed body (`max-h-96`, sixteen 24 px lines) and the margin round its large image (`my-2`), in px.
+  private static let webCap: CGFloat = 384
+  private static let webImageMargin: CGFloat = 16
   /// The block's top in the body.
   let top: CGFloat
-  let uncounted: CGFloat
+  let height: CGFloat
+  /// Nil for a large image. Its 320 pt cap is web's, but Apple's sixteen lines are shorter than web's, so it counts
+  /// the share of them it fills of web's cap: a full-cap image fits under one caption line, as on web, not two.
+  let uncounted: CGFloat?
+
+  func uncounted(collapsedHeight: CGFloat) -> CGFloat {
+    uncounted ?? max(0, height - (height + Self.webImageMargin) * collapsedHeight / Self.webCap)
+  }
 
   struct Key: PreferenceKey {
     static let defaultValue: [MessageClampAllowance] = []
@@ -102,13 +123,23 @@ struct MessageClampAllowance: Equatable {
 }
 
 extension View {
-  /// Reports `uncounted` points of this view, or all of it, as outside the enclosing body's line count.
-  func messageClampAllowance(_ uncounted: CGFloat? = nil) -> some View {
+  /// Reports `uncounted` points of this view as outside the enclosing body's line count.
+  func messageClampAllowance(_ uncounted: CGFloat) -> some View {
+    reportingClampAllowance(uncounted)
+  }
+
+  /// Counts this large image toward the enclosing body's sixteen lines as web counts it against its cap.
+  func messageClampLargeImage() -> some View {
+    reportingClampAllowance(nil)
+  }
+
+  private func reportingClampAllowance(_ uncounted: CGFloat?) -> some View {
     background {
       GeometryReader { proxy in
         Color.clear.preference(
           key: MessageClampAllowance.Key.self,
-          value: [MessageClampAllowance(top: proxy.frame(in: .named(MessageClampAllowance.space)).minY, uncounted: uncounted ?? proxy.size.height)]
+          value: [MessageClampAllowance(top: proxy.frame(in: .named(MessageClampAllowance.space)).minY,
+                                        height: proxy.size.height, uncounted: uncounted)]
         )
       }
     }

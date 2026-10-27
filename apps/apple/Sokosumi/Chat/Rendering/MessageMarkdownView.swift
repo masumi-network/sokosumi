@@ -76,8 +76,7 @@ private struct MessageMarkdownContent: View {
               if segment.files.isEmpty {
                 MarkdownBlocksView(blocks: segment.blocks)
               } else if segment.usesLargeImage, let file = segment.files.first {
-                // Sixteen body lines are shorter than the 320 pt image, so it counts as none of them (row 10c).
-                MessageAttachmentView(attachment: file.attachment).messageClampAllowance().id(file.attachment.url)
+                MessageAttachmentView(attachment: file.attachment).messageClampLargeImage().id(file.attachment.url)
               } else {
                 WrappingRow(alignment: .top, constrainsWidth: true) {
                   ForEach(segment.files) { file in
@@ -190,7 +189,7 @@ private struct MarkdownBlockView: View {
     return VStack(alignment: .leading, spacing: 8) {
       ForEach(segments) { segment in
         if let attachment = segment.attachment {
-          MessageAttachmentView(attachment: attachment).messageClampAllowance().id(attachment.url)
+          MessageAttachmentView(attachment: attachment).messageClampLargeImage().id(attachment.url)
         } else if segment.text.runs.contains(where: { $0.link != nil }) {
           LinkPointerText(text: styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         } else {
