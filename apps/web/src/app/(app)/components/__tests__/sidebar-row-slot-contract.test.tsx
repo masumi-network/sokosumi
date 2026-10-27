@@ -108,20 +108,17 @@ const pendingInvitations: ChatRoomInvitation[] = [
 ];
 
 /**
- * One rule, one slot: every kind of **Sidebar row** (CONTEXT.md) puts its
+ * One rule, one slot: every kind of **Sidebar row** (GLOSSARY.md) puts its
  * leading mark in `SidebarRowSlot`, so no row can drift off the sidebar's
  * 28px leading axis or start its label off the 48px column. Each row type used
  * to build that box by hand, which is how a room's mark ended up 2px from the
  * nav icons' line, a section's chevron 2px, and Soko Bots' stack 16px.
- *
- * One render answers both states: expanded and collapsed are pure CSS on the
- * same markup, so a slot that is right here is right on the rail too.
  */
 function renderSidebar() {
   return render(
     <TestQueryProvider>
       <SidebarProvider defaultOpen>
-        <Sidebar collapsible="icon">
+        <Sidebar>
           <SidebarContent>
             <PersonalAssistantNav
               bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
@@ -151,11 +148,10 @@ describe("every sidebar row uses the shared leading slot", () => {
   it("renders one for Soko Bots, nav, headings, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // Soko Bots, eight nav rows, four section headings (Pinned, Channels,
-    // External, Direct Messages) twice over — the titled row and its rail
-    // square — Archived's titled row, five rooms, the archived row, the
-    // invitation's card and its rail button, and eight skeleton slots — two
-    // section headings and six rooms. Counting
+    // Soko Bots, eight nav rows, five section headings (Pinned, Channels,
+    // External, Archived, Direct Messages), five rooms, the archived row, the
+    // invitation's card, and eight skeleton slots — two section headings and
+    // six rooms. Counting
     // by row type rather than by total, so adding a nav item does not edit a
     // number here.
     expect(container.querySelectorAll(SLOT).length).toBeGreaterThan(20);
@@ -165,34 +161,6 @@ describe("every sidebar row uses the shared leading slot", () => {
       expect(tokens).toContain("h-6");
       expect(tokens).toContain("min-w-6");
       expect(tokens).toContain("shrink-0");
-      // A slot that changed with the sidebar's state would be a mark that
-      // moves on a toggle, which is the whole thing this rule forbids.
-      expect(slot.className).not.toContain("group-data-[collapsible=icon]:");
-    }
-  });
-
-  it("renders a rail square per section, Archived included", () => {
-    const { container } = renderSidebar();
-
-    // Every section keeps a square on the rail or the sections below it jump
-    // on a toggle, and each square's mark uses the same slot as the rows it
-    // heads. Named rather than counted: the `> 20` total above would not dent
-    // if a section lost its square, and Archived is the one that only just
-    // got one — its rows never reach the rail, so nothing else there would
-    // hold its heading's place.
-    const squares = [
-      ...container.querySelectorAll('[data-slot="section-rail-header"]'),
-    ];
-    expect(squares.map((square) => square.textContent?.trim())).toContain(
-      "archivedChannels",
-    );
-    // Pinned, Channels, External, Archived, Direct Messages.
-    expect(squares).toHaveLength(5);
-    for (const square of squares) {
-      expect(
-        square.querySelector(SLOT),
-        square.textContent ?? "",
-      ).not.toBeNull();
     }
   });
 
@@ -212,14 +180,14 @@ describe("every sidebar row uses the shared leading slot", () => {
     }
   });
 
-  it("holds every row to one height in both states", () => {
+  it("holds every row to one height", () => {
     const { container } = renderSidebar();
 
     for (const button of container.querySelectorAll(
       '[data-slot="sidebar-menu-button"]',
     )) {
       const tokens = button.className.split(/\s+/);
-      // The guest row is one of the three items allowed to differ: its host
+      // The guest row is one of the items allowed to differ: its host
       // organisation line needs a second line no 32px row can hold.
       if (tokens.includes("h-auto")) {
         expect(tokens).toContain("md:min-h-8");

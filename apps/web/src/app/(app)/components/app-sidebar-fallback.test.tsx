@@ -107,8 +107,8 @@ describe("AppSidebarFallback", () => {
       ),
     ).toContain("w-24");
 
-    // Channel rows carry both of ChannelRoomMark's shapes. Direct rows carry
-    // one face, except the group row whose second face grows the slot right.
+    // Channel rows carry the 16px kind glyph. Direct rows carry one face,
+    // except the group row whose second face grows the slot right.
     const channelRows = [
       ...(menus[0]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
     ];
@@ -117,20 +117,8 @@ describe("AppSidebarFallback", () => {
       const marks = row.querySelectorAll(
         '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
       );
-      expect(marks).toHaveLength(2);
-      expect(tokens(marks[0]?.className ?? "")).toEqual(
-        expect.arrayContaining([
-          "size-4",
-          "group-data-[collapsible=icon]:hidden",
-        ]),
-      );
-      expect(tokens(marks[1]?.className ?? "")).toEqual(
-        expect.arrayContaining([
-          "size-5",
-          "hidden",
-          "group-data-[collapsible=icon]:block",
-        ]),
-      );
+      expect(marks).toHaveLength(1);
+      expect(tokens(marks[0]?.className ?? "")).toContain("size-4");
       expect(
         row.querySelectorAll(
           '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
@@ -150,11 +138,8 @@ describe("AppSidebarFallback", () => {
       ];
       expect(faces).toHaveLength(rowIndex === 1 ? 2 : 1);
       if (rowIndex === 1) {
-        expect(tokens(faces[0]?.parentElement?.className ?? "")).toEqual(
-          expect.arrayContaining([
-            "pl-0.5",
-            "group-data-[collapsible=icon]:pl-0",
-          ]),
+        expect(tokens(faces[0]?.parentElement?.className ?? "")).toContain(
+          "pl-0.5",
         );
       } else {
         expect(tokens(faces[0]?.parentElement?.className ?? "")).not.toContain(
@@ -166,12 +151,7 @@ describe("AppSidebarFallback", () => {
           expect.arrayContaining(["size-5", "rounded-full"]),
         );
         if (faceIndex > 0) {
-          expect(tokens(face.className)).toEqual(
-            expect.arrayContaining([
-              "-ml-1.5",
-              "group-data-[collapsible=icon]:hidden",
-            ]),
-          );
+          expect(tokens(face.className)).toContain("-ml-1.5");
         } else {
           expect(tokens(face.className)).not.toContain("-ml-1.5");
         }
@@ -209,7 +189,7 @@ describe("AppSidebarFallback", () => {
     expect(header?.querySelector("button")).toBeNull();
   });
 
-  it("keeps the expanded skeleton on the same columns as a real row", () => {
+  it("keeps the skeleton on the same columns as a real row", () => {
     const { container } = renderFallback();
     const skeleton = container.querySelector(
       '[data-slot="sidebar-group"][aria-hidden]',
@@ -226,26 +206,15 @@ describe("AppSidebarFallback", () => {
     );
     const headerName = header?.querySelectorAll('[data-slot="skeleton"]')[1];
 
-    // Expanded: the same `px-2` + `gap-2` a real row uses, so the 24px slot
-    // sits on the 28px axis and the name bar starts on the 48px column.
+    // The same `px-2` + `gap-2` a real row uses, so the 24px slot sits on
+    // the 28px axis and the name bar starts on the 48px column.
     for (const el of [header, row]) {
       expect(tokens(el?.className ?? "")).toEqual(
         expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-8"]),
       );
     }
     expect(tokens(headerName?.className ?? "")).toContain("w-16");
-    expect(tokens(headerName?.className ?? "")).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(tokens(headerName?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-    expect(tokens(name?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-3", "group-data-[collapsible=icon]:max-w-0"]),
-    );
-    expect(tokens(name?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
+    expect(tokens(name?.className ?? "")).toContain("h-3");
     expect(name?.className).toMatch(/\bw-(14|16|20|24|28|32)\b/);
   });
 });

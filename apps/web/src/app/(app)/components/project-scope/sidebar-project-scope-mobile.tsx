@@ -52,7 +52,7 @@ export function useCurrentScope() {
   return {
     ...scope,
     name,
-    /** "Project: Acme", for accessible names and the rail tooltip. */
+    /** "Project: Acme", for accessible names. */
     label: scope.projectId === null ? name : `${t("label")}: ${name}`,
     mark:
       scope.projectId === null ? (

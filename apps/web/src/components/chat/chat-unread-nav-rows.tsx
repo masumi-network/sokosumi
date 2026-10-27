@@ -16,7 +16,6 @@ import { markAllChatUnreadReadAction } from "@/app/chat/actions";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CHAT_CATCH_UP_PATH } from "@/app/chat/utils/chat-route-base";
 import { useMarkFeatureSeen } from "@/app/components/sidebar/components/feature-badges";
-import { RailAttentionPill } from "@/components/chat/chat-room-sidebar-row";
 import {
   NeedsYouPill,
   RowCountMark,
@@ -32,7 +31,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRailSelectionBar,
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -115,8 +113,7 @@ export function ChatUnreadNavRows({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showsShortcut, isApplePlatform]);
 
-  const { threadCount, mentionCount, rail } =
-    resolveUnreadThreadsAttention(rooms);
+  const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);
   const wrapLink = (link: ReactNode) =>
     dismissSheetOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link;
 
@@ -128,7 +125,6 @@ export function ChatUnreadNavRows({
       room.mutedAt == null ? sum + (room.unreadNeedsYouCount ?? 0) : sum,
     0,
   );
-  const railMark = needsYouTotal > 0 ? "mention" : rail;
   const [isMarking, startMarking] = useTransition();
   const markAllTargets = rooms
     .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
@@ -152,13 +148,7 @@ export function ChatUnreadNavRows({
   return (
     <SidebarMenu className="gap-0" aria-label={t("label")}>
       <SidebarMenuItem className="relative">
-        {railMark ? <RailAttentionPill variant={railMark} /> : null}
-        {catchUpActive ? <SidebarRailSelectionBar /> : null}
-        <SidebarMenuButton
-          asChild
-          isActive={catchUpActive}
-          tooltip={tSignals("catchUp")}
-        >
+        <SidebarMenuButton asChild isActive={catchUpActive}>
           {wrapLink(
             <Link
               href={CHAT_CATCH_UP_PATH}
@@ -197,7 +187,7 @@ export function ChatUnreadNavRows({
                 <span
                   aria-hidden
                   data-slot="catch-up-count"
-                  className="group-data-[collapsible=icon]:hidden flex size-7 shrink-0 items-center justify-center"
+                  className="flex size-7 shrink-0 items-center justify-center"
                 >
                   {needsYouTotal > 0 ? (
                     <NeedsYouPill count={needsYouTotal} />
@@ -212,15 +202,12 @@ export function ChatUnreadNavRows({
               {/* Holds the label clear of the buttons drawn over the end. */}
               <span
                 aria-hidden
-                className={cn(
-                  "group-data-[collapsible=icon]:hidden shrink-0",
-                  showMarkAll ? "w-14" : "w-7",
-                )}
+                className={cn("shrink-0", showMarkAll ? "w-14" : "w-7")}
               />
             </Link>,
           )}
         </SidebarMenuButton>
-        <div className="group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
+        <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
           {showMarkAll ? (
             <button
               type="button"

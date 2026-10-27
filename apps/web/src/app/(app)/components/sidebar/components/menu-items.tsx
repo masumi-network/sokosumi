@@ -26,14 +26,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRailSelectionBar,
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  SIDEBAR_ROW_FIXED_LABEL_CLASS,
-  SIDEBAR_ROW_LABEL_CLASS,
-} from "@/components/ui/sidebar-classes";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 import { useMarkFeatureSeen } from "./feature-badges";
@@ -190,10 +186,9 @@ function ScopedMenuItems({
   return (
     <>
       {/* `px-2` here rather than on the item, so a nav row's
-          `SidebarMenuItem` is the same box a Chat row's is and the rail
-          selection bar's `-right-2` lands on the rail's edge in both. The
-          separator spans the rail rather than the row, so it takes that
-          padding back with `-mx-2`. */}
+          `SidebarMenuItem` is the same box a Chat row's is. The separator
+          spans the sidebar rather than the row, so it takes that padding
+          back with `-mx-2`. */}
       <SidebarGroup className="w-full px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
@@ -208,16 +203,12 @@ function ScopedMenuItems({
                 feature,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
-                // The pill wears the rail square's 4px inset and 4px padding
-                // at every width, so collapsing only narrows it: its edge
-                // and the + inside it stay where they are.
+                // A 4px inset and 4px padding, so the pill's + stays on the
+                // same 28px axis as every other row's mark.
                 const newTaskClassName =
                   key === "new-task"
-                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground"
                     : undefined;
-
-                // Collapsed rail hides the label, so every item needs the hint.
-                const tooltip = label;
 
                 const content = (
                   <>
@@ -227,7 +218,6 @@ function ScopedMenuItems({
                     <span
                       className={cn(
                         SIDEBAR_ROW_LABEL_CLASS,
-                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
                         SIDEBAR_FEATURE_LABEL_CLASS,
                       )}
                     >
@@ -251,7 +241,6 @@ function ScopedMenuItems({
                             key === "new-task" ? "" : undefined
                           }
                           className={newTaskClassName}
-                          tooltip={tooltip}
                         >
                           <SheetClose asChild>
                             <Link
@@ -282,7 +271,6 @@ function ScopedMenuItems({
                           data-sidebar-new-task={
                             key === "new-task" ? "" : undefined
                           }
-                          tooltip={tooltip}
                           className={cn(
                             newTaskClassName ??
                               "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -291,10 +279,6 @@ function ScopedMenuItems({
                           {content}
                         </SidebarMenuButton>
                       )}
-                      {/* Collapsed, the rail's fill belongs to hover alone, so
-                          the open destination is marked on the rail's edge the
-                          same way an open Chat room is. */}
-                      {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
                       <SidebarMenuItem aria-hidden className="-mx-2 py-2">

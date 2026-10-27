@@ -34,11 +34,10 @@ import { usePrefetchScopeProjects } from "./use-scope-projects";
  */
 export function SidebarProjectScope() {
   const t = useTranslations("App.ProjectScope");
-  const { isMobile, state, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const sheetOpen = useScopeSheetOpen();
   const [open, setOpen] = useState(false);
   const { projectId, name, label, mark, select } = useCurrentScope();
-  const collapsed = state === "collapsed" && !isMobile;
   const prefetch = usePrefetchScopeProjects();
 
   const content = (
@@ -46,7 +45,7 @@ export function SidebarProjectScope() {
       <SidebarRowSlot aria-hidden>{mark}</SidebarRowSlot>
       <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>{name}</span>
       <ChevronsUpDown
-        className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden"
+        className="text-muted-foreground size-4 shrink-0"
         aria-hidden
       />
     </>
@@ -83,8 +82,6 @@ export function SidebarProjectScope() {
                     aria-label={label}
                     data-testid="project-scope-sidebar-row"
                     className="font-medium data-[state=open]:bg-sidebar-accent"
-                    // Rail only, and not over its own open popover.
-                    tooltip={{ children: label, hidden: !collapsed || open }}
                     onPointerEnter={prefetch}
                     onFocus={prefetch}
                   >
@@ -92,9 +89,9 @@ export function SidebarProjectScope() {
                   </SidebarMenuButton>
                 </PopoverTrigger>
                 <PopoverContent
-                  side={collapsed ? "right" : "bottom"}
+                  side="bottom"
                   align="start"
-                  sideOffset={collapsed ? 8 : 4}
+                  sideOffset={4}
                   aria-label={t("switchLabel")}
                   className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
                 >

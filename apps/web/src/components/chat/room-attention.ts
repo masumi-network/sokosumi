@@ -79,12 +79,12 @@ export function resolveRoomAttention(options: {
    * The badge counts mentions. False in a Direct of two, where Core counts
    * every message toward it: the reader was written to, not named, so that
    * row draws no mention pill and shows the same muted count a channel does.
-   * The badge still bolds the row and marks the rail there.
+   * The badge still bolds the row there.
    */
   badgeCountsMentions?: boolean;
 }): {
   bold: boolean;
-  /** What was addressed to the reader. Drives bold and the rail pill. */
+  /** What was addressed to the reader. Drives bold. */
   badgeCount: number;
   /** What the row draws as its `@` pill: the badge, where it counts mentions. */
   mentionCount: number;
@@ -202,8 +202,8 @@ export type SectionAttention = "mention" | "unread" | null;
 /**
  * A section's attention is its loudest room's, by the same rules a row
  * follows, so a closed heading cannot disagree with the rooms under it.
- * Mention wins, as it does on the Rail attention pill. A pending invitation
- * is addressed to the reader, so it counts as a mention.
+ * Mention wins. A pending invitation is addressed to the reader, so it counts
+ * as a mention.
  */
 export function resolveSectionAttention(
   rooms: ReadonlyArray<RoomAttentionCounts & { mutedAt?: unknown }>,
@@ -242,15 +242,12 @@ interface RoomUnreadSummary extends RoomAttentionCounts {
  * "4 more unread threads" row. A muted room lists no Thread in the sidebar,
  * so it adds none here either. `mentionCount` is every unread reply naming
  * the reader across those Threads, past each room's three listed ones too.
- * The rail mark follows the same one rule as a room's: a mention outranks
- * unread.
  */
 export function resolveUnreadThreadsAttention(
   rooms: readonly RoomUnreadSummary[],
 ): {
   threadCount: number;
   mentionCount: number;
-  rail: "mention" | "unread" | null;
 } {
   let threadCount = 0;
   let mentionCount = 0;
@@ -263,11 +260,7 @@ export function resolveUnreadThreadsAttention(
       room.unreadThreadMentionCount ??
       listed.reduce((sum, thread) => sum + (thread.unreadMentionCount ?? 0), 0);
   }
-  return {
-    threadCount,
-    mentionCount,
-    rail: mentionCount > 0 ? "mention" : threadCount > 0 ? "unread" : null,
-  };
+  return { threadCount, mentionCount };
 }
 
 /**

@@ -4029,8 +4029,7 @@
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",
         "planLabel": "Plan",
-        "openSummary": "Open account summary: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Open account summary: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
@@ -7526,12 +7525,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "unreadMessagesCapped": "More than {max} unread messages",
-        "railUnread": "Unread"
+        "unread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "mentionsCapped": "More than {max} mentions",
-        "railMention": "Mentions you"
+        "mentionsYou": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",

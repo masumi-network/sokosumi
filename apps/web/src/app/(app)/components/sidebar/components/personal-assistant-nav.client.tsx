@@ -14,13 +14,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import {
-  SIDEBAR_ROW_FIXED_LABEL_CLASS,
-  SIDEBAR_ROW_LABEL_CLASS,
-} from "@/components/ui/sidebar-classes";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -62,11 +58,7 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive}
-              tooltip={t("sokoBot")}
-            >
+            <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>
                 <Link
                   href={SOKO_BOTS_ROUTE}
@@ -87,7 +79,6 @@ export default function PersonalAssistantNav({
                   <span
                     className={cn(
                       SIDEBAR_ROW_LABEL_CLASS,
-                      SIDEBAR_ROW_FIXED_LABEL_CLASS,
                       SIDEBAR_FEATURE_LABEL_CLASS,
                       "font-medium",
                     )}
@@ -100,7 +91,6 @@ export default function PersonalAssistantNav({
                 </Link>
               </SheetClose>
             </SidebarMenuButton>
-            {isActive ? <SidebarRailSelectionBar /> : null}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroupContent>

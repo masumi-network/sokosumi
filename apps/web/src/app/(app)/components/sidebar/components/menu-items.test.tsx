@@ -51,34 +51,23 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuButton: ({
     children,
     onClick,
-    tooltip,
     asChild: _asChild,
     isActive: _isActive,
     ...props
   }: {
     children: React.ReactNode;
     onClick?: () => void;
-    tooltip?: string | { children: React.ReactNode };
     asChild?: boolean;
     isActive?: boolean;
   }) => (
-    <>
-      <button type="button" onClick={onClick} {...props}>
-        {children}
-      </button>
-      <span data-testid="menu-tooltip">
-        {typeof tooltip === "string" ? tooltip : tooltip?.children}
-      </span>
-    </>
+    <button type="button" onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
-  // Props ride through: the separator item states on its own `<li>` whether
-  // it survives the collapse to the rail.
+  // Props ride through, so the separator item keeps its own `<li>` markup.
   SidebarMenuItem: ({ children, ...props }: { children: React.ReactNode }) => (
     <li {...props}>{children}</li>
   ),
-  // A marker, not the real bar: how it looks belongs to the primitive that
-  // owns it, and `ui/__tests__/sidebar-rail-selection.test.tsx` pins that.
-  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
   useSidebar: () => ({
     isMobile: sidebarIsMobile,
     setOpenMobile: setOpenMobileMock,
@@ -89,10 +78,15 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    ...props
   }: {
     children: React.ReactNode;
     href: string;
-  }) => <a href={href}>{children}</a>,
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
@@ -306,7 +300,7 @@ describe("MenuItems", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  it("keeps the separator under New Task on the collapsed rail", () => {
+  it("sets New Task apart from the destinations with a separator", () => {
     const { container } = render(
       <TestQueryProvider>
         <MenuItems />
@@ -314,20 +308,13 @@ describe("MenuItems", () => {
     );
     const separator = container.querySelector('li[aria-hidden="true"]');
 
-    // The one action set apart from the destinations under it. It used to be
-    // expanded-only, which made it 17px the rail did not have, so everything
-    // below New Task jumped on a toggle. It is not the hairline between chat
-    // sections that the Rail section header entry rules out (CONTEXT.md).
     expect(separator).not.toBeNull();
-    expect(separator?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
     expect(separator?.firstElementChild?.className.split(/\s+/)).toContain(
       "bg-sidebar-border",
     );
   });
 
-  it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
+  it("puts each destination's icon in the shared row slot", () => {
     render(
       <TestQueryProvider>
         <MenuItems />
@@ -338,61 +325,20 @@ describe("MenuItems", () => {
     // axis a room's mark does — and the label after it on the same column.
     const slot = link.querySelector('[data-slot="sidebar-row-slot"]');
     expect(slot?.querySelector("svg")).not.toBeNull();
-    const label = slot?.nextElementSibling;
-    expect(label).not.toBeNull();
-    // Shared label class: still in the flow and the accessibility tree.
-    // `absolute` painted the name on the mark; `sr-only` clipped it on
-    // frame one. max-width eases to 0 instead.
-    expect(label?.className.split(/\s+/)).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(label?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:sr-only",
-    );
-    expect(label?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
+    expect(slot?.nextElementSibling).toHaveTextContent("exploreAgents");
   });
 
-  it("keeps the New Task pill's inset and padding across the collapse", () => {
+  it("keeps the New Task pill's + on the rows' leading axis", () => {
     renderMenu(true, false);
     const pill = document.querySelector("[data-sidebar-new-task]");
-    // The rail square's own 4px inset and padding, at every width, so the
-    // collapse narrows the pill without sliding its edge.
+    // A 4px inset plus 4px padding is the 8px every other row's `px-2` gives.
     expect(pill?.className.split(/\s+/)).toEqual(
       expect.arrayContaining(["ml-1", "pl-1", "w-[calc(100%-0.5rem)]"]),
     );
-    // And the name clips instead of re-ellipsizing on every frame.
-    expect(
-      pill
-        ?.querySelector('[data-slot="sidebar-row-slot"]')
-        ?.nextElementSibling?.className.split(/\s+/),
-    ).toContain("text-clip!");
-  });
-
-  it("gives every menu item its label as a hover hint for the collapsed rail", () => {
-    renderMenu(true, false);
-
-    expect(
-      screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
-    ).toEqual([
-      "newTask",
-      "exploreAgents",
-      "taskManager",
-      "schedules",
-      "contacts",
-      "contentStudio",
-      "social",
-      "drive",
-    ]);
   });
 });
 
-// Collapsed to icons a nav row is a bare glyph and the neutral fill was
-// carrying hover and selection alike, so you could not tell the open
-// destination from the one under the cursor. Selection moves to the rail's
-// right edge, the same mark an open Chat room gets.
-describe("MenuItems rail selection bar", () => {
+describe("MenuItems current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
@@ -403,11 +349,9 @@ describe("MenuItems rail selection bar", () => {
   // A count alone would pass with the mark on the wrong row, which is the one
   // way this can fail without looking broken.
   function markedHrefs() {
-    return screen
-      .getAllByTestId("rail-selection-bar")
-      .map((bar) =>
-        bar.closest("li")?.querySelector("a")?.getAttribute("href"),
-      );
+    return [...document.querySelectorAll('a[aria-current="page"]')].map(
+      (link) => link.getAttribute("href"),
+    );
   }
 
   it("marks exactly the destination the reader is on", () => {
@@ -426,7 +370,7 @@ describe("MenuItems rail selection bar", () => {
   it("marks nothing on a route no nav item owns", () => {
     pathnameRef.current = "/";
     renderMenu();
-    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+    expect(markedHrefs()).toEqual([]);
   });
 });
 
@@ -506,6 +450,6 @@ describe("MenuItems project scope", () => {
       "href",
       "/tasks?projectId=p-1",
     );
-    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+    expect(document.querySelector('a[aria-current="page"]')).toBeNull();
   });
 });

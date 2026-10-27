@@ -33,7 +33,6 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const { navigation, sidebarMock } = vi.hoisted(() => ({
   navigation: { pathname: "/chat/rooms/room-1" },
   sidebarMock: {
-    state: "expanded" as "expanded" | "collapsed",
     isMobile: false,
   },
 }));
@@ -58,25 +57,21 @@ vi.mock("@/components/ui/sidebar", async () => ({
     "@/components/ui/sidebar",
   )),
   // The primitive's `cn` merge, reduced to the part these rows rely on: the
-  // row's own classes land on the element it renders. Its rail tooltip
-  // lands there as data-tooltip.
+  // row's own classes land on the element it renders.
   SidebarMenuButton: ({
     children,
     asChild,
     className,
-    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
     className?: string;
-    tooltip?: string;
   }) =>
     asChild === true && isValidElement<{ className?: string }>(children) ? (
       cloneElement(children, {
         className: [children.props.className, className]
           .filter(Boolean)
           .join(" "),
-        ...(tooltip ? { "data-tooltip": tooltip } : {}),
       })
     ) : (
       <>{children}</>
@@ -86,7 +81,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
-  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -139,7 +133,6 @@ beforeEach(() => {
   sidebarMock.isMobile = false;
   markAllActionMock.mockResolvedValue({ ok: true, value: null });
   navigation.pathname = "/chat/rooms/room-1";
-  sidebarMock.state = "expanded";
 });
 
 describe("ChatUnreadNavRows", () => {

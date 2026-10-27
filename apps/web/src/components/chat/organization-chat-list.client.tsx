@@ -2,16 +2,11 @@
 
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import {
-  Archive,
   ArrowUpDown,
-  Building2,
   Check,
   CheckCheck,
   Ellipsis,
   Globe2,
-  Hash,
-  MessageCircle,
-  Pin,
   RotateCcw,
   Trash2,
 } from "lucide-react";
@@ -64,7 +59,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarRowSlot,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   SIDEBAR_ROW_CLASS,
@@ -77,7 +71,6 @@ import {
   getActiveRoomIdFromSelection,
 } from "./active-room-id";
 import { ChannelKindGlyph } from "./channel-discoverability-icon";
-import { ChannelRoomMark } from "./channel-room-mark";
 import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
@@ -94,7 +87,6 @@ import {
   reorderPinnedOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import { PendingInvitationRailButton } from "./pending-invitation-rail-button";
 import {
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
@@ -155,8 +147,8 @@ const UNREAD_FILTER_PRESENCE = {
 /**
  * A room arriving in or leaving the filter's list. No opacity: a read room's
  * dimming is a class on the same `<li>`, and a finished fade would pin it at
- * full. Clipped only while it moves, because the collapsed rail's attention
- * pill sits outside the row's box.
+ * full. Clipped only while it moves, because the row's focus ring sits on
+ * the edge of its box.
  */
 const UNREAD_FILTER_ROW_PRESENCE = {
   initial: { height: 0, overflow: "hidden" },
@@ -200,7 +192,6 @@ export function OrganizationChatList({
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
   const router = useRouter();
-  const { setOpen } = useSidebar();
   const hasOrganization = Boolean(organizationId);
   const {
     roomRows,
@@ -512,7 +503,7 @@ export function OrganizationChatList({
       leading: isDirect ? (
         <DirectRoomAvatarStack room={room} currentUserId={currentUserId} />
       ) : (
-        <ChannelRoomMark room={room} />
+        <ChannelKindGlyph discoverability={room.discoverability} />
       ),
       onRoomUpdated: replaceRoom,
       dismissSheetOnNavigate,
@@ -556,9 +547,8 @@ export function OrganizationChatList({
               // Present for the whole pass, empty or not, so a room arriving in an
               // empty list animates in: `initial={false}` only spares the rows
               // already here when the filter comes on. Hidden while it holds
-              // nothing, so it adds no gap. On the rail the caught-up row is
-              // hidden, so there only a room keeps it.
-              <div className="[&:not(:has(li,[role=status]))]:hidden group-data-[collapsible=icon]:[&:not(:has(li))]:hidden">
+              // nothing, so it adds no gap.
+              <div className="[&:not(:has(li,[role=status]))]:hidden">
                 <AnimatePresence initial={false}>
                   {caughtUp ? (
                     // A message, not a row: nothing here opens. The way back to
@@ -570,7 +560,6 @@ export function OrganizationChatList({
                       key="caught-up"
                       role="status"
                       data-slot="unread-caught-up"
-                      className="group-data-[collapsible=icon]:hidden"
                       {...UNREAD_FILTER_PRESENCE}
                     >
                       <div
@@ -592,11 +581,7 @@ export function OrganizationChatList({
                 <AnimatePresence initial={false}>
                   {showsReadLabel ? (
                     // Everything left is read: say why it is still listed.
-                    <motion.div
-                      key="read-label"
-                      className="group-data-[collapsible=icon]:hidden"
-                      {...UNREAD_FILTER_PRESENCE}
-                    >
+                    <motion.div key="read-label" {...UNREAD_FILTER_PRESENCE}>
                       <p
                         id={inboxReadLabelId}
                         className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
@@ -610,7 +595,7 @@ export function OrganizationChatList({
                   <>
                     <p
                       id={inboxNeedsYouLabelId}
-                      className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pt-2 pb-1 text-xs font-medium"
+                      className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
                     >
                       {t("Signals.needsYouSection")}
                     </p>
@@ -656,7 +641,6 @@ export function OrganizationChatList({
               <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
                 <ChatSidebarSectionHeader
                   isOpen={pinnedOpen}
-                  railIcon={Pin}
                   closedAttention={resolveSectionAttention(pinned)}
                   createAction={
                     canReorderPinned ? (
@@ -741,7 +725,6 @@ export function OrganizationChatList({
               >
                 <ChatSidebarSectionHeader
                   isOpen={channelSectionOpen}
-                  railIcon={Hash}
                   closedAttention={resolveSectionAttention(namedChannels)}
                   createAction={<CreateChannelDialog />}
                   secondaryAction={<BrowseChannelsDialog />}
@@ -768,7 +751,7 @@ export function OrganizationChatList({
                         <div
                           className={cn(
                             SIDEBAR_ROW_LABEL_INSET_CLASS,
-                            "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                            "text-muted-foreground py-1.5 pr-2 text-xs",
                           )}
                         >
                           {t("Empty.noChannels")}
@@ -785,7 +768,6 @@ export function OrganizationChatList({
               <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
                 <ChatSidebarSectionHeader
                   isOpen={externalOpen}
-                  railIcon={Building2}
                   closedAttention={resolveSectionAttention(externalJoined, {
                     hasPendingInvitation: pendingRows.length > 0,
                   })}
@@ -806,17 +788,11 @@ export function OrganizationChatList({
                         name: invitation.roomName,
                         organization: invitation.organizationName,
                       });
-                      const acceptButtonId = `invitation-accept-${invitation.id}`;
                       return (
                         <SidebarMenuItem key={invitation.id}>
-                          <PendingInvitationRailButton
-                            roomName={invitation.roomName}
-                            label={invitationLabel}
-                            acceptButtonId={acceptButtonId}
-                          />
                           <div
                             aria-label={invitationLabel}
-                            className="text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden flex w-full items-start gap-2 px-2 py-1.5"
+                            className="text-tertiary-foreground dark:text-muted-foreground flex w-full items-start gap-2 px-2 py-1.5"
                           >
                             <SidebarRowSlot>
                               <Globe2
@@ -833,7 +809,6 @@ export function OrganizationChatList({
                               </div>
                               <div className="mt-1.5 flex items-center gap-1.5">
                                 <Button
-                                  id={acceptButtonId}
                                   type="button"
                                   size="sm"
                                   variant="default"
@@ -892,7 +867,7 @@ export function OrganizationChatList({
               <div>
                 <p
                   id={inboxPinnedLabelId}
-                  className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+                  className="text-muted-foreground px-2 pb-1 text-xs font-medium"
                 >
                   {t("pinned")}
                 </p>
@@ -918,23 +893,7 @@ export function OrganizationChatList({
                 open={archivedSectionOpen}
                 onOpenChange={setArchivedSectionOpen}
               >
-                {/*
-              Archived keeps its square on the rail so nothing under it — the
-              Direct Messages section — moves when the sidebar toggles. Its
-              rows do not follow it there: they are static, and Restore and
-              Delete live in a menu a 32px square has no room for (Rail
-              actions, CONTEXT.md). So the square expands the sidebar and
-              opens the section, the way a pending invitation's tile expands
-              to its Accept and Decline.
-            */}
-                <ChatSidebarSectionHeader
-                  isOpen={archivedSectionOpen}
-                  railIcon={Archive}
-                  onRailPress={() => {
-                    setArchivedSectionOpen(true);
-                    setOpen(true);
-                  }}
-                >
+                <ChatSidebarSectionHeader isOpen={archivedSectionOpen}>
                   {t("archivedChannels")}
                 </ChatSidebarSectionHeader>
                 <ChatSidebarSectionContent>
@@ -953,7 +912,7 @@ export function OrganizationChatList({
                           <div
                             className={cn(
                               SIDEBAR_ROW_CLASS,
-                              "text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden",
+                              "text-tertiary-foreground dark:text-muted-foreground",
                             )}
                           >
                             <SidebarRowSlot>
@@ -980,7 +939,7 @@ export function OrganizationChatList({
                                   disabled={actionBusy}
                                   className={cn(
                                     ARCHIVED_TRAILING_CONTROL_CLASS,
-                                    "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                                    "text-muted-foreground",
                                     isRestoring || isDeleting
                                       ? "opacity-100"
                                       : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
@@ -1024,7 +983,7 @@ export function OrganizationChatList({
                               size="icon"
                               className={cn(
                                 ARCHIVED_TRAILING_CONTROL_CLASS,
-                                "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                                "text-muted-foreground",
                                 isRestoring
                                   ? "opacity-100"
                                   : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
@@ -1097,7 +1056,6 @@ export function OrganizationChatList({
           */}
                 <ChatSidebarSectionHeader
                   isOpen={directOpen}
-                  railIcon={MessageCircle}
                   closedAttention={resolveSectionAttention(directMessages)}
                   createAction={<CreateDirectDialog />}
                 >
@@ -1123,7 +1081,7 @@ export function OrganizationChatList({
                         <div
                           className={cn(
                             SIDEBAR_ROW_LABEL_INSET_CLASS,
-                            "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                            "text-muted-foreground py-1.5 pr-2 text-xs",
                           )}
                         >
                           {t("Empty.noDirectMessages")}

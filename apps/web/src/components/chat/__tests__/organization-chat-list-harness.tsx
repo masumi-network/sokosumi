@@ -116,7 +116,6 @@ vi.mock("../chat-room-sidebar-row", () => ({
       {reorderHandle}
     </li>
   ),
-  RailAttentionPill: () => null,
 }));
 
 // A marker, not the rows: what they count belongs to
@@ -140,25 +139,6 @@ vi.mock("../chat-unread-nav-rows", () => ({
         All unreads
       </button>
     </li>
-  ),
-}));
-
-vi.mock("../pending-invitation-rail-button", () => ({
-  PendingInvitationRailButton: ({
-    roomName,
-    label,
-    acceptButtonId,
-  }: {
-    roomName: string;
-    label: string;
-    acceptButtonId: string;
-  }) => (
-    <span
-      data-testid="rail-invitation"
-      data-room-name={roomName}
-      data-label={label}
-      data-accept-button-id={acceptButtonId}
-    />
   ),
 }));
 
@@ -200,12 +180,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
     "@/components/ui/sidebar",
   )),
-  // The section header's rail square, as a bare marker: its children repeat
-  // the title the expanded heading already renders, which would double every
-  // `getByText`. `chat-sidebar-section-header.test.tsx` covers the square.
-  SidebarMenuButton: ({ tooltip }: { tooltip?: string }) => (
-    <span data-testid="section-rail-button" data-tooltip={tooltip} />
-  ),
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
@@ -222,9 +196,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
-  // The list reads it to expand the sidebar from Archived's rail square;
-  // there is no provider around these renders.
-  useSidebar: () => ({ setOpen: vi.fn() }),
 }));
 
 vi.mock("@/components/ui/alert-dialog", () => ({

@@ -73,10 +73,8 @@ function renderNav(props: Parameters<typeof PersonalAssistantNav>[0] = {}) {
 }
 
 /**
- * Soko Bots is an ordinary Sidebar row (CONTEXT.md), not the 48px bordered
- * card it used to be: it takes the row primitive's height and the shared slot,
- * so it neither pushes the list down nor resizes its mark when the sidebar
- * toggles.
+ * Soko Bots is an ordinary Sidebar row (GLOSSARY.md), not the 48px bordered
+ * card it used to be: it takes the row primitive's height and the shared slot.
  */
 describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   beforeEach(() => {
@@ -91,15 +89,12 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(tokens(button?.className ?? "")).toEqual(
       expect.arrayContaining(["h-11", "md:h-8"]),
     );
-    // The card that is gone: its own border, radius and rail hover exception.
+    // The card that is gone: its own border and radius.
     expect(tokens(button?.className ?? "")).not.toContain("border");
     expect(tokens(button?.className ?? "")).not.toContain("rounded-lg");
-    expect(button?.className).not.toContain(
-      "group-data-[collapsible=icon]:hover:ring-0!",
-    );
   });
 
-  it("shows one 20px face in the shared slot, the same in both states", () => {
+  it("shows one 20px face in the shared slot", () => {
     const { container } = renderNav({ bot });
     const slot = container.querySelector('[data-slot="sidebar-row-slot"]');
     const face = slot?.querySelector("img");
@@ -108,8 +103,6 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(tokens(slot?.className ?? "")).toContain("min-w-6");
     expect(face).not.toBeNull();
     expect(tokens(face?.className ?? "")).toContain("size-5");
-    // No state-dependent size: the face cannot resize on a toggle.
-    expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
   it("falls back to the bot icon in the same slot when there is no bot", () => {
@@ -121,61 +114,39 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
   });
 
-  it("names the row on the sidebar button so the collapsed rail can show it", () => {
+  it("links the named row to the team's Soko Bots", () => {
     renderNav({ bot });
     expect(screen.getByRole("link", { name: "sokoBot" })).toHaveAttribute(
       "href",
       SOKO_BOTS_ROUTE,
     );
   });
-
-  it("keeps the label in the accessibility tree when the rail collapses", () => {
-    renderNav({ bot });
-    // The row's label span; the name sits inside it beside the New pill.
-    const label = screen.getByText("sokoBot").parentElement!;
-    expect(tokens(label.className)).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(tokens(label.className)).not.toContain(
-      "group-data-[collapsible=icon]:sr-only",
-    );
-    expect(tokens(label.className)).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-  });
-
-  it("clips the label on collapse instead of re-ellipsizing it", () => {
-    renderNav({ bot });
-    const label = screen.getByText("sokoBot").parentElement!;
-    expect(tokens(label.className)).toContain("text-clip!");
-    expect(tokens(label.className)).not.toContain("truncate");
-  });
 });
 
-// Collapsed, the rail's fill belongs to hover alone. This row is on that
-// rail too, so the open destination is the same right-edge mark Chat and
-// nav already use.
-describe("PersonalAssistantNav rail selection bar", () => {
+describe("PersonalAssistantNav current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     pathnameRef.current = "/";
   });
 
-  function railSelection(container: HTMLElement) {
-    return container.querySelector('[data-slot="sidebar-rail-selection"]');
+  function link() {
+    return screen.getByRole("link", { name: "sokoBot" });
   }
 
   it("marks the row when the reader is on Soko Bots", () => {
     pathnameRef.current = SOKO_BOTS_ROUTE;
-    expect(railSelection(renderNav({ bot }).container)).not.toBeNull();
+    renderNav({ bot });
+    expect(link()).toHaveAttribute("aria-current", "page");
   });
 
   it("marks the row from a personal-assistant page too", () => {
     pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
-    expect(railSelection(renderNav({ bot }).container)).not.toBeNull();
+    renderNav({ bot });
+    expect(link()).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows no selection mark on a route it does not own", () => {
-    expect(railSelection(renderNav({ bot }).container)).toBeNull();
+  it("marks nothing on a route it does not own", () => {
+    renderNav({ bot });
+    expect(link()).not.toHaveAttribute("aria-current");
   });
 });

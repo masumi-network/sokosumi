@@ -65,14 +65,9 @@ function MobileSidebarProbe() {
   );
 }
 
-interface HarnessOptions {
-  /** Controls the desktop sidebar; `false` is the collapsed rail. */
-  sidebarOpen?: boolean;
-}
-
-function Harness({ sidebarOpen }: HarnessOptions) {
+function Harness() {
   return (
-    <SidebarProvider open={sidebarOpen}>
+    <SidebarProvider>
       <header>
         <button type="button">header-home</button>
       </header>
@@ -83,13 +78,13 @@ function Harness({ sidebarOpen }: HarnessOptions) {
   );
 }
 
-function renderHarness(options: HarnessOptions = {}) {
+function renderHarness() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <Harness {...options} />
+      <Harness />
     </QueryClientProvider>,
   );
 }
@@ -189,41 +184,5 @@ describe("sidebar project scope", () => {
     renderHarness();
 
     await waitFor(() => expect(row()).toHaveAccessibleName("label: Acme"));
-  });
-});
-
-describe("sidebar project scope rail tooltip", () => {
-  it("shows the scope label when the rail row is hovered", async () => {
-    const user = userEvent.setup();
-    renderHarness({ sidebarOpen: false });
-
-    await user.hover(row());
-
-    expect(
-      await screen.findByRole("tooltip", { name: "workspaceView" }),
-    ).toBeInTheDocument();
-  });
-
-  it("hides the tooltip while the sidebar is expanded", async () => {
-    const user = userEvent.setup();
-    renderHarness({ sidebarOpen: true });
-
-    await user.hover(row());
-
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-  });
-
-  it("hides the tooltip over the row's own open popover", async () => {
-    const user = userEvent.setup();
-    renderHarness({ sidebarOpen: false });
-
-    await user.click(row());
-    expect(
-      await screen.findByRole("dialog", { name: "switchLabel" }),
-    ).toBeInTheDocument();
-    await user.unhover(row());
-    await user.hover(row());
-
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });
