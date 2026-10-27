@@ -13,6 +13,7 @@ import {
 } from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -373,42 +374,31 @@ function SidebarSeparator({
   );
 }
 
-const SIDEBAR_SCROLL_IDLE_MS = 1000;
-
 function SidebarContent({
   className,
-  onScroll,
+  children,
   ...props
-}: React.ComponentProps<"div">) {
-  const idleTimer = React.useRef<number | undefined>(undefined);
-
-  // Set on the node directly: a state flag would re-render the whole sidebar
-  // on every scroll frame just to flip one attribute.
-  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    onScroll?.(event);
-    const scroller = event.currentTarget;
-    scroller.dataset.scrolling = "";
-    window.clearTimeout(idleTimer.current);
-    idleTimer.current = window.setTimeout(() => {
-      delete scroller.dataset.scrolling;
-    }, SIDEBAR_SCROLL_IDLE_MS);
-  };
-
+}: React.ComponentProps<typeof ScrollArea>) {
   return (
-    <div
+    // An overlay scrollbar, not the native one: a native scrollbar takes its
+    // width out of the rows, so they widened whenever a filter shortened the
+    // list and the scrollbar went away. Radix floats the thumb over the rows'
+    // right padding and shows it only while the list scrolls; scrolling
+    // itself stays native. The edge fade belongs on the viewport, the element
+    // that scrolls.
+    <ScrollArea
+      type="scroll"
+      shrinkContent
       data-slot="sidebar-content"
       data-sidebar="content"
-      // scrollbar-gutter: stable reserves the scrollbar's width whether or not
-      // it is showing, so rows don't widen when a filter shrinks the list.
-      // The thumb stays transparent until the list scrolls (or the pointer is
-      // on it), so the reserved gutter reads as empty space at rest.
       className={cn(
-        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] not-data-scrolling:[--scrollbar-thumb:transparent]",
+        "min-h-0 flex-1 *:data-[slot=scroll-area-viewport]:scroll-edge-y",
         className,
       )}
-      onScroll={handleScroll}
       {...props}
-    />
+    >
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+    </ScrollArea>
   );
 }
 
