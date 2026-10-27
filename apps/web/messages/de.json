@@ -3252,6 +3252,112 @@
             "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
           },
           "dismiss": "Schließen"
+        },
+        "Issues": {
+          "title": "Ausgaben",
+          "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
+          "newIssue": "Neue Ausgabe",
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Wähle eine Vorlage für deine erste Newsletter-Ausgabe.",
+          "subject": "Betreff",
+          "previewText": "Vorschautext",
+          "status": "Status",
+          "deliveryDate": "Geplant / gesendet",
+          "updatedAt": "Aktualisiert",
+          "actions": "Aktionen",
+          "sentAt": "Gesendet am {date}",
+          "scheduledAt": "Geplant für {date}",
+          "noDate": "Nicht geplant",
+          "firstPage": "Erste Seite",
+          "nextPage": "Nächste Seite",
+          "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "statuses": {
+            "DRAFT": "Entwurf",
+            "NEEDS_APPROVAL": "Freigabe erforderlich",
+            "SCHEDULED": "Geplant",
+            "SENDING": "Wird gesendet",
+            "SENT": "Gesendet",
+            "FAILED": "Fehlgeschlagen",
+            "CANCELED": "Abgebrochen"
+          },
+          "createError": "Ausgabe konnte nicht erstellt werden. Wähle die Vorlage erneut.",
+          "saveError": "Ausgabe konnte nicht gespeichert werden. Behalte deine Änderungen und versuche es erneut.",
+          "conflict": "Diese Ausgabe wurde geändert oder kann nicht mehr bearbeitet werden. Kopiere deine Änderungen, lade die Seite neu und versuche es erneut.",
+          "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+          "save": "Ausgabe speichern",
+          "saved": "Alle Änderungen gespeichert",
+          "unsaved": "Ungespeicherte Änderungen",
+          "readOnly": "Diese Ausgabe ist schreibgeschützt. Nur Entwürfe und Ausgaben, die eine Freigabe benötigen, können bearbeitet werden.",
+          "back": "Zurück zu den Ausgaben",
+          "blocks": "Inhaltsblöcke",
+          "addBlock": "Block hinzufügen",
+          "moveUp": "Block {number} nach oben verschieben",
+          "moveDown": "Block {number} nach unten verschieben",
+          "removeBlock": "Block {number} entfernen",
+          "blockNumber": "Block {number}: {type}",
+          "emptyBlocks": "Füge einen Block hinzu, um mit dem Schreiben zu beginnen.",
+          "level": "Überschriftenebene",
+          "mainHeading": "Hauptüberschrift",
+          "subheading": "Unterüberschrift",
+          "text": "Text",
+          "imageUrl": "Bild-URL",
+          "alt": "Alternativtext",
+          "imageLink": "Link-URL (optional)",
+          "buttonLabel": "Schaltflächentext",
+          "buttonUrl": "Schaltflächen-URL",
+          "httpsHint": "Verwende eine vollständige HTTPS-URL.",
+          "blockTypes": {
+            "heading": "Überschrift",
+            "text": "Text",
+            "image": "Bild",
+            "button": "Schaltfläche",
+            "divider": "Trennlinie"
+          },
+          "Validation": {
+            "subject": "Gib einen Betreff mit 1 bis 200 Zeichen ein.",
+            "previewText": "Der Vorschautext darf höchstens 500 Zeichen enthalten.",
+            "content": "Prüfe diesen Block. Verwende HTTPS-URLs und halte die Zeichenbegrenzungen ein."
+          },
+          "Templates": {
+            "title": "Vorlage auswählen",
+            "description": "Beginne mit einem Layout und bearbeite anschließend jeden Block.",
+            "subject": "Unbenannte Ausgabe",
+            "heading": "Die Höhepunkte dieser Woche",
+            "text": "Teile Neuigkeiten, eine nützliche Idee oder ein Update mit deinen Abonnenten.",
+            "closing": "Danke fürs Lesen. Bis zum nächsten Mal.",
+            "heroAlt": "Titelbild",
+            "imageAlt": "Ergänzendes Bild",
+            "button": "Weiterlesen",
+            "TEXT": {
+              "title": "Text",
+              "description": "Eine Überschrift, Absätze und eine Trennlinie."
+            },
+            "IMAGES": {
+              "title": "Bilder",
+              "description": "Eine Überschrift, ein Titelbild, Text und ein weiteres Bild."
+            },
+            "BUTTONS": {
+              "title": "Schaltflächen",
+              "description": "Eine Überschrift, Text, eine Schaltfläche, eine Trennlinie und ein Abschlusstext."
+            }
+          },
+          "Preview": {
+            "title": "Vorschau",
+            "label": "Vorschau der Newsletter-E-Mail",
+            "mobile": "Mobil",
+            "desktop": "Desktop",
+            "loading": "Vorschau wird aktualisiert…",
+            "error": "Vorschau konnte nicht geladen werden. Versuche es erneut.",
+            "invalid": "Vervollständige den Betreff und prüfe die Inhaltsblöcke, um die Vorschau anzuzeigen.",
+            "retry": "Vorschau erneut laden"
+          },
+          "Delete": {
+            "title": "Entwurf löschen?",
+            "description": "„{subject}“ wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+            "action": "Entwurf löschen",
+            "cancel": "Abbrechen",
+            "error": "Ausgabe konnte nicht gelöscht werden. Ihr Status hat sich möglicherweise geändert. Lade die Seite neu und versuche es erneut."
+          }
         }
       }
     },
@@ -3993,6 +4099,16 @@
         "retry": "Erneut versuchen"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Wähle ein Projekt aus, um seinen Newsletter zu verwalten.",
+      "nextPage": "Weitere Projekte",
+      "empty": {
+        "title": "Noch keine Projekte",
+        "description": "Erstelle ein Projekt, um einen Newsletter zu starten.",
+        "action": "Projekt erstellen"
+      }
+    },
     "Social": {
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
@@ -4078,6 +4194,7 @@
           "schedules": "Zeitpläne",
           "social": "Social-Planung",
           "ads": "Ads",
+          "newsletter": "Newsletter",
           "contacts": "Kontakte"
         },
         "ChatLists": {
