@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
@@ -10,8 +10,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SidebarGroup, useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
+import { cn } from "@/lib/utils";
 
 import { useCurrentScope } from "./sidebar-project-scope-mobile";
+import {
+  SCOPE_TITLE_CHEVRON_CLASS,
+  SCOPE_TITLE_GROUP_CLASS,
+  SCOPE_TITLE_ROW_CLASS,
+} from "./sidebar-project-scope-skeleton";
 import {
   openScopeCreate,
   openScopeSheet,
@@ -19,12 +26,11 @@ import {
 } from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
-/**
- * Not a Sidebar row: no leading mark, so the name starts where a section
- * heading's title does. 44px on the phone sheet, for a thumb.
- */
-const SCOPE_TITLE_CLASS =
-  "press text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex h-11 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-semibold outline-hidden transition-colors focus-visible:ring-2 md:h-8";
+const SCOPE_TITLE_CLASS = cn(
+  SCOPE_TITLE_ROW_CLASS,
+  SIDEBAR_CONTROL_INTERACTION_CLASS,
+  "press text-sidebar-foreground transition-colors",
+);
 
 /**
  * The project scope as the title the nav sits under: the scope's name and a
@@ -42,15 +48,12 @@ export function SidebarProjectScope() {
   const content = (
     <>
       <span className="min-w-0 truncate">{name}</span>
-      <ChevronDown
-        className="text-muted-foreground size-3.5 shrink-0"
-        aria-hidden
-      />
+      <ChevronsUpDown className={SCOPE_TITLE_CHEVRON_CLASS} aria-hidden />
     </>
   );
 
   return (
-    <SidebarGroup className="w-full px-2 pt-2 pb-0">
+    <SidebarGroup className={SCOPE_TITLE_GROUP_CLASS}>
       {isMobile ? (
         // The mobile sidebar is a sheet. It closes and hands off to the
         // header's bottom sheet, which outlives it.

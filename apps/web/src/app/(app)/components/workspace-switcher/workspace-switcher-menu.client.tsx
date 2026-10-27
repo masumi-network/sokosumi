@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 import {
   useWorkspaceSwitcherState,
@@ -34,7 +35,8 @@ import {
 const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
   sidebar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
-    "text-foreground press ring-sidebar-ring outline-hidden transition-[opacity,background-color] hover:bg-sidebar-accent focus-visible:ring-2 data-[state=open]:bg-sidebar-accent",
+    SIDEBAR_CONTROL_INTERACTION_CLASS,
+    "text-foreground press transition-[opacity,background-color]",
   ),
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,

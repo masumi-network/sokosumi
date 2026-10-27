@@ -1,3 +1,5 @@
+import { SidebarProjectScopeSkeleton } from "@/app/components/project-scope/sidebar-project-scope-skeleton";
+import { WorkspaceSwitcherSkeleton } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import {
   Sidebar,
   SidebarContent,
@@ -10,7 +12,6 @@ import MenuItems from "./sidebar/components/menu-items";
 import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
 import SidebarLogo from "./sidebar/components/sidebar-logo.client";
 import { SidebarAccountChipFallback } from "./sidebar-deferred-account";
-import { WorkspaceSwitcherSkeleton } from "./workspace-switcher/workspace-switcher-skeleton";
 
 /**
  * The sidebar while `AuthenticatedAppFrame` is still suspended.
@@ -22,7 +23,7 @@ import { WorkspaceSwitcherSkeleton } from "./workspace-switcher/workspace-switch
  * by `SidebarBootScript`, so the first frame is already the finished state.
  *
  * Only the session-backed surfaces are placeholders: the Workspace switcher,
- * the room list and the account chip.
+ * the project title, the room list and the account chip.
  */
 export function AppSidebarFallback() {
   return (
@@ -47,8 +48,10 @@ export function AppSidebarFallback() {
               this frame has not loaded yet, so both are left out rather than
               guessed: a row that appears once is cheaper than one that
               appears and then goes away. */}
-          {/* The project title is left out like Soko Bot's row, but its line
-              stays so the nav does not shift sideways when it streams in. */}
+          {/* The project title's scope is session-backed, so it is a
+              placeholder in the title's shape, and the line the groups hang
+              from has something to start under. */}
+          <SidebarProjectScopeSkeleton />
           <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
             <MenuItems />
           </div>

@@ -259,7 +259,9 @@ function ScopedMenuItems({
     // `px-2` here rather than on the item, so a nav row's `SidebarMenuItem`
     // is the same box a Chat row's is.
     <SidebarGroup className="w-full px-2 py-0">
-      <SidebarGroupContent className="py-2">
+      {/* 4px over Work, so the first heading sits just under the project
+          title it hangs from. */}
+      <SidebarGroupContent className="pt-1 pb-2">
         {NAV_GROUPS.map((group) => (
           <MenuGroup key={group} title={t(`groups.${group}`)}>
             {destinations

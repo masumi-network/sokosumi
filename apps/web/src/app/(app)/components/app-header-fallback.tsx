@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { WorkspaceSwitcherSkeleton } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import { cn } from "@/lib/utils";
 
 import { HeaderCenter } from "./header/header-center.client";
@@ -10,7 +11,6 @@ import {
 import { HEADER_SEARCH_BOX_CLASS } from "./header/header-search-box";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
-import { WorkspaceSwitcherSkeleton } from "./workspace-switcher/workspace-switcher-skeleton";
 
 interface AppHeaderFallbackProps {
   className?: string;

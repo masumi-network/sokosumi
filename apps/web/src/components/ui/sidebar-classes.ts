@@ -57,6 +57,15 @@ export const SIDEBAR_ROW_LINK_CLASS =
   "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
 /**
+ * How a sidebar control that opens a menu answers pointer and keyboard: it
+ * fills on hover and while its menu is open, and rings on keyboard focus. The
+ * Workspace switcher and the project title share it, so the two controls at
+ * the top of the sidebar read as one kind of thing.
+ */
+export const SIDEBAR_CONTROL_INTERACTION_CLASS =
+  "ring-sidebar-ring outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 data-[state=open]:bg-sidebar-accent";
+
+/**
  * What the project scope scopes: the nav groups under the project title, tied
  * to it by a hairline down their leading side. The line starts 16px in, under
  * the title's first letter, so the groups read as inside the project; the

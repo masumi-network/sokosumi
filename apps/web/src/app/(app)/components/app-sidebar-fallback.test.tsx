@@ -86,6 +86,30 @@ describe("AppSidebarFallback", () => {
     );
   });
 
+  // The line ties the groups to the project title, so the shell holds the
+  // title's place too: a name bar and the selector chevron, in its order.
+  it("holds a project title placeholder where the line starts", () => {
+    const { container } = renderFallback();
+    const placeholder = container.querySelector(
+      '[data-testid="project-scope-title-skeleton"]',
+    );
+    const tasks = screen.getByRole("link", {
+      name: (_, element) => element.getAttribute("href") === "/tasks",
+    });
+    const line = tasks.closest(".border-s");
+
+    if (!placeholder || !line) throw new Error("no title placeholder or line");
+    expect(placeholder).toHaveAttribute("aria-hidden");
+    expect(line.contains(placeholder)).toBe(false);
+    expect(
+      placeholder.compareDocumentPosition(line) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const [name, chevron] = [...placeholder.children];
+    expect(tokens(name?.getAttribute("class") ?? "")).toContain("h-3");
+    expect(chevron?.getAttribute("class")).toContain("lucide-chevrons-up-down");
+  });
+
   // New task needs the wizard and a seat, neither of which this frame has, so
   // the shell header leaves it out rather than showing one that may go away.
   it("holds a Workspace switcher placeholder in the header, without New task", () => {
