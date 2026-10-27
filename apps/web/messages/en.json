@@ -344,7 +344,11 @@
       "ads": "Ads",
       "evaluations": "Model evaluations",
       "catch-up": "Catch up",
-      "contacts": "Contacts"
+      "contacts": "Contacts",
+      "newsletter": "Newsletter",
+      "issues": "Issues",
+      "subscribers": "Subscribers",
+      "settings": "Settings"
     },
     "Jobs": {
       "StatusBadge": {

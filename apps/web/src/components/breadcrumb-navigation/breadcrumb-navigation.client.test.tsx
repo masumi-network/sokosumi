@@ -6,6 +6,7 @@ import {
   useRegisterBreadcrumbOverride,
 } from "@/contexts/breadcrumb-override-context";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
+import messages from "../../../messages/en.json";
 
 const usePathnameMock = vi.fn();
 
@@ -142,6 +143,20 @@ describe("BreadcrumbNavigationClient", () => {
     );
 
     expect(screen.getByText("Calendar")).toBeInTheDocument();
+  });
+
+  it("capitalizes the Newsletter section's breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/newsletter/settings");
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={messages.Components.Breadcrumb}
+      />,
+    );
+
+    expect(screen.getByText("Newsletter")).toBeInTheDocument();
+    expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
   it("shows selected chat room under Chat breadcrumbs", () => {

@@ -328,7 +328,11 @@
       "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos",
       "catch-up": "Ponerse al día",
-      "contacts": "Contactos"
+      "contacts": "Contactos",
+      "newsletter": "Boletín",
+      "issues": "Ediciones",
+      "subscribers": "Suscriptores",
+      "settings": "Ajustes"
     },
     "Jobs": {
       "StatusBadge": {
