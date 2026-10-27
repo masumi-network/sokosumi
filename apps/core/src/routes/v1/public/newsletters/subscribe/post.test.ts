@@ -18,6 +18,7 @@ const m = vi.hoisted(() => ({
   newsletter: vi.fn(),
   createMany: vi.fn(),
   subscriber: vi.fn(),
+  pending: vi.fn(),
   updateMany: vi.fn(),
   eventCreate: vi.fn(),
   transaction: vi.fn(),
@@ -53,6 +54,7 @@ vi.mock("@/lib/db/prisma", () => ({
     newsletterSubscriber: {
       createMany: m.createMany,
       findUnique: m.subscriber,
+      findMany: m.pending,
       updateMany: m.updateMany,
       update: m.update,
     },
@@ -104,6 +106,10 @@ beforeEach(() => {
     source: "SIGNUP_FORM",
     contactId: m.createMany.mock.lastCall?.[0].data.contactId ?? null,
   }));
+  m.pending.mockImplementation(
+    async ({ where }: { where: { OR: { id: string }[] } }) =>
+      where.OR.map(({ id }) => ({ id })),
+  );
   m.updateMany.mockResolvedValue({ count: 1 });
   m.send.mockResolvedValue({ data: { id: "confirmation" }, error: null });
   m.redis.mockResolvedValue(1);
@@ -230,13 +236,19 @@ describe("public newsletter signup", () => {
   });
 
   it("does not send a confirmation after an unsubscribe wins before dispatch", async () => {
-    m.subscriber
-      .mockResolvedValueOnce({
-        ...NEWSLETTER_SUBSCRIBER,
-        status: "PENDING",
-      })
-      .mockResolvedValue(null);
+    m.pending.mockResolvedValue([]);
     await signup();
+    expect(m.pending).toHaveBeenCalledWith({
+      where: {
+        newsletterId: NEWSLETTER_ID,
+        newsletter: expect.any(Object),
+        status: "PENDING",
+        unsubscribedAt: null,
+        bouncedAt: null,
+        OR: [{ id: NEWSLETTER_SUBSCRIBER.id, consentAt: NEWSLETTER_NOW }],
+      },
+      select: { id: true },
+    });
     expect(m.send).not.toHaveBeenCalled();
   });
 

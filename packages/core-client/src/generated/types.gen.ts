@@ -6801,8 +6801,12 @@ export type NewsletterSubscriberSource = typeof NewsletterSubscriberSource[keyof
 export type AddNewsletterSubscriberRequest = {
     email: string;
     name?: string | null;
-    consent: true;
+    consent: NewsletterConsent;
 };
+
+export const NewsletterConsent = { CONFIRMED: 'CONFIRMED', ASK: 'ASK' } as const;
+
+export type NewsletterConsent = typeof NewsletterConsent[keyof typeof NewsletterConsent];
 
 export type NewsletterImportResult = {
     imported: number;
@@ -6810,6 +6814,9 @@ export type NewsletterImportResult = {
      * Valid rows skipped because the email already exists in the newsletter or CSV.
      */
     skippedExisting: number;
+    skippedUnsubscribed: number;
+    skippedBounced: number;
+    pendingConfirmation: number;
     invalid: Array<{
         row: number;
         value: string;
@@ -6818,7 +6825,22 @@ export type NewsletterImportResult = {
 
 export type ImportNewsletterSubscribersRequest = {
     csv: string;
-    consent: true;
+    consent: NewsletterConsent;
+};
+
+export type NewsletterAddFromContactsResult = {
+    added: number;
+    alreadySubscribed: number;
+    skippedUnsubscribed: number;
+    skippedBounced: number;
+    skippedNoEmail: number;
+    pendingConfirmation: number;
+};
+
+export type AddNewsletterSubscribersFromContactsRequest = {
+    contactIds?: Array<string>;
+    listIds?: Array<string>;
+    consent: NewsletterConsent;
 };
 
 export type PatchNewsletterSubscriberRequest = {
@@ -49769,6 +49791,21 @@ export type PostProjectsByIdNewsletterSubscribersErrors = {
             method: string;
         };
     };
+    /**
+     * Confirmation request limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostProjectsByIdNewsletterSubscribersError = PostProjectsByIdNewsletterSubscribersErrors[keyof PostProjectsByIdNewsletterSubscribersErrors];
@@ -49903,6 +49940,21 @@ export type PostProjectsByIdNewsletterSubscribersImportErrors = {
             method: string;
         };
     };
+    /**
+     * Confirmation request limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostProjectsByIdNewsletterSubscribersImportError = PostProjectsByIdNewsletterSubscribersImportErrors[keyof PostProjectsByIdNewsletterSubscribersImportErrors];
@@ -49922,6 +49974,155 @@ export type PostProjectsByIdNewsletterSubscribersImportResponses = {
 };
 
 export type PostProjectsByIdNewsletterSubscribersImportResponse = PostProjectsByIdNewsletterSubscribersImportResponses[keyof PostProjectsByIdNewsletterSubscribersImportResponses];
+
+export type PostProjectsByIdNewsletterSubscribersFromContactsData = {
+    body: AddNewsletterSubscribersFromContactsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/subscribers/from-contacts';
+};
+
+export type PostProjectsByIdNewsletterSubscribersFromContactsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Newsletter, contact or list not found in workspace
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid contacts or missing consent
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Confirmation request limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSubscribersFromContactsError = PostProjectsByIdNewsletterSubscribersFromContactsErrors[keyof PostProjectsByIdNewsletterSubscribersFromContactsErrors];
+
+export type PostProjectsByIdNewsletterSubscribersFromContactsResponses = {
+    /**
+     * Subscriber summary
+     */
+    200: {
+        data: NewsletterAddFromContactsResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSubscribersFromContactsResponse = PostProjectsByIdNewsletterSubscribersFromContactsResponses[keyof PostProjectsByIdNewsletterSubscribersFromContactsResponses];
 
 export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdData = {
     body?: never;

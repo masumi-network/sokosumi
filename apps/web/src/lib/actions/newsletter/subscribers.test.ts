@@ -74,7 +74,7 @@ describe("newsletter subscriber actions", () => {
     expect(mocks.addSubscriber).toHaveBeenCalledWith(TARGET.projectId, {
       email: "person@example.com",
       name: "Person",
-      consent: true,
+      consent: "CONFIRMED",
     });
     expect(revalidatePath).toHaveBeenCalledWith("/newsletter/subscribers");
   });
@@ -120,7 +120,7 @@ describe("newsletter subscriber actions", () => {
     expect(mocks.addSubscriber).toHaveBeenCalledWith(TARGET.projectId, {
       email: "one@example.com",
       name: null,
-      consent: true,
+      consent: "CONFIRMED",
     });
   });
 
@@ -163,10 +163,10 @@ describe("newsletter subscriber actions", () => {
         }).formData(),
       }),
     ).toEqual({ ok: true, value: summary });
-    expect(mocks.importSubscribers).toHaveBeenCalledWith(
-      TARGET.projectId,
-      values,
-    );
+    expect(mocks.importSubscribers).toHaveBeenCalledWith(TARGET.projectId, {
+      ...values,
+      consent: "CONFIRMED",
+    });
     expect(revalidatePath).toHaveBeenCalled();
   });
 

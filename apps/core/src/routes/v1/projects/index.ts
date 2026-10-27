@@ -50,6 +50,7 @@ import mountPreviewNewsletterIssue from "./[id]/newsletter/issues/preview/post.j
 import mountPutProjectNewsletter from "./[id]/newsletter/put.js";
 import mountDeleteNewsletterSubscriber from "./[id]/newsletter/subscribers/[subscriberId]/delete.js";
 import mountPatchNewsletterSubscriber from "./[id]/newsletter/subscribers/[subscriberId]/patch.js";
+import mountAddNewsletterSubscribersFromContacts from "./[id]/newsletter/subscribers/from-contacts/post.js";
 import mountListNewsletterSubscribers from "./[id]/newsletter/subscribers/get.js";
 import mountImportNewsletterSubscribers from "./[id]/newsletter/subscribers/import/post.js";
 import mountAddNewsletterSubscriber from "./[id]/newsletter/subscribers/post.js";
@@ -125,6 +126,7 @@ mountPutProjectNewsletter(app);
 mountListNewsletterSubscribers(app);
 mountAddNewsletterSubscriber(app);
 mountImportNewsletterSubscribers(app);
+mountAddNewsletterSubscribersFromContacts(app);
 mountPatchNewsletterSubscriber(app);
 mountDeleteNewsletterSubscriber(app);
 mountPostProjectStar(app);
