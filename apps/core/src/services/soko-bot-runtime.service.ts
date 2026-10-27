@@ -80,10 +80,13 @@ import {
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
   clampTaskFileName,
   createDataTableSchema,
+  isXLongPostSubscription,
   parseChatRoomFileUrl,
   resolveTaskFileContentType,
   resolveUserUploadContentType,
+  socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
+  socialPostTextLimit,
   socialProvidersForWorkspace,
   tableBatchSchema,
   tableMutationSchema,
@@ -337,6 +340,7 @@ import {
   createTaskForActor,
   updateTaskForActor,
 } from "@/services/task-domain.service";
+import { resolveProjectXSubscriptionTypes } from "@/services/x-subscription-tier.service";
 
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -2291,6 +2295,44 @@ export class SokoBotRuntimeService {
         };
       }),
     );
+  }
+
+  /**
+   * The post's media and each thread part's media, resolved in one Drive
+   * lookup so a long thread with images does not read the Drive per part.
+   */
+  private async resolveSocialPostMedia(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      media?: SocialMediaInput[];
+      threadParts?: { text: string; media?: SocialMediaInput[] }[];
+    },
+  ): Promise<{
+    media: SocialMediaRef[] | undefined;
+    threadParts: { text: string; media?: SocialMediaRef[] }[] | undefined;
+  }> {
+    const groups = [
+      input.media,
+      ...(input.threadParts ?? []).map((part) => part.media),
+    ];
+    const resolved =
+      (await this.resolveSocialMedia(
+        authorized,
+        groups.flatMap((group) => group ?? []),
+      )) ?? [];
+    let offset = 0;
+    const [media, ...partMedia] = groups.map((group) => {
+      if (!group) return undefined;
+      offset += group.length;
+      return resolved.slice(offset - group.length, offset);
+    });
+    return {
+      media,
+      threadParts: input.threadParts?.map((part, index) => ({
+        text: part.text,
+        media: partMedia[index],
+      })),
+    };
   }
 
   /**
@@ -5240,15 +5282,39 @@ export class SokoBotRuntimeService {
           );
         await this.requireSocialAccess(authorized);
         const project = await requireScopedProject({ ...params, workspaceId });
+        const [accounts, xTiers] = await Promise.all([
+          listProjectSocialConnections({ ...params, workspaceId }),
+          resolveProjectXSubscriptionTypes(params.projectId),
+        ]);
         return {
           enabledProviders: socialProvidersForWorkspace(
             socialProviderWorkspaceForProject(project),
           ),
+          // The bot otherwise assumes "X allows 280 characters" for every X
+          // account, so each account states its own limits.
           accounts: z
             .array(projectSocialConnectionSchema)
-            .parse(
-              await listProjectSocialConnections({ ...params, workspaceId }),
-            ),
+            .parse(accounts)
+            .map((account) => {
+              const subscriptionType = xTiers.has(account.id)
+                ? (xTiers.get(account.id) ?? null)
+                : account.subscriptionType;
+              return {
+                ...account,
+                subscriptionType,
+                xPremium:
+                  account.provider === "x" &&
+                  isXLongPostSubscription(subscriptionType),
+                textLimit: socialPostTextLimit(
+                  account.provider,
+                  subscriptionType,
+                ),
+                firstCommentLimit: socialPostFirstCommentLimit(
+                  account.provider,
+                  subscriptionType,
+                ),
+              };
+            }),
         };
       }
       case "list_social_posts": {
@@ -5348,15 +5414,16 @@ export class SokoBotRuntimeService {
       case "cancel_social_post": {
         // Resolved before the transaction: it reads the blob store, and a
         // serializable transaction should not wait on the network.
-        const media =
+        const { media, threadParts } =
           input.capability === "create_social_post" ||
           input.capability === "update_social_post"
-            ? await this.resolveSocialMedia(
+            ? await this.resolveSocialPostMedia(
                 authorized,
-                SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(input.input)
-                  .media,
+                SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+                  input.input,
+                ),
               )
-            : undefined;
+            : { media: undefined, threadParts: undefined };
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,
@@ -5382,6 +5449,7 @@ export class SokoBotRuntimeService {
                     ...params,
                     ...scope,
                     media,
+                    threadParts,
                     sokoBotId: authorized.turn.sokoBotId,
                     scheduledAt: params.scheduledAt
                       ? new Date(params.scheduledAt)
@@ -5395,7 +5463,10 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
-                return updateSocialPost({ ...params, ...scope, media }, tx);
+                return updateSocialPost(
+                  { ...params, ...scope, media, threadParts },
+                  tx,
+                );
               }
               case "schedule_social_post": {
                 const params =

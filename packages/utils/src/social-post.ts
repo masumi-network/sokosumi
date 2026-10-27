@@ -66,15 +66,26 @@ export const X_LONG_POST_SUBSCRIPTION_TYPES = [
 export type XLongPostSubscriptionType =
   (typeof X_LONG_POST_SUBSCRIPTION_TYPES)[number];
 
+/** True for the X tiers that allow long posts. */
+export function isXLongPostSubscription(
+  subscriptionType?: string | null,
+): boolean {
+  return X_LONG_POST_SUBSCRIPTION_TYPES.some(
+    (tier) => tier === subscriptionType,
+  );
+}
+
 export function socialPostTextLimit(
   provider: SocialPostProvider,
   subscriptionType?: string | null,
 ): number {
-  return provider === "x" &&
-    X_LONG_POST_SUBSCRIPTION_TYPES.some((tier) => tier === subscriptionType)
+  return provider === "x" && isXLongPostSubscription(subscriptionType)
     ? X_PREMIUM_TEXT_LIMIT
     : SOCIAL_POST_TEXT_LIMITS[provider];
 }
+
+/** Most posts in an X thread, including the main post. */
+export const SOCIAL_POST_THREAD_MAX_PARTS = 25;
 
 const X_GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
 const X_EMOJI = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F|[0-9#*]\uFE0F?\u20E3/u;

@@ -8724,6 +8724,7 @@
       "previous": "Previous period",
       "next": "Next period",
       "today": "Today",
+      "weekNumber": "Week {week}",
       "view": {
         "month": "Month",
         "week": "Week",
@@ -8806,7 +8807,28 @@
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
-        "platform": "Platform"
+        "platform": "Platform",
+        "more": "+{count} more",
+        "moreHint": "Show {count, plural, one {# more post} other {# more posts}} on this day",
+        "newOnDay": "New post on {date}",
+        "newPost": "New post",
+        "dragHint": "Drag to another day to reschedule.",
+        "dayEmpty": "Nothing scheduled on this day.",
+        "dayCount": "{count, plural, =0 {no posts} one {# post} other {# posts}}",
+        "statusFilter": "Show posts by status",
+        "postCount": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
+        "dayAttention": "{count, plural, one {# needs attention} other {# need attention}}",
+        "reschedule": "Reschedule",
+        "rescheduleNamed": "Reschedule the {time} post: {text}"
+      },
+      "socialMove": {
+        "title": "Reschedule post",
+        "description": "Pick a new date and time. Times are in {zone}.",
+        "label": "New date and time",
+        "confirm": "Reschedule",
+        "cancel": "Cancel",
+        "invalid": "Choose a valid date and time.",
+        "past": "Choose a time in the future."
       },
       "socialOnly": {
         "label": "Social posts only"
