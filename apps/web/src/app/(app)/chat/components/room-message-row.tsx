@@ -310,13 +310,6 @@ function messageImageGallery(
   return [...imagesBySrc.values()];
 }
 
-function hasLargeSoloImageAttachment(content: string): boolean {
-  return segmentRoomMessageContent(content).some(
-    (segment) =>
-      segment.kind === "files" && isLargeSoloImageFilesSegment(segment),
-  );
-}
-
 function MessageQuoteAttachmentThumb({
   attachment,
 }: {
@@ -835,10 +828,8 @@ function ChannelMessageBody({
 }) {
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
-  const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
-  const collapsed = !expanded && !skipBodyClamp;
 
   const selectedProject = readProjectSelectionReply(content);
   if (selectedProject)
@@ -873,9 +864,9 @@ function ChannelMessageBody({
         data-testid="room-message-body"
         className={cn(
           "min-w-0 max-w-full",
-          collapsed ? MESSAGE_BODY_CLAMP_CLASS : null,
+          expanded ? null : MESSAGE_BODY_CLAMP_CLASS,
           // Softens the cut, which can land mid-line.
-          collapsed && overflows ? COLLAPSED_FADE_CLASS : null,
+          !expanded && overflows ? COLLAPSED_FADE_CLASS : null,
           // Last p is inline so the reserve shares its last line. Inline
           // boxes drop vertical margin, which would swallow [&_p+p]:mt-3
           // (the blank line). The previous block p keeps that gap.
@@ -900,7 +891,7 @@ function ChannelMessageBody({
         />
         {trailing}
       </div>
-      {!skipBodyClamp && (expanded || overflows) ? (
+      {expanded || overflows ? (
         <MessageClampToggle
           expanded={expanded}
           onToggle={toggleExpanded}

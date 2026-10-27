@@ -1483,18 +1483,29 @@ describe("ChatMessageRow", () => {
     });
   });
 
-  it("does not clamp bodies that include a large solo image attachment", () => {
-    renderRow({
-      message: userMessage({
-        content: "[photo.png](https://cdn.example/photo.png)\n",
-      }),
-    });
+  it("collapses long text with a large solo image behind Show more", () => {
+    const scroll = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockReturnValue(900);
+    const client = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(384);
+    try {
+      renderRow({
+        message: userMessage({
+          content: `${Array.from({ length: 30 }, (_, i) => `Line ${i + 1}`).join("\n\n")}\n\n[chart.png](https://cdn.example/chart.png)\n`,
+        }),
+      });
 
-    const body = screen.getByTestId("room-message-body");
-    expect(body.className).not.toContain("max-h-96");
-    expect(
-      screen.queryByRole("button", { name: "Show more" }),
-    ).not.toBeInTheDocument();
+      const body = screen.getByTestId("room-message-body");
+      expect(body.className).toContain("max-h-96");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+    } finally {
+      scroll.mockRestore();
+      client.mockRestore();
+    }
   });
 
   it("linkifies membership-visible channel names in the body", () => {

@@ -52,6 +52,7 @@ describe.each([
     ["paragraphs", "room-message-body"],
     ["table", "room-message-body"],
     ["code", "room-message-body"],
+    ["image", "room-message-body"],
     ["brief", "soko-bot-brief-body"],
   ])(
     "collapses a long %s body behind Show more",

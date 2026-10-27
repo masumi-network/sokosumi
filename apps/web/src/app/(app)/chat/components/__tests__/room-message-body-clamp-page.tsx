@@ -29,6 +29,8 @@ export const CLAMP_BODIES = {
   paragraphs: numbered(40, (index) => `Paragraph ${index}\n`),
   table: `Results\n\n| # | Result |\n| - | - |\n${numbered(40, (index) => `| ${index} | Row ${index} |`)}`,
   code: `Script\n\n\`\`\`\n${numbered(40, (index) => `line ${index}`)}\n\`\`\``,
+  /** A report ending in a chart: one large image does not exempt the text. */
+  image: `${numbered(40, (index) => `Finding ${index}\n`)}\n[chart.png](https://image-fixture.invalid/chart.png)`,
   /** A Soko Bot stand-up, which renders as a brief card. */
   brief: `Stand-up ready.\n\n### Results\n\n| # | Result |\n| - | - |\n${numbered(40, (index) => `| ${index} | Row ${index} |`)}`,
 } as const;
