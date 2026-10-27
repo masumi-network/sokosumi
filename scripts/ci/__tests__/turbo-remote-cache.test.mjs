@@ -130,13 +130,13 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
     assert.match(
       web,
-      /pnpm --filter=web --filter=cmo run test:ci --shard=\$\{\{ matrix\.shard \}\}\/3\n/,
+      /pnpm --filter=web --filter=cmo run test:ci --shard=\$\{\{ matrix\.shard \}\}\/2\n/,
     );
     const core = jobBlock(test, "core-shard");
     assert.match(core, /turbo run build --filter='@sokosumi\/core\^\.\.\.'\n/);
     assert.match(
       core,
-      /pnpm --filter=@sokosumi\/core run test:ci --shard=\$\{\{ matrix\.shard \}\}\/3\n/,
+      /pnpm --filter=@sokosumi\/core run test:ci --shard=\$\{\{ matrix\.shard \}\}\/2\n/,
     );
     assert.match(
       jobBlock(test, "packages"),
@@ -287,6 +287,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["ci-config", "ci-config"],
       ["cloud-agent-db", "cloud-agent-db"],
       ["design-md", "design-md"],
+      ["web-webkit", "webkit"],
     ]) {
       const header = jobBlock(ci, jobId).split(/\n    steps:\n/)[0];
       assert.match(

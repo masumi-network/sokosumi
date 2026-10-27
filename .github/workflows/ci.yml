@@ -46,6 +46,7 @@ jobs:
       local-env: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.local-env }}
       cloud-agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cloud-agent-db }}
       design-md: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.design-md }}
+      webkit: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.webkit }}
       # Markdown-only PRs still run the doc-script check.
       ci-config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ci-config }}
     steps:
@@ -64,18 +65,23 @@ jobs:
           filters: .github/js-paths-filter.yml
 
   # Web's suite is ~1000 files and ran 5+ minutes on one runner, the longest
-  # leg by far, so it runs as three Vitest shards. A matrix is fine here
+  # leg by far, so it runs as Vitest shards. A matrix is fine here
   # because nothing requires these checks: `web` below carries the required
   # `Test Web` name and reports skipped when the shards skip.
+  #
+  # Two shards, not three. The organization's plan runs 20 jobs at once across
+  # every repository, and a full push here started ~13. Each shard also pays
+  # ~30s of checkout and Setup, so a third one bought ~1 minute of latency
+  # with a runner two overlapping pushes could not spare.
   web-shard:
-    name: Test Web (${{ matrix.shard }}/3)
+    name: Test Web (${{ matrix.shard }}/2)
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2]
     # id-token lets Setup exchange OIDC for the Turborepo remote cache.
     permissions: &turbo-permissions
       contents: read
@@ -102,7 +108,7 @@ jobs:
       # its own. pnpm appends `--shard` to both `test:ci` scripts, so CMO's
       # files spread across the shards too.
       - name: Run Tests
-        run: pnpm --filter=web --filter=cmo run test:ci --shard=${{ matrix.shard }}/3
+        run: pnpm --filter=web --filter=cmo run test:ci --shard=${{ matrix.shard }}/2
 
   web:
     name: Test Web
@@ -116,11 +122,13 @@ jobs:
   # Advisory. Web's `*.webkit.test.*` files drive real WebKit and Chromium
   # through Playwright for layout the DOM doubles cannot compute, so
   # `test:ci` leaves them out. Not required, so a flaky browser launch
-  # never blocks a merge.
+  # never blocks a merge. Gated on its own `webkit` filter, the code those
+  # files render, because installing the browsers and their apt packages
+  # takes 2-10 minutes of a runner on every run.
   web-webkit:
     name: Test Web WebKit
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.webkit != 'false' }}
     runs-on: ubuntu-latest
     # A hung browser otherwise holds the runner for GitHub's 6-hour default.
     timeout-minutes: 15
@@ -144,18 +152,19 @@ jobs:
       - name: Run Tests
         run: pnpm --filter web test:webkit
 
-  # Core's unit suite ran 7+ minutes on one runner, so it shards like web.
-  # The PostgreSQL work runs beside the shards in `core-db`, and `core`
-  # below carries the required `Test Core` name.
+  # Core's unit suite ran 7+ minutes on one runner, so it shards like web,
+  # and in two for the same reason. The PostgreSQL work runs beside the
+  # shards in `core-db`, and `core` below carries the required `Test Core`
+  # name.
   core-shard:
-    name: Test Core (${{ matrix.shard }}/3)
+    name: Test Core (${{ matrix.shard }}/2)
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2]
     permissions: *turbo-permissions
     steps:
       - *checkout
@@ -168,7 +177,7 @@ jobs:
         run: pnpm exec turbo run build --filter='@sokosumi/core^...'
 
       - name: Run Tests
-        run: pnpm --filter=@sokosumi/core run test:ci --shard=${{ matrix.shard }}/3
+        run: pnpm --filter=@sokosumi/core run test:ci --shard=${{ matrix.shard }}/2
 
   core-db:
     name: Test Core PostgreSQL
