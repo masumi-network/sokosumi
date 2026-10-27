@@ -536,8 +536,7 @@ export function ChatRoomSidebarRow({
       // "Sidebar row"): its host organisation line is one a 28px row has no
       // room for, so this row alone releases the height to hold it, down to
       // the floor the primitive keeps. Its mark still sits in the shared slot.
-      className={cn(subtitle && "h-auto py-1 md:h-auto")}
-      data-row-lines={subtitle ? 2 : undefined}
+      lines={subtitle ? 2 : 1}
     >
       {dismissSheetOnNavigate ? (
         <SheetClose asChild>{roomLink}</SheetClose>

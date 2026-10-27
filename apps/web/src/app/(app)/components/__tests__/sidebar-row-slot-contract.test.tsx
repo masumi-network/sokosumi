@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -157,6 +160,26 @@ function renderSidebar() {
   );
 }
 
+const SRC_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../..",
+);
+
+function listSources(dir: string): { file: string; text: string }[] {
+  return readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .filter((name) => name.endsWith(".tsx") && !name.includes(".test."))
+    .map((name) => ({
+      file: name,
+      text: readFileSync(path.join(dir, name), "utf8"),
+    }));
+}
+
+/** Every list that draws sidebar rows: the App chrome's and the chat list. */
+const SIDEBAR_LIST_SOURCES = [
+  ...listSources(path.join(SRC_ROOT, "app/(app)/components")),
+  ...listSources(path.join(SRC_ROOT, "components/chat")),
+];
+
 const SLOT = '[data-slot="sidebar-row-slot"]';
 // Not `data-slot`: a Popover trigger wrapping a row (the project picker)
 // renames that to `popover-trigger`, and the row would drop out unseen.
@@ -199,9 +222,9 @@ describe("every sidebar row uses the shared leading slot", () => {
     const { container } = renderSidebar();
     const ROW_HEIGHT = ["h-11", "min-h-11", "md:h-7", "md:min-h-7"];
     // A two-line row (the project picker, a guest room's host organisation
-    // line, the live Soko Bot row) declares itself with `data-row-lines`,
-    // releases the height and keeps the primitive's floor; it names no height
-    // either.
+    // line, the live Soko Bot row) asks the primitive for `lines={2}`, which
+    // marks it `data-row-lines` and releases the height down to the floor.
+    // A list that wrote a height of its own, one line or two, fails here.
     const TWO_LINE_HEIGHT = ["h-auto", "min-h-11", "md:h-auto", "md:min-h-7"];
     let twoLineRows = 0;
 
@@ -223,6 +246,20 @@ describe("every sidebar row uses the shared leading slot", () => {
       expect(heights, button.textContent ?? "").toEqual([...ROW_HEIGHT].sort());
     }
     expect(twoLineRows).toBeGreaterThanOrEqual(3);
+  });
+
+  it("leaves a two-line row's height to the primitive's `lines`", () => {
+    // The render above cannot tell a primitive's class from one a list
+    // copied, so read the lists: none that draws a row writes the released
+    // height or the marker itself.
+    const offenders = SIDEBAR_LIST_SOURCES.filter(
+      ({ text }) =>
+        text.includes("SidebarMenuButton") &&
+        /data-row-lines=|md:h-auto/.test(text),
+    ).map(({ file }) => file);
+
+    expect(SIDEBAR_LIST_SOURCES.length).toBeGreaterThan(10);
+    expect(offenders).toEqual([]);
   });
 
   it("lets the slot size every row icon, so no list sets its own", () => {

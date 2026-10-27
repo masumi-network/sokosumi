@@ -135,6 +135,31 @@ describe("Sidebar row geometry", () => {
     expect(button).toContain("md:min-h-7");
   });
 
+  it("gives a two-line row the released height from the primitive", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <SidebarMenuButton lines={2}>
+          <span>Project</span>
+        </SidebarMenuButton>
+        <SidebarMenuButton>
+          <span>Tasks</span>
+        </SidebarMenuButton>
+      </SidebarProvider>,
+    );
+    const [twoLine, oneLine] = container.querySelectorAll(
+      '[data-slot="sidebar-menu-button"]',
+    );
+
+    // The row says how many lines it holds; the primitive owns what that
+    // costs, so no list writes a height of its own.
+    expect(twoLine).toHaveAttribute("data-row-lines", "2");
+    expect(tokens(twoLine)).toEqual(
+      expect.arrayContaining(["h-auto", "md:h-auto", "py-1", "min-h-11"]),
+    );
+    expect(oneLine).not.toHaveAttribute("data-row-lines");
+    expect(tokens(oneLine)).not.toContain("h-auto");
+  });
+
   it("puts the mark in one 24px slot on one axis", () => {
     const { container } = renderSidebar({ open: true });
     const button = tokens(

@@ -504,11 +504,18 @@ function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
+  lines = 1,
   className,
   ...props
 }: React.ComponentProps<"button"> & {
   asChild?: boolean;
   isActive?: boolean;
+  /**
+   * A row allowed a second line (GLOSSARY.md, "Sidebar row") releases the
+   * one-line height down to the floor `SIDEBAR_ROW_CLASS` keeps, so no list
+   * names a row height of its own; its hover covers both lines.
+   */
+  lines?: 1 | 2;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? SlotPrimitive.Slot : "button";
 
@@ -517,7 +524,12 @@ function SidebarMenuButton({
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant }), className)}
+      data-row-lines={lines === 2 ? "2" : undefined}
+      className={cn(
+        sidebarMenuButtonVariants({ variant }),
+        lines === 2 && "h-auto py-1 md:h-auto",
+        className,
+      )}
       {...props}
     />
   );

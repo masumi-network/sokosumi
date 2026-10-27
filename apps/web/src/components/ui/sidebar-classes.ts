@@ -22,8 +22,8 @@ export const SIDEBAR_HIDE_TRANSITION =
  * `h-11 md:h-7` is the vertical half of it: 28px with a pointer, so more rooms
  * and destinations fit above the fold, and 44px on the phone sheet so a thumb
  * keeps its target there. The matching `min-h` is the floor a two-line row
- * keeps when it releases the height with `h-auto md:h-auto`, so no list ever
- * names a row height of its own.
+ * keeps when `SidebarMenuButton lines={2}` releases the height, so no list
+ * ever names a row height of its own.
  *
  * `px-2` with `gap-2` is the horizontal half: it puts the 24px
  * `SidebarRowSlot` 16px in, centred on the 28px axis, and the label at 48px.

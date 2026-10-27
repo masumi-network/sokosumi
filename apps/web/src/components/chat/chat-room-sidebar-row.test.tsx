@@ -148,19 +148,26 @@ vi.mock("@/components/ui/sidebar", async () => ({
   ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
     "@/components/ui/sidebar",
   )),
-  // `className` rides the wrapper: the row's height is what this component
-  // decides and the real primitive merges, so a mock that swallowed it would
-  // leave the one exception to the row height rule untested.
+  // `className` and `lines` ride the wrapper: how many lines the row holds is
+  // what this component decides and the real primitive turns into a height,
+  // so a mock that swallowed them would leave the one exception to the row
+  // height rule untested.
   SidebarMenuButton: ({
     children,
     asChild,
     className,
+    lines,
   }: {
     children: ReactNode;
     asChild?: boolean;
     className?: string;
+    lines?: 1 | 2;
   }) => (
-    <div data-testid="sidebar-menu-button" className={className}>
+    <div
+      data-testid="sidebar-menu-button"
+      data-lines={lines}
+      className={className}
+    >
       {asChild && isValidElement(children) ? children : <div>{children}</div>}
     </div>
   ),
@@ -409,18 +416,30 @@ describe("ChatRoomSidebarRow row height", () => {
     expect(heightTokens({})).toEqual([]);
   });
 
-  it("lets a guest row grow for its host organisation line, at both sizes", () => {
-    const tokens = heightTokens({ subtitle: "Hosted by Acme" });
-    // One of the items allowed a second line. `md:h-auto`
-    // matters as much as `h-auto`: the row primitive's height is `h-11
-    // md:h-7`, and lifting only the unprefixed one leaves the desktop row
-    // pinned at 28px with the second line clipped by its `overflow-hidden`.
-    expect(tokens).toContain("h-auto");
-    expect(tokens).toContain("md:h-auto");
-    expect(tokens).not.toContain("h-11");
-    expect(tokens).not.toContain("md:h-7");
-    // The floor is the primitive's `min-h`, so the row names no height.
-    expect(tokens.filter((token) => /^(md:)?min-h-/.test(token))).toEqual([]);
+  function lines(props: { subtitle?: string }) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        {...props}
+      />,
+    );
+    return container
+      .querySelector('[data-testid="sidebar-menu-button"]')
+      ?.getAttribute("data-lines");
+  }
+
+  it("asks the primitive for a second line for a guest row's host organisation", () => {
+    // One of the items allowed a second line. What that costs in height is
+    // the primitive's (`ui/__tests__/sidebar-geometry.test.tsx`), so the row
+    // asks for two lines and names no height of its own.
+    expect(lines({ subtitle: "Hosted by Acme" })).toBe("2");
+    expect(heightTokens({ subtitle: "Hosted by Acme" })).toEqual([]);
+    expect(lines({})).toBe("1");
   });
 });
 

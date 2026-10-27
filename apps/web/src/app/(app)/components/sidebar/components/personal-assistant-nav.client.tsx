@@ -138,15 +138,9 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
 
   return (
     <SidebarMenuItem className="relative">
-      {/* Two lines, so the row releases the one-line height and keeps the
-          primitive's floor; the hover and selection fill stay on this one
-          element and cover both. */}
-      <SidebarMenuButton
-        asChild
-        isActive={isActive}
-        className="h-auto py-1 md:h-auto"
-        data-row-lines="2"
-      >
+      {/* The hover and selection fill stay on this one element and cover
+          both lines. */}
+      <SidebarMenuButton asChild isActive={isActive} lines={2}>
         <SheetClose asChild>
           <Link
             href={href}

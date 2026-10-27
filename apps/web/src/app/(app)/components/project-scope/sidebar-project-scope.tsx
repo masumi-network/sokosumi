@@ -28,13 +28,7 @@ import {
 } from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
-/**
- * One of the items allowed a second line (GLOSSARY.md, "Sidebar row"): it
- * releases the one-line height down to the primitive's floor, names none of
- * its own, and its hover covers both lines.
- */
-const SCOPE_ROW_CLASS =
-  "h-auto py-1 font-medium data-[state=open]:bg-sidebar-accent md:h-auto";
+const SCOPE_ROW_CLASS = "font-medium data-[state=open]:bg-sidebar-accent";
 
 /**
  * The project scope row above the navigation links it scopes. Two lines,
@@ -81,7 +75,7 @@ export function SidebarProjectScope() {
               aria-expanded={sheetOpen}
               aria-label={label}
               data-testid="project-scope-sidebar-row"
-              data-row-lines="2"
+              lines={2}
               className={SCOPE_ROW_CLASS}
               onPointerDown={prefetch}
               onClick={() => {
@@ -98,7 +92,7 @@ export function SidebarProjectScope() {
                   type="button"
                   aria-label={label}
                   data-testid="project-scope-sidebar-row"
-                  data-row-lines="2"
+                  lines={2}
                   className={SCOPE_ROW_CLASS}
                   onPointerEnter={prefetch}
                   onFocus={prefetch}
