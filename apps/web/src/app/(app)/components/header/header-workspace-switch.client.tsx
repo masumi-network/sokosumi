@@ -291,10 +291,7 @@ export default function HeaderWorkspaceSwitch({
                   <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
                 </span>
               )}
-              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:row-span-2 md:size-4.5" />
-              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs leading-tight">
-                {sessionUser.email}
-              </span>
+              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:size-4.5" />
             </div>
           </button>
         </DropdownMenuTrigger>
