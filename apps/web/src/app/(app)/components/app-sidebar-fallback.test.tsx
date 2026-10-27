@@ -191,76 +191,22 @@ describe("AppSidebarFallback", () => {
     ).toBe(3);
   });
 
-  it("keeps both logo states in the DOM so a collapsed boot script can hide the wordmark", () => {
-    const { container } = render(
-      <TestQueryProvider>
-        <SidebarProvider defaultOpen={false}>
-          <AppSidebarFallback />
-        </SidebarProvider>
-      </TestQueryProvider>,
-    );
+  it("hides off-canvas, leaving no rail behind", () => {
+    const { container } = renderFallback();
 
-    expect(container.querySelector('a[href="/"]')).not.toBeNull();
-    const expand = container.querySelector(
-      'button[aria-label="expandSidebar"]',
-    );
-    expect(expand).not.toBeNull();
-    expect(tokens(expand?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "hidden",
-        "group-data-[collapsible=icon]:md:flex",
-      ]),
-    );
-    expect(tokens(expand?.className ?? "")).not.toContain("md:flex");
+    expect(
+      container
+        .querySelector('[data-slot="sidebar"]')
+        ?.getAttribute("data-collapsible-mode"),
+    ).toBe("offcanvas");
   });
 
-  it("gives the room skeleton the rail's collapsed geometry", () => {
+  it("leaves the collapse control to the top bar", () => {
     const { container } = renderFallback();
-    const skeleton = container.querySelector(
-      '[data-slot="sidebar-group"][aria-hidden]',
-    );
-    const header = skeleton?.querySelector(
-      '[data-slot="sidebar-group-content"] > div',
-    );
-    const row = skeleton?.querySelector(
-      '[data-slot="sidebar-menu-item"] > div',
-    );
-    const mark = row?.querySelector('[data-slot="sidebar-row-slot"]');
+    const header = container.querySelector('[data-slot="sidebar-header"]');
 
-    // The section header stays on the rail as one 32px square, on the same
-    // 28px leading axis (`ml-1` + `pl-1`) every real row uses there.
-    expect(tokens(header?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "md:h-8",
-        "group-data-[collapsible=icon]:w-8!",
-        "group-data-[collapsible=icon]:ml-1",
-        "group-data-[collapsible=icon]:pl-1!",
-        "group-data-[collapsible=icon]:justify-start!",
-      ]),
-    );
-    expect(tokens(header?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-    // A Sidebar row's height: one rule for both states, so nothing under the
-    // skeleton moves when the real list arrives or the sidebar toggles.
-    expect(tokens(row?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "h-11",
-        "md:h-8",
-        "px-2",
-        "gap-2",
-        "group-data-[collapsible=icon]:w-8!",
-        "group-data-[collapsible=icon]:ml-1",
-        "group-data-[collapsible=icon]:pl-1!",
-        "group-data-[collapsible=icon]:justify-start!",
-      ]),
-    );
-    expect(tokens(row?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:px-0",
-    );
-    // The mark sits in the shared slot at one size, like every real row's.
-    expect(mark?.getAttribute("data-slot")).toBe("sidebar-row-slot");
-    expect(tokens(mark?.className ?? "")).toContain("min-w-6");
+    expect(header?.querySelector('a[href="/"]')).not.toBeNull();
+    expect(header?.querySelector("button")).toBeNull();
   });
 
   it("keeps the expanded skeleton on the same columns as a real row", () => {

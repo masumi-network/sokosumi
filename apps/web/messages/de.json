@@ -176,7 +176,6 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung",
       "settings": "Einstellungen",
-      "expandSidebar": "Seitenleiste erweitern",
       "creditsSummary": "Credits-Übersicht:",
       "monthlyUsageLimit": "Monatliches Nutzungslimit",
       "additionalCreditsHero": "{credits, number}",
@@ -4067,7 +4066,9 @@
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
         }
       },
-      "toggle": "Seitenleiste ein- oder ausblenden"
+      "show": "Seitenleiste einblenden",
+      "hide": "Seitenleiste ausblenden",
+      "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {
       "title": "Suche",

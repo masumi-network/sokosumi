@@ -174,7 +174,6 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
       "settings": "Settings",
-      "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "lowCreditsLabel": "Low credits {credits, number}",
       "creditsSummary": "Credits summary:",
@@ -4067,7 +4066,9 @@
           "hint": "Ask an owner or admin to assign you a Seat."
         }
       },
-      "toggle": "Toggle sidebar"
+      "show": "Show sidebar",
+      "hide": "Hide sidebar",
+      "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {
       "title": "Search",

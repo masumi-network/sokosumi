@@ -13,6 +13,7 @@ import {
 import HeaderProfileSection from "./header/header-profile-section";
 import { HeaderSearchTrigger } from "./header/header-search-trigger.client";
 import { HeaderTrailing } from "./header/header-trailing.client";
+import { SidebarToggle } from "./header/sidebar-toggle.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -27,6 +28,8 @@ export default function Header({ className, session }: HeaderProps) {
           <HeaderLeadingControl />
         </Suspense>
       </div>
+
+      <SidebarToggle />
 
       <HeaderCenter>
         <BreadcrumbNavigation className="flex flex-1" />

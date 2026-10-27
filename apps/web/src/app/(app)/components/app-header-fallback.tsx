@@ -9,6 +9,7 @@ import {
 } from "./header/header-leading-control.client";
 import { HEADER_SEARCH_BOX_CLASS } from "./header/header-search-box";
 import { HeaderTrailing } from "./header/header-trailing.client";
+import { SidebarToggle } from "./header/sidebar-toggle.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -22,6 +23,10 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           <HeaderLeadingControl />
         </Suspense>
       </div>
+
+      {/* The real toggle, so the sidebar can be brought back while the frame
+          streams and nothing after it moves when the header takes over. */}
+      <SidebarToggle />
 
       <HeaderCenter>
         <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />

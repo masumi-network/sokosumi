@@ -14,7 +14,6 @@ import type { CreditUsage } from "@/lib/types/credit";
 import type { CreditWalletScope } from "./components/account-summary-types";
 
 import AnnouncementCards from "./components/announcement-cards";
-import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
@@ -96,15 +95,16 @@ export default function Sidebar({
   socialBetaEnabled,
 }: SidebarProps) {
   return (
-    <ShadcnSidebar collapsible="icon">
+    <ShadcnSidebar>
       {/*
         h-16 border-b must match HeaderChrome's desktop control row so the
-        hairline is one continuous rule across the sidebar/content seam.
+        hairline is one continuous rule across the sidebar/content seam. The
+        sidebar is shown and hidden from the top bar's toggle, so its own
+        header carries no collapse control.
       */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
+        <div className="flex size-full items-center justify-between gap-2 px-2">
           <SidebarLogo />
-          <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
@@ -124,18 +124,14 @@ export default function Sidebar({
         The hairline is the twin of SidebarHeader's `border-b`: without it the
         scroll region runs straight into the account chip, and at the scroll
         position where a DM row lands flush against it the chip reads as one
-        more room. It marks the footer as chrome in both states — expanded and
-        on the collapsed rail.
+        more room. It marks the footer as chrome.
       */}
       <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
         <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
-        {/* No `justify-center` on the rail: the chip carries the same `ml-1`
-            every Sidebar row does, so its face lands on the sidebar's 28px
-            leading axis rather than on the rail's own half-pixel centre. */}
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex">
+        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)]">
           {accountFooter}
         </div>
       </SidebarFooter>
