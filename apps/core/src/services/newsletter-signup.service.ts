@@ -19,11 +19,7 @@ import {
   newsletterSenderOptions,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
-import {
-  assertNewsletterEnabled,
-  isNewsletterEnabled,
-  NEWSLETTER_BETA_SCOPE,
-} from "@/lib/newsletter/feature";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
 import {
   newsletterBrandSchema,
@@ -35,7 +31,6 @@ const CONFIRMATION_RESEND_MS = 10 * 60_000;
 const WELCOME_LEASE_MS = 5 * 60_000;
 
 export async function getPublicNewsletter(publicSlug: string) {
-  assertNewsletterEnabled();
   const newsletter = await prisma.newsletter.findUnique({
     where: { publicSlug, ...NEWSLETTER_BETA_SCOPE },
     select: { name: true, senderName: true, brand: true },
@@ -49,7 +44,6 @@ export async function subscribeToNewsletter(
   input: SubscribeNewsletterRequest,
   request: Request,
 ): Promise<void> {
-  assertNewsletterEnabled();
   if (input.website) return;
   const newsletter = await prisma.newsletter.findUnique({
     where: { publicSlug, ...NEWSLETTER_BETA_SCOPE },
@@ -233,7 +227,6 @@ export async function subscribeToNewsletter(
 }
 
 export async function getNewsletterConfirmSubscriber(token: string) {
-  assertNewsletterEnabled();
   const { newsletterId, subscriberId, consentAt } =
     verifyNewsletterConfirmToken(token, getEnv().BETTER_AUTH_SECRET);
   const subscriber = await prisma.newsletterSubscriber.findUnique({
@@ -345,7 +338,7 @@ export async function confirmNewsletterSubscriber(
           },
           select: { id: true },
         });
-        if (!active || !isNewsletterEnabled()) return subscriber;
+        if (!active) return subscriber;
         await sendEmail({
           to: subscriber.email,
           ...rendered,

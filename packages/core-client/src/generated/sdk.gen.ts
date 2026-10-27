@@ -2518,7 +2518,7 @@ export const getImageStudioState = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Read newsletter availability for the current workspace, including when newsletters are disabled.
+ * Read newsletter availability for the current workspace. Newsletters are available only in workspaces of the beta (utxo) organization.
  */
 export const getNewsletterAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetNewsletterAvailabilityData, ThrowOnError>): RequestResult<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError>({
     responseTransformer: getNewsletterAvailabilityResponseTransformer,
@@ -3469,7 +3469,7 @@ export const getProjectsByIdNeedsAttention = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Get the Project's newsletter settings. Returns 404 if no newsletter exists or newsletters are disabled.
+ * Get the Project's newsletter settings. Returns 404 if no newsletter exists or the Project's workspace is outside the beta (utxo) organization.
  */
 export const getProjectsByIdNewsletter = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdNewsletterData, ThrowOnError>): RequestResult<GetProjectsByIdNewsletterResponses, GetProjectsByIdNewsletterErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdNewsletterResponses, GetProjectsByIdNewsletterErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdNewsletterResponseTransformer,
