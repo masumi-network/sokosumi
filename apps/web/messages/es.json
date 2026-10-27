@@ -4028,6 +4028,7 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
+        "compactCredits": "{count, plural, =0 {Sin Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
         "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}"
       },
