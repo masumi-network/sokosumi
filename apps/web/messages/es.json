@@ -3477,7 +3477,7 @@
             "humanRequired": "Una persona debe aprobar o enviar esta edición desde una sesión iniciada en el navegador.",
             "invalidSchedule": "Elige una fecha entre un minuto y un año a partir de ahora y una zona horaria válida.",
             "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
-            "noSender": "El envío de boletines no está configurado. Pide a un administrador del espacio de trabajo que complete la configuración.",
+            "noSender": "Conecta un dominio de envío en la configuración del boletín, en «Dominio de envío», antes de programar o enviar.",
             "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
           },
           "viewOnWeb": "Ver en la web"
@@ -3573,6 +3573,95 @@
           "unset": "Predeterminado",
           "welcome": "Correo de bienvenida",
           "noSubject": "Aún sin asunto"
+        },
+        "SendingDomain": {
+          "title": "Dominio de envío",
+          "description": "Envía boletines desde tu propia dirección, como news@tumarca.com. Todos los proyectos de este espacio de trabajo la usan.",
+          "managedByAdmins": "Solo la persona propietaria o un administrador del espacio de trabajo puede conectar un dominio de envío.",
+          "fromAddress": "Dirección del remitente",
+          "fromAddressPlaceholder": "news@news.tumarca.com",
+          "fromAddressHint": "Usa un subdominio, como news.tumarca.com. Así la reputación de tus boletines queda separada de tu correo habitual.",
+          "add": "Añadir dominio",
+          "added": "Dominio añadido. Ahora añade sus registros DNS.",
+          "fallback": "Hasta que se verifique, los boletines se envían desde la dirección de Sokosumi como «tu nombre de remitente via Sokosumi».",
+          "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
+          "status": {
+            "PENDING": "Pendiente",
+            "VERIFIED": "Verificado",
+            "FAILED": "Fallido"
+          },
+          "lastChecked": "Última comprobación: {time}",
+          "verifiedDescription": "Los boletines de todos los proyectos de este espacio de trabajo se envían ahora desde esta dirección.",
+          "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
+          "checked": "Comprobado. Tus registros DNS aún no son visibles. Los cambios de DNS pueden tardar unas horas.",
+          "checkNow": "Comprobar ahora",
+          "connectTitle": "Añadir los registros DNS",
+          "dmarc": {
+            "title": "No se encontró ninguna política DMARC",
+            "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
+          },
+          "oneClick": {
+            "title": "Configuración con un clic",
+            "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
+            "lookup": "Buscar mi proveedor de DNS",
+            "found": "Tu dominio usa {provider}.",
+            "connect": "Conectar con {provider}",
+            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Usa un token de Cloudflare o añade los registros de abajo."
+          },
+          "cloudflare": {
+            "title": "Token de la API de Cloudflare",
+            "description": "Crea un token con Zone · DNS · Edit para la zona de este dominio y pégalo aquí. Sokosumi lo usa una vez para añadir los registros y nunca lo guarda.",
+            "submit": "Añadir registros en Cloudflare",
+            "success": "Registros añadidos en Cloudflare. La comprobación puede tardar unos minutos."
+          },
+          "records": {
+            "title": "Registros DNS",
+            "description": "O añade estos registros tú mismo en tu proveedor de DNS.",
+            "name": "Nombre",
+            "value": "Valor",
+            "priority": "Prioridad",
+            "found": "Registro encontrado",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Demuestra que el correo viene de ti."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Permite que Sokosumi envíe en tu nombre."
+              },
+              "bounce": {
+                "label": "Ruta de retorno (MX)",
+                "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Indica a los buzones qué hacer con el correo que no supera estas comprobaciones. p=none solo supervisa."
+              },
+              "other": {
+                "label": "Registro adicional",
+                "explanation": "Lo exige el proveedor de correo."
+              }
+            }
+          },
+          "remove": {
+            "action": "Quitar dominio",
+            "title": "¿Quitar el dominio de envío?",
+            "description": "Los boletines dejan de enviarse desde {domain}. Sus registros DNS siguen en tu proveedor de DNS hasta que los borres.",
+            "cancel": "Cancelar",
+            "success": "Dominio de envío quitado."
+          },
+          "errors": {
+            "generic": "No se pudo actualizar el dominio de envío. Inténtalo de nuevo.",
+            "invalidAddress": "Introduce una dirección de correo, como news@tumarca.com.",
+            "forbidden": "Solo la persona propietaria o un administrador del espacio de trabajo puede cambiar el dominio de envío.",
+            "notFound": "Este dominio de envío se quitó. Recarga la página.",
+            "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro espacio de trabajo.",
+            "domainRejected": "Este dominio no se puede usar. Revisa la dirección e inténtalo de nuevo.",
+            "providerFailed": "El proveedor de correo no respondió. Inténtalo de nuevo en un minuto.",
+            "cloudflareRejected": "Cloudflare rechazó el token. Comprueba que tenga Zone · DNS · Edit para la zona de este dominio.",
+            "cloudflareFailed": "Cloudflare no respondió. Inténtalo de nuevo en un minuto."
+          }
         }
       }
     },
