@@ -22,20 +22,28 @@ export type StatusTone =
  * consumer of that meant "in flight right now" rather than "here is
  * information", so the two were one role under two names.
  */
-const TONE_CLASSES: Record<StatusTone, string> = {
-  neutral: "border-border bg-muted text-muted-foreground",
-  working:
-    "border-status-working-tertiary bg-status-working-quaternary text-status-working-label",
-  success:
-    "border-semantic-success-tertiary bg-semantic-success-quaternary text-semantic-success",
-  warning:
-    "border-semantic-warning-tertiary bg-semantic-warning-quaternary text-semantic-warning",
+const SURFACE_CLASSES: Record<StatusTone, string> = {
+  neutral: "border-border bg-muted",
+  working: "border-status-working-tertiary bg-status-working-quaternary",
+  success: "border-semantic-success-tertiary bg-semantic-success-quaternary",
+  warning: "border-semantic-warning-tertiary bg-semantic-warning-quaternary",
   danger:
-    "border-semantic-destructive-tertiary bg-semantic-destructive-quaternary text-semantic-destructive-label",
-  accent: "border-primary-tertiary bg-primary-quaternary text-primary-variant",
+    "border-semantic-destructive-tertiary bg-semantic-destructive-quaternary",
+  accent: "border-primary-tertiary bg-primary-quaternary",
 };
 
-const DOT_CLASSES: Record<StatusTone, string> = {
+/** A tone's text, for a status said in words outside a badge too. */
+export const STATUS_TONE_TEXT_CLASS: Record<StatusTone, string> = {
+  neutral: "text-muted-foreground",
+  working: "text-status-working-label",
+  success: "text-semantic-success",
+  warning: "text-semantic-warning",
+  danger: "text-semantic-destructive-label",
+  accent: "text-primary-variant",
+};
+
+/** A tone's dot, for a status drawn as a dot outside a badge too. */
+export const STATUS_TONE_DOT_CLASS: Record<StatusTone, string> = {
   neutral: "bg-muted-foreground",
   working: "bg-status-working",
   success: "bg-semantic-success",
@@ -65,7 +73,8 @@ export function StatusBadge({
     <span
       className={cn(
         "inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded border px-1.5 text-xs font-medium leading-none",
-        TONE_CLASSES[tone],
+        SURFACE_CLASSES[tone],
+        STATUS_TONE_TEXT_CLASS[tone],
         className,
       )}
     >
@@ -73,7 +82,7 @@ export function StatusBadge({
         aria-hidden
         className={cn(
           "size-1.5 shrink-0 rounded-full",
-          DOT_CLASSES[tone],
+          STATUS_TONE_DOT_CLASS[tone],
           live && "motion-safe:animate-pulse",
         )}
       />

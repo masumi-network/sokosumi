@@ -11,7 +11,7 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
-interface HeaderWorkspaceAvatarProps {
+interface WorkspaceAvatarProps {
   sessionUser: SessionUser;
   organization?: OrganizationLogoSource | null;
   className?: string;
@@ -23,13 +23,18 @@ interface HeaderWorkspaceAvatarProps {
   decorative?: boolean;
 }
 
-export default function HeaderWorkspaceAvatar({
+/**
+ * A workspace's face: the organization's logo, or the user's own avatar for
+ * the personal workspace. The Workspace switcher and the task workspace
+ * dialog both draw it.
+ */
+export function WorkspaceAvatar({
   sessionUser,
   organization,
   className = "size-8",
   logoSize = 18,
   decorative = false,
-}: HeaderWorkspaceAvatarProps) {
+}: WorkspaceAvatarProps) {
   const t = useTranslations("Components.OrganizationSwitcher");
   const avatar = organization ? (
     <Avatar className={cn("bg-muted items-center justify-center", className)}>

@@ -8,6 +8,9 @@
     // Kept explicit for strict null handling across the web app.
     "strictNullChecks": true,
     "noEmit": true,
+    // Lets the `.mts` Vitest configs import each other by their real file
+    // name, which Node needs once Vite loads configs natively.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -37,6 +40,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "**/*.mts",
     ".next/types/**/*.ts",
     "src/types/**/*.d.ts",
     ".next/dev/types/**/*.ts"

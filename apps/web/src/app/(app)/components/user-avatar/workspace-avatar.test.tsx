@@ -2,7 +2,7 @@ import type { SessionUser } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
+import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -20,10 +20,10 @@ const sessionUser: SessionUser = {
   marketingOptIn: false,
 };
 
-describe("HeaderWorkspaceAvatar", () => {
-  it("keeps personal compact size-4 for the closed header switcher", () => {
+describe("WorkspaceAvatar", () => {
+  it("keeps personal compact size-4 for the closed switcher trigger", () => {
     const { container } = render(
-      <HeaderWorkspaceAvatar
+      <WorkspaceAvatar
         sessionUser={sessionUser}
         organization={null}
         className="size-4 shrink-0"
@@ -41,7 +41,7 @@ describe("HeaderWorkspaceAvatar", () => {
 
   it("defaults personal avatar to size-8 without a size override", () => {
     const { container } = render(
-      <HeaderWorkspaceAvatar sessionUser={sessionUser} organization={null} />,
+      <WorkspaceAvatar sessionUser={sessionUser} organization={null} />,
     );
 
     const avatar = container.querySelector("[data-slot='avatar']");

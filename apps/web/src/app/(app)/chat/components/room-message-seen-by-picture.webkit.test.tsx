@@ -39,7 +39,7 @@ beforeAll(async () => {
     </head><body><div id="fixture">${renderToString(<PicturePage />)}</div></body></html>`;
   server = await createServer({
     // The app's own resolution and React plugin, read from its Vitest config.
-    configFile: path.join(WEB_ROOT, "vitest.config.ts"),
+    configFile: path.join(WEB_ROOT, "vitest.config.mts"),
     root: WEB_ROOT,
     // The viewport suite runs another Vite server concurrently with a different
     // dependency graph. Its optimization cache must not reload this page.

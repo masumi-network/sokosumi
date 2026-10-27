@@ -1,17 +1,17 @@
 import { defineConfig } from "vitest/config";
 
-import baseConfig from "./vitest.config";
+import baseConfig from "./vitest.config.mts";
 
 /**
  * Tests that drive a real browser through Playwright: layout the DOM doubles in
- * `vitest.config.ts` cannot compute, and that Chromium computes differently.
+ * `vitest.config.mts` cannot compute, and that Chromium computes differently.
  * Each test serves its own page and opens it; this picks the files and shares
  * the main config's module resolution, so a test can render real components.
  *
  * Kept out of `pnpm test`, which has no browser to launch. Run with
  * `pnpm --filter web test:webkit` after
- * `pnpm --filter web exec playwright install webkit chromium`. CI runs it
- * as the advisory `Test Web WebKit` job.
+ * `pnpm --filter web exec playwright install webkit chromium`. Local only:
+ * CI dropped it after the browsers' apt install stalled on the Ubuntu mirror.
  */
 export default defineConfig({
   plugins: baseConfig.plugins,

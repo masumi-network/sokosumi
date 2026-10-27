@@ -342,17 +342,18 @@ it("applies Display density to board and list and restores the saved preference"
   document.cookie = "tasks_density=; max-age=0; path=/";
 });
 
-it("gates the toolbar New task button on the page's seat check, not the layout's", async () => {
-  openNewTaskWizardMock.mockClear();
-  const user = userEvent.setup();
-  // The layout still says no seat; the page's fresher check says yes.
+// New task lives in the sidebar header, so the Tasks page shows it once; the
+// phone, which has no sidebar header in view, keeps its create button.
+it("has no toolbar New task button, and keeps the phone create button", () => {
   const { unmount } = render(
-    <OrganizationSeatContext value={false}>
+    <OrganizationSeatContext value={true}>
       {boardView([TASK])}
     </OrganizationSeatContext>,
   );
-  await user.click(screen.getByRole("button", { name: "newTask" }));
-  expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: "newTask" })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "createTaskFab" }),
+  ).toBeInTheDocument();
   unmount();
 
   render(
@@ -360,7 +361,7 @@ it("gates the toolbar New task button on the page's seat check, not the layout's
       {cloneElement(boardView([TASK]), { canCreateTask: false })}
     </OrganizationSeatContext>,
   );
-  expect(screen.queryByRole("button", { name: "newTask" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "createTaskFab" })).toBeNull();
 });
 
 /** Drives the board's real drop handler with the event dnd-kit would emit. */

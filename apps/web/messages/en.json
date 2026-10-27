@@ -174,7 +174,6 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
       "settings": "Settings",
-      "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "lowCreditsLabel": "Low credits {credits, number}",
       "creditsSummary": "Credits summary:",
@@ -340,7 +339,7 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
-      "social": "Social Scheduling",
+      "social": "Social posts",
       "ads": "Ads",
       "evaluations": "Model evaluations",
       "catch-up": "Catch up",
@@ -4163,7 +4162,7 @@
       }
     },
     "Social": {
-      "title": "Social Scheduling",
+      "title": "Social posts",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
         "label": "New post",
@@ -4223,15 +4222,16 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",
+        "compactCredits": "{count, plural, =0 {No credits} =1 {# credit} other {{credits} credits}}",
         "planLabel": "Plan",
-        "openSummary": "Open account summary: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Open account summary: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "New",
           "newTask": "New task",
           "search": "Search",
+          "home": "Home",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
           "taskManager": "Tasks",
@@ -4245,10 +4245,15 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social Scheduling",
+          "social": "Social posts",
           "ads": "Ads",
           "newsletter": "Newsletter",
-          "contacts": "Contacts"
+          "contacts": "Contacts",
+          "groups": {
+            "work": "Work",
+            "records": "Records",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -4260,9 +4265,19 @@
           "title": "Assigned seat required",
           "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
           "hint": "Ask an owner or admin to assign you a Seat."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Working now",
+          "needsAttention": "Needs attention",
+          "activeAgo": "Active {time}",
+          "ready": "Ready",
+          "team": "Your team's Soko Bots"
         }
       },
-      "toggle": "Toggle sidebar"
+      "show": "Show sidebar",
+      "hide": "Hide sidebar",
+      "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {
       "title": "Search",
@@ -7339,6 +7354,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
+      "chats": "Chats",
       "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
@@ -7720,12 +7736,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "unreadMessagesCapped": "More than {max} unread messages",
-        "railUnread": "Unread"
+        "unread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "mentionsCapped": "More than {max} mentions",
-        "railMention": "Mentions you"
+        "mentionsYou": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",
@@ -7866,6 +7882,7 @@
       "SelfDirect": {
         "messageYourself": "Message yourself",
         "you": "You",
+        "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
       },
@@ -9029,8 +9046,8 @@
       "clearSearch": "Clear search",
       "close": "Close",
       "label": "Project",
+      "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceView": "Everything",
       "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
       "recent": "Recent",
