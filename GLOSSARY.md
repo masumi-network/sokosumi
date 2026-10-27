@@ -261,12 +261,12 @@ _Avoid_: Notification opt-in (that phrase gates email today), subscription (when
 ### Header identity
 
 **App chrome**:
-The persistent sidebar and header on authenticated pages: nav, membership-visible rooms, Workspace switcher, and Notification Center. On desktop the sidebar is either shown in full or hidden completely, never a strip of icons; the sidebar toggle at the start of the header shows and hides it, and while it is hidden the toggle carries a dot whenever a chat has something unread ([ADR-0058](docs/adr/0058-the-sidebar-hides-instead-of-collapsing-to-a-rail.md)).
+The persistent sidebar and header on authenticated pages: nav, membership-visible rooms, Workspace switcher, and Notification Center. On desktop the sidebar's header holds the Workspace switcher and New task, and the header ends in Search and Notification Center; the Sokosumi wordmark is not part of it (Home is a nav row instead), and stays on sign-in, marketing and the loading screen. On desktop the sidebar is either shown in full or hidden completely, never a strip of icons; the sidebar toggle at the start of the header shows and hides it, and while it is hidden the toggle carries a dot whenever a chat has something unread ([ADR-0058](docs/adr/0058-the-sidebar-hides-instead-of-collapsing-to-a-rail.md)). The phone keeps its own top bar: the Sokosumi icon at the start on tab roots, and the Workspace switcher, avatar only, at the end; its sidebar sheet keeps the wordmark in its header.
 _Avoid_: Topbar, shell (unless meaning the loading frame), rail or collapsed sidebar (there is no icon rail)
 
 **Workspace switcher**:
-The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
-_Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
+The control at the top of the sidebar, filling its header row beside New task, that shows the active personal or organization workspace (avatar, name shortened with "…", up-down chevron) and lets the user switch between them, as Linear's does. It hides with the sidebar; nothing stands in for it in the header. On the phone it sits at the end of the top bar as the avatar alone. This is the identity/context control, not the Notification Center entry point or the account chip, which keeps the account actions. It only lists workspaces the user actually has, and opens even when there is one, because Create workspace lives in it. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
+_Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar, header switcher
 
 ### Feature badges
 

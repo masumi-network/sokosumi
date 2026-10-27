@@ -1,6 +1,6 @@
 import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,7 @@ import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspa
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
 
-import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
+import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 
 const { showCreateOrganizationModal } = vi.hoisted(() => ({
   showCreateOrganizationModal: vi.fn(),
@@ -71,14 +71,14 @@ const orgWorkspace: UserWorkspace = {
   enabledSocialProviders: ["x", "youtube", "linkedin"],
 };
 
-describe("HeaderWorkspaceSwitch", () => {
+describe("WorkspaceSwitcherMenu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("skeletons the chip when the active org is missing from the workspaces", () => {
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[]}
         hasPersonalWorkspace={true}
@@ -100,7 +100,7 @@ describe("HeaderWorkspaceSwitch", () => {
 
   it("shows personal workspace from session when no org is active", () => {
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[]}
         hasPersonalWorkspace={true}
@@ -118,7 +118,7 @@ describe("HeaderWorkspaceSwitch", () => {
 
   it("shows the active org from the workspaces", () => {
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
@@ -134,9 +134,40 @@ describe("HeaderWorkspaceSwitch", () => {
     ).not.toBeInTheDocument();
   });
 
+  // The sidebar header's row, as in Linear. The phone's top bar keeps the
+  // avatar and chevron, the name read out but not shown.
+  it("leads with the avatar, then the name shortened to fit, then the chevron", () => {
+    render(
+      <WorkspaceSwitcherMenu
+        sessionUser={sessionUser}
+        workspaces={[orgWorkspace]}
+        hasPersonalWorkspace={true}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Org A" });
+    const avatar = trigger.querySelector('span[aria-hidden="true"]');
+    const name = within(trigger).getByText("Org A");
+    const chevron = trigger.querySelector(".lucide-chevrons-up-down");
+
+    if (!avatar || !chevron) throw new Error("no avatar or chevron");
+    expect(
+      avatar.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      name.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(name.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["min-w-0", "truncate"]),
+    );
+  });
+
   it("does not treat a null org session as personal when no personal workspace exists", () => {
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -152,10 +183,11 @@ describe("HeaderWorkspaceSwitch", () => {
     ).toBeInTheDocument();
   });
 
+  // One workspace still opens the menu: Create workspace lives there.
   it("lists one create workspace action instead of split create rows", async () => {
     const user = userEvent.setup();
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -181,7 +213,7 @@ describe("HeaderWorkspaceSwitch", () => {
     );
 
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -220,7 +252,7 @@ describe("HeaderWorkspaceSwitch", () => {
       .mockImplementation(() => {});
 
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -248,7 +280,7 @@ describe("HeaderWorkspaceSwitch", () => {
   it("opens the organization wizard after choosing Organization and Continue", async () => {
     const user = userEvent.setup();
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -285,7 +317,7 @@ describe("HeaderWorkspaceSwitch", () => {
       .mockImplementation(() => {});
 
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -315,7 +347,7 @@ describe("HeaderWorkspaceSwitch", () => {
     );
 
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={namelessUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -355,7 +387,7 @@ describe("HeaderWorkspaceSwitch", () => {
       .mockImplementation(() => {});
 
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
@@ -379,7 +411,7 @@ describe("HeaderWorkspaceSwitch", () => {
   it("lists personal and org workspaces when both exist", async () => {
     const user = userEvent.setup();
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
@@ -401,7 +433,7 @@ describe("HeaderWorkspaceSwitch", () => {
   it("opens the organization wizard directly when a personal workspace already exists", async () => {
     const user = userEvent.setup();
     render(
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}

@@ -2,10 +2,10 @@ import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import HeaderProfileSectionClient from "@/app/components/header/header-profile-section.client";
+import WorkspaceSwitcherClient from "@/app/components/workspace-switcher/workspace-switcher.client";
 
 const useSessionMock = vi.fn();
-const headerWorkspaceSwitchMock = vi.fn();
+const workspaceSwitcherMenuMock = vi.fn();
 const useWorkspaceSwitcherMock = vi.fn();
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -17,12 +17,15 @@ vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
     useWorkspaceSwitcherMock(...args),
 }));
 
-vi.mock("@/app/components/header/header-workspace-switch.client", () => ({
-  default: (props: unknown) => {
-    headerWorkspaceSwitchMock(props);
-    return <div data-testid="header-workspace-switch-mock" />;
-  },
-}));
+vi.mock(
+  "@/app/components/workspace-switcher/workspace-switcher-menu.client",
+  () => ({
+    default: (props: unknown) => {
+      workspaceSwitcherMenuMock(props);
+      return <div data-testid="workspace-switcher-menu-mock" />;
+    },
+  }),
+);
 
 const sessionUser: SessionUser = {
   id: "user-1",
@@ -69,7 +72,7 @@ async function renderProfileSection(props: {
 }) {
   await act(async () => {
     render(
-      <HeaderProfileSectionClient
+      <WorkspaceSwitcherClient
         {...props}
         hasPersonalWorkspace={props.hasPersonalWorkspace ?? true}
       />,
@@ -77,13 +80,13 @@ async function renderProfileSection(props: {
   });
 }
 
-describe("HeaderProfileSectionClient", () => {
+describe("WorkspaceSwitcherClient", () => {
   beforeEach(() => {
     useWorkspaceSwitcherMock.mockReturnValue({
       isPending: false,
       handleSelectWorkspace: vi.fn(),
     });
-    headerWorkspaceSwitchMock.mockClear();
+    workspaceSwitcherMenuMock.mockClear();
   });
 
   it("shows Workspace switch on mobile and desktop", async () => {
@@ -101,11 +104,11 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-a",
     });
 
-    const chrome = screen.getByTestId("header-workspace-chrome");
+    const chrome = screen.getByTestId("workspace-switcher-chrome");
     expect(chrome.className).toContain("flex");
     expect(chrome.className).not.toContain("hidden");
     expect(chrome.className).not.toContain("md:flex");
-    expect(screen.getByTestId("header-workspace-switch-mock")).toBeTruthy();
+    expect(screen.getByTestId("workspace-switcher-menu-mock")).toBeTruthy();
   });
 
   it("prefers the client session active organization when it matches the server", async () => {
@@ -123,7 +126,7 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-b",
     });
 
-    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: "org-b",
       }),
@@ -145,7 +148,7 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-a",
     });
 
-    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: "org-b",
         isPending: false,
@@ -164,7 +167,7 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-a",
     });
 
-    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: "org-a",
       }),
@@ -186,7 +189,7 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-a",
     });
 
-    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: null,
         isPending: false,
@@ -213,7 +216,7 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-a",
     });
 
-    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+    expect(workspaceSwitcherMenuMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: "org-a",
         isPending: true,

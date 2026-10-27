@@ -162,23 +162,25 @@ describe("chat list chrome single-source composition contract", () => {
     expect(cacheSource).toMatch(/function getPrivateCachedChatListChrome/);
   });
 
-  it("header workspace switcher reads Core's workspaces list, not members", async () => {
+  it("workspace switcher reads Core's workspaces list, not members", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
 
-    const headerProfile = readFileSync(
+    const workspaceSwitcher = readFileSync(
       join(
         dirname(fileURLToPath(import.meta.url)),
-        "../header/header-profile-section.tsx",
+        "../workspace-switcher/workspace-switcher.tsx",
       ),
       "utf8",
     );
 
     // ADR 0051: the switcher lists workspaces from one Core read.
-    expect(headerProfile).toMatch(/userService\s*\.\s*getMyWorkspaces\s*\(/);
-    expect(headerProfile).not.toMatch(/getPrivateCachedChatListChrome/);
-    expect(headerProfile).not.toMatch(
+    expect(workspaceSwitcher).toMatch(
+      /userService\s*\.\s*getMyWorkspaces\s*\(/,
+    );
+    expect(workspaceSwitcher).not.toMatch(/getPrivateCachedChatListChrome/);
+    expect(workspaceSwitcher).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
 
@@ -212,17 +214,30 @@ describe("chat list chrome single-source composition contract", () => {
       join(headerDir, "header-trailing-tools.tsx"),
       "utf8",
     );
+    const switcherDir = join(headerDir, "../workspace-switcher");
+    const workspaceSwitcher = readFileSync(
+      join(switcherDir, "workspace-switcher.tsx"),
+      "utf8",
+    );
+    const switcherSkeleton = readFileSync(
+      join(switcherDir, "workspace-switcher-skeleton.tsx"),
+      "utf8",
+    );
 
     // Trailing tools (Notification Center + mobile Search) must stay outside
     // the members Suspense so chrome remains interactive while members load.
+    // The Suspense is the Workspace switcher's own, so the tools follow it.
     expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
+    expect(workspaceSwitcher).toMatch(
+      /<Suspense[\s\S]*WorkspaceSwitcherLoader[\s\S]*<\/Suspense>/,
+    );
+    expect(headerProfile).not.toMatch(/<Suspense/);
     expect(headerProfile).toMatch(
-      /<Suspense[\s\S]*HeaderProfileSectionInner[\s\S]*<\/Suspense>\s*<HeaderTrailingTools/,
+      /<WorkspaceSwitcher[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
     );
 
-    const fallback = headerProfile.slice(
-      headerProfile.indexOf("function HeaderProfileSectionSkeleton"),
-      headerProfile.indexOf("export default function HeaderProfileSection"),
+    const fallback = switcherSkeleton.slice(
+      switcherSkeleton.indexOf("WORKSPACE_SWITCHER_AVATAR_CLASS ="),
     );
     expect(fallback).toMatch(/size-4/);
     expect(fallback).not.toMatch(/size-8/);

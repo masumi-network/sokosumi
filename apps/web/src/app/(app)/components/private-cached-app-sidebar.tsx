@@ -8,6 +8,7 @@ import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
 } from "./sidebar-deferred-account";
+import { WorkspaceSwitcher } from "./workspace-switcher/workspace-switcher";
 
 interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
@@ -33,6 +34,12 @@ export default function PrivateCachedAppSidebar({
 }: PrivateCachedAppSidebarProps) {
   return (
     <Sidebar
+      workspaceSwitcher={
+        <WorkspaceSwitcher
+          sessionUser={sessionUser}
+          activeOrganizationId={activeOrganizationId}
+        />
+      }
       socialBetaEnabled={socialBetaEnabled}
       newsletterEnabled={newsletterEnabled}
       chatList={

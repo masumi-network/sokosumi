@@ -85,6 +85,8 @@ export function mapAccountCreditsChrome(
 }
 
 interface SidebarProps {
+  /** The Workspace switcher, which fills the header row on desktop. */
+  workspaceSwitcher: ReactNode;
   accountFooter: ReactNode;
   chatList: ReactNode;
   socialBetaEnabled: boolean;
@@ -92,6 +94,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
+  workspaceSwitcher,
   accountFooter,
   chatList,
   socialBetaEnabled,
@@ -107,7 +110,13 @@ export default function Sidebar({
       */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2">
-          <SidebarLogo />
+          {/* Hides with the sidebar, as in Linear: nothing stands in for it
+              in the top bar. The phone keeps its switcher in the top bar
+              instead, so its sheet keeps the wordmark. */}
+          <div className="flex min-w-0 flex-1 max-md:hidden">
+            {workspaceSwitcher}
+          </div>
+          <SidebarLogo className="md:hidden" />
           <SidebarNewTaskButton />
         </div>
       </SidebarHeader>

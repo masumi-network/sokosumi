@@ -6,6 +6,7 @@ import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
 import { Avatar } from "@/components/ui/avatar";
@@ -28,16 +29,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useIsMobile } from "@/hooks/use-mobile";
 import useModal from "@/hooks/use-modal";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { cn } from "@/lib/utils";
-
-import HeaderWorkspaceAvatar from "./header-workspace-avatar";
+import {
+  WORKSPACE_SWITCHER_AVATAR_CLASS,
+  WORKSPACE_SWITCHER_CHEVRON_CLASS,
+  WORKSPACE_SWITCHER_NAME_CLASS,
+  WORKSPACE_SWITCHER_TRIGGER_CLASS,
+  WorkspaceSwitcherSkeletonParts,
+} from "./workspace-switcher-skeleton";
 
 type WorkspaceChoice = "personal" | "organization";
 
-interface HeaderWorkspaceSwitchProps {
+interface WorkspaceSwitcherMenuProps {
   sessionUser: SessionUser;
   /** Core's workspaces list; the switcher lists its organizations. */
   workspaces: UserWorkspace[];
@@ -121,14 +128,14 @@ function WorkspaceMenuItem({
   );
 }
 
-export default function HeaderWorkspaceSwitch({
+export default function WorkspaceSwitcherMenu({
   sessionUser,
   workspaces,
   hasPersonalWorkspace,
   activeOrganizationId,
   isPending,
   onSelectWorkspace,
-}: HeaderWorkspaceSwitchProps) {
+}: WorkspaceSwitcherMenuProps) {
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
@@ -136,6 +143,7 @@ export default function HeaderWorkspaceSwitch({
     Component: CreateOrganizationModal,
     showModal: showCreateOrganizationModal,
   } = useModal(CreateOrganizationWizard);
+  const isMobile = useIsMobile();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isChoiceDialogOpen, setIsChoiceDialogOpen] = useState(false);
   const [workspaceChoice, setWorkspaceChoice] =
@@ -256,9 +264,12 @@ export default function HeaderWorkspaceSwitch({
       {CreateOrganizationModal}
       <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
+          {/* One shape for both homes, which never show at once: the phone's
+              top bar (name read out, not shown) and, from md, the row that
+              fills the sidebar header. */}
           <button
             type="button"
-            className="text-foreground press hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
+            className={WORKSPACE_SWITCHER_TRIGGER_CLASS}
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
@@ -267,35 +278,37 @@ export default function HeaderWorkspaceSwitch({
                 : tOrganizationSwitcher("switchWorkspace")
             }
           >
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
-              {activeWorkspace ? (
-                <>
-                  <span className="max-sm:sr-only max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
-                    {activeWorkspace.name}
-                  </span>
-                  <HeaderWorkspaceAvatar
-                    sessionUser={sessionUser}
-                    organization={activeWorkspace.organization ?? null}
-                    className="size-4 shrink-0"
-                    logoSize={12}
-                    decorative
-                  />
-                </>
-              ) : (
-                <span
-                  data-testid="workspace-switcher-skeleton"
-                  className="col-span-2 flex items-center justify-end gap-1.5"
-                  aria-hidden
-                >
-                  <span className="bg-muted h-3 w-20 animate-pulse rounded-md" />
-                  <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
+            {activeWorkspace ? (
+              <>
+                <HeaderWorkspaceAvatar
+                  sessionUser={sessionUser}
+                  organization={activeWorkspace.organization ?? null}
+                  className={WORKSPACE_SWITCHER_AVATAR_CLASS}
+                  logoSize={12}
+                  decorative
+                />
+                <span className={WORKSPACE_SWITCHER_NAME_CLASS}>
+                  {activeWorkspace.name}
                 </span>
-              )}
-              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:size-4.5" />
-            </div>
+              </>
+            ) : (
+              <span
+                data-testid="workspace-switcher-skeleton"
+                className="contents"
+                aria-hidden
+              >
+                <WorkspaceSwitcherSkeletonParts />
+              </span>
+            )}
+            <ChevronsUpDown className={WORKSPACE_SWITCHER_CHEVRON_CLASS} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72" align="end">
+        {/* Under the trigger's own edge: its start in the sidebar, its end
+            at the phone top bar's right. */}
+        <DropdownMenuContent
+          className="w-72"
+          align={isMobile ? "end" : "start"}
+        >
           {hasPersonalWorkspace ? (
             <WorkspaceMenuItem
               sessionUser={sessionUser}

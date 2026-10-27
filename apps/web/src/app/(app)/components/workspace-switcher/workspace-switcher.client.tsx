@@ -6,21 +6,21 @@ import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-swi
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
-import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
+import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 
-interface HeaderProfileSectionClientProps {
+interface WorkspaceSwitcherClientProps {
   sessionUser: SessionUser;
   workspaces: UserWorkspace[];
   hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
 }
 
-export default function HeaderProfileSectionClient({
+export default function WorkspaceSwitcherClient({
   sessionUser,
   workspaces,
   hasPersonalWorkspace,
   activeOrganizationId: serverActiveOrganizationId,
-}: HeaderProfileSectionClientProps) {
+}: WorkspaceSwitcherClientProps) {
   const { data: clientSession } = useSession();
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
 
@@ -39,14 +39,14 @@ export default function HeaderProfileSectionClient({
   return (
     <div
       className={cn(
-        "flex h-auto items-center gap-1.5",
+        "flex h-auto min-w-0 flex-1 items-center gap-1.5",
         isPending
           ? "pointer-events-none animate-pulse opacity-60"
           : "transition-opacity",
       )}
-      data-testid="header-workspace-chrome"
+      data-testid="workspace-switcher-chrome"
     >
-      <HeaderWorkspaceSwitch
+      <WorkspaceSwitcherMenu
         sessionUser={sessionUser}
         workspaces={workspaces}
         hasPersonalWorkspace={hasPersonalWorkspace}

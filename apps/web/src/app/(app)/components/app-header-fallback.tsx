@@ -10,6 +10,7 @@ import {
 import { HEADER_SEARCH_BOX_CLASS } from "./header/header-search-box";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
+import { WorkspaceSwitcherSkeleton } from "./workspace-switcher/workspace-switcher-skeleton";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -40,13 +41,11 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         )}
       />
 
+      {/* The phone's Workspace switcher, as `HeaderProfileSection` places
+          it; from md the switcher is the sidebar header's. */}
       <HeaderTrailing>
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col items-end gap-1">
-            <div className="bg-muted h-4 w-28 animate-pulse rounded-md" />
-            <div className="bg-muted h-3 w-36 animate-pulse rounded-md" />
-          </div>
-          <div className="bg-muted size-8 animate-pulse rounded-full" />
+        <div className="flex md:hidden">
+          <WorkspaceSwitcherSkeleton />
         </div>
       </HeaderTrailing>
     </HeaderChrome>

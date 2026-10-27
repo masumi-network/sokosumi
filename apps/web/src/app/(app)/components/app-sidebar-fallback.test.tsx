@@ -74,12 +74,41 @@ describe("AppSidebarFallback", () => {
 
   // New task needs the wizard and a seat, neither of which this frame has, so
   // the shell header leaves it out rather than showing one that may go away.
-  it("holds only the wordmark in the header, without New task", () => {
+  it("holds a Workspace switcher placeholder in the header, without New task", () => {
     const { container } = renderFallback();
     const header = container.querySelector('[data-slot="sidebar-header"]');
+    const placeholder = header?.querySelector(
+      '[data-testid="workspace-switcher-chrome-skeleton"]',
+    );
 
-    expect(header?.querySelector("a")).not.toBeNull();
+    // Shaped like the loaded switcher: avatar, name bar, chevron, in its
+    // order, filling the row on desktop as it does.
+    expect(placeholder).not.toBeNull();
+    const [avatar, name, chevron] = [...(placeholder?.children ?? [])];
+    expect(tokens(avatar?.className ?? "")).toEqual(
+      expect.arrayContaining(["rounded-full", "size-4", "md:size-5"]),
+    );
+    expect(tokens(name?.className ?? "")).toEqual(
+      expect.arrayContaining(["h-3", "w-20"]),
+    );
+    expect(chevron?.tagName.toLowerCase()).toBe("svg");
+    expect(tokens(placeholder?.parentElement?.className ?? "")).toEqual(
+      expect.arrayContaining(["flex-1", "max-md:hidden"]),
+    );
     expect(header?.querySelector("button")).toBeNull();
+  });
+
+  // The phone sheet keeps its header as it was: the phone's switcher is in
+  // its top bar.
+  it("keeps the wordmark for the phone sheet only", () => {
+    const { container } = renderFallback();
+    const header = container.querySelector('[data-slot="sidebar-header"]');
+    const wordmark = header?.querySelector('a[href="/"]');
+
+    expect(wordmark).not.toBeNull();
+    expect(tokens(wordmark?.parentElement?.className ?? "")).toContain(
+      "md:hidden",
+    );
   });
 
   it("leaves the session-backed surfaces as placeholders", () => {
