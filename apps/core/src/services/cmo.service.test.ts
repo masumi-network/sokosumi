@@ -122,6 +122,7 @@ import {
   parseCmoUpdates,
   pauseCmoCalendarEntry,
   reportCmoUpdate,
+  requestCmoStrategy,
   retryCmoOnboarding,
   revertCmoUpdate,
   saveCmoBrandBrain,
@@ -267,6 +268,71 @@ describe("approveCmoStrategy", () => {
   it("needs a strategy", async () => {
     cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategy: null });
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
+  });
+
+  it("waits while Cuso writes the strategy the owner asked for", async () => {
+    // Approving the old plan now would carry over to the new one unreviewed.
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      sokoBotId: "bot-1",
+      strategy,
+      strategyApprovedAt: null,
+    });
+    turnFindFirst.mockResolvedValue({
+      id: "turn-1",
+      status: "RUNNING",
+      eveSessionId: null,
+      createdAt: new Date(),
+      clientTurnId: "cmo:strategy:cmo-1:1",
+    });
+    await expect(approveCmoStrategy("user-1")).rejects.toThrow(
+      /still writing/i,
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestCmoStrategy", () => {
+  const brandBrain = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const hire = {
+    id: "cmo-1",
+    userId: "user-1",
+    workspaceId: "ws-1",
+    sokoBotId: "bot-1",
+    businessName: "Acme",
+    goals: "More sales",
+    brandBrain,
+    strategy,
+    strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+  };
+
+  it("keeps the approval when Cuso cannot start the new strategy", async () => {
+    cmoFindUnique.mockResolvedValue(hire);
+    startTurn.mockRejectedValue(new Error("Soko Bot is already working"));
+    await expect(requestCmoStrategy({ userId: "user-1" })).rejects.toThrow(
+      "already working",
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+
+  it("clears the approval once the strategy turn started", async () => {
+    cmoFindUnique.mockResolvedValue(hire);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    await expect(requestCmoStrategy({ userId: "user-1" })).resolves.toEqual({
+      turnId: "turn-9",
+    });
+    expect(cmoUpdate).toHaveBeenCalledWith({
+      where: { id: "cmo-1" },
+      data: { strategyApprovedAt: null },
+    });
   });
 });
 
@@ -560,6 +626,36 @@ describe("weekly change and revert", () => {
     ]);
   });
 
+  it("keeps entries the owner paused when reverting", async () => {
+    const update = {
+      id: "u-1",
+      at: "2026-10-05T09:03:00Z",
+      kind: "weekly" as const,
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: [],
+      previousStrategy: strategy,
+    };
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy: {
+        ...revised,
+        calendar: strategy.calendar.map((entry) =>
+          entry.id === "b" ? { ...entry, status: "skipped" as const } : entry,
+        ),
+      },
+      strategyUpdatedAt: new Date(),
+      strategyHistory: null,
+      updates: [update],
+    });
+    await revertCmoUpdate({ userId: "user-1", updateId: "u-1" });
+    const calendar = cmoUpdate.mock.calls[0]?.[0].data.strategy.calendar;
+    expect(
+      calendar.find((entry: { id: string }) => entry.id === "b").status,
+    ).toBe("skipped");
+  });
+
   it("does not offer a revert for a daily report", async () => {
     cmoFindUnique.mockResolvedValue({
       id: "cmo-1",
@@ -732,6 +828,36 @@ describe("pauseCmoCalendarEntry", () => {
     expect(
       saved.calendar.find((entry: { id: string }) => entry.id === "a").status,
     ).toBe("skipped");
+  });
+
+  it("refuses a post that is already going out, and keeps the entry", async () => {
+    const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      strategy: {
+        ...strategy,
+        calendar: strategy.calendar.map((entry) =>
+          entry.id === "a"
+            ? { ...entry, status: "scheduled" as const, socialPostId: postId }
+            : entry,
+        ),
+      },
+    });
+    postFindFirst.mockResolvedValue({ status: "PUBLISHING", revision: 3 });
+    cancelSocialPost.mockRejectedValue(
+      new Error("The post can no longer be canceled"),
+    );
+
+    await expect(
+      pauseCmoCalendarEntry({ userId: "user-1", entryId: "a" }),
+    ).rejects.toThrow("no longer be canceled");
+    expect(cancelSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId, revision: 3 }),
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
   });
 });
 

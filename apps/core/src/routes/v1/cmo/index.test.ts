@@ -10,14 +10,21 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { approveMock, revertMock, overviewMock, connectMock, mockPlanMock } =
-  vi.hoisted(() => ({
-    approveMock: vi.fn(),
-    revertMock: vi.fn(),
-    overviewMock: vi.fn(),
-    connectMock: vi.fn(),
-    mockPlanMock: vi.fn(),
-  }));
+const {
+  approveMock,
+  revertMock,
+  overviewMock,
+  connectMock,
+  mockPlanMock,
+  strategyMock,
+} = vi.hoisted(() => ({
+  approveMock: vi.fn(),
+  revertMock: vi.fn(),
+  overviewMock: vi.fn(),
+  connectMock: vi.fn(),
+  mockPlanMock: vi.fn(),
+  strategyMock: vi.fn(),
+}));
 
 vi.mock("@/services/cmo.service", async (importOriginal) => {
   const actual =
@@ -29,11 +36,13 @@ vi.mock("@/services/cmo.service", async (importOriginal) => {
     getCmoOverview: overviewMock,
     connectCmoChannel: connectMock,
     chooseCmoMockPlan: mockPlanMock,
+    requestCmoStrategy: strategyMock,
   };
 });
 
 import { ComposioConfigError } from "@/clients/composio.client";
 import { CmoConflictError, CmoNotFoundError } from "@/services/cmo.service";
+import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
 
 import cmoRouter from "./index";
 
@@ -145,6 +154,18 @@ describe("CMO routes", () => {
     approveMock.mockRejectedValue(new CmoConflictError("No strategy"));
     const response = await createApp().request("/strategy/approve", {
       method: "POST",
+    });
+    expect(response.status).toBe(409);
+  });
+
+  it("answers 409 when Cuso is already working on a turn", async () => {
+    strategyMock.mockRejectedValue(
+      new SokoBotTurnInProgressError("Soko Bot is already working"),
+    );
+    const response = await createApp().request("/strategy", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
     });
     expect(response.status).toBe(409);
   });

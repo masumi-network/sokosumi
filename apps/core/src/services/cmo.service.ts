@@ -947,15 +947,11 @@ export async function requestCmoStrategy(input: {
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { strategyApprovedAt: null },
-  });
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
-  return startCmoTurn(hire, {
+  const started = await startCmoTurn(hire, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: (input.note
       ? [
@@ -986,6 +982,12 @@ export async function requestCmoStrategy(input: {
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
+  // Only now: a turn that cannot start leaves the approved plan running.
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: { strategyApprovedAt: null },
+  });
+  return started;
 }
 
 /**
@@ -1249,6 +1251,20 @@ export async function approveCmoStrategy(userId: string): Promise<CmoHire> {
   if (!parseCmoStrategy(hire.strategy)) {
     throw new CmoConflictError("There is no strategy to approve yet");
   }
+  // The approval would carry over to the plan Cuso is writing, unreviewed.
+  const writing = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: hire.sokoBotId,
+      clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
+    },
+    orderBy: { createdAt: "desc" },
+    select: TURN_ROW_SELECT,
+  });
+  if (writing && (await settledTurnStatus(writing, new Date())) === "running") {
+    throw new CmoConflictError(
+      "Cuso is still writing the new strategy; approve it when it is ready",
+    );
+  }
   return prisma.cmoHire.update({
     where: { id: hire.id },
     data: { strategyApprovedAt: hire.strategyApprovedAt ?? new Date() },
@@ -1333,7 +1349,8 @@ export async function pauseCmoCalendarEntry(input: {
       where: { id: entry.socialPostId, projectId: hire.projectId },
       select: { status: true, revision: true },
     });
-    if (post && (post.status === "DRAFT" || post.status === "SCHEDULED")) {
+    // A post already going out refuses (409) and the entry stays as it is.
+    if (post && post.status !== "CANCELED") {
       const { cancelSocialPost } = await import(
         "@/services/social-posts.service"
       );
@@ -1375,14 +1392,15 @@ export async function revertCmoUpdate(input: {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (target.revertedAt) return hire;
-  const posted = new Map(
+  // Entries handed to Social and entries the owner paused stay as they are.
+  const kept = new Map(
     (parseCmoStrategy(hire.strategy)?.calendar ?? [])
-      .filter((entry) => entry.socialPostId)
+      .filter((entry) => entry.socialPostId || entry.status === "skipped")
       .map((entry) => [entry.id, entry]),
   );
   const calendar = [
-    ...previous.calendar.map((entry) => posted.get(entry.id) ?? entry),
-    ...[...posted.values()].filter(
+    ...previous.calendar.map((entry) => kept.get(entry.id) ?? entry),
+    ...[...kept.values()].filter(
       (entry) => !previous.calendar.some((old) => old.id === entry.id),
     ),
   ].sort((left, right) => left.date.localeCompare(right.date));

@@ -1,10 +1,6 @@
 import { ComposioConfigError } from "@/clients/composio.client";
-import {
-  conflict,
-  forbidden,
-  notFound,
-  serviceUnavailable,
-} from "@/helpers/error";
+import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
+import { mapControlPlaneError } from "@/routes/v1/soko-bots/helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 import {
   CmoConflictError,
@@ -12,7 +8,6 @@ import {
   type CmoOverview,
   getCmoOverview,
 } from "@/services/cmo.service";
-import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 
 function mapOverview(overview: CmoOverview) {
   const { hire } = overview;
@@ -85,12 +80,10 @@ export async function requireOverview(userId: string) {
 
 export function rethrow(error: unknown): never {
   if (error instanceof CmoNotFoundError) throw notFound(error.message);
-  // Out of credits: the founder can top up and try again.
-  if (error instanceof SokoBotBillingAccessError)
-    throw forbidden(error.message);
   if (error instanceof CmoConflictError) throw conflict(error.message);
   if (error instanceof ComposioConfigError) {
     throw serviceUnavailable("Connecting this network is not set up");
   }
-  throw error;
+  // Cuso busy, paused or out of credits: as on the Soko Bot routes.
+  mapControlPlaneError(error);
 }
