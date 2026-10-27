@@ -5219,7 +5219,7 @@ Verification: from `apps/apple`, `swift test --package-path Packages/SokosumiCha
 
 ## A large image no longer exempts the body from the clamp (10c follow-up), 2026-10-27
 
-Mirrors web [#6636](https://github.com/masumi-network/sokosumi/pull/6636) (open at the time, branch `claude/bot-show-more-less-buttons-a289a0`), which replaced `line-clamp-[16]` with a 384 px cap and a fade and deleted `hasLargeSoloImageAttachment`, so a long Soko Bot or coworker report ending in a chart offers Show more. Draft [#6638](https://github.com/masumi-network/sokosumi/pull/6638), branch `claude/apple-clamp-long-body-with-image`, started on `origin/main` `9f8c3f265`; not a `/apple-parity-next` row, the user asked for it as its own task.
+Mirrors web [#6636](https://github.com/masumi-network/sokosumi/pull/6636) (open at the time, branch `claude/bot-show-more-less-buttons-a289a0`; merged 2026-10-27 as `19f420db`, clamp files unchanged since `ecd57eefdd`), which replaced `line-clamp-[16]` with a 384 px cap and a fade and deleted `hasLargeSoloImageAttachment`, so a long Soko Bot or coworker report ending in a chart offers Show more. Draft [#6638](https://github.com/masumi-network/sokosumi/pull/6638), branch `claude/apple-clamp-long-body-with-image`, started on `origin/main` `9f8c3f265`; not a `/apple-parity-next` row, the user asked for it as its own task.
 
 ### Behaviour
 
