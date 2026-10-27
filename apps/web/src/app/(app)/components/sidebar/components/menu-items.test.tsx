@@ -394,9 +394,10 @@ describe("MenuItems newsletter", () => {
 
   it.each([
     "/newsletter",
-    "/projects/project-1/newsletter",
-    "/projects/project-1/newsletter/issues/issue-1",
-    "/projects/project-1/newsletter/subscribers",
+    "/newsletter/issues",
+    "/newsletter/issues/issue-1",
+    "/newsletter/subscribers",
+    "/newsletter/settings",
   ])("marks Newsletter current on %s", (pathname) => {
     pathnameRef.current = pathname;
     renderMenu(true, false, false, true);
@@ -407,14 +408,17 @@ describe("MenuItems newsletter", () => {
     );
   });
 
-  it("does not mark Newsletter current on another project section", () => {
-    pathnameRef.current = "/projects/project-1/newsletter-settings";
-    renderMenu(true, false, false, true);
+  it.each(["/projects/project-1/newsletter", "/newsletter-archive"])(
+    "does not mark Newsletter current on %s",
+    (pathname) => {
+      pathnameRef.current = pathname;
+      renderMenu(true, false, false, true);
 
-    expect(
-      screen.getByRole("link", { name: "newsletter" }),
-    ).not.toHaveAttribute("aria-current");
-  });
+      expect(
+        screen.getByRole("link", { name: "newsletter" }),
+      ).not.toHaveAttribute("aria-current");
+    },
+  );
 });
 
 describe("MenuItems current destination", () => {

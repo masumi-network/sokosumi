@@ -70,9 +70,7 @@ describe("newsletter issue actions", () => {
       ...VALUES,
       subject: "Updated issue",
     });
-    expect(revalidatePath).toHaveBeenCalledWith(
-      `/projects/${TARGET.projectId}/newsletter/issues`,
-    );
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter/issues", "layout");
   });
   it("saves using the current revision", async () => {
     expect(

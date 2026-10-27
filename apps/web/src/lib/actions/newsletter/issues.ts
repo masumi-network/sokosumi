@@ -49,7 +49,7 @@ export const createNewsletterIssue = withSession<
     return toActionResult(err({ message: t("createError") }));
   try {
     const issue = await newsletterService.createIssue(projectId, parsed.data);
-    revalidatePath(`/projects/${projectId}/newsletter/issues`);
+    revalidatePath("/newsletter/issues", "layout");
     return toActionResult(ok(issue));
   } catch {
     return toActionResult(err({ message: t("createError") }));
@@ -82,7 +82,7 @@ export const saveNewsletterIssue = withSession<
       ...parsed.data,
       revision: version.data,
     });
-    revalidatePath(`/projects/${projectId}/newsletter/issues`);
+    revalidatePath("/newsletter/issues", "layout");
     return toActionResult(ok(issue));
   } catch (error) {
     return toActionResult(
@@ -105,7 +105,7 @@ export const deleteNewsletterIssue = withSession<
     return toActionResult(err({ message: t("Delete.error") }));
   try {
     await newsletterService.deleteIssue(projectId, issueId);
-    revalidatePath(`/projects/${projectId}/newsletter/issues`);
+    revalidatePath("/newsletter/issues", "layout");
     return toActionResult(ok(null));
   } catch {
     return toActionResult(err({ message: t("Delete.error") }));

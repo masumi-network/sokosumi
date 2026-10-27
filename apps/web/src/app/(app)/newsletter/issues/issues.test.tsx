@@ -87,7 +87,7 @@ describe("newsletter issues list", () => {
       screen.getAllByRole("link", { name: NEWSLETTER_ISSUE.subject })[0],
     ).toHaveAttribute(
       "href",
-      `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/0`,
+      `/newsletter/issues/0?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(screen.getByText(/Scheduled Nov 1, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Sent Oct 22, 2026/)).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("newsletter issues list", () => {
       );
       await waitFor(() =>
         expect(mocks.push).toHaveBeenCalledWith(
-          `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ISSUE.id}`,
+          `/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
         ),
       );
       expect(mocks.create).toHaveBeenCalledWith({
