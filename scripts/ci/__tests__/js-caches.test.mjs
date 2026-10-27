@@ -38,6 +38,7 @@ describe("JS CI caches", () => {
     const files = [
       await readRepoFile(".github", "workflows", "ci.yml"),
       await readRepoFile(".github", "workflows", "next-build-cache.yml"),
+      await readRepoFile(".github", "actions", "playwright", "action.yml"),
     ];
     for (const text of files) {
       for (const [, key] of text.matchAll(/\n\s+(?:restore-)?keys?: (.+)/g)) {
