@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   refresh: vi.fn(),
   success: vi.fn(),
+  error: vi.fn(),
+  upload: vi.fn(),
 }));
 vi.mock("@/lib/actions/newsletter/action", () => ({
   saveNewsletterSettings: mocks.save,
@@ -19,7 +21,14 @@ vi.mock("@/lib/actions/newsletter/action", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
-vi.mock("sonner", () => ({ toast: { success: mocks.success } }));
+vi.mock("sonner", () => ({
+  toast: { success: mocks.success, error: mocks.error },
+}));
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: mocks.upload,
+  getUserFileUploadErrorMessage: (_error: unknown, fallback: string) =>
+    fallback,
+}));
 
 import { NewsletterSettingsForm } from "./newsletter-settings-form";
 
@@ -27,6 +36,7 @@ const NEWSLETTER: Newsletter = {
   id: "n1",
   projectId: "p1",
   workspaceId: "w1",
+  contactListId: null,
   name: "Weekly news",
   senderName: "Ada",
   replyTo: "ada@example.com",
@@ -69,9 +79,16 @@ describe("NewsletterSettingsForm", () => {
     renderForm();
     expect(screen.getByLabelText("Newsletter name")).toHaveValue("Launch");
     expect(screen.getByLabelText("Sender name")).toHaveValue("Launch");
-    expect(screen.getByLabelText("Logo URL")).toHaveValue(
-      "https://example.com/project.png",
+    expect(
+      screen.getByRole("heading", { name: "Set up your newsletter" }),
+    ).toBeInTheDocument();
+    // The logo is an upload, not a URL field; the project logo is already set.
+    expect(screen.queryByRole("textbox", { name: "Logo" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary color")).toHaveTextContent(
+      "No color",
     );
+    expect(screen.getByText("From Launch")).toBeInTheDocument();
     expect(
       screen.queryByLabelText("Welcome email subject"),
     ).not.toBeInTheDocument();
@@ -87,27 +104,34 @@ describe("NewsletterSettingsForm", () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
-  it("loads all saved fields and displays the public address as text", () => {
+  it("loads all saved fields and displays the signup card", () => {
     renderForm(NEWSLETTER);
     for (const [label, value] of [
       ["Newsletter name", NEWSLETTER.name],
       ["Sender name", NEWSLETTER.senderName],
       ["Reply-to email", NEWSLETTER.replyTo],
-      ["Logo URL", NEWSLETTER.brand.logoUrl],
-      ["Primary color", NEWSLETTER.brand.primaryColor],
-      ["Accent color", NEWSLETTER.brand.accentColor],
       ["Footer text", NEWSLETTER.brand.footerText],
       ["Welcome email subject", NEWSLETTER.welcomeSubject],
       ["Welcome email body", NEWSLETTER.welcomeBody],
     ] as const)
       expect(screen.getByLabelText(label)).toHaveValue(value);
+    expect(screen.getByLabelText("Primary color")).toHaveTextContent("#123456");
+    expect(screen.getByLabelText("Accent color")).toHaveTextContent("#abc");
+    expect(
+      screen.queryByRole("heading", { name: "Set up your newsletter" }),
+    ).toBeNull();
     expect(
       screen.getByRole("combobox", { name: "Font family" }),
     ).toHaveTextContent("Georgia");
     expect(
       screen.getByRole("switch", { name: "Send a welcome email" }),
     ).toBeChecked();
-    expect(screen.getByText(NEWSLETTER.publicSlug)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Signup form" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Public archive" }),
+    ).toHaveAttribute("href", `/n/${NEWSLETTER.publicSlug}/archive`);
     expect(
       screen.queryByRole("link", { name: NEWSLETTER.publicSlug }),
     ).not.toBeInTheDocument();
@@ -116,40 +140,72 @@ describe("NewsletterSettingsForm", () => {
     ).not.toBeInTheDocument();
   });
 
-  it.each([
-    ["en", en],
-    ["de", de],
-    ["es", es],
-  ] as const)(
-    "rejects HTTP logos with an inline HTTPS error in %s before saving",
-    async (locale, messages) => {
-      const user = userEvent.setup();
-      const copy = messages.App.Projects.Newsletter;
-      render(
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <NewsletterSettingsForm
-            projectId="p1"
-            projectName="Launch"
-            projectLogo={null}
-            newsletter={NEWSLETTER}
-          />
-        </NextIntlClientProvider>,
-      );
-      await user.clear(screen.getByLabelText(copy.fields.logoUrl));
-      await user.type(
-        screen.getByLabelText(copy.fields.logoUrl),
-        "http://example.com/logo.png",
-      );
-      await user.click(screen.getByRole("button", { name: copy.save }));
+  it("uploads a logo and saves its public URL with the settings", async () => {
+    const user = userEvent.setup();
+    mocks.upload.mockResolvedValue({
+      publicUrl: "https://cdn.example.com/new-logo.png",
+    });
+    const { container } = renderForm(NEWSLETTER);
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error("file input missing");
+    await user.upload(
+      input,
+      new File(["logo"], "logo.png", { type: "image/png" }),
+    );
+    await waitFor(() => expect(mocks.upload).toHaveBeenCalled());
+    expect(
+      await screen.findByText("You have unsaved changes."),
+    ).toBeInTheDocument();
+    expect(mocks.save).not.toHaveBeenCalled();
 
-      expect(await screen.findByText(copy.Validation.url)).toBeInTheDocument();
-      expect(screen.getByLabelText(copy.fields.logoUrl)).toHaveAttribute(
-        "aria-invalid",
-        "true",
-      );
-      expect(mocks.save).not.toHaveBeenCalled();
-    },
-  );
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith({
+        projectId: "p1",
+        values: expect.objectContaining({
+          logoUrl: "https://cdn.example.com/new-logo.png",
+        }),
+      }),
+    );
+  });
+
+  it("clears the logo and a color to blank", async () => {
+    const user = userEvent.setup();
+    renderForm(NEWSLETTER);
+    await user.click(screen.getByRole("button", { name: "Remove logo" }));
+    expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Clear primary color" }),
+    );
+    expect(screen.getByLabelText("Primary color")).toHaveTextContent(
+      "No color",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith({
+        projectId: "p1",
+        values: expect.objectContaining({
+          logoUrl: "",
+          primaryColor: "",
+          accentColor: "#abc",
+        }),
+      }),
+    );
+  });
+
+  it("previews the welcome email while it is on", async () => {
+    const user = userEvent.setup();
+    renderForm(NEWSLETTER);
+    const preview = screen.getByRole("region", { name: "Preview" });
+    expect(preview).toHaveTextContent(NEWSLETTER.welcomeSubject ?? "");
+    expect(preview).toHaveTextContent("Thanks for reading");
+    await user.click(
+      screen.getByRole("switch", { name: "Send a welcome email" }),
+    );
+    expect(preview).not.toHaveTextContent(NEWSLETTER.welcomeSubject ?? "");
+  });
 
   it("saves welcome content, shows a toast, and displays the new public address", async () => {
     const user = userEvent.setup();
@@ -194,7 +250,9 @@ describe("NewsletterSettingsForm", () => {
     );
     expect(mocks.success).toHaveBeenCalledWith("Newsletter settings saved");
     expect(mocks.refresh).toHaveBeenCalled();
-    expect(screen.getByText(NEWSLETTER.publicSlug)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Signup form" }),
+    ).toBeInTheDocument();
   });
 
   it("preserves welcome text when the welcome email is toggled off and on", async () => {

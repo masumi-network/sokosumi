@@ -120,6 +120,7 @@ beforeEach(() => {
   const tx = {
     newsletterIssue: {
       updateMany: m.updateMany,
+      deleteMany: m.deleteMany,
       findUniqueOrThrow: m.findUniqueOrThrow,
     },
   };
@@ -143,6 +144,31 @@ describe("newsletter issue routes", () => {
         },
       }),
     );
+  });
+
+  it("lists issues delivered or scheduled within a date range", async () => {
+    const from = "2026-10-01T00:00:00.000Z";
+    const to = "2026-11-01T00:00:00.000Z";
+    const response = await app().request(`${BASE}?from=${from}&to=${to}`);
+    expect(response.status).toBe(200);
+    const range = { gte: new Date(from), lt: new Date(to) };
+    expect(m.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          newsletterId: NEWSLETTER_ID,
+          OR: [{ scheduledAt: range }, { scheduledAt: null, sentAt: range }],
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    "from=2026-10-01T00:00:00.000Z",
+    "from=2026-10-01T00:00:00.000Z&to=2026-10-01T00:00:00.000Z",
+    "from=2026-10-01T00:00:00.000Z&to=2027-01-01T00:00:00.000Z",
+  ])("rejects an incomplete or oversized range: %s", async (query) => {
+    expect((await app().request(`${BASE}?${query}`)).status).toBe(422);
+    expect(m.findMany).not.toHaveBeenCalled();
   });
 
   it("creates a draft with validated blocks and a public subject slug", async () => {

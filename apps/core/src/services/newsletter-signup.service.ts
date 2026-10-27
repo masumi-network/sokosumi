@@ -1,14 +1,19 @@
 import { captureException } from "@sentry/node";
+import type { Newsletter, NewsletterSubscriber } from "@sokosumi/database";
 import {
   renderNewsletterConfirmationEmail,
   renderNewsletterEmail,
 } from "@sokosumi/email";
-import { contactNameFromChannel } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 
-import { sendEmail } from "@/clients/email.client";
+import {
+  RESEND_BATCH_MAX_SIZE,
+  type SendEmailInput,
+  sendEmail,
+  sendEmails,
+} from "@/clients/email.client";
 import { getEnv } from "@/config/env";
-import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { badRequest, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   signNewsletterConfirmToken,
@@ -25,7 +30,8 @@ import {
   newsletterBrandSchema,
   type SubscribeNewsletterRequest,
 } from "@/schemas/newsletter.schema";
-import { contactListNameKey } from "@/services/contact-lists.service";
+import { inContactTransaction } from "@/services/contacts.service";
+import { linkNewsletterContacts } from "@/services/newsletter-contacts.service";
 
 const CONFIRMATION_RESEND_MS = 10 * 60_000;
 const WELCOME_LEASE_MS = 5 * 60_000;
@@ -53,7 +59,7 @@ export async function subscribeToNewsletter(
 
   const now = new Date();
   const reserveSignup = () =>
-    prisma.$transaction(async (tx) => {
+    inContactTransaction(async (tx) => {
       const { count: created } = await tx.newsletterSubscriber.createMany({
         data: {
           newsletterId: newsletter.id,
@@ -105,51 +111,26 @@ export async function subscribeToNewsletter(
         });
         if (!count) return null;
       }
-      const channel = await tx.contactChannel.upsert({
-        where: {
-          workspaceId_type_value: {
-            workspaceId: newsletter.workspaceId,
-            type: "EMAIL",
-            value: input.email,
-          },
-        },
-        create: {
+      // Only reserved signups become Contacts; suppressed addresses stay untouched.
+      const contacts = await linkNewsletterContacts(
+        tx,
+        newsletter.id,
+        {
           workspaceId: newsletter.workspaceId,
-          type: "EMAIL",
-          value: input.email,
-          source: "OTHER",
-          isPrimary: true,
-          contact: {
-            create: {
-              workspaceId: newsletter.workspaceId,
-              name: input.name || contactNameFromChannel("EMAIL", input.email),
-            },
-          },
+          userId: null,
+          sokoBotId: null,
         },
-        update: {},
-        select: { contactId: true },
-      });
-      const name = `${newsletter.name} subscribers`;
-      const nameKey = contactListNameKey(name);
-      const list = await tx.contactList.upsert({
-        where: {
-          workspaceId_nameKey: { workspaceId: newsletter.workspaceId, nameKey },
-        },
-        create: {
-          workspaceId: newsletter.workspaceId,
-          name,
-          nameKey,
-          color: "gray",
-        },
-        update: {},
-        select: { id: true, smartFilter: true },
-      });
-      if (list.smartFilter)
-        throw unprocessableEntity(`"${name}" is a smart list`);
-      await tx.contactListMember.createMany({
-        data: { listId: list.id, contactId: channel.contactId },
-        skipDuplicates: true,
-      });
+        [input],
+        "OTHER",
+      );
+      const contact = contacts.get(input.email);
+      if (!contact) throw notFound("Contact not found");
+      if (subscriber.contactId !== contact.id) {
+        await tx.newsletterSubscriber.update({
+          where: { id: subscriber.id },
+          data: { contactId: contact.id },
+        });
+      }
       if (created)
         await tx.newsletterEvent.create({
           data: {
@@ -161,10 +142,11 @@ export async function subscribeToNewsletter(
         });
       return subscriber;
     });
-  // Nested Contact upserts can race across newsletters sharing the same email.
+  // Contact upserts can race across newsletters sharing the same email.
   const subscriber = await reserveSignup()
     .catch((error: unknown) => {
-      if (!isPrismaUniqueViolation(error)) throw error;
+      if (!(error instanceof HTTPException && error.status === 409))
+        throw error;
       return reserveSignup();
     })
     .catch((error: unknown) => {
@@ -174,56 +156,122 @@ export async function subscribeToNewsletter(
     });
   if (!subscriber) return;
 
+  await sendNewsletterConfirmation(
+    newsletter,
+    { ...subscriber, consentAt: now },
+    input.locale,
+  );
+}
+
+type ConfirmationSubscriber = Pick<NewsletterSubscriber, "id" | "email"> & {
+  consentAt: Date;
+};
+
+/** Opt-in email for public signup. */
+async function sendNewsletterConfirmation(
+  newsletter: Newsletter,
+  subscriber: ConfirmationSubscriber,
+  locale = "en",
+) {
   try {
-    const confirmUrl = newsletterPublicUrl("confirm");
-    confirmUrl.searchParams.set(
-      "token",
-      signNewsletterConfirmToken(
-        {
-          newsletterId: newsletter.id,
-          subscriberId: subscriber.id,
-          consentAt: now.getTime(),
-        },
-        getEnv().BETTER_AUTH_SECRET,
-      ),
+    const email = await newsletterConfirmationEmail(
+      newsletter,
+      subscriber,
+      locale,
     );
-    const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
-      newsletterId: newsletter.id,
-      subscriberId: subscriber.id,
-    });
-    const rendered = await renderNewsletterConfirmationEmail({
-      newsletter: {
-        ...newsletter,
-        brand: newsletterBrandSchema.parse(newsletter.brand),
-      },
-      confirmUrl: confirmUrl.href,
-      unsubscribeUrl,
-      locale: input.locale,
-    });
-    const pending = await prisma.newsletterSubscriber.findUnique({
-      where: {
-        id: subscriber.id,
-        newsletterId: newsletter.id,
-        newsletter: NEWSLETTER_BETA_SCOPE,
-        status: "PENDING",
-        consentAt: now,
-        unsubscribedAt: null,
-        bouncedAt: null,
-      },
-      select: { id: true },
-    });
-    if (!pending) return;
-    await sendEmail({
-      to: subscriber.email,
-      ...rendered,
-      ...newsletterSenderOptions(newsletter),
-      headers,
-      tag: "newsletter-confirmation",
-    });
+    if (!(await pendingConfirmations(newsletter, [subscriber])).length) return;
+    await sendEmail(email);
   } catch (error) {
     // Provider failures must not expose whether the address needed confirmation.
     captureException(error, { tags: { context: "newsletter_confirmation" } });
   }
+}
+
+/** Same opt-in email for authenticated additions, sent in provider batches. */
+export async function sendNewsletterConfirmations(
+  newsletter: Newsletter,
+  subscribers: ConfirmationSubscriber[],
+  locale = "en",
+) {
+  for (
+    let offset = 0;
+    offset < subscribers.length;
+    offset += RESEND_BATCH_MAX_SIZE
+  ) {
+    try {
+      const batch = subscribers.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+      const emails = await Promise.all(
+        batch.map((subscriber) =>
+          newsletterConfirmationEmail(newsletter, subscriber, locale),
+        ),
+      );
+      const pending = new Set(await pendingConfirmations(newsletter, batch));
+      const send = emails.filter((_, index) => pending.has(batch[index]));
+      if (send.length) await sendEmails(send);
+    } catch (error) {
+      // A failed batch leaves its people pending; later batches still go out.
+      captureException(error, { tags: { context: "newsletter_confirmation" } });
+    }
+  }
+}
+
+/** Re-check right before sending so a concurrent unsubscribe or bounce wins. */
+async function pendingConfirmations<T extends ConfirmationSubscriber>(
+  newsletter: Newsletter,
+  subscribers: T[],
+): Promise<T[]> {
+  const pending = await prisma.newsletterSubscriber.findMany({
+    where: {
+      newsletterId: newsletter.id,
+      newsletter: NEWSLETTER_BETA_SCOPE,
+      status: "PENDING",
+      unsubscribedAt: null,
+      bouncedAt: null,
+      OR: subscribers.map(({ id, consentAt }) => ({ id, consentAt })),
+    },
+    select: { id: true },
+  });
+  const ids = new Set(pending.map(({ id }) => id));
+  return subscribers.filter(({ id }) => ids.has(id));
+}
+
+async function newsletterConfirmationEmail(
+  newsletter: Newsletter,
+  subscriber: ConfirmationSubscriber,
+  locale: string,
+): Promise<SendEmailInput> {
+  const confirmUrl = newsletterPublicUrl("confirm");
+  confirmUrl.searchParams.set(
+    "token",
+    signNewsletterConfirmToken(
+      {
+        newsletterId: newsletter.id,
+        subscriberId: subscriber.id,
+        consentAt: subscriber.consentAt.getTime(),
+      },
+      getEnv().BETTER_AUTH_SECRET,
+    ),
+  );
+  const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
+    newsletterId: newsletter.id,
+    subscriberId: subscriber.id,
+  });
+  const rendered = await renderNewsletterConfirmationEmail({
+    newsletter: {
+      ...newsletter,
+      brand: newsletterBrandSchema.parse(newsletter.brand),
+    },
+    confirmUrl: confirmUrl.href,
+    unsubscribeUrl,
+    locale,
+  });
+  return {
+    to: subscriber.email,
+    ...rendered,
+    ...newsletterSenderOptions(newsletter),
+    headers,
+    tag: "newsletter-confirmation",
+  };
 }
 
 export async function getNewsletterConfirmSubscriber(token: string) {

@@ -11,6 +11,74 @@ const UNSUBSCRIBE_URL =
   "https://example.com/v1/public/newsletter/unsubscribe?token=signed-token";
 
 describe("newsletter rendering", () => {
+  it.each([
+    ["en", "Subscribe"],
+    ["de", "Abonnieren"],
+    ["es", "Suscribirse"],
+  ])(
+    "renders a public web footer in %s without email-only content or tracking",
+    async (locale, label) => {
+      const { html, text } = await renderNewsletterEmail({
+        mode: "web",
+        newsletter: {
+          name: "Weekly <script>bad</script>",
+          brand: { primaryColor: "#123456", footerText: "Thanks for reading" },
+        },
+        issue: {
+          subject: "Public issue",
+          previewText: "Inbox-only preview",
+          template: "TEXT",
+          content: [
+            {
+              type: "text",
+              text: "**News** [read](https://example.com/read) <script>bad</script>",
+            },
+          ],
+        },
+        subscribeUrl: "https://example.com/n/weekly",
+        locale,
+      });
+      expect(html).toContain(label);
+      expect(html).toContain('href="https://example.com/n/weekly"');
+      expect(html).toContain('href="https://example.com/read"');
+      // The public page's sandboxed frame only allows links that open a new tab.
+      for (const href of [
+        "https://example.com/n/weekly",
+        "https://example.com/read",
+      ])
+        expect(
+          html.match(new RegExp(`<a[^>]*href="${href}"[^>]*>`))?.[0],
+        ).toContain('target="_blank"');
+      expect(html).toContain("<strong>News</strong>");
+      expect(html).toContain("#123456");
+      expect(html).toContain("Thanks for reading");
+      expect(html).toContain("&lt;script&gt;");
+      expect(html).not.toContain("<script>");
+      expect(html).not.toContain("Inbox-only preview");
+      expect(html).not.toContain("unsubscribe");
+      expect(html).not.toContain("You received this email");
+      expect(html).not.toContain("token=");
+      expect(html).not.toContain("List-Unsubscribe");
+      expect(html).not.toContain("<img");
+      expect(text).toContain(label);
+    },
+  );
+
+  it.each(["http://localhost:3000/n/weekly", "javascript:alert(1)"])(
+    "validates web footer URLs: %s",
+    async (subscribeUrl) => {
+      const { html } = await renderNewsletterEmail({
+        mode: "web",
+        newsletter: { name: "Weekly", brand: {} },
+        issue: { subject: "News", template: "TEXT", content: [] },
+        subscribeUrl,
+      });
+      expect(html.includes(`href="${subscribeUrl}"`)).toBe(
+        subscribeUrl.startsWith("http:"),
+      );
+    },
+  );
+
   it("keeps the preview unsubscribe placeholder without allowing unsafe URLs", async () => {
     for (const unsubscribeUrl of ["#", "javascript:alert(1)"]) {
       const { html } = await renderNewsletterEmail({
@@ -125,6 +193,55 @@ describe("newsletter rendering", () => {
     expect(email.text).toContain(UNSUBSCRIBE_URL);
     expect(email.text).toContain("Second paragraph");
     expect(email.text).toContain("https://example.com/read");
+  });
+
+  it.each([
+    ["[" + "[\\".repeat(50_000), "[\\[\\[\\"],
+    ["[\\](https://" + "[!](https://".repeat(20_000), "[!](https://[!]"],
+    ["**" + "[".repeat(50_000), "**[[["],
+  ])(
+    "renders adversarial inline markup as plain text quickly",
+    async (text, sample) => {
+      const render = (content: string) =>
+        renderNewsletterEmail({
+          mode: "web",
+          newsletter: { name: "Weekly", brand: {} },
+          issue: {
+            subject: "News",
+            template: "TEXT",
+            content: [{ type: "text", text: content }],
+          },
+        });
+      const baseline = (await render("")).html;
+      const start = performance.now();
+      const { html } = await render(text);
+      expect(performance.now() - start).toBeLessThan(1000);
+      expect(html).toContain(sample);
+      expect(html).not.toContain("<strong>");
+      expect(html.split("<a ").length).toBe(baseline.split("<a ").length);
+    },
+  );
+
+  it("renders bold and links next to stray brackets", async () => {
+    const { html } = await renderNewsletterEmail({
+      mode: "web",
+      newsletter: { name: "Weekly", brand: {} },
+      issue: {
+        subject: "News",
+        template: "TEXT",
+        content: [
+          {
+            type: "text",
+            text: "**Hi** [ [docs](https://example.com/a?b=1#c) [x](https://example.com/[y])",
+          },
+        ],
+      },
+    });
+    expect(html).toContain("<strong>Hi</strong>");
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/example.com\/a\?b=1#c"[^>]*>docs<\/a>/,
+    );
+    expect(html).not.toContain('href="https://example.com/[y]"');
   });
 
   it.each([

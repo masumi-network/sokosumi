@@ -31,6 +31,7 @@ const route = createRoute({
       content: jsonContent(newsletterSignupAcceptedSchema),
     },
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });

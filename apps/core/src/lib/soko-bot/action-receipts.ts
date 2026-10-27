@@ -29,6 +29,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
 const adCampaignIdSchema = z.string().regex(/^\d{1,20}$/);
 
 export const ACTION_CAPABILITIES = new Set([
+  "newsletter_draft_issue",
   ...EXTERNAL_EFFECT_CAPABILITIES,
   "create_task",
   "create_table",

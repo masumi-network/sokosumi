@@ -1483,18 +1483,29 @@ describe("ChatMessageRow", () => {
     });
   });
 
-  it("does not line-clamp bodies that include a large solo image attachment", () => {
-    renderRow({
-      message: userMessage({
-        content: "[photo.png](https://cdn.example/photo.png)\n",
-      }),
-    });
+  it("collapses long text with a large solo image behind Show more", () => {
+    const scroll = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockReturnValue(900);
+    const client = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(384);
+    try {
+      renderRow({
+        message: userMessage({
+          content: `${Array.from({ length: 30 }, (_, i) => `Line ${i + 1}`).join("\n\n")}\n\n[chart.png](https://cdn.example/chart.png)\n`,
+        }),
+      });
 
-    const body = screen.getByTestId("room-message-body");
-    expect(body.className).not.toContain("line-clamp-[16]");
-    expect(
-      screen.queryByRole("button", { name: "Show more" }),
-    ).not.toBeInTheDocument();
+      const body = screen.getByTestId("room-message-body");
+      expect(body.className).toContain("max-h-96");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+    } finally {
+      scroll.mockRestore();
+      client.mockRestore();
+    }
   });
 
   it("linkifies membership-visible channel names in the body", () => {
@@ -1718,19 +1729,19 @@ describe("ChatMessageRow", () => {
       });
 
       const body = screen.getByTestId("room-message-body");
-      expect(body.className).toContain("line-clamp-[16]");
+      expect(body.className).toContain("max-h-96");
       expect(
         screen.getByRole("button", { name: "Show more" }),
       ).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Show more" }));
-      expect(body.className).not.toContain("line-clamp-[16]");
+      expect(body.className).not.toContain("max-h-96");
       expect(
         screen.getByRole("button", { name: "Show less" }),
       ).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Show less" }));
-      expect(body.className).toContain("line-clamp-[16]");
+      expect(body.className).toContain("max-h-96");
       expect(
         screen.getByRole("button", { name: "Show more" }),
       ).toBeInTheDocument();
@@ -1760,7 +1771,7 @@ describe("ChatMessageRow", () => {
     const body = screen.getByTestId("room-message-body");
     expect(body).toHaveAttribute("data-jumbo-emoji", "1");
     expect(body.className).toContain("text-4xl");
-    expect(body.className).not.toContain("line-clamp-[16]");
+    expect(body.className).not.toContain("max-h-96");
   });
 
   it("keeps mixed text+emoji at normal size", () => {
@@ -1801,7 +1812,7 @@ describe("ChatMessageRow", () => {
       });
 
       expect(screen.getByTestId("room-message-body").className).toContain(
-        "line-clamp-[16]",
+        "max-h-96",
       );
       expect(
         screen.queryByRole("button", { name: "Show more" }),

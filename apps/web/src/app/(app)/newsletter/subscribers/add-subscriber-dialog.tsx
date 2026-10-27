@@ -1,12 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  NewsletterConsent,
+  NewsletterSubscriberStatus,
+} from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -29,15 +32,18 @@ import {
   type NewsletterSubscriberValues,
   newsletterSubscriberSchema,
 } from "@/lib/schemas/newsletter-subscribers";
+import { NewsletterConsentChoice } from "./newsletter-consent-choice";
 
 interface AddSubscriberDialogProps {
   projectId: string;
+  newsletterName: string;
   onClose: () => void;
   onCloseAutoFocus: () => void;
 }
 
 export function AddSubscriberDialog({
   projectId,
+  newsletterName,
   onClose,
   onCloseAutoFocus,
 }: AddSubscriberDialogProps) {
@@ -45,9 +51,11 @@ export function AddSubscriberDialog({
   const router = useRouter();
   const form = useForm<NewsletterSubscriberValues>({
     resolver: zodResolver(newsletterSubscriberSchema(t)),
-    defaultValues: { email: "", name: "", consent: false },
+    defaultValues: { email: "", name: "", consentConfirmed: false },
   });
   const { isSubmitting } = form.formState;
+  const consent = form.watch("consent");
+  const consentConfirmed = form.watch("consentConfirmed") ?? false;
 
   async function handleSubmit(values: NewsletterSubscriberValues) {
     form.clearErrors();
@@ -77,7 +85,13 @@ export function AddSubscriberDialog({
           form.setError("root", { message: result.error.message });
         return;
       }
-      toast.success(t("Add.success"));
+      toast.success(
+        t(
+          result.value.status === NewsletterSubscriberStatus.PENDING
+            ? "Add.pendingConfirmation"
+            : "Add.success",
+        ),
+      );
       router.refresh();
       onClose();
     } catch {
@@ -136,27 +150,23 @@ export function AddSubscriberDialog({
               <FormField
                 control={form.control}
                 name="consent"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-start gap-3">
-                      <FormControl>
-                        <Checkbox
-                          required
-                          ref={field.ref}
-                          name={field.name}
-                          checked={field.value}
-                          onCheckedChange={(checked) =>
-                            field.onChange(checked === true)
-                          }
-                          onBlur={field.onBlur}
-                        />
-                      </FormControl>
-                      <FormLabel className="leading-normal">
-                        {t("Add.consent")}
-                      </FormLabel>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
+                render={({ field, fieldState }) => (
+                  <NewsletterConsentChoice
+                    newsletterName={newsletterName}
+                    value={field.value}
+                    confirmed={consentConfirmed}
+                    onValueChange={field.onChange}
+                    onConfirmedChange={(confirmed) =>
+                      form.setValue("consentConfirmed", confirmed, {
+                        shouldValidate: true,
+                      })
+                    }
+                    error={
+                      fieldState.error?.message ??
+                      form.formState.errors.consentConfirmed?.message
+                    }
+                    disabled={isSubmitting}
+                  />
                 )}
               />
             </fieldset>
@@ -177,7 +187,15 @@ export function AddSubscriberDialog({
               >
                 {t("cancel")}
               </Button>
-              <Button type="submit" variant="primary" loading={isSubmitting}>
+              <Button
+                type="submit"
+                variant="primary"
+                loading={isSubmitting}
+                disabled={
+                  !consent ||
+                  (consent === NewsletterConsent.CONFIRMED && !consentConfirmed)
+                }
+              >
                 {t("add")}
               </Button>
             </DialogFooter>

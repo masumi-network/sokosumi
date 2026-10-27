@@ -176,7 +176,6 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung",
       "settings": "Einstellungen",
-      "expandSidebar": "Seitenleiste erweitern",
       "creditsSummary": "Credits-Übersicht:",
       "monthlyUsageLimit": "Monatliches Nutzungslimit",
       "additionalCreditsHero": "{credits, number}",
@@ -324,7 +323,7 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Gedächtnis",
-      "social": "Social-Planung",
+      "social": "Social-Media-Beiträge",
       "ads": "Ads",
       "evaluations": "Modellvergleiche",
       "catch-up": "Aufholen",
@@ -3144,12 +3143,11 @@
         "navigation": "Newsletter-Bereiche",
         "settings": "Einstellungen",
         "emptyTitle": "Richte deinen Newsletter ein",
-        "emptyDescription": "Wähle unten einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
+        "emptyDescription": "Wähle einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
         "general": "Allgemein",
         "brand": "Erscheinungsbild",
         "welcome": "Begrüßungs-E-Mail",
         "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
-        "publicAddress": "Öffentliche Newsletter-Adresse",
         "colorHint": "Verwende eine Hex-Farbe wie #1a2b3c oder lass das Feld leer.",
         "save": "Einstellungen speichern",
         "success": "Newsletter-Einstellungen gespeichert",
@@ -3160,7 +3158,7 @@
           "name": "Newsletter-Name",
           "senderName": "Absendername",
           "replyTo": "Antwort-E-Mail-Adresse",
-          "logoUrl": "Logo-URL",
+          "logoUrl": "Logo",
           "primaryColor": "Primärfarbe",
           "accentColor": "Akzentfarbe",
           "fontFamily": "Schriftart",
@@ -3190,7 +3188,7 @@
           "cancel": "Abbrechen",
           "done": "Fertig",
           "emptyTitle": "Noch keine Abonnenten",
-          "emptyDescription": "Füge eine Person hinzu, die dem Newsletter zugestimmt hat, oder importiere eine CSV-Liste mit Einwilligung.",
+          "emptyDescription": "Füge Personen aus Kontakte hinzu, importiere eine CSV-Datei oder füge Abonnenten von Hand hinzu.",
           "search": "Nach E-Mail suchen",
           "searchPlaceholder": "name@beispiel.de",
           "searchButton": "Suchen",
@@ -3226,21 +3224,22 @@
             "MANUAL": "Manuell hinzugefügt",
             "CSV_IMPORT": "CSV-Import",
             "SIGNUP_FORM": "Anmeldeformular",
-            "API": "API"
+            "API": "API",
+            "CONTACTS": "Kontakte"
           },
           "Validation": {
             "email": "Gib eine gültige E-Mail-Adresse ein.",
             "name": "Verwende höchstens 200 Zeichen.",
-            "consent": "Bestätige die Einwilligung, bevor du fortfährst."
+            "consent": "Wähle, wie sie zugestimmt haben, und bestätige ihre Einwilligung, bevor du fortfährst."
           },
           "Add": {
-            "description": "Füge eine Person hinzu, die dem Erhalt dieses Newsletters zugestimmt hat.",
+            "description": "Füge eine Person zu diesem Newsletter hinzu.",
             "email": "E-Mail",
             "name": "Name (optional)",
-            "consent": "Diese Person hat dem Erhalt dieses Newsletters zugestimmt",
             "duplicate": "Diese E-Mail-Adresse steht bereits auf der Liste. Suche danach, um den bestehenden Abonnenten zu verwalten.",
             "error": "Abonnent konnte nicht hinzugefügt werden. Versuche es erneut.",
-            "success": "Abonnent hinzugefügt"
+            "success": "Abonnent hinzugefügt",
+            "pendingConfirmation": "Bestätigungs-E-Mail gesendet"
           },
           "Remove": {
             "title": "Abonnenten entfernen?",
@@ -3257,7 +3256,6 @@
             "fileType": "Wähle eine Datei mit der Endung .csv.",
             "fileSize": "Wähle eine CSV-Datei mit höchstens 5 MB.",
             "fileRequired": "Wähle eine CSV-Datei zum Importieren.",
-            "consent": "Alle Personen in dieser CSV haben dem Erhalt dieses Newsletters zugestimmt",
             "importing": "Abonnenten werden importiert…",
             "error": "Abonnenten konnten nicht importiert werden. Versuche es erneut.",
             "invalidCsv": "Prüfe die CSV: Verwende die Spaltenüberschrift email, optional name und höchstens 50.000 Zeilen. Versuche es dann erneut.",
@@ -3265,18 +3263,92 @@
             "result": {
               "imported": "Importiert",
               "skippedExisting": "Bereits auf der Liste",
-              "invalid": "Gemeldete ungültige Zeilen"
+              "invalid": "Gemeldete ungültige Zeilen",
+              "skippedUnsubscribed": "Wegen Abmeldung übersprungen",
+              "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
+              "pendingConfirmation": "Warten auf Bestätigung"
             },
             "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
             "invalidRow": "Zeile {row}: {value}",
             "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
           },
-          "dismiss": "Schließen"
+          "dismiss": "Schließen",
+          "fromContacts": "Aus Kontakten hinzufügen",
+          "openContactList": "Liste in Kontakte öffnen",
+          "Consent": {
+            "question": "Wie haben sie dem Erhalt dieses Newsletters zugestimmt?",
+            "CONFIRMED": "Sie haben bereits zugestimmt (jetzt hinzufügen)",
+            "ASK": "Zuerst fragen (Bestätigungs-E-Mail senden)",
+            "confirm": "Ich bestätige, dass diese Personen dem Erhalt dieses Newsletters zugestimmt haben",
+            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, werden nie erneut hinzugefügt."
+          },
+          "FromContacts": {
+            "description": "Wähle Personen und Listen aus den Kontakten deines Arbeitsbereichs.",
+            "people": "Personen",
+            "lists": "Listen",
+            "search": "Personen suchen",
+            "noEmail": "Keine E-Mail-Adresse",
+            "loading": "Kontakte werden geladen…",
+            "noPeople": "Keine Personen gefunden. Versuche eine andere Suche.",
+            "noLists": "Noch keine Listen. Erstelle eine Liste in Kontakte.",
+            "loadPeopleError": "Personen konnten nicht geladen werden. Versuche es erneut.",
+            "loadListsError": "Listen konnten nicht geladen werden. Versuche es erneut.",
+            "retry": "Erneut versuchen",
+            "loadMore": "Weitere Personen laden",
+            "members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+            "peopleSelected": "{count, plural, one {# Person ausgewählt} other {# Personen ausgewählt}}",
+            "listsSelected": "{count, plural, one {# Liste ausgewählt} other {# Listen ausgewählt}}",
+            "selectionRequired": "Wähle mindestens eine Person oder Liste.",
+            "selectionLimit": "Wähle höchstens 1.000 Personen und 20 Listen auf einmal.",
+            "add": "Hinzufügen",
+            "adding": "Abonnenten werden hinzugefügt…",
+            "error": "Abonnenten konnten nicht hinzugefügt werden. Versuche es erneut.",
+            "doneDescription": "Abonnenten hinzugefügt. Prüfe die Ergebnisse unten.",
+            "result": {
+              "added": "Hinzugefügt",
+              "alreadySubscribed": "Bereits abonniert",
+              "skippedUnsubscribed": "Wegen Abmeldung übersprungen",
+              "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
+              "skippedNoEmail": "Ohne E-Mail-Adresse übersprungen",
+              "pendingConfirmation": "Warten auf Bestätigung"
+            }
+          }
+        },
+        "Calendar": {
+          "title": "Kalender",
+          "description": "Sieh, wann jede Newsletter-Ausgabe geplant ist oder versendet wurde.",
+          "navigation": "Monat wechseln",
+          "previous": "Vorheriger Monat",
+          "next": "Nächster Monat",
+          "today": "Heute",
+          "emptyTitle": "Keine Newsletter in diesem Monat",
+          "emptyDescription": "Geplante und versendete Ausgaben erscheinen hier an ihrem Versanddatum. Plane eine Ausgabe für deinen nächsten Versand.",
+          "viewIssues": "Ausgaben ansehen"
         },
         "Issues": {
           "title": "Ausgaben",
           "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
           "newIssue": "Neue Ausgabe",
+          "Ai": {
+            "action": "Für mich schreiben",
+            "description": "Beschreibe diese Ausgabe. Soko Bot erstellt einen Entwurf, den du vor der Freigabe prüfen kannst.",
+            "brief": "Auftrag",
+            "placeholder": "Stelle die Highlights unseres Herbststarts vor und lade zur Demo ein.",
+            "useProjectMemory": "Projektgedächtnis verwenden",
+            "useRecentSocialPosts": "Aktuelle Social-Media-Beiträge verwenden",
+            "template": "Vorlage",
+            "pickImages": "Bilder aus Content Studio auswählen",
+            "images": "Aktuelle Projektbilder",
+            "imagesHint": "Wähle bis zu 10 Bilder. Ausgewählte Bilder erhalten öffentliche Links, damit sie in E-Mails angezeigt werden können.",
+            "noImages": "Noch keine Bilder. Erstelle ein Bild in Content Studio und versuche es erneut.",
+            "imagesError": "Bilder konnten nicht geladen werden. Versuche erneut, Bilder auszuwählen.",
+            "generate": "Entwurf erstellen",
+            "cancel": "Abbrechen",
+            "invalid": "Gib einen Auftrag mit 1 bis 10.000 Zeichen ein und wähle bis zu 10 Bilder.",
+            "error": "Der Entwurf konnte nicht erstellt werden. Behalte deinen Auftrag und versuche es erneut.",
+            "rateLimited": "Zu viele Entwürfe für dieses Projekt. Warte zehn Minuten und versuche es erneut.",
+            "notice": "Von Soko Bot entworfen — vor dem Einreichen zur Freigabe prüfen"
+          },
           "emptyTitle": "Noch keine Ausgaben",
           "emptyDescription": "Wähle eine Vorlage für deine erste Newsletter-Ausgabe.",
           "subject": "Betreff",
@@ -3377,7 +3449,130 @@
             "action": "Entwurf löschen",
             "cancel": "Abbrechen",
             "error": "Ausgabe konnte nicht gelöscht werden. Ihr Status hat sich möglicherweise geändert. Lade die Seite neu und versuche es erneut."
+          },
+          "Lifecycle": {
+            "submit": "Zur Freigabe einreichen",
+            "approve": "Freigeben",
+            "approved": "Freigegeben",
+            "schedule": "Planen",
+            "sendNow": "Jetzt senden",
+            "cancel": "Versandplanung aufheben",
+            "close": "Schließen",
+            "approvedBy": "Freigegeben von {user} am {date}",
+            "formerMember": "Ehemaliges Workspace-Mitglied",
+            "task": "Freigabeaufgabe ansehen",
+            "scheduled": "Geplant für {date} ({timezone})",
+            "when": "Zeitpunkt",
+            "timezone": "Zeitzone: {timezone}",
+            "scheduleTitle": "Newsletter planen",
+            "scheduleDescription": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt.",
+            "sendTitle": "Diesen Newsletter jetzt senden?",
+            "sendDescription": "{count, plural, one {Diese Ausgabe wird an # aktiven Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.} other {Diese Ausgabe wird an # aktive Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.}}",
+            "cancelTitle": "Versandplanung für diesen Newsletter aufheben?",
+            "cancelDescription": "Diese Ausgabe wird wieder zum Entwurf. Reiche sie erneut zur Freigabe ein, bevor du sie planst oder sendest.",
+            "saveFirst": "Speichere deine Änderungen, bevor du die Ausgabe einreichst, freigibst, planst oder sendest.",
+            "invalid": "Prüfe die Ausgabe und versuche es erneut.",
+            "error": "Die Newsletter-Ausgabe konnte nicht aktualisiert werden. Lade die Seite neu und versuche es erneut.",
+            "conflict": "Diese Ausgabe wurde geändert. Lade die Seite neu und versuche es erneut.",
+            "humanRequired": "Eine Person muss diese Ausgabe in einer angemeldeten Browsersitzung freigeben oder senden.",
+            "invalidSchedule": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt sowie eine gültige Zeitzone.",
+            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
+            "noSender": "Der Newsletter-Versand ist nicht eingerichtet. Bitte einen Workspace-Administrator, die Einrichtung abzuschließen.",
+            "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
+          },
+          "viewOnWeb": "Im Web ansehen"
+        },
+        "publicArchive": "Öffentliches Archiv",
+        "SignupForm": {
+          "title": "Anmeldeformular",
+          "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "hostedPage": "Gehostete Anmeldeseite",
+          "open": "Anmeldeseite öffnen",
+          "embedCode": "Einbettungscode",
+          "embedTitle": "Newsletter-Anmeldung"
+        },
+        "Analytics": {
+          "title": "Statistiken",
+          "description": "Verfolge Abonnentenwachstum und Interaktionen mit deinem Newsletter.",
+          "keyMetrics": "Newsletter-Kennzahlen",
+          "from": "Von",
+          "to": "Bis",
+          "lastDays": "Letzte {days} Tage",
+          "resetRange": "Zeitraum zurücksetzen",
+          "invalidRange": "Wähle gültige Daten für 1 bis 366 Tage, mit dem Beginn vor dem Ende, oder setze den Zeitraum zurück.",
+          "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
+          "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
+          "opensNote": "Öffnungen können zu niedrig erfasst werden, da manche E-Mail-Apps Bilder blockieren.",
+          "issueUnsubscribesNote": "Abmeldungen gelten für den gesamten Newsletter und können keiner einzelnen Ausgabe zugeordnet werden.",
+          "emptyTitle": "Kein Versand in diesem Zeitraum",
+          "emptyDescription": "Sende eine Ausgabe, um ihre Statistiken zu sehen, oder wähle einen Zeitraum mit früheren Aktivitäten.",
+          "viewIssues": "Ausgaben ansehen",
+          "subscriberGrowth": "Abonnentenwachstum",
+          "growthMetric": "Kennzahl für das Abonnentendiagramm",
+          "engagement": "Öffnungen und Klicks",
+          "engagementMetric": "Kennzahl für das Interaktionsdiagramm",
+          "issuePerformance": "Ausgabenstatistiken",
+          "subject": "Betreff",
+          "sentAt": "Gesendet am",
+          "unavailable": "—",
+          "issueSummary": "Ausgabenanalyse",
+          "topLinks": "Meistgeklickte Links",
+          "url": "URL",
+          "noLinks": "Noch keine Linkklicks erfasst.",
+          "metrics": {
+            "sent": "Gesendet",
+            "delivered": "Zugestellt",
+            "uniqueOpens": "Eindeutige Öffnungen",
+            "uniqueClicks": "Eindeutige Klicks",
+            "unsubscribes": "Abmeldungen",
+            "bounces": "Unzustellbare E-Mails",
+            "complaints": "Beschwerden",
+            "openRate": "Öffnungsrate",
+            "clickRate": "Klickrate",
+            "activeSubscribers": "Aktive Abonnenten"
+          },
+          "growth": {
+            "newActive": "Neue aktive Abonnenten",
+            "unsubscribed": "Abgemeldet",
+            "bounced": "Unzustellbar",
+            "net": "Nettowachstum",
+            "runningTotal": "Aktive Abonnenten insgesamt"
           }
+        },
+        "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
+        "brandDescription": "Logo, Farben und Schrift deiner Ausgaben.",
+        "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
+        "unsavedChanges": "Du hast ungespeicherte Änderungen.",
+        "colorPlaceholder": "Keine Farbe",
+        "presetColors": "Vorgegebene Farben",
+        "clearColor": {
+          "primaryColor": "Primärfarbe entfernen",
+          "accentColor": "Akzentfarbe entfernen"
+        },
+        "Logo": {
+          "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
+          "upload": "Hochladen",
+          "replace": "Ersetzen",
+          "remove": "Logo entfernen",
+          "previewAlt": "Newsletter-Logo",
+          "uploadError": "Das Logo konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Dieser Dateityp wird nicht unterstützt",
+          "maxFilesExceeded": "Lade jeweils nur ein Logo hoch"
+        },
+        "Preview": {
+          "title": "Vorschau",
+          "description": "Eine Skizze, wie dein Erscheinungsbild in einer Ausgabe wirkt. Aktualisiert sich beim Tippen.",
+          "from": "Von {sender}",
+          "sampleHeading": "Deine nächste Ausgabe",
+          "sampleBody": "Hier erscheint der Inhalt deiner Ausgabe in deiner Schrift.",
+          "button": "Weiterlesen",
+          "unsubscribe": "Abmelden",
+          "primary": "Primär",
+          "accent": "Akzent",
+          "unset": "Standard",
+          "welcome": "Begrüßungs-E-Mail",
+          "noSubject": "Noch kein Betreff"
         }
       }
     },
@@ -4133,7 +4328,7 @@
       }
     },
     "Social": {
-      "title": "Social-Planung",
+      "title": "Social-Media-Beiträge",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
         "label": "Neuer Beitrag",
@@ -4193,15 +4388,16 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details nicht verfügbar",
+        "compactCredits": "{count, plural, =0 {Keine Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
-        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "Neu",
           "newTask": "Neue Aufgabe",
           "search": "Suche",
+          "home": "Startseite",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -4215,10 +4411,15 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social-Planung",
+          "social": "Social-Media-Beiträge",
           "ads": "Ads",
           "newsletter": "Newsletter",
-          "contacts": "Kontakte"
+          "contacts": "Kontakte",
+          "groups": {
+            "work": "Arbeit",
+            "records": "Unterlagen",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -4230,9 +4431,19 @@
           "title": "Zugewiesener Seat erforderlich",
           "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Arbeitet gerade",
+          "needsAttention": "Braucht Aufmerksamkeit",
+          "activeAgo": "Aktiv {time}",
+          "ready": "Bereit",
+          "team": "Soko Bots deines Teams"
         }
       },
-      "toggle": "Seitenleiste ein- oder ausblenden"
+      "show": "Seitenleiste einblenden",
+      "hide": "Seitenleiste ausblenden",
+      "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {
       "title": "Suche",
@@ -7309,6 +7520,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} weitere Teilnehmer",
+      "chats": "Chats",
       "directMessages": "Direktnachrichten",
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
@@ -7690,12 +7902,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
         "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten",
-        "railUnread": "Ungelesen"
+        "unread": "Ungelesen"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "mentionsCapped": "Mehr als {max} Erwähnungen",
-        "railMention": "Erwähnt dich"
+        "mentionsYou": "Erwähnt dich"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
@@ -7836,6 +8048,7 @@
       "SelfDirect": {
         "messageYourself": "Dir selbst schreiben",
         "you": "Du",
+        "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },
@@ -9005,8 +9218,8 @@
       "clearSearch": "Suche löschen",
       "close": "Schließen",
       "label": "Projekt",
+      "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
-      "workspaceView": "Alles",
       "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
       "pinned": "Angepinnt",
       "recent": "Zuletzt",
@@ -9725,6 +9938,36 @@
       "later": "Später",
       "skip": "Überspringen",
       "continue": "Weiter"
+    }
+  },
+  "PublicNewsletter": {
+    "archive": "Archiv",
+    "subscribe": "Abonnieren",
+    "emptyTitle": "Noch keine Ausgaben",
+    "emptyDescription": "Veröffentlichte Ausgaben erscheinen hier.",
+    "loadMore": "Mehr laden",
+    "loadError": "Ausgaben konnten nicht geladen werden. Versuche es erneut.",
+    "unavailable": "Dieses Archiv ist nicht mehr verfügbar. Lade die Seite neu.",
+    "metadataTitle": "Archiv von {name}",
+    "metadataDescription": "Lies frühere Ausgaben von {name}.",
+    "backToArchive": "Zurück zum Archiv",
+    "issueContent": "Newsletter-Ausgabe: {subject}",
+    "Signup": {
+      "title": "{name} abonnieren",
+      "description": "Erhalte neue Ausgaben direkt in dein Postfach.",
+      "email": "E-Mail-Adresse",
+      "name": "Name (optional)",
+      "consent": "Ich bin damit einverstanden, diesen Newsletter zu erhalten. Du kannst dich jederzeit abmelden.",
+      "website": "Webseite",
+      "archive": "Archiv durchstöbern",
+      "success": "Prüfe dein Postfach, um dein Abonnement zu bestätigen",
+      "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+      "invalidName": "Verwende einen Namen mit höchstens 200 Zeichen.",
+      "consentRequired": "Stimme dem Erhalt des Newsletters zu, um ihn zu abonnieren.",
+      "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+      "rateLimit": "Zu viele Anmeldeversuche. Warte ein paar Minuten und versuche es erneut.",
+      "unavailable": "Dieser Newsletter ist nicht verfügbar. Lade die Seite neu und versuche es erneut.",
+      "error": "Anmeldung fehlgeschlagen. Versuche es erneut."
     }
   }
 }

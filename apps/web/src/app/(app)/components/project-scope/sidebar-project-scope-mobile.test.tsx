@@ -93,8 +93,8 @@ function renderHarness() {
   };
 }
 
-function row() {
-  return screen.getByTestId("project-scope-sidebar-row");
+function title() {
+  return screen.getByTestId("project-scope-sidebar-title");
 }
 
 function chip() {
@@ -150,7 +150,7 @@ describe("sidebar project scope store", () => {
   it("resets the store when the chip unmounts", async () => {
     const user = userEvent.setup();
     const view = renderHarness();
-    await user.click(row());
+    await user.click(title());
     await user.click(await screen.findByTestId("project-scope-create"));
     await screen.findByRole("dialog", { name: "create-project" });
 
@@ -172,14 +172,14 @@ describe("sidebar project scope store", () => {
     expect(
       await screen.findByRole("dialog", { name: "switchLabel" }),
     ).toBeInTheDocument();
-    expect(row()).toHaveAttribute("aria-expanded", "true");
+    expect(title()).toHaveAttribute("aria-expanded", "true");
     // The open sheet hides the rest of the page from role queries.
     expect(modal().open).toBe(true);
 
     view.setChip(false);
 
-    // The row reads the store with no chip mounted.
-    expect(row()).toHaveAttribute("aria-expanded", "false");
+    // The title reads the store with no chip mounted.
+    expect(title()).toHaveAttribute("aria-expanded", "false");
 
     view.setChip(true);
 
@@ -191,11 +191,14 @@ describe("sidebar project scope store", () => {
 });
 
 describe("sidebar project scope scope name", () => {
-  it("names the workspace view when no project is scoped", () => {
+  it("names the workspace view All projects when no project is scoped", () => {
     renderHarness();
 
-    expect(row()).toHaveAccessibleName("workspaceView");
-    expect(chip()).toHaveAccessibleName("workspaceView");
+    // One name for the view, from one key: the sidebar title, the header chip
+    // and the picker's own row all say "All projects".
+    expect(title()).toHaveAccessibleName("label: allProjects");
+    expect(chip()).toHaveAccessibleName("label: allProjects");
+    expect(chip()).toHaveTextContent("allProjects");
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
@@ -209,11 +212,11 @@ describe("sidebar project scope scope name", () => {
     mocks.search = "projectId=p-1";
     renderHarness();
 
-    expect(row()).toHaveAccessibleName("label: label");
+    expect(title()).toHaveAccessibleName("label: label");
     expect(chip()).toHaveAccessibleName("label: label");
 
     answer(Response.json({ project: { id: "p-1", name: "Acme", logo: null } }));
-    await waitFor(() => expect(row()).toHaveAccessibleName("label: Acme"));
+    await waitFor(() => expect(title()).toHaveAccessibleName("label: Acme"));
     expect(chip()).toHaveAccessibleName("label: Acme");
     expect(mocks.fetch).toHaveBeenCalledWith(
       "/api/project-scope/p-1",
@@ -230,7 +233,7 @@ describe("sidebar project scope chip", () => {
 
     expect(chip().closest(".hidden")).not.toBeNull();
 
-    await user.click(row());
+    await user.click(title());
     await user.click(await screen.findByTestId("project-scope-create"));
     expect(
       await screen.findByRole("dialog", { name: "create-project" }),
@@ -247,7 +250,7 @@ describe("sidebar project scope chip", () => {
       length: 0,
     } as DOMRectList);
 
-    await user.click(row());
+    await user.click(title());
     await screen.findByRole("dialog", { name: "switchLabel" });
     await user.keyboard("{Escape}");
 
@@ -267,7 +270,7 @@ describe("sidebar project scope chip", () => {
 describe("sidebar project scope Create project", () => {
   it("switches to the project that Create made", async () => {
     renderHarness();
-    await openCreateFrom(row());
+    await openCreateFrom(title());
     // Analytics tell switcher creates apart from the task form's.
     expect(modal().creationSource).toBe("project_switcher");
 
@@ -276,14 +279,14 @@ describe("sidebar project scope Create project", () => {
     expect(mocks.push).toHaveBeenCalledWith("/tasks?projectId=p-new");
   });
 
-  it("returns focus to the sidebar row on cancel", async () => {
+  it("returns focus to the sidebar title on cancel", async () => {
     renderHarness();
-    await openCreateFrom(row());
+    await openCreateFrom(title());
 
     const event = cancelCreate();
 
     expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(row());
+    expect(document.activeElement).toBe(title());
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
@@ -305,8 +308,8 @@ describe("sidebar project scope Create project", () => {
     vi.spyOn(chip(), "getClientRects").mockReturnValue({
       length: 0,
     } as DOMRectList);
-    // The row hands off to the hidden chip's sheet, so the chip is the opener.
-    await openCreateFrom(row());
+    // The title hands off to the hidden chip's sheet, so the chip is the opener.
+    await openCreateFrom(title());
 
     const event = cancelCreate();
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -65,14 +65,9 @@ function MobileSidebarProbe() {
   );
 }
 
-interface HarnessOptions {
-  /** Controls the desktop sidebar; `false` is the collapsed rail. */
-  sidebarOpen?: boolean;
-}
-
-function Harness({ sidebarOpen }: HarnessOptions) {
+function Harness() {
   return (
-    <SidebarProvider open={sidebarOpen}>
+    <SidebarProvider>
       <header>
         <button type="button">header-home</button>
       </header>
@@ -83,19 +78,38 @@ function Harness({ sidebarOpen }: HarnessOptions) {
   );
 }
 
-function renderHarness(options: HarnessOptions = {}) {
+function renderHarness() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <Harness {...options} />
+      <Harness />
     </QueryClientProvider>,
   );
 }
 
-function row() {
-  return screen.getByTestId("project-scope-sidebar-row");
+function title() {
+  return screen.getByTestId("project-scope-sidebar-title");
+}
+
+/**
+ * The scope's name alone, with no "Project" line over it, and the chevron
+ * after it. The accessible name still says what it is.
+ */
+function expectTitled(value: string) {
+  expect(title()).toHaveTextContent(new RegExp(`^${value}$`));
+  const name = within(title()).getByText(value, { exact: true });
+  // The selector's up-down chevron, not a section's fold chevron.
+  const chevron = title().querySelector("svg.lucide-arrow-left-right");
+  if (!chevron) throw new Error("no chevron");
+  expect(
+    name.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+}
+
+function tokens(element: Element): string[] {
+  return (element.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
 }
 
 function probe() {
@@ -126,7 +140,7 @@ describe("sidebar project scope", () => {
     const user = userEvent.setup();
     renderHarness();
 
-    await user.click(row());
+    await user.click(title());
     await user.click(await screen.findByTestId("project-scope-create"));
 
     expect(
@@ -134,27 +148,27 @@ describe("sidebar project scope", () => {
     ).toBeInTheDocument();
   });
 
-  it("hands the mobile row off to the chip's bottom sheet", async () => {
+  it("hands the mobile title off to the chip's bottom sheet", async () => {
     const user = userEvent.setup();
     mocks.isMobile = true;
     renderHarness();
 
-    await user.click(row());
+    await user.click(title());
 
     expect(
       await screen.findByRole("dialog", { name: "switchLabel" }),
     ).toBeInTheDocument();
-    expect(row()).toHaveAttribute("aria-expanded", "true");
+    expect(title()).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("closes the mobile sidebar when the row hands off", async () => {
+  it("closes the mobile sidebar when the title hands off", async () => {
     const user = userEvent.setup();
     mocks.isMobile = true;
     renderHarness();
     await user.click(probe());
     expect(probe()).toHaveAttribute("data-open", "true");
 
-    await user.click(row());
+    await user.click(title());
 
     expect(probe()).toHaveAttribute("data-open", "false");
     expect(
@@ -169,7 +183,7 @@ describe("sidebar project scope", () => {
     ]);
     renderHarness();
 
-    await user.click(row());
+    await user.click(title());
     expect(
       await screen.findByRole("dialog", { name: "switchLabel" }),
     ).toBeInTheDocument();
@@ -183,47 +197,67 @@ describe("sidebar project scope", () => {
     );
   });
 
-  it("names the mobile row with the full scope label", async () => {
+  // As the workspace switcher: the hover and open fill cover the name and its
+  // arrows, not the sidebar's width, and a long name still shortens to fit.
+  it("is only as wide as its name and arrows", () => {
+    renderHarness();
+
+    const classes = tokens(title());
+    expect(classes).not.toContain("w-full");
+    expect(classes).toEqual(expect.arrayContaining(["w-fit", "max-w-full"]));
+  });
+
+  it("titles the nav All projects when no project is picked", () => {
+    renderHarness();
+
+    expectTitled("allProjects");
+    expect(title()).toHaveAccessibleName("label: allProjects");
+  });
+
+  it("titles the nav with the picked project's name", async () => {
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() => expect(title()).toHaveAccessibleName("label: Acme"));
+    expectTitled("Acme");
+  });
+
+  // The title the nav sits under, not one more row of it: no leading mark,
+  // a medium name shortened with "…" that stays whole in its name.
+  it("is a title rather than a sidebar row", () => {
+    const { container } = renderHarness();
+    const name = within(title()).getByText("allProjects", { exact: true });
+
+    expect(title()).not.toHaveAttribute("data-sidebar", "menu-button");
+    expect(
+      container.querySelector(
+        '[data-testid="project-scope-sidebar-title"] [data-slot="sidebar-row-slot"]',
+      ),
+    ).toBeNull();
+    expect(tokens(title())).toContain("font-medium");
+    expect(tokens(name)).toEqual(
+      expect.arrayContaining(["min-w-0", "truncate"]),
+    );
+  });
+
+  // A thumb's 44px on the phone sheet, the sketch's 32px with a pointer.
+  it("keeps a touch-sized target on the phone sheet", () => {
+    renderHarness();
+
+    expect(tokens(title())).toEqual(expect.arrayContaining(["h-11", "md:h-8"]));
+  });
+
+  it("draws no rule under the picker", () => {
+    const { container } = renderHarness();
+
+    expect(container.querySelector('[data-sidebar="separator"]')).toBeNull();
+  });
+
+  it("names the mobile title with the full scope label", async () => {
     mocks.isMobile = true;
     mocks.search = "projectId=p-1";
     renderHarness();
 
-    await waitFor(() => expect(row()).toHaveAccessibleName("label: Acme"));
-  });
-});
-
-describe("sidebar project scope rail tooltip", () => {
-  it("shows the scope label when the rail row is hovered", async () => {
-    const user = userEvent.setup();
-    renderHarness({ sidebarOpen: false });
-
-    await user.hover(row());
-
-    expect(
-      await screen.findByRole("tooltip", { name: "workspaceView" }),
-    ).toBeInTheDocument();
-  });
-
-  it("hides the tooltip while the sidebar is expanded", async () => {
-    const user = userEvent.setup();
-    renderHarness({ sidebarOpen: true });
-
-    await user.hover(row());
-
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-  });
-
-  it("hides the tooltip over the row's own open popover", async () => {
-    const user = userEvent.setup();
-    renderHarness({ sidebarOpen: false });
-
-    await user.click(row());
-    expect(
-      await screen.findByRole("dialog", { name: "switchLabel" }),
-    ).toBeInTheDocument();
-    await user.unhover(row());
-    await user.hover(row());
-
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    await waitFor(() => expect(title()).toHaveAccessibleName("label: Acme"));
   });
 });
