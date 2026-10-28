@@ -241,8 +241,11 @@ export const cmoOverviewSchema = z
     work: z.union([cmoWorkSchema, z.null()]),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
-    accountsDoneAt: z.union([dateTimeSchema, z.null()]),
-    onboardedAt: z.union([dateTimeSchema, z.null()]),
+    onboardingStep: z
+      .enum(["brandBrain", "strategy", "accounts", "plan", "done"])
+      .describe(
+        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan. CMO opens on the chat once done.",
+      ),
     mockBilling: z
       .boolean()
       .describe("CMO offers its own mock tiers instead of Sokosumi checkout."),

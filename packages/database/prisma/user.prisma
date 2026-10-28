@@ -60,6 +60,10 @@ model User {
   // Off by default; a Direct is tagged only when every human in it opted in.
   tagDirectMessages   Boolean @default(false)
 
+  // Hiring Cuso: the person skipped connecting Social accounts, so CMO does
+  // not send them back to that step (ADR 0062). Connecting needs no flag.
+  cmoAccountsSkipped Boolean @default(false)
+
   // UTM Attribution
   utmAttribution UTMAttribution?
   signUpContext  SignUpContext?

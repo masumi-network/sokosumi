@@ -4,7 +4,6 @@ import {
   chatRoomDelete,
   cmoCreate,
   cmoFindUnique,
-  cmoUpdate,
   createBot,
   createOrganizationWorkspace,
   eventFindFirst,
@@ -15,9 +14,7 @@ import {
   projectCreate,
   projectDelete,
   resetCmoServiceMocks,
-  seedStrategy,
   startTurn,
-  strategy,
   turnFindFirst,
 } from "@/test-fixtures/cmo-service";
 
@@ -84,42 +81,11 @@ vi.mock("@/config/env", async (importOriginal) =>
 import {
   cmoLearningState,
   describeCmoStep,
-  finishCmoAccountsStep,
   retryCmoOnboarding,
   startCmoOnboarding,
 } from "./cmo-hiring.service";
 
 beforeEach(resetCmoServiceMocks);
-
-describe("finishCmoAccountsStep", () => {
-  it("records the step once, so a reload resumes on the plan", async () => {
-    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      projectId: "project-1",
-      accountsDoneAt: null,
-    });
-    await finishCmoAccountsStep("user-1");
-    expect(cmoUpdate.mock.calls[0]?.[0].data.accountsDoneAt).toBeInstanceOf(
-      Date,
-    );
-
-    cmoUpdate.mockClear();
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      projectId: "project-1",
-      accountsDoneAt: new Date("2026-10-02T09:00:00Z"),
-    });
-    await finishCmoAccountsStep("user-1");
-    expect(cmoUpdate).not.toHaveBeenCalled();
-  });
-
-  it("needs an approved strategy", async () => {
-    seedStrategy(strategy);
-    cmoFindUnique.mockResolvedValue({ id: "cmo-1", projectId: "project-1" });
-    await expect(finishCmoAccountsStep("user-1")).rejects.toThrow(/approve/i);
-  });
-});
 
 describe("learning state", () => {
   const workspace = {

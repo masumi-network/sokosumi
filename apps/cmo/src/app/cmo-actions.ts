@@ -12,11 +12,11 @@ import {
   completeCmoOnboarding,
   connectCmoMeasurement,
   finalizeCmoMeasurement,
-  finishCmoAccountsStep,
   getChatsRoomsByIdMessages,
   getCmoOverview,
   getContactLists,
   getSubscriptionCatalog,
+  patchUsersByIdPreferences,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   postContactLists,
@@ -321,12 +321,21 @@ export async function chooseMockPlan(
   return { overview: data.data, error: null };
 }
 
-/** The founder connected or skipped the Accounts step. */
+/**
+ * The founder moved on from the Accounts step. A connection already counts;
+ * skipping is the person's preference, so a reload resumes on the plan.
+ */
 export async function finishAccounts(): Promise<CmoOverview> {
   const core = await requireCore();
-  const { data, error } = await finishCmoAccountsStep(core);
-  if (!data) throw new Error(errorText(error, "Could not continue"));
-  return data.data;
+  const { error } = await patchUsersByIdPreferences({
+    ...core,
+    path: { id: "me" },
+    body: { cmoAccountsSkipped: true },
+  });
+  if (error) throw new Error(errorText(error, "Could not continue"));
+  const overview = await loadOverview();
+  if (!overview) throw new Error("Cuso is not hired yet");
+  return overview;
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */

@@ -59,11 +59,10 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandMedia: null,
     brandBrainApprovedAt: null,
     projectLogo: null,
-    accountsDoneAt: new Date("2026-10-02T00:00:00Z"),
+    onboardingStep: "done",
     mockBilling: false,
     mockPlan: null,
     mockPlanActivatedAt: null,
-    onboardedAt: new Date("2026-10-02T00:00:00Z"),
     routines: [
       {
         key: "cmo-daily-run",
