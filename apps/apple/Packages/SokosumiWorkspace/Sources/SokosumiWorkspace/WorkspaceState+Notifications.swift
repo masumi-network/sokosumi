@@ -29,7 +29,7 @@ public extension WorkspaceState {
 
   /// The reader opened a banner (web `useOpenNotification`): attempt to mark
   /// the row read, then route, switching workspace when the
-  /// notification names another one. Navigation happens even if the read fails.
+  /// notification names another one and its room is not shown in every workspace. Navigation happens even if the read fails.
   @discardableResult
   func openNotification(_ target: ChatNotificationTarget) async throws -> MessageNavigationResult {
     notificationBanners.forget(roomId: target.roomId)
@@ -39,7 +39,8 @@ public extension WorkspaceState {
     // Still open the link when mark-read fails. Awaited rather than detached so requests keep one order.
     try? await service.markNotificationRead(client: client, id: target.id)
     guard phase == .ready else { return .unavailable }
-    if let workspaceId = target.workspaceId {
+    // A room shown in every workspace opens in this one (ADR 0059).
+    if let workspaceId = target.workspaceId, rooms.first(where: { $0.id == target.roomId })?.isShownInEveryWorkspace != true {
       try await switchWorkspaceIfNeeded(workspaceId: workspaceId, client: client)
       guard phase == .ready else { return .unavailable }
     }
