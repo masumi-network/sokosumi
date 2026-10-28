@@ -4,7 +4,7 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
-import { approveCmoStrategy } from "@/services/cmo.service";
+import { approveCmoStrategy } from "@/services/cmo-strategy.service";
 
 import { requireOverview, rethrow } from "../../helpers";
 

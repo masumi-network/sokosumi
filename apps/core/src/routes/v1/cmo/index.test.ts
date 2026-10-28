@@ -19,24 +19,36 @@ const { approveMock, revertMock, overviewMock, mockPlanMock, strategyMock } =
     strategyMock: vi.fn(),
   }));
 
-vi.mock("@/services/cmo.service", async (importOriginal) => {
+vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/services/cmo.service")>();
+    await importOriginal<typeof import("@/services/cmo-strategy.service")>();
   return {
     ...actual,
     approveCmoStrategy: approveMock,
-    revertCmoUpdate: revertMock,
-    getCmoOverview: overviewMock,
-    chooseCmoMockPlan: mockPlanMock,
     requestCmoStrategy: strategyMock,
   };
+});
+vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/cmo-reports.service")>();
+  return { ...actual, revertCmoUpdate: revertMock };
+});
+vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/cmo-overview.service")>();
+  return { ...actual, getCmoOverview: overviewMock };
+});
+vi.mock("@/services/cmo-billing.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/cmo-billing.service")>();
+  return { ...actual, chooseCmoMockPlan: mockPlanMock };
 });
 
 import {
   CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
-} from "@/services/cmo.service";
+} from "@/services/cmo-cuso.service";
 import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
 
 import cmoRouter from "./index";

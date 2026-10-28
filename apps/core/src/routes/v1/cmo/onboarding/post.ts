@@ -7,7 +7,7 @@ import {
   cmoOnboardingRequestSchema,
   cmoOverviewSchema,
 } from "@/schemas/cmo.schema";
-import { startCmoOnboarding } from "@/services/cmo.service";
+import { startCmoOnboarding } from "@/services/cmo-hiring.service";
 
 import { requireOverview, rethrow } from "../helpers";
 

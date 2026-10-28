@@ -1,0 +1,118 @@
+import { randomBytes } from "node:crypto";
+import { type CmoHire, type Prisma } from "@sokosumi/database";
+import {
+  type CmoReportUpdateInput,
+  cmoReportUpdateInputSchema,
+} from "@sokosumi/soko-bot";
+import { z } from "zod";
+import prisma from "@/lib/db/prisma";
+import {
+  CmoNotFoundError,
+  getCmoHireForUser,
+} from "@/services/cmo-cuso.service";
+import {
+  parseCmoStrategy,
+  parseHistory,
+  saveCmoStrategy,
+} from "@/services/cmo-strategy.service";
+
+const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
+  id: z.string(),
+  at: z.string(),
+  /** Weekly and monthly: the strategy before this turn's changes, for revert. */
+  previousStrategy: z.json().optional(),
+  revertedAt: z.string().optional(),
+});
+export type CmoUpdateRecord = z.infer<typeof cmoUpdateRecordSchema>;
+
+const UPDATES_LIMIT = 60;
+
+export function parseCmoUpdates(value: unknown): CmoUpdateRecord[] {
+  const parsed = z.array(cmoUpdateRecordSchema).safeParse(value);
+  return parsed.success ? parsed.data : [];
+}
+
+/**
+ * Stores Cuso's report as a chat card. A weekly report keeps the strategy as
+ * it was before the first save of the same turn, so the owner can revert the
+ * whole review in one step.
+ */
+export async function reportCmoUpdate(
+  input: {
+    sokoBotId: string;
+    turnId: string;
+    update: CmoReportUpdateInput;
+  },
+  db: Prisma.TransactionClient = prisma,
+): Promise<CmoUpdateRecord> {
+  const hire = await db.cmoHire.findUnique({
+    where: { sokoBotId: input.sokoBotId },
+  });
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const update = cmoReportUpdateInputSchema.parse(input.update);
+  const savedThisTurn = parseHistory(hire.strategyHistory).filter(
+    (entry) => entry.turnId === input.turnId,
+  );
+  const record: CmoUpdateRecord = {
+    ...update,
+    id: randomBytes(8).toString("hex"),
+    at: new Date().toISOString(),
+    ...((update.kind === "weekly" || update.kind === "monthly") &&
+    savedThisTurn.length > 0
+      ? { previousStrategy: savedThisTurn[savedThisTurn.length - 1]?.strategy }
+      : {}),
+  };
+  await db.cmoHire.update({
+    where: { id: hire.id },
+    data: {
+      updates: [record, ...parseCmoUpdates(hire.updates)].slice(
+        0,
+        UPDATES_LIMIT,
+      ),
+    },
+  });
+  return record;
+}
+
+/**
+ * Puts back the strategy a weekly review or monthly strategy replaced.
+ * Entries already handed to Social stay as they are now, so Pause can still
+ * cancel their posts.
+ */
+export async function revertCmoUpdate(input: {
+  userId: string;
+  updateId: string;
+}): Promise<CmoHire> {
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const updates = parseCmoUpdates(hire.updates);
+  const target = updates.find((update) => update.id === input.updateId);
+  const previous = parseCmoStrategy(target?.previousStrategy);
+  if (!target || !previous) {
+    throw new CmoNotFoundError("Nothing to revert for this update");
+  }
+  if (target.revertedAt) return hire;
+  // Entries handed to Social and entries the owner paused stay as they are.
+  const kept = new Map(
+    (parseCmoStrategy(hire.strategy)?.calendar ?? [])
+      .filter((entry) => entry.socialPostId || entry.status === "skipped")
+      .map((entry) => [entry.id, entry]),
+  );
+  const calendar = [
+    ...previous.calendar.map((entry) => kept.get(entry.id) ?? entry),
+    ...[...kept.values()].filter(
+      (entry) => !previous.calendar.some((old) => old.id === entry.id),
+    ),
+  ].sort((left, right) => left.date.localeCompare(right.date));
+  await saveCmoStrategy({ userId: input.userId }, { ...previous, calendar });
+  return prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: {
+      updates: updates.map((update) =>
+        update.id === target.id
+          ? { ...update, revertedAt: new Date().toISOString() }
+          : update,
+      ),
+    },
+  });
+}

@@ -34,7 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/services/cmo.service", () => ({
+vi.mock("@/services/cmo-cuso.service", () => ({
   CMO_HIRE_PROJECT: {},
   cmoHireView: ({
     project,
@@ -43,8 +43,10 @@ vi.mock("@/services/cmo.service", () => ({
     project: { workspaceId: string; websiteUrl: string };
   }) => ({ ...hire, ...project, businessName: "acme.io" }),
   cmoRunnerUserId,
-  isCmoSubscribed,
   listCmoChannels,
+}));
+vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+vi.mock("@/services/cmo-strategy.service", () => ({
   parseCmoStrategy: (value: unknown) => value ?? null,
 }));
 

@@ -7,7 +7,7 @@ import {
   cmoStrategyRequestSchema,
   cmoTurnStartedSchema,
 } from "@/schemas/cmo.schema";
-import { requestCmoStrategy } from "@/services/cmo.service";
+import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 
 import { rethrow } from "../helpers";
 

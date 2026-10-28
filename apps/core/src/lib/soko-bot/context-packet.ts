@@ -508,7 +508,7 @@ export class ContextPacketBuilder {
     const marketing =
       input.audience === "TEAMMATE"
         ? null
-        : await import("@/services/cmo.service")
+        : await import("@/services/cmo-context.service")
             .then(({ loadCmoMarketingContext }) =>
               loadCmoMarketingContext(input.sokoBotId),
             )

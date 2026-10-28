@@ -7,7 +7,7 @@ import {
   cmoAdBudgetRequestSchema,
   cmoTurnStartedSchema,
 } from "@/schemas/cmo.schema";
-import { setCmoAdBudget } from "@/services/cmo.service";
+import { setCmoAdBudget } from "@/services/cmo-strategy.service";
 
 import { rethrow } from "../../helpers";
 

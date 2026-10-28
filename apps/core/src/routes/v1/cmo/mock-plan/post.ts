@@ -7,7 +7,7 @@ import {
   cmoMockPlanRequestSchema,
   cmoOverviewSchema,
 } from "@/schemas/cmo.schema";
-import { chooseCmoMockPlan } from "@/services/cmo.service";
+import { chooseCmoMockPlan } from "@/services/cmo-billing.service";
 
 import { requireOverview, rethrow } from "../helpers";
 

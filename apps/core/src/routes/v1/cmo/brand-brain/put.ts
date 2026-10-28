@@ -7,7 +7,7 @@ import {
   cmoBrandBrainRequestSchema,
   cmoOverviewSchema,
 } from "@/schemas/cmo.schema";
-import { saveCmoBrandBrain } from "@/services/cmo.service";
+import { saveCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 
 import { requireOverview, rethrow } from "../helpers";
 

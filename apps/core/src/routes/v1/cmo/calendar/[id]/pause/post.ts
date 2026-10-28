@@ -7,7 +7,7 @@ import {
   cmoOverviewSchema,
   cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
-import { pauseCmoCalendarEntry } from "@/services/cmo.service";
+import { pauseCmoCalendarEntry } from "@/services/cmo-strategy.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 

@@ -279,17 +279,14 @@ import {
   hydrateChatResultSnapshots,
   resolveChatResultReference,
 } from "@/services/chat-result-preview.service";
+import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
 import {
-  CmoNotFoundError,
   cmoBrandSectionsSaved,
-  cmoExecutionRefusal,
   parseCmoBrandBrain,
-  parseCmoStrategy,
-  reportCmoUpdate,
   saveCmoBrandBrain,
-  saveCmoStrategy,
-} from "@/services/cmo.service";
+} from "@/services/cmo-brand-brain.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
+import { CmoNotFoundError } from "@/services/cmo-cuso.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -299,6 +296,11 @@ import {
   cmoPlanProblems,
   cmoReplySafety,
 } from "@/services/cmo-plan-review.service";
+import { reportCmoUpdate } from "@/services/cmo-reports.service";
+import {
+  parseCmoStrategy,
+  saveCmoStrategy,
+} from "@/services/cmo-strategy.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,

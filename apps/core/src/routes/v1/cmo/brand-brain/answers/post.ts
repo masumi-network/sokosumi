@@ -7,7 +7,7 @@ import {
   cmoBrandAnswerRequestSchema,
   cmoOverviewSchema,
 } from "@/schemas/cmo.schema";
-import { answerCmoBrandQuestion } from "@/services/cmo.service";
+import { answerCmoBrandQuestion } from "@/services/cmo-brand-brain.service";
 
 import { requireOverview, rethrow } from "../../helpers";
 

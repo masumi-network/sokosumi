@@ -533,7 +533,9 @@ export async function buildSystemBeatMessage(input: {
 }): Promise<{ message: string; nudgeKeys: string[]; skip?: boolean }> {
   const { bot, now } = input;
   if (isCmoScheduleKey(input.key)) {
-    const { buildCmoBeatPacket } = await import("@/services/cmo.service");
+    const { buildCmoBeatPacket } = await import(
+      "@/services/cmo-context.service"
+    );
     const { packet, skip } = await buildCmoBeatPacket(bot.id, now, input.key);
     return {
       message: [input.prompt, "", packet].join("\n").trim(),

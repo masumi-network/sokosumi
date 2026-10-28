@@ -4,7 +4,7 @@ import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { cmoTurnStartedSchema } from "@/schemas/cmo.schema";
-import { retryCmoOnboarding } from "@/services/cmo.service";
+import { retryCmoOnboarding } from "@/services/cmo-hiring.service";
 
 import { rethrow } from "../../helpers";
 

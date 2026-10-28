@@ -7,14 +7,16 @@ import {
 } from "@/helpers/error";
 import { mapControlPlaneError } from "@/routes/v1/soko-bots/helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
+import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
+} from "@/services/cmo-cuso.service";
+import {
   type CmoOverview,
   getCmoOverview,
-} from "@/services/cmo.service";
-import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
+} from "@/services/cmo-overview.service";
 import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 
 function mapOverview(overview: CmoOverview) {

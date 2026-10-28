@@ -9,15 +9,15 @@ import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
+import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
   CMO_HIRE_PROJECT,
   type CmoHireView,
   cmoHireView,
   cmoRunnerUserId,
-  isCmoSubscribed,
   listCmoChannels,
-  parseCmoStrategy,
-} from "@/services/cmo.service";
+} from "@/services/cmo-cuso.service";
+import { parseCmoStrategy } from "@/services/cmo-strategy.service";
 
 /**
  * After the owner approves the strategy and pays, Cuso makes the whole month

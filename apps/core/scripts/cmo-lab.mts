@@ -16,16 +16,18 @@ import { readFile, writeFile } from "node:fs/promises";
 import { Prisma, type SokoBotTurnStatus } from "@sokosumi/database";
 import type { CmoStrategy } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 import {
   CMO_HIRE_PROJECT,
   cmoHireView,
   getCmoHireForUser,
-  parseCmoBrandBrain,
+} from "@/services/cmo-cuso.service";
+import { startCmoResearch } from "@/services/cmo-hiring.service";
+import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
+import {
   parseCmoStrategy,
   requestCmoStrategy,
-  startCmoResearch,
-} from "@/services/cmo.service";
-import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
+} from "@/services/cmo-strategy.service";
 
 interface Brand {
   name: string;

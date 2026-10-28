@@ -7,7 +7,7 @@ import {
   cmoOverviewSchema,
   cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
-import { revertCmoUpdate } from "@/services/cmo.service";
+import { revertCmoUpdate } from "@/services/cmo-reports.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 

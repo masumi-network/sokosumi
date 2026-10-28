@@ -1,0 +1,153 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  cmoFindUnique,
+  connectionFindMany,
+  postFindMany,
+  resetCmoServiceMocks,
+  strategy,
+  subscriptionFindFirst,
+} from "@/test-fixtures/cmo-service";
+
+vi.mock(
+  "@/lib/db/prisma",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.prisma,
+);
+vi.mock(
+  "@/services/social-posts.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.socialPosts,
+);
+vi.mock(
+  "@/services/soko-bot-shared-create.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.sharedCreate,
+);
+vi.mock(
+  "@/services/soko-bot-control-plane.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.controlPlane,
+);
+vi.mock(
+  "@/helpers/organization-workspace",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
+      .organizationWorkspace,
+);
+vi.mock(
+  "@/helpers/user-workspaces",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
+      .userWorkspaces,
+);
+vi.mock(
+  "@/helpers/subscription",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.subscription,
+);
+vi.mock(
+  "@/services/soko-bot-billing.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.billing,
+);
+vi.mock(
+  "@vercel/functions",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
+      .vercelFunctions,
+);
+vi.mock(
+  "@/services/soko-bot-integration-connection.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
+      .integrationConnection,
+);
+vi.mock("@/config/env", async (importOriginal) =>
+  (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
+    await importOriginal<typeof import("@/config/env")>(),
+  ),
+);
+
+import { fitCmoMarketingContext } from "./cmo-context.service";
+
+beforeEach(resetCmoServiceMocks);
+
+describe("buildCmoBeatPacket", () => {
+  it("stays well under the message limit with a long plan", async () => {
+    const { buildCmoBeatPacket } = await import("./cmo-context.service");
+    const long = "x".repeat(2_000);
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      businessName: "Acme",
+      websiteUrl: "https://acme.io",
+      goals: "More leads",
+      brandBrain: { summary: long },
+      strategy: {
+        ...strategy,
+        calendar: Array.from({ length: 30 }, (_, index) => ({
+          ...strategy.calendar[0],
+          id: `e${index}`,
+          title: long,
+        })),
+      },
+      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
+      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+      mockPlan: null,
+      updates: [],
+    });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    postFindMany.mockResolvedValue([]);
+    const { packet, skip } = await buildCmoBeatPacket(
+      "bot-1",
+      new Date("2026-10-06T07:00:00Z"),
+      "cmo-daily-run",
+    );
+    expect(skip).toBe(false);
+    expect(packet).toContain("workspace.marketing");
+    expect(packet.length).toBeLessThan(5_000);
+  });
+});
+
+describe("fitCmoMarketingContext", () => {
+  const now = new Date("2026-11-01T09:00:00Z");
+  const entry = (id: string, date: string) => ({
+    id,
+    date,
+    channel: "instagram",
+    format: "image",
+    title: `Piece ${id}`,
+    status: "draft",
+    draft: "x".repeat(600),
+    brief: "y".repeat(200),
+  });
+  const context = {
+    brandBrain: { summary: "A shop", profile: {} },
+    strategy: {
+      summary: "Plan",
+      weeks: ["w".repeat(2_000)],
+      calendar: [entry("soon", "2026-11-02"), entry("later", "2026-11-20")],
+    },
+  };
+
+  it("leaves a context that fits alone", () => {
+    expect(fitCmoMarketingContext(context, now, 100_000)).toBe(context);
+  });
+
+  it("sheds later drafts first, then secondary plan parts, keeping the next days whole", () => {
+    const fitted = fitCmoMarketingContext(context, now, 2_000) as {
+      strategy: {
+        calendar: Record<string, unknown>[];
+        storedNotShown?: string[];
+      };
+    };
+    const [soon, later] = fitted.strategy.calendar;
+    expect(soon?.draft).toBeDefined();
+    expect(later?.draft).toBeUndefined();
+    expect(later?.detailsStored).toBe(true);
+    expect(fitted.strategy.storedNotShown).toContain("weeks");
+  });
+});

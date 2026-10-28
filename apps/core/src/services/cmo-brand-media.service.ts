@@ -297,7 +297,7 @@ export async function captureCmoBrandMedia(
   if (!hire || !brain.success) return null;
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
   // service imports this module.
-  const { cmoRunnerUserId } = await import("@/services/cmo.service");
+  const { cmoRunnerUserId } = await import("@/services/cmo-cuso.service");
   const runnerId = await cmoRunnerUserId(hire);
   if (!runnerId) return null;
   const workspace = await prisma.workspace.findUnique({
