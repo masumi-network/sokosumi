@@ -89,8 +89,12 @@ export function cmoOnboardingStep(input: {
   connected: boolean;
   accountsSkipped: boolean;
   subscribed: boolean;
+  /** The person chose to subscribe later; spending still needs a plan. */
+  subscribeLater: boolean;
 }): CmoOnboardingStep {
-  if (input.strategyApproved && input.subscribed) return "done";
+  if (input.strategyApproved && (input.subscribed || input.subscribeLater)) {
+    return "done";
+  }
   if (input.strategyApproved) {
     return input.connected || input.accountsSkipped ? "plan" : "accounts";
   }
@@ -235,7 +239,7 @@ export async function getCmoOverview(
     listCmoChannels(cuso.projectId),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { cmoAccountsSkipped: true },
+      select: { cmoAccountsSkipped: true, cmoSubscribeLater: true },
     }),
   ]);
   const [adConnections, mailingListSize, measurement] = await Promise.all([
@@ -367,6 +371,7 @@ export async function getCmoOverview(
       connected: channels.some((channel) => channel.status === "ACTIVE"),
       accountsSkipped: viewer?.cmoAccountsSkipped ?? false,
       subscribed: cmoPlan !== null,
+      subscribeLater: viewer?.cmoSubscribeLater ?? false,
     }),
     media,
     learning,

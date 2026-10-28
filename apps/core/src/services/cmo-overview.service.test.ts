@@ -100,6 +100,7 @@ describe("cmoOnboardingStep", () => {
     connected: false,
     accountsSkipped: false,
     subscribed: false,
+    subscribeLater: false,
   };
 
   it("resumes on the Brand Brain until a member confirms it", () => {
@@ -142,5 +143,26 @@ describe("cmoOnboardingStep", () => {
         subscribed: true,
       }),
     ).toBe("done");
+  });
+
+  it("is done once a version is approved and the person chose to subscribe later", () => {
+    const approved = {
+      ...start,
+      brandBrainConfirmed: true,
+      strategyApproved: true,
+      connected: true,
+    };
+    expect(cmoOnboardingStep(approved)).toBe("plan");
+    expect(cmoOnboardingStep({ ...approved, subscribeLater: true })).toBe(
+      "done",
+    );
+    // Choosing it early still waits for an approved version.
+    expect(
+      cmoOnboardingStep({
+        ...start,
+        brandBrainConfirmed: true,
+        subscribeLater: true,
+      }),
+    ).toBe("strategy");
   });
 });

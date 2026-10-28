@@ -39,6 +39,8 @@ interface PricingStepProps {
   overview: CmoOverview;
   plans: SubscriptionCatalog | null;
   onStart: () => Promise<void>;
+  /** Opens the chat without a plan; Cuso spends nothing until one is active. */
+  onSubscribeLater: () => Promise<void>;
   onRefresh: () => Promise<void>;
   /** Mock checkout: activates a CMO tier; the refusal, if any. */
   onChooseMockPlan: (planId: string) => Promise<string | null>;
@@ -52,6 +54,7 @@ export function PricingStep({
   overview,
   plans,
   onStart,
+  onSubscribeLater,
   onRefresh,
   onChooseMockPlan,
 }: PricingStepProps) {
@@ -80,6 +83,23 @@ export function PricingStep({
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
+  const later = (
+    <div className="ob-footer">
+      <button
+        type="button"
+        className="ob-button ob-button-lg ob-button-quiet"
+        disabled={starting}
+        onClick={() => startStarting(onSubscribeLater)}
+      >
+        {starting ? "Starting…" : "Subscribe later"}
+      </button>
+      <p className="ob-note">
+        Cuso keeps your plan and checks in, but posts nothing until you
+        subscribe.
+      </p>
+    </div>
+  );
+
   return (
     <section className="ob-pricing">
       <StepHead
@@ -217,6 +237,8 @@ export function PricingStep({
           Finish checkout on Sokosumi; this page updates when you're back.
         </p>
       ) : null}
+
+      {subscribed ? null : later}
     </section>
   );
 }

@@ -37,6 +37,7 @@ import {
   saveBrandBrain,
   sendMessage,
   setAdBudget,
+  subscribeLater,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -172,6 +173,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           connectChannel,
           connectMeasurement,
           completeOnboarding,
+          subscribeLater,
           signOut,
         }}
       />

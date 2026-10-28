@@ -9721,7 +9721,7 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan or this person chose to subscribe later. CMO opens on the chat once done; Cuso makes and spends nothing until a plan is active.
      */
     onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'plan' | 'done';
     /**
@@ -41273,6 +41273,10 @@ export type GetUsersByIdPreferencesResponses = {
              */
             cmoAccountsSkipped?: boolean;
             /**
+             * Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.
+             */
+            cmoSubscribeLater?: boolean;
+            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -41309,6 +41313,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
          */
         cmoAccountsSkipped?: boolean;
+        /**
+         * Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.
+         */
+        cmoSubscribeLater?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -41421,6 +41429,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
              */
             cmoAccountsSkipped?: boolean;
+            /**
+             * Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.
+             */
+            cmoSubscribeLater?: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */

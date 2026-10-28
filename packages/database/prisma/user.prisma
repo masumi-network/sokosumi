@@ -63,6 +63,9 @@ model User {
   // Hiring Cuso: the person skipped connecting Social accounts, so CMO does
   // not send them back to that step (ADR 0062). Connecting needs no flag.
   cmoAccountsSkipped Boolean @default(false)
+  // Hiring Cuso: the person chose Subscribe later on the plan step, so CMO
+  // opens on the chat; Cuso makes and spends nothing until a plan is active.
+  cmoSubscribeLater  Boolean @default(false)
 
   // UTM Attribution
   utmAttribution UTMAttribution?

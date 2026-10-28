@@ -54,6 +54,11 @@ const requestBodySchema = z
         "Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.",
       example: true,
     }),
+    cmoSubscribeLater: z.boolean().optional().openapi({
+      description:
+        "Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.",
+      example: true,
+    }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
       // One write per cell, inside one transaction, so the body cannot ask for
@@ -73,6 +78,7 @@ const requestBodySchema = z
         data.showRoomUnreadCount !== undefined ||
         data.tagDirectMessages !== undefined ||
         data.cmoAccountsSkipped !== undefined ||
+        data.cmoSubscribeLater !== undefined ||
         (data.notificationPreferences !== undefined &&
           data.notificationPreferences.length > 0)
       );
@@ -85,6 +91,7 @@ const requestBodySchema = z
         "showRoomUnreadCount",
         "tagDirectMessages",
         "cmoAccountsSkipped",
+        "cmoSubscribeLater",
         "notificationPreferences",
       ],
     },
@@ -156,6 +163,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       }),
       ...(body.cmoAccountsSkipped !== undefined && {
         cmoAccountsSkipped: body.cmoAccountsSkipped,
+      }),
+      ...(body.cmoSubscribeLater !== undefined && {
+        cmoSubscribeLater: body.cmoSubscribeLater,
       }),
     };
 

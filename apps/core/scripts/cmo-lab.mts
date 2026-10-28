@@ -117,7 +117,7 @@ async function run(email: string, brand: Brand) {
   // Hiring progress is read from the data; only skipping accounts is stored.
   await prisma.user.update({
     where: { id: user.id },
-    data: { cmoAccountsSkipped: false },
+    data: { cmoAccountsSkipped: false, cmoSubscribeLater: false },
   });
   await prisma.marketingStrategy.deleteMany({
     where: { projectId: cuso.projectId },

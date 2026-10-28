@@ -76,6 +76,7 @@ export interface OnboardingActions {
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
   completeOnboarding: () => Promise<void>;
+  subscribeLater: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -517,6 +518,7 @@ export function OnboardingFlow({
             overview={overview}
             plans={plans}
             onStart={actions.completeOnboarding}
+            onSubscribeLater={actions.subscribeLater}
             onRefresh={refresh}
             onChooseMockPlan={async (plan) => {
               const result = await actions.chooseMockPlan(plan);

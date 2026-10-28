@@ -18,6 +18,7 @@ export const USER_PREFERENCES_SELECT = {
   hideRoomUnreadCount: true,
   tagDirectMessages: true,
   cmoAccountsSkipped: true,
+  cmoSubscribeLater: true,
   notificationPreferences: {
     select: { category: true, channel: true, enabled: true },
   },
@@ -30,6 +31,7 @@ interface UserPreferencesRow {
   hideRoomUnreadCount: boolean;
   tagDirectMessages: boolean;
   cmoAccountsSkipped: boolean;
+  cmoSubscribeLater: boolean;
   notificationPreferences: StoredNotificationPreference[];
 }
 
@@ -50,6 +52,7 @@ export function toUserPreferencesResponse(user: UserPreferencesRow) {
     showRoomUnreadCount: !user.hideRoomUnreadCount,
     tagDirectMessages: user.tagDirectMessages,
     cmoAccountsSkipped: user.cmoAccountsSkipped,
+    cmoSubscribeLater: user.cmoSubscribeLater,
     notificationPreferences: resolveNotificationMatrix(
       user.notificationPreferences,
     ),

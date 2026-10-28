@@ -206,6 +206,11 @@ export const userPreferencesResponseSchema = z.object({
       "Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.",
     example: false,
   }),
+  cmoSubscribeLater: z.boolean().default(false).openapi({
+    description:
+      "Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.",
+    example: false,
+  }),
   notificationPreferences: z.array(notificationPreferenceSchema).openapi({
     description:
       "Every cell of the notification preference matrix, with defaults already applied",

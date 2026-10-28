@@ -415,6 +415,21 @@ export async function completeOnboarding(): Promise<void> {
   revalidatePath("/");
 }
 
+/**
+ * The founder chose Subscribe later on the plan step: stored as their
+ * preference, so CMO opens on the chat. Cuso makes nothing until a plan.
+ */
+export async function subscribeLater(): Promise<void> {
+  const core = await requireCore();
+  const { error } = await patchUsersByIdPreferences({
+    ...core,
+    path: { id: "me" },
+    body: { cmoSubscribeLater: true },
+  });
+  if (error) throw new Error(errorText(error, "Could not continue"));
+  revalidatePath("/");
+}
+
 /** Where the provider sends the founder back after connecting. */
 async function callbackUrl(path = "/connect/callback"): Promise<string> {
   const requestHeaders = await headers();

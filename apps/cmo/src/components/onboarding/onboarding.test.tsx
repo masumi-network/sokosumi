@@ -530,6 +530,7 @@ describe("pricing", () => {
         overview={overview()}
         plans={plans}
         onStart={async () => {}}
+        onSubscribeLater={async () => {}}
         onRefresh={async () => {}}
         onChooseMockPlan={async () => null}
       />,
@@ -537,8 +538,8 @@ describe("pricing", () => {
     expect(html).toContain("€75");
     expect(html).toContain("750 credits every month");
     expect(html).toContain('href="http://web/billing?tab=subscription"');
-    // Hiring finishes only with an active CMO plan (ADR 0062).
-    expect(html).not.toContain("Subscribe later");
+    // Subscribe later opens the chat; Cuso spends nothing until a plan.
+    expect(html).toContain("Subscribe later");
     expect(html).not.toContain("Choose Growth");
   });
 
@@ -548,6 +549,7 @@ describe("pricing", () => {
         overview={overview({ mockBilling: true })}
         plans={plans}
         onStart={async () => {}}
+        onSubscribeLater={async () => {}}
         onRefresh={async () => {}}
         onChooseMockPlan={async () => null}
       />,
@@ -568,6 +570,7 @@ describe("pricing", () => {
         })}
         plans={plans}
         onStart={async () => {}}
+        onSubscribeLater={async () => {}}
         onRefresh={async () => {}}
         onChooseMockPlan={async () => null}
       />,
@@ -590,11 +593,13 @@ describe("pricing", () => {
         })}
         plans={plans}
         onStart={async () => {}}
+        onSubscribeLater={async () => {}}
         onRefresh={async () => {}}
         onChooseMockPlan={async () => null}
       />,
     );
     expect(html).toContain("Your plan");
     expect(html).toContain("Start Cuso");
+    expect(html).not.toContain("Subscribe later");
   });
 });

@@ -36241,7 +36241,7 @@ export const CmoOverviewSchema = {
                 'plan',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan or this person chose to subscribe later. CMO opens on the chat once done; Cuso makes and spends nothing until a plan is active.'
         },
         mockBilling: {
             type: 'boolean',
