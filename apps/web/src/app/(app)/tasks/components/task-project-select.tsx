@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown, Folder } from "lucide-react";
+import { Check, ChevronsUpDown, FolderKanban } from "lucide-react";
 import { type Ref, useMemo, useState } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -143,7 +143,7 @@ export function TaskProjectSelect({
                 )}
               />
             ) : variant === "chip" ? (
-              <Folder className="size-3.5 shrink-0" aria-hidden />
+              <FolderKanban className="size-3.5 shrink-0" aria-hidden />
             ) : null}
             <span
               className={cn(
