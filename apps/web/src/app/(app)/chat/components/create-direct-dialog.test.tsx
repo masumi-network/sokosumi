@@ -337,7 +337,12 @@ describe("CreateDirectDialog", () => {
     renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
-    await screen.findByText("Empty.membersLoadFailedTitle");
+    // The people list failed, not an Organization's members.
+    await screen.findByText("Empty.rosterLoadFailedTitle");
+    expect(
+      screen.getByText("Empty.peopleLoadFailedDescription"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Empty.membersLoadFailedTitle")).toBeNull();
     await screen.findByRole("button", { name: /Hannah/ });
 
     await user.click(

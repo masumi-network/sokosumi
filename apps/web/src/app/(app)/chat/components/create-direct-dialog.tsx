@@ -316,6 +316,8 @@ export function CreateDirectDialog() {
                   <MembersRosterLoadFailed
                     className="mx-1 mt-1 px-3 py-4"
                     onRetry={loadRoster}
+                    title={t("Empty.rosterLoadFailedTitle")}
+                    description={t("Empty.peopleLoadFailedDescription")}
                   />
                 ) : null}
                 {candidateTargets.length > 0 ? (

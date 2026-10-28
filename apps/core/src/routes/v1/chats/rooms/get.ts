@@ -77,7 +77,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, personal human Directs (`organizationId` null, no coworker or Soko Bot), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's personal Directs, including those with a coworker or Soko Bot. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
+      "List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, Personal Directs (all-human, `organizationId` null), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's org-less Directs: Personal Directs plus coworker and Soko Bot 1:1s of the personal workspace. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -116,8 +116,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Active: membership of caller AND (active-org rooms ∪ guest rooms ∪
-    // personal human Directs ∪ org-less matched channels). No active org:
-    // personal Directs ∪ guest rooms ∪ matched-channel memberships.
+    // Personal Directs ∪ org-less matched channels). No active org:
+    // org-less Directs (incl. AI 1:1s) ∪ guest rooms ∪ matched-channel memberships.
     // Archived rooms are always org channels, so personal workspace returns
     // empty for status=archived. Archived list is OWNER/ADMIN only.
     const canManageAnyArchived =

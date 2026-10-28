@@ -80,6 +80,7 @@ import type {
   GetWorkspacesCalendarSourcesData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
+  ListChatPeopleData,
   NewsletterIssueRevisionRequest,
   Notice,
   PaginationMetadata,
@@ -1318,10 +1319,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function listChatPeople() {
+  async function listChatPeople(query?: ListChatPeopleData["query"]) {
     return executeCoreOperation(
       getClient,
-      (client) => coreListChatPeople({ client, cache: "no-store" }),
+      (client) => coreListChatPeople({ client, query, cache: "no-store" }),
       "Failed to fetch chat people",
     );
   }

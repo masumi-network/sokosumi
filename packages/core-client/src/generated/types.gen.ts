@@ -19464,7 +19464,16 @@ export type PostChatsInvitationsByIdDeclineResponse = PostChatsInvitationsByIdDe
 export type ListChatPeopleData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
     url: '/chats/people';
 };
 
@@ -19512,7 +19521,7 @@ export type ListChatPeopleResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: PaginationMetadata;
         };
     };
 };

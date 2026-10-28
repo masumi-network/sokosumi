@@ -10,12 +10,16 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindManyMock } = vi.hoisted(() => ({
+const { userFindManyMock, userCountMock } = vi.hoisted(() => ({
   userFindManyMock: vi.fn(),
+  userCountMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { user: { findMany: userFindManyMock } },
+  default: {
+    $transaction: (queries: Promise<unknown>[]) => Promise.all(queries),
+    user: { findMany: userFindManyMock, count: userCountMock },
+  },
 }));
 
 function appFor(organizationId: string | null) {
@@ -50,6 +54,8 @@ describe("GET /chats/people", () => {
   beforeEach(() => {
     userFindManyMock.mockReset();
     userFindManyMock.mockResolvedValue([colleague, partner]);
+    userCountMock.mockReset();
+    userCountMock.mockResolvedValue(2);
   });
 
   it.each([
@@ -73,5 +79,29 @@ describe("GET /chats/people", () => {
         where: expect.objectContaining({ id: { not: "user_ada" } }),
       }),
     );
+  });
+
+  it("pages through people by cursor", async () => {
+    const first = await appFor(null).request("/?limit=1");
+
+    expect(first.status).toBe(200);
+    const body = await first.json();
+    expect(body.data).toEqual([colleague]);
+    expect(body.meta.pagination).toEqual({
+      cursor: null,
+      limit: 1,
+      total: 2,
+      nextCursor: "user_bob",
+    });
+
+    userFindManyMock.mockResolvedValue([partner]);
+    const second = await appFor(null).request("/?limit=1&cursor=user_bob");
+
+    expect(userFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: { id: "user_bob" }, skip: 1, take: 2 }),
+    );
+    const secondBody = await second.json();
+    expect(secondBody.data).toEqual([partner]);
+    expect(secondBody.meta.pagination.nextCursor).toBeNull();
   });
 });

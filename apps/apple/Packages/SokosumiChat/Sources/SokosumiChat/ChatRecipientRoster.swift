@@ -133,7 +133,14 @@ public extension ChatService {
 
   private func chatPeople(client: Client) async throws -> ChatRecipientRoster {
     try await softHumans {
-      try await call { try await client.listChatPeople() }.ok.body.json.data.map {
+      var people: [Components.Schemas.ChatPerson] = []
+      var cursor: String?
+      repeat {
+        let page = try await call { try await client.listChatPeople(.init(query: .init(cursor: cursor, limit: 100))) }.ok.body.json
+        people += page.data
+        cursor = page.meta.pagination.nextCursor
+      } while cursor != nil
+      return people.map {
         ChatRecipientTarget(id: .human($0.id), name: $0.name.isEmpty ? $0.email : $0.name, detail: $0.email, imageURL: $0.image)
       }
     }

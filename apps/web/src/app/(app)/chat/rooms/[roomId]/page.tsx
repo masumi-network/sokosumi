@@ -131,10 +131,10 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     }
 
     // Personal AI 1:1s belong to the personal workspace.
-    const isPersonalDirect =
+    const isPersonalWorkspaceDirect =
       selectedRoom.organizationId === null && selectedRoom.kind === "direct";
 
-    if (!isPersonalDirect && !isShownInEveryWorkspace(selectedRoom)) {
+    if (!isPersonalWorkspaceDirect && !isShownInEveryWorkspace(selectedRoom)) {
       return (
         <NoOrganizationCard
           title={t("NoOrganization.title")}

@@ -248,8 +248,14 @@ export const chatRoomService = (() => {
 
   /** Everyone the user may start a Personal Direct with, in any workspace. */
   async function listPeople(): Promise<ChatPerson[]> {
-    const response = await coreClient.listChatPeople();
-    return response.data;
+    const people: ChatPerson[] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await coreClient.listChatPeople({ cursor, limit: 100 });
+      people.push(...response.data);
+      cursor = response.meta?.pagination?.nextCursor ?? undefined;
+    } while (cursor);
+    return people;
   }
 
   const getRoom = cache(async function getRoom(

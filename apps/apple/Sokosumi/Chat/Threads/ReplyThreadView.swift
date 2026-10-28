@@ -29,10 +29,12 @@ import SwiftUI
       // that waits for its Markdown, as the room's does. Shown at once, its rows drew a loading line, then grew by a
       // line just above the reader, and the list's correction for that growth at times left the text 16 or 32 pt off.
       let messages = prepared.map { Array(input.messages.prefix(1)) + $0.overlaying(Array(input.messages.dropFirst())) } ?? []
+      let roomId = workspaces.openRoom.room.timeline.roomId ?? ""
       ReplyThreadContent(messages: messages, preparedTranscript: prepared,
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
-        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: workspaces.openRoom.room.timeline.roomId ?? ""), formerOrganizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.openRoom.room.timeline.roomId ?? "", parentMessageId: workspaces.openRoom.thread.parent?.id))
-        .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.openRoom.room.timeline.roomId ?? "", workspaces.openRoom.thread.parent?.id ?? ""])
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, draftScope: workspaces.draftScope(roomId: roomId), roomId: roomId,
+                                         parentMessageId: workspaces.openRoom.thread.parent?.id))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId, workspaces.openRoom.thread.parent?.id ?? ""])
         .onChange(of: workspaces.openRoom.thread.transcript.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == input {
             preparedHasMore = hasMore
@@ -230,8 +232,7 @@ import SwiftUI
           if let notice = ReadOnlyDirectNotice(room: currentRoom) {
             ReadOnlyDirectNoticeView(notice: notice)
           } else {
-            ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: parent.roomId),
-                             formerOrganizationId: workspaces.selection?.workspace.organizationId,
+            ChatComposerView(userId: workspaces.currentUserId, draftScope: workspaces.draftScope(roomId: parent.roomId),
                              roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
                              onAccepted: { scroll.followLatest() })
               .id(parent.id)

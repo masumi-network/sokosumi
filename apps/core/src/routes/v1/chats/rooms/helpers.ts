@@ -2228,6 +2228,53 @@ async function ensureDirectSokoBotMembership(
   return restored ?? room;
 }
 
+/**
+ * Opening a Direct puts its Former members back so it is writable again: the
+ * requester always (a started Direct stays theirs), anyone else only if the
+ * requester could start a new Direct with them. Read up to now on return.
+ */
+async function restoreFormerDirectMembers(
+  tx: Prisma.TransactionClient,
+  room: NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>,
+  currentUserId: string,
+): Promise<NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>> {
+  const formerUserIds = formerDirectUserIds(room);
+  const otherFormerUserIds = formerUserIds.filter(
+    (userId) => userId !== currentUserId,
+  );
+  const restoredUserIds = [
+    ...(formerUserIds.includes(currentUserId) ? [currentUserId] : []),
+    ...(otherFormerUserIds.length > 0
+      ? await filterDirectReachableUserIds(
+          currentUserId,
+          otherFormerUserIds,
+          tx,
+        )
+      : []),
+  ];
+  if (restoredUserIds.length === 0) {
+    return room;
+  }
+
+  await tx.chatRoomUserMember.createMany({
+    data: restoredUserIds.map((userId) => ({ roomId: room.id, userId })),
+    skipDuplicates: true,
+  });
+  const readAt = new Date();
+  for (const userId of restoredUserIds) {
+    await tx.chatRoomReadState.upsert({
+      where: { roomId_userId: { roomId: room.id, userId } },
+      update: { lastReadAt: readAt, markedUnreadAt: null },
+      create: { roomId: room.id, userId, lastReadAt: readAt },
+    });
+  }
+  const restored = await tx.chatRoom.findFirst({
+    where: { id: room.id },
+    include: chatRoomInclude,
+  });
+  return restored ?? room;
+}
+
 async function serializeDirectRoomForViewer(
   room: Parameters<typeof mapChatRoom>[0],
   viewerUserId: string | null,
@@ -2537,7 +2584,10 @@ export async function createOrGetDirectRoom(params: {
         directKey,
       });
       if (existing) {
-        return { room: existing, created: false };
+        return {
+          room: await restoreFormerDirectMembers(tx, existing, currentUserId),
+          created: false,
+        };
       }
 
       const reachableUserIds = await filterDirectReachableUserIds(

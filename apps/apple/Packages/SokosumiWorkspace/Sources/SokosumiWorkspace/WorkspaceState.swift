@@ -84,10 +84,13 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.id ?? ""
   }
 
-  /// The workspace a room's drafts are saved under: none for a room shown in every workspace, so its draft is the
-  /// same in each of them.
-  public func draftOrganizationId(roomId: String) -> String? {
-    rooms.isShownInEveryWorkspace(roomId: roomId) ? nil : selection?.workspace.organizationId
+  /// Where a room's drafts are saved: under no workspace for a room shown in every workspace, so its draft is the
+  /// same in each of them (its drafts used to be under the active Organization), else under the active one.
+  public func draftScope(roomId: String) -> ComposeDraftScope {
+    let organizationId = selection?.workspace.organizationId
+    return rooms.isShownInEveryWorkspace(roomId: roomId)
+      ? .init(organizationId: nil, legacyOrganizationId: organizationId)
+      : .init(organizationId: organizationId)
   }
 
   public var currentUserName: String {
@@ -468,7 +471,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
     guard phase == .ready, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return false }
-    return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
+    return recipient.canOpen(from: room, currentUserId: currentUserId)
   }
 
   public func loadDirectRecipients(context: UUID) async throws -> ChatRecipientRoster {

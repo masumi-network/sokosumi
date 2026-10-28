@@ -7500,6 +7500,7 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
+        "peopleLoadFailedDescription": "People you can message are temporarily unavailable. Try again in a moment.",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "noDirectMessagesDescription": "Send a message to start the conversation.",
         "messagesLoadFailedTitle": "Messages could not be loaded",

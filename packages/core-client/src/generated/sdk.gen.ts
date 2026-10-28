@@ -818,7 +818,7 @@ export const postChatsInvitationsByIdDecline = <ThrowOnError extends boolean = f
 });
 
 /**
- * List everyone the signed-in user may start a Personal Direct with: members of any of their Organizations and co-members of any External channel they are on, each once, sorted by name. Independent of the active workspace.
+ * List everyone the signed-in user may start a Personal Direct with: members of any of their Organizations and co-members of any External channel they are on, each once, sorted by name, paginated. Independent of the active workspace.
  */
 export const listChatPeople = <ThrowOnError extends boolean = false>(options?: Options<ListChatPeopleData, ThrowOnError>): RequestResult<ListChatPeopleResponses, ListChatPeopleErrors, ThrowOnError> => (options?.client ?? client).get<ListChatPeopleResponses, ListChatPeopleErrors, ThrowOnError>({
     responseTransformer: listChatPeopleResponseTransformer,
@@ -827,7 +827,7 @@ export const listChatPeople = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, personal human Directs (`organizationId` null, no coworker or Soko Bot), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's personal Directs, including those with a coworker or Soko Bot. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
+ * List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, Personal Directs (all-human, `organizationId` null), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's org-less Directs: Personal Directs plus coworker and Soko Bot 1:1s of the personal workspace. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
  */
 export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsData, ThrowOnError>): RequestResult<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsResponseTransformer,

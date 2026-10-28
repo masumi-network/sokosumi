@@ -71,18 +71,22 @@ func aDraftSavedUnderTheOrganizationMovesToTheRoomKeyOnce(parentMessageId: Strin
     SavedComposeDraft(userId: "me", organizationId: "org", roomId: "room", parentMessageId: parentMessageId, defaults: defaults)
   }
   func roomKeyed() -> SavedComposeDraft {
-    SavedComposeDraft(userId: "me", organizationId: nil, roomId: "room", parentMessageId: parentMessageId,
-                      formerOrganizationId: "org", defaults: defaults)
+    SavedComposeDraft(userId: "me", scope: .init(organizationId: nil, legacyOrganizationId: "org"), roomId: "room",
+                      parentMessageId: parentMessageId, defaults: defaults)
   }
   old().save("Unsent")
   old().saveAttachments([attachment])
 
+  // Opening the draft alone moves nothing; the move is its own call.
+  #expect(roomKeyed().load().isEmpty)
+  roomKeyed().moveLegacyDraft()
   #expect(roomKeyed().load() == "Unsent")
   #expect(roomKeyed().loadAttachments() == [attachment])
   #expect(old().load().isEmpty && old().loadAttachments().isEmpty)
 
   // Once moved, a newer old-keyed draft does not overwrite the room's.
   old().save("Stale")
+  roomKeyed().moveLegacyDraft()
   #expect(roomKeyed().load() == "Unsent")
   #expect(old().load() == "Stale")
 }
@@ -92,6 +96,8 @@ func aDraftSavedUnderTheOrganizationMovesToTheRoomKeyOnce(parentMessageId: Strin
   let defaults = try #require(UserDefaults(suiteName: suiteName))
   defer { defaults.removePersistentDomain(forName: suiteName) }
   SavedComposeDraft(userId: "me", organizationId: "org", roomId: "room", defaults: defaults).save("Channel draft")
-  let channel = SavedComposeDraft(userId: "me", organizationId: "org", roomId: "room", formerOrganizationId: "org", defaults: defaults)
+  let channel = SavedComposeDraft(userId: "me", scope: .init(organizationId: "org", legacyOrganizationId: "org"), roomId: "room",
+                                  defaults: defaults)
+  channel.moveLegacyDraft()
   #expect(channel.load() == "Channel draft")
 }

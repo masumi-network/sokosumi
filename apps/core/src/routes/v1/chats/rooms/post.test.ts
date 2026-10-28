@@ -30,6 +30,8 @@ const {
   membershipFindManyMock,
   readStateFindManyMock,
   sokoBotMemberCreateManyMock,
+  userMemberCreateManyMock,
+  readStateUpsertMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -46,6 +48,8 @@ const {
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   sokoBotMemberCreateManyMock: vi.fn(),
+  userMemberCreateManyMock: vi.fn(),
+  readStateUpsertMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -114,6 +118,12 @@ const tx = {
   },
   chatRoomSokoBotMember: {
     createMany: sokoBotMemberCreateManyMock,
+  },
+  chatRoomUserMember: {
+    createMany: userMemberCreateManyMock,
+  },
+  chatRoomReadState: {
+    upsert: readStateUpsertMock,
   },
 };
 
@@ -184,6 +194,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     archivedAt: null,
     userMembers: [
       {
+        userId: USER_ID,
         user: {
           id: USER_ID,
           name: "Ada",
@@ -210,6 +221,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
     discoverability: null,
     userMembers: [
       {
+        userId: USER_ID,
         user: {
           id: USER_ID,
           name: "Ada",
@@ -219,6 +231,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
         },
       },
       {
+        userId: OTHER_USER_ID,
         user: {
           id: OTHER_USER_ID,
           name: "Bob",
@@ -241,6 +254,7 @@ function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
     createdByUserId: OTHER_USER_ID,
     userMembers: [
       {
+        userId: OTHER_USER_ID,
         user: {
           id: OTHER_USER_ID,
           name: "Bob",
@@ -838,6 +852,7 @@ describe("POST /chats/rooms", () => {
       groupName: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -905,6 +920,7 @@ describe("POST /chats/rooms", () => {
       groupName: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1053,6 +1069,108 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
+  describe("Former members of an existing Direct", () => {
+    const ada = {
+      userId: USER_ID,
+      user: {
+        id: USER_ID,
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        sessions: [],
+      },
+    };
+    const bob = {
+      userId: OTHER_USER_ID,
+      user: {
+        id: OTHER_USER_ID,
+        name: "Bob",
+        email: "bob@example.com",
+        image: null,
+        sessions: [],
+      },
+    };
+
+    async function openDirectWithBob(
+      remaining: Array<typeof ada>,
+    ): Promise<Response> {
+      const existing = directRoom({
+        organizationId: null,
+        userMembers: remaining,
+      });
+      const restored = directRoom({
+        organizationId: null,
+        userMembers: [ada, bob],
+      });
+      roomFindFirstMock.mockImplementation(
+        async ({ where }: { where?: { id?: string } }) =>
+          where?.id ? restored : existing,
+      );
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+      return await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+    }
+
+    it("puts the requester back in a Direct they were taken out of, read up to now", async () => {
+      reachableUserIds = new Set();
+
+      const response = await openDirectWithBob([bob]);
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateManyMock).toHaveBeenCalledWith({
+        data: [{ roomId: ROOM_ID, userId: USER_ID }],
+        skipDuplicates: true,
+      });
+      expect(readStateUpsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { roomId_userId: { roomId: ROOM_ID, userId: USER_ID } },
+          update: { lastReadAt: expect.any(Date), markedUnreadAt: null },
+        }),
+      );
+      const body = await response.json();
+      expect(body.data.isReadOnly).toBe(false);
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("puts a Former member the requester can still reach back in", async () => {
+      const response = await openDirectWithBob([ada]);
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateManyMock).toHaveBeenCalledWith({
+        data: [{ roomId: ROOM_ID, userId: OTHER_USER_ID }],
+        skipDuplicates: true,
+      });
+      expect(readStateUpsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            roomId_userId: { roomId: ROOM_ID, userId: OTHER_USER_ID },
+          },
+        }),
+      );
+    });
+
+    it("leaves a Former member the requester can no longer reach out", async () => {
+      reachableUserIds = new Set();
+
+      const response = await openDirectWithBob([ada]);
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateManyMock).not.toHaveBeenCalled();
+      expect(readStateUpsertMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("returns an existing personal 1:1 when org teammates message each other", async () => {
     const existingPersonal = directRoom({
       organizationId: null,
@@ -1125,6 +1243,7 @@ describe("POST /chats/rooms", () => {
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1134,6 +1253,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: OTHER_USER_ID,
           user: {
             id: OTHER_USER_ID,
             name: "Bob",
@@ -1143,6 +1263,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: THIRD_USER_ID,
           user: {
             id: THIRD_USER_ID,
             name: "Carol",
@@ -1204,6 +1325,7 @@ describe("POST /chats/rooms", () => {
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1213,6 +1335,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: OTHER_USER_ID,
           user: {
             id: OTHER_USER_ID,
             name: "Bob",
@@ -1222,6 +1345,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: THIRD_USER_ID,
           user: {
             id: THIRD_USER_ID,
             name: "Carol",
@@ -1283,6 +1407,7 @@ describe("POST /chats/rooms", () => {
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1292,6 +1417,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: OTHER_USER_ID,
           user: {
             id: OTHER_USER_ID,
             name: "Bob",
@@ -1301,6 +1427,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: THIRD_USER_ID,
           user: {
             id: THIRD_USER_ID,
             name: "Carol",
@@ -1830,6 +1957,7 @@ describe("POST /chats/rooms", () => {
       discoverability: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -2003,6 +2131,7 @@ describe("POST /chats/rooms", () => {
       discoverability: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",

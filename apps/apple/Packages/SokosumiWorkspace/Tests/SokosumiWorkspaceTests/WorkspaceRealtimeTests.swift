@@ -1627,7 +1627,7 @@ struct WorkspaceRealtimeTests {
     let defaults = try #require(UserDefaults(suiteName: suite))
     defer { defaults.removePersistentDomain(forName: suite) }
     func draft() -> SavedComposeDraft {
-      SavedComposeDraft(userId: state.currentUserId, organizationId: state.draftOrganizationId(roomId: roomB), roomId: roomB, defaults: defaults)
+      SavedComposeDraft(userId: state.currentUserId, scope: state.draftScope(roomId: roomB), roomId: roomB, defaults: defaults)
     }
     draft().save("Unsent")
 
@@ -1636,7 +1636,7 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     #expect(state.selectionId == "org_1")
     #expect(state.selectedRoomId == (kept ? roomB : roomA))
-    #expect(state.draftOrganizationId(roomId: roomB) == (kept ? nil : "org_1"))
+    #expect(state.draftScope(roomId: roomB).organizationId == (kept ? nil : "org_1"))
     // A fresh store reads what a relaunch would.
     #expect(draft().load() == (kept ? "Unsent" : ""))
   }

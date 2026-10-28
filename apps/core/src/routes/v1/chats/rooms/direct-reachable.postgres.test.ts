@@ -3,7 +3,11 @@ import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { directReachableUserWhere } from "./helpers";
+import {
+  buildDirectParticipantRoomKey,
+  createOrGetDirectRoom,
+  directReachableUserWhere,
+} from "./helpers";
 
 const url = process.env.DATABASE_URL;
 const enabled =
@@ -122,6 +126,45 @@ describe.skipIf(!enabled)("people a reader may start a Direct with", () => {
         "colleagueInSecondOrg",
         "externalGuest",
       ]);
+    });
+  });
+
+  it("are the Former members put back when the reader reopens a Direct", async () => {
+    await withPeople(async (tx) => {
+      const memberUserIds = [USERS.colleagueInSecondOrg, USERS.stranger];
+      // The reader alone is left; both others were taken out earlier.
+      const room = await tx.chatRoom.create({
+        data: {
+          organizationId: null,
+          kind: "direct",
+          name: "group",
+          directKey: buildDirectParticipantRoomKey({
+            currentUserId: USERS.reader,
+            memberUserIds,
+            coworkerIds: [],
+          }),
+          createdByUserId: USERS.reader,
+          userMembers: { create: [{ userId: USERS.reader }] },
+        },
+      });
+
+      const result = await createOrGetDirectRoom({
+        transaction: tx,
+        organizationId: null,
+        currentUserId: USERS.reader,
+        memberUserIds,
+        coworkerIds: [],
+        viewerUserId: null,
+      });
+
+      expect(result).toMatchObject({ created: false, room: { id: room.id } });
+      const members = await tx.chatRoomUserMember.findMany({
+        where: { roomId: room.id },
+        select: { userId: true },
+      });
+      expect(members.map((member) => member.userId).sort()).toEqual(
+        [USERS.colleagueInSecondOrg, USERS.reader].sort(),
+      );
     });
   });
 });
