@@ -7,6 +7,15 @@
 /* Set before paint while a returning reader's Unreads filter is not yet
    rendered; see `CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE`. */
 @custom-variant chat-unreads-boot (html[data-chat-unreads-boot] &);
+/* While the sidebar is hidden, from anywhere inside the sidebar wrapper. CSS
+   rather than state: the boot script hides the sidebar before React hydrates,
+   and what follows its `data-state` must already be right on that frame. */
+@custom-variant sidebar-hidden (
+  :where(
+      .group\/sidebar-wrapper:has([data-slot="sidebar"][data-state="collapsed"])
+    )
+    &
+);
 
 @theme inline {
   /* Tailwind's own default is 150ms. The hover steps in this stack travel a

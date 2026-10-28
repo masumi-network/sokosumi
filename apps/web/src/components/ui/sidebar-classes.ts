@@ -69,9 +69,10 @@ export const SIDEBAR_CONTROL_INTERACTION_CLASS =
  * What the project scope scopes: the nav groups under the project title, tied
  * to it by a hairline down their leading side. The line starts 16px in, under
  * the title's first letter, so the groups read as inside the project; the
- * chat sections below sit outside it.
+ * chat sections below sit outside it. Phone sheet only: from md the header
+ * names the scope and the nav is flat.
  */
-export const SIDEBAR_PROJECT_SCOPED_CLASS = "border-sidebar-border ms-4 border-s";
+export const SIDEBAR_PROJECT_SCOPED_CLASS = "border-sidebar-border max-md:ms-4 max-md:border-s";
 
 /**
  * An icon action beside a row or a section's title (+ new channel, the team

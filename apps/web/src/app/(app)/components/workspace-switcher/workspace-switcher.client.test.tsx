@@ -174,13 +174,13 @@ describe("WorkspaceSwitcherProvider", () => {
     renderChrome();
 
     expect(
-      trigger("sidebar").querySelector("svg.lucide-arrow-left-right"),
+      trigger("sidebar").querySelector("svg.lucide-chevrons-up-down"),
     ).not.toBeNull();
     expect(trigger("sidebar").className.split(/\s+/)).not.toEqual(
       expect.arrayContaining([expect.stringMatching(/(^|:)w-full$/)]),
     );
     expect(
-      trigger("top-bar").querySelector("svg.lucide-arrow-left-right"),
+      trigger("top-bar").querySelector("svg.lucide-chevrons-up-down"),
     ).not.toBeNull();
   });
 

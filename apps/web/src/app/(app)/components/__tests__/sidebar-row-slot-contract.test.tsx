@@ -138,7 +138,6 @@ function renderSidebar() {
                 name: "Mo",
                 status: SokoBotStatus.RUNNING,
                 lastActivityAt: null,
-                isYours: true,
               }}
             />
             <MenuItems />

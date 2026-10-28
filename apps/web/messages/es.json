@@ -285,50 +285,6 @@
         "open": "Acciones de la invitación"
       }
     },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agentes",
-      "credits": "Credits",
-      "coupon": "Cupón",
-      "subscriptions": "Suscripciones",
-      "billing": "Billing",
-      "account": "Cuenta",
-      "admin": "Administración",
-      "organizations": "Organizaciones",
-      "users": "Usuarios",
-      "edit": "Editar",
-      "editor": "Editor",
-      "enterprise-contracts": "Contratos empresariales",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Tareas",
-      "connections": "Conexiones",
-      "developer": "Desarrollador",
-      "personal-assistant": "Asistente personal",
-      "history": "Historial de créditos",
-      "new": "Nuevo",
-      "notifications": "Notificaciones",
-      "projects": "Proyectos",
-      "invoices": "Facturas",
-      "oauth-clients": "Clientes OAuth",
-      "api-keys": "Claves API",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Documentación",
-      "drive": "Archivos",
-      "soko-bots": "Soko Bots",
-      "calendar": "Calendario",
-      "schedules": "Programaciones",
-      "threads": "Hilos",
-      "studio": "Content Studio",
-      "design-md": "Diseño",
-      "memory": "Memoria",
-      "social": "Publicaciones sociales",
-      "ads": "Anuncios",
-      "evaluations": "Evaluaciones de modelos",
-      "catch-up": "Ponerse al día",
-      "contacts": "Contactos"
-    },
     "Jobs": {
       "StatusBadge": {
         "started": "Iniciado",
@@ -4448,6 +4404,7 @@
       },
       "show": "Mostrar barra lateral",
       "hide": "Ocultar barra lateral",
+      "resize": "Cambiar el tamaño de la barra lateral",
       "unreadChats": "Chats sin leer"
     },
     "HistorySearchDialog": {
@@ -8199,7 +8156,6 @@
       }
     },
     "Drive": {
-      "breadcrumb": "Archivos",
       "breadcrumbNavLabel": "Navegación de carpetas de Archivos",
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
