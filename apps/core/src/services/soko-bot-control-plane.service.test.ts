@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  CMO_SOKO_BOT_VERSION_ID,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
@@ -4578,6 +4579,28 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({ status: "CANCELLED" }),
       }),
     );
+  });
+});
+
+describe("updateVersion", () => {
+  it("never lets a member move Cuso off CMO's version", async () => {
+    // The member reaches Cuso (a shared bot) by id, like any member may.
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    await expect(
+      new SokoBotControlPlane().updateVersion(
+        "member_1",
+        "workspace_1",
+        "v19",
+        { allowUnpromoted: false },
+        { kind: "id", sokoBotId: BOT_ID },
+      ),
+    ).rejects.toThrow("CMO's own version");
   });
 });
 

@@ -28,7 +28,11 @@ const {
   memberFindUnique,
   chatRoomDelete,
   cmoFindMany,
+  memberFindMany,
+  sokoBotFindUnique,
 } = vi.hoisted(() => ({
+  memberFindMany: vi.fn(),
+  sokoBotFindUnique: vi.fn(),
   cmoFindMany: vi.fn(),
   memberFindUnique: vi.fn(),
   chatRoomDelete: vi.fn(),
@@ -72,7 +76,8 @@ vi.mock("@/lib/db/prisma", () => {
     user: {
       findUnique: async () => ({ preferredOrganizationId: "org-1" }),
     },
-    member: { findUnique: memberFindUnique },
+    member: { findUnique: memberFindUnique, findMany: memberFindMany },
+    sokoBot: { findUnique: sokoBotFindUnique },
     chatRoom: { delete: chatRoomDelete },
     project: { create: projectCreate, delete: projectDelete },
     organization: { findFirst: organizationFindFirst },
@@ -150,6 +155,7 @@ import {
   cmoExecutionRefusal,
   cmoLearningState,
   cmoPlanAnswerNote,
+  cmoRunnerUserId,
   cmoUpNext,
   connectCmoMeasurement,
   describeCmoStep,
@@ -231,6 +237,46 @@ beforeEach(() => {
     return hire
       ? [{ ...hire, project: { workspace: { organizationId: "org-1" } } }]
       : [];
+  });
+});
+
+describe("cmoRunnerUserId", () => {
+  const hire = { workspaceId: "ws-1", sokoBotId: "bot-1" };
+
+  it("runs as the hirer while they are still a member", async () => {
+    sokoBotFindUnique.mockResolvedValue({ createdByUserId: "hirer" });
+    memberFindMany.mockResolvedValue([
+      { userId: "owner" },
+      { userId: "hirer" },
+    ]);
+    await expect(cmoRunnerUserId(hire)).resolves.toBe("hirer");
+    expect(memberFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: "org-1",
+          OR: [{ userId: "hirer" }, { role: { in: ["owner", "admin"] } }],
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+    );
+  });
+
+  it("falls back to the longest-standing owner or admin once the hirer left", async () => {
+    sokoBotFindUnique.mockResolvedValue({ createdByUserId: "hirer" });
+    memberFindMany.mockResolvedValue([
+      { userId: "owner" },
+      { userId: "admin" },
+    ]);
+    await expect(cmoRunnerUserId(hire)).resolves.toBe("owner");
+  });
+
+  it("never matches every member when the hirer's account is gone", async () => {
+    sokoBotFindUnique.mockResolvedValue({ createdByUserId: null });
+    memberFindMany.mockResolvedValue([]);
+    await expect(cmoRunnerUserId(hire)).resolves.toBeNull();
+    expect(memberFindMany.mock.calls[0]?.[0].where.OR).toEqual([
+      { role: { in: ["owner", "admin"] } },
+    ]);
   });
 });
 

@@ -18,5 +18,6 @@ Cuso was a personal Soko Bot pinned to his marketing Project, so only the person
 
 - `soko_bot` keeps main's owner-scope check and its one-personal-bot-per-workspace index; the pinned-bot index and every `projectId: null` filter that hid Cuso go away.
 - The CMO hire migration changes in place, which holds only while it has reached no production database; previews that applied it need `/reset-db`.
-- Cuso's turns draw on the organization's credit pool through a member's Seat. His rhythms and the month's production run as the member who hired him, because his social tools need a member; unlike any other shared bot, his rhythms are on from the hire.
+- Cuso's turns draw on the organization's credit pool through a member's Seat. His rhythms, the month's production and the brand capture run as his runner, because his social tools need a member: the member who hired him while they belong to the business, else its longest-standing owner or admin. Unlike any other shared bot, his rhythms are on from the hire.
+- Cuso stays on CMO's version: members may reach him, but only the admin lab moves his version.
 - His memory is shared by everyone who works with him, and he sees only public Tasks.

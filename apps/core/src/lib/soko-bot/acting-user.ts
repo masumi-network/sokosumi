@@ -1,3 +1,5 @@
+import { isCmoScheduleKey } from "@sokosumi/soko-bot";
+
 /**
  * The person a Soko Bot schedule, turn or pending decision acts for: its
  * Requester, the member who asked (ADR 0057). A record the bot started on its
@@ -22,13 +24,17 @@ export function sokoBotActingUserId(record: {
 /**
  * The person a schedule's run acts for. A shared Soko Bot's schedule runs on
  * its own: its Requester is a record, and a schedule another member edited
- * must never act for them.
+ * must never act for them. Cuso's own rhythms are the exception: they are the
+ * work he was hired for, and run as the member who hired him, their Requester
+ * since creation (ADR 0060).
  */
 export function sokoBotScheduleActingUserId(schedule: {
   requestedByUserId: string | null;
+  systemKey: string | null;
   sokoBot: { userId: string | null };
 }): string | null {
-  return schedule.sokoBot.userId === null
+  return schedule.sokoBot.userId === null &&
+    !isCmoScheduleKey(schedule.systemKey)
     ? null
     : sokoBotActingUserId(schedule);
 }

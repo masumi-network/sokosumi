@@ -10,6 +10,7 @@ import {
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
+  getSokoBotVersion,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
   limitSokoBotWrites,
@@ -712,6 +713,7 @@ export class SokoBotControlPlane {
             select: {
               sokoBotId: true,
               requestedByUserId: true,
+              systemKey: true,
               workspaceId: true,
               sokoBot: { select: { userId: true } },
             },
@@ -3372,6 +3374,17 @@ export class SokoBotControlPlane {
     }
     const bot = await memberSokoBot(userId, workspaceId, selector);
     if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
+    // Cuso runs CMO's own version: any member may reach him (ADR 0060), and
+    // moving him off it would leave the business's CMO without its agent.
+    // Only the admin lab moves him.
+    if (
+      !options.allowUnpromoted &&
+      getSokoBotVersion(bot.versionId).profile === "cmo"
+    ) {
+      throw new SokoBotValidationError(
+        "Cuso runs CMO's own version, which cannot be changed here",
+      );
+    }
     const updated = await prisma.sokoBot.updateMany({
       where: { id: bot.id, archivedAt: null },
       data: { versionId },
@@ -4375,6 +4388,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
+            systemKey: scheduleRun.schedule.systemKey,
             sokoBot: bot,
           }),
           sokoBotId: bot.id,

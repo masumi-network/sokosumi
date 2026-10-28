@@ -9,7 +9,13 @@ const {
   startTurn,
   isCmoSubscribed,
   listCmoChannels,
+  cmoRunnerUserId,
+  hireFindMany,
+  scheduleUpdateMany,
 } = vi.hoisted(() => ({
+  cmoRunnerUserId: vi.fn(),
+  hireFindMany: vi.fn(),
+  scheduleUpdateMany: vi.fn(),
   hireUpdate: vi.fn(),
   turnFindUnique: vi.fn(),
   turnFindFirst: vi.fn(),
@@ -21,13 +27,15 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    cmoHire: { update: hireUpdate },
+    cmoHire: { update: hireUpdate, findMany: hireFindMany },
+    sokoBotSchedule: { updateMany: scheduleUpdateMany },
     sokoBotTurn: { findUnique: turnFindUnique, findFirst: turnFindFirst },
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
   },
 }));
 
 vi.mock("@/services/cmo.service", () => ({
+  cmoRunnerUserId,
   isCmoSubscribed,
   listCmoChannels,
   parseCmoStrategy: (value: unknown) => value ?? null,
@@ -45,6 +53,7 @@ import {
   cmoPieceReady,
   cmoProductionMessage,
   cmoReadyPieceIds,
+  syncCmoProduction,
 } from "./cmo-production.service";
 
 const NOW = new Date("2026-11-02T08:00:00Z");
@@ -240,10 +249,8 @@ describe("advanceCmoProduction", () => {
     isCmoSubscribed.mockResolvedValue(true);
     listCmoChannels.mockResolvedValue([]);
     turnFindFirst.mockResolvedValue({ id: "turn-0" });
-    botFindUniqueOrThrow.mockResolvedValue({
-      createdByUserId: "user-1",
-      sharedRoomId: "room-1",
-    });
+    botFindUniqueOrThrow.mockResolvedValue({ sharedRoomId: "room-1" });
+    cmoRunnerUserId.mockResolvedValue("user-1");
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
   });
 
@@ -261,7 +268,7 @@ describe("advanceCmoProduction", () => {
     );
     expect(result).toMatchObject({ state: "running", ready: 0, total: 2 });
     const started = startTurn.mock.calls[0]?.[0];
-    // In Cuso's shared room, spent as the member who hired him (ADR 0060).
+    // In Cuso's shared room, spent as his runner (ADR 0060).
     expect(started).toMatchObject({
       userId: "user-1",
       sokoBotId: "bot-1",
@@ -381,5 +388,21 @@ describe("advanceCmoProduction", () => {
     expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(
       `cmo:production:cmo-1:2026-11:${APPROVED}:1`,
     );
+  });
+});
+
+describe("syncCmoProduction", () => {
+  it("points Cuso's rhythms at his runner once the hirer left", async () => {
+    hireFindMany.mockResolvedValue([{ id: "cmo-1", sokoBotId: "bot-1" }]);
+    cmoRunnerUserId.mockResolvedValue("owner-2");
+    scheduleUpdateMany.mockResolvedValue({ count: 5 });
+    await syncCmoProduction();
+    expect(scheduleUpdateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        sokoBotId: "bot-1",
+        systemKey: { in: expect.arrayContaining(["cmo-daily-run"]) },
+      }),
+      data: { requestedByUserId: "owner-2" },
+    });
   });
 });

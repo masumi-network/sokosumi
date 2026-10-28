@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { CmoHire, Prisma } from "@sokosumi/database";
+import { type CmoHire, MemberRole, type Prisma } from "@sokosumi/database";
 import {
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
@@ -1186,6 +1186,42 @@ export async function requestCmoStrategy(input: {
   return started;
 }
 
+/**
+ * The member Cuso's own runs act as (his rhythms, the month's production, the
+ * brand capture): who hired him while they are still a member of the
+ * business, else its longest-standing owner or admin, so a hirer who left
+ * never stalls the business's month (ADR 0060). Null only for an organization
+ * with neither.
+ */
+export async function cmoRunnerUserId(
+  hire: Pick<CmoHire, "workspaceId" | "sokoBotId">,
+): Promise<string | null> {
+  const [{ organizationId }, bot] = await Promise.all([
+    cmoPayer(hire),
+    prisma.sokoBot.findUnique({
+      where: { id: hire.sokoBotId },
+      select: { createdByUserId: true },
+    }),
+  ]);
+  const hirer = bot?.createdByUserId ?? null;
+  const members = await prisma.member.findMany({
+    where: {
+      organizationId,
+      OR: [
+        ...(hirer ? [{ userId: hirer }] : []),
+        { role: { in: [MemberRole.OWNER, MemberRole.ADMIN] } },
+      ],
+    },
+    select: { userId: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return (
+    members.find((member) => member.userId === hirer)?.userId ??
+    members[0]?.userId ??
+    null
+  );
+}
+
 /** A write's target: the hire a member works with, or Cuso's own. */
 async function cmoHireWhere(
   where: { userId: string } | { sokoBotId: string },
@@ -1207,9 +1243,10 @@ export async function saveCmoBrandBrain(
   db?: Prisma.TransactionClient,
 ): Promise<CmoHire> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
+  const target = await cmoHireWhere(where);
   const write = async (tx: Prisma.TransactionClient) => {
     const hire = await tx.cmoHire.findUnique({
-      where: await cmoHireWhere(where),
+      where: target,
       select: { id: true },
     });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
@@ -1332,9 +1369,10 @@ export async function answerCmoBrandQuestion(
   userId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
+  const target = await cmoHireWhere({ userId });
   await prisma.$transaction(async (tx) => {
     const hire = await tx.cmoHire.findUnique({
-      where: await cmoHireWhere({ userId }),
+      where: target,
       select: { id: true },
     });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
@@ -1674,9 +1712,10 @@ export async function answerCmoPlanQuestion(
   userId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
+  const target = await cmoHireWhere({ userId });
   await prisma.$transaction(async (tx) => {
     const hire = await tx.cmoHire.findUnique({
-      where: await cmoHireWhere({ userId }),
+      where: target,
       select: { id: true },
     });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
