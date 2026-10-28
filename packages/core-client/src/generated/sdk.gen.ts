@@ -818,7 +818,7 @@ export const postChatsInvitationsByIdDecline = <ThrowOnError extends boolean = f
 });
 
 /**
- * List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), org-less matched channels where the caller is a member, and external channels where the caller is a guest. With no active organization, lists personal Directs, matched-channel memberships, and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
+ * List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, personal human Directs (`organizationId` null, no coworker or Soko Bot), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's personal Directs, including those with a coworker or Soko Bot. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
  */
 export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsData, ThrowOnError>): RequestResult<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsResponseTransformer,
