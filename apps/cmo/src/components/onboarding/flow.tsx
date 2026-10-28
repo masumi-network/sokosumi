@@ -11,6 +11,7 @@ import { BusinessMark } from "../business-mark";
 import { Logo } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
 import { BrainStep } from "./brain-step";
+import { CheckStep } from "./check-step";
 import { ConnectStep, needsAccounts } from "./connect-step";
 import { PricingStep } from "./pricing-step";
 import { QuestionsStep } from "./questions-step";
@@ -48,6 +49,15 @@ export interface OnboardingActions {
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
+  answerPlanQuestion: (answer: {
+    questionId: string;
+    answer: "yes" | "no" | "unsure";
+    note?: string;
+  }) => Promise<CmoOverview>;
+  applyPlanAnswers: () => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
   chooseMockPlan: (
     plan: string,
   ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
@@ -74,6 +84,7 @@ export type OnboardingStep =
   | "questions"
   | "planning"
   | "strategy"
+  | "check"
   | "results"
   | "connect"
   | "pricing";
@@ -83,6 +94,7 @@ const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "brain", label: "Brand Brain" },
   { id: "questions", label: "Questions" },
   { id: "strategy", label: "Strategy" },
+  { id: "check", label: "Check" },
   { id: "results", label: "Results" },
   { id: "connect", label: "Accounts" },
   { id: "pricing", label: "Pricing" },
@@ -97,7 +109,12 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
     if (work?.kind === "strategy" && work.status !== "done") return "planning";
     return overview.brandBrainApprovedAt ? "questions" : "brain";
   }
-  if (!overview.strategyApprovedAt) return "strategy";
+  if (!overview.strategyApprovedAt) {
+    // Part way through the plan's questions, a reload resumes on them.
+    const questions = overview.strategy.questions ?? [];
+    const answered = questions.filter((question) => question.answer).length;
+    return answered > 0 && answered < questions.length ? "check" : "strategy";
+  }
   // Saved in Core, so a reload after the Accounts step resumes on the plan.
   return overview.accountsDoneAt || !needsAccounts(overview)
     ? "pricing"
@@ -107,6 +124,7 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
 /** Steps the founder can open again once past them; research only leads to the Brand Brain. */
 function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
   if (step === "brain" || step === "strategy") return true;
+  if (step === "check") return (overview.strategy?.questions ?? []).length > 0;
   if (step === "questions") return overview.brandBrainApprovedAt !== null;
   if (step === "results") return overview.strategyApprovedAt !== null;
   return step === "connect" && needsAccounts(overview);
@@ -436,9 +454,30 @@ export function OnboardingFlow({
               return result.error;
             }}
             ahead={ahead}
+            onCheck={() => setViewing("check")}
             onApprove={async () => {
               setOverview(await actions.approveStrategy());
               // Approving opens Results: how the plan is measured and adjusted.
+              setViewing("results");
+            }}
+          />
+        ) : step === "check" ? (
+          <CheckStep
+            overview={overview}
+            onAnswer={async (questionId, answer, note) => {
+              setOverview(
+                await actions.answerPlanQuestion({ questionId, answer, note }),
+              );
+            }}
+            onUpdate={async () => {
+              const result = await actions.applyPlanAnswers();
+              if (result.overview) setOverview(result.overview);
+              // Back to the plan while Cuso fits it; approving happens there.
+              if (!result.error) setViewing("strategy");
+              return result.error;
+            }}
+            onApprove={async () => {
+              setOverview(await actions.approveStrategy());
               setViewing("results");
             }}
           />

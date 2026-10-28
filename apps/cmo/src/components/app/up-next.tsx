@@ -20,6 +20,51 @@ const STATUS_LABELS: Record<string, string> = {
   scheduled: "Scheduled",
 };
 
+/** After payment: Cuso making the whole month, piece by piece. */
+function MonthProduction({
+  production,
+}: {
+  production: CmoOverview["production"];
+}) {
+  if (production.state !== "running" && production.state !== "stuck")
+    return null;
+  const share =
+    production.total > 0
+      ? Math.round((production.ready / production.total) * 100)
+      : 0;
+  return (
+    <section className="ugroup">
+      <span className="label">Your month</span>
+      <div className="uitem working">
+        <div className="top">
+          {production.state === "running" ? (
+            <span className="dot live" aria-hidden="true" />
+          ) : null}
+          <span className="uchannel">Cuso</span>
+          <span className="when num">
+            {production.ready} of {production.total}
+          </span>
+        </div>
+        <span className="utitle">
+          {production.state === "running"
+            ? "Making every post, picture and ad for the month"
+            : "A few pieces didn't finish. Cuso tries again later today."}
+        </span>
+        <span
+          className="uprogress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={production.total}
+          aria-valuenow={production.ready}
+          aria-label="Pieces made"
+        >
+          <span style={{ width: `${share}%` }} />
+        </span>
+      </div>
+    </section>
+  );
+}
+
 /** What Cuso is doing now and what comes next, from the real calendar. */
 export function UpNext({
   overview,
@@ -48,6 +93,7 @@ export function UpNext({
         </button>
       </div>
       <div className="ub">
+        <MonthProduction production={overview.production} />
         {empty ? (
           <div className="empty">
             <span className="shape" aria-hidden="true" />

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ArrowRight, CalendarDays, Repeat, Sun } from "lucide-react";
+import { ArrowRight, CalendarDays, Repeat, Sparkles, Sun } from "lucide-react";
 import { useTransition } from "react";
 
 import { brandStyle, Section } from "../brand-profile";
@@ -29,12 +29,20 @@ function measureLine(measure: Measure): string {
 /** What Cuso does on his own schedule; it matches his daily, weekly and monthly runs. */
 const RHYTHM = [
   {
+    icon: Sparkles,
+    when: "Once you subscribe",
+    what: [
+      "Makes the whole month at once: every post, picture, video, ad, article and newsletter",
+      "Schedules it all on your connected accounts",
+      "You can change any piece, any time, by telling him",
+    ],
+  },
+  {
     icon: Sun,
     when: "Every day",
     what: [
-      "Finishes the next three days of pieces, images and videos included",
-      "Schedules them on your connected accounts",
       "Replies to new comments on your Instagram, Facebook and YouTube posts, in your voice; complaints and anything sensitive come to you",
+      "Checks the news: holidays, competitors, your market. When something matters, he changes a post",
       "Tells you in one line what went out, what he answered and what's next",
     ],
   },
@@ -84,7 +92,7 @@ export function ResultsStep({
   return (
     <section className="ob-results">
       <StepHead
-        step={5}
+        step={6}
         title="Results"
         mood="point"
         say="This is how we'll know it works, and what I do every day, week and month to get there."

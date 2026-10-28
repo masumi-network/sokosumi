@@ -197,7 +197,8 @@ export function CmoApp({
   }, []);
   // An empty Up next would take a quarter of the screen to say so.
   const [upNextOpen, setUpNextOpen] = useState(
-    initialOverview.upNext.length > 0,
+    initialOverview.upNext.length > 0 ||
+      initialOverview.production.state === "running",
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerLayout = useDrawerLayout();

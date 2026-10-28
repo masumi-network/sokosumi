@@ -405,7 +405,7 @@ describe("results", () => {
         onConnectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
-    expect(html).toContain("Step 5 of 7");
+    expect(html).toContain("Step 6 of 8");
     expect(html).toContain("Not measured yet");
     expect(html).toContain("Google Search Console");
     expect(html).toContain("Connected");

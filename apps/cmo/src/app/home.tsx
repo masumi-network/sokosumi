@@ -16,6 +16,8 @@ import { signOut } from "./actions";
 import {
   addMailingList,
   answerBrandQuestion,
+  answerPlanQuestion,
+  applyPlanAnswers,
   approveBrandBrain,
   approveStrategy,
   chooseMockPlan,
@@ -162,6 +164,8 @@ export async function Home({ searchParams, view }: HomeProps) {
           setAdBudget,
           approveBrandBrain,
           answerBrandQuestion,
+          answerPlanQuestion,
+          applyPlanAnswers,
           finishAccounts,
           addMailingList,
           chooseMockPlan,

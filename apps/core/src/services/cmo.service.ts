@@ -12,6 +12,7 @@ import {
   type CmoBrandQuestion,
   type CmoBrandSectionKey,
   type CmoMeasurementSource,
+  type CmoPlanQuestion,
   type CmoReportUpdateInput,
   type CmoSaveBrandBrainInput,
   type CmoStrategy,
@@ -968,6 +969,19 @@ export function ownWords(goals: string): string | null {
   return typed && !GOAL_PRESETS.includes(typed.toLowerCase()) ? typed : null;
 }
 
+/** Reads once what the site runs on, so Shopify is offered only to shops. */
+export async function learnCmoSitePlatform(
+  hire: Pick<CmoHire, "id" | "websiteUrl">,
+): Promise<void> {
+  const { detectSitePlatform } = await import("@/lib/site-platform");
+  const platform = await detectSitePlatform(hire.websiteUrl).catch(() => null);
+  if (!platform) return;
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: { sitePlatform: platform },
+  });
+}
+
 /** A measurement source and whether it is connected to Cuso. */
 export interface CmoMeasurementStatus {
   provider: CmoMeasurementSource;
@@ -976,9 +990,13 @@ export interface CmoMeasurementStatus {
   status: "connected" | "pending" | "none";
 }
 
-/** Google Analytics, Search Console and Shopify as connected to Cuso's bot. */
+/**
+ * Google Analytics, Search Console and, for a Shopify shop, Shopify, as
+ * connected to Cuso's bot.
+ */
 export async function listCmoMeasurement(
   sokoBotId: string,
+  sitePlatform: string | null,
 ): Promise<CmoMeasurementStatus[]> {
   const rows = await prisma.sokoBotIntegration.findMany({
     where: {
@@ -987,7 +1005,10 @@ export async function listCmoMeasurement(
     },
     select: { provider: true, status: true },
   });
-  return CMO_MEASUREMENT_SOURCES.map((source) => {
+  const sources = CMO_MEASUREMENT_SOURCES.filter(
+    (source) => source.id !== "shopify" || sitePlatform === "shopify",
+  );
+  return sources.map((source) => {
     const row = rows.find((candidate) => candidate.provider === source.id);
     return {
       provider: source.id,
@@ -1015,6 +1036,9 @@ export async function connectCmoMeasurement(input: {
   }
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (input.provider === "shopify" && hire.sitePlatform !== "shopify") {
+    throw new CmoConflictError("Shopify measures Shopify shops only");
+  }
   const { connectSokoBotIntegration } = await import(
     "@/services/soko-bot-integration-connection.service"
   );
@@ -1505,6 +1529,7 @@ export async function saveCmoStrategy(
     options.turnId && before?.ads?.setByOwner ? before.ads : undefined;
   const parsed = {
     ...whole,
+    questions: keepPlanAnswers(before?.questions ?? [], whole.questions),
     proposals: whole.proposals.filter(
       (proposal) => !running.has(proposal.channel),
     ),
@@ -1552,6 +1577,89 @@ export async function saveCmoStrategy(
       strategyHistory: history,
     },
   });
+}
+
+/** The owner's answers survive Cuso saving the plan's questions again. */
+export function keepPlanAnswers(
+  before: CmoPlanQuestion[],
+  sent: CmoPlanQuestion[],
+): CmoPlanQuestion[] {
+  return sent.map((question) => {
+    const earlier = before.find((candidate) => candidate.id === question.id);
+    return earlier?.answer && !question.answer
+      ? { ...question, answer: earlier.answer, note: earlier.note }
+      : question;
+  });
+}
+
+/** The owner answers one of the plan's yes/no questions. */
+export async function answerCmoPlanQuestion(
+  userId: string,
+  input: { questionId: string; answer: CmoBrandAnswer; note?: string },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const hire = await tx.cmoHire.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+    await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
+    const current = await tx.cmoHire.findUnique({
+      where: { id: hire.id },
+      select: { strategy: true },
+    });
+    const strategy = parseCmoStrategy(current?.strategy);
+    if (!strategy?.questions.some((q) => q.id === input.questionId)) {
+      throw new CmoNotFoundError("That question is not in the plan");
+    }
+    const note =
+      input.answer === "no" ? input.note?.trim() || undefined : undefined;
+    await tx.cmoHire.update({
+      where: { id: hire.id },
+      data: {
+        strategy: {
+          ...strategy,
+          questions: strategy.questions.map((question) =>
+            question.id === input.questionId
+              ? { ...question, answer: input.answer, note }
+              : question,
+          ),
+        },
+      },
+    });
+  });
+}
+
+/**
+ * What the owner's answers change: each no, with what is true instead. A
+ * yes confirms the plan as written and "not sure" leaves Cuso's guess.
+ */
+export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
+  const changes = questions
+    .filter((question) => question.answer === "no")
+    .map(
+      (question) =>
+        `- "${question.question}" No.${question.note ? ` What is true: ${question.note}` : ""} (You had assumed: ${question.statement})`,
+    );
+  return changes.length > 0
+    ? [
+        "The owner answered your questions about the plan. Change the plan where an answer says your assumption was wrong; keep everything else.",
+        ...changes,
+      ].join("\n")
+    : null;
+}
+
+/** Cuso revises the plan to fit the owner's answers. */
+export async function applyCmoPlanAnswers(
+  userId: string,
+): Promise<{ turnId: string }> {
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const note = cmoPlanAnswerNote(
+    parseCmoStrategy(hire.strategy)?.questions ?? [],
+  );
+  if (!note) throw new CmoConflictError("Your answers confirm the plan");
+  return requestCmoStrategy({ userId, note });
 }
 
 /** The owner's one approval: from now on Cuso executes the strategy. */
@@ -2055,8 +2163,9 @@ export async function getCmoOverview(
       select: { provider: true },
     }),
     cmoMailingListSize(hire),
-    listCmoMeasurement(hire.sokoBotId),
+    listCmoMeasurement(hire.sokoBotId, hire.sitePlatform),
   ]);
+  if (hire.sitePlatform === null) waitUntil(learnCmoSitePlatform(hire));
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
     where: { projectId: hire.projectId },

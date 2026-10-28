@@ -19,6 +19,8 @@ export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 const MIN_PIECES = 16;
 const MIN_FORMATS = 6;
 const MAX_SUMMARY_WORDS = 20;
+/** How far, in points, the calendar's approach shares may stray from the mix. */
+const MIX_TOLERANCE = 7;
 
 /**
  * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
@@ -84,8 +86,9 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
       );
     if (pieces.some((entry) => entry.draft))
       problems.push(
-        "the plan holds drafts; leave them out, the daily run writes each piece.",
+        "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
+    problems.push(...mixProblems(strategy.mix, pieces));
     // Four weeks of pieces; a calendar far below its own pace undersells it.
     const perWeek = Math.round(pieces.length / 4);
     if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
@@ -94,6 +97,43 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
       );
   }
   return problems;
+}
+
+/**
+ * The month is made in one go after payment, so the calendar itself must
+ * hold the mix: every piece names its approach, and each approach's share
+ * of the pieces is close to the plan's.
+ */
+export function mixProblems(
+  mix: CmoStrategy["mix"],
+  pieces: CmoStrategy["calendar"],
+): string[] {
+  if (mix.length === 0 || pieces.length === 0) return [];
+  const missing = pieces.filter((entry) => !entry.approach).length;
+  if (missing > 0)
+    return [
+      `${missing} calendar entries have no approach; give every entry one of the mix's approaches.`,
+    ];
+  const off = mix.flatMap((part) => {
+    const count = pieces.filter(
+      (entry) => entry.approach === part.approach,
+    ).length;
+    const share = Math.round((count / pieces.length) * 100);
+    return Math.abs(share - part.share) > MIX_TOLERANCE
+      ? [
+          `${part.approach} is ${part.share}% of the mix but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((part.share / 100) * pieces.length)}.`,
+        ]
+      : [];
+  });
+  const planned = new Set(mix.map((part) => part.approach));
+  const outside = pieces.filter(
+    (entry) => entry.approach && !planned.has(entry.approach),
+  ).length;
+  if (outside > 0)
+    off.push(
+      `${outside} pieces take an approach outside the mix; use only the mix's approaches.`,
+    );
+  return off;
 }
 
 /**

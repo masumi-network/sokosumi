@@ -1,9 +1,9 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { Clock, Lightbulb, X } from "lucide-react";
+import { Clock, Lightbulb, Loader2, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { channelLabel, formatDay } from "../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
@@ -22,11 +22,14 @@ export function EntrySheet({
   entry,
   media,
   onClose,
+  onAsk,
 }: {
   entry: Entry;
   /** The image or video Cuso made for this piece, once he has. */
   media?: Media;
   onClose: () => void;
+  /** Sends Cuso a change to this one piece. */
+  onAsk?: (text: string) => Promise<void>;
 }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -108,7 +111,7 @@ export function EntrySheet({
             ) : null}
             {entry.brief ? <p>{entry.brief}</p> : null}
             <p className="note">
-              Cuso writes it three days before it goes out.
+              Cuso makes it with the rest of the month once you subscribe.
             </p>
           </>
         )}
@@ -118,7 +121,79 @@ export function EntrySheet({
             <p>{entry.why}</p>
           </div>
         ) : null}
+        {onAsk ? <ChangePiece entry={entry} onAsk={onAsk} /> : null}
       </motion.aside>
     </>
+  );
+}
+
+/** One line to Cuso about this piece; he changes it and reschedules it. */
+function ChangePiece({
+  entry,
+  onAsk,
+}: {
+  entry: Entry;
+  onAsk: (text: string) => Promise<void>;
+}) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [sending, startSending] = useTransition();
+  if (sent)
+    return (
+      <p className="note sheet-sent">
+        Sent. Cuso changes it and tells you in the chat.
+      </p>
+    );
+  return (
+    <form
+      className="sheet-change"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const request = text.trim();
+        if (!request) return;
+        startSending(async () => {
+          setFailed(false);
+          try {
+            await onAsk(
+              `Change this piece: "${entry.title}" (${entry.channel}, ${entry.date}, id ${entry.id}). ${request}`,
+            );
+            setSent(true);
+          } catch {
+            setFailed(true);
+          }
+        });
+      }}
+    >
+      <label className="label" htmlFor={`change-${entry.id}`}>
+        Change this piece
+      </label>
+      <div className="sheet-change-row">
+        <input
+          id={`change-${entry.id}`}
+          className="sheet-change-input"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="e.g. “Make it shorter and lead with the price”"
+          maxLength={500}
+          disabled={sending}
+        />
+        <button
+          type="submit"
+          className="button button-small"
+          disabled={sending || !text.trim()}
+        >
+          {sending ? (
+            <Loader2 size={14} className="spin" aria-hidden="true" />
+          ) : null}
+          Send
+        </button>
+      </div>
+      {failed ? (
+        <p className="note" role="alert">
+          That didn't send. Try again.
+        </p>
+      ) : null}
+    </form>
   );
 }

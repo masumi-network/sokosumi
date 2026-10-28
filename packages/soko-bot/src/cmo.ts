@@ -937,7 +937,14 @@ export const cmoSaveStrategyInputSchema = z.object({
  * owner made in chat. CMO shows each one as a card in the chat.
  */
 export const cmoReportUpdateInputSchema = z.object({
-  kind: z.enum(["daily", "weekly", "monthly", "brand", "request"]),
+  kind: z.enum([
+    "daily",
+    "weekly",
+    "monthly",
+    "brand",
+    "request",
+    "production",
+  ]),
   headline: shortText,
   done: z.array(shortText).max(12).default([]),
   /** Concrete next actions only, never status notes such as "awaiting approval". */
@@ -1004,9 +1011,9 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     when: "Every day at 09:00",
     cronExpression: "0 9 * * *",
     description:
-      "Prepares what the calendar has due, schedules it on connected channels, and replies to new comments on your posts.",
+      "Keeps the made month current: finishes anything missing, replies to comments, and adjusts pieces for news, holidays and competitors.",
     prompt:
-      "Daily marketing run. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) every entry due in the next 3 days gets a finished draft in the brand's voice and in the strategy's contentLanguage, with an image where the format needs one and a video where it is a video format (generate_video at 9:16 with pictures only, no text in the frame, then get_video until it is ready, and attach its file to the post); 2) schedule what is ready on connected channels (you may: the owner approved the strategy); 3) update the calendar with save_strategy (status, socialPostId, imageFileId: the file id of its image or video); 4) last, the reply round (reading comments locks other social changes for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 5) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. For a channel that is not connected, keep the work as a draft and say which channel to connect. Then write one short sentence for the owner (the card carries the details). When nothing is due and nothing changed, answer exactly: Nothing to add.",
+      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any entry due in the next 3 days that still lacks its draft, its image or video, or its schedule on a connected network, and schedule finished drafts on any network connected since, the way your production skill makes a piece; save with save_strategy (status, socialPostId, imageFileId); 2) then the reply round (reading comments locks social changes and pictures for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",

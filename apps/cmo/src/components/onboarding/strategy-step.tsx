@@ -25,6 +25,8 @@ interface StrategyStepProps {
   /** The owner's own monthly ad budget; a refusal comes back as text. */
   onSetAds: (monthly: number, currency: string) => Promise<string | null>;
   onApprove: () => Promise<void>;
+  /** The plan's yes/no questions wait: approving comes after them. */
+  onCheck?: () => void;
   /** Set when the founder opened the approved plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
 }
@@ -39,6 +41,7 @@ export function StrategyStep({
   onChange,
   onSetAds,
   onApprove,
+  onCheck,
   ahead,
 }: StrategyStepProps) {
   const strategy = overview.strategy as Strategy;
@@ -71,6 +74,9 @@ export function StrategyStep({
   const busy = writing || changing;
   const changes = strategy.changes ?? [];
   const goal = lowerFirst(outcomeLine(strategy)) || "your goal";
+  const checks = (strategy.questions ?? []).filter(
+    (question) => !question.answer,
+  ).length;
 
   function requestChange(text: string) {
     const request = text.trim();
@@ -99,12 +105,14 @@ export function StrategyStep({
               : "I'm finishing your plan."
             : ahead
               ? "Your approved plan. Ask for a change and I send it back for your OK."
-              : `Your next four weeks: ${pieces} pieces to get ${goal}. Ask for changes, then approve it.`
+              : `Your next four weeks: ${pieces} pieces to get ${goal}. Tell me what to change, below.`
         }
         note={
           ahead || writing
             ? undefined
-            : "Nothing goes out until you approve. No charge yet."
+            : checks > 0
+              ? `Then ${checks} quick ${checks === 1 ? "check" : "checks"}, yes or no. Nothing goes out until you approve.`
+              : "Nothing goes out until you approve. No charge yet."
         }
         action={
           ahead ? (
@@ -115,6 +123,25 @@ export function StrategyStep({
             >
               Continue to {ahead.label}
               <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          ) : checks > 0 && onCheck ? (
+            <button
+              type="button"
+              className="ob-button ob-button-lg"
+              disabled={busy}
+              onClick={onCheck}
+            >
+              {writing ? (
+                <>
+                  <Loader2 size={16} className="ob-spin" aria-hidden="true" />
+                  {asked ? "Cuso is changing it" : "Cuso is finishing"}
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight size={16} aria-hidden="true" />
+                </>
+              )}
             </button>
           ) : (
             <button
@@ -250,14 +277,14 @@ export function StrategyStep({
       />
 
       <form
-        className="ob-change"
+        className="ob-change ob-change-dock"
         onSubmit={(event) => {
           event.preventDefault();
           requestChange(note);
         }}
       >
         <p className="ob-label">
-          <Wand2 size={14} aria-hidden="true" /> Want something different?
+          <Wand2 size={14} aria-hidden="true" /> Tell Cuso what to change
         </p>
         <div className="ob-change-row">
           <input
@@ -265,7 +292,7 @@ export function StrategyStep({
             className="ob-input"
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="e.g. “Add a weekly customer story”"
+            placeholder="e.g. “More videos, fewer text posts”"
             aria-label="What should Cuso change?"
             disabled={busy}
           />

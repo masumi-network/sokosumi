@@ -117,6 +117,7 @@ export function StrategyPage({
             entry={open}
             media={overview.media.find((item) => item.entryId === open.id)}
             onClose={() => setOpen(null)}
+            onAsk={onAsk}
           />
         ) : null}
       </AnimatePresence>

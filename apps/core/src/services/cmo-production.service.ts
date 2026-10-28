@@ -16,14 +16,17 @@ import {
  * at once: every piece written, its image or video made, and scheduled where
  * a network is connected. One background run does it; Core decides which
  * pieces are ready and starts another run for what is still missing, so a
- * run that ran out of time or failed never leaves the month half made.
+ * run that ran out of time or failed never leaves the month half made. Once
+ * the month is made, the same check makes what the daily watch adds (a news
+ * piece, a holiday) and schedules drafts on a network connected later.
  */
 
 const cmoProductionSchema = z.object({
   /** The strategy month this production makes (YYYY-MM). */
   month: z.string(),
   startedAt: z.string(),
-  runIds: z.array(z.string()).default([]),
+  runs: z.array(z.object({ id: z.string(), at: z.string() })).default([]),
+  /** When every piece was first made. */
   finishedAt: z.string().optional(),
 });
 export type CmoProduction = z.infer<typeof cmoProductionSchema>;
@@ -33,8 +36,9 @@ export function parseCmoProduction(value: unknown): CmoProduction | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** Runs per month before Core stops retrying; the daily run finishes the rest. */
-export const CMO_PRODUCTION_MAX_RUNS = 4;
+/** Runs a day before Core stops retrying; the next day it tries again. */
+export const CMO_PRODUCTION_RUNS_PER_DAY = 4;
+const DAY_MS = 24 * 60 * 60 * 1_000;
 /** Pieces one run is given; a longer month continues in the next run. */
 const PIECES_PER_RUN = 40;
 
@@ -88,8 +92,8 @@ export function cmoProductionPieces(
 
 export interface CmoProductionStatus {
   /**
-   * waiting: not approved and paid yet; running: Cuso is making the month;
-   * ready: every piece is made; stuck: runs ended with pieces missing.
+   * waiting: not approved and paid yet; running: Cuso is making pieces;
+   * ready: every piece is made; stuck: today's runs ended with pieces missing.
    */
   state: "waiting" | "running" | "ready" | "stuck";
   ready: number;
@@ -160,14 +164,18 @@ export function cmoProductionMessage(input: {
   pending: CmoCalendarEntry[];
   connected: ReadonlySet<string>;
   attempt: number;
+  /** The month was made before: these pieces are new or changed since. */
+  topUp: boolean;
 }): string {
   const { strategy, pending } = input;
   const batch = pending.slice(0, PIECES_PER_RUN);
   const connected = [...input.connected];
   return [
     `Background run: make ${input.businessName}'s month`,
-    "The owner approved the strategy and paid. Make every piece below now, in this run, following your production skill, so the whole month is one consistent plan rather than pieces written day by day.",
-    input.attempt > 1
+    input.topUp
+      ? "The month is made. The pieces below are new or still missing something: a piece the daily watch added for news or a holiday, one the owner changed, or a finished draft for a network connected since. Make them now, following your production skill, so they fit the month around them."
+      : "The owner approved the strategy and paid. Make every piece below now, in this run, following your production skill, so the whole month is one consistent plan rather than pieces written day by day.",
+    !input.topUp && input.attempt > 1
       ? "An earlier run made part of the month; these pieces are still missing something."
       : "",
     `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. Schedule each piece on a connected network at its date and time; on any other channel keep it a finished draft in the calendar.`,
@@ -298,18 +306,27 @@ export async function readCmoProduction(
     pending,
   });
   if (!hire.strategyApprovedAt || !context.subscribed) return read("waiting");
-  if (pending.length === 0 || production?.finishedAt) return read("ready");
-  const lastRun = production?.runIds.at(-1);
-  if (lastRun) {
-    const run = await prisma.sokoBotTurn.findUnique({
-      where: { id: lastRun },
-      select: { status: true },
-    });
-    if (run && RUN_ACTIVE.has(run.status)) return read("running");
-  }
-  if ((production?.runIds.length ?? 0) >= CMO_PRODUCTION_MAX_RUNS)
+  if (pending.length === 0) return read("ready");
+  if (await runActive(production)) return read("running");
+  if (runsToday(production, now) >= CMO_PRODUCTION_RUNS_PER_DAY)
     return read("stuck");
   return read("running");
+}
+
+async function runActive(production: CmoProduction | null): Promise<boolean> {
+  const last = production?.runs.at(-1);
+  if (!last) return false;
+  const run = await prisma.sokoBotTurn.findUnique({
+    where: { id: last.id },
+    select: { status: true },
+  });
+  return Boolean(run && RUN_ACTIVE.has(run.status));
+}
+
+function runsToday(production: CmoProduction | null, now: Date): number {
+  return (production?.runs ?? []).filter(
+    (run) => now.getTime() - Date.parse(run.at) < DAY_MS,
+  ).length;
 }
 
 export async function advanceCmoProduction(
@@ -332,29 +349,19 @@ export async function advanceCmoProduction(
   const production: CmoProduction = stored ?? {
     month: strategy.month,
     startedAt: now.toISOString(),
-    runIds: [],
+    runs: [],
   };
   if (current.state === "ready") {
-    // Made once: later gaps (a new network, a news piece) are the daily run's.
-    if (!production.finishedAt) {
-      const finishedAt = now.toISOString();
-      await prisma.cmoHire.update({
-        where: { id: hire.id },
-        data: { production: { ...production, finishedAt } },
-      });
-      return { ...current, finishedAt };
-    }
-    return current;
-  }
-  const lastRun = production.runIds.at(-1);
-  if (lastRun) {
-    const run = await prisma.sokoBotTurn.findUnique({
-      where: { id: lastRun },
-      select: { status: true },
+    if (production.finishedAt && stored) return current;
+    const finishedAt = production.finishedAt ?? now.toISOString();
+    await prisma.cmoHire.update({
+      where: { id: hire.id },
+      data: { production: { ...production, finishedAt } },
     });
-    if (run && RUN_ACTIVE.has(run.status)) return current;
+    return { ...current, finishedAt };
   }
-  const attempt = production.runIds.length + 1;
+  if (await runActive(production)) return current;
+  const attempt = production.runs.length + 1;
   const runId = await startProductionRun(
     hire,
     cmoProductionMessage({
@@ -363,13 +370,16 @@ export async function advanceCmoProduction(
       pending,
       connected,
       attempt,
+      topUp: Boolean(production.finishedAt),
     }),
     attempt,
     production.month,
   );
   const next = {
     ...production,
-    runIds: [...new Set([...production.runIds, runId])],
+    runs: production.runs.some((run) => run.id === runId)
+      ? production.runs
+      : [...production.runs, { id: runId, at: now.toISOString() }],
   };
   await prisma.cmoHire.update({
     where: { id: hire.id },
@@ -393,16 +403,7 @@ export function kickCmoProduction(hireId: string): void {
   );
 }
 
-/** Whether this hire's current month is already made, without any query. */
-function monthMade(hire: CmoHire): boolean {
-  const production = parseCmoProduction(hire.production);
-  return Boolean(
-    production?.finishedAt &&
-      production.month === parseCmoStrategy(hire.strategy)?.month,
-  );
-}
-
-/** The cron: every approved hire whose month is not made yet. */
+/** The cron: every approved hire, so new and missing pieces get made. */
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
 ): Promise<{ checked: number }> {
@@ -413,7 +414,6 @@ export async function syncCmoProduction(
   let checked = 0;
   for (const hire of hires) {
     if (!shouldContinue()) break;
-    if (monthMade(hire)) continue;
     try {
       await advanceCmoProduction(hire);
       checked += 1;

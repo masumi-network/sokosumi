@@ -2,6 +2,8 @@
 
 import {
   answerCmoBrandQuestion,
+  answerCmoPlanQuestion,
+  applyCmoPlanAnswers,
   approveCmoBrandBrain,
   approveCmoStrategy,
   type CmoMeasurement,
@@ -125,6 +127,31 @@ export async function answerBrandQuestion(answer: {
   const { data } = await answerCmoBrandQuestion({ ...core, body: answer });
   if (!data) throw new Error("Could not save the answer");
   return data.data;
+}
+
+/** One answer to one of the plan's yes/no questions. */
+export async function answerPlanQuestion(answer: {
+  questionId: string;
+  answer: "yes" | "no" | "unsure";
+  note?: string;
+}): Promise<CmoOverview> {
+  const core = await requireCore();
+  const { data } = await answerCmoPlanQuestion({ ...core, body: answer });
+  if (!data) throw new Error("Could not save the answer");
+  return data.data;
+}
+
+/** Cuso fits the plan to the owner's answers. */
+export async function applyPlanAnswers(): Promise<{
+  overview: CmoOverview | null;
+  error: string | null;
+}> {
+  const core = await requireCore();
+  const { error } = await applyCmoPlanAnswers(core);
+  return {
+    overview: await loadOverview(),
+    error: error ? errorText(error, "Could not update the plan") : null,
+  };
 }
 
 /** The owner's own edit to the Brand Brain, saved as written. */

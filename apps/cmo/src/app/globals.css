@@ -3607,3 +3607,57 @@ a.rv-dot {
   font-size: 1.125rem;
   font-weight: 500;
 }
+
+/* Up next: how much of the month Cuso has made */
+.uprogress {
+  display: block;
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.uprogress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--foreground);
+  transition: width 250ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* The piece sheet: one line to Cuso about this piece */
+.sheet-change {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.sheet-change-row {
+  display: flex;
+  gap: 8px;
+}
+
+.sheet-change-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.sheet-change-input:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.sheet-sent {
+  margin-top: 20px;
+}

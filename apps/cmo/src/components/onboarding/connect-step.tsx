@@ -134,7 +134,7 @@ export function ConnectStep({
   return (
     <section className="ob-narrow">
       <StepHead
-        step={6}
+        step={7}
         title="Accounts"
         mood="point"
         say="Connect the accounts I post to. Ads, newsletters and website changes come ready for you to launch, send or paste. Skip anything; it stays a draft."

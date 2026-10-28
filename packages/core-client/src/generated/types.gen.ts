@@ -9236,7 +9236,7 @@ export type CmoBrandMedia = {
 };
 
 export type CmoUpdate = {
-    kind: 'daily' | 'weekly' | 'monthly' | 'brand' | 'request';
+    kind: 'daily' | 'weekly' | 'monthly' | 'brand' | 'request' | 'production';
     headline: string;
     done?: Array<string>;
     upNext?: Array<string>;
@@ -63279,6 +63279,167 @@ export type SetCmoAdBudgetResponses = {
 };
 
 export type SetCmoAdBudgetResponse = SetCmoAdBudgetResponses[keyof SetCmoAdBudgetResponses];
+
+export type AnswerCmoPlanQuestionData = {
+    body?: CmoBrandAnswerRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy/answers';
+};
+
+export type AnswerCmoPlanQuestionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such question
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerCmoPlanQuestionError = AnswerCmoPlanQuestionErrors[keyof AnswerCmoPlanQuestionErrors];
+
+export type AnswerCmoPlanQuestionResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerCmoPlanQuestionResponse = AnswerCmoPlanQuestionResponses[keyof AnswerCmoPlanQuestionResponses];
+
+export type ApplyCmoPlanAnswersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy/answers/apply';
+};
+
+export type ApplyCmoPlanAnswersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The answers confirm the plan
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApplyCmoPlanAnswersError = ApplyCmoPlanAnswersErrors[keyof ApplyCmoPlanAnswersErrors];
+
+export type ApplyCmoPlanAnswersResponses = {
+    /**
+     * Cuso is changing the plan
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApplyCmoPlanAnswersResponse = ApplyCmoPlanAnswersResponses[keyof ApplyCmoPlanAnswersResponses];
 
 export type RevertCmoUpdateData = {
     body?: never;

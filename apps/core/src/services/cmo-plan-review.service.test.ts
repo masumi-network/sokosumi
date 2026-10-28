@@ -13,6 +13,7 @@ import {
   cmoPlanDrift,
   cmoPlanProblems,
   cmoReplySafety,
+  mixProblems,
 } from "./cmo-plan-review.service";
 
 const entry = (id: string, channel: string, format: string) => ({
@@ -238,5 +239,45 @@ describe("cmoReplySafety", () => {
       throw new TypeError("fetch failed");
     };
     expect(await cmoReplySafety(input)).toEqual({ safe: false, costUsd: 0 });
+  });
+});
+
+describe("mixProblems", () => {
+  const mix = [
+    { approach: "educational" as const, share: 60, why: "Teach" },
+    { approach: "promotional" as const, share: 40, why: "Sell" },
+  ];
+  const pieces = (educational: number, promotional: number) =>
+    [
+      ...Array.from({ length: educational }, () => "educational" as const),
+      ...Array.from({ length: promotional }, () => "promotional" as const),
+    ].map((approach, index) => ({
+      id: `e${index}`,
+      date: "2026-11-02",
+      channel: "linkedin",
+      format: "text",
+      title: `Piece ${index}`,
+      status: "idea" as const,
+      approach,
+    }));
+
+  it("accepts a calendar that holds the mix", () => {
+    expect(mixProblems(mix, pieces(12, 8))).toEqual([]);
+    expect(mixProblems(mix, pieces(13, 7))).toEqual([]);
+  });
+
+  it("names the approach that is off and the count to aim for", () => {
+    expect(mixProblems(mix, pieces(16, 4))).toEqual([
+      "educational is 60% of the mix but 16 of 20 pieces (80%); make it about 12.",
+      "promotional is 40% of the mix but 4 of 20 pieces (20%); make it about 8.",
+    ]);
+  });
+
+  it("asks for an approach on every entry", () => {
+    const calendar = pieces(12, 8);
+    delete (calendar[0] as { approach?: string }).approach;
+    expect(mixProblems(mix, calendar)[0]).toContain(
+      "1 calendar entries have no approach",
+    );
   });
 });

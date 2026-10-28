@@ -129,6 +129,7 @@ import {
   cmoBusinessNameFromUrl,
   cmoExecutionRefusal,
   cmoLearningState,
+  cmoPlanAnswerNote,
   cmoUpNext,
   connectCmoMeasurement,
   describeCmoStep,
@@ -137,6 +138,7 @@ import {
   hasActiveCmoSubscription,
   isCmoAppUrl,
   keepCalendarWork,
+  keepPlanAnswers,
   listCmoChannels,
   listCmoMeasurement,
   mergeBrandVisual,
@@ -1286,19 +1288,43 @@ describe("CMO return addresses", () => {
 });
 
 describe("measurement", () => {
-  const hire = { id: "cmo-1", workspaceId: "ws-1", sokoBotId: "bot-1" };
+  const hire = {
+    id: "cmo-1",
+    workspaceId: "ws-1",
+    sokoBotId: "bot-1",
+    sitePlatform: "shopify",
+  };
 
-  it("lists all three sources with their connection state", async () => {
+  it("lists the sources with their connection state", async () => {
     integrationFindMany.mockResolvedValue([
       { provider: "google_analytics", status: "ACTIVE" },
       { provider: "shopify", status: "PENDING" },
     ]);
-    const sources = await listCmoMeasurement("bot-1");
+    const sources = await listCmoMeasurement("bot-1", "shopify");
     expect(sources.map((s) => [s.provider, s.status])).toEqual([
       ["google_analytics", "connected"],
       ["google_search_console", "none"],
       ["shopify", "pending"],
     ]);
+  });
+
+  it("offers Shopify only to a Shopify shop", async () => {
+    integrationFindMany.mockResolvedValue([]);
+    for (const platform of ["other", null]) {
+      const sources = await listCmoMeasurement("bot-1", platform);
+      expect(sources.map((s) => s.provider)).toEqual([
+        "google_analytics",
+        "google_search_console",
+      ]);
+    }
+    cmoFindUnique.mockResolvedValue({ ...hire, sitePlatform: "other" });
+    await expect(
+      connectCmoMeasurement({
+        userId: "user-1",
+        provider: "shopify",
+        returnUrl: "https://app.cmo.xyz/measure/callback",
+      }),
+    ).rejects.toThrow(/Shopify shops only/);
   });
 
   it("connects to Cuso's own bot and returns only to CMO", async () => {
@@ -1385,5 +1411,40 @@ describe("buildCmoBeatPacket", () => {
     expect(skip).toBe(false);
     expect(packet).toContain("workspace.marketing");
     expect(packet.length).toBeLessThan(5_000);
+  });
+});
+
+describe("plan questions", () => {
+  const question = (id: string, patch = {}) => ({
+    id,
+    question: "Do you get about 30 orders a week?",
+    statement: "About 30 orders a week.",
+    ...patch,
+  });
+
+  it("keeps the owner's answers when Cuso saves the questions again", () => {
+    const kept = keepPlanAnswers(
+      [question("q1", { answer: "no", note: "About 80" })],
+      [question("q1"), question("q2")],
+    );
+    expect(kept[0]).toMatchObject({ answer: "no", note: "About 80" });
+    expect(kept[1]?.answer).toBeUndefined();
+  });
+
+  it("turns each no into a change for Cuso, and all yes into none", () => {
+    expect(
+      cmoPlanAnswerNote([
+        question("q1", { answer: "yes" }),
+        question("q2", { answer: "unsure" }),
+      ]),
+    ).toBeNull();
+    const note = cmoPlanAnswerNote([
+      question("q1", { answer: "no", note: "About 80" }),
+      question("q2", { answer: "yes" }),
+    ]);
+    expect(note).toContain(
+      '"Do you get about 30 orders a week?" No. What is true: About 80',
+    );
+    expect(note).toContain("You had assumed: About 30 orders a week.");
   });
 });

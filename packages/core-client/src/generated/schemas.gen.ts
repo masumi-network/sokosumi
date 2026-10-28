@@ -33522,7 +33522,8 @@ export const CmoUpdateSchema = {
                 'weekly',
                 'monthly',
                 'brand',
-                'request'
+                'request',
+                'production'
             ]
         },
         headline: {

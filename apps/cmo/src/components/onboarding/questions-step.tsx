@@ -9,7 +9,9 @@ import { Refusal } from "./refusal";
 import { StepHead } from "./step-head";
 
 type Question = NonNullable<BrandBrain["questions"]>[number];
-type Answer = NonNullable<Question["answer"]>;
+export type Answer = NonNullable<Question["answer"]>;
+/** A yes/no question, from the Brand Brain or the plan. */
+type YesNoQuestion = Pick<Question, "id" | "question" | "answer" | "note">;
 
 const ANSWERS: { value: Answer; label: string }[] = [
   { value: "yes", label: "Yes" },
@@ -110,6 +112,7 @@ export function QuestionsStep({
           <QuestionCard
             key={question.id}
             question={question}
+            label={BRAND_SECTIONS[question.section].title}
             number={index + 1}
             onAnswer={(answer, note) => onAnswer(question.id, answer, note)}
           />
@@ -119,12 +122,15 @@ export function QuestionsStep({
   );
 }
 
-function QuestionCard({
+export function QuestionCard({
   question,
+  label,
   number,
   onAnswer,
 }: {
-  question: Question;
+  question: YesNoQuestion;
+  /** What the question is about, above it. */
+  label: string;
   number: number;
   onAnswer: (answer: Answer, note?: string) => Promise<void>;
 }) {
@@ -151,7 +157,7 @@ function QuestionCard({
         <span className="ob-dot" aria-hidden="true">
           {question.answer ? <Check size={11} strokeWidth={3} /> : number}
         </span>
-        {BRAND_SECTIONS[question.section].title}
+        {label}
       </p>
       <p className="ob-q-text">{question.question}</p>
       <div className="ob-q-answers" role="group" aria-label="Your answer">

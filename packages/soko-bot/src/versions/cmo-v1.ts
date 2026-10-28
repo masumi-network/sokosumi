@@ -23,6 +23,8 @@ export const cmoV1: SokoBotVersion = {
   skills: [
     "cmo-brand-brain",
     "cmo-strategy",
+    "cmo-production",
+    "cmo-daily-watch",
     "cmo-measurement",
     "social-posts",
     "long-work",

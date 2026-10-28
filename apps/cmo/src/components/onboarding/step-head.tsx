@@ -93,7 +93,7 @@ export function StepHead({
           transition={{ duration: 0.35, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
         >
           <p className="ob-head-step">
-            Step {step} of 7 · {title}
+            Step {step} of 8 · {title}
           </p>
           <p className="ob-head-say">{say}</p>
         </motion.div>

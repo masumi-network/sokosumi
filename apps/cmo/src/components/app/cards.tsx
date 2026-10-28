@@ -434,12 +434,14 @@ const UPDATE_TITLES = {
   monthly: "Next month's strategy",
   brand: "Brand Brain refreshed",
   request: "Done",
+  production: "Your month is ready",
 } as const;
 
 const CHANGE_LABELS = {
   weekly: "What I changed in the strategy",
   monthly: "What changes from this month",
   brand: "What changed in the Brand Brain",
+  daily: "What I changed today",
 } as const;
 
 /** Updates that change the strategy, which the owner can put back. */
@@ -496,8 +498,8 @@ export function UpdateCard({
             />
           </div>
         ) : null}
-        {update.kind !== "daily" &&
-        update.kind !== "request" &&
+        {update.kind !== "request" &&
+        update.kind !== "production" &&
         (update.changes ?? []).length > 0 ? (
           <div>
             <span className="label">{CHANGE_LABELS[update.kind]}</span>
