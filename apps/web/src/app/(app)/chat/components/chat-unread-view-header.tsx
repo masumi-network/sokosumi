@@ -4,7 +4,6 @@ interface ChatUnreadViewHeaderProps {
   title: string;
 }
 
-/** The Threads view's heading (SOK-1159), in the Notification Center's size. */
 export function ChatUnreadViewHeader({ title }: ChatUnreadViewHeaderProps) {
   return <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>;
 }

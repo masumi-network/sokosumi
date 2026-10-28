@@ -7,7 +7,10 @@ import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { getChatRoomCatchUpAction } from "@/app/chat/signal-actions";
 import { CatchUpLine } from "@/components/chat/signals/catch-up-line";
-import { RoomSummaryPopover } from "@/components/chat/signals/room-summary-popover";
+import {
+  RoomSummaryPopover,
+  useRoomSummary,
+} from "@/components/chat/signals/room-summary-popover";
 
 /** Below this many unread messages a room is read faster than summarised. */
 export const BUSY_ROOM_UNREAD = 5;
@@ -48,6 +51,9 @@ export function RoomCatchUpLine({
     refetchOnWindowFocus: false,
     retry: false,
   });
+
+  // Started now for the popover to read: asked later, the room is read.
+  useRoomSummary(roomId, busy);
 
   if (!busy || dismissed || !data || data.buckets.length === 0) return null;
 
