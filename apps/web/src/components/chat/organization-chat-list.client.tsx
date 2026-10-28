@@ -151,6 +151,19 @@ const UNREAD_FILTER_PRESENCE = {
 } satisfies MotionProps;
 
 /**
+ * The caught-up message is a row of the list above it, not a section: it
+ * cancels the 8px gap that sets sections apart (the `space-y-2` of the chat
+ * area, which collapses with this margin). The margin moves with the height,
+ * so a room taking its place brings the gap back as the message leaves.
+ */
+const UNREAD_CAUGHT_UP_PRESENCE = {
+  initial: { ...UNREAD_FILTER_PRESENCE.initial, marginTop: 0 },
+  animate: { ...UNREAD_FILTER_PRESENCE.animate, marginTop: -8 },
+  exit: { ...UNREAD_FILTER_PRESENCE.exit, marginTop: 0 },
+  style: UNREAD_FILTER_PRESENCE.style,
+} satisfies MotionProps;
+
+/**
  * A room arriving in or leaving the filter's list. No opacity: a read room's
  * dimming is a class on the same `<li>`, and a finished fade would pin it at
  * full. Clipped only while it moves, because the row's focus ring sits on
@@ -564,14 +577,7 @@ export function OrganizationChatList({
           // empty list animates in: `initial={false}` only spares the rows
           // already here when the filter comes on. Hidden while it holds
           // nothing, so it adds no gap.
-          <div
-            className={cn(
-              "[&:not(:has(li,[role=status]))]:hidden",
-              // The message is a row of the list above it, not a section: it
-              // takes the row pitch, not the gap that sets sections apart.
-              caughtUp && "-mt-2",
-            )}
-          >
+          <div className="[&:not(:has(li,[role=status]))]:hidden">
             <AnimatePresence initial={false}>
               {caughtUp ? (
                 // A message, not a row: nothing here opens. The way back to
@@ -583,7 +589,7 @@ export function OrganizationChatList({
                   key="caught-up"
                   role="status"
                   data-slot="unread-caught-up"
-                  {...UNREAD_FILTER_PRESENCE}
+                  {...UNREAD_CAUGHT_UP_PRESENCE}
                 >
                   <div
                     className={cn(
