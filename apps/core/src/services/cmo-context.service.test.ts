@@ -150,7 +150,6 @@ describe("buildCmoBeatPacket", () => {
       },
       strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
       strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
-      mockPlan: null,
       updates: [],
     });
     subscriptionFindFirst.mockResolvedValue(null);

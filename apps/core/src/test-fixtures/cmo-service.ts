@@ -18,6 +18,10 @@ export const finalizeSokoBotIntegration = vi.fn();
 export const cmoFindUnique = vi.fn();
 export const cmoUpdate = vi.fn();
 export const subscriptionFindFirst = vi.fn();
+export const subscriptionCreate = vi.fn();
+export const subscriptionUpdate = vi.fn();
+export const projectFindUnique = vi.fn();
+export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
@@ -29,7 +33,6 @@ export const expireTurn = vi.fn();
 export const startTurn = vi.fn();
 export const createBot = vi.fn();
 export const projectCreate = vi.fn();
-export const projectFindUnique = vi.fn();
 export const fileLinkFindMany = vi.fn();
 export const projectDelete = vi.fn();
 export const cmoCreate = vi.fn();
@@ -80,10 +83,15 @@ const client = {
     create: projectCreate,
     delete: projectDelete,
     findUnique: projectFindUnique,
+    update: projectUpdate,
   },
   fileProjectLink: { findMany: fileLinkFindMany },
   organization: { findFirst: organizationFindFirst },
-  subscription: { findFirst: subscriptionFindFirst },
+  subscription: {
+    findFirst: subscriptionFindFirst,
+    create: subscriptionCreate,
+    update: subscriptionUpdate,
+  },
   workspace: { findUnique: workspaceFindUnique },
   sokoBotTurn: { findFirst: turnFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },
@@ -180,8 +188,12 @@ export function resetCmoServiceMocks(): void {
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });
-  // A Project with no logo, DESIGN.md or Brand research files yet.
-  projectFindUnique.mockResolvedValue({ logo: null, designMdUrl: null });
+  // A Project with no logo, DESIGN.md, site platform or Brand research files.
+  projectFindUnique.mockResolvedValue({
+    logo: null,
+    designMdUrl: null,
+    sitePlatform: null,
+  });
   fileLinkFindMany.mockResolvedValue([]);
   // The hire a member works with is the one findUnique stands for here, in
   // the business's organization.

@@ -214,10 +214,11 @@ const baseEnvSchema = z.object({
     .transform((value) => value.trim().toLowerCase() === "true"),
 
   // CMO.xyz: subscription plans (Better Auth plan names, comma separated)
-  // that let Cuso schedule and publish for a CMO organization.
+  // that let Cuso schedule and publish for a CMO organization. solo, growth
+  // and scale are CMO's own tiers, which mock billing stores as Subscriptions.
   CMO_SUBSCRIPTION_PLANS: z
     .string()
-    .default("cmo,starter,standard,pro")
+    .default("cmo,starter,standard,pro,solo,growth,scale")
     .transform((value) =>
       value
         .split(",")

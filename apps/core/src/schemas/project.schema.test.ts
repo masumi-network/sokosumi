@@ -36,6 +36,7 @@ function createDatabaseProject(
     contextMdUpdatingSince: null,
     contextMdVersion: 0,
     websiteUrl: null,
+    sitePlatform: null,
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,
