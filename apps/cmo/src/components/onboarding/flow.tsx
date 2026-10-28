@@ -274,10 +274,16 @@ export function OnboardingFlow({
     wasLive.current = researchLive;
   }, [researchLive, derived]);
   const reached = stepIndex(derived);
+  // The plan's questions are the one step the founder moves on to by hand.
+  const checking =
+    viewing === "check" &&
+    derived === "strategy" &&
+    canRevisit("check", overview);
   const revisiting =
-    viewing !== null &&
-    canRevisit(viewing, overview) &&
-    stepIndex(viewing) < reached;
+    checking ||
+    (viewing !== null &&
+      canRevisit(viewing, overview) &&
+      stepIndex(viewing) < reached);
   const step: OnboardingStep =
     revisiting && viewing
       ? viewing

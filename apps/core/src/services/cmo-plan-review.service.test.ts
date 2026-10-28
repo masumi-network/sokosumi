@@ -10,6 +10,7 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 }));
 
 import {
+  cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoReplySafety,
@@ -74,6 +75,14 @@ const plan = (patch: Partial<CmoStrategy> = {}): CmoStrategy =>
         "We will target operations leads with LinkedIn how-tos and offer a 30-day pilot.",
     },
     pace: { level: "steady", why: "A small team", perWeek: 3 },
+    questions: [
+      {
+        id: "q1",
+        question: "Is a trial the first step?",
+        statement: "A trial.",
+      },
+      { id: "q2", question: "Do you sell abroad?", statement: "Abroad." },
+    ],
     proposals: [],
     previews: [],
     changes: [],
@@ -279,5 +288,60 @@ describe("mixProblems", () => {
     expect(mixProblems(mix, calendar)[0]).toContain(
       "1 calendar entries have no approach",
     );
+  });
+});
+
+describe("cmoDraftProblems", () => {
+  const piece = (id: string, draft: string) => ({
+    id,
+    date: "2026-11-02",
+    channel: "instagram",
+    format: "image",
+    title: id,
+    status: "draft" as const,
+    draft,
+  });
+
+  it("names drafts that open alike or break the copy rules", () => {
+    expect(
+      cmoDraftProblems([
+        piece("a", "Before choosing a shoe, look at the sole."),
+        piece("b", "Before choosing a shoe, think about your commute."),
+        piece("c", "Check the product page for the materials."),
+        piece("d", "It's not a sneaker, it's a promise."),
+        piece("e", "The Tree Runner is $98 and breathes in July heat."),
+      ]),
+    ).toEqual([
+      'b opens like a ("before choosing a shoe…"); give it its own first line.',
+      "c tells people to check the details instead of giving one: name the product, its price or a real detail from the Brand Brain.",
+      "d uses \"it's not X, it's Y\".",
+    ]);
+  });
+});
+
+describe("repeated phrases in drafts", () => {
+  const piece = (id: string, draft: string) => ({
+    id,
+    date: "2026-11-02",
+    channel: "instagram",
+    format: "image",
+    title: id,
+    status: "draft" as const,
+    draft,
+  });
+
+  it("names a phrase that recurs across more than two drafts", () => {
+    const problems = cmoDraftProblems([
+      piece("a", "Morning: meet SoftSense, an 11-piece collection for studio."),
+      piece("b", "Studio day? SoftSense, an 11-piece collection for studio."),
+      piece(
+        "c",
+        "New this week. SoftSense, an 11-piece collection for studio.",
+      ),
+      piece("d", "Leggings at 45 pounds that stay put in a squat."),
+    ]);
+    expect(problems).toEqual([
+      '"softsense an 11 piece collection" is in 3 drafts (a, b, c); keep it in at most 2 and say something new in the rest.',
+    ]);
   });
 });

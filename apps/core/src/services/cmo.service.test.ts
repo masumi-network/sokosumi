@@ -135,6 +135,7 @@ import {
   describeCmoStep,
   finalizeCmoMeasurement,
   finishCmoAccountsStep,
+  fitCmoMarketingContext,
   hasActiveCmoSubscription,
   isCmoAppUrl,
   keepCalendarWork,
@@ -142,6 +143,7 @@ import {
   listCmoChannels,
   listCmoMeasurement,
   mergeBrandVisual,
+  mergeCalendarPieces,
   ownWords,
   parseCmoUpdates,
   pauseCmoCalendarEntry,
@@ -1446,5 +1448,66 @@ describe("plan questions", () => {
       '"Do you get about 30 orders a week?" No. What is true: About 80',
     );
     expect(note).toContain("You had assumed: About 30 orders a week.");
+  });
+});
+
+describe("mergeCalendarPieces", () => {
+  const entry = (id: string, patch = {}) => ({
+    id,
+    date: "2026-11-02",
+    channel: "x",
+    format: "text",
+    title: id,
+    status: "idea" as const,
+    ...patch,
+  });
+
+  it("updates the pieces sent, adds new ones and keeps every other entry", () => {
+    const merged = mergeCalendarPieces(
+      [entry("a"), entry("b"), entry("c")],
+      [entry("b", { draft: "Written.", status: "draft" }), entry("news")],
+    );
+    expect(merged.map((piece) => piece.id)).toEqual(["a", "b", "c", "news"]);
+    expect(merged[1]).toMatchObject({ draft: "Written.", status: "draft" });
+  });
+});
+
+describe("fitCmoMarketingContext", () => {
+  const now = new Date("2026-11-01T09:00:00Z");
+  const entry = (id: string, date: string) => ({
+    id,
+    date,
+    channel: "instagram",
+    format: "image",
+    title: `Piece ${id}`,
+    status: "draft",
+    draft: "x".repeat(600),
+    brief: "y".repeat(200),
+  });
+  const context = {
+    brandBrain: { summary: "A shop", profile: {} },
+    strategy: {
+      summary: "Plan",
+      weeks: ["w".repeat(2_000)],
+      calendar: [entry("soon", "2026-11-02"), entry("later", "2026-11-20")],
+    },
+  };
+
+  it("leaves a context that fits alone", () => {
+    expect(fitCmoMarketingContext(context, now, 100_000)).toBe(context);
+  });
+
+  it("sheds later drafts first, then secondary plan parts, keeping the next days whole", () => {
+    const fitted = fitCmoMarketingContext(context, now, 2_000) as {
+      strategy: {
+        calendar: Record<string, unknown>[];
+        storedNotShown?: string[];
+      };
+    };
+    const [soon, later] = fitted.strategy.calendar;
+    expect(soon?.draft).toBeDefined();
+    expect(later?.draft).toBeUndefined();
+    expect(later?.detailsStored).toBe(true);
+    expect(fitted.strategy.storedNotShown).toContain("weeks");
   });
 });

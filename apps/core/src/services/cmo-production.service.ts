@@ -25,7 +25,16 @@ const cmoProductionSchema = z.object({
   /** The strategy month this production makes (YYYY-MM). */
   month: z.string(),
   startedAt: z.string(),
-  runs: z.array(z.object({ id: z.string(), at: z.string() })).default([]),
+  runs: z
+    .array(
+      z.object({
+        id: z.string(),
+        at: z.string(),
+        /** Pieces ready when the run started, to see whether it moved any. */
+        ready: z.number().int().optional(),
+      }),
+    )
+    .default([]),
   /** When every piece was first made. */
   finishedAt: z.string().optional(),
 });
@@ -184,7 +193,7 @@ export function cmoProductionMessage(input: {
     `Pieces (${batch.length}${pending.length > batch.length ? ` of ${pending.length}; the rest come in the next run` : ""}):`,
     ...batch.map(pieceLine),
     "",
-    "Work in batches of three to five pieces and save each batch with save_strategy part calendar (draft, imageFileId, socialPostId, status) before the next, so nothing is lost if time runs out.",
+    "Work in two passes, as your production skill says: first write and save every draft (save_strategy part pieces every five or so pieces, sending only those entries), then make the pictures and schedule. A failed picture never stops the words.",
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
   ]
     .filter((line) => line !== "")
@@ -229,8 +238,9 @@ async function startProductionRun(
     userId: hire.userId,
     workspaceId: hire.workspaceId,
     sokoBotId: hire.sokoBotId,
-    // One id per attempt: two callers racing start the same run.
-    clientTurnId: `cmo:production:${hire.id}:${month}:${attempt}`,
+    // One id per approval and attempt: two callers racing start the same
+    // run, and a plan approved again starts its own.
+    clientTurnId: `cmo:production:${hire.id}:${month}:${hire.strategyApprovedAt?.getTime() ?? 0}:${attempt}`,
     message,
     source: "EVENT",
     presetRoute: {
@@ -307,20 +317,51 @@ export async function readCmoProduction(
   });
   if (!hire.strategyApprovedAt || !context.subscribed) return read("waiting");
   if (pending.length === 0) return read("ready");
-  if (await runActive(production)) return read("running");
-  if (runsToday(production, now) >= CMO_PRODUCTION_RUNS_PER_DAY)
+  const last = await lastRunStatus(production);
+  if (last && RUN_ACTIVE.has(last)) return read("running");
+  if (
+    runsToday(production, now) >= CMO_PRODUCTION_RUNS_PER_DAY ||
+    (last === "COMPLETED" &&
+      stalledToday(production, pieces.length - pending.length, now))
+  )
     return read("stuck");
   return read("running");
 }
 
-async function runActive(production: CmoProduction | null): Promise<boolean> {
+async function lastRunStatus(
+  production: CmoProduction | null,
+): Promise<string | null> {
   const last = production?.runs.at(-1);
-  if (!last) return false;
+  if (!last) return null;
   const run = await prisma.sokoBotTurn.findUnique({
     where: { id: last.id },
     select: { status: true },
   });
-  return Boolean(run && RUN_ACTIVE.has(run.status));
+  return run?.status ?? null;
+}
+
+/**
+ * The last run finished without making a single piece ready (images
+ * refused, a tool down): another run today would only fail the same way. A
+ * run that crashed (a model or network error) is simply tried again.
+ */
+function stalledToday(
+  production: CmoProduction | null,
+  ready: number,
+  now: Date,
+): boolean {
+  const last = production?.runs.at(-1);
+  return Boolean(
+    last &&
+      last.ready !== undefined &&
+      ready <= last.ready &&
+      now.getTime() - Date.parse(last.at) < DAY_MS,
+  );
+}
+
+async function runActive(production: CmoProduction | null): Promise<boolean> {
+  const status = await lastRunStatus(production);
+  return status !== null && RUN_ACTIVE.has(status);
 }
 
 function runsToday(production: CmoProduction | null, now: Date): number {
@@ -379,7 +420,10 @@ export async function advanceCmoProduction(
     ...production,
     runs: production.runs.some((run) => run.id === runId)
       ? production.runs
-      : [...production.runs, { id: runId, at: now.toISOString() }],
+      : [
+          ...production.runs,
+          { id: runId, at: now.toISOString(), ready: current.ready },
+        ],
   };
   await prisma.cmoHire.update({
     where: { id: hire.id },

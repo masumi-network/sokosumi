@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
 import { showcaseEntries } from "../showcases";
+import { CheckStep } from "./check-step";
 import { strategySocialChannels } from "./connect-step";
 import { onboardingStep } from "./flow";
 import { PricingStep } from "./pricing-step";
@@ -360,6 +361,75 @@ describe("strategy", () => {
     );
     expect(html).toContain("Continue to Accounts");
     expect(html).not.toContain("Approve plan");
+  });
+});
+
+describe("plan check", () => {
+  const withQuestions = (
+    answers: ("yes" | "no" | undefined)[],
+  ): CmoOverview => {
+    const base = overview();
+    return {
+      ...base,
+      strategy: {
+        ...(base.strategy as Strategy),
+        questions: answers.map((answer, index) => ({
+          id: `q${index}`,
+          question: `Do you sell ${index} things?`,
+          statement: `They sell ${index} things.`,
+          ...(answer ? { answer } : {}),
+          ...(answer === "no" ? { note: "Many more" } : {}),
+        })),
+      },
+    };
+  };
+
+  it("asks the plan's questions after the strategy, before approving", () => {
+    const html = renderToStaticMarkup(
+      <StrategyStep
+        overview={withQuestions([undefined, undefined])}
+        onChange={async () => null}
+        onSetAds={async () => null}
+        onApprove={async () => {}}
+        onCheck={() => {}}
+      />,
+    );
+    expect(html).toContain("Then 2 quick checks, yes or no.");
+    expect(html).toContain("Continue");
+    expect(html).not.toContain("Approve plan");
+    expect(html).toContain("Tell Cuso what to change");
+  });
+
+  it("approves when every answer is yes, and updates the plan after a no", () => {
+    const allYes = renderToStaticMarkup(
+      <CheckStep
+        overview={withQuestions(["yes", "yes"])}
+        onAnswer={async () => {}}
+        onUpdate={async () => null}
+        onApprove={async () => {}}
+      />,
+    );
+    expect(allYes).toContain("Step 5 of 8");
+    expect(allYes).toContain("Do you sell 0 things?");
+    expect(allYes).toContain("Approve plan");
+    const withNo = renderToStaticMarkup(
+      <CheckStep
+        overview={withQuestions(["yes", "no"])}
+        onAnswer={async () => {}}
+        onUpdate={async () => null}
+        onApprove={async () => {}}
+      />,
+    );
+    expect(withNo).toContain("Update the plan");
+    expect(withNo).toContain("Many more");
+  });
+
+  it("resumes on the check after a reload part way through", () => {
+    expect(onboardingStep(withQuestions(["yes", undefined]))).toBe("check");
+    expect(onboardingStep(withQuestions([undefined, undefined]))).toBe(
+      "strategy",
+    );
+    expect(onboardingStep(withQuestions(["yes", "yes"]))).toBe("strategy");
   });
 });
 

@@ -106,14 +106,14 @@ export const SYSTEM_TURN_ROUTES = {
     reason: "Memory cleanup: drop stale goals and follow-ups.",
   },
   /**
-   * CMO daily run: draft, design and schedule the calendar's next entries.
-   * Publishing is still gated by the approved strategy and the subscription
-   * inside the social tools.
+   * CMO daily run: keeps the month the production run made current (gaps,
+   * comments, news). Publishing is still gated by the approved strategy and
+   * the subscription inside the social tools.
    */
   "cmo-daily-run": {
     route: "MANAGE_WORK",
     writeScope: "WORK",
-    reason: "CMO daily run: prepare and schedule the next calendar entries.",
+    reason: "CMO daily run: finish gaps, reply to comments, adjust for news.",
   },
   /** CMO weekly review: measure, then improve or propose a better plan. */
   "cmo-weekly-review": {

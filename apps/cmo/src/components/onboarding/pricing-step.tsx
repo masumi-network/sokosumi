@@ -106,10 +106,10 @@ export function PricingStep({
         mood="cheer"
         say={
           subscribed
-            ? "You're all set. I start on your plan today."
+            ? "You're all set. I'm making your whole month now."
             : overview.mockBilling
-              ? `${fit.name} fits your plan. Pick it and I start today.`
-              : "Pick a plan and I start today."
+              ? `${fit.name} fits your plan. Pick it and I make your whole month today.`
+              : "Pick a plan and I make your whole month today."
         }
         action={
           subscribed ? (
@@ -132,8 +132,8 @@ export function PricingStep({
             {subscribed
               ? `${mockPlanById(overview.mockPlan)?.name ?? "Your"} is active. ${
                   connected
-                    ? "Cuso writes and schedules your posts from today."
-                    : "Cuso writes your posts from today and starts posting once you connect an account."
+                    ? "Cuso makes every post, picture and ad for the month now, and schedules them."
+                    : "Cuso makes every post, picture and ad for the month now. They go out once you connect an account."
                 }`
               : postsPerWeek > 0
                 ? `About ${formatRate(postsPerWeek)} social posts a week on ${channels} ${channels === 1 ? "network" : "networks"}${drafts ? ", plus everything above" : ""}. Every plan includes a weekly review and a fresh strategy each month.`

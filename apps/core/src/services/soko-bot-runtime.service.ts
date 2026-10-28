@@ -16,6 +16,7 @@ import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   type ChatResultReference,
   type CmoStrategy,
+  cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
@@ -291,6 +292,7 @@ import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
+  cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoReplySafety,
@@ -4948,8 +4950,14 @@ export class SokoBotRuntimeService {
         }
         case "save_strategy": {
           const sent = parseCmoStrategySave(input.input);
+          const pieces = cmoStrategySavePart(input.input) === "pieces";
           const saved = await write((tx) =>
-            saveCmoStrategy(where, sent, { turnId: authorized.turn.id }, tx),
+            saveCmoStrategy(
+              where,
+              sent,
+              { turnId: authorized.turn.id, pieces },
+              tx,
+            ),
           );
           const stored = parseCmoStrategy(saved.strategy);
           const calendar = stored?.calendar ?? [];
@@ -4958,6 +4966,10 @@ export class SokoBotRuntimeService {
             strategy: stored,
             planSent: sent.summary !== undefined,
           });
+          // Once the plan runs, the drafts are checked against the copy rules.
+          const draftProblems = saved.strategyApprovedAt
+            ? cmoDraftProblems(calendar)
+            : [];
           // Says which pieces still have no draft.
           const undrafted = calendar
             .filter((entry) => entry.status !== "skipped" && !entry.draft)
@@ -4979,7 +4991,12 @@ export class SokoBotRuntimeService {
                     problems: review.problems,
                     next: "Fix these and save again: part plan for the strategy, part calendar for the calendar.",
                   }
-                : {}),
+                : draftProblems.length > 0
+                  ? {
+                      problems: draftProblems,
+                      next: "Rewrite these drafts (by id), update their Social posts when they have one, and save again with part calendar.",
+                    }
+                  : {}),
             },
           };
         }

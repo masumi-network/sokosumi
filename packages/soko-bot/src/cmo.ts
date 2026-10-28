@@ -875,7 +875,18 @@ export type CmoStrategySave = z.input<typeof cmoStrategySaveSchema>;
  * part keeps the fields a call must still fill in from replacing the saved
  * ones.
  */
-export const CMO_STRATEGY_SAVE_PARTS = ["plan", "calendar", "all"] as const;
+/**
+ * plan: every field but the calendar; calendar: the whole calendar; pieces:
+ * only the calendar entries sent, merged by id (new ids are added, none is
+ * dropped); all: everything.
+ */
+export const CMO_STRATEGY_SAVE_PARTS = [
+  "plan",
+  "calendar",
+  "pieces",
+  "all",
+] as const;
+export type CmoStrategySavePart = (typeof CMO_STRATEGY_SAVE_PARTS)[number];
 
 export const cmoSaveStrategyInputSchema = z.object({
   part: z.enum(CMO_STRATEGY_SAVE_PARTS).default("all"),
@@ -1013,7 +1024,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Keeps the made month current: finishes anything missing, replies to comments, and adjusts pieces for news, holidays and competitors.",
     prompt:
-      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any entry due in the next 3 days that still lacks its draft, its image or video, or its schedule on a connected network, and schedule finished drafts on any network connected since, the way your production skill makes a piece; save with save_strategy (status, socialPostId, imageFileId); 2) then the reply round (reading comments locks social changes and pictures for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
+      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any entry due in the next 3 days that still lacks its draft, its image or video, or its schedule on a connected network, and schedule finished drafts on any network connected since, the way your production skill makes a piece; save with save_strategy part pieces (only those entries: status, socialPostId, imageFileId); 2) then the reply round (reading comments locks social changes and pictures for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy part pieces (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",
@@ -1107,6 +1118,14 @@ export function isCmoScheduleKey(
  * The fields a save_strategy call replaces. Tool calls must fill every field,
  * often with empty lists, so only the fields of the named part are taken.
  */
+/** Which part a save_strategy call replaces; see CMO_STRATEGY_SAVE_PARTS. */
+export function cmoStrategySavePart(input: unknown): CmoStrategySavePart {
+  const part = (input as { part?: unknown } | null)?.part;
+  return CMO_STRATEGY_SAVE_PARTS.includes(part as CmoStrategySavePart)
+    ? (part as CmoStrategySavePart)
+    : "all";
+}
+
 export function parseCmoStrategySave(input: unknown): CmoStrategySave {
   const raw = (input ?? {}) as { part?: unknown; strategy?: unknown };
   const sent = (
@@ -1115,12 +1134,17 @@ export function parseCmoStrategySave(input: unknown): CmoStrategySave {
   // The other part's fields are filler; they are dropped before checking.
   const { calendar, ...plan } = sent;
   const picked =
-    raw.part === "calendar" ? { calendar } : raw.part === "plan" ? plan : sent;
+    raw.part === "calendar" || raw.part === "pieces"
+      ? { calendar }
+      : raw.part === "plan"
+        ? plan
+        : sent;
   const { part, strategy } = cmoSaveStrategyInputSchema.parse({
     ...raw,
     strategy: picked,
   });
-  if (part === "calendar") return { calendar: strategy.calendar ?? [] };
+  if (part === "calendar" || part === "pieces")
+    return { calendar: strategy.calendar ?? [] };
   if (part === "plan") {
     const { calendar: _calendar, ...rest } = strategy;
     return rest;

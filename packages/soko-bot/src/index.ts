@@ -34,6 +34,7 @@ export {
   cmoReportUpdateInputSchema,
   cmoRoutineSkipReason,
   cmoSaveBrandBrainInputSchema,
+  cmoStrategySavePart,
   cmoStrategySchema,
   isCmoMeasurementSource,
   isCmoScheduleKey,

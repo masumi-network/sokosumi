@@ -1440,11 +1440,18 @@ export function keepCalendarWork(
   incoming: CmoStrategy["calendar"],
 ): CmoStrategy["calendar"] {
   const before = new Map(previous.map((entry) => [entry.id, entry]));
+  // Entries past the first week reach Cuso without their words (the
+  // packet's detailsStored); sent back under the same title, they keep them.
   const withDrafts = incoming.map((entry) => {
     const old = before.get(entry.id);
-    return !entry.draft && old?.draft && sameTitle(old.title, entry.title)
-      ? { ...entry, draft: old.draft }
-      : entry;
+    if (!old || !sameTitle(old.title, entry.title)) return entry;
+    return {
+      ...entry,
+      draft: entry.draft ?? old.draft,
+      brief: entry.brief ?? old.brief,
+      why: entry.why ?? old.why,
+      hook: entry.hook ?? old.hook,
+    };
   });
   return withDrafts.filter((entry) => {
     const old = before.get(entry.id);
@@ -1508,7 +1515,12 @@ function parseHistory(value: unknown): StrategyHistory {
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
   strategy: CmoStrategySave,
-  options: { turnId?: string; now?: Date } = {},
+  options: {
+    turnId?: string;
+    now?: Date;
+    /** The calendar sent is only the pieces Cuso changed: merge them by id. */
+    pieces?: boolean;
+  } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<CmoHire> {
   const current = await db.cmoHire.findUnique({ where });
@@ -1520,7 +1532,9 @@ export async function saveCmoStrategy(
     ...Object.fromEntries(
       Object.entries(strategy).filter(([, value]) => value !== undefined),
     ),
-    calendar: strategy.calendar ?? before?.calendar ?? [],
+    calendar: options.pieces
+      ? mergeCalendarPieces(before?.calendar ?? [], strategy.calendar ?? [])
+      : (strategy.calendar ?? before?.calendar ?? []),
   });
   // A channel the plan now runs is no longer a proposal.
   const running = new Set(whole.channels.map((channel) => channel.channel));
@@ -1558,7 +1572,9 @@ export async function saveCmoStrategy(
           parsed.previews.length > 0 ? parsed.previews : previous.previews,
       }
     : parsed;
-  const stored = options.turnId ? withoutDashes(merged) : merged;
+  const stored = options.turnId
+    ? withoutDashes(withLineBreaks(merged))
+    : merged;
   const history = current.strategy
     ? [
         {
@@ -1577,6 +1593,40 @@ export async function saveCmoStrategy(
       strategyHistory: history,
     },
   });
+}
+
+/**
+ * A model sometimes writes line breaks as the two characters "\\n" inside a
+ * draft; they would show up literally in a post.
+ */
+export function withLineBreaks<T extends { calendar: CmoStrategy["calendar"] }>(
+  strategy: T,
+): T {
+  return {
+    ...strategy,
+    calendar: strategy.calendar.map((entry) =>
+      entry.draft?.includes("\\n")
+        ? { ...entry, draft: entry.draft.replace(/\\n/g, "\n") }
+        : entry,
+    ),
+  };
+}
+
+/**
+ * A pieces save: each sent entry updates the stored one with its id, a new
+ * id is added, and every entry not sent stays as it is.
+ */
+export function mergeCalendarPieces(
+  stored: CmoStrategy["calendar"],
+  sent: CmoStrategySave["calendar"],
+): CmoStrategy["calendar"] {
+  const byId = new Map((sent ?? []).map((entry) => [entry.id, entry]));
+  const merged = stored.map((entry) => {
+    const update = byId.get(entry.id);
+    byId.delete(entry.id);
+    return update ? { ...entry, ...update } : entry;
+  });
+  return [...merged, ...byId.values()] as CmoStrategy["calendar"];
 }
 
 /** The owner's answers survive Cuso saving the plan's questions again. */
@@ -1881,7 +1931,7 @@ export async function loadCmoMarketingContext(
   const hire = await getCmoHireForBot(sokoBotId);
   if (!hire) return null;
   const strategy = parseCmoStrategy(hire.strategy);
-  return {
+  const context: MarketingContext = {
     business: {
       name: hire.businessName,
       websiteUrl: hire.websiteUrl,
@@ -1912,8 +1962,15 @@ export async function loadCmoMarketingContext(
             now,
             CMO_VISIBLE_CALENDAR_DAYS,
           ).map((entry) =>
-            entry.draft && entry.date > draftHorizon(now)
-              ? { ...entry, draft: undefined, draftStored: true }
+            entry.date > draftHorizon(now)
+              ? {
+                  ...entry,
+                  draft: undefined,
+                  brief: undefined,
+                  why: undefined,
+                  hook: undefined,
+                  detailsStored: true,
+                }
               : entry,
           ),
           calendarTotal: strategy.calendar.length,
@@ -1923,6 +1980,120 @@ export async function loadCmoMarketingContext(
       .slice(0, 3)
       .map(({ previousStrategy: _previous, ...update }) => update),
   };
+  return fitCmoMarketingContext(context, now);
+}
+
+/**
+ * Bytes Cuso's marketing context may take of the 48 KB packet; the rest is
+ * memory, the conversation and the trigger. A big Brand Brain with a made
+ * month once pushed the packet past its hard limit and every turn failed.
+ */
+export const CMO_CONTEXT_BUDGET_BYTES = 32 * 1_024;
+
+type MarketingContext = Record<string, unknown> & {
+  brandBrain?: Record<string, unknown> | null;
+  strategy?: (Record<string, unknown> & { calendar?: unknown[] }) | null;
+};
+
+/**
+ * Sheds detail, least needed first, until the context fits its budget.
+ * Everything shed stays stored: saves merge into what is there, and a piece
+ * sent back under its id and title keeps its words.
+ */
+export function fitCmoMarketingContext(
+  context: MarketingContext,
+  now: Date,
+  budget: number = CMO_CONTEXT_BUDGET_BYTES,
+): MarketingContext {
+  const soon = new Date(now.getTime() + 3 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const later = (entry: Record<string, unknown>) =>
+    typeof entry.date === "string" && entry.date > soon;
+  const calendar = (
+    current: MarketingContext,
+    shed: (entry: Record<string, unknown>) => Record<string, unknown>,
+  ): MarketingContext =>
+    current.strategy
+      ? {
+          ...current,
+          strategy: {
+            ...current.strategy,
+            calendar: (current.strategy.calendar ?? []).map((entry) =>
+              later(entry as Record<string, unknown>)
+                ? shed(entry as Record<string, unknown>)
+                : entry,
+            ),
+          },
+        }
+      : current;
+  const without = (
+    current: MarketingContext,
+    part: "brandBrain" | "strategy",
+    keys: string[],
+  ): MarketingContext => {
+    const value = current[part];
+    if (!value) return current;
+    const kept = Object.fromEntries(
+      Object.entries(value).filter(([key]) => !keys.includes(key)),
+    );
+    const stored = [
+      ...((value.storedNotShown as string[] | undefined) ?? []),
+      ...keys,
+    ];
+    return { ...current, [part]: { ...kept, storedNotShown: stored } };
+  };
+  const steps: ((current: MarketingContext) => MarketingContext)[] = [
+    (current) =>
+      calendar(current, ({ draft: _draft, ...entry }) => ({
+        ...entry,
+        detailsStored: true,
+      })),
+    (current) => without(current, "strategy", ["previews", "weeks"]),
+    (current) =>
+      calendar(current, ({ brief: _b, why: _w, hook: _h, ...entry }) => ({
+        ...entry,
+        detailsStored: true,
+      })),
+    (current) =>
+      current.brandBrain
+        ? {
+            ...current,
+            brandBrain: {
+              ...current.brandBrain,
+              profile: Object.fromEntries(
+                Object.entries(
+                  (current.brandBrain.profile ?? {}) as Record<
+                    string,
+                    Record<string, unknown>
+                  >,
+                ).map(([key, section]) => [
+                  key,
+                  { headline: section.headline, answer: section.answer },
+                ]),
+              ),
+            },
+          }
+        : current,
+    (current) =>
+      without(current, "strategy", [
+        "alternatives",
+        "beforeAfter",
+        "measurement",
+        "proposals",
+        "changes",
+      ]),
+    (current) =>
+      without(current, "brandBrain", ["reveal", "alternatives", "channels"]),
+    (current) =>
+      calendar(current, ({ pillar: _p, campaignId: _c, ...entry }) => entry),
+  ];
+  let fitted = context;
+  for (const step of steps) {
+    if (Buffer.byteLength(JSON.stringify(fitted)) <= budget) break;
+    fitted = step(fitted);
+  }
+  return fitted;
 }
 
 /** The last day a turn sees full drafts for. */
@@ -1960,7 +2131,9 @@ export function compactBrandBrain(
         : [],
     ),
   );
-  return { ...brain, profile };
+  // An answered question already lives in its section as a finding.
+  const questions = brain.questions.filter((question) => !question.answer);
+  return { ...brain, profile, questions };
 }
 
 /** The packet appended to a CMO rhythm's prompt. */

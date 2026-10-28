@@ -48,7 +48,7 @@ function MonthProduction({
         <span className="utitle">
           {production.state === "running"
             ? "Making every post, picture and ad for the month"
-            : "A few pieces didn't finish. Cuso tries again later today."}
+            : "A few pieces didn't finish. Cuso tries again later."}
         </span>
         <span
           className="uprogress"
@@ -77,7 +77,10 @@ export function UpNext({
   const paused = overview.billing.availableCredits <= 0;
   const runningToday = overview.upNext.filter((item) => item.date === today);
   const comingUp = overview.upNext.filter((item) => item.date !== today);
-  const empty = !working && overview.upNext.length === 0;
+  const making =
+    overview.production.state === "running" ||
+    overview.production.state === "stuck";
+  const empty = !working && !making && overview.upNext.length === 0;
   return (
     <aside className="upnext" aria-label="Up next">
       <div className="uh">

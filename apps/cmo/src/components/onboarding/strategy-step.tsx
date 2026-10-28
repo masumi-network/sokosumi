@@ -77,6 +77,9 @@ export function StrategyStep({
   const checks = (strategy.questions ?? []).filter(
     (question) => !question.answer,
   ).length;
+  const fitting = (strategy.questions ?? []).some(
+    (question) => question.answer === "no",
+  );
 
   function requestChange(text: string) {
     const request = text.trim();
@@ -102,7 +105,9 @@ export function StrategyStep({
           writing
             ? asked
               ? `I'm changing your plan: “${asked}”. About two minutes.`
-              : "I'm finishing your plan."
+              : fitting
+                ? "I'm fitting your plan to your answers. About two minutes."
+                : "I'm finishing your plan."
             : ahead
               ? "Your approved plan. Ask for a change and I send it back for your OK."
               : `Your next four weeks: ${pieces} pieces to get ${goal}. Tell me what to change, below.`

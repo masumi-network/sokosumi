@@ -53,6 +53,10 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
         `the ${stage.name} stage has no plays; say what each channel does there and how often.`,
       );
   }
+  if (strategy.questions.length < 2)
+    problems.push(
+      "questions has fewer than two; ask two to five yes/no questions that check your biggest assumptions.",
+    );
   if (!strategy.pace)
     problems.push(
       "pace is missing: steady, active or all_in, why, and pieces a week.",
@@ -89,6 +93,15 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
         "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
     problems.push(...mixProblems(strategy.mix, pieces));
+    const hedged = pieces.filter((entry) =>
+      /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
+        entry.title,
+      ),
+    );
+    if (hedged.length > 0)
+      problems.push(
+        `${hedged.length} calendar titles only tell people to check details ("${hedged[0]?.title}"); make each title say the point itself.`,
+      );
     // Four weeks of pieces; a calendar far below its own pace undersells it.
     const perWeek = Math.round(pieces.length / 4);
     if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
@@ -97,6 +110,107 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
       );
   }
   return problems;
+}
+
+const MAX_DRAFT_PROBLEMS = 6;
+
+/** Lines the production skill bans, with what to tell Cuso. */
+const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
+  {
+    pattern: /\bit'?s not [^.,;]{1,40}, it'?s\b/i,
+    problem: "uses \"it's not X, it's Y\"",
+  },
+  {
+    pattern: /\b(game[- ]changer|unlock|say goodbye to|reimagined)\b/i,
+    problem:
+      "uses a stock phrase (game-changer, unlock, say goodbye to, reimagined)",
+  },
+  {
+    pattern: /\b(agree|thoughts)\?\s*$/im,
+    problem: 'ends on engagement bait ("Agree?", "Thoughts?")',
+  },
+  { pattern: /\u2014/, problem: "has an em dash" },
+  {
+    pattern:
+      /\b(check|read|compare|see)\b[^.!?\n]{0,50}\b(product page|details|product details|product information)\b/i,
+    problem:
+      "tells people to check the details instead of giving one: name the product, its price or a real detail from the Brand Brain",
+  },
+  {
+    pattern: /\b(vary|varies) by (style|product|item|region|size)\b/i,
+    problem:
+      'hedges ("varies by style"): say what is true for the product in the post, or leave it out',
+  },
+];
+
+function opening(draft: string): string {
+  return draft
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(" ");
+}
+
+/**
+ * The made month's drafts against the production skill's copy rules: no two
+ * open the same way, and none uses a banned line. Cuso rewrites what it
+ * names; a handful at a time, so one save never floods him.
+ */
+export function cmoDraftProblems(calendar: CmoStrategy["calendar"]): string[] {
+  const drafted = calendar.filter(
+    (entry) => entry.draft && entry.status !== "skipped",
+  );
+  const problems: string[] = [];
+  const seen = new Map<string, string>();
+  for (const entry of drafted) {
+    const draft = entry.draft ?? "";
+    for (const rule of BANNED_COPY)
+      if (rule.pattern.test(draft))
+        problems.push(`${entry.id} ${rule.problem}.`);
+    const start = opening(draft);
+    const first = seen.get(start);
+    if (start.split(" ").length === 4 && first)
+      problems.push(
+        `${entry.id} opens like ${first} ("${start}…"); give it its own first line.`,
+      );
+    else seen.set(start, entry.id);
+  }
+  problems.push(...repeatedPhrases(drafted));
+  return problems.slice(0, MAX_DRAFT_PROBLEMS);
+}
+
+/** Pieces a five-word phrase may share before the month reads repetitive. */
+const MAX_PHRASE_PIECES = 2;
+
+/** Five-word phrases that recur across more drafts than the skill allows. */
+function repeatedPhrases(drafted: CmoStrategy["calendar"]): string[] {
+  const pieces = new Map<string, Set<string>>();
+  for (const entry of drafted) {
+    const words = (entry.draft ?? "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+    for (let index = 0; index + 5 <= words.length; index += 1) {
+      const phrase = words.slice(index, index + 5).join(" ");
+      pieces.set(phrase, (pieces.get(phrase) ?? new Set()).add(entry.id));
+    }
+  }
+  const reported = new Set<string>();
+  return [...pieces]
+    .filter(([, ids]) => ids.size > MAX_PHRASE_PIECES)
+    .sort(([, a], [, b]) => b.size - a.size)
+    .flatMap(([phrase, ids]) => {
+      const key = [...ids].sort().join();
+      if (reported.has(key)) return [];
+      reported.add(key);
+      return [
+        `"${phrase}" is in ${ids.size} drafts (${[...ids].slice(0, 4).join(", ")}); keep it in at most ${MAX_PHRASE_PIECES} and say something new in the rest.`,
+      ];
+    })
+    .slice(0, 2);
 }
 
 /**
