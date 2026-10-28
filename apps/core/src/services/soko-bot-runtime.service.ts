@@ -5109,7 +5109,7 @@ export class SokoBotRuntimeService {
                 : draftProblems.length > 0
                   ? {
                       problems: draftProblems,
-                      next: "Rewrite these drafts on their Social posts (the ids) with update_social_post; save other channels again with part pieces.",
+                      next: "Rewrite these drafts on their Social posts (the ids) with update_social_post.",
                     }
                   : {}),
             },

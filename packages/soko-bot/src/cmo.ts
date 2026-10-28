@@ -903,8 +903,8 @@ export const CMO_PRODUCTION_MEDIA_PER_RUN = { images: 60, videos: 10 };
 
 /**
  * plan: every field but the calendar; calendar: the whole calendar; pieces:
- * only the calendar entries sent, merged by id (new ids are added, none is
- * dropped); all: everything.
+ * only the social entries sent, written to the approved version's Social
+ * posts by id (other channels are not produced); all: everything.
  */
 export const CMO_STRATEGY_SAVE_PARTS = [
   "plan",

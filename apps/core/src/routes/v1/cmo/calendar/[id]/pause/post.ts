@@ -17,14 +17,16 @@ const route = createRoute({
   operationId: "pauseCmoCalendarEntry",
   tags: ["CMO"],
   description:
-    "Pauses one calendar entry: cancels its scheduled post and takes it out of the plan.",
+    "Pauses one calendar entry's Social post: cancels it so it cannot go out. The approved plan stays as it is.",
   request: { params: cmoUpdateIdParamsSchema },
   responses: {
     200: jsonSuccessResponse(cmoOverviewSchema, "Entry paused"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("No such calendar entry"),
-    409: jsonErrorResponse("The post can no longer be canceled"),
+    404: jsonErrorResponse("Cuso is not hired yet"),
+    409: jsonErrorResponse(
+      "Not a planned Social post, or it can no longer be canceled",
+    ),
   },
 });
 

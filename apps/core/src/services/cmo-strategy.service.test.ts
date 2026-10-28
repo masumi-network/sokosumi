@@ -82,7 +82,6 @@ import {
   cmoPlanAnswerNote,
   keepCalendarWork,
   keepPlanAnswers,
-  mergeCalendarPieces,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
   saveCmoStrategy,
@@ -343,10 +342,28 @@ describe("saving versions", () => {
         }),
       ],
     });
-    // Only other channels stay in the plan.
+    // Pieces write Social posts only: no version's plan changes, and other
+    // channels are not produced.
     expect(strategyRows).toHaveLength(2);
-    expect(plan(running).calendar).toEqual([...strategy.calendar, newsletter]);
+    expect(plan(running)).toEqual(strategy);
     expect(plan(draft)).toEqual(revised);
+  });
+
+  it("refuses pieces while no version is approved, writing nothing", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const draft = seedStrategy(strategy);
+
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [{ ...strategy.calendar[0]!, draft: "Written." }] },
+        { turnId: "turn-2", pieces: true },
+      ),
+    ).rejects.toThrow(/approved/i);
+
+    expect(strategyRows).toHaveLength(1);
+    expect(plan(draft)).toEqual(strategy);
+    expect(postCreateMany).not.toHaveBeenCalled();
   });
 
   it("builds a rhythm's version on the approved one, not a newer draft", async () => {
@@ -469,7 +486,7 @@ describe("pauseCmoCalendarEntry", () => {
     );
   });
 
-  it("takes an entry on another channel out of the running plan", async () => {
+  it("refuses an entry that is not a Social post and leaves the plan as approved", async () => {
     cusoFind.mockResolvedValue({ ...HIRE, userId: "user-1" });
     const newsletter = {
       id: "nl",
@@ -484,10 +501,11 @@ describe("pauseCmoCalendarEntry", () => {
       { approvedAt: new Date("2026-10-01T09:00:00Z") },
     );
 
-    await pauseCmoCalendarEntry({ userId: "user-1", entryId: "nl" });
+    await expect(
+      pauseCmoCalendarEntry({ userId: "user-1", entryId: "nl" }),
+    ).rejects.toThrow(/Social post/);
 
-    expect(postFindFirst).not.toHaveBeenCalled();
-    expect(plan(running).calendar.at(-1)?.status).toBe("skipped");
+    expect(plan(running).calendar.at(-1)?.status).toBe("idea");
   });
 });
 
@@ -588,26 +606,5 @@ describe("plan questions", () => {
       '"Do you get about 30 orders a week?" No. What is true: About 80',
     );
     expect(note).toContain("You had assumed: About 30 orders a week.");
-  });
-});
-
-describe("mergeCalendarPieces", () => {
-  const entry = (id: string, patch = {}) => ({
-    id,
-    date: "2026-11-02",
-    channel: "x",
-    format: "text",
-    title: id,
-    status: "idea" as const,
-    ...patch,
-  });
-
-  it("updates the pieces sent, adds new ones and keeps every other entry", () => {
-    const merged = mergeCalendarPieces(
-      [entry("a"), entry("b"), entry("c")],
-      [entry("b", { draft: "Written.", status: "draft" }), entry("news")],
-    );
-    expect(merged.map((piece) => piece.id)).toEqual(["a", "b", "c", "news"]);
-    expect(merged[1]).toMatchObject({ draft: "Written.", status: "draft" });
   });
 });

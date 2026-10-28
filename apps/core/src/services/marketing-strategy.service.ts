@@ -279,8 +279,8 @@ const withoutUndefined = <T extends object>(value: T): Partial<T> =>
  * posts: a new entry (or one whose post was canceled) becomes a draft with
  * its planning record, the connection set when the Project has one for that
  * network; an entry with a post updates its plan, and its words and time
- * while it is a draft; a skipped one cancels it. Returns the entries on
- * other channels, which stay in the plan.
+ * while it is a draft; a skipped one cancels it. Entries on other channels
+ * are not produced.
  */
 export async function planMarketingStrategyPosts(
   db: Prisma.TransactionClient,
@@ -290,12 +290,11 @@ export async function planMarketingStrategyPosts(
     entries: CmoCalendarEntry[];
     creator: { sokoBotId: string } | { userId: string };
   },
-): Promise<CmoCalendarEntry[]> {
+): Promise<void> {
   const { version } = input;
-  const rest = input.entries.filter(
-    (entry) => !socialPostProvider(entry.channel),
-  );
-  if (rest.length === input.entries.length) return rest;
+  if (!input.entries.some((entry) => socialPostProvider(entry.channel))) {
+    return;
+  }
   const posts = await db.socialPost.findMany({
     where: { marketingStrategyId: version.id },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -378,7 +377,6 @@ export async function planMarketingStrategyPosts(
     });
   }
   if (drafts.length > 0) await db.socialPost.createMany({ data: drafts });
-  return rest;
 }
 
 /** A version's Social post, as a calendar entry and the media it carries. */
