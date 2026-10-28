@@ -20,10 +20,10 @@ import {
   cmoBrandVisual,
 } from "@/services/cmo-brand-visual.service";
 import {
-  type CmoHireView,
   type CmoLearningState,
+  type Cuso,
   cmoPayer,
-  getCmoHireForUser,
+  findCusoForUser,
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
@@ -98,7 +98,7 @@ export function cmoOnboardingStep(input: {
 }
 
 export interface CmoOverview {
-  hire: CmoHireView;
+  hire: Cuso;
   onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
@@ -203,7 +203,7 @@ export async function getCmoOverview(
   userId: string,
   now: Date = new Date(),
 ): Promise<CmoOverview | null> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) return null;
   const payer = await cmoPayer(hire);
   const [organization, project, bot, channels, viewer] = await Promise.all([
@@ -415,7 +415,7 @@ export const CMO_MAILING_LIST_NAME = "Newsletter";
 
 /** How many people are on the newsletter list. */
 async function cmoMailingListSize(
-  hire: Pick<CmoHireView, "workspaceId">,
+  hire: Pick<Cuso, "workspaceId">,
 ): Promise<number> {
   return prisma.contactListMember.count({
     where: {

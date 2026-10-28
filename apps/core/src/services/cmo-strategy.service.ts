@@ -14,10 +14,10 @@ import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import { parseCmoBrandBrain } from "@/services/brand-brain.service";
 import {
   CmoConflictError,
-  type CmoHireView,
   CmoNotFoundError,
-  cmoHireWhere,
-  getCmoHireForUser,
+  type Cuso,
+  findCusoForUser,
+  requireCuso,
   STRATEGY_TURN_PREFIX,
   startCmoProduction,
   startCmoTurn,
@@ -87,7 +87,7 @@ export async function setCmoAdBudget(input: {
   monthly: number;
   currency: string;
 }): Promise<{ turnId: string }> {
-  const hire = await getCmoHireForUser(input.userId);
+  const hire = await findCusoForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(hire.projectId))?.plan,
@@ -131,7 +131,7 @@ export async function requestCmoStrategy(input: {
   userId: string;
   note?: string;
 }): Promise<{ turnId: string }> {
-  const hire = await getCmoHireForUser(input.userId);
+  const hire = await findCusoForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const brain = parseCmoBrandBrain(hire.brandBrain);
   if (!brain) {
@@ -142,7 +142,7 @@ export async function requestCmoStrategy(input: {
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
   return startCmoTurn(hire, input.userId, {
-    clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
+    clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.sokoBotId}:${Date.now()}`,
     message: (input.note
       ? [
           `Change ${hire.businessName}'s marketing strategy. The owner asked: ${input.note}`,
@@ -324,15 +324,7 @@ export async function saveCmoStrategy(
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
-  const hire = await db.cmoHire.findUnique({
-    where: await cmoHireWhere(where),
-    select: {
-      projectId: true,
-      sokoBotId: true,
-      project: { select: { workspaceId: true } },
-    },
-  });
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const hire = await requireCuso(where, db);
   const own = options.turnId
     ? await db.marketingStrategy.findFirst({
         where: {
@@ -350,7 +342,7 @@ export async function saveCmoStrategy(
     options.pieces && target?.approvedAt
       ? await planMarketingStrategyPosts(db, {
           version: target,
-          workspaceId: hire.project.workspaceId,
+          workspaceId: hire.workspaceId,
           entries: (strategy.calendar ?? []) as CmoCalendarEntry[],
           creator:
             "sokoBotId" in where
@@ -479,7 +471,7 @@ export function keepPlanAnswers(
 
 /** The newest version CMO shows, or "Cuso has not written it yet". */
 async function newestCmoStrategy(
-  hire: Pick<CmoHireView, "projectId">,
+  hire: Pick<Cuso, "projectId">,
 ): Promise<MarketingStrategy> {
   const newest = await newestMarketingStrategy(hire.projectId);
   if (!newest) throw new CmoConflictError("There is no strategy yet");
@@ -491,7 +483,7 @@ export async function answerCmoPlanQuestion(
   userId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const newest = await newestCmoStrategy(hire);
   await answerMarketingStrategyQuestion({
@@ -524,7 +516,7 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
 export async function applyCmoPlanAnswers(
   userId: string,
 ): Promise<{ turnId: string }> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const newest = await newestCmoStrategy(hire);
   const note = cmoPlanAnswerNote(
@@ -542,7 +534,7 @@ export async function approveCmoStrategy(
   userId: string,
   versionId?: string,
 ): Promise<MarketingStrategy> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const strategyId = versionId ?? (await newestCmoStrategy(hire)).id;
   const approved = await approveMarketingStrategy({
@@ -552,7 +544,7 @@ export async function approveCmoStrategy(
     strategyId,
   });
   // Already paying (a re-approved plan): the month is made right away.
-  await startCmoProduction(hire.id);
+  await startCmoProduction(hire.sokoBotId);
   return approved;
 }
 
@@ -565,7 +557,7 @@ export async function pauseCmoCalendarEntry(input: {
   userId: string;
   entryId: string;
 }): Promise<void> {
-  const hire = await getCmoHireForUser(input.userId);
+  const hire = await findCusoForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({

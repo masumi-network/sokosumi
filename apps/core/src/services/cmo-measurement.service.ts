@@ -7,9 +7,9 @@ import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
 import prisma from "@/lib/db/prisma";
 import {
   CmoConflictError,
-  type CmoHireView,
   CmoNotFoundError,
-  getCmoHireForUser,
+  type Cuso,
+  findCusoForUser,
 } from "@/services/cmo-cuso.service";
 
 /**
@@ -17,7 +17,7 @@ import {
  * Shopify is offered only to shops.
  */
 export async function learnCmoSitePlatform(
-  hire: Pick<CmoHireView, "projectId" | "websiteUrl">,
+  hire: Pick<Cuso, "projectId" | "websiteUrl">,
 ): Promise<void> {
   const { detectSitePlatform } = await import("@/lib/site-platform");
   const platform = await detectSitePlatform(hire.websiteUrl).catch(() => null);
@@ -80,7 +80,7 @@ export async function connectCmoMeasurement(input: {
   if (!isFirstPartyAppUrl(input.returnUrl)) {
     throw new CmoConflictError("The return address must be CMO's own page");
   }
-  const hire = await getCmoHireForUser(input.userId);
+  const hire = await findCusoForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const project = await prisma.project.findUnique({
     where: { id: hire.projectId },
@@ -109,7 +109,7 @@ export async function finalizeCmoMeasurement(input: {
   if (!isCmoMeasurementSource(input.provider)) {
     throw new CmoNotFoundError("CMO does not measure with that source");
   }
-  const hire = await getCmoHireForUser(input.userId);
+  const hire = await findCusoForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const { finalizeSokoBotIntegration } = await import(
     "@/services/soko-bot-integration-connection.service"

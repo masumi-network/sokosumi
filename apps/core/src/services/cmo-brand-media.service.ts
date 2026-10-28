@@ -468,18 +468,18 @@ const capturing = new Set<string>();
  * named, pages cited). A second essentials save in the same research, or one
  * while a capture runs here, does not start another.
  */
-export function scheduleCmoBrandMedia(hire: { id: string }): void {
-  if (capturing.has(hire.id)) return;
-  capturing.add(hire.id);
+export function scheduleCmoBrandMedia(sokoBotId: string): void {
+  if (capturing.has(sokoBotId)) return;
+  capturing.add(sokoBotId);
   waitUntil(
-    captureCmoBrandMedia(hire.id)
+    captureCmoBrandMedia(sokoBotId)
       .catch((error) => {
         console.warn("CMO brand media failed", {
-          cmoHireId: hire.id,
+          sokoBotId,
           error: error instanceof Error ? error.message : "unknown",
         });
       })
-      .finally(() => capturing.delete(hire.id)),
+      .finally(() => capturing.delete(sokoBotId)),
   );
 }
 
@@ -491,35 +491,16 @@ export function scheduleCmoBrandMedia(hire: { id: string }): void {
  * a page that does not load is left out. Nothing runs when the last capture
  * is minutes old.
  */
-export async function captureCmoBrandMedia(hireId: string): Promise<void> {
-  const row = await prisma.cmoHire.findUnique({
-    where: { id: hireId },
-    select: {
-      id: true,
-      sokoBotId: true,
-      projectId: true,
-      project: {
-        select: {
-          workspaceId: true,
-          websiteUrl: true,
-          brandBrain: { select: { body: true } },
-        },
-      },
-    },
-  });
-  // The workspace, website and Brand Brain are the Project's (ADR 0062).
-  const hire = row && {
-    id: row.id,
-    sokoBotId: row.sokoBotId,
-    projectId: row.projectId,
-    workspaceId: row.project.workspaceId,
-    websiteUrl: row.project.websiteUrl ?? "",
-  };
-  const brain = cmoBrandBrainSchema.safeParse(row?.project.brandBrain?.body);
-  if (!hire || !brain.success) return;
+export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
   // service imports this module.
-  const { cmoRunnerUserId } = await import("@/services/cmo-cuso.service");
+  const { cmoRunnerUserId, findCusoForBot } = await import(
+    "@/services/cmo-cuso.service"
+  );
+  // The workspace, website and Brand Brain are the Project's (ADR 0062).
+  const hire = await findCusoForBot(sokoBotId);
+  const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
+  if (!hire || !brain.success) return;
   const recent = await prisma.fileProjectLink.findFirst({
     where: {
       projectId: hire.projectId,

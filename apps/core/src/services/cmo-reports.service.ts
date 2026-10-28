@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
+  CMO_SOKO_BOT_VERSION_ID,
   type CmoReportUpdateInput,
   cmoReportUpdateInputSchema,
 } from "@sokosumi/soko-bot";
@@ -21,10 +22,7 @@ import {
   chatResultAvailableSchema,
   chatResultSnapshotSchema,
 } from "@/schemas/chat-result-preview.schema";
-import {
-  CmoNotFoundError,
-  getCmoHireForUser,
-} from "@/services/cmo-cuso.service";
+import { CmoNotFoundError, findCusoForUser } from "@/services/cmo-cuso.service";
 import { approveCmoStrategy } from "@/services/cmo-strategy.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 import { setProjectLatestUpdate } from "@/services/project-latest-update";
@@ -79,10 +77,12 @@ export async function reportCmoUpdate(
       workspaceId: true,
       projectId: true,
       sharedRoomId: true,
-      cmoHire: { select: { id: true } },
+      versionId: true,
     },
   });
-  if (!bot?.cmoHire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (bot?.versionId !== CMO_SOKO_BOT_VERSION_ID) {
+    throw new CmoNotFoundError("Cuso is not hired yet");
+  }
   const { sharedRoomId: roomId, projectId } = bot;
   if (!roomId || !projectId) {
     throw new CmoNotFoundError("Cuso has no shared room in a Project");
@@ -161,7 +161,7 @@ export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
 }): Promise<void> {
-  const hire = await getCmoHireForUser(input.userId);
+  const hire = await findCusoForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const message = await prisma.chatRoomMessage.findFirst({
     where: { id: input.updateId, ...cmoReportMessageWhere(hire.sokoBotId) },

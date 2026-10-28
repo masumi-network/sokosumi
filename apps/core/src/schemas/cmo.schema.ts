@@ -216,7 +216,6 @@ export const cmoRoutineSchema = z
 
 export const cmoOverviewSchema = z
   .object({
-    id: z.string(),
     businessName: z.string(),
     websiteUrl: z.string(),
     /** Set when Cuso works in an organization's workspace, not a personal one. */

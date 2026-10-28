@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  cmoFindUnique,
   connectionFindMany,
+  cusoFind,
   fileLinkFindMany,
   messageFindMany,
   postFindMany,
@@ -88,8 +88,7 @@ beforeEach(resetCmoServiceMocks);
 describe("loadCmoMarketingContext", () => {
   it("gives Cuso the Project's logo, DESIGN.md and Brand research pictures", async () => {
     const { loadCmoMarketingContext } = await import("./cmo-context.service");
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
+    cusoFind.mockResolvedValue({
       sokoBotId: "bot-1",
       projectId: "project-1",
       brandBrain: null,
@@ -134,8 +133,7 @@ describe("buildCmoBeatPacket", () => {
   it("stays well under the message limit with a long plan", async () => {
     const { buildCmoBeatPacket } = await import("./cmo-context.service");
     const long = "x".repeat(2_000);
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
+    cusoFind.mockResolvedValue({
       userId: "user-1",
       workspaceId: "ws-1",
       projectId: "project-1",
@@ -172,8 +170,7 @@ describe("buildCmoBeatPacket", () => {
 
 describe("loadCmoMarketingContext", () => {
   it("shows a rhythm the approved version and every other turn the newest draft", async () => {
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
+    cusoFind.mockResolvedValue({
       workspaceId: "ws-1",
       projectId: "project-1",
       websiteUrl: "https://acme.io",
@@ -202,8 +199,7 @@ describe("loadCmoMarketingContext", () => {
   });
 
   it("gives Cuso his latest reports from the cards in his room", async () => {
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
+    cusoFind.mockResolvedValue({
       workspaceId: "ws-1",
       projectId: "project-1",
     });

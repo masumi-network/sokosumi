@@ -286,10 +286,7 @@ import {
 } from "@/services/chat-result-preview.service";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
-import {
-  CmoNotFoundError,
-  getCmoHireForBot,
-} from "@/services/cmo-cuso.service";
+import { CmoNotFoundError } from "@/services/cmo-cuso.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -2038,13 +2035,13 @@ export class SokoBotRuntimeService {
       getSokoBotVersion(turn.versionId).profile !== "cmo"
     )
       return false;
-    const hire = await prisma.cmoHire.findUnique({
-      where: { sokoBotId: turn.sokoBotId },
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: turn.sokoBotId },
       select: { projectId: true },
     });
     return (
-      hire !== null &&
-      (await approvedMarketingStrategy(hire.projectId)) !== null
+      !!bot?.projectId &&
+      (await approvedMarketingStrategy(bot.projectId)) !== null
     );
   }
 
@@ -4923,7 +4920,7 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
-  /** Cuso's Brand Brain, strategy and reports, written to its CMO hire. */
+  /** Cuso's Brand Brain, strategy and reports, written to his Project. */
   /**
    * The plan's review while it waits for approval: the strategy skill's hard
    * rules, and whether it sells the main offer. Bounded per turn, so a plan
@@ -4947,14 +4944,14 @@ export class SokoBotRuntimeService {
     });
     if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
-    const hire = plan.planSent
-      ? await prisma.cmoHire.findUnique({
-          where: { sokoBotId: authorized.turn.sokoBotId },
+    const bot = plan.planSent
+      ? await prisma.sokoBot.findUnique({
+          where: { id: authorized.turn.sokoBotId },
           select: { projectId: true },
         })
       : null;
-    const brain = hire
-      ? parseCmoBrandBrain((await getBrandBrain(hire.projectId))?.body)
+    const brain = bot?.projectId
+      ? parseCmoBrandBrain((await getBrandBrain(bot.projectId))?.body)
       : null;
     let mainOffer: CmoPlanOfferVerdict = "skipped";
     if (plan.planSent && brain) {
@@ -5033,10 +5030,7 @@ export class SokoBotRuntimeService {
               );
             return saveBrandBrain(bot.projectId, save, tx);
           });
-          if (save.brandBrain) {
-            const hire = await getCmoHireForBot(authorized.turn.sokoBotId);
-            if (hire) scheduleCmoBrandMedia(hire);
-          }
+          if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
           const stored = parseCmoBrandBrain(saved.body);
           // The owner opens on the reveal and answers the questions next, so
           // essentials without them leave two empty screens.

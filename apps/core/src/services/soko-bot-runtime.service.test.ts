@@ -10,7 +10,6 @@ import { badRequest } from "@/helpers/error";
 const {
   botFindFirstMock,
   botFindUniqueMock,
-  cmoHireFindUniqueMock,
   marketingStrategyFindFirstMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
@@ -109,7 +108,6 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
-  cmoHireFindUniqueMock: vi.fn(),
   marketingStrategyFindFirstMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
@@ -365,7 +363,6 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
-    cmoHire: { findUnique: cmoHireFindUniqueMock },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     sokoBot: {
       findFirst: botFindFirstMock,
@@ -8130,13 +8127,13 @@ describe("Content Studio image tools", () => {
       ...ownerChat,
       turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
     };
-    cmoHireFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
     // Only a draft version: nothing of it is carried out yet.
     marketingStrategyFindFirstMock.mockResolvedValueOnce(null);
     await expect(generate(dailyRun, request, "call-c1")).rejects.toThrow(
       "only when a person asks in chat",
     );
-    cmoHireFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
     marketingStrategyFindFirstMock.mockResolvedValueOnce({
       id: "strategy-1",
       approvedAt: new Date(),
@@ -8880,7 +8877,7 @@ describe("CMO record saves", () => {
           workspaceId: SCOPE.workspaceId,
           projectId: "project-1",
           sharedRoomId: "room-1",
-          cmoHire: { id: "cmo-1" },
+          versionId: "cmo-v1",
         }),
       },
       chatRoomMessage: {
@@ -9004,10 +9001,18 @@ describe("CMO record saves", () => {
       updatedAt: new Date("2026-11-01T09:00:00Z"),
     };
     const tx = {
-      cmoHire: {
-        findUnique: vi.fn().mockResolvedValue({
-          projectId: PROJECT,
-          sokoBotId: SCOPE.sokoBotId,
+      // Cuso, found as the Project's shared bot on CMO's version.
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: SCOPE.sokoBotId,
+          createdAt: new Date("2026-10-01T09:00:00Z"),
+          project: {
+            id: PROJECT,
+            workspaceId: SCOPE.workspaceId,
+            websiteUrl: "https://acme.io",
+            workspace: { organizationId: "org-1" },
+            brandBrain: null,
+          },
         }),
       },
       marketingStrategy: {
@@ -9032,7 +9037,7 @@ describe("CMO record saves", () => {
     });
     toolCallCountMock.mockResolvedValueOnce(1);
     // No Brand Brain to check the plan against: the drift review is skipped.
-    cmoHireFindUniqueMock.mockResolvedValueOnce(null);
+    botFindUniqueMock.mockResolvedValueOnce(null);
     const service = new SokoBotRuntimeService();
     service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
     serializableTransactionMock.mockResolvedValueOnce(undefined);

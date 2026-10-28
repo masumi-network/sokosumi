@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   projectUpdate: vi.fn(),
-  cmoHireUpdate: vi.fn(),
   readBrandVisual: vi.fn(),
   siteIcon: vi.fn(),
   upload: vi.fn(),
@@ -12,7 +11,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { update: mocks.projectUpdate },
-    cmoHire: { update: mocks.cmoHireUpdate },
   },
 }));
 vi.mock("@/lib/brand-visual", async (importOriginal) => ({
@@ -77,7 +75,6 @@ describe("brand capture", () => {
     expect(mocks.upload).toHaveBeenCalledWith(
       expect.objectContaining({ owner: { kind: "project", id: "project-1" } }),
     );
-    expect(mocks.cmoHireUpdate).not.toHaveBeenCalled();
   });
 
   it("reads back what it wrote as the brand's look", async () => {

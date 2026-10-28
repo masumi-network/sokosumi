@@ -9492,7 +9492,6 @@ export type PublicSharedTaskFile = {
 };
 
 export type CmoOverview = {
-    id: string;
     businessName: string;
     websiteUrl: string;
     organizationSlug: string | null;
@@ -64034,7 +64033,7 @@ export type GetCmoOverviewError = GetCmoOverviewErrors[keyof GetCmoOverviewError
 
 export type GetCmoOverviewResponses = {
     /**
-     * The caller's CMO hire
+     * The Cuso the caller works with
      */
     200: {
         data: CmoOverview;

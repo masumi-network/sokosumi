@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  cmoFindUnique,
+  cusoFind,
   messageFindFirst,
   messageFindMany,
   messageUpdate,
@@ -90,7 +90,7 @@ function cuso() {
     workspaceId: "ws-1",
     projectId: "project-1",
     sharedRoomId: "room-1",
-    cmoHire: { id: "cmo-1" },
+    versionId: "cmo-v1",
   };
 }
 
@@ -274,8 +274,7 @@ describe("weekly change and revert", () => {
     // The owner approved the review's version, then reverts from the card.
     Object.assign(before, { approvedAt: null });
     Object.assign(review, { approvedAt: new Date("2026-10-05T09:00:00Z") });
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
+    cusoFind.mockResolvedValue({
       sokoBotId: "bot-1",
       projectId: "project-1",
       workspaceId: "ws-1",
@@ -313,7 +312,7 @@ describe("weekly change and revert", () => {
 
   it("reverts a card only once", async () => {
     const before = seedStrategy(strategy);
-    cmoFindUnique.mockResolvedValue({ id: "cmo-1", sokoBotId: "bot-1" });
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1" });
     messageFindFirst.mockResolvedValue(
       reportMessage({
         previousVersionId: before.id,
@@ -326,7 +325,7 @@ describe("weekly change and revert", () => {
   });
 
   it("finds nothing to revert on a card without a previous version", async () => {
-    cmoFindUnique.mockResolvedValue({ id: "cmo-1", sokoBotId: "bot-1" });
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1" });
     messageFindFirst.mockResolvedValue(reportMessage({ kind: "daily" }));
     await expect(
       revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID }),

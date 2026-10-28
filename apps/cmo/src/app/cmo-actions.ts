@@ -45,7 +45,7 @@ async function requireCore() {
   return core;
 }
 
-/** The person's CMO hire, or null before they hire Cuso. */
+/** The Cuso the person works with, or null before they hire him. */
 export async function loadOverview(): Promise<CmoOverview | null> {
   const core = await requireCore();
   const { data, response } = await getCmoOverview(core);

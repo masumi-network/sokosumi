@@ -11,8 +11,7 @@ const {
   isCmoSubscribed,
   listCmoChannels,
   cmoRunnerUserId,
-  hireFindMany,
-  hireUpdate,
+  listCusos,
   scheduleUpdateMany,
   approvedStrategy,
   listPosts,
@@ -20,8 +19,7 @@ const {
   approvedStrategy: vi.fn(),
   listPosts: vi.fn(),
   cmoRunnerUserId: vi.fn(),
-  hireFindMany: vi.fn(),
-  hireUpdate: vi.fn(),
+  listCusos: vi.fn(),
   scheduleUpdateMany: vi.fn(),
   turnFindMany: vi.fn(),
   turnFindFirst: vi.fn(),
@@ -33,7 +31,6 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    cmoHire: { findMany: hireFindMany, update: hireUpdate },
     sokoBotSchedule: { updateMany: scheduleUpdateMany },
     sokoBotTurn: { findMany: turnFindMany, findFirst: turnFindFirst },
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
@@ -41,14 +38,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/services/cmo-cuso.service", () => ({
-  CMO_HIRE_OMIT: {},
-  CMO_HIRE_PROJECT: {},
-  cmoHireView: ({
-    project,
-    ...hire
-  }: {
-    project: { workspaceId: string; websiteUrl: string };
-  }) => ({ ...hire, ...project, businessName: "acme.io" }),
+  findCusoForBot: vi.fn(),
+  listCusosWithApprovedStrategy: listCusos,
   cmoRunnerUserId,
   listCmoChannels,
 }));
@@ -160,7 +151,6 @@ function hire(posts: MarketingStrategyPost[], runs: Run[] = []) {
     runs.map((run) => ({ completedAt: null, ...run })),
   );
   return {
-    id: "cmo-1",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
     projectId: "project-1",
@@ -345,8 +335,6 @@ describe("advanceCmoProduction", () => {
       background: { parentTurnId: "turn-0", destinationRoomId: "room-1" },
       presetRoute: { sandbox: false },
     });
-    // Nothing is stored: the runs are Cuso's turns.
-    expect(hireUpdate).not.toHaveBeenCalled();
   });
 
   it("reads the runs from Cuso's production turns", async () => {
@@ -473,11 +461,13 @@ describe("advanceCmoProduction", () => {
 
 describe("syncCmoProduction", () => {
   it("points Cuso's rhythms at his runner once the hirer left", async () => {
-    hireFindMany.mockResolvedValue([
+    listCusos.mockResolvedValue([
       {
-        id: "cmo-1",
         sokoBotId: "bot-1",
-        project: { workspaceId: "ws-1", websiteUrl: "https://acme.io" },
+        projectId: "project-1",
+        workspaceId: "ws-1",
+        websiteUrl: "https://acme.io",
+        businessName: "acme.io",
       },
     ]);
     cmoRunnerUserId.mockResolvedValue("owner-2");

@@ -20,7 +20,7 @@ import mountRevertCmoUpdate from "./updates/[id]/revert/post.js";
 
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
- * with Sokosumi token; everything is scoped to the caller's own CMO hire,
+ * with Sokosumi token; everything is scoped to the Cuso the caller works with,
  * so no organization header is needed.
  */
 const app = new OpenAPIHonoWithAuth();

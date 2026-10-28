@@ -10,12 +10,11 @@ import { waitUntil } from "@vercel/functions";
 import prisma from "@/lib/db/prisma";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
-  CMO_HIRE_OMIT,
-  CMO_HIRE_PROJECT,
-  type CmoHireView,
-  cmoHireView,
+  type Cuso,
   cmoRunnerUserId,
+  findCusoForBot,
   listCmoChannels,
+  listCusosWithApprovedStrategy,
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
@@ -259,7 +258,7 @@ function approvalRunPrefix(sokoBotId: string, approvedAt: Date): string {
 }
 
 async function startProductionRun(
-  hire: CmoHireView,
+  hire: Cuso,
   message: string,
   clientTurnId: string,
 ): Promise<string> {
@@ -373,7 +372,7 @@ interface ProductionRead {
 
 /** Where the month's production stands; reads only, never starts a run. */
 export async function readCmoProduction(
-  hire: CmoHireView,
+  hire: Cuso,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
 ): Promise<ProductionRead> {
   const { connected, now } = context;
@@ -444,7 +443,7 @@ export async function readCmoProduction(
  * Safe to call any time and from anywhere; it is a no-op while a run works.
  */
 export async function advanceCmoProduction(
-  hire: CmoHireView,
+  hire: Cuso,
   now: Date = new Date(),
 ): Promise<CmoProductionStatus> {
   const connected = await connectedChannels(hire.projectId);
@@ -478,18 +477,13 @@ export async function advanceCmoProduction(
 }
 
 /** Starts production in the background; the caller's request does not wait. */
-export function kickCmoProduction(hireId: string): void {
+export function kickCmoProduction(sokoBotId: string): void {
   waitUntil(
-    prisma.cmoHire
-      .findUnique({
-        where: { id: hireId },
-        omit: CMO_HIRE_OMIT,
-        include: CMO_HIRE_PROJECT,
-      })
-      .then((hire) => (hire ? advanceCmoProduction(cmoHireView(hire)) : null))
+    findCusoForBot(sokoBotId)
+      .then((hire) => (hire ? advanceCmoProduction(hire) : null))
       .catch((error: unknown) => {
         console.warn("CMO production could not start", {
-          hireId,
+          sokoBotId,
           error: error instanceof Error ? error.message : "unknown",
         });
       }),
@@ -500,7 +494,7 @@ export function kickCmoProduction(hireId: string): void {
  * Points Cuso's own rhythms at his runner, so they keep acting as a current
  * member once the person who hired him left the business (ADR 0061).
  */
-async function keepCmoRhythmsWithRunner(hire: CmoHireView): Promise<void> {
+async function keepCmoRhythmsWithRunner(hire: Cuso): Promise<void> {
   const runnerId = await cmoRunnerUserId(hire);
   if (!runnerId) return;
   await prisma.sokoBotSchedule.updateMany({
@@ -516,22 +510,11 @@ async function keepCmoRhythmsWithRunner(hire: CmoHireView): Promise<void> {
   });
 }
 
-/** The cron: every approved hire, so new and missing pieces get made. */
+/** The cron: every Cuso with an approved plan, so new and missing pieces get made. */
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
 ): Promise<{ checked: number }> {
-  const hires = (
-    await prisma.cmoHire.findMany({
-      where: {
-        project: {
-          marketingStrategies: { some: { approvedAt: { not: null } } },
-        },
-      },
-      omit: CMO_HIRE_OMIT,
-      include: CMO_HIRE_PROJECT,
-      orderBy: { updatedAt: "asc" },
-    })
-  ).map(cmoHireView);
+  const hires = await listCusosWithApprovedStrategy();
   let checked = 0;
   for (const hire of hires) {
     if (!shouldContinue()) break;
@@ -540,8 +523,8 @@ export async function syncCmoProduction(
       await advanceCmoProduction(hire);
       checked += 1;
     } catch (error) {
-      console.warn("CMO production sync skipped a hire", {
-        hireId: hire.id,
+      console.warn("CMO production sync skipped a Cuso", {
+        sokoBotId: hire.sokoBotId,
         error: error instanceof Error ? error.message : "unknown",
       });
     }

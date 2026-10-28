@@ -7,22 +7,17 @@
  * pnpm --filter core cmo:lab -- --slots alice@sokosumi.test,bob@sokosumi.test
  * pnpm --filter core cmo:lab -- --slots alice@sokosumi.test --only cal.com,Hiltl
  *
- * Local database only: each slot is a local test account with a CMO hire,
- * and the lab rewrites that hire's business, Brand Brain and strategy.
+ * Local database only: each slot is a local test account that works with a
+ * Cuso, and the lab rewrites his Project's website, Brand Brain and strategy.
  * Brands and their main offers: scripts/fixtures/cmo-lab-brands.json.
  */
 
 import { readFile, writeFile } from "node:fs/promises";
-import { Prisma, type SokoBotTurnStatus } from "@sokosumi/database";
+import type { SokoBotTurnStatus } from "@sokosumi/database";
 import type { CmoStrategy } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { parseCmoBrandBrain } from "@/services/brand-brain.service";
-import {
-  CMO_HIRE_OMIT,
-  CMO_HIRE_PROJECT,
-  cmoHireView,
-  getCmoHireForUser,
-} from "@/services/cmo-cuso.service";
+import { findCusoForUser } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
@@ -64,12 +59,12 @@ const out = flag("out") ?? "cmo-lab-results.json";
 const databaseUrl = process.env.DATABASE_URL ?? "";
 if (!/@(localhost|127\.0\.0\.1)[:/]/.test(databaseUrl)) {
   throw new Error(
-    "The CMO lab rewrites hires: run it against a local database only.",
+    "The CMO lab rewrites Cuso's Projects: run it against a local database only.",
   );
 }
 if (slots.length === 0) {
   throw new Error(
-    "Pass --slots with local test accounts that have a CMO hire.",
+    "Pass --slots with local test accounts that work with a Cuso.",
   );
 }
 
@@ -101,9 +96,9 @@ async function settle(turnId: string): Promise<string> {
 
 async function run(email: string, brand: Brand) {
   const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const current = await getCmoHireForUser(user.id);
+  const current = await findCusoForUser(user.id);
   if (!current) throw new Error(`${email} works with no Cuso`);
-  // The website and the brand's look are the Project's; the hire keeps no copy.
+  // The website and the brand's look are the Project's.
   await prisma.project.update({
     where: { id: current.projectId },
     data: {
@@ -116,12 +111,9 @@ async function run(email: string, brand: Brand) {
   await prisma.brandBrain.deleteMany({
     where: { projectId: current.projectId },
   });
-  const hire = await prisma.cmoHire.update({
-    where: { id: current.id },
-    omit: CMO_HIRE_OMIT,
-    include: CMO_HIRE_PROJECT,
-    data: { brandVisual: Prisma.DbNull },
-  });
+  // Read again: his website and business name are the Project's new ones.
+  const hire = await findCusoForUser(user.id);
+  if (!hire) throw new Error(`${email} works with no Cuso`);
   // Hiring progress is read from the data; only skipping accounts is stored.
   await prisma.user.update({
     where: { id: user.id },
@@ -144,9 +136,7 @@ async function run(email: string, brand: Brand) {
     where: { id: hire.sokoBotId },
     data: { proactiveDailyLimit: 1_000 },
   });
-  const research = await settle(
-    (await startCmoResearch(cmoHireView(hire), user.id)).turnId,
-  );
+  const research = await settle((await startCmoResearch(hire, user.id)).turnId);
   const plan =
     research === "COMPLETED"
       ? await settle((await requestCmoStrategy({ userId: user.id })).turnId)

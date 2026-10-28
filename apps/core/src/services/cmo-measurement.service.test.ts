@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  cmoFindUnique,
-  cmoUpdate,
   connectSokoBotIntegration,
+  cusoFind,
   finalizeSokoBotIntegration,
   integrationFindMany,
   projectFindUnique,
@@ -85,7 +84,6 @@ beforeEach(resetCmoServiceMocks);
 
 describe("measurement", () => {
   const hire = {
-    id: "cmo-1",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
     projectId: "project-1",
@@ -100,7 +98,6 @@ describe("measurement", () => {
       where: { id: "project-1" },
       data: { sitePlatform: "shopify" },
     });
-    expect(cmoUpdate).not.toHaveBeenCalled();
   });
 
   it("lists the sources with their connection state", async () => {
@@ -125,7 +122,7 @@ describe("measurement", () => {
         "google_search_console",
       ]);
     }
-    cmoFindUnique.mockResolvedValue(hire);
+    cusoFind.mockResolvedValue(hire);
     projectFindUnique.mockResolvedValue({ sitePlatform: "other" });
     await expect(
       connectCmoMeasurement({
@@ -137,7 +134,7 @@ describe("measurement", () => {
   });
 
   it("connects to Cuso's own bot and returns only to CMO", async () => {
-    cmoFindUnique.mockResolvedValue(hire);
+    cusoFind.mockResolvedValue(hire);
     projectFindUnique.mockResolvedValue({ sitePlatform: "shopify" });
     connectSokoBotIntegration.mockResolvedValue({ redirectUrl: "https://x" });
     await connectCmoMeasurement({
@@ -169,7 +166,7 @@ describe("measurement", () => {
   });
 
   it("finalizes on Cuso's bot", async () => {
-    cmoFindUnique.mockResolvedValue(hire);
+    cusoFind.mockResolvedValue(hire);
     await finalizeCmoMeasurement({
       userId: "user-1",
       provider: "google_analytics",

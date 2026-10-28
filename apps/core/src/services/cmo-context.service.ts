@@ -11,7 +11,7 @@ import {
 } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
-import { getCmoHireForBot, listCmoChannels } from "@/services/cmo-cuso.service";
+import { findCusoForBot, listCmoChannels } from "@/services/cmo-cuso.service";
 import { listCmoReports } from "@/services/cmo-reports.service";
 import {
   CMO_VISIBLE_CALENDAR_DAYS,
@@ -47,7 +47,7 @@ export async function loadCmoMarketingContext(
   now: Date = new Date(),
   options: { executing?: boolean } = {},
 ): Promise<Record<string, unknown> | null> {
-  const hire = await getCmoHireForBot(sokoBotId);
+  const hire = await findCusoForBot(sokoBotId);
   if (!hire) return null;
   const version = await cmoWorkingStrategy(
     hire.projectId,
@@ -253,7 +253,7 @@ export async function buildCmoBeatPacket(
   now: Date,
   key: CmoSystemSchedule["key"],
 ): Promise<{ packet: string; skip: boolean }> {
-  const hire = await getCmoHireForBot(sokoBotId);
+  const hire = await findCusoForBot(sokoBotId);
   if (!hire) return { packet: "", skip: true };
   // Nothing runs without a reason: no approved strategy, no Brand Brain,
   // or not the reminder's one slot. A skipped run costs no turn.

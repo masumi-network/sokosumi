@@ -11,7 +11,7 @@ import {
   CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
-  getCmoHireForUser,
+  findCusoForUser,
 } from "@/services/cmo-cuso.service";
 import {
   type CmoOverview,
@@ -22,7 +22,6 @@ import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.servic
 function mapOverview(overview: CmoOverview) {
   const { hire } = overview;
   return cmoOverviewSchema.parse({
-    id: hire.id,
     businessName: hire.businessName,
     websiteUrl: hire.websiteUrl,
     organizationSlug: overview.organizationSlug,
@@ -93,7 +92,7 @@ export async function requireOverview(userId: string) {
 
 /** The Project of the Cuso this member works with: his Brand Brain is its. */
 export async function requireCmoProjectId(userId: string): Promise<string> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw notFound("Cuso is not hired yet");
   return hire.projectId;
 }

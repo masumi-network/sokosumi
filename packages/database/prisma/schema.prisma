@@ -489,7 +489,6 @@ model Project {
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
-  cmoHire          CmoHire?
   brandBrain       BrandBrain?
   newsletter       Newsletter?
   newsletterIssues NewsletterIssue[]
@@ -2387,7 +2386,6 @@ model SokoBot {
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
-  cmoHire               CmoHire?
   marketingStrategies   MarketingStrategy[]
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")

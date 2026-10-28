@@ -5,11 +5,11 @@ import prisma from "@/lib/db/prisma";
 import {
   CmoConflictError,
   CmoForbiddenError,
-  type CmoHireView,
   CmoNotFoundError,
+  type Cuso,
   cmoPayer,
-  getCmoHireForBot,
-  getCmoHireForUser,
+  findCusoForBot,
+  findCusoForUser,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
@@ -49,7 +49,7 @@ export function cmoMockBilling(): boolean {
 
 /** The paying organization's CMO Subscription, mock or paid, lets Cuso execute. */
 export async function isCmoSubscribed(
-  hire: Pick<CmoHireView, "workspaceId">,
+  hire: Pick<Cuso, "workspaceId">,
 ): Promise<boolean> {
   return hasActiveCmoSubscription((await cmoPayer(hire)).referenceId);
 }
@@ -72,7 +72,7 @@ export async function mayCommitCmo(
 
 export async function requireCmoCommitter(
   userId: string,
-  hire: Pick<CmoHireView, "workspaceId">,
+  hire: Pick<Cuso, "workspaceId">,
 ): Promise<void> {
   const { organizationId } = await cmoPayer(hire);
   if (!(await mayCommitCmo(userId, organizationId))) {
@@ -98,7 +98,7 @@ export async function chooseCmoMockPlan(
   if (!plans.includes(plan)) {
     throw new CmoConflictError(`${plan} is not a CMO plan on this server`);
   }
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   await requireCmoCommitter(userId, hire);
   const { referenceId } = await cmoPayer(hire);
@@ -112,7 +112,7 @@ export async function chooseCmoMockPlan(
   } else {
     await prisma.subscription.create({ data: { referenceId, ...data } });
   }
-  await startCmoProduction(hire.id);
+  await startCmoProduction(hire.sokoBotId);
 }
 
 /**
@@ -125,7 +125,7 @@ export async function cmoExecutionRefusal(input: {
   versionId: string | null;
 }): Promise<string | null> {
   if (getSokoBotVersion(input.versionId).profile !== "cmo") return null;
-  const hire = await getCmoHireForBot(input.sokoBotId);
+  const hire = await findCusoForBot(input.sokoBotId);
   if (!hire) return null;
   const verdict = cmoMayExecute({
     approved: (await approvedMarketingStrategy(hire.projectId)) !== null,

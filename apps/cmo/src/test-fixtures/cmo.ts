@@ -43,7 +43,6 @@ export const cmoStrategy: NonNullable<CmoOverview["strategy"]> = {
 
 export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
   return {
-    id: "cmo-1",
     businessName: "Acme",
     websiteUrl: "https://acme.io",
     organizationSlug: null,

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cancelSocialPost,
-  cmoFindUnique,
   connectionFindMany,
+  cusoFind,
   memberFindUnique,
   postCreateMany,
   postFindFirst,
@@ -92,7 +92,6 @@ import {
 beforeEach(resetCmoServiceMocks);
 
 const HIRE = {
-  id: "cmo-1",
   sokoBotId: "bot-1",
   workspaceId: "ws-1",
   projectId: "project-1",
@@ -102,7 +101,7 @@ const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
 describe("approveCmoStrategy", () => {
   it("approves the newest version and records who approved it", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
     const newest = seedStrategy(revised);
 
@@ -118,7 +117,7 @@ describe("approveCmoStrategy", () => {
   });
 
   it("reverts by approving an older version, which withdraws the newer approval", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     const older = seedStrategy(strategy);
     seedStrategy(revised, {
       approvedAt: new Date("2026-10-02T09:00:00Z"),
@@ -134,7 +133,7 @@ describe("approveCmoStrategy", () => {
   });
 
   it("keeps the first approval time when the same version is approved again", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     const first = new Date("2026-10-01T09:00:00Z");
     seedStrategy(strategy, { approvedAt: first, approvedByUserId: "user-1" });
 
@@ -149,12 +148,12 @@ describe("approveCmoStrategy", () => {
   });
 
   it("needs a strategy", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
   });
 
   it("leaves approving to the organization's owners and admins", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
     memberFindUnique.mockResolvedValue({ role: "member" });
     await expect(approveCmoStrategy("user-2")).rejects.toMatchObject({
@@ -169,14 +168,14 @@ describe("approveCmoStrategy", () => {
   });
 
   it("waits while Cuso writes the strategy the owner asked for", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
     turnFindFirst.mockResolvedValue({
       id: "turn-1",
       status: "RUNNING",
       eveSessionId: null,
       createdAt: new Date(),
-      clientTurnId: "cmo:strategy:cmo-1:1",
+      clientTurnId: "cmo:strategy:bot-1:1",
     });
     await expect(approveCmoStrategy("user-1")).rejects.toMatchObject({
       status: 409,
@@ -204,7 +203,7 @@ describe("requestCmoStrategy", () => {
   };
 
   it("leaves the approved version running while Cuso writes a new one", async () => {
-    cmoFindUnique.mockResolvedValue(hire);
+    cusoFind.mockResolvedValue(hire);
     seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
@@ -219,7 +218,7 @@ describe("requestCmoStrategy", () => {
 
 describe("saving versions", () => {
   it("adds a version per turn and completes it with the turn's later saves", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     const running = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
@@ -248,7 +247,7 @@ describe("saving versions", () => {
   });
 
   it("starts a new version once the turn's own one was approved", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy, {
       turnId: "turn-1",
       approvedAt: new Date("2026-10-01T09:00:00Z"),
@@ -263,7 +262,7 @@ describe("saving versions", () => {
   });
 
   it("fills pieces into the approved version's Social posts, not a newer draft", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     const running = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
@@ -351,7 +350,7 @@ describe("saving versions", () => {
   });
 
   it("builds a rhythm's version on the approved one, not a newer draft", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     seedStrategy({ ...revised, goals: ["Draft goal"] });
 
@@ -365,7 +364,7 @@ describe("saving versions", () => {
   });
 
   it("keeps calendar entries outside the 31 days a turn can see", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     const far = {
       id: "d",
       date: "2026-12-01",
@@ -389,7 +388,7 @@ describe("saving versions", () => {
   });
 
   it("keeps what a save leaves out, so a plan can arrive in short calls", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
     const saved = await saveCmoStrategy(
       { sokoBotId: "bot-1" },
@@ -404,7 +403,7 @@ describe("saving versions", () => {
   });
 
   it("keeps saved previews when a weekly drafting save sends none", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     const preview = {
       kind: "post" as const,
       channel: "linkedin",
@@ -419,7 +418,7 @@ describe("saving versions", () => {
   });
 
   it("lets an owner save replace the calendar, including hidden days", async () => {
-    cmoFindUnique.mockResolvedValue(HIRE);
+    cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
     const saved = await saveCmoStrategy(
       { userId: "user-1" },
@@ -434,7 +433,7 @@ describe("pauseCmoCalendarEntry", () => {
   const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
 
   it("cancels the entry's Social post and leaves the plan as approved", async () => {
-    cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
+    cusoFind.mockResolvedValue({ ...HIRE, userId: "user-1" });
     const running = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
@@ -455,7 +454,7 @@ describe("pauseCmoCalendarEntry", () => {
   });
 
   it("refuses a post that is already going out", async () => {
-    cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
+    cusoFind.mockResolvedValue({ ...HIRE, userId: "user-1" });
     seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     postFindFirst.mockResolvedValue({ status: "PUBLISHING", revision: 3 });
     cancelSocialPost.mockRejectedValue(
@@ -471,7 +470,7 @@ describe("pauseCmoCalendarEntry", () => {
   });
 
   it("takes an entry on another channel out of the running plan", async () => {
-    cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
+    cusoFind.mockResolvedValue({ ...HIRE, userId: "user-1" });
     const newsletter = {
       id: "nl",
       date: "2026-10-22",

@@ -2,10 +2,9 @@ import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   chatRoomDelete,
-  cmoCreate,
-  cmoFindUnique,
   createBot,
   createOrganizationWorkspace,
+  cusoFind,
   eventFindFirst,
   expireTurn,
   funding,
@@ -89,7 +88,6 @@ beforeEach(resetCmoServiceMocks);
 
 describe("learning state", () => {
   const workspace = {
-    id: "cmo-1",
     userId: "user-1",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
@@ -133,12 +131,12 @@ describe("learning state", () => {
   });
 
   it("retries only after a failure, with a fresh turn id", async () => {
-    cmoFindUnique.mockResolvedValue(workspace);
+    cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(await retryCmoOnboarding("user-1")).toEqual({ turnId: "turn-2" });
     const input = startTurn.mock.calls[0]?.[0];
-    expect(input.clientTurnId).toMatch(/^cmo:onboarding:cmo-1:\d+$/);
+    expect(input.clientTurnId).toMatch(/^cmo:onboarding:bot-1:\d+$/);
     // Cuso runs it, not the owner's personal assistant beside him.
     expect(input.sokoBotId).toBe("bot-1");
 
@@ -150,7 +148,7 @@ describe("learning state", () => {
   });
 
   it("says out of credits instead of starting a turn that would stop", async () => {
-    cmoFindUnique.mockResolvedValue(workspace);
+    cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     funding.requireFunding.mockRejectedValueOnce(
       new funding.BillingError("no"),
@@ -230,7 +228,10 @@ describe("startCmoOnboarding", () => {
   };
 
   beforeEach(() => {
-    cmoFindUnique.mockResolvedValue(null);
+    // The person works with no Cuso yet; read back by his bot, he is there.
+    cusoFind
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
     organizationFindFirst.mockResolvedValue(null);
     createOrganizationWorkspace.mockResolvedValue({
       id: "ws-1",
@@ -241,10 +242,6 @@ describe("startCmoOnboarding", () => {
     projectCreate.mockResolvedValue({ id: "project-1" });
     projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
-    cmoCreate.mockImplementation(async ({ data }) => ({
-      id: "cmo-1",
-      ...data,
-    }));
     startTurn.mockResolvedValue({ turnId: "turn-1" });
   });
 
@@ -260,7 +257,10 @@ describe("startCmoOnboarding", () => {
   });
 
   it("hires Cuso into a new organization named after the website", async () => {
-    await startCmoOnboarding(input);
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+    });
 
     expect(createOrganizationWorkspace).toHaveBeenCalledWith("user-1", {
       name: "acme.io",
@@ -284,11 +284,6 @@ describe("startCmoOnboarding", () => {
         versionId: CMO_SOKO_BOT_VERSION_ID,
       }),
     );
-    // The hire keeps no copy of the Project's workspace, website or name.
-    expect(cmoCreate.mock.lastCall?.[0].data).toEqual({
-      sokoBotId: "bot-1",
-      projectId: "project-1",
-    });
     // No goal is asked for, so Cuso's first turn names none.
     expect(startTurn.mock.lastCall?.[0].message).not.toMatch(/goal/i);
   });
@@ -348,25 +343,43 @@ describe("startCmoOnboarding", () => {
 
     await expect(startCmoOnboarding(input)).rejects.toThrow("bot failed");
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
-    expect(cmoCreate).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("removes his shared room with the Project when the CMO record fails", async () => {
+  it("refuses a Project that already has Cuso and removes only the Project it made", async () => {
+    createBot.mockRejectedValue(
+      Object.assign(new Error("This Project already has Cuso"), {
+        status: 409,
+      }),
+    );
+
+    await expect(startCmoOnboarding(input)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(projectDelete).toHaveBeenCalledTimes(1);
+    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+  });
+
+  it("removes his shared room with the Project when reading him back fails", async () => {
     createBot.mockResolvedValue({ id: "bot-1", sharedRoomId: "room-1" });
     chatRoomDelete.mockResolvedValue({ id: "room-1" });
-    cmoCreate.mockRejectedValue(new Error("record failed"));
+    cusoFind.mockReset();
+    cusoFind
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new Error("read failed"));
 
-    await expect(startCmoOnboarding(input)).rejects.toThrow("record failed");
+    await expect(startCmoOnboarding(input)).rejects.toThrow("read failed");
     expect(chatRoomDelete).toHaveBeenCalledWith({ where: { id: "room-1" } });
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
     expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("returns the person's existing Cuso without hiring again", async () => {
-    cmoFindUnique.mockResolvedValue({ id: "cmo-0", workspaceId: "ws-0" });
+    cusoFind.mockReset();
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-0", workspaceId: "ws-0" });
 
     await expect(startCmoOnboarding(input)).resolves.toMatchObject({
-      id: "cmo-0",
+      sokoBotId: "bot-0",
     });
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();

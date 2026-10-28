@@ -1,6 +1,10 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
+import {
+  CUSO_BOT_WHERE,
+  cmoBusinessNameFromUrl,
+} from "@/services/cmo-cuso.service";
 
 export interface CmoSpendLine {
   /** A model id, "web_search" or "exa/search". */
@@ -91,15 +95,23 @@ function number(value: unknown): number {
  * credit ledger, so it matches what owners were charged.
  */
 export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
-  const hires = await prisma.cmoHire.findMany({
-    select: {
-      sokoBotId: true,
-      projectId: true,
-      businessName: true,
-      // Cuso is the business's shared bot; his hirer stands for it here.
-      sokoBot: { select: { createdByUserId: true } },
-    },
-  });
+  const hires = (
+    await prisma.sokoBot.findMany({
+      where: CUSO_BOT_WHERE,
+      select: {
+        id: true,
+        projectId: true,
+        // Cuso is the business's shared bot; his hirer stands for it here.
+        createdByUserId: true,
+        project: { select: { websiteUrl: true } },
+      },
+    })
+  ).map((bot) => ({
+    sokoBotId: bot.id,
+    projectId: bot.projectId ?? "",
+    businessName: cmoBusinessNameFromUrl(bot.project?.websiteUrl ?? ""),
+    createdByUserId: bot.createdByUserId,
+  }));
   if (hires.length === 0) return [];
   const bots = hires.map((hire) => hire.sokoBotId);
   const projects = hires.map((hire) => hire.projectId);
@@ -109,7 +121,7 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
       prisma.user.findMany({
         where: {
           id: {
-            in: hires.flatMap((hire) => hire.sokoBot.createdByUserId ?? []),
+            in: hires.flatMap((hire) => hire.createdByUserId ?? []),
           },
         },
         select: { id: true, email: true },
@@ -225,8 +237,8 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
         sokoBotId: hire.sokoBotId,
         businessName: hire.businessName,
         ownerEmail:
-          owners.find((owner) => owner.id === hire.sokoBot.createdByUserId)
-            ?.email ?? "",
+          owners.find((owner) => owner.id === hire.createdByUserId)?.email ??
+          "",
         turns: number(turn?.turns),
         totalUsd:
           bySource.reduce((sum, line) => sum + line.costUsd, 0) + overheadUsd,

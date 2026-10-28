@@ -4,7 +4,7 @@ import {
   renderSokoBotMemory,
 } from "@sokosumi/soko-bot";
 import { channelSlugWithId } from "@/helpers/channel-slug";
-import { forbidden } from "@/helpers/error";
+import { conflict, forbidden } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
@@ -137,6 +137,25 @@ export async function createSharedSokoBot(
         throw new SokoBotValidationError(
           "The project is not an open project of this workspace",
         );
+      }
+      // A product's bot (a pinned version, such as CMO's Cuso) is one per
+      // Project. No index holds it: the Project row written above makes a
+      // second create wait for this one and then see its bot.
+      const sameVersionBot =
+        input.projectId && input.versionId
+          ? await tx.sokoBot.findFirst({
+              where: {
+                projectId: input.projectId,
+                versionId: input.versionId,
+                userId: null,
+                deletedAt: null,
+                archivedAt: null,
+              },
+              select: { name: true },
+            })
+          : null;
+      if (sameVersionBot) {
+        throw conflict(`This Project already has ${sameVersionBot.name}`);
       }
       const bot = await tx.sokoBot.create({
         data: {

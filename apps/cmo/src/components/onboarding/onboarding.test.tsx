@@ -73,7 +73,6 @@ const strategy: Strategy = {
 
 function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
   return {
-    id: "cmo-1",
     businessName: "acme.io",
     websiteUrl: "https://acme.io",
     brandMedia: null,

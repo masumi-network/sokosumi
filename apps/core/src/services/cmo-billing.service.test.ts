@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  cmoFindUnique,
-  cmoUpdate,
+  cusoFind,
   memberFindUnique,
   mockBilling,
   resetCmoServiceMocks,
@@ -85,7 +84,6 @@ describe("strategy approval → execution gate", () => {
   const workspace = (approvedAt: Date | null) => {
     seedStrategy(strategy, { approvedAt });
     return {
-      id: "cmo-1",
       userId: "user-1",
       workspaceId: "ws-1",
       projectId: "project-1",
@@ -93,7 +91,7 @@ describe("strategy approval → execution gate", () => {
   };
 
   it("asks the business organization's plan", async () => {
-    cmoFindUnique.mockResolvedValue(workspace(new Date()));
+    cusoFind.mockResolvedValue(workspace(new Date()));
     subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
     await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" });
     expect(subscriptionFindFirst).toHaveBeenCalledWith(
@@ -107,11 +105,11 @@ describe("strategy approval → execution gate", () => {
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "v19" }),
     ).toBeNull();
-    expect(cmoFindUnique).not.toHaveBeenCalled();
+    expect(cusoFind).not.toHaveBeenCalled();
   });
 
   it("refuses before the owner approves, even when subscribed", async () => {
-    cmoFindUnique.mockResolvedValue(workspace(null));
+    cusoFind.mockResolvedValue(workspace(null));
     subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
@@ -119,7 +117,7 @@ describe("strategy approval → execution gate", () => {
   });
 
   it("refuses without a subscription after approval", async () => {
-    cmoFindUnique.mockResolvedValue(workspace(new Date()));
+    cusoFind.mockResolvedValue(workspace(new Date()));
     subscriptionFindFirst.mockResolvedValue(null);
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
@@ -127,7 +125,7 @@ describe("strategy approval → execution gate", () => {
   });
 
   it("executes once approved and subscribed, with no per-post approval", async () => {
-    cmoFindUnique.mockResolvedValue(workspace(new Date()));
+    cusoFind.mockResolvedValue(workspace(new Date()));
     subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
@@ -150,7 +148,6 @@ describe("strategy approval → execution gate", () => {
 
 describe("mock billing", () => {
   const approved = {
-    id: "cmo-1",
     userId: "user-1",
     workspaceId: "ws-1",
     projectId: "project-1",
@@ -162,7 +159,7 @@ describe("mock billing", () => {
 
   it("counts only Subscription rows, never a tier stored on the hire", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue({ ...approved, mockPlan: "growth" });
+    cusoFind.mockResolvedValue({ ...approved, mockPlan: "growth" });
     subscriptionFindFirst.mockResolvedValue(null);
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
@@ -171,7 +168,7 @@ describe("mock billing", () => {
 
   it("opens execution through the mock plan's Subscription row", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     subscriptionFindFirst.mockResolvedValue({
       plan: "growth",
       stripeSubscriptionId: null,
@@ -183,7 +180,7 @@ describe("mock billing", () => {
 
   it("creates an active CMO Subscription without Stripe IDs for the paying organization", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     subscriptionFindFirst.mockResolvedValue(null);
     await chooseCmoMockPlan("user-1", "growth");
     expect(subscriptionCreate).toHaveBeenCalledWith({
@@ -194,12 +191,11 @@ describe("mock billing", () => {
         periodStart: expect.any(Date),
       },
     });
-    expect(cmoUpdate).not.toHaveBeenCalled();
   });
 
   it("moves the organization's mock Subscription to the newly chosen tier", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     subscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
     await chooseCmoMockPlan("user-1", "scale");
     expect(subscriptionFindFirst).toHaveBeenCalledWith(
@@ -219,7 +215,7 @@ describe("mock billing", () => {
 
   it("refuses a tier that is not a CMO plan", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     await expect(chooseCmoMockPlan("user-1", "enterprise")).rejects.toThrow(
       /not a CMO plan/i,
     );
@@ -227,7 +223,7 @@ describe("mock billing", () => {
   });
 
   it("refuses the mock plan while mock billing is off", async () => {
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
       /mock billing is off/i,
     );
@@ -238,7 +234,7 @@ describe("mock billing", () => {
   it("ignores CMO_MOCK_BILLING on production", async () => {
     mockBilling.on = true;
     mockBilling.production = true;
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
       /mock billing is off/i,
     );
@@ -248,7 +244,7 @@ describe("mock billing", () => {
 
   it("starts the paid month for owners and admins only", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approved);
+    cusoFind.mockResolvedValue(approved);
     memberFindUnique.mockResolvedValue({ role: "member" });
     await expect(chooseCmoMockPlan("user-2", "scale")).rejects.toBeInstanceOf(
       CmoForbiddenError,

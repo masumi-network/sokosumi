@@ -12,7 +12,7 @@ import {
 } from "@/lib/design-md-blob";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
-import type { CmoHireView } from "@/services/cmo-cuso.service";
+import type { Cuso } from "@/services/cmo-cuso.service";
 
 /** The brand's look as CMO shows it, read from the Project. */
 export interface CmoBrandVisual {
@@ -170,7 +170,7 @@ async function generateProjectDesignMd(
  * from the API, else one of the site's own colours and fonts.
  */
 export async function learnCmoBrandVisual(
-  hire: Pick<CmoHireView, "projectId" | "websiteUrl">,
+  hire: Pick<Cuso, "projectId" | "websiteUrl">,
 ): Promise<void> {
   const [site, , designMd] = await Promise.all([
     readBrandVisual(hire.websiteUrl),

@@ -15,16 +15,14 @@ import {
 } from "@/services/brand-brain.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
-  CMO_HIRE_OMIT,
-  CMO_HIRE_PROJECT,
   CMO_OUT_OF_CREDITS,
   CmoConflictError,
-  type CmoHireView,
   type CmoLearningState,
   CmoNotFoundError,
+  type Cuso,
   cmoBusinessNameFromUrl,
-  cmoHireView,
-  getCmoHireForUser,
+  findCusoForBot,
+  findCusoForUser,
   ONBOARDING_TURN_PREFIX,
   STRATEGY_TURN_PREFIX,
   settledTurnStatus,
@@ -81,7 +79,7 @@ function onboardingMessage(input: {
 }
 
 export async function cmoLearningState(
-  hire: Pick<CmoHireView, "sokoBotId" | "brandBrain">,
+  hire: Pick<Cuso, "sokoBotId" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoLearningState> {
   if (parseCmoBrandBrain(hire.brandBrain)) return "done";
@@ -227,7 +225,7 @@ export function describeCmoStep(
 
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
-  hire: Pick<CmoHireView, "sokoBotId" | "websiteUrl" | "brandBrain">,
+  hire: Pick<Cuso, "sokoBotId" | "websiteUrl" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
@@ -293,19 +291,19 @@ export async function cmoWork(
  * read from the data, so nothing is stored here.
  */
 export async function completeCmoOnboarding(userId: string): Promise<void> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   if (!(await approvedMarketingStrategy(hire.projectId))) {
     throw new CmoConflictError("Approve the strategy first");
   }
-  await startCmoProduction(hire.id);
+  await startCmoProduction(hire.sokoBotId);
 }
 
 /** Starts learning again after a failed or stuck first look. */
 export async function retryCmoOnboarding(
   userId: string,
 ): Promise<{ turnId: string }> {
-  const hire = await getCmoHireForUser(userId);
+  const hire = await findCusoForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const state = await cmoLearningState(hire);
   if (state !== "failed") {
@@ -330,11 +328,11 @@ export async function retryCmoOnboarding(
  * reruns it per brand.
  */
 export function startCmoResearch(
-  hire: CmoHireView,
+  hire: Cuso,
   userId: string,
 ): Promise<{ turnId: string }> {
   return startCmoTurn(hire, userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${hire.id}:${Date.now()}`,
+    clientTurnId: `${ONBOARDING_TURN_PREFIX}${hire.sokoBotId}:${Date.now()}`,
     message: onboardingMessage(hire),
     route: CMO_ONBOARDING_ROUTE,
   });
@@ -342,15 +340,15 @@ export function startCmoResearch(
 
 /**
  * Hires Cuso into a new organization named after the business (ADR 0060):
- * his marketing Project, Cuso as its shared bot (ADR 0061) and the CMO record
- * go there, and his first turn starts. A person who already works with a
- * live Cuso gets that hire back.
+ * his marketing Project and Cuso as its shared bot (ADR 0061) go there, and
+ * his first turn starts. A person who already works with a live Cuso gets
+ * that one back; a Project that has one refuses a second (409).
  */
 export async function startCmoOnboarding(input: {
   userId: string;
   websiteUrl: string;
-}): Promise<CmoHireView> {
-  const existing = await getCmoHireForUser(input.userId);
+}): Promise<Cuso> {
+  const existing = await findCusoForUser(input.userId);
   if (existing) return existing;
   // shortcut: two racing submits can hire twice, in two organizations; the
   // start form submits once. Add a per-person lock if duplicates show up.
@@ -400,7 +398,7 @@ export async function startCmoOnboarding(input: {
     select: { id: true },
   });
 
-  let created: CmoHireView;
+  let created: Cuso;
   let sharedRoomId: string | null = null;
   try {
     const { createSharedSokoBot } = await import(
@@ -414,16 +412,13 @@ export async function startCmoOnboarding(input: {
       versionId: CMO_SOKO_BOT_VERSION_ID,
     });
     sharedRoomId = bot.sharedRoomId;
-    created = cmoHireView(
-      await prisma.cmoHire.create({
-        data: { sokoBotId: bot.id, projectId: project.id },
-        omit: CMO_HIRE_OMIT,
-        include: CMO_HIRE_PROJECT,
-      }),
-    );
+    const cuso = await findCusoForBot(bot.id);
+    if (!cuso) throw new Error("Cuso was not created");
+    created = cuso;
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his
-    // bot, which only lets go of its shared room.
+    // bot, which only lets go of its shared room. The Project is the one made
+    // above, so a refusal never touches another Project's Cuso.
     if (sharedRoomId)
       await prisma.chatRoom
         .delete({ where: { id: sharedRoomId } })
@@ -431,7 +426,7 @@ export async function startCmoOnboarding(input: {
     await prisma.project
       .delete({ where: { id: project.id } })
       .catch((cleanupError) => {
-        console.warn("CMO hire cleanup failed", {
+        console.warn("Hiring Cuso cleanup failed", {
           projectId: project.id,
           error:
             cleanupError instanceof Error ? cleanupError.message : "unknown",
@@ -445,7 +440,7 @@ export async function startCmoOnboarding(input: {
   waitUntil(
     learnCmoBrandVisual(created).catch((error) => {
       console.warn("CMO brand visual failed", {
-        cmoHireId: created.id,
+        sokoBotId: created.sokoBotId,
         error: error instanceof Error ? error.message : "unknown",
       });
     }),
@@ -454,12 +449,12 @@ export async function startCmoOnboarding(input: {
   // A turn that cannot start (no credits yet) leaves the hire ready:
   // the learning card offers Try again and says why when it fails again.
   await startCmoTurn(created, input.userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.id}`,
+    clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.sokoBotId}`,
     message: onboardingMessage(created),
     route: CMO_ONBOARDING_ROUTE,
   }).catch((error) => {
     console.warn("CMO onboarding turn did not start", {
-      cmoHireId: created.id,
+      sokoBotId: created.sokoBotId,
       error: error instanceof Error ? error.message : "unknown",
     });
   });

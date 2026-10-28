@@ -2,7 +2,6 @@ import type { CmoBrandBrain } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
-  cmoHire: { findUnique: vi.fn(), update: vi.fn() },
   workspace: { findUnique: vi.fn() },
   fileResource: { findUnique: vi.fn() },
   fileProjectLink: { findFirst: vi.fn(), findMany: vi.fn() },
@@ -28,8 +27,10 @@ vi.mock("@/services/file-catalog.service", () => ({
 vi.mock("@/services/file-metadata.service", () => ({
   updateFileMetadata: files.updateFileMetadata,
 }));
+const cuso = vi.hoisted(() => ({ findForBot: vi.fn() }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   cmoRunnerUserId: async () => "user-1",
+  findCusoForBot: cuso.findForBot,
 }));
 vi.mock("@sokosumi/net", () => ({
   ssrfSafeFetch: async () =>
@@ -175,19 +176,14 @@ function researchFile(id: string, path: string) {
 describe("captureCmoBrandMedia", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    db.cmoHire.findUnique.mockResolvedValue({
-      id: "hire-1",
+    cuso.findForBot.mockResolvedValue({
       sokoBotId: "bot-1",
       projectId: "project-1",
-      project: {
-        workspaceId: "ws-1",
-        websiteUrl: "https://acme.io",
-        brandBrain: {
-          body: brain({
-            competitors: [{ name: "Rival Co", url: "https://rival.example/x" }],
-          }),
-        },
-      },
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+      brandBrain: brain({
+        competitors: [{ name: "Rival Co", url: "https://rival.example/x" }],
+      }),
     });
     db.workspace.findUnique.mockResolvedValue({ organizationId: "org-1" });
     db.fileProjectLink.findFirst.mockResolvedValue(null);
@@ -205,7 +201,7 @@ describe("captureCmoBrandMedia", () => {
   });
 
   it("saves screenshots and pictures as the Project's files under Brand research", async () => {
-    await captureCmoBrandMedia("hire-1");
+    await captureCmoBrandMedia("bot-1");
 
     expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual(
       expect.arrayContaining([
@@ -228,12 +224,11 @@ describe("captureCmoBrandMedia", () => {
       }),
     );
     expect(linked).toHaveLength(files.put.mock.calls.length);
-    expect(db.cmoHire.update).not.toHaveBeenCalled();
   });
 
   it("does not capture again within minutes of the last capture", async () => {
     db.fileProjectLink.findFirst.mockResolvedValue({ id: "link-1" });
-    await captureCmoBrandMedia("hire-1");
+    await captureCmoBrandMedia("bot-1");
     expect(files.put).not.toHaveBeenCalled();
   });
 });

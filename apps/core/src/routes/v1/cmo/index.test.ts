@@ -33,7 +33,7 @@ const {
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-cuso.service")>();
-  return { ...actual, getCmoHireForUser: hireMock };
+  return { ...actual, findCusoForUser: hireMock };
 });
 vi.mock("@/services/brand-brain.service", async (importOriginal) => {
   const actual =
@@ -85,7 +85,6 @@ const REPORT_ID = "0196a000-0000-7000-8000-000000000001";
 function overview() {
   return {
     hire: {
-      id: "cmo-1",
       businessName: "Acme",
       websiteUrl: "https://acme.io",
       goals: "More sales",

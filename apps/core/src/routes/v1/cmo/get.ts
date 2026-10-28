@@ -13,7 +13,10 @@ const route = createRoute({
   operationId: "getCmoOverview",
   tags: ["CMO"],
   responses: {
-    200: jsonSuccessResponse(cmoOverviewSchema, "The caller's CMO hire"),
+    200: jsonSuccessResponse(
+      cmoOverviewSchema,
+      "The Cuso the caller works with",
+    ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),

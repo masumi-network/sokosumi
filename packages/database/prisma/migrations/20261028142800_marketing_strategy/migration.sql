@@ -1,5 +1,5 @@
 -- A Project's Marketing strategy, one row per version (ADR 0062); at most one
--- approved per Project. Replaces cmo_hire's strategy and its history.
+-- approved per Project.
 
 -- CreateTable
 CREATE TABLE "marketing_strategy" (
@@ -35,3 +35,16 @@ ALTER TABLE "marketing_strategy" ADD CONSTRAINT "marketing_strategy_authorUserId
 -- AddForeignKey
 ALTER TABLE "marketing_strategy" ADD CONSTRAINT "marketing_strategy_approvedByUserId_fkey" FOREIGN KEY ("approvedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- Cuso's calendar becomes the Project's Social posts (ADR 0062): each post
+-- keeps the Marketing strategy version that planned it and its planning
+-- record. Replaces the calendar inside the approved version.
+
+-- AlterTable
+ALTER TABLE "social_post" ADD COLUMN     "marketingStrategyId" UUID,
+ADD COLUMN     "planning" JSONB;
+
+-- CreateIndex
+CREATE INDEX "social_post_marketingStrategyId_idx" ON "social_post"("marketingStrategyId");
+
+-- AddForeignKey
+ALTER TABLE "social_post" ADD CONSTRAINT "social_post_marketingStrategyId_fkey" FOREIGN KEY ("marketingStrategyId") REFERENCES "marketing_strategy"("id") ON DELETE SET NULL ON UPDATE CASCADE;

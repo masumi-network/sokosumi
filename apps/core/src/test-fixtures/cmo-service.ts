@@ -10,14 +10,13 @@ import { vi } from "vitest";
 
 export const memberFindMany = vi.fn();
 export const sokoBotFindUnique = vi.fn();
-export const cmoFindMany = vi.fn();
+export const cusoFindMany = vi.fn();
 export const memberFindUnique = vi.fn();
 export const chatRoomDelete = vi.fn();
 export const integrationFindMany = vi.fn();
 export const connectSokoBotIntegration = vi.fn();
 export const finalizeSokoBotIntegration = vi.fn();
-export const cmoFindUnique = vi.fn();
-export const cmoUpdate = vi.fn();
+export const cusoFind = vi.fn();
 export const subscriptionFindFirst = vi.fn();
 export const subscriptionCreate = vi.fn();
 export const subscriptionUpdate = vi.fn();
@@ -39,10 +38,8 @@ export const createBot = vi.fn();
 export const projectCreate = vi.fn();
 export const fileLinkFindMany = vi.fn();
 export const projectDelete = vi.fn();
-export const cmoCreate = vi.fn();
 export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
-export const cmoDeleteMany = vi.fn();
 export const getUserWorkspace = vi.fn();
 export const messageUpsert = vi.fn();
 export const messageFindFirst = vi.fn();
@@ -54,7 +51,10 @@ export const brainFindUnique = vi.fn();
 export const brainUpsert = vi.fn();
 export const brainUpdate = vi.fn();
 
-type HireFixture = {
+type CusoFixture = {
+  sokoBotId?: string;
+  projectId?: string;
+  createdAt?: Date;
   workspaceId?: string;
   websiteUrl?: string;
   brandBrain?: unknown;
@@ -62,14 +62,19 @@ type HireFixture = {
   brandBrainApprovedAt?: Date | null;
 };
 
-// A hire read with its Project, as Core includes it: a fixture's own
-// workspaceId, websiteUrl and Brand Brain stand for the Project's.
-export const withProject = (hire: unknown) => {
-  if (!hire || typeof hire !== "object") return hire;
-  const fixture = hire as HireFixture;
+/**
+ * Cuso as Core reads him, his bot with its Project: a flat fixture (what
+ * `cusoFind` resolves) gives the bot's id, the Project's id, workspace,
+ * website and Brand Brain.
+ */
+export const asCusoBot = (cuso: unknown) => {
+  if (!cuso || typeof cuso !== "object") return cuso;
+  const fixture = cuso as CusoFixture;
   return {
-    ...hire,
+    id: fixture.sokoBotId ?? "bot-1",
+    createdAt: fixture.createdAt ?? new Date("2026-10-01T09:00:00Z"),
     project: {
+      id: fixture.projectId ?? "project-1",
       workspaceId: fixture.workspaceId ?? "ws-1",
       websiteUrl: fixture.websiteUrl ?? "https://acme.io",
       workspace: { organizationId: "org-1" },
@@ -178,22 +183,6 @@ const client = {
   // Runs the callback against this same mock, as one transaction would.
   $transaction: (callback: (tx: unknown) => unknown) => callback(client),
   $executeRaw: vi.fn(async () => 1),
-  cmoHire: {
-    findUnique: async (args: {
-      include?: unknown;
-      select?: { project?: unknown };
-    }) => {
-      const hire = await cmoFindUnique(args);
-      return args?.include || args?.select?.project ? withProject(hire) : hire;
-    },
-    findMany: cmoFindMany,
-    update: cmoUpdate,
-    create: async (args: { include?: unknown }) => {
-      const hire = await cmoCreate(args);
-      return args?.include ? withProject(hire) : hire;
-    },
-    deleteMany: cmoDeleteMany,
-  },
   brandBrain: {
     findUnique: brainFindUnique,
     upsert: brainUpsert,
@@ -208,7 +197,12 @@ const client = {
     findFirst: memberFindUnique,
     findMany: memberFindMany,
   },
-  sokoBot: { findUnique: sokoBotFindUnique },
+  sokoBot: {
+    findUnique: sokoBotFindUnique,
+    // Finding Cuso by his bot or by a member: the Cuso `cusoFind` stands for.
+    findFirst: async (args: unknown) => asCusoBot(await cusoFind(args)),
+    findMany: cusoFindMany,
+  },
   chatRoom: { delete: chatRoomDelete, update: chatRoomUpdate },
   chatRoomMessage: {
     upsert: messageUpsert,
@@ -334,7 +328,6 @@ export function resetCmoServiceMocks(): void {
   strategyRows.length = 0;
   mockBilling.on = false;
   mockBilling.production = false;
-  cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({
@@ -358,10 +351,10 @@ export function resetCmoServiceMocks(): void {
   // No Social posts or connections unless a test seeds them.
   postFindMany.mockResolvedValue([]);
   connectionFindMany.mockResolvedValue([]);
-  // The hire a member works with is the one findUnique stands for here, in
+  // The Cuso a member works with is the one `cusoFind` stands for here, in
   // the business's organization.
-  cmoFindMany.mockImplementation(async (args: unknown) => {
-    const hire = await cmoFindUnique(args);
-    return hire ? [withProject(hire)] : [];
+  cusoFindMany.mockImplementation(async (args: unknown) => {
+    const cuso = await cusoFind(args);
+    return cuso ? [asCusoBot(cuso)] : [];
   });
 }

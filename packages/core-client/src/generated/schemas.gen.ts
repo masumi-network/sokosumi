@@ -34928,9 +34928,6 @@ export const PublicSharedTaskFileSchema = {
 export const CmoOverviewSchema = {
     type: 'object',
     properties: {
-        id: {
-            type: 'string'
-        },
         businessName: {
             type: 'string'
         },
@@ -38299,7 +38296,6 @@ export const CmoOverviewSchema = {
         }
     },
     required: [
-        'id',
         'businessName',
         'websiteUrl',
         'organizationSlug',
