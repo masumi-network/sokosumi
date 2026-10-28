@@ -26,14 +26,6 @@ export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
  */
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
-/**
- * Primary browse outer chrome: divided list at all breakpoints (Tasks/Drive rhythm).
- * Square corners on mobile; `md:rounded-xl` + border on desktop.
- * Shared by live `ProjectsView` and the Instant skeleton.
- */
-export const PROJECTS_BROWSE_LAYOUT_CLASS =
-  "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
-
 /** Toolbar shared by the Projects index and its loading shell. */
 export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
   "flex items-center justify-end gap-3";
