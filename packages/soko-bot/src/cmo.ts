@@ -321,6 +321,12 @@ export const cmoBrandQuestionSchema = z.object({
 });
 export type CmoBrandQuestion = z.infer<typeof cmoBrandQuestionSchema>;
 
+/** A yes/no check of one plan assumption, answered after the plan; a no changes it. */
+export const cmoPlanQuestionSchema = cmoBrandQuestionSchema.omit({
+  section: true,
+});
+export type CmoPlanQuestion = z.infer<typeof cmoPlanQuestionSchema>;
+
 const cmoCompanyLinkSchema = z.object({
   name: shortText,
   url: z.string().url().max(500).optional(),
@@ -753,8 +759,10 @@ const strategyPlanShape = {
         .default([]),
     })
     .optional(),
-  /** Assumptions the owner can confirm or correct in a line. */
+  /** Older plans: assumptions as open questions. New plans ask `questions`. */
   openQuestions: z.array(shortText).max(5).default([]),
+  /** Yes/no checks of the plan's biggest assumptions, asked after the plan. */
+  questions: z.array(cmoPlanQuestionSchema).max(5).default([]),
 };
 
 /** A sample piece in the strategy proposal, so the owner sees the voice. */

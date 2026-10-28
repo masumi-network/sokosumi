@@ -68,6 +68,7 @@ function mapOverview(overview: CmoOverview) {
     adProviders: overview.adProviders,
     connectAdsUrl: overview.connectAdsUrl,
     measurement: overview.measurement,
+    production: overview.production,
     mailingListSize: overview.mailingListSize,
     subscribeUrl: overview.subscribeUrl,
     billing: overview.billing,

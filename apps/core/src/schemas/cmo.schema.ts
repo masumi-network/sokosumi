@@ -56,6 +56,15 @@ export const cmoMeasurementSchema = z
   })
   .openapi("CmoMeasurement");
 
+export const cmoProductionSchema = z
+  .object({
+    state: z.enum(["waiting", "running", "ready", "stuck"]),
+    ready: z.number().int(),
+    total: z.number().int(),
+    finishedAt: z.union([z.string(), z.null()]),
+  })
+  .openapi("CmoProduction");
+
 export const cmoAdBudgetRequestSchema = z
   .object({
     monthly: z.number().min(0).max(10_000_000),
@@ -251,6 +260,9 @@ export const cmoOverviewSchema = z
       .describe(
         "Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.",
       ),
+    production: cmoProductionSchema.describe(
+      "After payment Cuso makes the whole month at once: how many of its pieces are made.",
+    ),
     mailingListSize: z.number().int(),
     subscribeUrl: z.string(),
     billing: z.object({

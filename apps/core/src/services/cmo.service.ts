@@ -310,7 +310,7 @@ export function cmoMockPlan(hire: Pick<CmoHire, "mockPlan">): string | null {
 }
 
 /** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
-async function isCmoSubscribed(
+export async function isCmoSubscribed(
   hire: Pick<CmoHire, "userId" | "workspaceId" | "mockPlan">,
 ): Promise<boolean> {
   if (cmoMockPlan(hire)) return true;
@@ -331,6 +331,15 @@ export async function chooseCmoMockPlan(
     where: { id: hire.id },
     data: { mockPlan: plan, mockPlanActivatedAt: new Date() },
   });
+  await startCmoProduction(hire.id);
+}
+
+/** Paid and approved: Cuso makes the whole month now (cmo-production.service). */
+async function startCmoProduction(hireId: string): Promise<void> {
+  const { kickCmoProduction } = await import(
+    "@/services/cmo-production.service"
+  );
+  kickCmoProduction(hireId);
 }
 
 /** What the founder reads when a step cannot start for lack of credits. */
@@ -774,6 +783,7 @@ export async function completeCmoOnboarding(userId: string): Promise<void> {
   if (!hire.strategyApprovedAt) {
     throw new CmoConflictError("Approve the strategy first");
   }
+  await startCmoProduction(hire.id);
   if (hire.onboardedAt) return;
   await prisma.cmoHire.update({
     where: { id: hire.id },
@@ -1128,7 +1138,7 @@ export async function requestCmoStrategy(input: {
             : []),
           "",
           "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-          "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, openQuestions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId). Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves, your daily run writes each piece three days before it goes out.",
+          "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId) whose approach shares match the mix. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
         ]
     )
       .concat([
@@ -1551,10 +1561,13 @@ export async function approveCmoStrategy(userId: string): Promise<CmoHire> {
   if (!parseCmoStrategy(hire.strategy)) {
     throw new CmoConflictError("There is no strategy to approve yet");
   }
-  return prisma.cmoHire.update({
+  const approved = await prisma.cmoHire.update({
     where: { id: hire.id },
     data: { strategyApprovedAt: hire.strategyApprovedAt ?? new Date() },
   });
+  // Already paying (a re-approved plan): the month is made right away.
+  await startCmoProduction(hire.id);
+  return approved;
 }
 
 const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
@@ -1955,6 +1968,8 @@ export interface CmoOverview {
   connectAdsUrl: string;
   /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
   measurement: CmoMeasurementStatus[];
+  /** The month's production after payment: how many pieces are made. */
+  production: import("@/services/cmo-production.service").CmoProductionStatus;
   /** People on the newsletter list. */
   mailingListSize: number;
   subscribeUrl: string;
@@ -2068,6 +2083,18 @@ export async function getCmoOverview(
     organizationId: bot.workspace.organizationId,
     userId,
   });
+  const { readCmoProduction } = await import(
+    "@/services/cmo-production.service"
+  );
+  const production = await readCmoProduction(hire, {
+    connected: new Set(
+      channels
+        .filter((channel) => channel.status === "ACTIVE")
+        .map((channel) => channel.provider.toLowerCase()),
+    ),
+    subscribed: cmoPlan !== null,
+    now,
+  });
   const learning = await cmoLearningState(hire, now);
   const work = await cmoWork(hire, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
@@ -2122,6 +2149,7 @@ export async function getCmoOverview(
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
     connectAdsUrl: `${web}/ads?projectId=${hire.projectId}`,
     measurement,
+    production: production.status,
     mailingListSize,
     // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
     subscribeUrl: `${web}/billing`,

@@ -2494,6 +2494,12 @@ model CmoHire {
   /// The owner finished onboarding (strategy, accounts, plan) and landed in
   /// the chat; until then CMO shows the onboarding steps.
   onboardedAt         DateTime?
+  /// The month's production after payment: which strategy month it makes,
+  /// its background runs and when every piece was ready.
+  production          Json?
+  /// What the website runs on when it is a shop system Cuso can measure
+  /// (only "shopify" today); null otherwise.
+  sitePlatform        String?
 
   @@map("cmo_hire")
 }
