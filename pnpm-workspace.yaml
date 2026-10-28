@@ -27,7 +27,7 @@ overrides:
   # Patched floors are 6.29.1, 7.30.1, and 8.12.2.
   # 2026-10-28 re-resolve with overrides removed already landed only
   # undici@6.29.1 and undici@7.30.1, so those pins stay dropped.
-  # undici@8 still landed 8.10.2 from eve@0.84.0 plus 8.12.3 from
+  # undici@8 still landed 8.10.2 from eve@0.85.0 plus 8.12.3 from
   # @scalar/json-magic@0.17.0. OSV reports no advisories against 8.12.3.
   # Latest 8.x patch is 8.12.3.
   "undici@8": "8.12.3"
