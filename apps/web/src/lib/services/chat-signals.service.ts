@@ -2,7 +2,6 @@ import type {
   ChatCatchUpSummary,
   ChatRoomCatchUp,
   ChatRoomMessage,
-  ChatSignalListItem,
   ChatSignalRoutingSuggestion,
   ChatSignalTag,
 } from "@sokosumi/core-client";
@@ -19,14 +18,6 @@ export const chatSignalsService = {
 
   async getRoomCatchUp(roomId: string): Promise<ChatRoomCatchUp> {
     return (await coreClient.getChatRoomCatchUp(roomId)).data;
-  },
-
-  async listNeedsYou(): Promise<ChatSignalListItem[]> {
-    return (await coreClient.getChatNeedsYou()).data;
-  },
-
-  async listOpenLoops(): Promise<ChatSignalListItem[]> {
-    return (await coreClient.getChatOpenLoops()).data;
   },
 
   async listDecisions(
