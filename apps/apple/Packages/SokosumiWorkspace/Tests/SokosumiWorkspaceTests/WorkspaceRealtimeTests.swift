@@ -150,10 +150,11 @@ private let realtimeUserBody = """
 {"data":{"id":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
 """
 
-private func realtimeRoomsBody(ids: [String], groupDirect: Bool = false, userMembers: String = "[]") -> String {
+/// `discoverability` is a JSON value (`"\"external\""`), null by default.
+private func realtimeRoomsBody(ids: [String], groupDirect: Bool = false, userMembers: String = "[]", discoverability: String = "null") -> String {
   let rooms = ids.map { id in
     """
-    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"\(groupDirect ? "direct" : "channel")","isSelfDirect":false,"directKey":null,"isGroupDirect":\(groupDirect),"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(userMembers),"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"\(groupDirect ? "direct" : "channel")","isSelfDirect":false,"directKey":null,"isGroupDirect":\(groupDirect),"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":\(discoverability),"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(userMembers),"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -184,9 +185,9 @@ private func realtimePageBody(messages: [String], nextCursor: String? = nil) -> 
   """
 }
 
-private func realtimeReadBody(id: String) -> String {
+private func realtimeReadBody(id: String, groupDirect: Bool = false, discoverability: String = "null") -> String {
   """
-  {"data":{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  {"data":{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"\(groupDirect ? "direct" : "channel")","isSelfDirect":false,"directKey":null,"isGroupDirect":\(groupDirect),"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":\(discoverability),"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
   """
 }
 
@@ -1557,6 +1558,60 @@ struct WorkspaceRealtimeTests {
     let read = try #require(operations.firstIndex(of: "patch/notifications/{id}/read"))
     let lookup = try #require(operations.firstIndex(of: "get/workspaces/{id}"))
     #expect(read < lookup)
+  }
+
+  /// ADR 0059: a Personal Direct or External channel opens in the current workspace; Channels still switch (above).
+  @Test func openingANotificationForARoomShownInEveryWorkspaceStaysInThisWorkspace() async throws {
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA, roomB], groupDirect: true)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA, groupDirect: true)),
+      (500, realtimeErrorBody),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB, groupDirect: true))
+    ])
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB, workspaceId: acmeWorkspaceId))
+    await waitForRealtimeIdle(state)
+    #expect(result == .opened && state.selectionId == "personal" && state.selectedRoomId == roomB)
+    #expect(!transport.operationIDs.contains("get/workspaces/{id}"))
+  }
+
+  /// ADR 0059: a Personal Direct or External channel stays selected across a switch, and its draft is the same in
+  /// every workspace; a Channel gives way to the new workspace's first room and keeps its draft per workspace.
+  @Test(arguments: [(true, "null", true), (false, #""external""#, true), (false, "null", false)])
+  func aWorkspaceSwitchKeepsARoomShownInEveryWorkspace(groupDirect: Bool, discoverability: String, kept: Bool) async throws {
+    let rooms = realtimeRoomsBody(ids: [roomA, roomB], groupDirect: groupDirect, discoverability: discoverability)
+    func read(_ id: String) -> String {
+      realtimeReadBody(id: id, groupDirect: groupDirect, discoverability: discoverability)
+    }
+    let (state, _, _) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody), (200, rooms),
+      (200, realtimePageBody(messages: [])), (200, read(roomA)),
+      (200, realtimePageBody(messages: [])), (200, read(roomB)),
+      (200, preferredWorkspaceBody(preferring: "org_1")), (200, rooms),
+      (200, realtimePageBody(messages: [])), (200, read(kept ? roomB : roomA))
+    ])
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    state.selectRoom(roomB)
+    await waitForRealtimeIdle(state)
+    let suite = "sokosumi-draft-scope-tests.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    func draft() -> SavedComposeDraft {
+      SavedComposeDraft(userId: state.currentUserId, organizationId: state.draftOrganizationId(roomId: roomB), roomId: roomB, defaults: defaults)
+    }
+    draft().save("Unsent")
+
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(option: org)
+    await waitForRealtimeIdle(state)
+    #expect(state.selectionId == "org_1")
+    #expect(state.selectedRoomId == (kept ? roomB : roomA))
+    #expect(state.draftOrganizationId(roomId: roomB) == (kept ? nil : "org_1"))
+    // A fresh store reads what a relaunch would.
+    #expect(draft().load() == (kept ? "Unsent" : ""))
   }
 
   /// A room-list read that started before the notification's room was joined cannot list it; opening waits that read

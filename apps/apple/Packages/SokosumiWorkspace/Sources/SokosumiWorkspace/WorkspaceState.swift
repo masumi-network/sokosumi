@@ -70,7 +70,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   /// Selected room. Launch and workspace switches restore the saved room,
-  /// else the first room. Revoking the open room can leave this nil while
+  /// else the first room; a switch keeps a room shown in every workspace. Revoking the open room can leave this nil while
   /// others remain: the saved pick is left alone so relaunch does not
   /// reopen a room that is gone.
   public var selectedRoomId: String? {
@@ -82,6 +82,12 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var switchError: String?
   public var currentUserId: String {
     workspaceSession.currentUser?.id ?? ""
+  }
+
+  /// The workspace a room's drafts are saved under: none for a room shown in every workspace, so its draft is the
+  /// same in each of them.
+  public func draftOrganizationId(roomId: String) -> String? {
+    rooms.first { $0.id == roomId }?.isShownInEveryWorkspace == true ? nil : selection?.workspace.organizationId
   }
 
   public var currentUserName: String {
@@ -910,13 +916,15 @@ public final class WorkspaceState: ObservableObject {
     guard let client = resolveClient() else { return }
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), context == compositionContext else { return }
+      // A room shown in every workspace is the same room in the new one, so it stays selected (ADR 0059).
+      let kept = rooms.first { $0.id == selectedRoomId && $0.isShownInEveryWorkspace }?.id
       sidebar.dropPendingActions()
       archivedChannels.reset()
       pendingInvitations.reset()
       readAttention.reset()
       leaveRoom()
       crossRoomThreads.reset()
-      selectedRoomId = nil
+      selectedRoomId = kept
       rooms = loaded
       switchError = nil
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
