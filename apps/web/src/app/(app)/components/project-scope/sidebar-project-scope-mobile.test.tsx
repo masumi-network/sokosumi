@@ -56,6 +56,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
 
+import { HeaderProjectScope } from "./header-project-scope";
 import { SidebarProjectScope as SidebarTop } from "./sidebar-project-scope";
 import { SidebarScopeMobileChip } from "./sidebar-project-scope-mobile";
 import { openScopeCreate, openScopeSheet } from "./sidebar-project-scope-state";
@@ -66,6 +67,7 @@ function Harness({ chip = true }: { chip?: boolean }) {
       <header>
         <button type="button">header-home</button>
       </header>
+      <HeaderProjectScope />
       <SidebarTop />
       {chip ? <SidebarScopeMobileChip /> : null}
     </SidebarProvider>
@@ -95,6 +97,10 @@ function renderHarness() {
 
 function title() {
   return screen.getByTestId("project-scope-sidebar-title");
+}
+
+function headerTrigger() {
+  return screen.getByTestId("project-scope-header-trigger");
 }
 
 function chip() {
@@ -279,14 +285,14 @@ describe("sidebar project scope Create project", () => {
     expect(mocks.push).toHaveBeenCalledWith("/tasks?projectId=p-new");
   });
 
-  it("returns focus to the sidebar title on cancel", async () => {
+  it("returns focus to the header selector on cancel", async () => {
     renderHarness();
-    await openCreateFrom(title());
+    await openCreateFrom(headerTrigger());
 
     const event = cancelCreate();
 
     expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(title());
+    expect(document.activeElement).toBe(headerTrigger());
     expect(mocks.push).not.toHaveBeenCalled();
   });
 

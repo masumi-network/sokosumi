@@ -285,50 +285,6 @@
         "open": "Aktionen für Einladung"
       }
     },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agenten",
-      "credits": "Credits",
-      "coupon": "Gutschein",
-      "subscriptions": "Abonnements",
-      "billing": "Abrechnung",
-      "account": "Konto",
-      "admin": "Administration",
-      "organizations": "Organisationen",
-      "users": "Benutzer",
-      "edit": "Bearbeiten",
-      "editor": "Editor",
-      "enterprise-contracts": "Enterprise-Verträge",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Aufgaben",
-      "connections": "Verbindungen",
-      "developer": "Entwickler",
-      "personal-assistant": "Persönlicher Assistent",
-      "history": "Kreditverlauf",
-      "new": "Neu",
-      "notifications": "Benachrichtigungen",
-      "projects": "Projekte",
-      "invoices": "Rechnungen",
-      "oauth-clients": "OAuth-Clients",
-      "api-keys": "API-Schlüssel",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Dokumentation",
-      "drive": "Dateien",
-      "soko-bots": "Soko Bots",
-      "calendar": "Kalender",
-      "schedules": "Zeitpläne",
-      "threads": "Threads",
-      "studio": "Content Studio",
-      "design-md": "Design",
-      "memory": "Gedächtnis",
-      "social": "Social-Media-Beiträge",
-      "ads": "Ads",
-      "evaluations": "Modellvergleiche",
-      "catch-up": "Aufholen",
-      "contacts": "Kontakte"
-    },
     "Jobs": {
       "StatusBadge": {
         "started": "Gestartet",
@@ -4443,6 +4399,7 @@
       },
       "show": "Seitenleiste einblenden",
       "hide": "Seitenleiste ausblenden",
+      "resize": "Größe der Seitenleiste ändern",
       "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {
@@ -8157,7 +8114,6 @@
       }
     },
     "Drive": {
-      "breadcrumb": "Dateien",
       "breadcrumbNavLabel": "Dateien-Ordner-Navigation",
       "myDrive": "Meine Dateien",
       "uploadButton": "Hochladen",

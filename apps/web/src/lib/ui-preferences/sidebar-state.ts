@@ -1,5 +1,31 @@
 const SIDEBAR_STATE_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+const SIDEBAR_WIDTH_COOKIE_NAME = "sidebar_width";
+
+/**
+ * The width the reader dragged the sidebar to, as a CSS variable on `<html>`.
+ * The boot script sets it before paint from the cookie; the wrapper's
+ * `--sidebar-width` reads it and falls back to the 14rem default.
+ */
+export const SIDEBAR_USER_WIDTH_VAR = "--sidebar-user-width";
+
+/** Resizable range in px. `SIDEBAR_DEFAULT_WIDTH` is the 14rem it starts at. */
+export const SIDEBAR_MIN_WIDTH = 192;
+export const SIDEBAR_MAX_WIDTH = 384;
+export const SIDEBAR_DEFAULT_WIDTH = 224;
+
+/**
+ * Dragging the edge left of this x (px from the window's left) snaps the
+ * sidebar shut instead of resizing it. Under the minimum width, so a
+ * drag that only reaches the minimum never collapses by accident.
+ */
+export const SIDEBAR_COLLAPSE_AT = 160;
+
+export function clampSidebarWidth(px: number): number {
+  return Math.round(
+    Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, px)),
+  );
+}
 
 /**
  * Window width below which the sidebar starts hidden whatever the stored
@@ -53,6 +79,24 @@ export function serializeSidebarStateCookie(open: boolean): string {
   return `${SIDEBAR_STATE_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_STATE_COOKIE_MAX_AGE}`;
 }
 
+/** Read `sidebar_width` (px) from a raw Cookie header / `document.cookie`. */
+export function parseSidebarWidthCookieHeader(
+  documentCookie: string,
+): number | null {
+  const match = documentCookie.match(
+    new RegExp(`(?:^|;\\s*)${SIDEBAR_WIDTH_COOKIE_NAME}=(\\d+)(?:;|$)`),
+  );
+  const px = match?.[1] ? Number(match[1]) : null;
+
+  return px !== null && px >= SIDEBAR_MIN_WIDTH && px <= SIDEBAR_MAX_WIDTH
+    ? px
+    : null;
+}
+
+export function serializeSidebarWidthCookie(px: number): string {
+  return `${SIDEBAR_WIDTH_COOKIE_NAME}=${clampSidebarWidth(px)}; path=/; max-age=${SIDEBAR_STATE_COOKIE_MAX_AGE}`;
+}
+
 /**
  * Pre-paint fixup for the hidden sidebar.
  *
@@ -66,13 +110,17 @@ export function serializeSidebarStateCookie(open: boolean): string {
  * the cookie says — it rewrites `data-state` / `data-collapsible` on each
  * sidebar as it streams in, so the first frame is already hidden.
  * Hydration lands on the same values, so React never has to correct anything.
- * Only the cookie's own value is read; nothing is persisted here.
+ * It also applies the dragged width (`sidebar_width`) as a variable on
+ * `<html>`, whichever way the sidebar starts. Only the cookies' own values
+ * are read; nothing is persisted here.
  *
  * Idempotent: a second run retires the previous observer before attaching its
  * own, so nothing is left observing the document.
  */
 export const SIDEBAR_BOOT_SCRIPT = `(function(){try{
 if(window.${SIDEBAR_BOOT_STOP_GLOBAL})window.${SIDEBAR_BOOT_STOP_GLOBAL}();
+var width=document.cookie.match(/(?:^|;\\s*)${SIDEBAR_WIDTH_COOKIE_NAME}=(\\d+)(?:;|$)/);
+if(width&&+width[1]>=${SIDEBAR_MIN_WIDTH}&&+width[1]<=${SIDEBAR_MAX_WIDTH})document.documentElement.style.setProperty('${SIDEBAR_USER_WIDTH_VAR}',width[1]+'px');
 var compact=window.matchMedia(${JSON.stringify(SIDEBAR_COMPACT_MEDIA_QUERY)}).matches;
 if(!compact&&!/(?:^|;\\s*)${SIDEBAR_STATE_COOKIE_NAME}=false(?:;|$)/.test(document.cookie))return;
 var sync=function(){

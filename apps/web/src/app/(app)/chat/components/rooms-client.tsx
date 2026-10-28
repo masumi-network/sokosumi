@@ -171,7 +171,6 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
@@ -607,7 +606,6 @@ function RoomView({
 }) {
   const t = useTranslations("App.Channels");
   const roomDisplayName = useRoomDisplayName();
-  const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -1713,27 +1711,6 @@ function RoomView({
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
   // start lost the draft when the request failed after submit.
 
-  const breadcrumbOverride = useMemo(
-    () => ({
-      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/",
-      segments: [
-        {
-          label: tBreadcrumb("chat"),
-          href: "/",
-        },
-        ...(selectedRoom
-          ? [
-              {
-                label: selectedRoomDisplayName,
-                href: `/chat/rooms/${selectedRoom.id}`,
-              },
-            ]
-          : []),
-      ],
-    }),
-    [selectedRoom, selectedRoomDisplayName, tBreadcrumb],
-  );
-  useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
     return new Map(
       (selectedRoom?.coworkerMembers ?? []).map((coworker) => [

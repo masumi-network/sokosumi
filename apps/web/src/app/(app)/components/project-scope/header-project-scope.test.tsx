@@ -1,0 +1,136 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  search: "",
+  push: vi.fn(),
+  fetch: vi.fn(),
+  loadPinned: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/tasks",
+  useSearchParams: () => new URLSearchParams(mocks.search),
+  useRouter: () => ({ push: mocks.push }),
+}));
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    },
+    isPending: false,
+    error: null,
+  }),
+}));
+vi.mock("@/lib/project-scope-list.client", () => ({
+  fetchScopeList: (path: string) =>
+    path.startsWith("/api/project-scope/pinned")
+      ? mocks.loadPinned()
+      : Promise.resolve({ projects: [], nextCursor: null }),
+}));
+vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
+  InlineCreateProjectModal: () => null,
+}));
+vi.mock("@/app/projects/components/project-avatar", () => ({
+  ProjectAvatar: () => <span aria-hidden />,
+}));
+
+import { HeaderProjectScope } from "./header-project-scope";
+
+function renderScope() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <HeaderProjectScope />
+    </QueryClientProvider>,
+  );
+}
+
+function trigger() {
+  return screen.getByTestId("project-scope-header-trigger");
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.search = "";
+  mocks.fetch.mockImplementation(() =>
+    Promise.resolve(
+      Response.json({ project: { id: "p-1", name: "Acme", logo: null } }),
+    ),
+  );
+  vi.stubGlobal("fetch", mocks.fetch);
+  mocks.loadPinned.mockResolvedValue([]);
+  localStorage.clear();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("header project scope", () => {
+  it("names All projects when no project is picked", () => {
+    renderScope();
+
+    expect(trigger()).toHaveTextContent("allProjects");
+    expect(trigger()).toHaveAccessibleName("label: allProjects");
+  });
+
+  it("names the picked project", async () => {
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
+    expect(trigger()).toHaveTextContent("Acme");
+  });
+
+  it("shows the up/down chevron after the name", () => {
+    renderScope();
+
+    const chevron = trigger().querySelector("svg.lucide-chevrons-up-down");
+    if (!chevron) throw new Error("no chevron");
+    expect(
+      trigger().firstElementChild?.compareDocumentPosition(chevron),
+    ).toBeTruthy();
+  });
+
+  it("opens the Create dialog from the popover", async () => {
+    const user = userEvent.setup();
+    renderScope();
+
+    await user.click(trigger());
+    await user.click(await screen.findByTestId("project-scope-create"));
+
+    expect(
+      screen.queryByRole("dialog", { name: "switchLabel" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes the popover and navigates when a project is picked", async () => {
+    const user = userEvent.setup();
+    mocks.loadPinned.mockResolvedValue([
+      { id: "p-2", name: "Beta", logo: null, closedAt: null },
+    ]);
+    renderScope();
+
+    await user.click(trigger());
+    expect(
+      await screen.findByRole("dialog", { name: "switchLabel" }),
+    ).toBeInTheDocument();
+    await user.click(await screen.findByTestId("project-scope-item-p-2"));
+
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "switchLabel" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+});

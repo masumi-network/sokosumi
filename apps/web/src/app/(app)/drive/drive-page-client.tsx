@@ -31,7 +31,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   parseAsArrayOf,
@@ -119,7 +119,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -301,7 +300,6 @@ function DrivePageWorkspace({
     archived: parseAsBoolean.withDefault(false),
     tags: parseAsArrayOf(parseAsString).withDefault([]),
   });
-  const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesViewMode, setFilesViewMode] =
@@ -514,11 +512,6 @@ function DrivePageWorkspace({
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
-  });
-
-  useRegisterBreadcrumbOverride({
-    pathname,
-    segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
 
   function handleSearchChange(value: string) {

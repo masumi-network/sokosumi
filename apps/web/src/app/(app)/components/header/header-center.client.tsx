@@ -10,10 +10,10 @@ interface HeaderCenterProps {
 }
 
 /**
- * App-header center: mobile room toolbar slot + breadcrumbs.
- * Room slot only claims space on chat room routes below `md`.
- * Breadcrumbs keep `sm` wayfinding on non-room pages; on rooms they start at
- * `md` so they never sit beside the slot in the sm–md band.
+ * App-header center: mobile room toolbar slot + the project selector.
+ * Room slot only claims space on chat room routes below `md`. The selector
+ * starts at `md`: below it the header's scope chip stands in, so it never sits
+ * beside the room slot.
  */
 export function HeaderCenter({ children }: HeaderCenterProps) {
   const pathname = usePathname();
@@ -32,12 +32,8 @@ export function HeaderCenter({ children }: HeaderCenterProps) {
       />
 
       <div
-        data-testid="header-breadcrumbs"
-        data-hide-on-mobile-room={isMobileRoom ? "true" : undefined}
-        className={cn(
-          "hidden min-w-0 flex-1 flex-row gap-2",
-          isMobileRoom ? "md:flex" : "sm:flex",
-        )}
+        data-testid="header-scope"
+        className="hidden min-w-0 flex-1 flex-row items-center gap-2 md:flex"
       >
         {children}
       </div>
