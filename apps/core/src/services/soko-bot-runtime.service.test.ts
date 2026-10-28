@@ -8868,16 +8868,62 @@ describe("CMO record saves", () => {
   };
   function cmoTx() {
     const tx = {
-      cmoHire: {
-        findUnique: vi.fn().mockResolvedValue({ id: "cmo-1", updates: null }),
-        update: vi.fn().mockResolvedValue({}),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({
+          workspaceId: SCOPE.workspaceId,
+          projectId: "project-1",
+          sharedRoomId: "room-1",
+          cmoHire: { strategyHistory: null },
+        }),
       },
+      chatRoomMessage: {
+        upsert: vi.fn(
+          async (args: {
+            create: { id: string; createdAt: Date; metadata: unknown };
+          }) => ({
+            id: args.create.id,
+            createdAt: args.create.createdAt,
+            metadata: args.create.metadata,
+          }),
+        ),
+      },
+      chatRoom: { update: vi.fn().mockResolvedValue({}) },
+      project: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     };
     transactionMock.mockImplementationOnce(
       async (operation: (client: typeof tx) => unknown) => operation(tx),
     );
     return tx;
   }
+
+  it("posts the report as a card in Cuso's shared room and makes it the Project's latest update", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    publishChatRoomMessageRealtimeByIdMock.mockClear();
+    const result = await service["saveCmoRecord"](owner as never, report);
+    const { create } = tx.chatRoomMessage.upsert.mock.calls[0]![0];
+    expect(create).toMatchObject({ roomId: "room-1", content: "Today" });
+    expect(result).toEqual({
+      reported: "daily",
+      id: create.id,
+      revertible: false,
+    });
+    expect(tx.project.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "project-1" }),
+        data: expect.objectContaining({
+          latestUpdateMd: expect.stringContaining("## TL;DR\n\nToday"),
+        }),
+      }),
+    );
+    // Open chats see the card at once.
+    expect(publishChatRoomMessageRealtimeByIdMock).toHaveBeenCalledWith(
+      create.id,
+      "create",
+    );
+  });
 
   it("refuses an assistant's turn, which never sees the plan", async () => {
     transactionMock.mockClear();
@@ -8900,7 +8946,7 @@ describe("CMO record saves", () => {
       { ...owner, askedByKind: "TEAMMATE" } as never,
       report,
     );
-    expect(tx.cmoHire.update).toHaveBeenCalled();
+    expect(tx.chatRoomMessage.upsert).toHaveBeenCalled();
   });
 
   it("refuses a teammate's turn on any other shared bot", async () => {
@@ -8930,7 +8976,7 @@ describe("CMO record saves", () => {
     await expect(
       service["saveCmoRecord"](owner as never, report),
     ).rejects.toThrow("no longer writable");
-    expect(tx.cmoHire.update).not.toHaveBeenCalled();
+    expect(tx.chatRoomMessage.upsert).not.toHaveBeenCalled();
   });
 
   it("checks the turn's authority inside the transaction that writes", async () => {
@@ -8942,7 +8988,7 @@ describe("CMO record saves", () => {
     await service["saveCmoRecord"](owner as never, report);
     expect(authority.mock.calls[0]?.[0]).toBe(tx);
     expect(authority.mock.invocationCallOrder[0]).toBeLessThan(
-      tx.cmoHire.update.mock.invocationCallOrder[0] ?? 0,
+      tx.chatRoomMessage.upsert.mock.invocationCallOrder[0] ?? 0,
     );
   });
 });

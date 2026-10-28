@@ -1002,7 +1002,8 @@
         "studio_job": "Studio generation",
         "job": "Agent result",
         "file": "File",
-        "decision": "Approval"
+        "decision": "Approval",
+        "cmo_report": "Report"
       },
       "status": {
         "DRAFT": "Draft",

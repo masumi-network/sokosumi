@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cmoFindUnique,
   connectionFindMany,
+  messageFindMany,
   postFindMany,
   resetCmoServiceMocks,
   strategy,
@@ -68,7 +69,10 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { fitCmoMarketingContext } from "./cmo-context.service";
+import {
+  fitCmoMarketingContext,
+  loadCmoMarketingContext,
+} from "./cmo-context.service";
 
 beforeEach(resetCmoServiceMocks);
 
@@ -96,7 +100,6 @@ describe("buildCmoBeatPacket", () => {
       strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
       strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
       mockPlan: null,
-      updates: [],
     });
     subscriptionFindFirst.mockResolvedValue(null);
     connectionFindMany.mockResolvedValue([]);
@@ -109,6 +112,46 @@ describe("buildCmoBeatPacket", () => {
     expect(skip).toBe(false);
     expect(packet).toContain("workspace.marketing");
     expect(packet.length).toBeLessThan(5_000);
+  });
+});
+
+describe("loadCmoMarketingContext", () => {
+  it("gives Cuso his latest reports from the cards in his room", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      strategy: null,
+      strategyApprovedAt: null,
+      mockPlan: null,
+    });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    messageFindMany.mockResolvedValue([
+      {
+        id: "message-1",
+        createdAt: new Date("2026-10-05T09:03:00Z"),
+        metadata: {
+          cmo_report: {
+            kind: "weekly",
+            headline: "Week 1",
+            done: [],
+            upNext: [],
+            changes: [],
+            previousStrategy: strategy,
+          },
+        },
+      },
+    ]);
+    const context = await loadCmoMarketingContext("bot-1");
+    expect(messageFindMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { senderSokoBotId: "bot-1" },
+      take: 3,
+    });
+    expect(context?.recentUpdates).toEqual([
+      expect.objectContaining({ id: "message-1", headline: "Week 1" }),
+    ]);
+    expect(JSON.stringify(context)).not.toContain("previousStrategy");
   });
 });
 

@@ -3299,7 +3299,7 @@ export type ChatResultAvailable = {
     id: string;
     state: 'available';
     capturedAt: Date;
-    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection';
+    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection' | 'cmo_report';
     title: string;
     status: string | null;
     summary?: string | null;

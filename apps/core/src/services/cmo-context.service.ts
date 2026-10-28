@@ -10,7 +10,7 @@ import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
 import { parseCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import { getCmoHireForBot, listCmoChannels } from "@/services/cmo-cuso.service";
-import { parseCmoUpdates } from "@/services/cmo-reports.service";
+import { listCmoReports } from "@/services/cmo-reports.service";
 import {
   CMO_VISIBLE_CALENDAR_DAYS,
   calendarBounds,
@@ -86,9 +86,9 @@ export async function loadCmoMarketingContext(
           calendarTotal: strategy.calendar.length,
         }
       : null,
-    recentUpdates: parseCmoUpdates(hire.updates)
-      .slice(0, 3)
-      .map(({ previousStrategy: _previous, ...update }) => update),
+    recentUpdates: (await listCmoReports(sokoBotId, 3)).map(
+      ({ previousStrategy: _previous, ...update }) => update,
+    ),
   };
   return fitCmoMarketingContext(context, now);
 }

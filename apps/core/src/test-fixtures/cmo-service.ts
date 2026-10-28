@@ -35,6 +35,12 @@ export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const cmoDeleteMany = vi.fn();
 export const getUserWorkspace = vi.fn();
+export const messageUpsert = vi.fn();
+export const messageFindFirst = vi.fn();
+export const messageFindMany = vi.fn();
+export const messageUpdate = vi.fn();
+export const chatRoomUpdate = vi.fn();
+export const projectUpdateMany = vi.fn();
 
 // A hire read with its Project, as Core includes it: a fixture's own
 // workspaceId and websiteUrl stand for the Project's.
@@ -73,8 +79,18 @@ const client = {
   },
   member: { findUnique: memberFindUnique, findMany: memberFindMany },
   sokoBot: { findUnique: sokoBotFindUnique },
-  chatRoom: { delete: chatRoomDelete },
-  project: { create: projectCreate, delete: projectDelete },
+  chatRoom: { delete: chatRoomDelete, update: chatRoomUpdate },
+  chatRoomMessage: {
+    upsert: messageUpsert,
+    findFirst: messageFindFirst,
+    findMany: messageFindMany,
+    update: messageUpdate,
+  },
+  project: {
+    create: projectCreate,
+    delete: projectDelete,
+    updateMany: projectUpdateMany,
+  },
   organization: { findFirst: organizationFindFirst },
   subscription: { findFirst: subscriptionFindFirst },
   workspace: { findUnique: workspaceFindUnique },
@@ -169,6 +185,14 @@ export function resetCmoServiceMocks(): void {
   mockBilling.production = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
+  // A report message comes back as it was written.
+  messageUpsert.mockImplementation(async (args) => ({
+    id: args.create.id,
+    createdAt: args.create.createdAt,
+    metadata: args.create.metadata,
+  }));
+  projectUpdateMany.mockResolvedValue({ count: 1 });
+  messageFindMany.mockResolvedValue([]);
   // Every hire lives in the business's organization (ADR 0060), and the
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });

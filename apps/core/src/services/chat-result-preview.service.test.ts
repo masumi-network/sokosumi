@@ -15,6 +15,7 @@ const {
   liveFiles,
   job,
   projects,
+  reportMessage,
 } = vi.hoisted(() => ({
   workspace: vi.fn(),
   readTask: vi.fn(),
@@ -28,6 +29,7 @@ const {
   liveFiles: vi.fn(),
   job: vi.fn(),
   projects: vi.fn(),
+  reportMessage: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -44,6 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotPendingDecision: { findFirst: decision },
     job: { findFirst: job },
     fileResource: { findMany: vi.fn().mockResolvedValue([]) },
+    chatRoomMessage: { findFirst: reportMessage },
   },
 }));
 vi.mock("@/helpers/access-control", () => ({
@@ -550,6 +553,51 @@ describe("authorized chat results", () => {
     expect(
       await hydrateChatResultSnapshots([snapshot], "someone-else"),
     ).toEqual([{ id: snapshot.data.id, state: "unavailable" }]);
+  });
+
+  it("shows Cuso's report card from his shared room, reverted once it is", async () => {
+    const report = {
+      kind: "weekly",
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: ["Two more LinkedIn posts a week"],
+      results: "No provider metrics yet.",
+    };
+    reportMessage.mockResolvedValue({
+      metadata: { cmo_report: report },
+      room: { sharedSokoBot: { projectId: "project-1" } },
+    });
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "cmo_report", id },
+      actor,
+    });
+    expect(reportMessage.mock.calls[0]?.[0].where).toMatchObject({
+      id,
+      deletedAt: null,
+      room: { sharedSokoBot: { workspaceId: "workspace" } },
+    });
+    expect(snapshot.data).toMatchObject({
+      kind: "cmo_report",
+      title: "Week 1",
+      status: "Weekly",
+      summary: "No provider metrics yet.",
+      sourceHref: "/projects/project-1",
+      details: [{ label: "Changed", value: "Two more LinkedIn posts a week" }],
+    });
+    reportMessage.mockResolvedValue({
+      metadata: {
+        cmo_report: { ...report, revertedAt: "2026-10-06T11:00:00Z" },
+      },
+      room: { sharedSokoBot: { projectId: "project-1" } },
+    });
+    expect(await hydrateChatResultSnapshots([snapshot], "owner")).toMatchObject(
+      [{ title: "Week 1", status: "Reverted" }],
+    );
+    reportMessage.mockResolvedValue(null);
+    expect(await hydrateChatResultSnapshots([snapshot], "owner")).toEqual([
+      { id: snapshot.data.id, state: "unavailable" },
+    ]);
   });
 
   it("keeps long recorded results within the existing tool ledger budget", async () => {

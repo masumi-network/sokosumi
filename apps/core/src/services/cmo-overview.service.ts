@@ -41,10 +41,13 @@ import {
 } from "@/services/cmo-media.service";
 import {
   type CmoUpdateRecord,
-  parseCmoUpdates,
+  listCmoReports,
 } from "@/services/cmo-reports.service";
 import { parseCmoStrategy } from "@/services/cmo-strategy.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
+
+/** Cuso's newest report cards CMO shows. */
+const CMO_REPORTS_SHOWN = 60;
 
 export interface CmoUpNextItem {
   id: string;
@@ -267,7 +270,7 @@ export async function getCmoOverview(
     brandBrain: parseCmoBrandBrain(hire.brandBrain),
     strategy,
     botStatus: bot.status,
-    updates: parseCmoUpdates(hire.updates),
+    updates: await listCmoReports(hire.sokoBotId, CMO_REPORTS_SHOWN),
     channels,
     upNext: cmoUpNext(
       strategy,

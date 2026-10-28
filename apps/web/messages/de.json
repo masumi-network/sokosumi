@@ -1002,7 +1002,8 @@
         "studio_job": "Studio-Generierung",
         "job": "Agent-Ergebnis",
         "file": "Datei",
-        "decision": "Freigabe"
+        "decision": "Freigabe",
+        "cmo_report": "Bericht"
       },
       "status": {
         "DRAFT": "Entwurf",

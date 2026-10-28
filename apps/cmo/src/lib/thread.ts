@@ -32,11 +32,15 @@ export function buildThread(
   overview: CmoOverview,
   messages: CusoMessage[],
 ): ThreadItem[] {
-  const items: ThreadItem[] = messages.map((message) => ({
-    kind: "message",
-    at: message.createdAt,
-    message,
-  }));
+  // A report is a message in the room; it shows as its card below.
+  const reports = new Set(overview.updates.map((update) => update.id));
+  const items: ThreadItem[] = messages
+    .filter((message) => !reports.has(message.id))
+    .map((message) => ({
+      kind: "message",
+      at: message.createdAt,
+      message,
+    }));
   const created = iso(overview.createdAt) ?? new Date(0).toISOString();
   items.push({
     kind: "learning",

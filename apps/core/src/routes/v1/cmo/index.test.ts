@@ -54,6 +54,7 @@ import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.se
 import cmoRouter from "./index";
 
 const NOW = new Date("2026-10-05T09:00:00.000Z");
+const REPORT_ID = "0196a000-0000-7000-8000-000000000001";
 
 function overview() {
   return {
@@ -215,21 +216,29 @@ describe("CMO routes", () => {
     expect(response.status).toBe(409);
   });
 
-  it("reverts a weekly update by id", async () => {
-    revertMock.mockResolvedValue({});
-    const response = await createApp().request("/updates/u1/revert", {
+  it("reverts a weekly update by its report card's id", async () => {
+    revertMock.mockResolvedValue(undefined);
+    const response = await createApp().request(`/updates/${REPORT_ID}/revert`, {
       method: "POST",
     });
     expect(response.status).toBe(200);
     expect(revertMock).toHaveBeenCalledWith({
       userId: "user-1",
-      updateId: "u1",
+      updateId: REPORT_ID,
     });
+  });
+
+  it("answers 422 for an id that is no report card", async () => {
+    const response = await createApp().request("/updates/u1/revert", {
+      method: "POST",
+    });
+    expect(response.status).toBe(422);
+    expect(revertMock).not.toHaveBeenCalled();
   });
 
   it("answers 404 when an update cannot be reverted", async () => {
     revertMock.mockRejectedValue(new CmoNotFoundError("Nothing to revert"));
-    const response = await createApp().request("/updates/u9/revert", {
+    const response = await createApp().request(`/updates/${REPORT_ID}/revert`, {
       method: "POST",
     });
     expect(response.status).toBe(404);
