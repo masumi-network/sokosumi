@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
+import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
@@ -158,6 +159,9 @@ export default async function AuthenticatedAppFrame({
                             newsletterEnabled={newsletterEnabled}
                           />
                         </FeatureBadgesProvider>
+                        {/* Right after the sidebar: it follows the sidebar's
+                            `data-state` as its peer. */}
+                        <SidebarEdgeHandle />
                         <Suspense fallback={null}>
                           <AppShellOverlays />
                         </Suspense>

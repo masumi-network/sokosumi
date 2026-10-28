@@ -1,8 +1,8 @@
+import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
-
 import { AppHeaderFallback } from "./app-header-fallback";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import {
@@ -23,6 +23,7 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
     <>
       <AppSidebarFallback />
+      <SidebarEdgeHandle />
       <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
         <div
           className="flex min-w-0 flex-1 flex-col overflow-clip"

@@ -119,6 +119,12 @@ vi.mock(
     },
   }),
 );
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-edge-handle.client",
+  () => ({
+    SidebarEdgeHandle: () => null,
+  }),
+);
 vi.mock("../private-cached-app-sidebar", () => ({
   default: (props: unknown) => {
     privateCachedAppSidebarMock(props);

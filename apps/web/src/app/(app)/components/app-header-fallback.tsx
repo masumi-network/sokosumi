@@ -9,7 +9,6 @@ import {
 } from "./header/header-leading-control.client";
 import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
 import { HeaderTrailing } from "./header/header-trailing.client";
-import { SidebarToggle } from "./header/sidebar-toggle.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -23,10 +22,6 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           <HeaderLeadingControl />
         </Suspense>
       </div>
-
-      {/* The real toggle, so the sidebar can be brought back while the frame
-          streams and nothing after it moves when the header takes over. */}
-      <SidebarToggle />
 
       <HeaderCenter>
         <HeaderProjectScopeFallback />

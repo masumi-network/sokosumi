@@ -12,7 +12,6 @@ import {
 import HeaderProfileSection from "./header/header-profile-section";
 import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
 import { HeaderTrailing } from "./header/header-trailing.client";
-import { SidebarToggle } from "./header/sidebar-toggle.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -26,8 +25,6 @@ export default function Header({ className }: HeaderProps) {
           <HeaderLeadingControl />
         </Suspense>
       </div>
-
-      <SidebarToggle />
 
       <HeaderCenter>
         <Suspense fallback={<HeaderProjectScopeFallback />}>

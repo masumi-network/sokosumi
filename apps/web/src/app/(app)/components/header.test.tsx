@@ -29,9 +29,6 @@ vi.mock("@/app/components/header/header-leading-control.client", () => ({
   HeaderLeadingBrandFallback: () => null,
   HeaderLeadingControl: () => null,
 }));
-vi.mock("@/app/components/header/sidebar-toggle.client", () => ({
-  SidebarToggle: () => <button type="button">toggle</button>,
-}));
 vi.mock("@/app/components/header/header-trailing.client", () => ({
   HeaderTrailing: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="header-trailing">{children}</div>
