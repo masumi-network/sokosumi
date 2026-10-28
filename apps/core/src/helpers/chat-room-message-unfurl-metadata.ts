@@ -1,3 +1,4 @@
+import { CMO_REPORT_KEY } from "@/helpers/cmo-report-card";
 import type { ChatRoomMessageUnfurl } from "@/schemas/chat-room.schema";
 
 export const REMOVED_UNFURL_URLS_METADATA_KEY = "removedUnfurlUrls";
@@ -98,6 +99,8 @@ export function publicChatRoomMessageMetadata(
   }
   const { [REMOVED_UNFURL_URLS_METADATA_KEY]: _removed, ...rest } = metadata;
   delete rest.result_preview_snapshots;
+  // Cuso's report and the strategy its revert restores; its card shows it.
+  delete rest[CMO_REPORT_KEY];
   const visibleUnfurls = readUnfurlsFromMetadata(metadata);
   if (visibleUnfurls) {
     rest.unfurls = visibleUnfurls;

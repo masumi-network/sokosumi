@@ -5110,11 +5110,16 @@ export class SokoBotRuntimeService {
               {
                 sokoBotId: authorized.turn.sokoBotId,
                 turnId: authorized.turn.id,
+                toolCallId: input.toolCallId,
                 update,
               },
               tx,
             ),
           );
+          const { publishChatRoomMessageRealtimeById } = await import(
+            "@/helpers/chat-room-message-realtime"
+          );
+          await publishChatRoomMessageRealtimeById(record.id, "create");
           return {
             targetId: record.id,
             result: {

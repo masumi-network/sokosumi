@@ -80,6 +80,9 @@ export const cmoUpdateIdParamsSchema = z.object({
   id: z.string().min(1).max(64),
 });
 
+/** A report is its card's message in Cuso's shared room. */
+export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
+
 export const cmoUpdateSchema = cmoReportUpdateInputSchema
   .extend({
     id: z.string(),

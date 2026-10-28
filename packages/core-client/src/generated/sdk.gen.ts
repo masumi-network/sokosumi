@@ -4830,7 +4830,7 @@ export const applyCmoPlanAnswers = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Puts back the strategy a weekly review changed.
+ * Puts back the strategy a weekly review changed, from its report card.
  */
 export const revertCmoUpdate = <ThrowOnError extends boolean = false>(options: Options<RevertCmoUpdateData, ThrowOnError>): RequestResult<RevertCmoUpdateResponses, RevertCmoUpdateErrors, ThrowOnError> => (options.client ?? client).post<RevertCmoUpdateResponses, RevertCmoUpdateErrors, ThrowOnError>({
     responseTransformer: revertCmoUpdateResponseTransformer,

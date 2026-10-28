@@ -11723,7 +11723,8 @@ export const ChatResultAvailableSchema = {
                 'job',
                 'file',
                 'decision',
-                'project_selection'
+                'project_selection',
+                'cmo_report'
             ]
         },
         title: {

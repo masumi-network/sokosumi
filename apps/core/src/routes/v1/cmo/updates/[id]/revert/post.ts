@@ -5,7 +5,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoOverviewSchema,
-  cmoUpdateIdParamsSchema,
+  cmoReportIdParamsSchema,
 } from "@/schemas/cmo.schema";
 import { revertCmoUpdate } from "@/services/cmo-reports.service";
 
@@ -16,8 +16,9 @@ const route = createRoute({
   path: "/updates/{id}/revert",
   operationId: "revertCmoUpdate",
   tags: ["CMO"],
-  description: "Puts back the strategy a weekly review changed.",
-  request: { params: cmoUpdateIdParamsSchema },
+  description:
+    "Puts back the strategy a weekly review changed, from its report card.",
+  request: { params: cmoReportIdParamsSchema },
   responses: {
     200: jsonSuccessResponse(cmoOverviewSchema, "Strategy reverted"),
     401: jsonErrorResponse("Unauthorized"),
