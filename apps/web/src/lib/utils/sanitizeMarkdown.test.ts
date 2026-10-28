@@ -183,7 +183,7 @@ describe("sanitizeMarkdown", () => {
 
   it("drops an authored mark and keeps its text", () => {
     expect(
-      sanitizeMarkdown('a <mark class="bg-primary-tertiary">found</mark> word'),
+      sanitizeMarkdown('a <mark class="bg-quaternary">found</mark> word'),
     ).toBe("a found word");
   });
 

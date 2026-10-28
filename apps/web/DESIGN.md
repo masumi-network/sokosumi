@@ -77,10 +77,8 @@ components:
   buttonHover:
     backgroundColor: secondary-hover
   buttonPrimary:
-    backgroundColor: primary-solid
-    textColor: primary-solid-foreground
-  buttonPrimaryHover:
-    backgroundColor: primary-solid-hover
+    backgroundColor: primary
+    textColor: primary-foreground
   buttonSm:
     height: h-8
     padding: 0 12px
@@ -111,7 +109,7 @@ components:
     padding: 2px 8px
     typography: "{typography.label}"
   focusRing:
-    width: 3px
+    width: 2px
 ---
 
 # Sokosumi — Design System
@@ -150,11 +148,9 @@ is always `--primary-foreground` (Neutral 950, 7.33:1; white measures 2.67:1). I
 text, a border or a thin mark on the page, where it measures 2.67:1 on white. There is no
 hover pink: a primary keeps its fill and answers with the press.
 
-`--primary-solid`, `--primary-solid-hover`, `--primary-hover`, `--primary-iris` and
-`--primary-variant` currently hold the same Iris value, and `--primary-tertiary`,
-`--primary-quaternary`, `--primary-quinary` hold neutral steps. They are aliases on their
-way out; prefer `bg-primary` and the neutral steps. Never invent a tint at the call site
-(`bg-primary/55`, `color-mix(…, transparent)`); if no step fits, add one in `globals.css`.
+There are no primary aliases or tints: use `bg-primary`, and the neutral steps for tints.
+Never invent a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no
+step fits, add one in `globals.css`.
 
 ### Neutrals
 
@@ -201,18 +197,19 @@ Beyond the above, `globals.css` exposes:
 - **Status:** `--status-working` (Iris, a fill only), `--status-external`, `--status-done`
   (neutral, no steps), `--presence-offline`, `--risk-high` (Golden Yellow, a fill only).
   `src-walk-guards.test.ts` fails on a fill-only status colour used as text or an edge.
-- **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
-  `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
+- **Overlay:** `--overlay` (the Alpha 50 scrim behind a dialog),
+  `--overlay-primary`, `--scrim`, `--scrim-soft`, `--scrim-strong` (alpha lives in the token, not
+  at the call site). Floating chips and sticky headers are opaque: `bg-popover`, `bg-background`.
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
   `--media-ground`.
 - **Surfaces and states:** `--background-muted`, `--card-background-hover`,
-  `--disabled-foreground`, `--scrollbar-thumb`, `--destructive-halo`, and `*-hover` steps
+  `--disabled-foreground`, `--scrollbar-thumb`, and `*-hover` steps
   for filled controls.
 - The **sidebar-** set, the **social-** link colours, and
-  `card/popover/border/input/ring/ring-halo`.
+  `card/popover/border/input/ring`.
 
 Use semantic tokens
-(`bg-primary`, `text-muted-foreground`, `border-input`, `bg-primary-solid`, `ring-ring-halo`) —
+(`bg-primary`, `text-muted-foreground`, `border-input`, `ring-ring`) —
 never hardcoded hex, never an opacity modifier on a colour utility.
 
 ## Typography
@@ -299,17 +296,18 @@ inside a full-width panel.
 
 ## Elevation & Depth
 
-Borders-first, then soft glow. Shadows stop at `shadow-lg`.
+Borders first (guide 5.5). No glow, no blur. Shadows stop at `shadow-lg`.
 
 - Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
-- **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
-  brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
+- **Shadows:** a small shadow (`shadow-sm`, `shadow-md`) may lift a card on hover;
+  `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
   `shadow-2xl` and a hand-written `shadow-[…]` drop shadow are out under any variant; an
   arbitrary `shadow-[inset_…]` hairline is a border and stays. No shadow **token scale**
   exists — use Tailwind `shadow-*` defaults. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
-- **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
-  backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
+- **Overlays use a scrim:** the dialog overlay is `bg-overlay`, nothing more. `backdrop-blur`
+  and `blur-*` are out everywhere; the guard fails on them. A floating chip over content is
+  `bg-popover border`, opaque.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
   modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
   takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
@@ -342,7 +340,7 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
 - **Whole pixels:** every layout and border length is a whole number of CSS pixels. A 1x
   display, which is most Windows hardware, has no half pixel, so a `1.5px` border rounds to
   1px on one edge of a box and 2px on the opposite one, and a `0.2px` border rounds away to
-  nothing. Blur radii, keyframe translations and unitless scale factors are continuous and
+  nothing. Shadow radii, keyframe translations and unitless scale factors are continuous and
   stay fractional. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 
 ## Components
@@ -351,12 +349,12 @@ shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `
 Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
 prop/state-driven.
 
-- **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, _default_),
+- **Button** — 8 variants: `primary` (bg-primary), `default` (bg-secondary, _default_),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
   `transition-[color,background-color,border-color,transform] duration-150 ease-out press
-  disabled:opacity-50`, hover per-variant (`hover:bg-primary-solid-hover` /
+  disabled:opacity-50`, hover per-variant (none on `primary`, which keeps its fill /
   `hover:bg-secondary-hover` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
   Pass `loading` to the button whose request is running: it keeps the label and width and
   draws `ButtonLoadingBar`.
@@ -367,10 +365,10 @@ prop/state-driven.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
-  `bg-overlay backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
+  `bg-overlay`; built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
-  Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
-  rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
+  Radix `data-[state=…]` + `focus-visible:border-ring`; tabs/list `bg-muted h-9
+  rounded-lg`; tooltip `bg-secondary text-secondary-foreground text-xs` (neutral, never Iris).
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
   **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill);
   **company rail + detail** (pick a company on the left, its coworkers and "Ready-to-run
@@ -390,7 +388,7 @@ prop/state-driven.
   `transition-colors` runs 310ms. Controls set their own: the UI primitives (Button, Badge,
   tabs) use `duration-150 ease-out` for press and hover feedback; enter animations run about
   200ms.
-- **What animates:** `transform`, `opacity`, `blur` — **not layout** (width/height/top/margin).
+- **What animates:** `transform`, `opacity` — **not layout** (width/height/top/margin).
   Two exceptions are deliberate: hiding the sidebar (the width it leaves) and disclosures that animate
   `grid-template-rows` from `0fr` to `1fr`. Name the properties you transition; `transition-all`
   animates layout by accident.
@@ -402,8 +400,7 @@ prop/state-driven.
   input border, and others). Add new keyframes there.
 - **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
   arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
-  transform only. Under reduced motion overlays cross-fade in place and `prefers-reduced-transparency`
-  drops the blur on scrims and glass chrome.
+  transform only. Under reduced motion overlays cross-fade in place.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
@@ -421,10 +418,10 @@ prop/state-driven.
 ## Imagery & Visuals
 
 - **Ink** represents the movement/flow of AI agents — fluid, 2D, shaping figures; layering adds
-  depth, soft blur contrasts with sharp edges ("frosted glass"). Used in place of icons/stock for
+  depth. Used in place of icons/stock for
   abstract concepts; brand-color gradients add vibrancy in imagery. In the UI, gradients are
   fades, scrims and masks, plus two brand rings (the hero search and the chat input border).
-- **Blur & glow** are core: soft drop shadows for depth; blur for legibility on busy backgrounds.
+- **No glow or blur** (guide 5.5): depth comes from borders and, for floating overlays, a shadow up to `shadow-lg`.
 - **Generative art** is on-brand (agents create visuals from words). **Photography** is organic
   and natural — abstract macro, grain, brand-tinted, depth-of-field softness; avoid harsh stock.
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
@@ -438,22 +435,21 @@ prop/state-driven.
 
 - **Focus rings — three conventions, by surface.**
   - **Form primitives** (Input, Select, Checkbox, Switch, Tabs, Textarea, Toggle, Badge):
-    `outline-none focus-visible:border-ring focus-visible:ring-ring-halo
-    focus-visible:ring-[3px]` (+ `aria-invalid:ring-destructive-halo aria-invalid:border-destructive`).
+    the field marks focus with its border, `outline-none focus-visible:border-ring`
+    (+ `aria-invalid:border-destructive`). No ring.
   - **Buttons:** `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
     focus-visible:ring-offset-background`, one ring for every variant so the destructive
     button is not the faintest. The Dialog and Sheet close buttons draw the same ring on
     `focus:`.
   - **Bespoke clickable cards and chips** (marketplace, offer picker): a local `FOCUS_RING`
-    constant, `outline-none focus-visible:ring-2 focus-visible:ring-ring-halo
+    constant, `outline-none focus-visible:ring-2 focus-visible:ring-ring
     focus-visible:inset-ring-1 focus-visible:inset-ring-ring`.
 
-  Reuse the one that matches the surface. A ring always has a width (`ring-2` or `ring-[3px]`):
+  Reuse the one that matches the surface. A ring always has a width (`ring-2`):
   `ring-ring` alone sets only its colour and, next to `outline-none`, leaves no focus mark at
   all. Never animate the ring: a ring is a `box-shadow`, so keep `box-shadow` out of the
   transition (no `transition`, `transition-all` or `transition-shadow` on a focusable
-  element). Never fade it with a modifier: `--ring-halo` is the soft wide glow, and it carries
-  its own alpha so the class does not have to. Guard:
+  element). Never fade it with a modifier. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
   accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
@@ -520,7 +516,7 @@ primary on a neutral background. Brand names are always lowercase.
 - Keep neutrals as the base and Iris Flower as the one accent fill; let other palette
   colours (charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
-- Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
+- Separate sections with full-bleed segmented lines; lean on borders, not glow or blur.
 - Build pages from the three layers: white page, borderless light-gray panel, white bordered
   components. Fill the width of `main`.
 - Reuse the documented focus rings; give every icon-only control an `aria-label`.
@@ -536,7 +532,7 @@ primary on a neutral background. Brand names are always lowercase.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
   `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
-  `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
+  `-quaternary` / `-quinary`) or a named token (`--overlay`).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
 - A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
   directly on the white page.

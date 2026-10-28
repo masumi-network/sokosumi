@@ -110,7 +110,7 @@ describe("ProjectPinButton", () => {
     const pinnedClasses =
       screen.getByRole("button").className.split(/\s+/) ?? [];
     expect(pinnedClasses).toContain("text-foreground");
-    expect(pinnedClasses).toContain("bg-primary-quinary");
+    expect(pinnedClasses).toContain("bg-muted");
     expect(
       screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
     ).toContain("fill-current");
@@ -121,7 +121,7 @@ describe("ProjectPinButton", () => {
     );
     const unpinnedClasses = screen.getByRole("button").className.split(/\s+/);
     expect(unpinnedClasses).not.toContain("text-foreground");
-    expect(unpinnedClasses).not.toContain("bg-primary-quinary");
+    expect(unpinnedClasses).not.toContain("bg-muted");
     expect(
       screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
     ).not.toContain("fill-current");

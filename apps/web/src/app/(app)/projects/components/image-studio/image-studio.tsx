@@ -1022,7 +1022,7 @@ function FailedJob({
         </p>
         {job.error ? (
           <details>
-            <summary className="hover:text-foreground focus-visible:ring-ring-halo w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-[3px]">
+            <summary className="hover:text-foreground focus-visible:ring-ring w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-2">
               {labels.failedDetails}
             </summary>
             <p className="mt-1 font-mono text-xs break-words">{job.error}</p>

@@ -337,7 +337,7 @@ function JobDetailsInputsInner({
                   <Button
                     type="button"
                     variant="outline"
-                    className="bg-surface-glass hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
+                    className="bg-popover hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold"
                   >
                     {t("expand")}
                   </Button>

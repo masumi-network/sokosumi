@@ -123,8 +123,8 @@ export function ChatUnreadsFilterChip({
       className={cn(
         UNREADS_CHIP_CLASS,
         unreadOnly
-          ? "bg-primary-quaternary text-foreground hover:bg-primary-quaternary active:bg-primary-quaternary"
-          : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-foreground",
+          ? "bg-quinary text-foreground hover:bg-quinary active:bg-quinary"
+          : "chat-unreads-boot:bg-quinary chat-unreads-boot:text-foreground",
       )}
     >
       {t("allUnreads")}

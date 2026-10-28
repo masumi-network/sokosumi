@@ -56,7 +56,7 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
  * word instead, the three presets stood at three widths down the right side.
  */
 const TRIGGER = cn(
-  "focus-visible:border-ring focus-visible:ring-ring-halo inline-flex h-8 shrink-0 items-center justify-between gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none focus-visible:ring-[3px]",
+  "focus-visible:border-ring inline-flex h-8 shrink-0 items-center justify-between gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none",
   CELL_TRACK_SPAN,
 );
 
@@ -190,7 +190,7 @@ export function GroupAnswer({
             // says the group is on settings of its own, as loudly as a chosen
             // word does.
             preset === "CUSTOM"
-              ? "border-foreground bg-primary-quinary text-foreground"
+              ? "border-foreground bg-muted text-foreground"
               : "border-control-border bg-background",
             saving && "opacity-50",
           )}

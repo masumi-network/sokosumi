@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import Markdown from "@/components/markdown";
 
-const MARK = "mark.bg-primary-tertiary.text-foreground.rounded-sm";
+const MARK = "mark.bg-quaternary.text-foreground.rounded-sm";
 
 function renderHighlighted(source: string, term = "test") {
   return render(<Markdown highlightTerm={term}>{source}</Markdown>).container;

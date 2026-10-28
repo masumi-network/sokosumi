@@ -72,5 +72,5 @@ export function getNotificationIndicatorClassName(
     return "bg-semantic-warning text-semantic-warning-foreground";
   }
 
-  return "bg-primary-solid text-primary-solid-foreground";
+  return "bg-primary text-primary-foreground";
 }

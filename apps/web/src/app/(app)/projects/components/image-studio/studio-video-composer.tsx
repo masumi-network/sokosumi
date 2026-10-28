@@ -85,7 +85,7 @@ function chipClass(active: boolean): string {
     "border",
     active
       ? "border-foreground bg-primary text-primary-foreground"
-      : "border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary",
+      : "border-border text-muted-foreground hover:text-foreground",
   );
 }
 
@@ -258,7 +258,7 @@ export function StudioVideoComposer({
                     return (
                       <button
                         aria-checked={checked}
-                        className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
+                        className="hover:bg-accent focus-visible:ring-ring flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-2"
                         key={candidate.id}
                         onClick={() =>
                           onDraftChange({

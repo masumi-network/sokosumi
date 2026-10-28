@@ -204,7 +204,7 @@ export default function WorkspaceSwitcherMenu({
             disabled={isBusy}
             onClick={openCreateWorkspace}
           >
-            <Avatar className="bg-primary-quinary flex size-6 items-center justify-center gap-2">
+            <Avatar className="bg-muted flex size-6 items-center justify-center gap-2">
               <Plus className="text-foreground size-4" />
             </Avatar>
             <span>{tOrganizationSwitcher("createWorkspace")}</span>

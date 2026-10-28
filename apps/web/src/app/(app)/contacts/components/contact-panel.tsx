@@ -704,7 +704,7 @@ function MergeBanner({
   if (!group || !others.length) return null;
   return (
     <div className="px-6 pb-5">
-      <Alert className="border-primary-tertiary bg-primary-quinary">
+      <Alert className="border-border bg-muted">
         <GitMerge aria-hidden className="size-4" />
         <AlertDescription className="grid gap-2">
           <p className="text-foreground text-sm">
