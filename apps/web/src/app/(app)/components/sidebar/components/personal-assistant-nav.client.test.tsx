@@ -75,7 +75,6 @@ const bot: SidebarSokoBotLive = {
   name: "Mo",
   status: SokoBotStatus.IDLE,
   lastActivityAt: null,
-  isYours: true,
 };
 
 function tokens(className: string): string[] {
@@ -253,11 +252,6 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     expect(row()).toHaveAttribute("href", SOKO_BOT_ROUTE);
   });
 
-  it("opens the team's Soko Bots when the bot is a teammate's", () => {
-    renderNav({ bot: { ...bot, isYours: false } });
-    expect(row()).toHaveAttribute("href", SOKO_BOTS_ROUTE);
-  });
-
   it("marks the row while its bot is open", () => {
     pathnameRef.current = SOKO_BOT_ROUTE;
     renderNav({ bot });
@@ -272,12 +266,6 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
       "aria-current",
       "page",
     );
-  });
-
-  it("marks a teammate's row on the team page", () => {
-    pathnameRef.current = SOKO_BOTS_ROUTE;
-    renderNav({ bot: { ...bot, isYours: false } });
-    expect(row()).toHaveAttribute("aria-current", "page");
   });
 
   it("offers the team's Soko Bots from a people icon at the end", () => {
