@@ -244,8 +244,6 @@ import {
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
-  getChatsSignalsNeedsYou as coreGetChatsSignalsNeedsYou,
-  getChatsSignalsOpenLoops as coreGetChatsSignalsOpenLoops,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
   getChatsSignalsSummary as coreGetChatsSignalsSummary,
@@ -1563,22 +1561,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch pinned messages",
-    );
-  }
-
-  async function getChatNeedsYou() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetChatsSignalsNeedsYou({ client, cache: "no-store" }),
-      "Failed to fetch messages that need you",
-    );
-  }
-
-  async function getChatOpenLoops() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetChatsSignalsOpenLoops({ client, cache: "no-store" }),
-      "Failed to fetch open loops",
     );
   }
 
@@ -6433,8 +6415,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     unpinChatRoom,
     reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
-    getChatNeedsYou,
-    getChatOpenLoops,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
     getChatRoomDecisions,
