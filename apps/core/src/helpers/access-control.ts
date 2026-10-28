@@ -523,8 +523,6 @@ export async function requireTaskAssignableUser(
   }
 }
 
-export { requireTaskAssignableSokoBot } from "./soko-bot-task-assign";
-
 // -----------------------------------------------------------------------------
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------
