@@ -1,3 +1,4 @@
+import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { calls, transactionMock, workspaceFindUniqueMock } = vi.hoisted(() => ({
@@ -118,7 +119,7 @@ describe("createSharedSokoBot", () => {
         workspaceId: "workspace_1",
         projectId: "project_1",
         name: "Cuso",
-        versionId: "cmo-v1",
+        versionId: CMO_SOKO_BOT_VERSION_ID,
       }),
     ).rejects.toMatchObject({
       status: 409,
@@ -138,7 +139,22 @@ describe("createSharedSokoBot", () => {
       workspaceId: "workspace_1",
       projectId: "project_1",
       name: "Cuso",
-      versionId: "cmo-v1",
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+    });
+
+    expect(calls).toContain("sokoBot.create");
+  });
+
+  it("lets a Project hold several bots of any other pinned version", async () => {
+    const tx = recordingTx(["caller"], { name: "Writer" });
+    transactionMock.mockImplementation(async (run) => await run(tx));
+
+    await createSharedSokoBot({
+      callerUserId: "caller",
+      workspaceId: "workspace_1",
+      projectId: "project_1",
+      name: "Writer",
+      versionId: "writer-v1",
     });
 
     expect(calls).toContain("sokoBot.create");

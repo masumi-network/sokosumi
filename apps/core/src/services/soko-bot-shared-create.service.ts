@@ -1,5 +1,6 @@
 import { Prisma } from "@sokosumi/database";
 import {
+  CMO_SOKO_BOT_VERSION_ID,
   createEmptySokoBotMemory,
   renderSokoBotMemory,
 } from "@sokosumi/soko-bot";
@@ -138,11 +139,11 @@ export async function createSharedSokoBot(
           "The project is not an open project of this workspace",
         );
       }
-      // A product's bot (a pinned version, such as CMO's Cuso) is one per
-      // Project. No index holds it: the Project row written above makes a
-      // second create wait for this one and then see its bot.
+      // CMO's Cuso is one per Project (ADR 0062). No index holds it: the
+      // Project row written above makes a second create wait for this one
+      // and then see its bot.
       const sameVersionBot =
-        input.projectId && input.versionId
+        input.projectId && input.versionId === CMO_SOKO_BOT_VERSION_ID
           ? await tx.sokoBot.findFirst({
               where: {
                 projectId: input.projectId,
