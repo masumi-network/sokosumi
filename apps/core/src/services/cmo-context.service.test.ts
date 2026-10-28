@@ -99,7 +99,6 @@ describe("buildCmoBeatPacket", () => {
       },
       strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
       strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
-      mockPlan: null,
     });
     subscriptionFindFirst.mockResolvedValue(null);
     connectionFindMany.mockResolvedValue([]);
@@ -123,7 +122,6 @@ describe("loadCmoMarketingContext", () => {
       projectId: "project-1",
       strategy: null,
       strategyApprovedAt: null,
-      mockPlan: null,
     });
     subscriptionFindFirst.mockResolvedValue(null);
     connectionFindMany.mockResolvedValue([]);

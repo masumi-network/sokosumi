@@ -18,6 +18,10 @@ export const finalizeSokoBotIntegration = vi.fn();
 export const cmoFindUnique = vi.fn();
 export const cmoUpdate = vi.fn();
 export const subscriptionFindFirst = vi.fn();
+export const subscriptionCreate = vi.fn();
+export const subscriptionUpdate = vi.fn();
+export const projectFindUnique = vi.fn();
+export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
@@ -89,10 +93,16 @@ const client = {
   project: {
     create: projectCreate,
     delete: projectDelete,
+    findUnique: projectFindUnique,
+    update: projectUpdate,
     updateMany: projectUpdateMany,
   },
   organization: { findFirst: organizationFindFirst },
-  subscription: { findFirst: subscriptionFindFirst },
+  subscription: {
+    findFirst: subscriptionFindFirst,
+    create: subscriptionCreate,
+    update: subscriptionUpdate,
+  },
   workspace: { findUnique: workspaceFindUnique },
   sokoBotTurn: { findFirst: turnFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },

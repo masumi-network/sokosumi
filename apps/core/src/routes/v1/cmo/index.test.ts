@@ -72,7 +72,6 @@ function overview() {
       strategyUpdatedAt: NOW,
       strategyApprovedAt: NOW,
       accountsDoneAt: NOW,
-      mockPlanActivatedAt: null,
       onboardedAt: NOW,
       createdAt: NOW,
     },
