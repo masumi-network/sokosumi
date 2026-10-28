@@ -24,13 +24,17 @@ import {
   findCusoForUser,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
-  STRATEGY_TURN_PREFIX,
-  settledTurnStatus,
   startCmoProduction,
   startCmoTurn,
-  TURN_ROW_SELECT,
 } from "@/services/cmo-cuso.service";
-import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
+import {
+  approvedMarketingStrategy,
+  STRATEGY_TURN_PREFIX,
+} from "@/services/marketing-strategy.service";
+import {
+  settledTurnStatus,
+  TURN_ROW_SELECT,
+} from "@/services/soko-bot-turn-progress.service";
 
 const CUSO_NAME = "Cuso";
 

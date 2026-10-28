@@ -1,6 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import type { CusoMessage } from "./chat-messages";
+import { strategyApproved } from "./strategy";
 
 type Update = CmoOverview["updates"][number];
 
@@ -77,15 +78,12 @@ export function cusoStatus(overview: CmoOverview): string {
   if (overview.learning === "failed") return "Stopped";
   if (overview.learning === "running") return "Learning";
   if (!overview.brandBrain) return "Needs your answers";
-  if (
-    overview.billing.availableCredits <= 0 &&
-    overview.strategyVersion?.approvedAt
-  ) {
+  if (overview.billing.availableCredits <= 0 && strategyApproved(overview)) {
     return "Paused";
   }
   if (overview.botStatus === "RUNNING") return "Working";
   if (!overview.strategy) return "Planning";
-  if (!overview.strategyVersion?.approvedAt) return "Waiting for approval";
+  if (!strategyApproved(overview)) return "Waiting for approval";
   if (!overview.subscriptionActive) return "Strategy approved";
   if (overview.channels.length === 0) return "Waiting for a channel";
   return "Running";

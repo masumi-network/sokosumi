@@ -3,6 +3,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { useTransition } from "react";
 
 import { channelLabel, relativeDay } from "../../lib/calendar";
+import { strategyApproved } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
 
 interface UpNextProps {
@@ -101,7 +102,7 @@ export function UpNext({
           <div className="empty">
             <span className="shape" aria-hidden="true" />
             <span>
-              {!overview.strategyVersion?.approvedAt
+              {!strategyApproved(overview)
                 ? "Cuso starts working once you approve the strategy."
                 : overview.channels.length === 0
                   ? "Nothing queued. Cuso is waiting for a connected channel."

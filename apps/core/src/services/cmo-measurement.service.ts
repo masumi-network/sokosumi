@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
 import prisma from "@/lib/db/prisma";
+import type { SitePlatform } from "@/lib/site-platform";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -27,6 +28,9 @@ export async function learnCmoSitePlatform(
     data: { sitePlatform: platform },
   });
 }
+
+/** The site platform with a measurement source of its own. */
+const SHOPIFY = "shopify" satisfies SitePlatform;
 
 /** A measurement source and whether it is connected to Cuso. */
 export interface CmoMeasurementStatus {
@@ -52,7 +56,7 @@ export async function listCmoMeasurement(
     select: { provider: true, status: true },
   });
   const sources = CMO_MEASUREMENT_SOURCES.filter(
-    (source) => source.id !== "shopify" || sitePlatform === "shopify",
+    (source) => source.id !== SHOPIFY || sitePlatform === SHOPIFY,
   );
   return sources.map((source) => {
     const row = rows.find((candidate) => candidate.provider === source.id);
@@ -85,7 +89,7 @@ export async function connectCmoMeasurement(input: {
     where: { id: cuso.projectId },
     select: { sitePlatform: true },
   });
-  if (input.provider === "shopify" && project?.sitePlatform !== "shopify") {
+  if (input.provider === SHOPIFY && project?.sitePlatform !== SHOPIFY) {
     throw new CmoConflictError("Shopify measures Shopify shops only");
   }
   const { connectSokoBotIntegration } = await import(

@@ -18,8 +18,15 @@ import {
   type SocialPostProvider,
 } from "@sokosumi/utils";
 
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import {
+  conflict,
+  forbidden,
+  internalServerError,
+  notFound,
+} from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
+import { answerNote } from "@/helpers/question-answers";
+import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
 import {
   getLocalTimeParts,
@@ -28,10 +35,9 @@ import {
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import {
-  STRATEGY_TURN_PREFIX,
   settledTurnStatus,
   TURN_ROW_SELECT,
-} from "@/services/cmo-cuso.service";
+} from "@/services/soko-bot-turn-progress.service";
 
 /**
  * A Project's Marketing strategy (ADR 0062): one row per version. A write
@@ -44,6 +50,9 @@ export function parseMarketingPlan(value: unknown): CmoStrategy | null {
   const parsed = cmoStrategySchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
+
+/** `clientTurnId` prefix of a bot turn writing a new strategy version. */
+export const STRATEGY_TURN_PREFIX = "cmo:strategy:";
 
 /** Every column but the plan: what a list of versions shows. */
 export const MARKETING_STRATEGY_VERSION_SELECT = {
@@ -244,7 +253,7 @@ export async function approveMarketingStrategy(
         status: { in: [...UNPUBLISHED_POST_STATUSES] },
         marketingStrategy: { id: { not: version.id } },
       },
-      data: { status: "CANCELED", canceledAt: now, revision: { increment: 1 } },
+      data: canceledPost(now),
     });
     const today = now.toISOString().slice(0, 10);
     await planMarketingStrategyPosts(tx, {
@@ -270,6 +279,15 @@ const UNPUBLISHED_POST_STATUSES = [
   "NEEDS_APPROVAL",
   "SCHEDULED",
 ] as const satisfies readonly SocialPostStatus[];
+
+/** What canceling a planned Social post writes. */
+function canceledPost(now: Date) {
+  return {
+    status: "CANCELED",
+    canceledAt: now,
+    revision: { increment: 1 },
+  } satisfies Prisma.SocialPostUpdateManyMutationInput;
+}
 
 /** Only live social networks become Social posts; other channels stay in the plan. */
 function socialPostProvider(channel: string): SocialPostProvider | null {
@@ -326,10 +344,11 @@ function plannedAt(entry: CmoCalendarEntry, timeZone: string): Date | null {
   );
 }
 
-const withoutUndefined = <T extends object>(value: T): Partial<T> =>
-  Object.fromEntries(
+function withoutUndefined<T extends object>(value: T): Partial<T> {
+  return Object.fromEntries(
     Object.entries(value).filter(([, item]) => item !== undefined),
   ) as Partial<T>;
+}
 
 /**
  * Writes calendar entries on live social networks as the version's Social
@@ -418,7 +437,7 @@ export async function planMarketingStrategyPosts(
       where: { id: post.id },
       data:
         entry.status === "skipped"
-          ? { status: "CANCELED", canceledAt: now, revision: { increment: 1 } }
+          ? canceledPost(now)
           : {
               planning,
               ...(draft
@@ -499,9 +518,7 @@ export async function listMarketingStrategyPosts(
         ...(written ? { draft: post.text } : {}),
       },
       entryId: planning?.id ?? null,
-      media: Array.isArray(post.media)
-        ? (post.media as unknown as SocialPostMediaRef[])
-        : [],
+      media: parseSocialPostMedia(post.media, post.id),
     };
   });
 }
@@ -565,15 +582,15 @@ export async function answerMarketingStrategyQuestion(input: {
     const version = await tx.marketingStrategy.findFirst({
       where: { id: input.strategyId, projectId: input.projectId },
     });
-    const plan = parseMarketingPlan(version?.plan);
-    if (!version || !plan) {
-      throw notFound("Marketing strategy version not found");
+    if (!version) throw notFound("Marketing strategy version not found");
+    const plan = parseMarketingPlan(version.plan);
+    if (!plan) {
+      throw internalServerError("Marketing strategy version has no valid plan");
     }
     if (!plan.questions.some((question) => question.id === input.questionId)) {
       throw notFound("That question is not in the plan");
     }
-    const note =
-      input.answer === "no" ? input.note?.trim() || undefined : undefined;
+    const note = answerNote(input.answer, input.note);
     return tx.marketingStrategy.update({
       where: { id: version.id },
       data: {

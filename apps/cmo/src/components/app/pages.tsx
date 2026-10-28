@@ -8,6 +8,7 @@ import { STARTED_BY_OWNERS } from "../../lib/approvers";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
+import { strategyApproved } from "../../lib/strategy";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import { MockPlanTable } from "../mock-plans";
@@ -379,7 +380,7 @@ export function SettingsPage({
                 {routine.nextRunAt &&
                 !(
                   routine.key === "cmo-strategy-nudge" &&
-                  overview.strategyVersion?.approvedAt
+                  strategyApproved(overview)
                 ) ? (
                   <>
                     <br />

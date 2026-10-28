@@ -22,6 +22,7 @@ import {
 } from "react";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { BusinessMark, businessDisplayName } from "../business-mark";
@@ -157,10 +158,10 @@ export function webOriginOf(overview: CmoOverview): string {
 
 /** Starter replies for the moment the owner is in. */
 function suggestions(overview: CmoOverview): string[] {
-  if (overview.strategy && !overview.strategyVersion?.approvedAt) {
+  if (overview.strategy && !strategyApproved(overview)) {
     return changeIdeas(overview).slice(0, 3);
   }
-  if (overview.strategyVersion?.approvedAt) {
+  if (strategyApproved(overview)) {
     return [
       "Announce our new product tomorrow",
       "What are you doing today?",
@@ -290,8 +291,7 @@ export function CmoApp({
   const today = new Date().toISOString().slice(0, 10);
   const status = cusoStatus(overview);
   const outOfCredits =
-    overview.strategyVersion?.approvedAt != null &&
-    overview.billing.availableCredits <= 0;
+    strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const upNextCount = overview.upNext.length;
   const host = siteHost(overview.websiteUrl);
   const displayName = businessDisplayName(overview);
@@ -362,12 +362,8 @@ export function CmoApp({
             </span>
           ) : null}
           {view === "strategy" && overview.strategy ? (
-            <span
-              className={
-                overview.strategyVersion?.approvedAt ? "tag ok" : "tag"
-              }
-            >
-              {overview.strategyVersion?.approvedAt ? "Approved" : "Draft"}
+            <span className={strategyApproved(overview) ? "tag ok" : "tag"}>
+              {strategyApproved(overview) ? "Approved" : "Draft"}
             </span>
           ) : null}
           <span className="sp" />

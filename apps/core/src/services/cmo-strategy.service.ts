@@ -8,6 +8,7 @@ import {
   type CmoStrategySave,
   cmoStrategySchema,
 } from "@sokosumi/soko-bot";
+import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import { parseBrandBrain } from "@/services/brand-brain.service";
@@ -15,7 +16,6 @@ import {
   CmoConflictError,
   type Cuso,
   requireCuso,
-  STRATEGY_TURN_PREFIX,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
@@ -23,6 +23,7 @@ import {
   newestMarketingStrategy,
   parseMarketingPlan,
   planMarketingStrategyPosts,
+  STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
 
 /**
@@ -368,7 +369,7 @@ export async function saveCmoStrategy(
     options.turnId && before?.ads?.setByOwner ? before.ads : undefined;
   const parsed = {
     ...whole,
-    questions: keepPlanAnswers(before?.questions ?? [], whole.questions),
+    questions: keepAnswers(whole.questions, before?.questions ?? []),
     proposals: whole.proposals.filter(
       (proposal) => !running.has(proposal.channel),
     ),
@@ -433,19 +434,6 @@ export function withLineBreaks<T extends { calendar: CmoStrategy["calendar"] }>(
         : entry,
     ),
   };
-}
-
-/** The owner's answers survive Cuso saving the plan's questions again. */
-export function keepPlanAnswers(
-  before: CmoPlanQuestion[],
-  sent: CmoPlanQuestion[],
-): CmoPlanQuestion[] {
-  return sent.map((question) => {
-    const earlier = before.find((candidate) => candidate.id === question.id);
-    return earlier?.answer && !question.answer
-      ? { ...question, answer: earlier.answer, note: earlier.note }
-      : question;
-  });
 }
 
 /** The newest version CMO shows, or "Cuso has not written it yet". */

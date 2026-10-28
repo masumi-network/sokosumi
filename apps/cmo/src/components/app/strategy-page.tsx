@@ -13,6 +13,11 @@ import { StrategyReveal } from "../strategy-reveal";
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 
+interface StrategyVersionsProps {
+  overview: CmoOverview;
+  onApprove?: (versionId: string) => Promise<void>;
+}
+
 /**
  * Every version of the strategy, newest first. The approved one is what
  * Cuso carries out; owners and admins go back to an earlier one by
@@ -21,10 +26,7 @@ type Entry = Strategy["calendar"][number];
 export function StrategyVersions({
   overview,
   onApprove,
-}: {
-  overview: CmoOverview;
-  onApprove?: (versionId: string) => Promise<void>;
-}) {
+}: StrategyVersionsProps) {
   const [pending, startTransition] = useTransition();
   const versions = overview.strategyVersions;
   if (versions.length < 2) return null;

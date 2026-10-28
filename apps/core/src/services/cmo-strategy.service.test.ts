@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { keepAnswers } from "@/helpers/question-answers";
 import {
   cancelSocialPost,
   connectionFindMany,
@@ -78,7 +79,6 @@ vi.mock("@/config/env", async (importOriginal) =>
 import {
   cmoPlanAnswerNote,
   keepCalendarWork,
-  keepPlanAnswers,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
   saveCmoStrategy,
@@ -519,12 +519,12 @@ describe("plan questions", () => {
   });
 
   it("keeps the owner's answers when Cuso saves the questions again", () => {
-    const kept = keepPlanAnswers(
-      [question("q1", { answer: "no", note: "About 80" })],
+    const kept = keepAnswers(
       [question("q1"), question("q2")],
+      [question("q1", { answer: "no", note: "About 80" })],
     );
     expect(kept[0]).toMatchObject({ answer: "no", note: "About 80" });
-    expect(kept[1]?.answer).toBeUndefined();
+    expect(kept[1]).not.toHaveProperty("answer");
   });
 
   it("turns each no into a change for Cuso, and all yes into none", () => {

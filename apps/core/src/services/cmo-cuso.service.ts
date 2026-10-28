@@ -2,6 +2,7 @@ import { MemberRole, type Prisma } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
+import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.service";
 
 /**
  * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
@@ -87,7 +88,7 @@ type CusoRow = Prisma.SokoBotGetPayload<{ select: typeof CUSO_SELECT }>;
  * business name (the website's host), and the Project's Brand Brain under
  * the names CMO's screens read. `createdAt` is when he was hired.
  */
-export type Cuso = {
+export interface Cuso {
   sokoBotId: string;
   projectId: string;
   createdAt: Date;
@@ -97,7 +98,7 @@ export type Cuso = {
   brandBrain: Prisma.JsonValue | null;
   brandBrainUpdatedAt: Date | null;
   brandBrainConfirmedAt: Date | null;
-};
+}
 
 /** Null for a bot without a Project, which `CUSO_BOT_WHERE` never returns. */
 function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
@@ -233,73 +234,9 @@ export async function startCmoTurn(
 }
 
 export const ONBOARDING_TURN_PREFIX = "cmo:onboarding:";
-export const STRATEGY_TURN_PREFIX = "cmo:strategy:";
-
-/**
- * Learning that shows no progress for this long is stuck: a healthy turn
- * writes an event every few seconds and ends within the runtime's budget.
- */
-const LEARNING_STALL_MS = 5 * 60 * 1_000;
 
 /** Where Cuso's first look at the business stands, for the learning card. */
-export type CmoLearningState = "running" | "failed" | "done";
-
-async function lastTurnProgressAt(turn: {
-  eveSessionId: string | null;
-  createdAt: Date;
-}): Promise<Date> {
-  if (!turn.eveSessionId) return turn.createdAt;
-  const latest = await prisma.sokoBotRuntimeEvent.findFirst({
-    where: { sessionId: turn.eveSessionId },
-    orderBy: { startIndex: "desc" },
-    select: { occurredAt: true },
-  });
-  return latest?.occurredAt ?? turn.createdAt;
-}
-
-/**
- * Reads the newest onboarding turn. A stuck one (its run died, e.g. with
- * the process that ran it) is settled as failed here, as a deadline would,
- * so the founder sees "Try again" instead of a spinner and the bot is free
- * for new turns.
- */
-type TurnRow = {
-  id: string;
-  status: string;
-  eveSessionId: string | null;
-  createdAt: Date;
-  clientTurnId: string | null;
-};
-
-/**
- * running, done or failed. A turn that stopped making progress (its run died
- * with the process that ran it) is settled as failed here, as a deadline
- * would, so the founder sees "Try again" instead of a spinner.
- */
-export async function settledTurnStatus(
-  turn: TurnRow,
-  now: Date,
-): Promise<CmoLearningState> {
-  if (turn.status === "COMPLETED") return "done";
-  if (turn.status === "FAILED" || turn.status === "CANCELLED") return "failed";
-  const progressAt = await lastTurnProgressAt(turn);
-  if (now.getTime() - progressAt.getTime() < LEARNING_STALL_MS) {
-    return "running";
-  }
-  const { sokoBotControlPlane } = await import(
-    "@/services/soko-bot-control-plane.service"
-  );
-  await sokoBotControlPlane.expireTurn(turn.id).catch(() => undefined);
-  return "failed";
-}
-
-export const TURN_ROW_SELECT = {
-  id: true,
-  status: true,
-  eveSessionId: true,
-  createdAt: true,
-  clientTurnId: true,
-} as const;
+export type CmoLearningState = SettledTurnStatus;
 
 /**
  * The member Cuso's own runs act as (his rhythms, the month's production, the

@@ -12,7 +12,6 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   activeCmoSubscription,
   cmoMockBilling,
-  mayCommitCmo,
 } from "@/services/cmo-billing.service";
 import { cmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
@@ -51,6 +50,7 @@ import {
   listMarketingStrategies,
   listMarketingStrategyPosts,
   type MarketingStrategyVersion,
+  mayApproveMarketingStrategy,
   newestMarketingStrategy,
   parseMarketingPlan,
   withSocialPostCalendar,
@@ -73,12 +73,15 @@ export interface CmoUpNextItem {
  * approved, the accounts until the Project has a Social connection or the
  * person skipped them, the plan until the organization has a CMO plan.
  */
-export type CmoOnboardingStep =
-  | "brandBrain"
-  | "strategy"
-  | "accounts"
-  | "plan"
-  | "done";
+/** Hiring Cuso's steps, in order. */
+export const CMO_ONBOARDING_STEPS = [
+  "brandBrain",
+  "strategy",
+  "accounts",
+  "plan",
+  "done",
+] as const;
+export type CmoOnboardingStep = (typeof CMO_ONBOARDING_STEPS)[number];
 
 export function cmoOnboardingStep(input: {
   brandBrainConfirmed: boolean;
@@ -283,7 +286,11 @@ export async function getCmoOverview(
       referenceId: payer.referenceId,
       tx: prisma,
     }),
-    mayCommitCmo(userId, payer.organizationId),
+    mayApproveMarketingStrategy(userId, {
+      id: cuso.workspaceId,
+      userId: null,
+      organizationId: payer.organizationId,
+    }),
   ]);
   const cmoSubscription = await activeCmoSubscription(payer.referenceId);
   const cmoPlan = cmoSubscription?.plan ?? null;

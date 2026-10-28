@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { APPROVED_BY_OWNERS, STARTED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
+import { strategyApproved } from "../../lib/strategy";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -206,7 +207,7 @@ export function StrategyCard({
   const [pending, startTransition] = useTransition();
   const strategy = overview.strategy;
   if (!strategy) return null;
-  const approved = overview.strategyVersion?.approvedAt != null;
+  const approved = strategyApproved(overview);
   return (
     <div className={approved ? "card" : "card highlight"}>
       <div className="ch">

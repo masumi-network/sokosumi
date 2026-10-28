@@ -67,7 +67,7 @@ type CusoFixture = {
  * `cusoFind` resolves) gives the bot's id, the Project's id, workspace,
  * website and Brand Brain.
  */
-export const asCusoBot = (cuso: unknown) => {
+export function asCusoBot(cuso: unknown) {
   if (!cuso || typeof cuso !== "object") return cuso;
   const fixture = cuso as CusoFixture;
   return {
@@ -87,7 +87,7 @@ export const asCusoBot = (cuso: unknown) => {
         : null,
     },
   };
-};
+}
 
 /**
  * The Project's Marketing strategy versions, as rows in memory: tests seed

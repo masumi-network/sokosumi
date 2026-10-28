@@ -7,6 +7,7 @@ import {
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
 export const cmoOnboardingRequestSchema = z
   .object({
@@ -215,7 +216,7 @@ export const cmoOverviewSchema = z
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
     onboardingStep: z
-      .enum(["brandBrain", "strategy", "accounts", "plan", "done"])
+      .enum(CMO_ONBOARDING_STEPS)
       .describe(
         "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan. CMO opens on the chat once done.",
       ),

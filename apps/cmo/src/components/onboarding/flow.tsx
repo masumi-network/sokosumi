@@ -7,6 +7,7 @@ import { Check, ChevronDown, LogOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
+import { strategyApproved } from "../../lib/strategy";
 import { BusinessMark } from "../business-mark";
 import { Logo } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
@@ -109,7 +110,7 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
     if (work?.kind === "strategy" && work.status !== "done") return "planning";
     return overview.brandBrainConfirmedAt ? "questions" : "brain";
   }
-  if (!overview.strategyVersion?.approvedAt) {
+  if (!strategyApproved(overview)) {
     // Part way through the plan's questions, a reload resumes on them.
     const questions = overview.strategy.questions ?? [];
     const answered = questions.filter((question) => question.answer).length;
@@ -127,7 +128,7 @@ function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
   if (step === "brain" || step === "strategy") return true;
   if (step === "check") return (overview.strategy?.questions ?? []).length > 0;
   if (step === "questions") return overview.brandBrainConfirmedAt !== null;
-  if (step === "results") return overview.strategyVersion?.approvedAt != null;
+  if (step === "results") return strategyApproved(overview);
   return step === "connect" && needsAccounts(overview);
 }
 

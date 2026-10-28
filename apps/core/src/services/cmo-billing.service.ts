@@ -1,6 +1,5 @@
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
 import { getEnv, isProductionEnvironment } from "@/config/env";
-import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import prisma from "@/lib/db/prisma";
 import {
   CmoConflictError,
@@ -11,7 +10,10 @@ import {
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
-import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
+import {
+  approvedMarketingStrategy,
+  mayApproveMarketingStrategy,
+} from "@/services/marketing-strategy.service";
 
 /**
  * The org's active Subscription on a plan that lets Cuso execute, or null.
@@ -58,23 +60,13 @@ export async function isCmoSubscribed(
  * money and publish in its name: the organization's owners and admins only
  * (ADR 0061). Every other member works with Cuso freely.
  */
-export async function mayCommitCmo(
-  userId: string,
-  organizationId: string,
-): Promise<boolean> {
-  const member = await prisma.member.findUnique({
-    where: { userId_organizationId: { userId, organizationId } },
-    select: { role: true },
-  });
-  return member !== null && isOrganizationOwnerOrAdmin(member.role);
-}
-
 export async function requireCmoCommitter(
   userId: string,
   cuso: Pick<Cuso, "workspaceId">,
 ): Promise<void> {
   const { organizationId } = await cmoPayer(cuso);
-  if (!(await mayCommitCmo(userId, organizationId))) {
+  const workspace = { id: cuso.workspaceId, userId: null, organizationId };
+  if (!(await mayApproveMarketingStrategy(userId, workspace))) {
     throw new CmoForbiddenError(
       "Only the organization's owners and admins approve Cuso's plan and start his month",
     );

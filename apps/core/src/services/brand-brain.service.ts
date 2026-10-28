@@ -13,6 +13,7 @@ import {
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
 import { conflict, notFound } from "@/helpers/error";
+import { answerNote, keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -115,22 +116,6 @@ export async function saveBrandBrain(
   return db ? write(db) : prisma.$transaction(write);
 }
 
-/**
- * Questions saved again keep the members' answers: Cuso asks, only members
- * answer, so an answer Cuso leaves out is the stored one.
- */
-function keepAnswers(
-  incoming: CmoBrandQuestion[],
-  stored: CmoBrandQuestion[],
-): CmoBrandQuestion[] {
-  return incoming.map((question) => {
-    const answered = stored.find((candidate) => candidate.id === question.id);
-    return answered?.answer && !question.answer
-      ? { ...question, answer: answered.answer, note: answered.note }
-      : question;
-  });
-}
-
 /** What an answer adds to its section: a yes confirms, a no with a note corrects. */
 function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
   const point =
@@ -189,7 +174,7 @@ export async function answerBrandBrainQuestion(
     const answered: CmoBrandQuestion = {
       ...question,
       answer: input.answer,
-      note: input.answer === "no" ? input.note?.trim() || undefined : undefined,
+      note: answerNote(input.answer, input.note),
     };
     const earlier = [question.statement, question.note].filter(Boolean);
     const section = brain.profile[question.section];
