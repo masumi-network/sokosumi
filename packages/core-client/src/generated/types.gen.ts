@@ -2744,6 +2744,13 @@ export const ChatRoomInvitationStatus = {
 
 export type ChatRoomInvitationStatus = typeof ChatRoomInvitationStatus[keyof typeof ChatRoomInvitationStatus];
 
+export type ChatPerson = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+};
+
 export type ChatRoom = {
     /**
      * Room ID
@@ -2936,7 +2943,7 @@ export type CreateChatRoomRequest = {
     sokoBotIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -19453,6 +19460,73 @@ export type PostChatsInvitationsByIdDeclineResponses = {
 };
 
 export type PostChatsInvitationsByIdDeclineResponse = PostChatsInvitationsByIdDeclineResponses[keyof PostChatsInvitationsByIdDeclineResponses];
+
+export type ListChatPeopleData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/people';
+};
+
+export type ListChatPeopleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListChatPeopleError = ListChatPeopleErrors[keyof ListChatPeopleErrors];
+
+export type ListChatPeopleResponses = {
+    /**
+     * People
+     */
+    200: {
+        data: Array<ChatPerson>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListChatPeopleResponse = ListChatPeopleResponses[keyof ListChatPeopleResponses];
 
 export type GetChatsRoomsData = {
     body?: never;

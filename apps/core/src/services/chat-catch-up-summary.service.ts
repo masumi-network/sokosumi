@@ -153,7 +153,7 @@ async function summaryRooms(
     where: roomId
       ? { id: roomId }
       : {
-          ...membershipVisibleActiveRoomWhere(userId, organizationId),
+          ...membershipVisibleActiveRoomWhere(organizationId),
           userMembers: { some: { userId, mutedAt: null } },
         },
     select: { id: true, name: true, groupName: true, kind: true },

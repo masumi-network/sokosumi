@@ -1,5 +1,6 @@
 import type { NotificationItem } from "@sokosumi/core-client";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { isShownInEveryWorkspace } from "@/lib/chat/room-workspace-scope";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { getNotificationHref } from "@/lib/utils/notification-href";
@@ -20,6 +21,21 @@ type NotificationNavigationTranslator = (
 
 async function getMembersForAccountName() {
   return await coreClient.getMyMembersWithOrganizations();
+}
+
+/**
+ * A room shown in every workspace opens where the reader is (ADR-0059), even
+ * though its notification names the host Organization's workspace. An
+ * unreadable room switches as before; its page then says it is unavailable.
+ */
+async function isRoomShownInEveryWorkspace(roomId: string): Promise<boolean> {
+  try {
+    const { data } = await coreClient.getChatRoom(roomId);
+    return isShownInEveryWorkspace(data);
+  } catch (error) {
+    console.warn("Failed to read notification room", { roomId, error });
+    return false;
+  }
 }
 
 function getWorkspaceIdFromMetadata(
@@ -74,7 +90,11 @@ export async function handleNotificationNavigation(
     return;
   }
 
-  if (activeOrgId === organizationId) {
+  if (
+    activeOrgId === organizationId ||
+    (notification.kind === "CHAT" &&
+      (await isRoomShownInEveryWorkspace(notification.referenceId)))
+  ) {
     router.push(href);
     return;
   }

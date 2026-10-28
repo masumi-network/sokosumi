@@ -405,7 +405,7 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it. A Direct with only humans is a Personal Direct and shows in every workspace; a Direct with any coworker or Soko Bot belongs to one workspace and shows only there.
 _Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Group name**:
@@ -425,19 +425,15 @@ A durable copy of one room message (author, snippet, first attachment) carried o
 _Avoid_: Reply (that is a thread), forward, Unfurl of an internal link, quoting into a room with readers outside the source room
 
 **Coworker 1:1**:
-A Direct with exactly one human member and exactly one coworker.
-_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape
-
-**Org Direct**:
-A Direct owned by an Organization. Human 1:1 is an Org Direct only when both people are Members of that Organization. Organization exit removes the leaving member from them.
-_Avoid_: Team DM, workspace DM
+A Direct with exactly one human member and exactly one coworker. It belongs to the workspace it was started in, which pays for the coworker's work, and shows only in that workspace; a Soko Bot 1:1 is scoped the same way.
+_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape, treating it as a Personal Direct
 
 **Personal Direct**:
-A Direct not owned by an Organization. Survives Organization exit. Human 1:1 from a shared External channel is a Personal Direct; coworker 1:1 may also be personal.
-_Avoid_: Account DM, global DM
+A Direct whose members are all human: Self Direct, human 1:1 or group. Owned by no Organization or workspace, so it shows in every workspace and survives Organization exit ([ADR-0059](docs/adr/0059-human-directs-belong-to-no-workspace.md)). A user may start one, 1:1 or group, with anyone they share an Organization or an External channel with, whichever workspace is active; a group may mix people from different Organizations. Once started it stays writable even when its members no longer share anything. There is one per participant set.
+_Avoid_: Org Direct (retired: every human Direct is personal), team DM, workspace DM, account DM, global DM
 
 **External** (sidebar):
-The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Guest rooms appear in every workspace. Human Directs list under Direct Messages, including Personal Directs with a Guest.
+The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Every External channel the reader is on appears in every workspace, whether their Organization hosts it or they are a Guest; browsing the host Organization's External channels to join one happens only in its workspace. Directs list under Direct Messages, including Personal Directs with a Guest.
 _Avoid_: External channel (that is the room), guest sidebar
 
 ### Chat membership
@@ -459,15 +455,15 @@ The event that the current user is no longer a member of a room — by remote re
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
 
 **Organization exit (chat)**:
-When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships; it does restore the Org Directs that still exist and were started with them (see Former member). Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
+When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (Channels, including External ones it hosts, and the Coworker 1:1s and Soko Bot 1:1s of its workspace). They do not keep host-org rooms as guests. Personal Directs and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships. Channels left with no human members are soft-archived. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
 
 **Former member** (Direct):
-A human a Direct was started for who is no longer in it, usually through Organization exit. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
+A human a Direct was started for who is no longer in it. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
 _Avoid_: Ex-member, removed user (when meaning the Direct's view of them), treating the remaining reader as the Direct's other party
 
 **Read-only Direct**:
-A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable. When a Former member rejoins the Organization they are put back in with their Room last-read set to that moment (Thread Look markers are kept), and the Direct is writable again.
+A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable.
 _Avoid_: Archived direct (archiving is a different, reversible action), locked chat
 
 ### Chat pins

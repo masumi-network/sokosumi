@@ -5,6 +5,7 @@ import type {
   AddChatRoomMembersRequest,
   ChannelSlugAvailability,
   ChatEarlierThread,
+  ChatPerson,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -243,6 +244,18 @@ export const chatRoomService = (() => {
   ): Promise<AcceptChatRoomGuestInviteLink> {
     const response = await coreClient.acceptChatRoomGuestInviteLink(token);
     return response.data;
+  }
+
+  /** Everyone the user may start a Personal Direct with, in any workspace. */
+  async function listPeople(): Promise<ChatPerson[]> {
+    const people: ChatPerson[] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await coreClient.listChatPeople({ cursor, limit: 100 });
+      people.push(...response.data);
+      cursor = response.meta?.pagination?.nextCursor ?? undefined;
+    } while (cursor);
+    return people;
   }
 
   const getRoom = cache(async function getRoom(
@@ -694,6 +707,7 @@ export const chatRoomService = (() => {
   }
 
   return {
+    listPeople,
     acceptInvitation,
     acceptRoomGuestInviteLink,
     archiveRoom,
