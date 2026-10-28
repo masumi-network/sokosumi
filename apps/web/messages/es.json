@@ -6018,7 +6018,8 @@
         "Theme": {
           "label": "Tema de la vista previa",
           "light": "Claro",
-          "dark": "Oscuro"
+          "dark": "Oscuro",
+          "darkNote": "Los valores oscuros siguen abiertos en la guía. Esta vista sigue su tabla de roles."
         },
         "Color": {
           "title": "Color",
@@ -6037,7 +6038,11 @@
             "fieldBorder": "Borde de campo",
             "text": "Texto",
             "mutedText": "Texto atenuado",
-            "primary": "Principal"
+            "primary": "Principal",
+            "component": "Componente sobre un panel",
+            "disabledText": "Texto deshabilitado",
+            "textOnPrimary": "Texto sobre el principal",
+            "scrim": "Oscurecimiento de capa"
           },
           "status": "Estado",
           "Status": {
@@ -6047,7 +6052,9 @@
           },
           "statusRule": "Cada estado combina color con un símbolo y una etiqueta. Nunca solo color.",
           "gradients": "Degradados",
-          "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa."
+          "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa.",
+          "alpha": "Tonos alfa",
+          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz."
         },
         "Type": {
           "title": "Tipografía",
@@ -6106,17 +6113,9 @@
             "title": "Respuesta",
             "body": "Pulsar y pasar el cursor en cada control, ease-out."
           },
-          "confirm": {
-            "title": "Confirmación",
-            "body": "Confirmación al copiar y guardar."
-          },
           "enter": {
             "title": "Entrada",
             "body": "Listas, páginas, diálogos y menús que aparecen."
-          },
-          "busy": {
-            "title": "Ocupado",
-            "body": "Barra de carga mientras se ejecuta una solicitud."
           }
         },
         "States": {

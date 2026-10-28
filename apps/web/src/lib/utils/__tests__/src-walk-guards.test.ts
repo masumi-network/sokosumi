@@ -172,8 +172,8 @@ const LITERAL_ALLOWLIST = new Set([
   // Canvas painters. Both build a concrete string for a 2D context.
   "lib/aurora-orb.ts",
   "lib/job-input/form.ts",
-  // The design system preview prints each brand value as a label under its
-  // swatch. The swatches themselves paint from `design-system.css`.
+  // The design system preview's value table: the one home of each brand
+  // value, written as a custom property and printed as a swatch label.
   "app/(app)/admin/design-system/tokens.ts",
 ]);
 

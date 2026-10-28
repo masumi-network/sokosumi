@@ -1,12 +1,13 @@
 /**
- * The Masumi Family values the preview documents. Swatches paint from the CSS
- * variables in `design-system.css`; `hex` is only the label printed under each
- * one, so the brand values stay readable on the page.
+ * The Masumi Family values the preview documents, and their only home: the
+ * preview wrapper writes each one as a `--ds-*` custom property, and
+ * `design-system.css` maps the app's role tokens onto those properties. The
+ * hex doubles as the label printed under each swatch.
  */
 export interface Swatch {
   name: string;
   hex: string;
-  cssVar: string;
+  cssVar: `--ds-${string}`;
 }
 
 /** The one primary, shared by every brand in the family. */
@@ -44,15 +45,48 @@ export const NEUTRALS: Swatch[] = [
   { name: "White", hex: "#FFFFFF", cssVar: "--ds-white" },
 ];
 
+/** Black at reduced opacity, for overlays and scrims only (guide 5.2). */
+export const ALPHA_TONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95].map(
+  (step) => ({
+    name: `Alpha ${step}`,
+    cssVar: `--ds-alpha-${step}` as const,
+    value: `rgb(0 0 0 / ${(100 - step) / 100})`,
+  }),
+);
+
+/**
+ * The positive mark is the one status value outside the palette (Proposed in
+ * the guide). Warning is Golden Yellow and the X is Neutral 950, both mapped
+ * in `design-system.css`.
+ */
+const STATUS_VALUES = { "--ds-positive": "#00D43B" } as const;
+
+/** Every `--ds-*` value, ready to spread into the preview wrapper's style. */
+export const DESIGN_SYSTEM_VARS: Record<`--ds-${string}`, string> = {
+  ...Object.fromEntries(
+    [...PALETTE, ...NEUTRALS].map((swatch) => [swatch.cssVar, swatch.hex]),
+  ),
+  ...Object.fromEntries(ALPHA_TONES.map((tone) => [tone.cssVar, tone.value])),
+  ...STATUS_VALUES,
+};
+
 /** Section 5.2 of the guide: one role, a light step and a dark step. */
 export const THEME_ROLES = [
   { key: "page", light: "--ds-white", dark: "--ds-neutral-950" },
   { key: "panel", light: "--ds-neutral-100", dark: "--ds-neutral-900" },
+  { key: "component", light: "--ds-white", dark: "--ds-neutral-950" },
   { key: "border", light: "--ds-neutral-200", dark: "--ds-neutral-800" },
   { key: "fieldBorder", light: "--ds-neutral-300", dark: "--ds-neutral-700" },
   { key: "text", light: "--ds-neutral-900", dark: "--ds-neutral-50" },
   { key: "mutedText", light: "--ds-neutral-500", dark: "--ds-neutral-400" },
+  { key: "disabledText", light: "--ds-neutral-400", dark: "--ds-neutral-600" },
   { key: "primary", light: "--ds-iris-flower", dark: "--ds-iris-flower" },
+  {
+    key: "textOnPrimary",
+    light: "--ds-neutral-950",
+    dark: "--ds-neutral-950",
+  },
+  { key: "scrim", light: "--ds-alpha-50", dark: "--ds-alpha-50" },
 ] as const;
 
 export const GRADIENTS = [
@@ -71,6 +105,14 @@ export const RADII = [
   { key: "full", className: "rounded-full", px: null },
 ] as const;
 
+/** Inter weights (guide 5.3). Light is display only, never body. */
+export const WEIGHTS = [
+  { name: "Light", value: 300, className: "font-light" },
+  { name: "Regular", value: 400, className: "font-normal" },
+  { name: "Medium", value: 500, className: "font-medium" },
+  { name: "Semibold", value: 600, className: "font-semibold" },
+] as const;
+
 /** Product UI type roles (guide 5.3, Proposed). */
 export const TYPE_ROLES = [
   { key: "display", className: "text-3xl font-light tracking-tight" },
@@ -82,9 +124,8 @@ export const TYPE_ROLES = [
   { key: "micro", className: "text-2xs font-medium" },
 ] as const;
 
+/** Guide 5.10: press and hover feedback, and enter animations. */
 export const MOTION_TOKENS = [
   { key: "feedback", duration: "150ms" },
-  { key: "confirm", duration: "160ms" },
   { key: "enter", duration: "200ms" },
-  { key: "busy", duration: "1.1s" },
 ] as const;

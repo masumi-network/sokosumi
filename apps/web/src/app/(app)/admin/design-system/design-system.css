@@ -3,43 +3,19 @@
    The brand guide moves every product to Iris Flower on neutral surfaces:
    https://github.com/masumi-network/Masumi-Family-Brand-Guide (section 5.2).
    The app still ships the Sokosumi Blue tokens in `globals.css`, so this file
-   redefines the same token names inside `[data-design-system]` only. The real
-   shadcn components rendered under it pick the new values up through the
+   redefines the same role token names inside `[data-design-system]` only. The
+   real shadcn components rendered under it pick the new values up through the
    `@theme inline` bridge, and nothing outside the preview changes.
 
-   When `globals.css` migrates, delete this file and the wrapper attribute. */
+   The raw `--ds-*` values (palette, neutrals, alpha tones, positive) are not
+   here: `tokens.ts` holds each one once and the wrapper writes them as inline
+   custom properties. This file only maps roles onto them.
+
+   When `globals.css` migrates, delete this file, `tokens.ts` and the wrapper. */
 
 [data-design-system] {
-  /* Masumi palette. Iris Flower is the primary; the rest are secondary. */
-  --ds-crimson-purple: #460a23;
-  --ds-iris-flower: #ff51ff;
-  --ds-electric-pink: #fa008c;
-  --ds-vivid-sakura: #ff6ed2;
-  --ds-peach-blossom: #ffc8f0;
-  --ds-sand: #d7be8c;
-  --ds-persimmon: #ff6400;
-  --ds-scarlet: #fa140a;
-  --ds-golden-yellow: #ffd300;
-
-  /* Shared neutrals. */
-  --ds-black: #000000;
-  --ds-neutral-950: #0c0c0c;
-  --ds-neutral-900: #171717;
-  --ds-neutral-800: #262626;
-  --ds-neutral-700: #404040;
-  --ds-neutral-600: #525252;
-  --ds-neutral-500: #737373;
-  --ds-neutral-400: #a3a3a3;
-  --ds-neutral-300: #d4d4d4;
-  --ds-neutral-200: #e5e5e5;
-  --ds-neutral-100: #f5f5f5;
-  --ds-neutral-50: #fafafa;
-  --ds-white: #ffffff;
-  --ds-scrim: rgb(0 0 0 / 0.5);
-
-  /* Status (Proposed values in the guide). */
-  --ds-positive: #00d43b;
   --ds-warning: var(--ds-golden-yellow);
+  --ds-on-status: var(--ds-neutral-950);
 
   /* Gradient starting pairs (to be decided in the guide). */
   --ds-gradient-sakura: linear-gradient(
@@ -71,13 +47,15 @@
   --popover: var(--ds-white);
   --popover-foreground: var(--ds-neutral-900);
 
-  /* Text on Iris Flower is always Neutral 950: white measures 2.7:1. */
+  /* Text on Iris Flower is always Neutral 950: white measures 2.7:1. The
+     guide names no hover step and allows one pink per view, so a primary
+     keeps its fill on hover and answers with the shared press instead. */
   --primary: var(--ds-iris-flower);
   --primary-foreground: var(--ds-neutral-950);
   --primary-solid: var(--ds-iris-flower);
   --primary-solid-foreground: var(--ds-neutral-950);
-  --primary-solid-hover: var(--ds-vivid-sakura);
-  --primary-hover: var(--ds-vivid-sakura);
+  --primary-solid-hover: var(--ds-iris-flower);
+  --primary-hover: var(--ds-iris-flower);
 
   --secondary: var(--ds-neutral-950);
   --secondary-foreground: var(--ds-neutral-50);
@@ -101,16 +79,19 @@
   --border: var(--ds-neutral-200);
   --input: var(--ds-neutral-300);
   --control-border: var(--ds-neutral-300);
-  /* No glow: focus is a solid ring in the text color. */
+  /* No glow (guide 5.5): focus is the solid ring, and fields mark it with
+     their border. The halo steps go transparent rather than soft. */
   --ring: var(--ds-neutral-950);
-  --ring-halo: var(--ds-neutral-300);
-  --destructive-halo: var(--ds-neutral-300);
-  --overlay: var(--ds-scrim);
+  --ring-halo: transparent;
+  --destructive-halo: transparent;
+  --overlay: var(--ds-alpha-50);
 
   background-color: var(--background);
   color: var(--foreground);
 }
 
+/* Dark values are Open in the guide; these follow its best-case role table.
+   The X flips to Neutral 50 here, since Neutral 950 vanishes on the page. */
 [data-design-system="dark"] {
   --ds-strong: var(--ds-neutral-50);
   --ds-on-strong: var(--ds-neutral-950);
@@ -143,6 +124,4 @@
   --input: var(--ds-neutral-700);
   --control-border: var(--ds-neutral-700);
   --ring: var(--ds-neutral-50);
-  --ring-halo: var(--ds-neutral-600);
-  --destructive-halo: var(--ds-neutral-600);
 }

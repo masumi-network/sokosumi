@@ -10,6 +10,13 @@ Every color in `apps/web` product UI comes from a token in
 `apps/web/src/app/globals.css`. Components name a role. They never name a
 value.
 
+One exception, and it is not product UI: the staff-only design system preview
+at `/admin/design-system` (SOKD-120). It previews the Masumi Family brand
+guide before `globals.css` migrates, so it redefines the role tokens inside
+its own wrapper in `src/app/(app)/admin/design-system/design-system.css`, and
+its brand values live once in `tokens.ts` beside it. Never copy either into
+product code. When the app migrates, those files are deleted.
+
 Three things are banned. Each has one replacement.
 
 ### 1. No opacity modifiers on color utilities
@@ -160,7 +167,8 @@ Tailwind value, so an issue number in a comment is not a color. The allowlist
 is the set of places that cannot read a custom property: third-party brand
 marks, the color picker's own swatches, two canvas painters and a canvas
 fallback that reads `--primary` first, the error page that renders when the
-stylesheet failed, an iframe `srcdoc`, and the two surfaces the OS reads
-rather than CSS. It is named file by file, and it exempts literals only. No
+stylesheet failed, an iframe `srcdoc`, the two surfaces the OS reads
+rather than CSS, and the design system preview's value table, which is the
+source of its custom properties and prints each hex as a swatch label. It is named file by file, and it exempts literals only. No
 file is exempt from the palette rule. A new modifier or palette class is a
 build failure.

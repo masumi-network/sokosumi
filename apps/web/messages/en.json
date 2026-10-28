@@ -6054,7 +6054,8 @@
         "Theme": {
           "label": "Preview theme",
           "light": "Light",
-          "dark": "Dark"
+          "dark": "Dark",
+          "darkNote": "Dark values are still open in the guide. This follows its best-case role table."
         },
         "Color": {
           "title": "Color",
@@ -6073,7 +6074,11 @@
             "fieldBorder": "Field border",
             "text": "Text",
             "mutedText": "Muted text",
-            "primary": "Primary"
+            "primary": "Primary",
+            "component": "Component on a panel",
+            "disabledText": "Disabled text",
+            "textOnPrimary": "Text on primary",
+            "scrim": "Overlay scrim"
           },
           "status": "Status",
           "Status": {
@@ -6083,7 +6088,9 @@
           },
           "statusRule": "Every status pairs color with a symbol and a label. Never color alone.",
           "gradients": "Gradients",
-          "gradientRule": "To be decided. Backgrounds and hero areas only, never behind dense UI."
+          "gradientRule": "To be decided. Backgrounds and hero areas only, never behind dense UI.",
+          "alpha": "Alpha tones",
+          "alphaRule": "Black at reduced opacity. Overlays and scrims over imagery only, never UI surfaces."
         },
         "Type": {
           "title": "Typography",
@@ -6142,17 +6149,9 @@
             "title": "Feedback",
             "body": "Press and hover on every control, ease-out."
           },
-          "confirm": {
-            "title": "Confirm",
-            "body": "Copy and save confirmation."
-          },
           "enter": {
             "title": "Enter",
             "body": "Lists, pages, dialogs and menus arriving."
-          },
-          "busy": {
-            "title": "Busy",
-            "body": "Loading bar while a request runs."
           }
         },
         "States": {

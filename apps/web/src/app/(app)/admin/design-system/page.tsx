@@ -6,7 +6,9 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +21,7 @@ import {
   LoadingButtonDemo,
 } from "./design-system-preview";
 import {
+  ALPHA_TONES,
   GRADIENTS,
   IRIS_FLOWER,
   MOTION_TOKENS,
@@ -28,6 +31,7 @@ import {
   type Swatch,
   THEME_ROLES,
   TYPE_ROLES,
+  WEIGHTS,
 } from "./tokens";
 
 export const metadata: Metadata = {
@@ -39,19 +43,18 @@ export const metadata: Metadata = {
 const BRAND_GUIDE_URL =
   "https://github.com/masumi-network/Masumi-Family-Brand-Guide";
 
-function paint(cssVar: string) {
+/** Paints a swatch from one of the preview's `--ds-*` custom properties. */
+function backgroundFrom(cssVar: string) {
   return { background: `var(${cssVar})` };
 }
 
-function Section({
-  title,
-  lead,
-  children,
-}: {
+interface SectionProps {
   title: string;
   lead: string;
   children: ReactNode;
-}) {
+}
+
+function Section({ title, lead, children }: SectionProps) {
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -64,26 +67,26 @@ function Section({
 }
 
 /** The guide's middle layer: a borderless gray group holding components. */
-function Panel({
-  className,
-  children,
-}: {
+interface PanelProps {
   className?: string;
   children: ReactNode;
-}) {
-  return (
-    <div className={cn("bg-card-background rounded-xl p-3", className)}>
-      {children}
-    </div>
-  );
 }
 
-function SwatchTile({ swatch, tall }: { swatch: Swatch; tall?: boolean }) {
+function Panel({ className, children }: PanelProps) {
+  return <div className={cn(HOLDER_CLASS, "p-3", className)}>{children}</div>;
+}
+
+interface SwatchTileProps {
+  swatch: Swatch;
+  tall?: boolean;
+}
+
+function SwatchTile({ swatch, tall }: SwatchTileProps) {
   return (
     <div className="space-y-2">
       <div
         className={cn("rounded-lg border", tall ? "h-24" : "h-14")}
-        style={paint(swatch.cssVar)}
+        style={backgroundFrom(swatch.cssVar)}
       />
       <div className="text-xs font-medium">{swatch.name}</div>
       <div className="text-muted-foreground text-xs tabular-nums">
@@ -95,21 +98,31 @@ function SwatchTile({ swatch, tall }: { swatch: Swatch; tall?: boolean }) {
 
 type StatusTone = "todo" | "inProgress" | "needsInput" | "done" | "failed";
 
-function StatusDisc({ tone }: { tone: StatusTone }) {
+interface StatusDiscProps {
+  tone: StatusTone;
+}
+
+/** Status ink on a colored disc is always Neutral 950, the guide's X color. */
+const ON_STATUS = { color: "var(--ds-on-status)" };
+
+function StatusDisc({ tone }: StatusDiscProps) {
   const base =
     "inline-flex size-4 shrink-0 items-center justify-center rounded-full";
   if (tone === "done") {
     return (
-      <span className={base} style={paint("--ds-positive")}>
-        <Check className="text-primary-foreground size-3" strokeWidth={3} />
+      <span
+        className={base}
+        style={{ ...backgroundFrom("--ds-positive"), ...ON_STATUS }}
+      >
+        <Check className="size-3" strokeWidth={3} />
       </span>
     );
   }
   if (tone === "needsInput") {
     return (
       <span
-        className={cn(base, "text-primary-foreground text-2xs font-semibold")}
-        style={paint("--ds-warning")}
+        className={cn(base, "text-2xs font-semibold")}
+        style={{ ...backgroundFrom("--ds-warning"), ...ON_STATUS }}
         aria-hidden
       >
         !
@@ -173,7 +186,7 @@ export default async function DesignSystemPage() {
             <div className="grid gap-6 md:grid-cols-[2fr_3fr]">
               <div
                 className="text-primary-foreground flex min-h-48 flex-col justify-between rounded-2xl p-6"
-                style={paint(IRIS_FLOWER.cssVar)}
+                style={backgroundFrom(IRIS_FLOWER.cssVar)}
               >
                 <span className="text-sm font-medium">
                   {t("Color.primaryName")}
@@ -215,6 +228,23 @@ export default async function DesignSystemPage() {
                     <SwatchTile key={swatch.cssVar} swatch={swatch} />
                   ))}
                 </div>
+                <h3 className="pt-3 text-base font-semibold">
+                  {t("Color.alpha")}
+                </h3>
+                <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+                  {ALPHA_TONES.map((tone) => (
+                    <div key={tone.cssVar} className="space-y-2">
+                      <div
+                        className="h-10 rounded-lg border"
+                        style={backgroundFrom(tone.cssVar)}
+                      />
+                      <div className="text-xs">{tone.name}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {t("Color.alphaRule")}
+                </p>
               </div>
               <div className="space-y-3">
                 <h3 className="text-base font-semibold">{t("Color.roles")}</h3>
@@ -267,7 +297,7 @@ export default async function DesignSystemPage() {
                     <div
                       key={gradient.key}
                       className="h-24 rounded-xl"
-                      style={paint(gradient.cssVar)}
+                      style={backgroundFrom(gradient.cssVar)}
                     />
                   ))}
                 </div>
@@ -279,6 +309,16 @@ export default async function DesignSystemPage() {
           </Section>
 
           <Section title={t("Type.title")} lead={t("Type.lead")}>
+            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+              {WEIGHTS.map((weight) => (
+                <div key={weight.value} className="space-y-1">
+                  <div className={cn("text-4xl", weight.className)}>Aa</div>
+                  <div className="text-sm font-medium">
+                    {weight.name} · {weight.value}
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="divide-y border-y">
               {TYPE_ROLES.map((role) => (
                 <div
@@ -300,10 +340,7 @@ export default async function DesignSystemPage() {
                 {RADII.map((radius) => (
                   <div key={radius.key} className="space-y-2">
                     <div
-                      className={cn(
-                        "bg-muted border-input h-12 border",
-                        radius.className,
-                      )}
+                      className={cn("bg-muted h-12 border", radius.className)}
                     />
                     <span className="text-xs font-medium">
                       {radius.key}
@@ -403,7 +440,7 @@ export default async function DesignSystemPage() {
             </Panel>
 
             <Panel className="grid gap-4 md:grid-cols-3">
-              <div className="bg-card space-y-3 rounded-xl border p-5">
+              <Card className="gap-3 p-5">
                 <Badge variant="outline">
                   <StatusDisc tone="needsInput" />
                   {t("States.needsInput")}
@@ -420,7 +457,7 @@ export default async function DesignSystemPage() {
                     {t("Components.openTask")}
                   </Button>
                 </div>
-              </div>
+              </Card>
               <div className="bg-card divide-y self-start rounded-xl border">
                 {STATUS_TONES.map((tone) => (
                   <div
@@ -432,6 +469,9 @@ export default async function DesignSystemPage() {
                   </div>
                 ))}
               </div>
+              {/* Toasts and dialogs render in a portal outside the token
+                  scope, so these two are static specimens of the same
+                  surfaces. */}
               <div className="space-y-3">
                 <div
                   role="status"
@@ -471,7 +511,7 @@ export default async function DesignSystemPage() {
           </Section>
 
           <Section title={t("Motion.title")} lead={t("Motion.lead")}>
-            <div className="grid grid-cols-2 gap-6 border-y py-6 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-6 border-y py-6">
               {MOTION_TOKENS.map((token) => (
                 <div key={token.key} className="space-y-1">
                   <div className="text-2xl font-light tabular-nums">
@@ -545,20 +585,18 @@ export default async function DesignSystemPage() {
   );
 }
 
-function RoleRow({
-  label,
-  light,
-  dark,
-}: {
+interface RoleRowProps {
   label: string;
   light: string;
   dark: string;
-}) {
+}
+
+function RoleRow({ label, light, dark }: RoleRowProps) {
   return (
     <>
       <span>{label}</span>
-      <span className="h-6 rounded-md border" style={paint(light)} />
-      <span className="h-6 rounded-md border" style={paint(dark)} />
+      <span className="h-6 rounded-md border" style={backgroundFrom(light)} />
+      <span className="h-6 rounded-md border" style={backgroundFrom(dark)} />
     </>
   );
 }

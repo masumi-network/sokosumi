@@ -6018,7 +6018,8 @@
         "Theme": {
           "label": "Vorschau-Theme",
           "light": "Hell",
-          "dark": "Dunkel"
+          "dark": "Dunkel",
+          "darkNote": "Die Dunkelwerte sind in der Richtlinie noch offen. Diese Vorschau folgt ihrer Rollentabelle."
         },
         "Color": {
           "title": "Farbe",
@@ -6037,7 +6038,11 @@
             "fieldBorder": "Feldrahmen",
             "text": "Text",
             "mutedText": "Gedämpfter Text",
-            "primary": "Primär"
+            "primary": "Primär",
+            "component": "Komponente auf einem Panel",
+            "disabledText": "Deaktivierter Text",
+            "textOnPrimary": "Text auf Primärfarbe",
+            "scrim": "Overlay-Abdunklung"
           },
           "status": "Status",
           "Status": {
@@ -6047,7 +6052,9 @@
           },
           "statusRule": "Jeder Status kombiniert Farbe mit Symbol und Text. Nie nur Farbe.",
           "gradients": "Verläufe",
-          "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI."
+          "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI.",
+          "alpha": "Alpha-Töne",
+          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen."
         },
         "Type": {
           "title": "Typografie",
@@ -6106,17 +6113,9 @@
             "title": "Feedback",
             "body": "Drücken und Hovern bei jedem Bedienelement, ease-out."
           },
-          "confirm": {
-            "title": "Bestätigung",
-            "body": "Bestätigung nach Kopieren und Speichern."
-          },
           "enter": {
             "title": "Einblenden",
             "body": "Listen, Seiten, Dialoge und Menüs erscheinen."
-          },
-          "busy": {
-            "title": "Beschäftigt",
-            "body": "Ladebalken, solange eine Anfrage läuft."
           }
         },
         "States": {
