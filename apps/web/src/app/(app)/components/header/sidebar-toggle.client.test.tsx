@@ -108,6 +108,19 @@ describe("SidebarToggle", () => {
     expect(within(tooltip).getByText("Ctrl+B").tagName).toBe("KBD");
   });
 
+  // Shown only while the sidebar is hidden, by CSS rather than state: the boot
+  // script hides the sidebar before React hydrates, so the button must already
+  // be on that first frame.
+  it("shows only while the sidebar is hidden, from md", () => {
+    renderToggle();
+    const classes = screen
+      .getByRole("button", { name: "Hide sidebar", hidden: true })
+      .className.split(/\s+/);
+
+    expect(classes).toContain("hidden");
+    expect(classes).toContain("md:sidebar-hidden:inline-flex");
+  });
+
   it("is desktop only: the phone opens its sheet elsewhere", () => {
     isMobile = true;
     renderToggle();

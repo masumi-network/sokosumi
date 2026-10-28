@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
   SIDEBAR_COMPACT_MEDIA_QUERY,
+  SIDEBAR_USER_WIDTH_VAR,
   parseSidebarStateCookieHeader,
   serializeSidebarStateCookie,
 } from "@/lib/ui-preferences/sidebar-state";
@@ -204,7 +205,8 @@ function SidebarProvider({
           data-slot="sidebar-wrapper"
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
+              // The reader's dragged width, set on `<html>` before paint.
+              "--sidebar-width": `var(${SIDEBAR_USER_WIDTH_VAR}, ${SIDEBAR_WIDTH})`,
               ...style,
             } as React.CSSProperties
           }
@@ -298,7 +300,9 @@ function Sidebar({
             // width back as the panel slides out. A reader who asks for less
             // motion gets the end state on the next frame instead — the
             // geometry is identical either way, only the travel goes.
-            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION}`,
+            // Dragging the edge sets `data-resizing`: the width follows the
+            // pointer, so it must not ease behind it.
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
           )}
@@ -310,7 +314,7 @@ function Sidebar({
             // and the accessibility tree even before React hydrates, when the
             // boot script is what hid it. Transitioned, it flips only once
             // the panel has slid out, and before it slides back in.
-            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible md:flex`,
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible group-data-[resizing=true]/sidebar-wrapper:transition-none md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",

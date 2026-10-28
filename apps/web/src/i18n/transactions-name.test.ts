@@ -22,8 +22,8 @@ describe("Credit History page name", () => {
     };
 
     expect(app.TransactionHistory.Metadata.title).toBe(name);
-    // Nav item and the palette's "Go to" entry.
+    // The nav item.
     const raw = JSON.stringify(messages);
-    expect(raw.match(new RegExp(`"history":"${name}"`, "g"))).toHaveLength(2);
+    expect(raw.match(new RegExp(`"history":"${name}"`, "g"))).toHaveLength(1);
   });
 });

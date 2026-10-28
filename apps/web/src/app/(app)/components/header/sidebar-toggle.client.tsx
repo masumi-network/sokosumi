@@ -16,10 +16,15 @@ import {
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 
 /**
- * The desktop sidebar toggle at the start of the top bar (App chrome). The
- * sidebar hides completely rather than leaving a rail, so this is where it
- * comes back from; ⌘B / Ctrl+B does the same through `SidebarProvider`. The
- * phone opens its sheet from its own chrome, so this renders nothing there.
+ * The desktop sidebar toggle at the start of the top bar (App chrome), shown
+ * only while the sidebar is hidden. The sidebar hides completely rather than
+ * leaving a rail, so this is where it comes back from; while it is shown the
+ * sidebar's edge does the hiding, and ⌘B / Ctrl+B does both through
+ * `SidebarProvider`. The phone opens its sheet from its own chrome, so this
+ * renders nothing there.
+ *
+ * Visibility is CSS, not state: the boot script hides the sidebar before
+ * React hydrates, and the button must be there on that first frame.
  */
 export function SidebarToggle() {
   const { open, isMobile } = useSidebar();
@@ -84,7 +89,7 @@ function ToggleButton({
           aria-describedby={describedBy}
           aria-keyshortcuts="Meta+B Control+B"
           onClick={toggleSidebar}
-          className="relative -ml-2 hidden size-10 shrink-0 md:inline-flex md:size-8"
+          className="relative -ml-2 hidden size-10 shrink-0 motion-reduce:animate-none md:size-8 md:sidebar-hidden:inline-flex md:sidebar-hidden:animate-in md:sidebar-hidden:fade-in-0"
         >
           <PanelLeft aria-hidden />
           {children}
