@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   commentFindFirst: vi.fn(),
+  commentFindMany: vi.fn(async () => []),
+  postFindMany: vi.fn(async () => []),
   commentCount: vi.fn(),
   commentUpdate: vi.fn(async () => ({})),
   commentUpdateMany: vi.fn(async () => ({ count: 1 })),
@@ -13,11 +15,13 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     socialComment: {
       findFirst: db.commentFindFirst,
+      findMany: db.commentFindMany,
       count: db.commentCount,
       update: db.commentUpdate,
       updateMany: db.commentUpdateMany,
     },
     projectSocialConnection: { findFirst: db.connectionFindFirst },
+    socialPost: { findMany: db.postFindMany },
   },
 }));
 vi.mock("@/clients/social-post-providers/comments", async (importOriginal) => ({
@@ -31,6 +35,7 @@ vi.mock("@/services/project-social-connections.service", () => ({
 }));
 
 import {
+  collectNewSocialComments,
   handleSocialComment,
   SOCIAL_REPLIES_PER_DAY,
 } from "./social-comments.service";
@@ -170,6 +175,26 @@ describe("handleSocialComment", () => {
           status: "OWNER",
           note: "Asks for a refund",
         }),
+      }),
+    );
+  });
+});
+
+describe("collectNewSocialComments", () => {
+  it("hands Cuso only comments inside the comment window, so a backlog ages out", async () => {
+    const now = new Date("2026-10-28T12:00:00.000Z");
+    const since = new Date("2026-10-25T12:00:00.000Z");
+    await collectNewSocialComments({ projectId: "p-1", now });
+    expect(db.commentFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          projectId: "p-1",
+          status: "NEW",
+          OR: [
+            { commentedAt: { gte: since } },
+            { commentedAt: null, createdAt: { gte: since } },
+          ],
+        },
       }),
     );
   });

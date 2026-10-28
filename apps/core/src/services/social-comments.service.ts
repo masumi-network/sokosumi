@@ -106,8 +106,17 @@ export async function collectNewSocialComments(input: {
       skipDuplicates: true,
     });
   }
+  // Comments left for a later round age out too, or a busy day's backlog
+  // keeps Cuso answering ever older comments first.
   const open = await prisma.socialComment.findMany({
-    where: { projectId: input.projectId, status: "NEW" },
+    where: {
+      projectId: input.projectId,
+      status: "NEW",
+      OR: [
+        { commentedAt: { gte: since } },
+        { commentedAt: null, createdAt: { gte: since } },
+      ],
+    },
     orderBy: { commentedAt: "asc" },
     take: LIST_LIMIT,
     select: {
