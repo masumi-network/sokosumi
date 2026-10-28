@@ -7,6 +7,7 @@ import { Gavel } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { listChatRoomDecisionsAction } from "@/app/chat/signal-actions";
+import { chatMessageSenderName } from "@/components/chat/signals/signal-chips";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -18,19 +19,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface RoomDecisionsPopoverProps {
   room: ChatRoom;
   onJumpToMessage: (message: ChatRoomMessage) => void;
-}
-
-function senderName(message: ChatRoomMessage): string {
-  switch (message.sender.type) {
-    case "user":
-      return message.sender.user.name;
-    case "coworker":
-      return message.sender.coworker.name;
-    case "sokoBot":
-      return message.sender.sokoBot.name ?? "";
-    default:
-      return "";
-  }
 }
 
 /**
@@ -133,7 +121,9 @@ function DecisionsList({
                 onClick={() => onJump(message)}
               >
                 <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                  <span className="truncate">{senderName(message)}</span>
+                  <span className="truncate">
+                    {chatMessageSenderName(message)}
+                  </span>
                   <span aria-hidden>·</span>
                   <time dateTime={message.createdAt.toISOString()}>
                     {format.dateTime(message.createdAt, {

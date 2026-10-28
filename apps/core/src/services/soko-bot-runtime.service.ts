@@ -178,6 +178,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
@@ -5788,9 +5789,21 @@ export class SokoBotRuntimeService {
           listProjectSocialConnections({ ...params, workspaceId }),
           resolveProjectXSubscriptionTypes(params.projectId),
         ]);
+        const enabledProviders = socialProvidersForWorkspace(
+          socialProviderWorkspaceForProject(project),
+        );
         return {
-          enabledProviders: socialProvidersForWorkspace(
-            socialProviderWorkspaceForProject(project),
+          enabledProviders,
+          // Read before drafting: how a good post reads on each network.
+          writingGuides: Object.fromEntries(
+            enabledProviders
+              .filter((provider) =>
+                accounts.some((account) => account.provider === provider),
+              )
+              .map((provider) => [
+                provider,
+                SOCIAL_POST_WRITING_GUIDES[provider],
+              ]),
           ),
           // The bot otherwise assumes "X allows 280 characters" for every X
           // account, so each account states its own limits.
@@ -5966,7 +5979,13 @@ export class SokoBotRuntimeService {
                     input.input,
                   );
                 return updateSocialPost(
-                  { ...params, ...scope, media, threadParts },
+                  {
+                    ...params,
+                    ...scope,
+                    media,
+                    threadParts,
+                    sokoBotId: authorized.turn.sokoBotId,
+                  },
                   tx,
                 );
               }

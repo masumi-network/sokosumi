@@ -162,10 +162,6 @@ vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
   useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
 }));
 
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
 vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));

@@ -11,7 +11,6 @@ const catalogs = { en, de, es } as const;
 
 const expected = {
   en: {
-    breadcrumb: "Files",
     myDrive: "My files",
     selectTitle: "Select from Files",
     fromDrive: "From Files",
@@ -22,7 +21,6 @@ const expected = {
     copyToFilesDialogDescription: "Copy report.pdf to My files.",
   },
   de: {
-    breadcrumb: "Dateien",
     myDrive: "Meine Dateien",
     selectTitle: "Aus Dateien auswählen",
     fromDrive: "Aus Dateien",
@@ -33,7 +31,6 @@ const expected = {
     copyToFilesDialogDescription: "report.pdf nach Meine Dateien kopieren.",
   },
   es: {
-    breadcrumb: "Archivos",
     myDrive: "Mis archivos",
     selectTitle: "Seleccionar desde Archivos",
     fromDrive: "Desde Archivos",
@@ -60,16 +57,9 @@ describe("Drive UI copy", () => {
         messages,
         namespace: "App.Sidebar.Content.MenuItems",
       });
-      const crumb = createTranslator({
-        locale,
-        messages,
-        namespace: "Components.Breadcrumb",
-      });
       const want = expected[locale];
 
-      expect(crumb("drive")).toBe(want.menu);
       expect(menu("drive")).toBe(want.menu);
-      expect(drive("breadcrumb")).toBe(want.breadcrumb);
       expect(drive("myDrive")).toBe(want.myDrive);
       expect(drive("selectTitle")).toBe(want.selectTitle);
       expect(drive("fromDrive")).toBe(want.fromDrive);

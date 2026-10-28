@@ -2899,6 +2899,11 @@ export const ChatMessageSignalSchema = {
                     minimum: 0,
                     maximum: 1
                 },
+                announcement: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
                 fyi: {
                     type: 'number',
                     minimum: 0,
@@ -2986,13 +2991,14 @@ export const ChatSignalTagSchema = {
         'commitment',
         'blocker',
         'decisionMade',
+        'announcement',
         'fyi',
         'urgent',
         'chitChat',
         'workRequest',
         'escalation'
     ],
-    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -10034,6 +10040,37 @@ export const ChatRoomInvitationStatusSchema = {
     ]
 } as const;
 
+export const ChatPersonSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'image'
+    ]
+} as const;
+
 export const ChatRoomSchema = {
     type: 'object',
     properties: {
@@ -10510,7 +10547,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
+                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -12660,6 +12697,7 @@ export const ChatCatchUpBucketSchema = {
         'urgent',
         'blocker',
         'decisionMade',
+        'announcement',
         'needsDecision',
         'commitment',
         'workRequest',
@@ -12886,6 +12924,23 @@ export const ChatSkillCatalogItemSchema = {
         'source',
         'description',
         'installs'
+    ]
+} as const;
+
+export const ChatStickerSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url',
+        'name'
     ]
 } as const;
 

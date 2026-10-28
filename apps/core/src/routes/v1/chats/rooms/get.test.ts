@@ -4,6 +4,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountGetChatRooms from "./get";
+import { membershipVisibleActiveRoomWhere } from "./helpers";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -509,23 +510,10 @@ describe("GET /chats/rooms", () => {
       string,
       unknown
     >;
+    // Which rooms the shared filter keeps: room-visibility.postgres.test.ts.
     expect(where).toMatchObject({
-      archivedAt: null,
       userMembers: { some: { userId: USER_ID } },
-      OR: [
-        { organizationId: ORG_ID },
-        { userMembers: { some: { userId: USER_ID, access: "guest" } } },
-        {
-          organizationId: null,
-          kind: "direct",
-          coworkerMembers: { none: {} },
-        },
-        {
-          organizationId: null,
-          kind: "channel",
-          discoverability: "matched",
-        },
-      ],
+      ...membershipVisibleActiveRoomWhere(ORG_ID),
     });
     expect(where).not.toHaveProperty("createdByUserId");
     expect(where).not.toHaveProperty("organizationId");
@@ -556,7 +544,7 @@ describe("GET /chats/rooms", () => {
     });
   });
 
-  it("lists personal directs and guest rooms with no active organization", async () => {
+  it("lists the personal workspace's rooms with no active organization", async () => {
     const response = await createApp(null).request("/");
 
     expect(response.status).toBe(200);
@@ -565,17 +553,8 @@ describe("GET /chats/rooms", () => {
       unknown
     >;
     expect(where).toMatchObject({
-      archivedAt: null,
       userMembers: { some: { userId: USER_ID } },
-      OR: [
-        { organizationId: null, kind: "direct" },
-        { userMembers: { some: { userId: USER_ID, access: "guest" } } },
-        {
-          organizationId: null,
-          kind: "channel",
-          discoverability: "matched",
-        },
-      ],
+      ...membershipVisibleActiveRoomWhere(null),
     });
   });
 
@@ -650,18 +629,9 @@ describe("GET /chats/rooms", () => {
       unknown
     >;
     expect(where).toMatchObject({
-      archivedAt: null,
       kind: "channel",
       userMembers: { some: { userId: USER_ID } },
-      OR: [
-        { organizationId: null, kind: "direct" },
-        { userMembers: { some: { userId: USER_ID, access: "guest" } } },
-        {
-          organizationId: null,
-          kind: "channel",
-          discoverability: "matched",
-        },
-      ],
+      ...membershipVisibleActiveRoomWhere(null),
     });
   });
 });

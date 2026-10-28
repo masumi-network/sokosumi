@@ -117,18 +117,23 @@ const chatRoomUserParticipantSchema = z
   })
   .openapi("ChatRoomUserParticipant");
 
+const personFields = {
+  id: z.string().openapi({ example: "user_123" }),
+  name: z.string().openapi({ example: "Jane Doe" }),
+  email: z.string().openapi({ example: "jane@example.com" }),
+  image: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/avatar.png" }),
+};
+
 /** A human a Direct was started for who is no longer in it. Not a roster entry. */
 const chatRoomFormerUserMemberSchema = z
-  .object({
-    id: z.string().openapi({ example: "user_123" }),
-    name: z.string().openapi({ example: "Jane Doe" }),
-    email: z.string().openapi({ example: "jane@example.com" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/avatar.png" }),
-  })
+  .object(personFields)
   .openapi("ChatRoomFormerUserMember");
+
+/** Someone the reader may start a Personal Direct with (ADR-0059). */
+export const chatPersonSchema = z.object(personFields).openapi("ChatPerson");
 
 const chatRoomCoworkerParticipantSchema = z
   .object({
@@ -430,7 +435,7 @@ export const createChatRoomRequestSchema = z
       .object({
         kind: z.literal("direct").openapi({
           description:
-            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
+            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
@@ -687,7 +692,7 @@ export const chatSignalTagSchema = z
   .enum(CHAT_SIGNAL_TAGS)
   .openapi("ChatSignalTag", {
     description:
-      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
+      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
   });
 
 /**

@@ -6,6 +6,13 @@ export function chatRoomHref(roomId: string): string {
   return `${CHAT_APP_ROUTE_PREFIX}/rooms/${roomId}`;
 }
 
+/** The room id of a room page path (`/chat/rooms/{id}`, query ignored). */
+export function roomIdFromPath(
+  path: string | null | undefined,
+): string | undefined {
+  return path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+}
+
 /**
  * Asks a room to open its edit dialog, on the room's own URL.
  *

@@ -14,7 +14,7 @@ import {
 
 export const CHAT_SIGNAL_MODEL = SOKO_BOT_JEV_MODEL;
 /** Bumped whenever a question changes, so stored tags say what asked them. */
-export const CHAT_SIGNAL_VERSION = "chat-signals-jev-v1";
+export const CHAT_SIGNAL_VERSION = "chat-signals-jev-v2";
 
 const MAX_TEXT_LENGTH = 1_500;
 const MAX_CONTEXT_LENGTH = 400;
@@ -63,6 +63,8 @@ const TAG_QUESTIONS: Record<
     `Does message ${key} say that work is blocked, stuck or cannot continue until something or someone else moves?`,
   decisionMade: (key) =>
     `Does message ${key} announce or confirm a decision the team made about what it will do ("we go with B", "approved", "decided: we launch Monday")? Passing on news or a change someone outside the team made is no.`,
+  announcement: (key) =>
+    `Does message ${key} announce news the whole room or team should know: a launch or release, a policy or process change, someone joining or leaving, an event, a planned outage, or a milestone reached? A routine update on the author's own work, or a reply within a conversation, is no.`,
   fyi: (key) =>
     `Is message ${key} only an update or announcement for the room to read? A message that asks, requests, promises, decides or reports a problem is no.`,
   urgent: (key) =>
