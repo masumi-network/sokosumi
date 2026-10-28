@@ -82,6 +82,8 @@ const ORG_ID = "org_1";
 const GROUP_DIRECT_KEY = "direct:v2:user:user_123:user:user_456:user:user_789";
 
 const ORG_WORKSPACE_ID = "ws_org_1";
+/** People who share an Organization or External channel with USER_ID. */
+let reachableUserIds = new Set<string>();
 const PERSONAL_WORKSPACE_ID = "ws_user_123";
 
 const tx = {
@@ -162,6 +164,8 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 };
 
 const DIRECT_KEY = `${USER_ID}:${OTHER_USER_ID}`;
+const NOTHING_SHARED_MESSAGE =
+  "You can only message people you share an organization or external channel with.";
 
 function channelRoom(overrides: Record<string, unknown> = {}) {
   return {
@@ -292,9 +296,15 @@ beforeEach(() => {
       return null;
     },
   );
-  userFindManyMock.mockResolvedValue([
-    { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
-  ]);
+  reachableUserIds = new Set([OTHER_USER_ID, THIRD_USER_ID]);
+  userFindManyMock.mockImplementation(
+    async ({ where }: { where?: { id?: { in?: string[] }; OR?: unknown } }) =>
+      where?.OR
+        ? (where.id?.in ?? [])
+            .filter((id) => reachableUserIds.has(id))
+            .map((id) => ({ id }))
+        : [{ id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" }],
+  );
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
 });
@@ -948,8 +958,9 @@ describe("POST /chats/rooms", () => {
     );
   });
 
-  it("rejects human direct without an active organization or shared external channel with 400", async () => {
+  it("refuses a 1:1 from the personal workspace with someone who shares nothing", async () => {
     roomFindFirstMock.mockResolvedValue(null);
+    reachableUserIds = new Set();
     const app = createApp({
       ...userAuthContext,
       organizationId: null,
@@ -964,28 +975,15 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "You can only message people you share an external channel with.",
-    );
+    expect(await response.text()).toBe(NOTHING_SHARED_MESSAGE);
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("creates a personal 1:1 direct when callers share an external channel and have no org", async () => {
+  it("creates a 1:1 from the personal workspace with someone who shares an Organization or External channel", async () => {
     const created = directRoom({
       organizationId: null,
     });
-    roomFindFirstMock.mockImplementation(
-      async ({
-        where,
-      }: {
-        where?: { discoverability?: string; organizationId?: string | null };
-      }) => {
-        if (where?.discoverability === "external") {
-          return { id: "ext-room" };
-        }
-        return null;
-      },
-    );
+    roomFindFirstMock.mockResolvedValue(null);
     roomCreateMock.mockResolvedValueOnce(created);
 
     const app = createApp({
@@ -1014,66 +1012,11 @@ describe("POST /chats/rooms", () => {
         }),
       }),
     );
-    expect(roomFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          kind: "channel",
-          discoverability: "external",
-          archivedAt: null,
-          AND: [
-            { userMembers: { some: { userId: USER_ID } } },
-            { userMembers: { some: { userId: OTHER_USER_ID } } },
-          ],
-        },
-        select: { id: true },
-      }),
-    );
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("creates a personal 1:1 when the target is not an org member but shares an external channel", async () => {
-    const created = directRoom({
-      organizationId: null,
-    });
-    memberFindManyMock.mockResolvedValue([]);
-    roomFindFirstMock.mockImplementation(
-      async ({
-        where,
-      }: {
-        where?: { discoverability?: string; organizationId?: string | null };
-      }) => {
-        if (where?.discoverability === "external") {
-          return { id: "ext-room" };
-        }
-        return null;
-      },
-    );
-    roomCreateMock.mockResolvedValueOnce(created);
-
-    const app = createApp(userAuthContext);
-    const response = await app.request("/", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "direct",
-        memberUserIds: [OTHER_USER_ID],
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.organizationId).toBeNull();
-    expect(roomCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          organizationId: null,
-          kind: "direct",
-        }),
-      }),
-    );
-  });
-
-  it("returns an existing personal 1:1 after the pair no longer share an external channel", async () => {
+  it("returns an existing personal 1:1 after the pair no longer share anything", async () => {
+    reachableUserIds = new Set();
     const existingPersonal = directRoom({
       organizationId: null,
     });
@@ -1140,9 +1083,9 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a non-teammate 1:1 without a shared external channel with 400", async () => {
-    memberFindManyMock.mockResolvedValue([]);
+  it("refuses a 1:1 from an Organization workspace with someone who shares nothing", async () => {
     roomFindFirstMock.mockResolvedValue(null);
+    reachableUserIds = new Set();
 
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
@@ -1155,9 +1098,7 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "You can only message people you share an external channel with.",
-    );
+    expect(await response.text()).toBe(NOTHING_SHARED_MESSAGE);
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1397,11 +1338,39 @@ describe("POST /chats/rooms", () => {
     );
   });
 
-  it("rejects multi-human group direct without an active organization with 400", async () => {
-    const app = createApp({
-      ...userAuthContext,
-      organizationId: null,
+  it("creates a group Direct from the personal workspace with people from different Organizations", async () => {
+    roomFindFirstMock.mockResolvedValue(null);
+    roomCreateMock.mockResolvedValueOnce(
+      directRoom({ organizationId: null, directKey: GROUP_DIRECT_KEY }),
+    );
+    memberFindManyMock.mockResolvedValue([]);
+
+    const app = createApp({ ...userAuthContext, organizationId: null });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
+      }),
     });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: null,
+          directKey: GROUP_DIRECT_KEY,
+        }),
+      }),
+    );
+  });
+
+  it("refuses a group Direct when one person shares nothing with the requester", async () => {
+    roomFindFirstMock.mockResolvedValue(null);
+    reachableUserIds = new Set([OTHER_USER_ID]);
+
+    const app = createApp(userAuthContext);
     const response = await app.request("/", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1412,9 +1381,7 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "Switch to an organization to message a teammate.",
-    );
+    expect(await response.text()).toBe(NOTHING_SHARED_MESSAGE);
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 

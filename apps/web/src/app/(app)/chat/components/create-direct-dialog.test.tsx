@@ -1,4 +1,9 @@
-import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
+import type {
+  ChatPerson,
+  ChatRoom,
+  Coworker,
+  Member,
+} from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
@@ -73,6 +78,10 @@ function member(id: string, name: string): Member {
   };
 }
 
+function person(id: string, name: string): ChatPerson {
+  return { id, name, email: `${id}@example.com`, image: null };
+}
+
 function room(id: string): ChatRoom {
   return { id } as ChatRoom;
 }
@@ -99,9 +108,11 @@ describe("CreateDirectDialog", () => {
         hasOrganization: true,
         canCreateExternal: false,
         members: [member("user-self", "Ada"), member("user-2", "Francis")],
+        people: [person("user-2", "Francis")],
         coworkers: [],
         sokoBots: [],
         membersLoadFailed: false,
+        peopleLoadFailed: false,
       },
     });
     createDirectRoomActionMock.mockResolvedValue({
@@ -151,9 +162,11 @@ describe("CreateDirectDialog", () => {
           hasOrganization: false,
           canCreateExternal: false,
           members: [],
+          people: [],
           coworkers: [],
           sokoBots: [],
-          membersLoadFailed: true,
+          membersLoadFailed: false,
+          peopleLoadFailed: true,
         },
       });
       const user = userEvent.setup();
@@ -231,6 +244,39 @@ describe("CreateDirectDialog", () => {
     expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
   });
 
+  it("starts a group with people from other Organizations and External channels in the personal workspace", async () => {
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        currentUserName: "Ada",
+        currentUserImage: null,
+        organizationName: "",
+        hasOrganization: false,
+        canCreateExternal: false,
+        members: [],
+        people: [person("user-2", "Francis"), person("user-eve", "Eve")],
+        coworkers: [],
+        sokoBots: [],
+        membersLoadFailed: false,
+        peopleLoadFailed: false,
+      },
+    });
+    const user = userEvent.setup();
+    renderSeated(<CreateDirectDialog />);
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await user.click(await screen.findByRole("button", { name: /Francis/ }));
+    await user.click(screen.getByRole("button", { name: /Eve/ }));
+    await user.click(screen.getByRole("button", { name: "Dialog.create" }));
+
+    await waitFor(() => {
+      expect(createDirectRoomActionMock).toHaveBeenCalledWith({
+        memberUserIds: ["user-2", "user-eve"],
+      });
+    });
+  });
+
   it("create-or-gets a coworker Direct without a first message", async () => {
     loadChatComposeRosterActionMock.mockResolvedValue({
       ok: true,
@@ -242,9 +288,11 @@ describe("CreateDirectDialog", () => {
         hasOrganization: false,
         canCreateExternal: false,
         members: [],
+        people: [],
         coworkers: [coworker("coworker-1", "Hannah")],
         sokoBots: [],
         membersLoadFailed: false,
+        peopleLoadFailed: false,
       },
     });
     ensureCoworkerDirectRoomActionMock.mockResolvedValue({
@@ -267,7 +315,7 @@ describe("CreateDirectDialog", () => {
     expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-coworker");
   });
 
-  it("retries a members-only roster failure through loadRoster", async () => {
+  it("retries a people-only roster failure through loadRoster", async () => {
     loadChatComposeRosterActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -278,9 +326,11 @@ describe("CreateDirectDialog", () => {
         hasOrganization: true,
         canCreateExternal: false,
         members: [],
+        people: [],
         coworkers: [coworker("coworker-1", "Hannah")],
         sokoBots: [],
-        membersLoadFailed: true,
+        membersLoadFailed: false,
+        peopleLoadFailed: true,
       },
     });
     const user = userEvent.setup();
@@ -392,9 +442,11 @@ describe("CreateDirectDialog", () => {
         hasOrganization: true,
         canCreateExternal: false,
         members: [member("user-self", "Ada"), member("user-2", "Francis")],
+        people: [person("user-2", "Francis")],
         coworkers: [coworker("cow-1", "Hermes")],
         sokoBots: [],
         membersLoadFailed: false,
+        peopleLoadFailed: false,
       },
     });
     const user = userEvent.setup();

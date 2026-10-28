@@ -33,7 +33,6 @@ import {
   resolvePeerInActiveOrganization,
   resolveRoomQuoteSnapshot,
   resolveWorkspaceIdForChatRoom,
-  usersShareExternalChannel,
   validateChatCoworkerIds,
   withChatRoomReplyCounts,
 } from "./helpers";
@@ -1340,42 +1339,6 @@ describe("mapChatRoom room read receipts", () => {
 
     expect(mapped.coworkerMembers[0]).not.toHaveProperty("lastReadAt");
     expect(mapped.sokoBotMembers[0]).not.toHaveProperty("lastReadAt");
-  });
-});
-
-describe("usersShareExternalChannel", () => {
-  it("requires both humans on the same unarchived external channel", async () => {
-    const findFirst = vi.fn().mockResolvedValue({ id: ROOM_ID });
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
-    ).resolves.toBe(true);
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        kind: "channel",
-        discoverability: "external",
-        archivedAt: null,
-        AND: [
-          { userMembers: { some: { userId: MEMBER_ID } } },
-          { userMembers: { some: { userId: GUEST_ID } } },
-        ],
-      },
-      select: { id: true },
-    });
-  });
-
-  it("is false when no shared unarchived external channel exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
-    ).resolves.toBe(false);
   });
 });
 

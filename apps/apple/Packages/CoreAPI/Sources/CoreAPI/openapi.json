@@ -408,7 +408,7 @@
     },
     "/chats/rooms": {
       "get": {
-        "description": "List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), org-less matched channels where the caller is a member, and external channels where the caller is a guest. With no active organization, lists personal Directs, matched-channel memberships, and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
+        "description": "List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, personal human Directs (`organizationId` null, no coworker or Soko Bot), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's personal Directs, including those with a coworker or Soko Bot. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
         "tags": [
           "Chat Rooms"
         ],
@@ -817,7 +817,7 @@
         }
       },
       "post": {
-        "description": "Create a chat room. `kind: \"channel\"` requires an active organization and a user session. `kind: \"direct\"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Multi-human groups still require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: \"direct\", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.",
+        "description": "Create a chat room. `kind: \"channel\"` requires an active organization and a user session. `kind: \"direct\"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1s and groups are Personal Directs (`organizationId` null) in any workspace: every target must share an Organization or an External channel with the caller; `GET /chats/people` lists them. An existing Direct with the same participants is returned. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: \"direct\", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.",
         "tags": [
           "Chat Rooms"
         ],
@@ -29643,6 +29643,184 @@
           }
         }
       }
+    },
+    "/chats/people": {
+      "get": {
+        "operationId": "listChatPeople",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "description": "List everyone the signed-in user may start a Personal Direct with: members of any of their Organizations and co-members of any External channel they are on, each once, sorted by name. Independent of the active workspace.",
+        "responses": {
+          "200": {
+            "description": "People",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatPerson"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -31064,7 +31242,7 @@
                 "enum": [
                   "direct"
                 ],
-                "description": "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs."
+                "description": "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs."
               },
               "memberUserIds": {
                 "type": "array",
@@ -34601,6 +34779,36 @@
           "limit",
           "total",
           "nextCursor"
+        ]
+      },
+      "ChatPerson": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "user_123"
+          },
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "email": {
+            "type": "string",
+            "example": "jane@example.com"
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "https://example.com/avatar.png"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "image"
         ]
       }
     }

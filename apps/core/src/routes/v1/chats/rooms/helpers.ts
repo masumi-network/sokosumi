@@ -1785,24 +1785,50 @@ export async function validateOrganizationUserIds(
   return uniqueUserIds;
 }
 
-export async function usersShareExternalChannel(
-  userIdA: string,
-  userIdB: string,
+/**
+ * People `userId` may start a Personal Direct with: anyone sharing one of
+ * their Organizations or a live External channel, whatever workspace is
+ * active (ADR-0059). Not restricted to other people; callers exclude `userId`.
+ */
+export function directReachableUserWhere(
+  userId: string,
+): Prisma.UserWhereInput {
+  return {
+    OR: [
+      {
+        members: {
+          some: { organization: { members: { some: { userId } } } },
+        },
+      },
+      {
+        chatRoomMemberships: {
+          some: {
+            room: {
+              kind: "channel",
+              discoverability: "external",
+              archivedAt: null,
+              userMembers: { some: { userId } },
+            },
+          },
+        },
+      },
+    ],
+  };
+}
+
+async function filterDirectReachableUserIds(
+  userId: string,
+  targetUserIds: readonly string[],
   tx: Prisma.TransactionClient,
-): Promise<boolean> {
-  const room = await tx.chatRoom.findFirst({
+): Promise<string[]> {
+  const users = await tx.user.findMany({
     where: {
-      kind: "channel",
-      discoverability: "external",
-      archivedAt: null,
-      AND: [
-        { userMembers: { some: { userId: userIdA } } },
-        { userMembers: { some: { userId: userIdB } } },
-      ],
+      id: { in: [...targetUserIds] },
+      ...directReachableUserWhere(userId),
     },
     select: { id: true },
   });
-  return room != null;
+  return users.map((user) => user.id);
 }
 
 /**
@@ -2399,23 +2425,16 @@ export async function createOrGetDirectRoom(params: {
         });
       }
 
-      if (activeOrganizationId) {
-        if (shape.kind === "human-direct") {
-          await resolveMemberOrganizationById({
-            id: activeOrganizationId,
-            userId: currentUserId,
-            tx,
-          });
-        } else {
-          // Coworker 1:1 owner is the human on the room (user actor or
-          // originated target). A missing owner is a bad target, not
-          // "you are not a member".
-          await validateOrganizationUserIds(
-            activeOrganizationId,
-            [currentUserId],
-            tx,
-          );
-        }
+      // Human Directs belong to no workspace, so only AI 1:1s check it.
+      if (activeOrganizationId && shape.kind !== "human-direct") {
+        // Coworker 1:1 owner is the human on the room (user actor or
+        // originated target). A missing owner is a bad target, not
+        // "you are not a member".
+        await validateOrganizationUserIds(
+          activeOrganizationId,
+          [currentUserId],
+          tx,
+        );
       }
 
       if (shape.kind === "coworker-1to1") {
@@ -2503,25 +2522,6 @@ export async function createOrGetDirectRoom(params: {
         });
       }
 
-      const isGroup = requestedMemberUserIds.length > 1;
-      const orgTeammateIds = activeOrganizationId
-        ? await filterOrganizationUserIds(
-            activeOrganizationId,
-            requestedMemberUserIds,
-            tx,
-          )
-        : [];
-      const targetsAreOrgTeammates =
-        activeOrganizationId != null &&
-        orgTeammateIds.length === requestedMemberUserIds.length;
-
-      if (isGroup && !activeOrganizationId) {
-        throw badRequest("Switch to an organization to message a teammate.");
-      }
-      if (isGroup && !targetsAreOrgTeammates) {
-        throw badRequest("Room human members must belong to the organization");
-      }
-
       const memberUserIds = requestedMemberUserIds;
       const directKey = buildDirectParticipantRoomKey({
         currentUserId,
@@ -2540,21 +2540,15 @@ export async function createOrGetDirectRoom(params: {
         return { room: existing, created: false };
       }
 
-      if (!targetsAreOrgTeammates) {
-        const peerUserId = memberUserIds[0];
-        if (!peerUserId) {
-          throw badRequest("Choose a direct message target");
-        }
-        const shareChannel = await usersShareExternalChannel(
-          currentUserId,
-          peerUserId,
-          tx,
+      const reachableUserIds = await filterDirectReachableUserIds(
+        currentUserId,
+        memberUserIds,
+        tx,
+      );
+      if (reachableUserIds.length !== memberUserIds.length) {
+        throw badRequest(
+          "You can only message people you share an organization or external channel with.",
         );
-        if (!shareChannel) {
-          throw badRequest(
-            "You can only message people you share an external channel with.",
-          );
-        }
       }
 
       return createDirectRoomRecord({

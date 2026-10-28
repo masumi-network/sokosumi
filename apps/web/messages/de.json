@@ -7554,7 +7554,6 @@
         "title": "New direct message",
         "empty": "Wähle, wen du anschreiben möchtest.",
         "chooseRecipientError": "Wähle einen Empfänger.",
-        "organizationRequiredForGroup": "Wechsle zu einer Organisation, um einem Teammitglied zu schreiben.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",

@@ -7554,7 +7554,6 @@
         "title": "New direct message",
         "empty": "Choose who to message.",
         "chooseRecipientError": "Choose a recipient.",
-        "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",

@@ -363,6 +363,7 @@ import {
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
   listAdminVendors as coreListAdminVendors,
+  listChatPeople as coreListChatPeople,
   listCoworkerAssignments as coreListCoworkerAssignments,
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
@@ -1314,6 +1315,14 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat room",
+    );
+  }
+
+  async function listChatPeople() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListChatPeople({ client, cache: "no-store" }),
+      "Failed to fetch chat people",
     );
   }
 
@@ -6392,6 +6401,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     subscribeTaskParticipant,
     getChatRoom,
+    listChatPeople,
     getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomMessage,
