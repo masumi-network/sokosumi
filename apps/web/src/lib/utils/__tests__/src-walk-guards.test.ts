@@ -172,6 +172,9 @@ const LITERAL_ALLOWLIST = new Set([
   // Canvas painters. Both build a concrete string for a 2D context.
   "lib/aurora-orb.ts",
   "lib/job-input/form.ts",
+  // The design system preview prints each brand value as a label under its
+  // swatch. The swatches themselves paint from `design-system.css`.
+  "app/(app)/admin/design-system/tokens.ts",
 ]);
 
 function findColorViolations(

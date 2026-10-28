@@ -4817,7 +4817,8 @@
           "accounts": "Accounts",
           "billing": "Billing & commercial",
           "catalog": "Marketplace catalog",
-          "operations": "Operations"
+          "operations": "Operations",
+          "reference": "Reference"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4871,6 +4872,10 @@
           "badgeCampaigns": {
             "title": "Feature badges",
             "description": "Show a New badge on a sidebar feature for existing users, for a set time."
+          },
+          "designSystem": {
+            "title": "Design system",
+            "description": "Masumi Family brand and UI rules, rendered with our real components."
           }
         }
       },
@@ -6039,6 +6044,135 @@
           "saveFailed": "Couldn't save the campaign",
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
+        }
+      },
+      "DesignSystem": {
+        "title": "Design system",
+        "description": "Masumi Family brand and UI rules, rendered with our real components. Preview only: the app still uses its current tokens.",
+        "guideLink": "Brand guide",
+        "backToAdmin": "Back to admin",
+        "Theme": {
+          "label": "Preview theme",
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "Color": {
+          "title": "Color",
+          "lead": "Neutral surfaces. One pink per view.",
+          "primaryName": "Iris Flower · primary",
+          "primaryRuleTitle": "Text on Iris Flower is always Neutral 950",
+          "primaryRule": "White on Iris Flower fails contrast. Never set Iris Flower text on a white page. Use it for fills, accents and active states.",
+          "palette": "Masumi palette",
+          "paletteRule": "Shared by all brands. Everything but Iris Flower is secondary. Never use Scarlet or Persimmon for status.",
+          "neutrals": "Neutrals",
+          "roles": "Theme roles",
+          "Roles": {
+            "page": "Page",
+            "panel": "Panel",
+            "border": "Border",
+            "fieldBorder": "Field border",
+            "text": "Text",
+            "mutedText": "Muted text",
+            "primary": "Primary"
+          },
+          "status": "Status",
+          "Status": {
+            "done": "Positive",
+            "needsInput": "Warning",
+            "failed": "Destructive"
+          },
+          "statusRule": "Every status pairs color with a symbol and a label. Never color alone.",
+          "gradients": "Gradients",
+          "gradientRule": "To be decided. Backgrounds and hero areas only, never behind dense UI."
+        },
+        "Type": {
+          "title": "Typography",
+          "lead": "Inter only. Light from 20px, for display.",
+          "sample": "Agents at work",
+          "Roles": {
+            "display": "Display",
+            "heading": "Heading",
+            "subheading": "Subheading",
+            "body": "Body",
+            "label": "Label",
+            "caption": "Caption",
+            "micro": "Micro"
+          }
+        },
+        "Shape": {
+          "title": "Shape and depth",
+          "lead": "Borders first. Shadows only on floating overlays. No glow, no blur.",
+          "border": "Border",
+          "overlay": "Overlay"
+        },
+        "Components": {
+          "title": "Components",
+          "lead": "One filled primary per view. Verb first.",
+          "schedule": "Schedule post",
+          "duplicate": "Duplicate",
+          "cancel": "Cancel",
+          "delete": "Delete",
+          "showAll": "Show all",
+          "small": "Small",
+          "addTask": "Add task",
+          "saving": "Saving",
+          "postTitle": "Post title",
+          "postTitlePlaceholder": "e.g. Three lessons from our launch",
+          "budget": "Daily budget",
+          "budgetError": "Enter an amount above 0, like 25.",
+          "notify": "Notify me when a task needs input",
+          "review": "Review posts before they go out",
+          "calendar": "Calendar",
+          "drafts": "Drafts",
+          "cardTitle": "Competitor landscape",
+          "cardBody": "To get better aligned: which region do you sell in?",
+          "answer": "Answer",
+          "openTask": "Open task",
+          "toast": "Post scheduled",
+          "undo": "Undo",
+          "dialogTitle": "Delete 3 drafts?",
+          "dialogBody": "They will not be posted and cannot be restored.",
+          "deleteDrafts": "Delete drafts"
+        },
+        "Motion": {
+          "title": "Motion",
+          "lead": "Motion explains a change. Nothing more.",
+          "rules": "Animate transform and opacity, never layout. Name the properties you transition. No decorative loops. Reduced motion removes non-essential movement.",
+          "feedback": {
+            "title": "Feedback",
+            "body": "Press and hover on every control, ease-out."
+          },
+          "confirm": {
+            "title": "Confirm",
+            "body": "Copy and save confirmation."
+          },
+          "enter": {
+            "title": "Enter",
+            "body": "Lists, pages, dialogs and menus arriving."
+          },
+          "busy": {
+            "title": "Busy",
+            "body": "Loading bar while a request runs."
+          }
+        },
+        "States": {
+          "title": "State",
+          "lead": "Every state is designed, not left over.",
+          "todo": "To do",
+          "inProgress": "In progress",
+          "needsInput": "Needs input",
+          "done": "Done",
+          "failed": "Failed",
+          "loading": "Drafting your posts",
+          "emptyTitle": "Drafts",
+          "emptyBody": "Posts you start but do not schedule wait here.",
+          "emptyAction": "Write a post",
+          "errorTitle": "LinkedIn did not accept the post",
+          "errorBody": "The image is over 5 MB. Choose a smaller one and try again.",
+          "errorAction": "Replace image",
+          "doneTitle": "5 posts scheduled",
+          "doneBody": "The first one goes out Thursday at 09:00, your time zone.",
+          "doneAction": "Open calendar"
         }
       }
     },
