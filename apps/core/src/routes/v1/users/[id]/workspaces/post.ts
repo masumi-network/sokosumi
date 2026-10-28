@@ -1,18 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import * as Sentry from "@sentry/node";
-import {
-  buildOrganizationMetadataWithUrl,
-  createOrganizationSlug,
-} from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { createOrganizationWorkspace } from "@/helpers/organization-workspace";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { created } from "@/helpers/response";
-import {
-  getUserWorkspace,
-  type UserWorkspaceMatch,
-} from "@/helpers/user-workspaces";
-import { auth } from "@/lib/auth";
+import { getUserWorkspace } from "@/helpers/user-workspaces";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -23,7 +15,6 @@ import {
   createUserWorkspaceSchema,
   userWorkspaceSchema,
 } from "@/schemas/user-workspace.schema";
-import { setPreferredOrganizationId } from "@/services/preferred-workspace.service";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -77,41 +68,13 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const body = c.req.valid("json");
 
-    let match: UserWorkspaceMatch;
-    if (body.kind === "personal") {
-      const workspace = await createPersonalWorkspace(resolvedUserId);
-      match = { id: workspace.id };
-    } else {
-      // No headers: Better Auth treats a userId body as a system action for
-      // that user and still runs the organization hooks.
-      const organization = await auth.api.createOrganization({
-        body: {
-          name: body.name,
-          slug: createOrganizationSlug(body.name),
-          metadata:
-            buildOrganizationMetadataWithUrl(null, body.websiteUrl) ?? {},
-          userId: resolvedUserId,
-        },
-      });
-      // The organization exists now; a failed preference only leaves it
-      // unpreferred (the response says so), so it must not turn into a 500
-      // that a retry answers with a second organization.
-      try {
-        await setPreferredOrganizationId(resolvedUserId, organization.id);
-      } catch (error) {
-        Sentry.captureException(error, {
-          extra: {
-            organizationId: organization.id,
-            errorType: "workspace-create-set-preferred",
-          },
-        });
-      }
-      match = { organizationId: organization.id };
-    }
+    const workspace =
+      body.kind === "personal"
+        ? await getUserWorkspace(resolvedUserId, {
+            id: (await createPersonalWorkspace(resolvedUserId)).id,
+          })
+        : await createOrganizationWorkspace(resolvedUserId, body);
 
-    return created(
-      c,
-      userWorkspaceSchema.parse(await getUserWorkspace(resolvedUserId, match)),
-    );
+    return created(c, userWorkspaceSchema.parse(workspace));
   });
 }

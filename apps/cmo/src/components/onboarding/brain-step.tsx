@@ -15,7 +15,8 @@ interface BrainStepProps {
   messages: CusoMessage[];
   onCorrect: (text: string) => Promise<void>;
   onSave: (brain: BrandBrain) => Promise<void>;
-  onPlan: () => Promise<string | null>;
+  /** Approves the Brand Brain; a refusal comes back as text. */
+  onApprove: () => Promise<string | null>;
   /** Set when the founder opened this step again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
 }
@@ -26,7 +27,7 @@ export function BrainStep({
   messages,
   onCorrect,
   onSave,
-  onPlan,
+  onApprove,
   ahead,
 }: BrainStepProps) {
   const [sent, setSent] = useState<{
@@ -69,7 +70,7 @@ export function BrainStep({
         say={
           ahead
             ? "Your Brand Brain. What you change here goes into everything I write."
-            : `This is ${name} as I see it. Fix anything that's off, then approve it and I plan your month.`
+            : `This is ${name} as I see it. Fix anything that's off, then approve it. A few quick questions come next.`
         }
         note={
           fixing
@@ -95,7 +96,7 @@ export function BrainStep({
               disabled={planning || fixing || finishing}
               onClick={() =>
                 startPlanning(async () => {
-                  setRefusal(await onPlan());
+                  setRefusal(await onApprove());
                 })
               }
             >

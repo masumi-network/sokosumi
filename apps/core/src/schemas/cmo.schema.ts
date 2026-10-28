@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
+  CMO_BRAND_ANSWERS,
   cmoBrandBrainSchema,
   cmoReportUpdateInputSchema,
   cmoStrategySchema,
@@ -9,14 +10,14 @@ import { dateTimeSchema } from "@/helpers/datetime";
 
 export const cmoOnboardingRequestSchema = z
   .object({
-    workspaceId: z
+    websiteUrl: z
       .string()
-      .min(1)
+      .trim()
+      .url()
+      .max(500)
       .describe(
-        "The Workspace to hire Cuso into, as `/v1/users/me/workspaces` lists it.",
+        "The business's website. Cuso is hired into a new organization named after it.",
       ),
-    websiteUrl: z.string().trim().url().max(500),
-    goals: z.string().trim().min(3).max(2_000),
   })
   .openapi("CmoOnboardingRequest");
 
@@ -32,6 +33,39 @@ export const cmoMockPlanRequestSchema = z
 export const cmoBrandBrainRequestSchema = z
   .object({ brandBrain: cmoBrandBrainSchema })
   .openapi("CmoBrandBrainRequest");
+
+export const cmoBrandAnswerRequestSchema = z
+  .object({
+    questionId: z.string().trim().min(1).max(40),
+    answer: z.enum(CMO_BRAND_ANSWERS),
+    note: z
+      .string()
+      .trim()
+      .max(400)
+      .optional()
+      .describe("After a no: what is true instead, in the owner's words."),
+  })
+  .openapi("CmoBrandAnswerRequest");
+
+export const cmoMeasurementSchema = z
+  .object({
+    provider: z.enum(["google_analytics", "google_search_console", "shopify"]),
+    name: z.string(),
+    measures: z.string(),
+    status: z.enum(["connected", "pending", "none"]),
+  })
+  .openapi("CmoMeasurement");
+
+export const cmoAdBudgetRequestSchema = z
+  .object({
+    monthly: z.number().min(0).max(10_000_000),
+    currency: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z]{3}$/)
+      .describe("ISO 4217, such as EUR."),
+  })
+  .openapi("CmoAdBudgetRequest");
 
 export const cmoStrategyRequestSchema = z
   .object({ note: z.string().trim().max(1_000).optional() })
@@ -106,6 +140,46 @@ export const cmoBrandVisualSchema = z
   })
   .openapi("CmoBrandVisual");
 
+const cmoMediaFileSchema = z.object({
+  /** Public Blob address the CMO app shows; never handed to anyone else. */
+  url: z.string(),
+  fileId: z.union([z.string(), z.null()]),
+});
+
+export const cmoBrandMediaSchema = z
+  .object({
+    capturedAt: z.string(),
+    pages: z
+      .array(
+        cmoMediaFileSchema.extend({
+          label: z.string(),
+          pageUrl: z.string(),
+          title: z.string(),
+          device: z.enum(["desktop", "mobile"]),
+        }),
+      )
+      .describe("The brand's own pages, home first, then home on a phone."),
+    competitors: z
+      .array(
+        cmoMediaFileSchema.extend({ name: z.string(), pageUrl: z.string() }),
+      )
+      .describe("Each competitor's homepage, in the Brand Brain's order."),
+    pictures: z
+      .array(
+        cmoMediaFileSchema.extend({
+          sourceUrl: z.string(),
+          alt: z.string(),
+          width: z.number(),
+          height: z.number(),
+        }),
+      )
+      .describe(
+        "The large pictures on the brand's pages: products, screens, people.",
+      ),
+  })
+  .openapi("CmoBrandMedia");
+export type CmoBrandMedia = z.infer<typeof cmoBrandMediaSchema>;
+
 export const cmoRoutineSchema = z
   .object({
     key: z.string(),
@@ -150,6 +224,8 @@ export const cmoOverviewSchema = z
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
+    brandBrainApprovedAt: z.union([dateTimeSchema, z.null()]),
+    brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
     strategy: z.union([cmoStrategySchema, z.null()]),
     media: z
       .array(
@@ -170,6 +246,11 @@ export const cmoOverviewSchema = z
     connectChannelUrl: z.string(),
     adProviders: z.array(z.string()),
     connectAdsUrl: z.string(),
+    measurement: z
+      .array(cmoMeasurementSchema)
+      .describe(
+        "Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.",
+      ),
     mailingListSize: z.number().int(),
     subscribeUrl: z.string(),
     billing: z.object({

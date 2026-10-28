@@ -229,6 +229,98 @@ export const cmoBrandRevealSchema = z.object({
 });
 export type CmoBrandReveal = z.infer<typeof cmoBrandRevealSchema>;
 
+/**
+ * What the owner can connect so Cuso measures the funnel instead of
+ * estimating it. Ids are Composio toolkit slugs.
+ */
+export const CMO_MEASUREMENT_SOURCES = [
+  {
+    id: "google_analytics",
+    name: "Google Analytics",
+    measures: "Visits, where they come from and conversions",
+  },
+  {
+    id: "google_search_console",
+    name: "Google Search Console",
+    measures: "Searches, clicks and rankings",
+  },
+  { id: "shopify", name: "Shopify", measures: "Orders and revenue" },
+] as const;
+export type CmoMeasurementSource =
+  (typeof CMO_MEASUREMENT_SOURCES)[number]["id"];
+
+export function isCmoMeasurementSource(
+  value: string,
+): value is CmoMeasurementSource {
+  return CMO_MEASUREMENT_SOURCES.some((source) => source.id === value);
+}
+
+/** How a number was found: read from a source, Cuso's estimate, or not known. */
+export const CMO_MEASURE_BASES = ["measured", "estimated", "unknown"] as const;
+
+/**
+ * The business's marketing as it is before Cuso: what it posts where and how
+ * often, its site and its ads. The strategy shows its plan against this.
+ */
+export const cmoMarketingTodaySchema = z.object({
+  /** In one line: "LinkedIn product news twice a month, no ads, blog quiet". */
+  summary: shortText,
+  channels: z
+    .array(
+      z.object({
+        /** The network, as the channels list names it ("Instagram"). */
+        name: shortText,
+        url: z.string().url().max(500).optional(),
+        /** As the network shows it: "511K". */
+        followers: z.string().trim().max(20).optional(),
+        /** Posts in the last 30 days, counted or estimated. */
+        postsPerMonth: z.number().int().min(0).max(10_000).optional(),
+        /** The newest post: a date or "2 weeks ago". */
+        lastPost: z.string().trim().max(40).optional(),
+        formats: z.array(z.string().trim().min(1).max(40)).max(4).default([]),
+        themes: z.array(z.string().trim().min(1).max(60)).max(4).default([]),
+        basis: z.enum(CMO_MEASURE_BASES),
+      }),
+    )
+    .max(10)
+    .default([]),
+  website: z
+    .object({
+      /** How often it publishes: "About two posts a month", "No blog". */
+      blog: shortText.optional(),
+      /** It offers a newsletter signup. */
+      newsletter: z.boolean().optional(),
+      /** What the site does well or misses for search and conversion. */
+      notes: z.array(shortText).max(4).default([]),
+    })
+    .optional(),
+  ads: z
+    .object({
+      status: z.enum(["running", "none_found", "unknown"]),
+      note: shortText.optional(),
+    })
+    .optional(),
+});
+export type CmoMarketingToday = z.infer<typeof cmoMarketingTodaySchema>;
+
+export const CMO_BRAND_ANSWERS = ["yes", "no", "unsure"] as const;
+export type CmoBrandAnswer = (typeof CMO_BRAND_ANSWERS)[number];
+
+export const cmoBrandQuestionSchema = z.object({
+  /** Stable, so an answer survives Cuso saving the questions again. */
+  id: z.string().trim().min(1).max(40),
+  /** Answerable with yes or no, at most fifteen words. */
+  question: z.string().trim().min(1).max(160),
+  /** What a yes confirms, as one finding sentence for the section. */
+  statement: shortText,
+  /** The profile section the answer lands in. */
+  section: z.enum(CMO_BRAND_SECTION_KEYS),
+  answer: z.enum(CMO_BRAND_ANSWERS).optional(),
+  /** The owner's own words after a no: what is true instead. */
+  note: shortText.optional(),
+});
+export type CmoBrandQuestion = z.infer<typeof cmoBrandQuestionSchema>;
+
 const cmoCompanyLinkSchema = z.object({
   name: shortText,
   url: z.string().url().max(500).optional(),
@@ -260,7 +352,7 @@ export const cmoBrandBrainSchema = z.object({
         url: z.string().url().max(500).optional(),
       }),
     )
-    .max(6)
+    .max(10)
     .default([]),
   competitors: z.array(cmoCompanyLinkSchema).max(10),
   /** Well-known platforms, firms and tools a buyer also weighs, anywhere. */
@@ -276,6 +368,14 @@ export const cmoBrandBrainSchema = z.object({
     .max(12),
   profile: cmoBrandProfileSchema.default({}),
   reveal: cmoBrandRevealSchema.optional(),
+  /** The marketing as it is today, before Cuso: the strategy's "before". */
+  marketingToday: cmoMarketingTodaySchema.optional(),
+  /**
+   * What research could not settle, as questions the owner answers yes or no
+   * after approving the Brand Brain. The answer is the owner's; Cuso only
+   * asks.
+   */
+  questions: z.array(cmoBrandQuestionSchema).max(6).default([]),
 });
 export type CmoBrandBrain = z.infer<typeof cmoBrandBrainSchema>;
 
@@ -361,8 +461,101 @@ const strategyPointSchema = z.object({
   basis: z.enum(CMO_STRATEGY_BASES).default("fact"),
 });
 
-/** The plan's ten parts besides the calendar, each optional so older plans still read. */
+/** How hard a plan publishes; Cuso recommends one and the owner can switch. */
+export const CMO_PACES = ["steady", "active", "all_in"] as const;
+export type CmoPace = (typeof CMO_PACES)[number];
+
+/** Who moves a funnel stage: Cuso, the owner (their site, pricing, checkout), or both. */
+export const CMO_STAGE_OWNERS = ["cuso", "you", "shared"] as const;
+
+/** Parts of the business the owner controls and Cuso can only suggest changes to. */
+export const CMO_IMPROVEMENT_AREAS = [
+  "landing",
+  "pricing",
+  "checkout",
+  "site",
+  "seo",
+  "product",
+] as const;
+
+const offerStepSchema = z.object({
+  what: shortText,
+  why: shortText.optional(),
+});
+
+/** The plan's parts besides the calendar, each optional so older plans still read. */
 const strategyPlanShape = {
+  /**
+   * The strategy in one sentence, from four parts: who it targets, how the
+   * business is positioned, how people are attracted, and the offer that
+   * converts them.
+   */
+  idea: z
+    .object({
+      who: shortText,
+      position: shortText,
+      attract: shortText,
+      offer: shortText,
+      /** "We'll target busy parents, position our meals as …" */
+      sentence: longText,
+    })
+    .optional(),
+  /** Other strategies Cuso weighed for this business; the owner can switch. */
+  alternatives: z
+    .array(z.object({ sentence: longText, why: shortText }))
+    .max(2)
+    .default([]),
+  /** What starts the funnel, what it sells, and what follows for customers. */
+  ladder: z
+    .object({
+      entry: offerStepSchema.optional(),
+      core: offerStepSchema,
+      next: offerStepSchema.optional(),
+    })
+    .optional(),
+  /** How much the plan publishes. */
+  pace: z
+    .object({
+      level: z.enum(CMO_PACES),
+      why: shortText,
+      /** Pieces a week across all channels. */
+      perWeek: z.number().int().min(1).max(200),
+    })
+    .optional(),
+  /**
+   * Paid ads, the one part that costs the owner more: a monthly amount, what
+   * it should bring, and what the plan does without it.
+   */
+  ads: z
+    .object({
+      monthly: z.number().min(0).max(10_000_000),
+      /** ISO 4217, such as "EUR". */
+      currency: z.string().trim().length(3),
+      expect: shortText,
+      without: shortText,
+      /** The owner set the amount; Cuso keeps it. */
+      setByOwner: z.boolean().default(false),
+    })
+    .optional(),
+  /** Each channel before Cuso and in this plan, from the Brand Brain's marketing today. */
+  beforeAfter: z
+    .array(
+      z.object({ channel: channelKey, before: shortText, after: shortText }),
+    )
+    .max(8)
+    .default([]),
+  /** Changes only the owner can make (their pages, prices, checkout), with why. */
+  improvements: z
+    .array(
+      z.object({
+        area: z.enum(CMO_IMPROVEMENT_AREAS),
+        idea: shortText,
+        why: shortText,
+        url: z.string().url().max(500).optional(),
+      }),
+    )
+    .max(6)
+    .default([]),
   /** Where marketing stands today: what works, the gaps, what there is to work with. */
   start: z
     .object({
@@ -372,13 +565,18 @@ const strategyPlanShape = {
       resources: z.array(strategyPointSchema).max(4).default([]),
     })
     .optional(),
-  /** The one business outcome this month, from today's number to a target. */
+  /**
+   * The one business outcome this month, in words ("More first orders from
+   * busy parents"). The numbers live in the funnel; older plans carry a
+   * metric and target here.
+   */
   objective: z
     .object({
-      metric: shortText,
+      outcome: shortText.optional(),
+      metric: shortText.optional(),
       baseline: shortText.optional(),
       baselineBasis: z.enum(CMO_STRATEGY_BASES).optional(),
-      target: shortText,
+      target: shortText.optional(),
       why: shortText.optional(),
     })
     .optional(),
@@ -452,6 +650,28 @@ const strategyPlanShape = {
         channels: z.array(channelKey).max(6).default([]),
         metric: shortText,
         target: shortText.optional(),
+        /** Who moves this stage; the owner's stages come with improvements. */
+        owner: z.enum(CMO_STAGE_OWNERS).optional(),
+        /** What each channel does at this stage, and how often. */
+        plays: z
+          .array(
+            z.object({
+              channel: channelKey,
+              what: shortText,
+              cadence: shortText.optional(),
+            }),
+          )
+          .max(6)
+          .default([]),
+        /** Today's number for the metric, and how it is known. */
+        measure: z
+          .object({
+            value: shortText.optional(),
+            basis: z.enum(CMO_MEASURE_BASES),
+            /** Where a measured number comes from: "Google Analytics". */
+            source: shortText.optional(),
+          })
+          .optional(),
       }),
     )
     .max(4)

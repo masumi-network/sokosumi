@@ -156,7 +156,9 @@ export function parseIconCandidates(
       candidates.push({
         url: new URL(content, baseUrl).toString(),
         size: 0,
-        priority: 1,
+        // A share image is a wide banner (apple.com's is 1200x630 with a
+        // small logo in the middle): the last resort, below /favicon.ico.
+        priority: -1,
       });
     } catch {}
   }
@@ -240,12 +242,20 @@ async function resolveSiteIcon(
     console.warn(`[site-icon] page fetch for ${pageUrl.origin} failed`, error);
   }
 
-  // 2. Always add the well-known default as a last resort.
-  candidates.push({
-    url: new URL("/favicon.ico", pageUrl.origin).toString(),
-    size: 0,
-    priority: 0,
-  });
+  // 2. The well-known defaults, for sites that declare no icon (apple.com):
+  // the square touch icon most sites serve, then the favicon.
+  candidates.push(
+    {
+      url: new URL("/apple-touch-icon.png", pageUrl.origin).toString(),
+      size: ASSUMED_APPLE_ICON_SIZE,
+      priority: 1,
+    },
+    {
+      url: new URL("/favicon.ico", pageUrl.origin).toString(),
+      size: 0,
+      priority: 0,
+    },
+  );
 
   // 3. Fetch the first candidate that yields real image bytes and store it.
   for (const candidate of rankCandidates(candidates).slice(

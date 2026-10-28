@@ -7,6 +7,7 @@ import { showcaseEntries } from "../showcases";
 import { strategySocialChannels } from "./connect-step";
 import { onboardingStep } from "./flow";
 import { PricingStep } from "./pricing-step";
+import { QuestionsStep } from "./questions-step";
 import { ResearchStep } from "./research-step";
 import { ResultsStep } from "./results-step";
 import { StrategyStep } from "./strategy-step";
@@ -74,6 +75,8 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     businessName: "acme.io",
     websiteUrl: "https://acme.io",
     goals: "More sales",
+    brandMedia: null,
+    brandBrainApprovedAt: null,
     organizationSlug: null,
     projectName: "CMO.xyz · acme.io",
     workspaceId: "ws-1",
@@ -111,6 +114,20 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     connectChannelUrl: "http://web/social?projectId=project-1",
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
+    measurement: [
+      {
+        provider: "google_analytics",
+        name: "Google Analytics",
+        measures: "Visits, where they come from and conversions",
+        status: "connected",
+      },
+      {
+        provider: "google_search_console",
+        name: "Google Search Console",
+        measures: "Searches, clicks and rankings",
+        status: "none",
+      },
+    ],
     mailingListSize: 0,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
@@ -144,6 +161,12 @@ describe("onboarding steps", () => {
       "research",
     );
     expect(onboardingStep(overview({ strategy: null }))).toBe("brain");
+    // Approving the Brand Brain opens Cuso's questions before the plan.
+    expect(
+      onboardingStep(
+        overview({ strategy: null, brandBrainApprovedAt: new Date() }),
+      ),
+    ).toBe("questions");
     expect(
       onboardingStep(overview({ strategy: null, work: running("strategy") })),
     ).toBe("planning");
@@ -155,6 +178,44 @@ describe("onboarding steps", () => {
     expect(onboardingStep(overview({ strategyApprovedAt: new Date() }))).toBe(
       "connect",
     );
+  });
+
+  it("asks each question with yes, no and not sure, and shows the answers", () => {
+    const html = renderToStaticMarkup(
+      <QuestionsStep
+        overview={overview({
+          strategy: null,
+          brandBrainApprovedAt: new Date(),
+          brandBrain: {
+            ...brain,
+            questions: [
+              {
+                id: "main-buyer",
+                question: "Do most customers find you through Google?",
+                statement: "Most customers find the business through Google",
+                section: "marketing",
+              },
+              {
+                id: "offer",
+                question: "Is the 14-day trial your main offer?",
+                statement: "The 14-day trial is the main offer",
+                section: "offer",
+                answer: "no",
+                note: "Annual plans are",
+              },
+            ],
+          },
+        })}
+        onAnswer={async () => {}}
+        onPlan={async () => null}
+      />,
+    );
+    expect(html).toContain("Do most customers find you through Google?");
+    expect(html).toContain("Not sure");
+    expect(html).toContain("1 of 2 answered");
+    expect(html).toContain("Annual plans are");
+    // Unanswered questions never block the plan.
+    expect(html).toContain("Skip, plan my month");
   });
 
   it("resumes on the plan after the Accounts step, even on a reload", () => {
@@ -273,6 +334,7 @@ describe("strategy", () => {
       <StrategyStep
         overview={overview()}
         onChange={async () => null}
+        onSetAds={async () => null}
         onApprove={async () => {}}
       />,
     );
@@ -290,6 +352,7 @@ describe("strategy", () => {
       <StrategyStep
         overview={overview({ strategyApprovedAt: new Date() })}
         onChange={async () => null}
+        onSetAds={async () => null}
         onApprove={async () => {}}
         ahead={{ label: "Accounts", onClick: () => {} }}
       />,
@@ -338,9 +401,13 @@ describe("results", () => {
         }}
         next="accounts"
         onContinue={() => {}}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
-    expect(html).toContain("Step 4 of 6");
+    expect(html).toContain("Step 5 of 7");
+    expect(html).toContain("Not measured yet");
+    expect(html).toContain("Google Search Console");
+    expect(html).toContain("Connected");
     expect(html).toContain("More demo requests");
     expect(html).toContain("Target: 20 by 30 Oct");
     expect(html).toContain("Profile visits");

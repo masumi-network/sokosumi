@@ -13,6 +13,7 @@ import { ThemeToggle } from "../theme-toggle";
 import { BrainStep } from "./brain-step";
 import { ConnectStep, needsAccounts } from "./connect-step";
 import { PricingStep } from "./pricing-step";
+import { QuestionsStep } from "./questions-step";
 import { ResearchStep } from "./research-step";
 import { ResultsStep } from "./results-step";
 import { StrategyStep } from "./strategy-step";
@@ -32,6 +33,18 @@ export interface OnboardingActions {
     error: string | null;
   }>;
   approveStrategy: () => Promise<CmoOverview>;
+  /** The owner's own monthly ad budget; Cuso re-plans around it. */
+  setAdBudget: (
+    monthly: number,
+    currency: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+  /** The founder approved the Brand Brain; Cuso's questions come next. */
+  approveBrandBrain: () => Promise<CmoOverview>;
+  answerBrandQuestion: (answer: {
+    questionId: string;
+    answer: "yes" | "no" | "unsure";
+    note?: string;
+  }) => Promise<CmoOverview>;
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
@@ -47,6 +60,10 @@ export interface OnboardingActions {
   connectChannel: (
     provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
   ) => Promise<{ url: string | null; error: string | null }>;
+  connectMeasurement: (
+    provider: CmoOverview["measurement"][number]["provider"],
+    from: "onboarding" | "app",
+  ) => Promise<{ url: string | null; error: string | null }>;
   completeOnboarding: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -54,6 +71,7 @@ export interface OnboardingActions {
 export type OnboardingStep =
   | "research"
   | "brain"
+  | "questions"
   | "planning"
   | "strategy"
   | "results"
@@ -63,6 +81,7 @@ export type OnboardingStep =
 const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "research", label: "Research" },
   { id: "brain", label: "Brand Brain" },
+  { id: "questions", label: "Questions" },
   { id: "strategy", label: "Strategy" },
   { id: "results", label: "Results" },
   { id: "connect", label: "Accounts" },
@@ -75,9 +94,8 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
   if (!overview.brandBrain) return "research";
   // Once a plan exists it stays on screen while Cuso writes or changes it.
   if (!overview.strategy) {
-    return work?.kind === "strategy" && work.status !== "done"
-      ? "planning"
-      : "brain";
+    if (work?.kind === "strategy" && work.status !== "done") return "planning";
+    return overview.brandBrainApprovedAt ? "questions" : "brain";
   }
   if (!overview.strategyApprovedAt) return "strategy";
   // Saved in Core, so a reload after the Accounts step resumes on the plan.
@@ -89,6 +107,7 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
 /** Steps the founder can open again once past them; research only leads to the Brand Brain. */
 function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
   if (step === "brain" || step === "strategy") return true;
+  if (step === "questions") return overview.brandBrainApprovedAt !== null;
   if (step === "results") return overview.strategyApprovedAt !== null;
   return step === "connect" && needsAccounts(overview);
 }
@@ -167,7 +186,7 @@ interface OnboardingFlowProps {
   messages: CusoMessage[];
   plans: SubscriptionCatalog | null;
   name: string;
-  /** "connect" when a network's connection sends the founder back. */
+  /** "connect" or "results" when a connection sends the founder back. */
   initialStep?: string;
   actions: OnboardingActions;
 }
@@ -188,7 +207,7 @@ export function OnboardingFlow({
   const [messages, setMessages] = useState(initialMessages);
   // A finished step opened again from the rail, or Accounts after a connection.
   const [viewing, setViewing] = useState<OnboardingStep | null>(
-    initialStep === "connect" ? "connect" : null,
+    initialStep === "connect" || initialStep === "results" ? initialStep : null,
   );
 
   // The connection redirect's query has been read; a reload routes from Core.
@@ -362,6 +381,27 @@ export function OnboardingFlow({
               setOverview(await actions.saveBrandBrain(brandBrain));
             }}
             ahead={ahead}
+            onApprove={async () => {
+              const approved = await actions.approveBrandBrain();
+              setOverview(approved);
+              // Nothing to ask: straight on to the plan.
+              if ((approved.brandBrain?.questions ?? []).length > 0) {
+                return null;
+              }
+              const result = await actions.requestStrategy();
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+          />
+        ) : step === "questions" ? (
+          <QuestionsStep
+            overview={overview}
+            ahead={ahead}
+            onAnswer={async (questionId, answer, note) => {
+              setOverview(
+                await actions.answerBrandQuestion({ questionId, answer, note }),
+              );
+            }}
             onPlan={async () => {
               const result = await actions.requestStrategy();
               if (result.overview) setOverview(result.overview);
@@ -390,6 +430,11 @@ export function OnboardingFlow({
               if (result.overview) setOverview(result.overview);
               return result.error;
             }}
+            onSetAds={async (monthly, currency) => {
+              const result = await actions.setAdBudget(monthly, currency);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
             ahead={ahead}
             onApprove={async () => {
               setOverview(await actions.approveStrategy());
@@ -402,6 +447,9 @@ export function OnboardingFlow({
             overview={overview}
             next={STEPS[reached]?.label.toLowerCase() ?? "accounts"}
             onContinue={() => setViewing(null)}
+            onConnectMeasurement={(provider) =>
+              actions.connectMeasurement(provider, "onboarding")
+            }
           />
         ) : step === "connect" ? (
           <ConnectStep

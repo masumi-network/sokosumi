@@ -17,8 +17,16 @@ const {
   projectCreate,
   projectDelete,
   cmoCreate,
+  createOrganizationWorkspace,
+  organizationFindFirst,
   getUserWorkspace,
+  integrationFindMany,
+  connectSokoBotIntegration,
+  finalizeSokoBotIntegration,
 } = vi.hoisted(() => ({
+  integrationFindMany: vi.fn(),
+  connectSokoBotIntegration: vi.fn(),
+  finalizeSokoBotIntegration: vi.fn(),
   cmoFindUnique: vi.fn(),
   cmoUpdate: vi.fn(),
   subscriptionFindFirst: vi.fn(),
@@ -35,6 +43,8 @@ const {
   projectCreate: vi.fn(),
   projectDelete: vi.fn(),
   cmoCreate: vi.fn(),
+  createOrganizationWorkspace: vi.fn(),
+  organizationFindFirst: vi.fn(),
   getUserWorkspace: vi.fn(),
 }));
 
@@ -49,12 +59,14 @@ vi.mock("@/lib/db/prisma", () => {
       create: cmoCreate,
     },
     project: { create: projectCreate, delete: projectDelete },
+    organization: { findFirst: organizationFindFirst },
     subscription: { findFirst: subscriptionFindFirst },
     workspace: { findUnique: workspaceFindUnique },
     sokoBotTurn: { findFirst: turnFindFirst },
     projectSocialConnection: { findMany: connectionFindMany },
     socialPost: { findFirst: postFindFirst, findMany: postFindMany },
     sokoBotRuntimeEvent: { findFirst: eventFindFirst },
+    sokoBotIntegration: { findMany: integrationFindMany },
   };
   return { default: client };
 });
@@ -79,6 +91,10 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { expireTurn, startTurn, create: createBot },
 }));
 
+vi.mock("@/helpers/organization-workspace", () => ({
+  createOrganizationWorkspace,
+}));
+
 vi.mock("@/helpers/user-workspaces", () => ({ getUserWorkspace }));
 
 const funding = vi.hoisted(() => ({
@@ -101,19 +117,28 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
 
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 
+vi.mock("@/services/soko-bot-integration-connection.service", () => ({
+  connectSokoBotIntegration,
+  finalizeSokoBotIntegration,
+}));
+
 import {
+  answerCmoBrandQuestion,
   approveCmoStrategy,
   chooseCmoMockPlan,
   cmoBusinessNameFromUrl,
   cmoExecutionRefusal,
   cmoLearningState,
   cmoUpNext,
+  connectCmoMeasurement,
   describeCmoStep,
+  finalizeCmoMeasurement,
   finishCmoAccountsStep,
   hasActiveCmoSubscription,
   isCmoAppUrl,
   keepCalendarWork,
   listCmoChannels,
+  listCmoMeasurement,
   mergeBrandVisual,
   ownWords,
   parseCmoUpdates,
@@ -963,16 +988,154 @@ describe("withoutDashes", () => {
   });
 });
 
+describe("Brand Brain questions", () => {
+  const question = {
+    id: "found-via-google",
+    question: "Do most customers find you through Google?",
+    statement: "Most customers find the business through Google",
+    section: "marketing" as const,
+  };
+  const stored = (extra: object = {}) => ({
+    id: "cmo-1",
+    brandBrain: {
+      summary: "Acme sells rockets.",
+      voice: { tone: "Direct", do: [], dont: [], examples: [] },
+      audience: [],
+      products: [],
+      competitors: [],
+      channels: [],
+      profile: {
+        marketing: {
+          answer: "Mostly referrals.",
+          findings: [
+            {
+              point: "Referrals bring most deals",
+              evidence: "inference" as const,
+              confidence: "low" as const,
+            },
+          ],
+          openQuestions: [],
+        },
+      },
+      questions: [question],
+      ...extra,
+    },
+  });
+
+  beforeEach(() => {
+    cmoUpdate.mockClear();
+  });
+
+  it("puts a yes into its section as a confirmed finding", async () => {
+    cmoFindUnique.mockResolvedValue(stored());
+
+    await answerCmoBrandQuestion("user-1", {
+      questionId: question.id,
+      answer: "yes",
+    });
+
+    const brain = cmoUpdate.mock.lastCall?.[0].data.brandBrain;
+    expect(brain.questions[0].answer).toBe("yes");
+    expect(brain.profile.marketing.findings[0]).toMatchObject({
+      point: question.statement,
+      evidence: "fact",
+      confidence: "high",
+    });
+    expect(brain.profile.marketing.findings).toHaveLength(2);
+  });
+
+  it("replaces an earlier answer's finding with what the no says is true", async () => {
+    cmoFindUnique.mockResolvedValue(
+      stored({
+        questions: [{ ...question, answer: "yes" }],
+        profile: {
+          marketing: {
+            answer: "Google.",
+            findings: [
+              {
+                point: question.statement,
+                evidence: "fact",
+                confidence: "high",
+              },
+            ],
+            openQuestions: [],
+          },
+        },
+      }),
+    );
+
+    await answerCmoBrandQuestion("user-1", {
+      questionId: question.id,
+      answer: "no",
+      note: "Most come through LinkedIn",
+    });
+
+    const brain = cmoUpdate.mock.lastCall?.[0].data.brandBrain;
+    expect(brain.questions[0]).toMatchObject({
+      answer: "no",
+      note: "Most come through LinkedIn",
+    });
+    expect(
+      brain.profile.marketing.findings.map((f: { point: string }) => f.point),
+    ).toEqual(["Most come through LinkedIn"]);
+  });
+
+  it("records not sure without touching the section", async () => {
+    cmoFindUnique.mockResolvedValue(stored());
+
+    await answerCmoBrandQuestion("user-1", {
+      questionId: question.id,
+      answer: "unsure",
+    });
+
+    const brain = cmoUpdate.mock.lastCall?.[0].data.brandBrain;
+    expect(brain.questions[0].answer).toBe("unsure");
+    expect(brain.profile.marketing.findings).toHaveLength(1);
+  });
+
+  it("refuses an answer to a question that is not there", async () => {
+    cmoFindUnique.mockResolvedValue(stored());
+
+    await expect(
+      answerCmoBrandQuestion("user-1", { questionId: "nope", answer: "yes" }),
+    ).rejects.toThrow("not in the Brand Brain");
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the owner's answers when Cuso saves the questions again", async () => {
+    cmoFindUnique.mockResolvedValue(
+      stored({ questions: [{ ...question, answer: "no", note: "LinkedIn" }] }),
+    );
+    const { brandBrain } = stored();
+
+    await saveCmoBrandBrain(
+      { sokoBotId: "bot-1" },
+      { brandBrain: { ...brandBrain, questions: [question] } },
+    );
+
+    const saved = cmoUpdate.mock.lastCall?.[0].data.brandBrain;
+    expect(saved.questions[0]).toMatchObject({
+      answer: "no",
+      note: "LinkedIn",
+    });
+  });
+});
+
 describe("startCmoOnboarding", () => {
   const input = {
     userId: "user-1",
-    workspaceId: "ws-1",
     websiteUrl: "https://www.acme.io",
-    goals: "More leads",
   };
 
   beforeEach(() => {
     cmoFindUnique.mockResolvedValue(null);
+    organizationFindFirst.mockResolvedValue(null);
+    createOrganizationWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "organization",
+      name: "acme.io",
+      organizationId: "org-1",
+    });
     projectCreate.mockResolvedValue({ id: "project-1" });
     projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
@@ -983,13 +1146,7 @@ describe("startCmoOnboarding", () => {
     startTurn.mockResolvedValue({ turnId: "turn-1" });
   });
 
-  it("refuses before hiring when the payer has no credits", async () => {
-    getUserWorkspace.mockResolvedValue({
-      id: "ws-1",
-      kind: "personal",
-      name: "Me",
-      organizationId: null,
-    });
+  it("refuses before hiring when the organization has no credits", async () => {
     funding.spendable = 0;
     try {
       await expect(startCmoOnboarding(input)).rejects.toThrow("out of credits");
@@ -1000,21 +1157,18 @@ describe("startCmoOnboarding", () => {
     }
   });
 
-  it("hires Cuso into the organization the person chose, under its name", async () => {
-    getUserWorkspace.mockResolvedValue({
-      id: "ws-1",
-      kind: "organization",
-      name: "Acme Inc",
-    });
-
+  it("hires Cuso into a new organization named after the website", async () => {
     await startCmoOnboarding(input);
 
-    expect(getUserWorkspace).toHaveBeenCalledWith("user-1", { id: "ws-1" });
+    expect(createOrganizationWorkspace).toHaveBeenCalledWith("user-1", {
+      name: "acme.io",
+      websiteUrl: input.websiteUrl,
+    });
     expect(projectCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           workspaceId: "ws-1",
-          name: "CMO.xyz · Acme Inc",
+          name: "CMO.xyz · acme.io",
           websiteUrl: input.websiteUrl,
         }),
       }),
@@ -1025,44 +1179,65 @@ describe("startCmoOnboarding", () => {
     expect(cmoCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         workspaceId: "ws-1",
-        businessName: "Acme Inc",
+        businessName: "acme.io",
+        goals: "",
       }),
     });
+    // No goal is asked for, so Cuso's first turn names none.
+    expect(startTurn.mock.lastCall?.[0].message).not.toMatch(/goal/i);
   });
 
-  it("names a personal workspace's business after the website", async () => {
+  it("takes the empty organization a failed hire left instead of a second one", async () => {
+    organizationFindFirst.mockResolvedValue({ id: "org-0" });
     getUserWorkspace.mockResolvedValue({
-      id: "ws-1",
-      kind: "personal",
-      name: "Ana Example",
+      id: "ws-0",
+      kind: "organization",
+      name: "acme.io",
+      organizationId: "org-0",
     });
 
     await startCmoOnboarding(input);
 
-    expect(cmoCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        workspaceId: "ws-1",
-        businessName: "acme.io",
+    expect(organizationFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ name: "acme.io" }),
       }),
+    );
+    expect(getUserWorkspace).toHaveBeenCalledWith("user-1", {
+      organizationId: "org-0",
     });
+    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
+    expect(projectCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workspaceId: "ws-0" }),
+      }),
+    );
   });
 
-  it("refuses a workspace the person is not in, before creating anything", async () => {
-    getUserWorkspace.mockRejectedValue(new Error("Workspace not found"));
+  it("keeps the organization name within its 50 characters", async () => {
+    const host = `${"a".repeat(60)}.com`;
+
+    await startCmoOnboarding({ ...input, websiteUrl: `https://${host}` });
+
+    expect(createOrganizationWorkspace).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ name: host.slice(0, 50) }),
+    );
+  });
+
+  it("creates nothing else when the organization cannot be created", async () => {
+    createOrganizationWorkspace.mockRejectedValue(
+      new Error("organization limit"),
+    );
 
     await expect(startCmoOnboarding(input)).rejects.toThrow(
-      "Workspace not found",
+      "organization limit",
     );
     expect(projectCreate).not.toHaveBeenCalled();
     expect(createBot).not.toHaveBeenCalled();
   });
 
   it("removes the Project, and with it Cuso, when hiring fails partway", async () => {
-    getUserWorkspace.mockResolvedValue({
-      id: "ws-1",
-      kind: "personal",
-      name: "Ana Example",
-    });
     createBot.mockRejectedValue(new Error("bot failed"));
 
     await expect(startCmoOnboarding(input)).rejects.toThrow("bot failed");
@@ -1071,11 +1246,6 @@ describe("startCmoOnboarding", () => {
   });
 
   it("keeps the hire a second submit lost the race to, and cleans up", async () => {
-    getUserWorkspace.mockResolvedValue({
-      id: "ws-1",
-      kind: "personal",
-      name: "Ana Example",
-    });
     cmoCreate.mockRejectedValue(
       Object.assign(new Error("unique"), { code: "P2002" }),
     );
@@ -1096,7 +1266,7 @@ describe("startCmoOnboarding", () => {
     await expect(startCmoOnboarding(input)).resolves.toMatchObject({
       id: "cmo-0",
     });
-    expect(getUserWorkspace).not.toHaveBeenCalled();
+    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();
   });
 });
@@ -1112,6 +1282,68 @@ describe("CMO return addresses", () => {
     expect(isCmoAppUrl("https://evil.example/cmo.xyz")).toBe(false);
     expect(isCmoAppUrl("http://app.cmo.xyz/connect/callback")).toBe(false);
     expect(isCmoAppUrl("https://cmo.xyz.evil.example/")).toBe(false);
+  });
+});
+
+describe("measurement", () => {
+  const hire = { id: "cmo-1", workspaceId: "ws-1", sokoBotId: "bot-1" };
+
+  it("lists all three sources with their connection state", async () => {
+    integrationFindMany.mockResolvedValue([
+      { provider: "google_analytics", status: "ACTIVE" },
+      { provider: "shopify", status: "PENDING" },
+    ]);
+    const sources = await listCmoMeasurement("bot-1");
+    expect(sources.map((s) => [s.provider, s.status])).toEqual([
+      ["google_analytics", "connected"],
+      ["google_search_console", "none"],
+      ["shopify", "pending"],
+    ]);
+  });
+
+  it("connects to Cuso's own bot and returns only to CMO", async () => {
+    cmoFindUnique.mockResolvedValue(hire);
+    connectSokoBotIntegration.mockResolvedValue({ redirectUrl: "https://x" });
+    await connectCmoMeasurement({
+      userId: "user-1",
+      provider: "shopify",
+      returnUrl: "https://app.cmo.xyz/measure/callback",
+    });
+    expect(connectSokoBotIntegration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "ws-1",
+        provider: "shopify",
+        selector: { kind: "id", sokoBotId: "bot-1" },
+      }),
+    );
+    await expect(
+      connectCmoMeasurement({
+        userId: "user-1",
+        provider: "shopify",
+        returnUrl: "https://evil.example/",
+      }),
+    ).rejects.toThrow(/return address/);
+    await expect(
+      connectCmoMeasurement({
+        userId: "user-1",
+        provider: "gmail",
+        returnUrl: "https://app.cmo.xyz/measure/callback",
+      }),
+    ).rejects.toThrow(/does not measure/);
+  });
+
+  it("finalizes on Cuso's bot", async () => {
+    cmoFindUnique.mockResolvedValue(hire);
+    await finalizeCmoMeasurement({
+      userId: "user-1",
+      provider: "google_analytics",
+    });
+    expect(finalizeSokoBotIntegration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "google_analytics",
+        selector: { kind: "id", sokoBotId: "bot-1" },
+      }),
+    );
   });
 });
 

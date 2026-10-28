@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-import { SignedOut } from "../../components/signed-out";
+import { SignInProblem } from "../../components/sign-in-problem";
 
 const getSession = vi.fn();
 
@@ -16,7 +16,7 @@ vi.mock("../../lib/auth", () => ({
   getAuth: () => ({ api: { getSession } }),
 }));
 
-vi.mock("../actions", () => ({ createAccount: vi.fn(), signIn: vi.fn() }));
+vi.mock("../actions", () => ({ signIn: vi.fn() }));
 
 const { default: LoginPage, metadata } = await import("./page");
 
@@ -29,23 +29,21 @@ beforeEach(() => {
   getSession.mockResolvedValue(null);
 });
 
-it("shows create account and sign in, with the error a sign in sent back", async () => {
+it("shows the error a sign in sent back", async () => {
   const page = await render("state_mismatch");
 
-  expect(page.type).toBe(SignedOut);
+  expect(page.type).toBe(SignInProblem);
   expect(page.props).toMatchObject({ error: "state_mismatch" });
 });
 
-it("does not show a gate error as a sign-in failure after signing out elsewhere", async () => {
-  expect((await render("workspace_failed")).props).toMatchObject({
-    error: undefined,
-  });
+it("goes straight on to Sokosumi's Log in without an error", async () => {
+  await expect(render()).rejects.toThrow("redirect /signin");
 });
 
 it("sends a signed-in person home", async () => {
   getSession.mockResolvedValue({ user: { email: "ada@example.com" } });
 
-  await expect(render()).rejects.toThrow("redirect /");
+  await expect(render("state_mismatch")).rejects.toThrow("redirect /");
 });
 
 it("stays out of search while it is unlinked", () => {

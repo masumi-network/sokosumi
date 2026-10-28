@@ -54,7 +54,7 @@ export function StepHead({
   note,
   action,
 }: {
-  /** Its place in the six setup steps, from 1. */
+  /** Its place in the seven setup steps, from 1. */
   step: number;
   title: string;
   mood: CusoMood;
@@ -93,7 +93,7 @@ export function StepHead({
           transition={{ duration: 0.35, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
         >
           <p className="ob-head-step">
-            Step {step} of 6 · {title}
+            Step {step} of 7 · {title}
           </p>
           <p className="ob-head-say">{say}</p>
         </motion.div>

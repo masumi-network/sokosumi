@@ -1,12 +1,17 @@
 "use server";
 
 import {
+  answerCmoBrandQuestion,
+  approveCmoBrandBrain,
   approveCmoStrategy,
+  type CmoMeasurement,
   type CmoOverview,
   chooseCmoMockPlan,
   completeCmoOnboarding,
   connectCmoChannel,
+  connectCmoMeasurement,
   finalizeCmoChannel,
+  finalizeCmoMeasurement,
   finishCmoAccountsStep,
   getChatsRoomsByIdMessages,
   getCmoOverview,
@@ -18,6 +23,7 @@ import {
   retryCmoOnboarding,
   revertCmoUpdate,
   type SubscriptionCatalog,
+  setCmoAdBudget,
   startCmoOnboarding,
   updateCmoBrandBrain,
 } from "@sokosumi/core-client";
@@ -49,34 +55,21 @@ export interface OnboardFormState {
   /** Counts submits, so the form remounts with the values below. */
   attempt: number;
   websiteUrl: string;
-  launch?: string;
-  errors: { websiteUrl?: string; launch?: string; form?: string };
+  errors: { websiteUrl?: string; form?: string };
   /** Out of credits: where to top up before starting again. */
   topUpUrl?: string;
 }
 
 /**
- * Hiring Cuso's start form: the website by the same rule as identity
- * onboarding's organization step, then Core hires Cuso into the workspace.
+ * Hiring Cuso's start form: the website, then Core hires Cuso into a new
+ * organization named after it.
  */
 export async function onboard(
   previous: OnboardFormState,
   formData: FormData,
 ): Promise<OnboardFormState> {
   const typed = String(formData.get("websiteUrl") ?? "").trim();
-  const goal = String(formData.get("goals") ?? "").trim();
-  const launch = String(formData.get("launch") ?? "").trim();
-  const workspaceId = String(formData.get("workspaceId") ?? "");
-  const result = { attempt: previous.attempt + 1, websiteUrl: typed, launch };
-  // A launch goal says what launches and when, or Cuso has to guess.
-  const launching = /^launch/i.test(goal);
-  if (launching && !launch) {
-    return {
-      ...result,
-      errors: { launch: "Say what you're launching and when." },
-    };
-  }
-  const goals = launching ? `${goal}: ${launch}` : goal;
+  const result = { attempt: previous.attempt + 1, websiteUrl: typed };
 
   const websiteUrl = normalizeWebsiteUrl(typed);
   if (!websiteUrl) {
@@ -89,7 +82,7 @@ export async function onboard(
   const core = await requireCore();
   const { error } = await startCmoOnboarding({
     ...core,
-    body: { workspaceId, websiteUrl, goals },
+    body: { websiteUrl },
   });
   if (error) {
     if (/credits/i.test(errorText(error, ""))) {
@@ -111,6 +104,26 @@ export async function approveStrategy(): Promise<CmoOverview> {
   const core = await requireCore();
   const { data } = await approveCmoStrategy(core);
   if (!data) throw new Error("Could not approve the strategy");
+  return data.data;
+}
+
+/** The owner approved the Brand Brain; Cuso's questions come next. */
+export async function approveBrandBrain(): Promise<CmoOverview> {
+  const core = await requireCore();
+  const { data } = await approveCmoBrandBrain(core);
+  if (!data) throw new Error("Could not approve the Brand Brain");
+  return data.data;
+}
+
+/** One answer to one of Cuso's questions: yes, no (with what is true) or not sure. */
+export async function answerBrandQuestion(answer: {
+  questionId: string;
+  answer: "yes" | "no" | "unsure";
+  note?: string;
+}): Promise<CmoOverview> {
+  const core = await requireCore();
+  const { data } = await answerCmoBrandQuestion({ ...core, body: answer });
+  if (!data) throw new Error("Could not save the answer");
   return data.data;
 }
 
@@ -241,6 +254,22 @@ export async function requestStrategy(note?: string): Promise<{
   };
 }
 
+/** The owner's own monthly ad budget; Cuso re-plans the ads around it. */
+export async function setAdBudget(
+  monthly: number,
+  currency: string,
+): Promise<{ overview: CmoOverview | null; error: string | null }> {
+  const core = await requireCore();
+  const { error } = await setCmoAdBudget({
+    ...core,
+    body: { monthly, currency },
+  });
+  return {
+    overview: await loadOverview(),
+    error: error ? errorText(error, "Could not set the budget") : null,
+  };
+}
+
 /** Activates a CMO tier without checkout (Core's CMO_MOCK_BILLING). */
 export async function chooseMockPlan(
   plan: string,
@@ -292,14 +321,14 @@ export async function completeOnboarding(): Promise<void> {
 }
 
 /** Where the provider sends the founder back after connecting. */
-async function callbackUrl(): Promise<string> {
+async function callbackUrl(path = "/connect/callback"): Promise<string> {
   const requestHeaders = await headers();
   const host =
     requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const proto =
     requestHeaders.get("x-forwarded-proto") ??
     (host?.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}/connect/callback`;
+  return `${proto}://${host}${path}`;
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */
@@ -323,6 +352,36 @@ export async function finalizeChannel(connectionId: string): Promise<boolean> {
   const { error } = await finalizeCmoChannel({
     ...core,
     body: { connectionId },
+  });
+  return !error;
+}
+
+/** Starts connecting a measurement source to Cuso; the browser goes to the returned URL. */
+export async function connectMeasurement(
+  provider: CmoMeasurement["provider"],
+  from: "onboarding" | "app",
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const query = new URLSearchParams({ provider, from });
+  const { data, error } = await connectCmoMeasurement({
+    ...core,
+    path: { provider },
+    body: { returnUrl: await callbackUrl(`/measure/callback?${query}`) },
+  });
+  if (!data) {
+    return { url: null, error: errorText(error, "Could not start connecting") };
+  }
+  return { url: data.data.redirectUrl, error: null };
+}
+
+/** Finishes a measurement connection after the founder signed in. */
+export async function finalizeMeasurement(
+  provider: CmoMeasurement["provider"],
+): Promise<boolean> {
+  const core = await requireCore();
+  const { error } = await finalizeCmoMeasurement({
+    ...core,
+    path: { provider },
   });
   return !error;
 }

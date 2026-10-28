@@ -38,6 +38,8 @@ interface Brand {
   contentLanguage?: string;
   /** Words the plan's summary uses when it must not be in English. */
   planLanguage?: string;
+  /** A business with many product lines lists at least this many offers. */
+  minOffers?: number;
   why?: string;
 }
 
@@ -144,6 +146,10 @@ function judge(
   else if (!new RegExp(brand.brain ?? brand.main, "i").test(brain.summary))
     findings.push(
       `Brand Brain misses the main offer: ${brain.summary.slice(0, 140)}`,
+    );
+  if (brain && brand.minOffers && brain.offers.length < brand.minOffers)
+    findings.push(
+      `Brand Brain lists ${brain.offers.length} offers, not every product line: ${brain.offers.map((offer) => offer.name).join(", ")}`,
     );
   if (!strategy) return { pass: false, findings: [...findings, "no strategy"] };
   const head = [

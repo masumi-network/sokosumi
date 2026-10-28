@@ -101,7 +101,7 @@ export function PricingStep({
   return (
     <section className="ob-pricing">
       <StepHead
-        step={6}
+        step={7}
         title="Pricing"
         mood="cheer"
         say={

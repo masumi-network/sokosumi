@@ -81,6 +81,11 @@ export interface CmoAppActions {
   }>;
   sendMessage: (content: string) => Promise<void>;
   approveStrategy: () => Promise<CmoOverview>;
+  /** The owner's own monthly ad budget; Cuso re-plans around it. */
+  setAdBudget: (
+    monthly: number,
+    currency: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   revertUpdate: (id: string) => Promise<CmoOverview>;
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
@@ -91,6 +96,10 @@ export interface CmoAppActions {
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
   connectChannel: ConnectChannel;
+  connectMeasurement: (
+    provider: CmoOverview["measurement"][number]["provider"],
+    from: "onboarding" | "app",
+  ) => Promise<{ url: string | null; error: string | null }>;
   chooseMockPlan: (
     plan: string,
   ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
@@ -480,12 +489,19 @@ export function CmoApp({
                     await actions.sendMessage(text);
                     await refresh();
                   }}
+                  onSetAds={async (monthly, currency) => {
+                    const result = await actions.setAdBudget(monthly, currency);
+                    if (result.overview) setOverview(result.overview);
+                  }}
                 />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}
                   compose={compose}
                   openUpdate={openUpdate}
+                  connectMeasurement={(provider) =>
+                    actions.connectMeasurement(provider, "app")
+                  }
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage

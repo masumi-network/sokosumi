@@ -108,6 +108,27 @@ describe("rankCandidates", () => {
     ]);
   });
 
+  it("tries the well-known icons before a wide og:image banner", () => {
+    // apple.com declares no icon; its og:image is a 1200x630 banner.
+    const ranked = rankCandidates([
+      ...parseIconCandidates(
+        '<meta property="og:image" content="/og.png">',
+        "https://example.com/",
+      ),
+      {
+        url: "https://example.com/apple-touch-icon.png",
+        size: 180,
+        priority: 1,
+      },
+      { url: "https://example.com/favicon.ico", size: 0, priority: 0 },
+    ]).map((candidate) => candidate.url);
+    expect(ranked).toEqual([
+      "https://example.com/apple-touch-icon.png",
+      "https://example.com/favicon.ico",
+      "https://example.com/og.png",
+    ]);
+  });
+
   it("de-duplicates repeated URLs", () => {
     const html = `
       <link rel="icon" href="/same.png">

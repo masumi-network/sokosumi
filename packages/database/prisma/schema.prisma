@@ -2468,6 +2468,11 @@ model CmoHire {
 
   brandBrain          Json?
   brandBrainUpdatedAt DateTime?
+  /// The owner approved the Brand Brain; his yes/no questions come next.
+  brandBrainApprovedAt DateTime?
+  /// Screenshots of the brand's site and its competitors' homepages, and the
+  /// pictures on the brand's site, saved to the owner's Files after research.
+  brandMedia          Json?
   strategy            Json?
   strategyUpdatedAt   DateTime?
   /// The owner approved the strategy: from here Cuso executes on its own.

@@ -20,9 +20,11 @@ type Entry = Strategy["calendar"][number];
 export function StrategyPage({
   overview,
   onAsk,
+  onSetAds,
 }: {
   overview: CmoOverview;
   onAsk: (text: string) => Promise<void>;
+  onSetAds?: (monthly: number, currency: string) => Promise<void>;
 }) {
   const strategy = overview.strategy;
   const [open, setOpen] = useState<Entry | null>(null);
@@ -49,6 +51,7 @@ export function StrategyPage({
       <StrategyReveal
         overview={overview}
         onAsk={onAsk}
+        onSetAds={onSetAds}
         calendar={
           <div className="plan-weeks">
             {weeks.map((week, index) => {

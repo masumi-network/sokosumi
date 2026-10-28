@@ -100,6 +100,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "save_strategy",
   "report_update",
   "search_exa",
+  "read_social_profile",
   "list_social_comments",
   "handle_social_comment",
   "start_background_run",
@@ -119,6 +120,7 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "save_strategy",
   "report_update",
   "search_exa",
+  "read_social_profile",
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",

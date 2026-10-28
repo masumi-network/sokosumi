@@ -2,32 +2,14 @@
 
 import "./onboarding/onboarding.css";
 
-import type { UserWorkspace } from "@sokosumi/core-client";
-import {
-  ArrowRight,
-  Globe,
-  Loader2,
-  Megaphone,
-  Rocket,
-  ShoppingBag,
-  UserPlus,
-} from "lucide-react";
-import { useActionState, useState } from "react";
+import { ArrowRight, Globe, Loader2 } from "lucide-react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { CusoCursor } from "./onboarding/cuso-cursor";
-
-export const GOALS = [
-  { label: "More sales", Icon: ShoppingBag },
-  { label: "More leads", Icon: UserPlus },
-  { label: "Brand awareness", Icon: Megaphone },
-  { label: "Launch something", Icon: Rocket },
-] as const;
-
-const LAUNCH = "Launch something";
 
 const NEXT = [
   "Cuso studies your site, market and competitors",
@@ -36,8 +18,8 @@ const NEXT = [
 ];
 
 interface OnboardingProps {
-  /** Where Cuso is hired (ADR 0053): the person's preferred Workspace. */
-  workspace: Pick<UserWorkspace, "id" | "kind" | "name" | "websiteUrl">;
+  /** The website a CMO sign-up link carried, to start the field with. */
+  websiteUrl?: string | undefined;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -45,23 +27,18 @@ interface OnboardingProps {
 }
 
 /**
- * Hiring Cuso, step one: the website and the one goal that matters most.
- * An organization's stored website starts the field; the person can change it.
- * Errors sit by the website and what was chosen stays.
+ * Hiring Cuso, step one: the website. An error sits by it and what was
+ * typed stays.
  */
-export function Onboarding({ workspace, onboard }: OnboardingProps) {
+export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
   const [state, formAction] = useActionState(onboard, {
     attempt: 0,
-    websiteUrl: workspace.websiteUrl ?? "",
+    websiteUrl: websiteUrl ?? "",
     errors: {},
   });
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
-  const [goal, setGoal] = useState<string>(
-    state.launch ? LAUNCH : GOALS[0].label,
-  );
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
-  const launchErrorId = errors.launch ? "ob-launch-error" : undefined;
 
   return (
     <div className="ob">
@@ -76,12 +53,11 @@ export function Onboarding({ workspace, onboard }: OnboardingProps) {
           action={formAction}
           className="ob-start"
         >
-          <input type="hidden" name="workspaceId" value={workspace.id} />
           <CusoCursor active={false} />
           <h1 className="ob-title">Hire Cuso, your AI CMO</h1>
           <p className="ob-lede">
-            Tell Cuso where your business lives and what you want. He learns the
-            rest, plans your month, and runs it.
+            Tell Cuso where your business lives. He learns the rest, plans your
+            month, and runs it.
           </p>
           {errors.form ? (
             <p className="ob-alert" role="alert" tabIndex={-1}>
@@ -120,50 +96,6 @@ export function Onboarding({ workspace, onboard }: OnboardingProps) {
           {errors.websiteUrl ? (
             <p id={websiteErrorId} className="ob-alert">
               {errors.websiteUrl}
-            </p>
-          ) : null}
-          <fieldset className="ob-field">
-            <legend className="ob-label">Main goal</legend>
-            <div className="ob-goals">
-              {GOALS.map(({ label, Icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={label === goal ? "ob-goal selected" : "ob-goal"}
-                  aria-pressed={label === goal}
-                  onClick={() => setGoal(label)}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  {label}
-                </button>
-              ))}
-            </div>
-            <input type="hidden" name="goals" value={goal} />
-          </fieldset>
-          {goal === LAUNCH ? (
-            <label className="ob-field">
-              <span className="ob-label">
-                What are you launching, and when?
-              </span>
-              <input
-                className="ob-input ob-input-lg"
-                name="launch"
-                required
-                placeholder="e.g. our iOS app, on 12 November"
-                defaultValue={state.launch}
-                aria-invalid={errors.launch ? true : undefined}
-                aria-describedby={launchErrorId}
-              />
-            </label>
-          ) : null}
-          {errors.launch ? (
-            <p id={launchErrorId} className="ob-alert">
-              {errors.launch}
-            </p>
-          ) : null}
-          {workspace.kind === "organization" ? (
-            <p className="ob-lede">
-              Cuso works in {workspace.name} and uses its plan and credits.
             </p>
           ) : null}
           <StartButton />

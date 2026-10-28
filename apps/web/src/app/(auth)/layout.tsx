@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -11,7 +12,10 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
-import { buildSignedOAuthQueryFromSearchParams } from "@/lib/auth/auth.utils";
+import {
+  buildSignedOAuthQueryFromSearchParams,
+  oauthRequestBrand,
+} from "@/lib/auth/auth.utils";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
@@ -49,10 +53,11 @@ export default async function AuthLayout({
   await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
-  const carriesOAuthRequest =
-    buildSignedOAuthQueryFromSearchParams(
-      new URLSearchParams(headersList.get("x-search-params") ?? ""),
-    ) !== undefined;
+  const oauthQuery = buildSignedOAuthQueryFromSearchParams(
+    new URLSearchParams(headersList.get("x-search-params") ?? ""),
+  );
+  const carriesOAuthRequest = oauthQuery !== undefined;
+  const brand = oauthQuery ? oauthRequestBrand(oauthQuery) : undefined;
   const shouldSkipSessionCheck =
     pathname.startsWith("/oauth") ||
     pathname.startsWith("/forgot-password") ||
@@ -70,13 +75,22 @@ export default async function AuthLayout({
     }
   }
 
-  const logo = (
-    <ThemedLogo LogoComponent={SokosumiLogo} priority width={100} height={13} />
-  );
+  const logo =
+    brand === "cmo" ? (
+      <CmoLogo />
+    ) : (
+      <ThemedLogo
+        LogoComponent={SokosumiLogo}
+        priority
+        width={100}
+        height={13}
+      />
+    );
 
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div
+        data-brand={brand}
         className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
@@ -92,7 +106,7 @@ export default async function AuthLayout({
           <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}
           </div>
-          <AuthLayoutFooter />
+          <AuthLayoutFooter usesSokosumi={brand === "cmo"} />
         </div>
         {/* Signing in for another product: Sokosumi's own pitch and customer
             logos would read as a detour, so the form stands alone. */}
@@ -102,7 +116,40 @@ export default async function AuthLayout({
   );
 }
 
-function AuthLayoutFooter() {
+/** CMO.xyz's mark, the mascot's head, beside its name. */
+function CmoLogo() {
+  return (
+    <span className="inline-flex items-center gap-2 font-semibold tracking-tight">
+      <Image
+        src="/images/logos/cmo-logo.svg"
+        alt=""
+        width={17}
+        height={24}
+        priority
+      />
+      CMO.xyz
+    </span>
+  );
+}
+
+/**
+ * The legal links. A product with its own look still signs people in with a
+ * Sokosumi account, so its pages say so above them.
+ */
+function AuthLayoutFooter({ usesSokosumi }: { usesSokosumi: boolean }) {
+  const t = useTranslations("Auth.Footer");
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      {usesSokosumi ? (
+        <p className="text-sm text-muted-foreground">{t("usesSokosumi")}</p>
+      ) : null}
+      <AuthLegalLinks />
+    </div>
+  );
+}
+
+function AuthLegalLinks() {
   const t = useTranslations("Auth.Footer");
 
   return (

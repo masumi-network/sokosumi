@@ -100,7 +100,8 @@ describe("Brand Brain reveal", () => {
     expect(html).toContain("Missing one? Paste the link");
     expect(html).toContain("Boring Rockets");
     expect(html).toContain("Speed is the promise");
-    expect(html).toContain("Cuso has 1 question.");
+    // Questions are their own step now, never part of the Brand Brain.
+    expect(html).not.toContain("Do annual plans get a discount?");
     // The research waits one click deeper.
     expect(html).toContain("See the research");
     expect(html).not.toContain("From 9 dollars a month");
@@ -128,6 +129,102 @@ describe("Brand Brain reveal", () => {
     expect(html).toContain("From $49,000");
     expect(html).toContain("A reusable rocket for small payloads");
     expect(html).toContain("For founders shipping satellites");
+  });
+
+  it("shows every product line, the main one first, each removable", () => {
+    const line = (name: string, price: string) => ({
+      name,
+      what: `The ${name}`,
+      price,
+    });
+    const html = render(
+      brain({
+        offers: [
+          line("iPhone", "From $799"),
+          line("Mac", "From $999"),
+          line("iPad", "From $349"),
+        ],
+      }),
+    );
+    expect(html).toContain("bb-offers-grid");
+    expect(html).toContain("Main offer");
+    for (const name of ["iPhone", "Mac", "iPad"]) {
+      expect(html).toContain(`aria-label="Remove ${name}"`);
+    }
+    expect(html).toContain("From $349");
+  });
+
+  it("shows the site, its pictures and each competitor's homepage", () => {
+    const shot = (path: string) => ({
+      url: `https://blob.example/${path}.jpg`,
+      fileId: path,
+    });
+    const html = renderToStaticMarkup(
+      <BrandReveal
+        overview={{
+          ...overview(
+            brain({
+              competitors: [
+                { name: "Boring Rockets", url: "https://boring.example" },
+                { name: "Quiet Rockets", url: "https://quiet.example" },
+              ],
+            }),
+          ),
+          brandMedia: {
+            capturedAt: "2026-10-27T10:00:00Z",
+            pages: [
+              {
+                ...shot("home"),
+                label: "Home",
+                pageUrl: "https://acme.io/",
+                title: "Acme",
+                device: "desktop",
+              },
+              {
+                ...shot("home-mobile"),
+                label: "Home on a phone",
+                pageUrl: "https://acme.io/",
+                title: "Acme",
+                device: "mobile",
+              },
+              {
+                ...shot("pricing"),
+                label: "Pricing",
+                pageUrl: "https://acme.io/pricing",
+                title: "Pricing",
+                device: "desktop",
+              },
+            ],
+            competitors: [
+              {
+                ...shot("boring"),
+                name: "Boring Rockets",
+                pageUrl: "https://boring.example/",
+              },
+            ],
+            pictures: [
+              {
+                ...shot("picture-01"),
+                sourceUrl: "https://acme.io/rocket.png",
+                alt: "The Rocket Pro on the pad",
+                width: 1600,
+                height: 900,
+              },
+            ],
+          },
+        }}
+        onSave={async () => {}}
+        onAsk={async () => {}}
+      />,
+    );
+    expect(html).toContain('src="https://blob.example/home.jpg"');
+    expect(html).toContain('src="https://blob.example/home-mobile.jpg"');
+    expect(html).toContain("From your site");
+    expect(html).toContain('src="https://blob.example/pricing.jpg"');
+    expect(html).toContain('alt="The Rocket Pro on the pad"');
+    expect(html).toContain('src="https://blob.example/boring.jpg"');
+    // A competitor whose homepage did not load still has a card.
+    expect(html).toContain("Quiet Rockets");
   });
 
   it("leads with the summary and offers research for an older Brand Brain", () => {

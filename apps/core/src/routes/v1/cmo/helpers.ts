@@ -12,7 +12,9 @@ import {
   type CmoOverview,
   getCmoOverview,
 } from "@/services/cmo.service";
+import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
+import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 
 function mapOverview(overview: CmoOverview) {
   const { hire } = overview;
@@ -41,6 +43,8 @@ function mapOverview(overview: CmoOverview) {
     mockPlanActivatedAt: overview.mockPlanActivatedAt,
     brandBrain: overview.brandBrain,
     brandBrainUpdatedAt: hire.brandBrainUpdatedAt,
+    brandBrainApprovedAt: hire.brandBrainApprovedAt,
+    brandMedia: parseCmoBrandMedia(hire.brandMedia),
     strategy: overview.strategy,
     media: overview.media,
     strategyUpdatedAt: hire.strategyUpdatedAt,
@@ -63,6 +67,7 @@ function mapOverview(overview: CmoOverview) {
     connectChannelUrl: overview.connectChannelUrl,
     adProviders: overview.adProviders,
     connectAdsUrl: overview.connectAdsUrl,
+    measurement: overview.measurement,
     mailingListSize: overview.mailingListSize,
     subscribeUrl: overview.subscribeUrl,
     billing: overview.billing,
@@ -89,8 +94,18 @@ export function rethrow(error: unknown): never {
   if (error instanceof SokoBotBillingAccessError)
     throw forbidden(error.message);
   if (error instanceof CmoConflictError) throw conflict(error.message);
-  if (error instanceof ComposioConfigError) {
+  if (
+    error instanceof ComposioConfigError ||
+    (error instanceof SokoBotIntegrationError &&
+      error.kind === "NOT_CONFIGURED")
+  ) {
     throw serviceUnavailable("Connecting this network is not set up");
+  }
+  if (error instanceof SokoBotIntegrationError) {
+    if (error.kind === "NOT_FOUND") throw notFound("Not connected yet");
+    throw serviceUnavailable(
+      "Connecting is not working right now. Try again later.",
+    );
   }
   throw error;
 }

@@ -47,6 +47,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   web_search: "Searching the web",
   search_exa: "Searching with Exa",
   list_social_comments: "Reading comments",
+  read_social_profile: "Reading a social profile",
   handle_social_comment: "Replying to a comment",
   web_fetch: "Reading a web page",
   bash: "Running a command",

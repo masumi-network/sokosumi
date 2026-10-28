@@ -127,5 +127,14 @@
     "why": "local restaurant, German goal: German plan and German posts",
     "contentLanguage": "german|deutsch",
     "planLanguage": "\\b(und|mit|für|der|die|das|mehr|gäste)\\b"
+  },
+  {
+    "name": "Apple",
+    "url": "https://apple.com/",
+    "goal": "More sales",
+    "main": "iphone|mac|ipad|apple",
+    "minOffers": 5,
+    "why": "many product lines: the Brand Brain lists each, not only the one the homepage features",
+    "contentLanguage": "english"
   }
 ]

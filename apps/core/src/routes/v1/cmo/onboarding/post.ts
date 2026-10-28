@@ -27,8 +27,7 @@ const route = createRoute({
       "Cuso hired; he is learning the business",
     ),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not a Workspace the person can act in"),
+    403: jsonErrorResponse("Forbidden - The organization limit is reached"),
     409: jsonErrorResponse("Conflict"),
   },
 });

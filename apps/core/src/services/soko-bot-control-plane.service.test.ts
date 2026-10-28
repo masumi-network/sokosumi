@@ -893,8 +893,10 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(capabilities).toContain("create_social_post");
     expect(capabilities).toContain("schedule_social_post");
     expect(capabilities).toContain("save_strategy");
-    // His version still keeps personal reach out.
-    expect(capabilities).not.toContain("run_integration_tool");
+    // He reads measurement sources connected to his own bot, never the owner's mail.
+    expect(capabilities).toContain("run_integration_tool");
+    expect(capabilities).not.toContain("search_inbox");
+    expect(capabilities).not.toContain("send_email_draft");
   });
 
   it("keeps every tool and saves the preference when Jev only guesses the route", async () => {

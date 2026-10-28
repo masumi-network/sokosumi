@@ -1,8 +1,4 @@
-import {
-  getUsersById,
-  getUsersByIdSignUp,
-  getUsersByIdWorkspaces,
-} from "@sokosumi/core-client";
+import { getUsersById, getUsersByIdSignUp } from "@sokosumi/core-client";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -10,16 +6,8 @@ import { CmoApp } from "../components/app/cmo-app";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
-import { OrganizationSetup } from "../components/organization-setup";
-import { PendingInvitations } from "../components/pending-invitations";
 import { SignedIn } from "../components/signed-in";
-import {
-  ORGANIZATION_STEP,
-  WORKSPACE_FAILED_ERROR,
-  WorkspaceGate,
-} from "../components/workspace-gate";
 import { getAuth } from "../lib/auth";
-import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { asSignedInPersonInPage } from "../lib/core";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
@@ -27,10 +15,13 @@ import type { View } from "../lib/views";
 import { signOut } from "./actions";
 import {
   addMailingList,
+  answerBrandQuestion,
+  approveBrandBrain,
   approveStrategy,
   chooseMockPlan,
   completeOnboarding,
   connectChannel,
+  connectMeasurement,
   finishAccounts,
   loadMessages,
   loadOverview,
@@ -43,12 +34,9 @@ import {
   revertUpdate,
   saveBrandBrain,
   sendMessage,
+  setAdBudget,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
-import {
-  createOrganizationWorkspace,
-  createPersonalWorkspace,
-} from "./workspace-actions";
 
 /** A repeated query param arrives as a list; the first one counts. */
 function first(value: string | string[] | undefined): string | undefined {
@@ -65,7 +53,7 @@ const CMO_SIGN_UP_ORIGIN = "cmo";
 
 /**
  * The website a CMO sign-up link carried (`/signup?url=`), to start the
- * organization step with. Only a nicety: without it the person types it.
+ * hiring form with. Only a nicety: without it the person types it.
  */
 async function signUpWebsite(
   asPerson: Awaited<ReturnType<typeof asSignedInPersonInPage>>,
@@ -100,8 +88,8 @@ interface HomeProps {
 }
 
 /**
- * Every CMO page renders through here, so the workspace gate gates all of
- * CMO (ADR 0051). Before onboarding ends the first run owns every address.
+ * Every CMO page renders through here. Before onboarding ends the first run
+ * owns every address.
  */
 export async function Home({ searchParams, view }: HomeProps) {
   const requestHeaders = await headers();
@@ -121,59 +109,15 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (!session) return signedOut(error);
 
   const asPerson = await asSignedInPersonInPage(requestHeaders);
-  const { data, response } = await getUsersByIdWorkspaces({
-    ...asPerson,
-    path: { id: "me" },
-  });
-  if (isRefused(response)) return signedOut(CMO_SIGN_IN_ERROR.signedOut);
-  // Never let a person in without knowing they have a workspace.
-  if (!data) {
-    throw new Error(`Core did not list the workspaces (${response?.status})`);
-  }
-
-  const { workspaces, pendingInvitationCount } = data.data;
-  if (workspaces.length === 0) {
-    // Invited people join their team on Sokosumi, which asks for any missing
-    // name when they accept.
-    if (pendingInvitationCount > 0) {
-      return (
-        <PendingInvitations
-          count={pendingInvitationCount}
-          sokosumiSetupUrl={`${readSokosumiAppBaseUrl()}/setup`}
-          email={session.user.email}
-          signOut={signOut}
-        />
-      );
-    }
-    // CMO's session holds only a display name, so the gate reads the parts.
-    const person = await getUsersById({ ...asPerson, path: { id: "me" } });
-    if (isRefused(person.response))
-      return signedOut(CMO_SIGN_IN_ERROR.signedOut);
-    if (!person.data) {
-      throw new Error(
-        `Core did not read the person (${person.response?.status})`,
-      );
-    }
-    const { firstName, lastName } = person.data.data;
-    if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
-      return <NameSetup saveName={saveName} signOut={signOut} />;
-    }
-    if (step === ORGANIZATION_STEP) {
-      return (
-        <OrganizationSetup
-          createOrganizationWorkspace={createOrganizationWorkspace}
-          websiteUrl={await signUpWebsite(asPerson)}
-        />
-      );
-    }
-    return (
-      <WorkspaceGate
-        failed={error === WORKSPACE_FAILED_ERROR}
-        createPersonalWorkspace={createPersonalWorkspace}
-        signOut={signOut}
-      />
+  // CMO's session holds only a display name, so the name step reads the parts.
+  const person = await getUsersById({ ...asPerson, path: { id: "me" } });
+  if (isRefused(person.response)) return signedOut(CMO_SIGN_IN_ERROR.signedOut);
+  if (!person.data) {
+    throw new Error(
+      `Core did not read the person (${person.response?.status})`,
     );
   }
+
   const overview = await loadOverview().catch(() => undefined);
   // Core unreachable: keep the signed-in shell rather than an error page.
   if (overview === undefined) {
@@ -186,10 +130,17 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   if (overview === null) {
-    // Cuso is hired where the person works now (ADR 0053).
-    const preferred =
-      workspaces.find((workspace) => workspace.preferred) ?? workspaces[0];
-    return <Onboarding workspace={preferred} onboard={onboard} />;
+    const { firstName, lastName } = person.data.data;
+    if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
+      return <NameSetup saveName={saveName} signOut={signOut} />;
+    }
+    // Hiring creates Cuso's own organization (ADR 0058).
+    return (
+      <Onboarding
+        websiteUrl={await signUpWebsite(asPerson)}
+        onboard={onboard}
+      />
+    );
   }
   if (!overview.onboardedAt) {
     // The app's pages open once onboarding ends; until then it is the first run.
@@ -208,10 +159,14 @@ export async function Home({ searchParams, view }: HomeProps) {
           requestStrategy,
           saveBrandBrain,
           approveStrategy,
+          setAdBudget,
+          approveBrandBrain,
+          answerBrandQuestion,
           finishAccounts,
           addMailingList,
           chooseMockPlan,
           connectChannel,
+          connectMeasurement,
           completeOnboarding,
           signOut,
         }}
@@ -230,11 +185,13 @@ export async function Home({ searchParams, view }: HomeProps) {
         loadState,
         sendMessage,
         approveStrategy,
+        setAdBudget,
         revertUpdate,
         retryLearning,
         saveBrandBrain,
         pauseEntry,
         connectChannel,
+        connectMeasurement,
         chooseMockPlan,
         signOut,
       }}

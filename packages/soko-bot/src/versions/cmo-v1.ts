@@ -76,6 +76,9 @@ export const cmoV1: SokoBotVersion = {
     "schedule_social_post",
     "cancel_social_post",
     "publish_social_post",
+    // Google Analytics, Search Console and Shopify, when the owner connects them.
+    "list_integration_tools",
+    "run_integration_tool",
     "web_search",
     "web_fetch",
     "workspace_read",

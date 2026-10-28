@@ -37,49 +37,21 @@ const noop = {
 };
 
 describe("Onboarding", () => {
-  const organization = {
-    id: "ws-org",
-    kind: "organization" as const,
-    name: "Acme Inc",
-    websiteUrl: "https://acme.io",
-  };
-
-  it("asks for the website and one main goal", () => {
+  it("asks only for the website", () => {
     const html = renderToStaticMarkup(
-      <Onboarding
-        workspace={{ ...organization, kind: "personal", websiteUrl: null }}
-        onboard={async (state) => state}
-      />,
+      <Onboarding onboard={async (state) => state} />,
     );
     expect(html).toContain('name="websiteUrl"');
-    expect(html).toContain('name="goals" value="More sales"');
-    expect(html).toContain("Launch something");
+    expect(html).not.toContain('name="goals"');
+    expect(html).not.toContain("Main goal");
+    expect(html).not.toContain("workspaceId");
   });
 
-  it("hires into the workspace it shows, with its website filled in", () => {
+  it("starts with the website the sign-up link carried", () => {
     const html = renderToStaticMarkup(
-      <Onboarding workspace={organization} onboard={async (state) => state} />,
+      <Onboarding websiteUrl="nmkr.io" onboard={async (state) => state} />,
     );
-    expect(html).toContain('name="workspaceId" value="ws-org"');
-    expect(html).toContain('value="https://acme.io"');
-    expect(html).toContain("Acme Inc");
-    expect(html).toContain("plan and credits");
-  });
-
-  it("leaves a personal workspace's website empty and says nothing of paying", () => {
-    const html = renderToStaticMarkup(
-      <Onboarding
-        workspace={{
-          id: "ws-me",
-          kind: "personal",
-          name: "Ana Example",
-          websiteUrl: null,
-        }}
-        onboard={async (state) => state}
-      />,
-    );
-    expect(html).toContain('name="workspaceId" value="ws-me"');
-    expect(html).not.toContain("plan and credits");
+    expect(html).toContain('value="nmkr.io"');
   });
 });
 
@@ -359,9 +331,11 @@ describe("pages", () => {
         overview={overview()}
         compose={() => {}}
         openUpdate={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
     expect(html).toContain("Drafts");
+    expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
   });

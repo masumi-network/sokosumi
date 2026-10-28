@@ -3,10 +3,15 @@ import type { CmoHire, Prisma } from "@sokosumi/database";
 import {
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
+  CMO_MEASUREMENT_SOURCES,
   CMO_SOKO_BOT_VERSION_ID,
+  type CmoBrandAnswer,
   type CmoBrandBrain,
+  type CmoBrandFinding,
   type CmoBrandProfile,
+  type CmoBrandQuestion,
   type CmoBrandSectionKey,
+  type CmoMeasurementSource,
   type CmoReportUpdateInput,
   type CmoSaveBrandBrainInput,
   type CmoStrategy,
@@ -20,6 +25,7 @@ import {
   cmoSaveBrandBrainInputSchema,
   cmoStrategySchema,
   getSokoBotVersion,
+  isCmoMeasurementSource,
   SOKO_BOT_CMO_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
@@ -389,11 +395,13 @@ function onboardingMessage(input: {
 }): string {
   return [
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
-    `Their main marketing goal, in their words: ${input.goals}`,
+    ...(input.goals
+      ? [`Their main marketing goal, in their words: ${input.goals}`]
+      : []),
     "",
     "Learn the business and build its Brand Brain, following your Brand Brain skill: read the website, search for the company, its reviews, competitors, news and social profiles, and save each group of profile sections with save_brand_brain as soon as you have researched it, the essentials last. Write down only what you found, with the evidence, confidence, source and implication of every finding.",
     "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
-    "If you could not confirm what they sell, to whom, and the offer, end with two or three short questions; otherwise end with one plain sentence on what stood out.",
+    "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
     "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
   ].join("\n");
 }
@@ -530,6 +538,14 @@ export function describeCmoStep(
     input && typeof input === "object"
       ? (input as Record<string, unknown>)
       : {};
+  if (capability === "read_social_profile" && typeof fields.url === "string") {
+    const url = URL.parse(fields.url);
+    return {
+      kind: "read",
+      label: `Looking at ${url ? `${url.hostname.replace(/^www\./, "")}${url.pathname.replace(/\/$/, "")}` : "a profile"}`,
+      url: fields.url,
+    };
+  }
   if (capability === "web_search" && typeof fields.query === "string") {
     return {
       kind: "search",
@@ -795,23 +811,44 @@ export function startCmoResearch(hire: CmoHire): Promise<{ turnId: string }> {
 }
 
 /**
- * Hires Cuso into the Workspace the person chose (ADR 0053): his marketing
- * Project and the CMO record go there, and his first turn starts. One CMO
- * hire per person; a second call returns the existing one.
+ * Hires Cuso into a new organization named after the business (ADR 0058):
+ * his marketing Project and the CMO record go there, and his first turn
+ * starts. One CMO hire per person; a second call returns the existing one.
  */
 export async function startCmoOnboarding(input: {
   userId: string;
-  workspaceId: string;
   websiteUrl: string;
-  goals: string;
 }): Promise<CmoHire> {
   const existing = await getCmoHireForUser(input.userId);
   if (existing) return existing;
 
-  // Throws not found unless the person can act in this workspace.
-  const workspace = await getUserWorkspace(input.userId, {
-    id: input.workspaceId,
+  // Organization names take 2 to 50 characters.
+  const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
+    .slice(0, 50)
+    .padEnd(2, ".");
+  // A hire that failed after its organization existed left it empty; a
+  // retry takes it instead of making a second one.
+  const leftover = await prisma.organization.findFirst({
+    where: {
+      name: businessName,
+      members: {
+        every: { userId: input.userId },
+        some: { userId: input.userId, role: "owner" },
+      },
+      workspace: { is: { projects: { none: {} } } },
+    },
+    select: { id: true },
   });
+  // Loaded here: Better Auth's module graph stays out of the CMO service's.
+  const { createOrganizationWorkspace } = await import(
+    "@/helpers/organization-workspace"
+  );
+  const workspace = leftover
+    ? await getUserWorkspace(input.userId, { organizationId: leftover.id })
+    : await createOrganizationWorkspace(input.userId, {
+        name: businessName,
+        websiteUrl: input.websiteUrl,
+      });
   if (
     !(await canFundFirstTurn({
       userId: input.userId,
@@ -820,10 +857,6 @@ export async function startCmoOnboarding(input: {
   ) {
     throw new CmoConflictError(CMO_OUT_OF_CREDITS);
   }
-  const businessName =
-    workspace.kind === "organization"
-      ? workspace.name
-      : cmoBusinessNameFromUrl(input.websiteUrl);
 
   const project = await prisma.project.create({
     data: {
@@ -854,7 +887,9 @@ export async function startCmoOnboarding(input: {
         projectId: project.id,
         businessName,
         websiteUrl: input.websiteUrl,
-        goals: input.goals,
+        // The start form no longer asks for a goal; Cuso works from the
+        // business's main offer.
+        goals: "",
       },
     });
   } catch (error) {
@@ -894,7 +929,7 @@ export async function startCmoOnboarding(input: {
     message: onboardingMessage({
       businessName,
       websiteUrl: input.websiteUrl,
-      goals: input.goals,
+      goals: created.goals,
     }),
     route: CMO_ONBOARDING_ROUTE,
   }).catch((error) => {
@@ -921,6 +956,128 @@ const GOAL_PRESETS = [
 export function ownWords(goals: string): string | null {
   const typed = goals.replace(/^launch something:\s*/i, "").trim();
   return typed && !GOAL_PRESETS.includes(typed.toLowerCase()) ? typed : null;
+}
+
+/** A measurement source and whether it is connected to Cuso. */
+export interface CmoMeasurementStatus {
+  provider: CmoMeasurementSource;
+  name: string;
+  measures: string;
+  status: "connected" | "pending" | "none";
+}
+
+/** Google Analytics, Search Console and Shopify as connected to Cuso's bot. */
+export async function listCmoMeasurement(
+  sokoBotId: string,
+): Promise<CmoMeasurementStatus[]> {
+  const rows = await prisma.sokoBotIntegration.findMany({
+    where: {
+      sokoBotId,
+      provider: { in: CMO_MEASUREMENT_SOURCES.map((source) => source.id) },
+    },
+    select: { provider: true, status: true },
+  });
+  return CMO_MEASUREMENT_SOURCES.map((source) => {
+    const row = rows.find((candidate) => candidate.provider === source.id);
+    return {
+      provider: source.id,
+      name: source.name,
+      measures: source.measures,
+      status: !row ? "none" : row.status === "ACTIVE" ? "connected" : "pending",
+    };
+  });
+}
+
+/**
+ * Starts connecting a measurement source to Cuso's own bot (not the owner's
+ * personal assistant): the owner authorizes it and comes back to returnUrl.
+ */
+export async function connectCmoMeasurement(input: {
+  userId: string;
+  provider: string;
+  returnUrl: string;
+}): Promise<{ redirectUrl: string }> {
+  if (!isCmoMeasurementSource(input.provider)) {
+    throw new CmoNotFoundError("CMO does not measure with that source");
+  }
+  if (!isCmoAppUrl(input.returnUrl)) {
+    throw new CmoConflictError("The return address must be CMO's own page");
+  }
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const { connectSokoBotIntegration } = await import(
+    "@/services/soko-bot-integration-connection.service"
+  );
+  return connectSokoBotIntegration({
+    userId: input.userId,
+    workspaceId: hire.workspaceId,
+    provider: input.provider,
+    returnUrl: input.returnUrl,
+    selector: { kind: "id", sokoBotId: hire.sokoBotId },
+  });
+}
+
+/** Finishes a measurement connection once the owner is back from authorizing. */
+export async function finalizeCmoMeasurement(input: {
+  userId: string;
+  provider: string;
+}): Promise<void> {
+  if (!isCmoMeasurementSource(input.provider)) {
+    throw new CmoNotFoundError("CMO does not measure with that source");
+  }
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const { finalizeSokoBotIntegration } = await import(
+    "@/services/soko-bot-integration-connection.service"
+  );
+  await finalizeSokoBotIntegration({
+    userId: input.userId,
+    workspaceId: hire.workspaceId,
+    provider: input.provider,
+    selector: { kind: "id", sokoBotId: hire.sokoBotId },
+  });
+}
+
+/**
+ * The owner's monthly ad budget: stored on the plan as theirs, then Cuso
+ * plans the ads (and what they should bring) around exactly that amount.
+ * Zero turns paid ads off.
+ */
+export async function setCmoAdBudget(input: {
+  userId: string;
+  monthly: number;
+  currency: string;
+}): Promise<{ turnId: string }> {
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const strategy = parseCmoStrategy(hire.strategy);
+  if (!strategy) {
+    throw new CmoConflictError("Cuso has not written the strategy yet");
+  }
+  const currency = input.currency.toUpperCase();
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: {
+      strategy: {
+        ...strategy,
+        ads: {
+          expect: "Cuso is updating what this brings.",
+          without: "The plan runs on posts, search and email alone.",
+          ...strategy.ads,
+          monthly: input.monthly,
+          currency,
+          setByOwner: true,
+        },
+      },
+    },
+  });
+  return requestCmoStrategy({
+    userId: input.userId,
+    note:
+      input.monthly > 0
+        ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
+        : "I don't want to spend on ads this month. Leave paid ads out and make the plan work without them.",
+  });
 }
 
 /** Asks Cuso for a new one-month strategy; the owner approves it again. */
@@ -953,8 +1110,16 @@ export async function requestCmoStrategy(input: {
         ]
       : [
           `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-          `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers, unless the owner's goal below names a product, launch or offer: then that is what the plan sells. Otherwise a single product or feature may carry one campaign, never the whole plan.`,
-          `Their goal, in their words: ${hire.goals}. When it names a product or launch, the plan is built around it. Otherwise it is the result they want from selling the main offer; never read a word in it as a topic, product or feature to promote.`,
+          ...(hire.goals
+            ? [
+                `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers, unless the owner's goal below names a product, launch or offer: then that is what the plan sells. Otherwise a single product or feature may carry one campaign, never the whole plan.`,
+                `Their goal, in their words: ${hire.goals}. When it names a product or launch, the plan is built around it. Otherwise it is the result they want from selling the main offer; never read a word in it as a topic, product or feature to promote.`,
+              ]
+            : [
+                `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
+                "The owner named no goal: set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
+              ]),
+          ...ownerAnswers(brain),
           "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
           ...(ownWords(hire.goals)
             ? [
@@ -963,7 +1128,7 @@ export async function requestCmoStrategy(input: {
             : []),
           "",
           "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-          "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (summary, why, goals, start, objective, barrier, mix, pillars, focus, offer, channels, funnel, proposals, campaigns, journey, weeks, budget, measurement, openQuestions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId). Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves, your daily run writes each piece three days before it goes out.",
+          "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, openQuestions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId). Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves, your daily run writes each piece three days before it goes out.",
         ]
     )
       .concat([
@@ -1013,7 +1178,16 @@ export async function saveCmoBrandBrain(
       ...stored.profile,
       ...kept,
     });
-    const essentials = save.brandBrain ?? parseCmoBrandBrain(stored);
+    const before = parseCmoBrandBrain(stored);
+    const essentials = save.brandBrain
+      ? {
+          ...save.brandBrain,
+          questions: keepAnswers(
+            save.brandBrain.questions,
+            before?.questions ?? [],
+          ),
+        }
+      : before;
     const next = essentials ? { ...essentials, profile } : { profile };
     return tx.cmoHire.update({
       where: { id: hire.id },
@@ -1024,6 +1198,134 @@ export async function saveCmoBrandBrain(
     });
   };
   return db ? write(db) : prisma.$transaction(write);
+}
+
+/**
+ * Questions saved again keep the owner's answers: Cuso asks, only the owner
+ * answers, so an answer Cuso leaves out is the stored one.
+ */
+function keepAnswers(
+  incoming: CmoBrandQuestion[],
+  stored: CmoBrandQuestion[],
+): CmoBrandQuestion[] {
+  return incoming.map((question) => {
+    const answered = stored.find((candidate) => candidate.id === question.id);
+    return answered?.answer && !question.answer
+      ? { ...question, answer: answered.answer, note: answered.note }
+      : question;
+  });
+}
+
+/** What an answer adds to its section: a yes confirms, a no with a note corrects. */
+function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
+  const point =
+    question.answer === "yes"
+      ? question.statement
+      : question.answer === "no"
+        ? question.note
+        : undefined;
+  return point
+    ? {
+        point,
+        evidence: "fact",
+        confidence: "high",
+        asOf: new Date().toISOString().slice(0, 7),
+      }
+    : null;
+}
+
+/** The owner's answers, for the strategy request; none when nothing was answered. */
+function ownerAnswers(brain: CmoBrandBrain): string[] {
+  const answered = brain.questions.filter(
+    (question) => question.answer && question.answer !== "unsure",
+  );
+  if (answered.length === 0) return [];
+  return [
+    "The owner answered your Brand Brain questions. A yes confirms the statement; a no overrides your reading, and its note says what is true instead:",
+    ...answered.map(
+      (question) =>
+        `- ${question.question} ${question.answer}${question.note ? `: ${question.note}` : ""}`,
+    ),
+  ];
+}
+
+/** The owner approved the Brand Brain; his questions come next. */
+export async function approveCmoBrandBrain(userId: string): Promise<void> {
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!parseCmoBrandBrain(hire.brandBrain)) {
+    throw new CmoConflictError("Cuso is still building the Brand Brain");
+  }
+  if (hire.brandBrainApprovedAt) return;
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: { brandBrainApprovedAt: new Date() },
+  });
+}
+
+/**
+ * The owner's answer to one of Cuso's questions. It is stored on the
+ * question and lands in its section as a confirmed finding (replacing what
+ * an earlier answer to the same question put there), so every later plan and
+ * post reads it.
+ */
+export async function answerCmoBrandQuestion(
+  userId: string,
+  input: { questionId: string; answer: CmoBrandAnswer; note?: string },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const hire = await tx.cmoHire.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+    await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
+    const current = await tx.cmoHire.findUnique({
+      where: { id: hire.id },
+      select: { brandBrain: true },
+    });
+    const brain = parseCmoBrandBrain(current?.brandBrain);
+    const question = brain?.questions.find(
+      (candidate) => candidate.id === input.questionId,
+    );
+    if (!brain || !question) {
+      throw new CmoNotFoundError("That question is not in the Brand Brain");
+    }
+    const answered: CmoBrandQuestion = {
+      ...question,
+      answer: input.answer,
+      note: input.answer === "no" ? input.note?.trim() || undefined : undefined,
+    };
+    const earlier = [question.statement, question.note].filter(Boolean);
+    const section = brain.profile[question.section];
+    const finding = answerFinding(answered);
+    const findings = [
+      ...(finding ? [finding] : []),
+      ...(section?.findings ?? []).filter(
+        (candidate) => !earlier.includes(candidate.point),
+      ),
+    ].slice(0, 6);
+    const profile = {
+      ...brain.profile,
+      [question.section]: section
+        ? { ...section, findings }
+        : finding
+          ? { answer: finding.point, findings, openQuestions: [] }
+          : undefined,
+    };
+    await tx.cmoHire.update({
+      where: { id: hire.id },
+      data: {
+        brandBrain: {
+          ...brain,
+          profile,
+          questions: brain.questions.map((candidate) =>
+            candidate.id === question.id ? answered : candidate,
+          ),
+        },
+      },
+    });
+  });
 }
 
 /** The profile sections a stored Brand Brain holds, in profile order. */
@@ -1188,11 +1490,24 @@ export async function saveCmoStrategy(
   });
   // A channel the plan now runs is no longer a proposal.
   const running = new Set(whole.channels.map((channel) => channel.channel));
+  // The ad budget the owner set is theirs: Cuso's saves plan around it.
+  const ownerAds =
+    options.turnId && before?.ads?.setByOwner ? before.ads : undefined;
   const parsed = {
     ...whole,
     proposals: whole.proposals.filter(
       (proposal) => !running.has(proposal.channel),
     ),
+    ...(ownerAds
+      ? {
+          ads: {
+            ...(whole.ads ?? ownerAds),
+            monthly: ownerAds.monthly,
+            currency: ownerAds.currency,
+            setByOwner: true,
+          },
+        }
+      : {}),
   };
   const previous = options.turnId ? before : null;
   const merged = previous
@@ -1638,6 +1953,8 @@ export interface CmoOverview {
   adProviders: string[];
   /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
   connectAdsUrl: string;
+  /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
+  measurement: CmoMeasurementStatus[];
   /** People on the newsletter list. */
   mailingListSize: number;
   subscribeUrl: string;
@@ -1717,12 +2034,13 @@ export async function getCmoOverview(
     }),
     listCmoChannels(hire.projectId),
   ]);
-  const [adConnections, mailingListSize] = await Promise.all([
+  const [adConnections, mailingListSize, measurement] = await Promise.all([
     prisma.projectAdConnection.findMany({
       where: { projectId: hire.projectId, status: "active" },
       select: { provider: true },
     }),
     cmoMailingListSize(hire),
+    listCmoMeasurement(hire.sokoBotId),
   ]);
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
@@ -1803,6 +2121,7 @@ export async function getCmoOverview(
     connectChannelUrl: `${web}/social?projectId=${hire.projectId}`,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
     connectAdsUrl: `${web}/ads?projectId=${hire.projectId}`,
+    measurement,
     mailingListSize,
     // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
     subscribeUrl: `${web}/billing`,

@@ -40,6 +40,7 @@ const plan = (patch: Partial<CmoStrategy> = {}): CmoStrategy =>
         goal: "g",
         channels: [],
         metric: "Visits",
+        plays: [{ channel: "linkedin", what: "Posts" }],
       },
       {
         stage: "consideration",
@@ -47,6 +48,7 @@ const plan = (patch: Partial<CmoStrategy> = {}): CmoStrategy =>
         goal: "g",
         channels: [],
         metric: "Page views",
+        plays: [{ channel: "linkedin", what: "Posts" }],
       },
       {
         stage: "conversion",
@@ -54,9 +56,23 @@ const plan = (patch: Partial<CmoStrategy> = {}): CmoStrategy =>
         goal: "g",
         channels: [],
         metric: "Intro calls",
+        plays: [{ channel: "linkedin", what: "Posts" }],
       },
     ],
-    objective: { metric: "Intro calls", target: "8 by 23 Nov" },
+    objective: {
+      outcome: "More intro calls from operations leads",
+      metric: "Intro calls",
+      target: "8 by 23 Nov",
+    },
+    idea: {
+      who: "Operations leads",
+      position: "Custom AI CoWorkers for repeat work",
+      attract: "LinkedIn how-tos",
+      offer: "A 30-day pilot",
+      sentence:
+        "We will target operations leads with LinkedIn how-tos and offer a 30-day pilot.",
+    },
+    pace: { level: "steady", why: "A small team", perWeek: 3 },
     proposals: [],
     previews: [],
     changes: [],
@@ -79,6 +95,7 @@ describe("cmoPlanProblems", () => {
             name: "Call",
             goal: "g",
             channels: [],
+            plays: [],
             metric: "Demos",
           },
         ],
@@ -93,6 +110,52 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/calendar has 1 pieces/);
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
     expect(problems.join("\n")).toMatch(/holds drafts/);
+  });
+});
+
+describe("the funnel strategy", () => {
+  it("asks for the idea, the outcome, the pace and each stage's plays", () => {
+    const problems = cmoPlanProblems(
+      plan({
+        idea: undefined,
+        pace: undefined,
+        objective: { metric: "Intro calls", target: "8" },
+        funnel: plan().funnel.map((stage) => ({ ...stage, plays: [] })),
+      }),
+    ).join(" ");
+    expect(problems).toContain("idea is missing");
+    expect(problems).toContain("objective.outcome is missing");
+    expect(problems).toContain("pace is missing");
+    expect(problems).toContain("the Hear stage has no plays");
+  });
+
+  it("lets a stage the owner moves go without plays", () => {
+    const funnel = plan().funnel.map((stage) =>
+      stage.stage === "conversion"
+        ? { ...stage, owner: "you" as const, plays: [] }
+        : stage,
+    );
+    expect(cmoPlanProblems(plan({ funnel })).join(" ")).not.toContain(
+      "no plays",
+    );
+  });
+
+  it("holds the calendar to its pace", () => {
+    const calendar = Array.from({ length: 16 }, (_, index) =>
+      entry(
+        `e${index}`,
+        index % 2 ? "linkedin" : "instagram",
+        index % 3 ? "post" : "carousel",
+      ),
+    );
+    expect(
+      cmoPlanProblems(
+        plan({
+          calendar,
+          pace: { level: "all_in", why: "Go hard", perWeek: 20 },
+        }),
+      ).join(" "),
+    ).toContain("all_in pace says 20");
   });
 });
 

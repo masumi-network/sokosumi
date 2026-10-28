@@ -10,7 +10,7 @@ import { changeIdeas } from "../../lib/change-ideas";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { withoutLabel } from "../showcases";
-import { goalLine, StrategyReveal } from "../strategy-reveal";
+import { outcomeLine, StrategyReveal } from "../strategy-reveal";
 import { Refusal } from "./refusal";
 import { StepHead } from "./step-head";
 
@@ -22,6 +22,8 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 interface StrategyStepProps {
   overview: CmoOverview;
   onChange: (note: string) => Promise<string | null>;
+  /** The owner's own monthly ad budget; a refusal comes back as text. */
+  onSetAds: (monthly: number, currency: string) => Promise<string | null>;
   onApprove: () => Promise<void>;
   /** Set when the founder opened the approved plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
@@ -35,6 +37,7 @@ interface StrategyStepProps {
 export function StrategyStep({
   overview,
   onChange,
+  onSetAds,
   onApprove,
   ahead,
 }: StrategyStepProps) {
@@ -67,9 +70,7 @@ export function StrategyStep({
     work?.kind === "strategy" && work.status === "failed" && asked !== null;
   const busy = writing || changing;
   const changes = strategy.changes ?? [];
-  const goal = strategy.objective
-    ? lowerFirst(goalLine(strategy.objective.metric))
-    : "your goal";
+  const goal = lowerFirst(outcomeLine(strategy)) || "your goal";
 
   function requestChange(text: string) {
     const request = text.trim();
@@ -87,7 +88,7 @@ export function StrategyStep({
   return (
     <section className="ob-strategy">
       <StepHead
-        step={3}
+        step={4}
         title="Strategy"
         mood="point"
         busy={writing || changing}
@@ -172,6 +173,12 @@ export function StrategyStep({
           setRefusal(refused);
           if (refused) throw new Error(refused);
           setAsked(text);
+        }}
+        onSetAds={async (monthly, currency) => {
+          const refused = await onSetAds(monthly, currency);
+          setRefusal(refused);
+          if (refused) throw new Error(refused);
+          setAsked(`Ad budget: ${currency} ${monthly} a month`);
         }}
         calendar={
           <div className="ob-weeks">

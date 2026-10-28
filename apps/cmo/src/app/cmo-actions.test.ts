@@ -17,9 +17,7 @@ const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
 
 function form(websiteUrl: string) {
   const data = new FormData();
-  data.set("workspaceId", "ws-1");
   data.set("websiteUrl", websiteUrl);
-  data.set("goals", "More leads");
   return data;
 }
 
@@ -29,16 +27,12 @@ beforeEach(() => {
 });
 
 describe("onboard", () => {
-  it("hires Cuso with the website as the identity step stores it", async () => {
+  it("hires Cuso with only the website, normalized", async () => {
     await onboard(EMPTY, form("acme.io"));
 
     expect(startCmoOnboarding).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: {
-          workspaceId: "ws-1",
-          websiteUrl: "https://acme.io/",
-          goals: "More leads",
-        },
+        body: { websiteUrl: "https://acme.io/" },
       }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/");
@@ -51,27 +45,8 @@ describe("onboard", () => {
     expect(state).toEqual({
       attempt: 1,
       websiteUrl: "not a site",
-      launch: "",
       errors: { websiteUrl: "Enter a website, like acme.com." },
     });
-  });
-
-  it("asks what launches and passes it on with the goal", async () => {
-    const data = form("acme.io");
-    data.set("goals", "Launch something");
-    const missing = await onboard(EMPTY, data);
-    expect(missing.errors.launch).toBeDefined();
-    expect(startCmoOnboarding).not.toHaveBeenCalled();
-
-    data.set("launch", "our iOS app, on 12 November");
-    await onboard(EMPTY, data);
-    expect(startCmoOnboarding).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: expect.objectContaining({
-          goals: "Launch something: our iOS app, on 12 November",
-        }),
-      }),
-    );
   });
 
   it("links to top up when Core refuses for credits", async () => {

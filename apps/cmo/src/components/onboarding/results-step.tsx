@@ -5,10 +5,26 @@ import { ArrowRight, CalendarDays, Repeat, Sun } from "lucide-react";
 import { useTransition } from "react";
 
 import { brandStyle, Section } from "../brand-profile";
-import { goalLine } from "../strategy-reveal";
+import { MeasureFunnel } from "../strategy-core";
+import { outcomeLine } from "../strategy-reveal";
 import { StepHead } from "./step-head";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
+type Measure = NonNullable<Strategy["funnel"]>[number]["measure"];
+
+export type ConnectMeasurement = (
+  provider: CmoOverview["measurement"][number]["provider"],
+) => Promise<{ url: string | null; error: string | null }>;
+
+function measureLine(measure: Measure): string {
+  if (measure?.basis === "measured") {
+    return `${measure.value ?? "Measured"}${measure.source ? `, from ${measure.source}` : ""}`;
+  }
+  if (measure?.basis === "estimated") {
+    return measure.value ? `${measure.value} (my estimate)` : "My estimate";
+  }
+  return "Not measured yet";
+}
 
 /** What Cuso does on his own schedule; it matches his daily, weekly and monthly runs. */
 const RHYTHM = [
@@ -50,11 +66,13 @@ export function ResultsStep({
   overview,
   next,
   onContinue,
+  onConnectMeasurement,
 }: {
   overview: CmoOverview;
   /** The step after this one, for the button. */
   next: string;
   onContinue: () => void | Promise<void>;
+  onConnectMeasurement: ConnectMeasurement;
 }) {
   const strategy = overview.strategy as Strategy;
   const [going, startGoing] = useTransition();
@@ -66,7 +84,7 @@ export function ResultsStep({
   return (
     <section className="ob-results">
       <StepHead
-        step={4}
+        step={5}
         title="Results"
         mood="point"
         say="This is how we'll know it works, and what I do every day, week and month to get there."
@@ -84,11 +102,9 @@ export function ResultsStep({
       />
       <div className="bb" style={brandStyle(overview)}>
         <header className="bb-hero">
-          <p className="bb-eyebrow">The number that matters</p>
-          <h1 className="bb-line">
-            {objective ? goalLine(objective.metric) : strategy.goals[0]}
-          </h1>
-          {objective ? (
+          <p className="bb-eyebrow">The outcome that matters</p>
+          <h1 className="bb-line">{outcomeLine(strategy)}</h1>
+          {objective?.target ? (
             <p className="bb-lede">
               Target: {objective.target}
               {objective.baseline ? `. Today: ${objective.baseline}` : ""}
@@ -110,11 +126,23 @@ export function ResultsStep({
                   {stage.target ? (
                     <span className="note">{stage.target}</span>
                   ) : null}
+                  <span className="note">{measureLine(stage.measure)}</span>
                 </li>
               ))}
             </ol>
           </Section>
         ) : null}
+
+        <Section title="Connect your numbers">
+          <p className="note">
+            I read real visits, searches and orders from these. Where none of
+            them reaches, I estimate and ask you for the number.
+          </p>
+          <MeasureFunnel
+            sources={overview.measurement}
+            onConnect={onConnectMeasurement}
+          />
+        </Section>
 
         <Section title="What I do" wide>
           <div className="ob-rhythm">

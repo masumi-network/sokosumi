@@ -172,6 +172,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { readSocialProfile } from "@/lib/social-profile";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
@@ -280,6 +281,7 @@ import {
   saveCmoBrandBrain,
   saveCmoStrategy,
 } from "@/services/cmo.service";
+import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -448,8 +450,8 @@ export function sokoBotToolCallLimit(turn: {
  * background run, a provider refresh) counts against the turn's limit; sandbox
  * tools are recorded but not counted.
  */
-/** Exa searches one turn may run: a full research needs about ten. */
-const EXA_SEARCHES_PER_TURN = 16;
+/** Exa searches one turn may run: a full research uses about twenty-five. */
+const EXA_SEARCHES_PER_TURN = 30;
 
 const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
   SOKO_BOT_CAPABILITIES.filter(
@@ -4866,13 +4868,29 @@ export class SokoBotRuntimeService {
             input.input,
           );
           const saved = await write((tx) => saveCmoBrandBrain(where, save, tx));
+          if (save.brandBrain) scheduleCmoBrandMedia(saved);
+          const stored = parseCmoBrandBrain(saved.brandBrain);
+          // The owner opens on the reveal and answers the questions next, so
+          // essentials without them leave two empty screens.
+          const missing = stored
+            ? [
+                ...(stored.reveal ? [] : ["reveal"]),
+                ...(stored.questions.length > 0 ? [] : ["questions"]),
+              ]
+            : [];
           return {
             targetId: saved.id,
             result: {
               saved: "brandBrain",
               sections: cmoBrandSectionsSaved(saved.brandBrain),
-              essentials: parseCmoBrandBrain(saved.brandBrain) !== null,
+              essentials: stored !== null,
               updatedAt: saved.brandBrainUpdatedAt?.toISOString(),
+              ...(missing.length > 0
+                ? {
+                    missing,
+                    next: `Save brandBrain again with ${missing.join(" and ")}: the owner opens on the reveal and answers the yes/no questions next.`,
+                  }
+                : {}),
             },
           };
         }
@@ -6688,6 +6706,16 @@ export class SokoBotRuntimeService {
         }
         // Said on every result, so Cuso stops before the cap refuses him.
         return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };
+      }
+      case "read_social_profile": {
+        const { url } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_profile.parse(
+          input.input,
+        );
+        // A profile is someone's web page: nothing on it may reach an outward action.
+        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+          runtimeEvent(WEB_TAINT_EVENT, { source: "read_social_profile" }),
+        );
+        return readSocialProfile(url);
       }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(

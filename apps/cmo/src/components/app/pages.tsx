@@ -10,6 +10,8 @@ import { mockPlanById } from "../../lib/mock-plans";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import { MockPlanTable } from "../mock-plans";
+import type { ConnectMeasurement } from "../onboarding/results-step";
+import { MeasureFunnel } from "../strategy-core";
 
 interface PageProps {
   overview: CmoOverview;
@@ -28,7 +30,11 @@ function Empty({ children }: { children: React.ReactNode }) {
 export function ResultsPage({
   overview,
   openUpdate,
-}: PageProps & { openUpdate: (id: string) => void }) {
+  connectMeasurement,
+}: PageProps & {
+  openUpdate: (id: string) => void;
+  connectMeasurement: ConnectMeasurement;
+}) {
   const weekly = overview.updates.filter((update) => update.kind === "weekly");
   const { posts } = overview;
   // Pieces Cuso has written that are not Social posts yet count as drafts too.
@@ -50,6 +56,17 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
+      <section className="panel">
+        <h3>Your numbers</h3>
+        <p className="muted">
+          Cuso reads real visits, searches and orders from these. Where none of
+          them reaches, he estimates and asks you for the number.
+        </p>
+        <MeasureFunnel
+          sources={overview.measurement}
+          onConnect={connectMeasurement}
+        />
+      </section>
       <section className="panel">
         <h3>Reach and clicks</h3>
         <p className="muted">

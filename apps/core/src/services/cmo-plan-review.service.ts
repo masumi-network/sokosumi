@@ -37,6 +37,24 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
     problems.push(
       `funnel has ${strategy.funnel.length} stages; give three or four.`,
     );
+  if (!strategy.idea)
+    problems.push(
+      "idea is missing: who you target, how the business is positioned, how people are attracted, the offer, and the sentence that joins them.",
+    );
+  if (strategy.objective && !strategy.objective.outcome)
+    problems.push(
+      'objective.outcome is missing: the business outcome in words ("More first orders from busy parents"), no number.',
+    );
+  for (const stage of strategy.funnel) {
+    if (stage.owner !== "you" && stage.plays.length === 0)
+      problems.push(
+        `the ${stage.name} stage has no plays; say what each channel does there and how often.`,
+      );
+  }
+  if (!strategy.pace)
+    problems.push(
+      "pace is missing: steady, active or all_in, why, and pieces a week.",
+    );
   const conversion = strategy.funnel.find(
     (stage) => stage.stage === "conversion",
   );
@@ -68,6 +86,12 @@ export function cmoPlanProblems(strategy: CmoStrategy): string[] {
       problems.push(
         "the plan holds drafts; leave them out, the daily run writes each piece.",
       );
+    // Four weeks of pieces; a calendar far below its own pace undersells it.
+    const perWeek = Math.round(pieces.length / 4);
+    if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
+      problems.push(
+        `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
+      );
   }
   return problems;
 }
@@ -96,6 +120,7 @@ export async function cmoPlanDrift(input: {
         products: brain.products,
         ownerGoal: input.goals,
         plan: {
+          idea: strategy.idea?.sentence,
           summary: strategy.summary,
           offer: strategy.offer?.what,
           focus: strategy.focus?.segment,

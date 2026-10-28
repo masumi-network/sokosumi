@@ -132,6 +132,16 @@ const baseEnvSchema = z.object({
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
+  /**
+   * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
+   * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
+   */
+  CHROMIUM_EXECUTABLE_PATH: z.string().min(1).optional(),
+  CHROMIUM_EXECUTABLE_URL: z
+    .url()
+    .default(
+      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
+    ),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**

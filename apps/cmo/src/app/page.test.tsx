@@ -2,15 +2,13 @@ import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NameSetup } from "../components/name-setup";
-import { OrganizationSetup } from "../components/organization-setup";
-import { PendingInvitations } from "../components/pending-invitations";
+import { Onboarding } from "../components/onboarding";
 import { SignedIn } from "../components/signed-in";
-import { WorkspaceGate } from "../components/workspace-gate";
 
 const getSession = vi.fn();
 const getUsersById = vi.fn();
 const getUsersByIdSignUp = vi.fn();
-const getUsersByIdWorkspaces = vi.fn();
+const loadOverview = vi.fn();
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
@@ -22,10 +20,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("../lib/auth", () => ({ getAuth: () => ({ api: { getSession } }) }));
 
-vi.mock("../lib/auth-config", () => ({
-  readSokosumiAppBaseUrl: () => "https://app.sokosumi.com",
-}));
-
 vi.mock("../lib/core", () => ({
   asSignedInPersonInPage: async () => ({
     headers: { authorization: "Bearer token_123" },
@@ -35,38 +29,23 @@ vi.mock("../lib/core", () => ({
 vi.mock("@sokosumi/core-client", () => ({
   getUsersById,
   getUsersByIdSignUp,
-  getUsersByIdWorkspaces,
 }));
 
-vi.mock("./actions", () => ({
-  createAccount: vi.fn(),
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-}));
+vi.mock("./actions", () => ({ signIn: vi.fn(), signOut: vi.fn() }));
 
 vi.mock("./name-actions", () => ({ saveName: vi.fn() }));
 
-vi.mock("./workspace-actions", () => ({
-  createOrganizationWorkspace: vi.fn(),
-  createPersonalWorkspace: vi.fn(),
+vi.mock("./cmo-actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./cmo-actions")>()),
+  loadOverview,
 }));
 
 const { default: HomePage } = await import("./page");
 
 function render(
   error?: string | string[],
-  step?: string | string[],
-): Promise<
-  ReactElement<{ failed?: boolean; error?: string; websiteUrl?: string }>
-> {
-  return HomePage({ searchParams: Promise.resolve({ error, step }) });
-}
-
-function workspacesAnswer(workspaces: unknown[], pendingInvitationCount = 0) {
-  return {
-    data: { data: { workspaces, pendingInvitationCount } },
-    response: new Response(null, { status: 200 }),
-  };
+): Promise<ReactElement<{ websiteUrl?: string }>> {
+  return HomePage({ searchParams: Promise.resolve({ error }) });
 }
 
 function userAnswer(firstName: string | null, lastName: string | null) {
@@ -94,6 +73,8 @@ describe("CMO home page", () => {
       error: { error: "Not Found" },
       response: new Response(null, { status: 404 }),
     });
+    // Not hired yet.
+    loadOverview.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -109,17 +90,15 @@ describe("CMO home page", () => {
     await expect(render("state_mismatch")).rejects.toThrow(
       "redirect /login?error=state_mismatch",
     );
-    expect(getUsersByIdWorkspaces).not.toHaveBeenCalled();
+    expect(getUsersById).not.toHaveBeenCalled();
   });
 
-  it("holds a person with no workspace at the workspace gate", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-
+  it("goes straight to hiring Cuso, with no workspace question", async () => {
     const page = await render();
 
-    expect(page.type).toBe(WorkspaceGate);
-    expect(page.props.failed).toBe(false);
-    expect(getUsersByIdWorkspaces).toHaveBeenCalledWith(
+    expect(page.type).toBe(Onboarding);
+    expect(page.props.websiteUrl).toBeUndefined();
+    expect(getUsersById).toHaveBeenCalledWith(
       expect.objectContaining({
         path: { id: "me" },
         headers: { authorization: "Bearer token_123" },
@@ -127,118 +106,50 @@ describe("CMO home page", () => {
     );
   });
 
-  it("tells the gate when the last choice failed", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-
-    expect((await render("workspace_failed")).props.failed).toBe(true);
-  });
-
-  it("tells the gate when the error query repeats", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-
-    const page = await render(["workspace_failed", "workspace_failed"]);
-
-    expect(page.props.failed).toBe(true);
-  });
-
-  it("shows the organization step to a person with no workspace", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-
-    expect((await render(undefined, "organization")).type).toBe(
-      OrganizationSetup,
-    );
-  });
-
-  it("starts the organization step with the website the CMO sign-up link carried", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+  it("starts the hiring form with the website the CMO sign-up link carried", async () => {
     getUsersByIdSignUp.mockResolvedValue(
       signUpAnswer("cmo", { url: "nmkr.io", plan: "pro" }),
     );
 
-    const page = await render(undefined, "organization");
+    const page = await render();
 
-    expect(page.type).toBe(OrganizationSetup);
+    expect(page.type).toBe(Onboarding);
     expect(page.props.websiteUrl).toBe("nmkr.io");
-    expect(getUsersByIdSignUp).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: { id: "me" },
-        headers: { authorization: "Bearer token_123" },
-      }),
-    );
   });
 
   it.each([
     ["another origin", signUpAnswer("sokosumi", { url: "nmkr.io" })],
     ["no url", signUpAnswer("cmo", { plan: "pro" })],
     ["a url that is not text", signUpAnswer("cmo", { url: 42 })],
-    [
-      "no sign-up recorded",
-      {
-        error: { error: "Not Found" },
-        response: new Response(null, { status: 404 }),
-      },
-    ],
-  ])(
-    "starts the organization step without a website for %s",
-    async (_label, answer) => {
-      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-      getUsersByIdSignUp.mockResolvedValue(answer);
-      const consoleError = vi.spyOn(console, "error");
+  ])("starts the hiring form empty for %s", async (_label, answer) => {
+    getUsersByIdSignUp.mockResolvedValue(answer);
+    const consoleError = vi.spyOn(console, "error");
 
-      const page = await render(undefined, "organization");
+    const page = await render();
 
-      expect(page.type).toBe(OrganizationSetup);
-      expect(page.props.websiteUrl).toBeUndefined();
-      expect(consoleError).not.toHaveBeenCalled();
-    },
-  );
+    expect(page.props.websiteUrl).toBeUndefined();
+    expect(consoleError).not.toHaveBeenCalled();
+  });
 
   it.each([
     ["answers 500", new Response(null, { status: 500 })],
     ["is unreachable", undefined],
   ])(
-    "still shows the organization step when Core %s for the sign-up",
+    "still shows the hiring form when Core %s for the sign-up",
     async (_label, response) => {
-      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
       getUsersByIdSignUp.mockResolvedValue({ error: {}, response });
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
 
-      const page = await render(undefined, "organization");
+      const page = await render();
 
-      expect(page.type).toBe(OrganizationSetup);
-      expect(page.props.websiteUrl).toBeUndefined();
+      expect(page.type).toBe(Onboarding);
       expect(consoleError).toHaveBeenCalledWith(
         expect.stringContaining("Core did not read the sign-up"),
       );
     },
   );
-
-  it("reads the sign-up only on the organization step", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-
-    expect((await render()).type).toBe(WorkspaceGate);
-    expect(getUsersByIdSignUp).not.toHaveBeenCalled();
-  });
-
-  it("does not show the organization step to a person with a workspace", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(
-      workspacesAnswer([{ id: "ws_1", kind: "personal", preferred: true }]),
-    );
-
-    expect((await render(undefined, "organization")).type).toBe(SignedIn);
-  });
-
-  it("lets a person with a workspace into CMO", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(
-      workspacesAnswer([{ id: "ws_1", kind: "personal", preferred: true }]),
-    );
-
-    expect((await render()).type).toBe(SignedIn);
-    // Only the gate needs the name parts.
-    expect(getUsersById).not.toHaveBeenCalled();
-  });
 
   it.each([
     ["no name parts", null, null],
@@ -246,62 +157,21 @@ describe("CMO home page", () => {
     ["blank parts", " ", " "],
     ["a name too long to store", "A".repeat(64), "B".repeat(64)],
   ])(
-    "asks a person with no workspace and %s for their name first",
+    "asks a person with %s for their name before hiring",
     async (_label, firstName, lastName) => {
-      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
       getUsersById.mockResolvedValue(userAnswer(firstName, lastName));
 
-      const page = await render();
-
-      expect(page.type).toBe(NameSetup);
-      expect(getUsersById).toHaveBeenCalledWith(
-        expect.objectContaining({
-          path: { id: "me" },
-          headers: { authorization: "Bearer token_123" },
-        }),
-      );
+      expect((await render()).type).toBe(NameSetup);
     },
   );
 
-  it("asks for the name before the organization step", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-    getUsersById.mockResolvedValue(userAnswer(null, null));
-
-    expect((await render(undefined, "organization")).type).toBe(NameSetup);
-  });
-
-  it.each([
-    ["", undefined],
-    [" on the organization step", "organization"],
-  ])(
-    "sends a person with no workspace and invitations to Sokosumi%s",
-    async (_label, step) => {
-      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([], 2));
-      // Sokosumi asks for a missing name when they accept.
-      getUsersById.mockResolvedValue(userAnswer(null, null));
-
-      const page = await render(undefined, step);
-
-      expect(page.type).toBe(PendingInvitations);
-      expect(page.props).toMatchObject({
-        count: 2,
-        sokosumiSetupUrl: "https://app.sokosumi.com/setup",
-        email: "ada@example.com",
-      });
-      expect(getUsersById).not.toHaveBeenCalled();
-    },
-  );
-
-  it("lets a person with a workspace in despite pending invitations", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(
-      workspacesAnswer([{ id: "ws_1", kind: "personal", preferred: true }], 1),
-    );
+  it("keeps the signed-in shell when Core cannot load Cuso", async () => {
+    loadOverview.mockRejectedValue(new Error("down"));
 
     expect((await render()).type).toBe(SignedIn);
   });
 
   it("fails into the error page when Core cannot read the person", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
     getUsersById.mockResolvedValue({
       error: { error: "Internal Server Error" },
       response: new Response(null, { status: 500 }),
@@ -310,33 +180,13 @@ describe("CMO home page", () => {
     await expect(render()).rejects.toThrow("(500)");
   });
 
-  it("fails into the error page when Core cannot list workspaces", async () => {
-    getUsersByIdWorkspaces.mockResolvedValue({
-      error: { error: "Internal Server Error" },
-      response: new Response(null, { status: 500 }),
-    });
-
-    await expect(render()).rejects.toThrow("(500)");
-  });
-
-  it.each([
-    ["listing workspaces", 401],
-    ["listing workspaces", 403],
-    ["reading the person", 401],
-    ["reading the person", 403],
-  ])(
-    "sends the person to /login when Core refuses the token %s (%i)",
-    async (call, status) => {
-      const refused = {
+  it.each([401, 403])(
+    "sends the person to /login when Core refuses the token (%i)",
+    async (status) => {
+      getUsersById.mockResolvedValue({
         error: { error: "Unauthorized" },
         response: new Response(null, { status }),
-      };
-      if (call === "listing workspaces") {
-        getUsersByIdWorkspaces.mockResolvedValue(refused);
-      } else {
-        getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
-        getUsersById.mockResolvedValue(refused);
-      }
+      });
 
       await expect(render()).rejects.toThrow(
         "redirect /login?error=signed_out",

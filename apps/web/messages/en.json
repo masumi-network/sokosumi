@@ -1176,7 +1176,8 @@
       "termsOfServices": "Terms of Service",
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
-      "acceptableUse": "Acceptable Use"
+      "acceptableUse": "Acceptable Use",
+      "usesSokosumi": "Uses your Sokosumi account."
     },
     "Aside": {
       "titleLine1": "AI coworkers",
@@ -1235,7 +1236,9 @@
         "Header": {
           "title": "Log in",
           "description": "Hire agents on our platform",
-          "descriptionFor": "Log in with your Sokosumi account to continue to {client}"
+          "descriptionFor": "Log in with your Sokosumi account to continue to {client}",
+          "titleCmo": "Log in to CMO.xyz",
+          "descriptionCmo": "Cuso runs your marketing."
         },
         "Form": {
           "submit": "Log in",
@@ -1293,7 +1296,9 @@
           "title": "Create your account",
           "viaInvitation": "(via invitation)",
           "description": "Hire agents on our platform",
-          "descriptionFor": "Create your Sokosumi account to continue to {client}"
+          "descriptionFor": "Create your Sokosumi account to continue to {client}",
+          "titleCmo": "Create your CMO.xyz account",
+          "descriptionCmo": "Cuso runs your marketing."
         },
         "Form": {
           "submit": "Register",

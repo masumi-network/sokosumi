@@ -19,7 +19,11 @@ export function businessDisplayName(overview: CmoOverview): string {
   return siteName && siteName.length <= 40 ? siteName : overview.businessName;
 }
 
-/** The business's own mark: its logo when Cuso found one, else its initial. */
+/**
+ * The business's own mark: its site icon (favicon), which is drawn to read
+ * small; a logo read off the page only when there is none (on apple.com that
+ * was a black strip); else its initial.
+ */
 export function BusinessMark({
   overview,
   size = 28,
@@ -30,7 +34,7 @@ export function BusinessMark({
   /** Where room allows, a wordmark keeps its shape instead of a square. */
   wide?: boolean;
 }) {
-  const logo = overview.brandVisual?.logoUrl ?? overview.projectLogo;
+  const logo = overview.projectLogo ?? overview.brandVisual?.logoUrl;
   const accent = vividColors(overview.brandVisual?.colors ?? [])[0];
   if (logo) {
     return (

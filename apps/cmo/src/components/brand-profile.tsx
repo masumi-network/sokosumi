@@ -2,7 +2,6 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
-  ArrowRight,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -20,6 +19,7 @@ import {
   useId,
   useRef,
   useState,
+  useTransition,
 } from "react";
 
 import {
@@ -32,17 +32,19 @@ import {
   brandProfile,
   EVIDENCE_LABELS,
   formatAsOf,
-  openQuestions,
   sourceHost,
 } from "../lib/brand-sections";
+import { CompetitorCards, SiteGallery, SiteShowcase } from "./brand-media";
 import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
+import { MarketingToday } from "./marketing-today";
 import { SubmitButton } from "./submit-button";
 
 const EASE = [0.25, 1, 0.5, 1] as const;
+const CAPTURE_WINDOW_MS = 10 * 60_000;
 const ALL_KEYS = BRAND_GROUPS.flatMap((group) => group.keys);
 
-type Open = BrandSectionKey | "questions" | null;
+type Open = BrandSectionKey | null;
 
 interface BrandRevealProps {
   overview: CmoOverview;
@@ -76,7 +78,13 @@ export function BrandReveal({
   const [open, setOpen] = useState<Open>(null);
   const [all, setAll] = useState(false);
   const [redo, setRedo] = useState(false);
-  const questions = openQuestions(profile);
+  const media = overview.brandMedia;
+  // Screenshots follow the essentials by a minute; an older Brand Brain has none.
+  const capturing =
+    !media &&
+    overview.brandBrainUpdatedAt !== null &&
+    Date.now() - new Date(overview.brandBrainUpdatedAt).getTime() <
+      CAPTURE_WINDOW_MS;
   const researched = ALL_KEYS.filter((key) => profile[key]).length;
   /** Each section arrives a beat after the one above on the first look. */
   const beat = (at: number) =>
@@ -90,27 +98,35 @@ export function BrandReveal({
 
   return (
     <div className="bb" style={brandStyle(overview)}>
-      <motion.header className="bb-hero" {...beat(0)}>
-        <div className="bb-id">
-          <BusinessMark overview={overview} size={40} wide />
-          <div>
-            <p className="bb-name">{businessDisplayName(overview)}</p>
-            <a href={overview.websiteUrl} target="_blank" rel="noreferrer">
-              {hostOf(overview.websiteUrl)}
-            </a>
+      <motion.header
+        className={media || capturing ? "bb-hero bb-hero-show" : "bb-hero"}
+        {...beat(0)}
+      >
+        <div className="bb-hero-copy">
+          <div className="bb-id">
+            <BusinessMark overview={overview} size={40} wide />
+            <div>
+              <p className="bb-name">{businessDisplayName(overview)}</p>
+              <a href={overview.websiteUrl} target="_blank" rel="noreferrer">
+                {hostOf(overview.websiteUrl)}
+              </a>
+            </div>
           </div>
+          {explain ? (
+            <p className="bb-eyebrow">
+              Your Brand Brain: what Cuso learned about your business.
+              Everything he writes follows it.
+            </p>
+          ) : null}
+          <h1 className="bb-line">
+            {reveal?.positioning ?? firstSentence(brain.summary)}
+          </h1>
+          {reveal?.positioning ? (
+            <p className="bb-lede">{firstSentence(brain.summary)}</p>
+          ) : null}
         </div>
-        {explain ? (
-          <p className="bb-eyebrow">
-            Your Brand Brain: what Cuso learned about your business. Everything
-            he writes follows it.
-          </p>
-        ) : null}
-        <h1 className="bb-line">
-          {reveal?.positioning ?? firstSentence(brain.summary)}
-        </h1>
-        {reveal?.positioning ? (
-          <p className="bb-lede">{firstSentence(brain.summary)}</p>
+        {media || capturing ? (
+          <SiteShowcase media={media} host={hostOf(overview.websiteUrl)} />
         ) : null}
       </motion.header>
 
@@ -131,29 +147,15 @@ export function BrandReveal({
         </motion.div>
       ) : null}
 
-      {questions.length > 0 ? (
-        <motion.button
-          type="button"
-          className="bb-callout bb-callout-button"
-          onClick={() => setOpen("questions")}
-          {...beat(1)}
-        >
-          <span>
-            <b>
-              Cuso has {questions.length}{" "}
-              {questions.length === 1 ? "question" : "questions"}.
-            </b>{" "}
-            A line each makes your plan better.
-          </span>
-          <span className="bb-link">
-            Answer <ArrowRight size={14} aria-hidden="true" />
-          </span>
-        </motion.button>
-      ) : null}
-
       <Section title="What you sell" beat={beat(2)}>
-        <Offers brain={brain} />
+        <Offers brain={brain} onSave={onSave} />
       </Section>
+
+      {media ? (
+        <Section title="From your site" beat={beat(2)}>
+          <SiteGallery media={media} />
+        </Section>
+      ) : null}
 
       <Section title="Who buys" beat={beat(3)}>
         {reveal && reveal.buyers.length > 0 ? (
@@ -175,6 +177,12 @@ export function BrandReveal({
         <Voice brain={brain} />
       </Section>
 
+      {brain.marketingToday ? (
+        <Section title="Your marketing today" beat={beat(5)}>
+          <MarketingToday today={brain.marketingToday} />
+        </Section>
+      ) : null}
+
       <Section title="Profiles we found" beat={beat(5)}>
         <Accounts brain={brain} onSave={onSave} />
       </Section>
@@ -186,21 +194,25 @@ export function BrandReveal({
           {reveal?.map ? (
             <MarketMap map={reveal.map} competitors={brain.competitors} />
           ) : null}
-          <ul className="bb-list bb-competitors">
-            {brain.competitors.map((competitor) => (
-              <li key={competitor.name}>
-                {competitor.url ? (
-                  <a href={competitor.url} target="_blank" rel="noreferrer">
+          {media && media.competitors.length > 0 ? (
+            <CompetitorCards brain={brain} media={media} />
+          ) : (
+            <ul className="bb-list bb-competitors">
+              {brain.competitors.map((competitor) => (
+                <li key={competitor.name}>
+                  {competitor.url ? (
+                    <a href={competitor.url} target="_blank" rel="noreferrer">
+                      <b>{competitor.name}</b>
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </a>
+                  ) : (
                     <b>{competitor.name}</b>
-                    <ArrowUpRight size={14} aria-hidden="true" />
-                  </a>
-                ) : (
-                  <b>{competitor.name}</b>
-                )}
-                {competitor.note ? <span>{competitor.note}</span> : null}
-              </li>
-            ))}
-          </ul>
+                  )}
+                  {competitor.note ? <span>{competitor.note}</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
           {(brain.alternatives ?? []).length > 0 ? (
             <p className="bb-alternatives">
               <span className="label">Also compared with</span>
@@ -302,32 +314,7 @@ export function BrandReveal({
       ) : null}
 
       <AnimatePresence>
-        {open === "questions" ? (
-          <SideSheet
-            key="questions"
-            label="Questions for you"
-            onClose={() => setOpen(null)}
-          >
-            <h3 className="sheet-title">Questions for you</h3>
-            <ul className="rv-question-list">
-              {questions.map(({ key, question }) => (
-                <li key={`${key}:${question}`}>
-                  <p className="label">{BRAND_SECTIONS[key].title}</p>
-                  <p>{question}</p>
-                  <AskForm
-                    cta="Answer"
-                    placeholder="Your answer"
-                    onAsk={(answer) =>
-                      onAsk(
-                        `Answer for my Brand Brain, ${BRAND_SECTIONS[key].title}: “${question}” ${answer}`,
-                      )
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
-          </SideSheet>
-        ) : open ? (
+        {open ? (
           <SectionSheet
             key={open}
             sectionKey={open}
@@ -356,34 +343,89 @@ export function BrandReveal({
  * What the business sells and what it costs, the main offer first: every
  * plan is built on it. Older Brand Brains only name their products.
  */
-function Offers({ brain }: { brain: BrandBrain }) {
+function Offers({
+  brain,
+  onSave,
+}: {
+  brain: BrandBrain;
+  onSave: (brain: BrandBrain) => Promise<void>;
+}) {
   const offers = brain.offers ?? [];
-  if (offers.length === 0) {
+  // What the owner just removed, so one tap brings it back.
+  const [removed, setRemoved] = useState<{
+    offer: (typeof offers)[number];
+    index: number;
+  } | null>(null);
+  const [saving, startSaving] = useTransition();
+  const save = (next: typeof offers) =>
+    startSaving(async () => {
+      await onSave({ ...brain, offers: next });
+    });
+
+  if (offers.length === 0 && !removed) {
     return <p className="bb-big">{brain.products.join(", ")}</p>;
   }
   return (
-    <ul className="bb-offers">
-      {offers.map((offer) => (
-        <li key={offer.name} className="bb-offer">
-          <div className="bb-offer-head">
-            <b>
-              {offer.url ? (
-                <a href={offer.url} target="_blank" rel="noreferrer">
-                  {offer.name}
-                </a>
-              ) : (
-                offer.name
-              )}
-            </b>
-            <span className="bb-offer-price num">{offer.price}</span>
-          </div>
-          <span>{offer.what}</span>
-          {offer.forWhom ? (
-            <span className="note">For {lowerFirst(offer.forWhom)}</span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+    <div className="bb-offers-wrap">
+      <ul
+        className={offers.length > 2 ? "bb-offers bb-offers-grid" : "bb-offers"}
+      >
+        {offers.map((offer, index) => (
+          <li key={offer.name} className="bb-offer">
+            <div className="bb-offer-head">
+              {index === 0 && offers.length > 1 ? (
+                <span className="label">Main offer</span>
+              ) : null}
+              <b>
+                {offer.url ? (
+                  <a href={offer.url} target="_blank" rel="noreferrer">
+                    {offer.name}
+                  </a>
+                ) : (
+                  offer.name
+                )}
+              </b>
+              <span className="bb-offer-price num">{offer.price}</span>
+            </div>
+            <span>{offer.what}</span>
+            {offer.forWhom ? (
+              <span className="note">For {lowerFirst(offer.forWhom)}</span>
+            ) : null}
+            <button
+              type="button"
+              className="bb-offer-remove"
+              aria-label={`Remove ${offer.name}`}
+              title="Remove"
+              disabled={saving}
+              onClick={() => {
+                setRemoved({ offer, index });
+                save(offers.filter((_, at) => at !== index));
+              }}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {removed ? (
+        <p className="bb-undo" aria-live="polite">
+          Removed {removed.offer.name}. Cuso won't market it.{" "}
+          <button
+            type="button"
+            className="bb-undo-button"
+            disabled={saving}
+            onClick={() => {
+              const next = [...offers];
+              next.splice(removed.index, 0, removed.offer);
+              setRemoved(null);
+              save(next);
+            }}
+          >
+            Undo
+          </button>
+        </p>
+      ) : null}
+    </div>
   );
 }
 

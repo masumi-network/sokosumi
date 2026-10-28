@@ -22,6 +22,16 @@ import { businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
 import { PhoneFeeds, planPieces } from "./phone-feeds";
 import { withoutLabel } from "./showcases";
+import {
+  AdBudget,
+  Alternatives,
+  BeforeAfter,
+  FunnelPlan,
+  IdeaParts,
+  Improvements,
+  OfferLadder,
+  PacePicker,
+} from "./strategy-core";
 import { Funnel, Proposals } from "./strategy-funnel";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
@@ -68,6 +78,8 @@ interface StrategyRevealProps {
   calendar: ReactNode;
   /** Sends the owner's answer or request to Cuso. */
   onAsk?: (text: string) => Promise<void>;
+  /** Sets the owner's own monthly ad budget; Cuso re-plans around it. */
+  onSetAds?: (monthly: number, currency: string) => Promise<void>;
 }
 
 /**
@@ -80,6 +92,7 @@ export function StrategyReveal({
   intro = false,
   calendar,
   onAsk,
+  onSetAds,
 }: StrategyRevealProps) {
   const strategy = overview.strategy as Strategy;
   const reduce = useReducedMotion();
@@ -91,7 +104,7 @@ export function StrategyReveal({
   const weeks = strategy.weeks ?? [];
   const mix = strategy.mix ?? [];
   const days = useMemo(() => planDays(strategy.calendar), [strategy.calendar]);
-  const { objective, barrier } = strategy;
+  const { barrier } = strategy;
   const beat = (at: number) =>
     play
       ? {
@@ -105,12 +118,15 @@ export function StrategyReveal({
     <div className="bb" style={brandStyle(overview)}>
       <motion.header className="bb-hero" {...beat(0)}>
         <p className="bb-eyebrow">
-          Your next {Math.round(days.length / 7)} weeks
+          {strategy.idea
+            ? `The strategy · ${outcomeLine(strategy)}`
+            : `Your next ${Math.round(days.length / 7)} weeks`}
         </p>
-        <h1 className="bb-line">
-          {objective ? goalLine(objective.metric) : strategy.goals[0]}
+        <h1 className={strategy.idea ? "bb-line sc-sentence" : "bb-line"}>
+          {strategy.idea?.sentence ?? outcomeLine(strategy)}
         </h1>
         <p className="bb-lede">{strategy.summary}</p>
+        {strategy.idea ? <IdeaParts idea={strategy.idea} /> : null}
       </motion.header>
 
       {onAsk && questions.length > 0 ? (
@@ -134,9 +150,30 @@ export function StrategyReveal({
         </motion.button>
       ) : null}
 
+      {strategy.ladder ? (
+        <Section title="The offer" beat={beat(1)}>
+          <OfferLadder ladder={strategy.ladder} />
+        </Section>
+      ) : null}
+
       {(strategy.funnel ?? []).length > 0 ? (
         <Section title="How people become customers" wide beat={beat(2)}>
-          <Funnel stages={strategy.funnel ?? []} />
+          {(strategy.funnel ?? []).some(
+            (stage) => (stage.plays ?? []).length > 0,
+          ) ? (
+            <FunnelPlan
+              stages={strategy.funnel ?? []}
+              improvements={strategy.improvements ?? []}
+            />
+          ) : (
+            <Funnel stages={strategy.funnel ?? []} />
+          )}
+        </Section>
+      ) : null}
+
+      {(strategy.beforeAfter ?? []).length > 0 ? (
+        <Section title="Before and after" wide beat={beat(2)}>
+          <BeforeAfter rows={strategy.beforeAfter ?? []} />
         </Section>
       ) : null}
 
@@ -147,6 +184,37 @@ export function StrategyReveal({
         </p>
         <PhoneFeeds overview={overview} strategy={strategy} play={play} />
       </Section>
+
+      {strategy.pace ? (
+        <Section title="How much Cuso publishes" beat={beat(3)}>
+          <PacePicker pace={strategy.pace} onAsk={onAsk} />
+        </Section>
+      ) : null}
+
+      {strategy.ads ? (
+        <Section title="Ad budget" beat={beat(3)}>
+          <AdBudget ads={strategy.ads} onSetAds={onSetAds} />
+        </Section>
+      ) : null}
+
+      {(strategy.improvements ?? []).length > 0 ? (
+        <Section title="What you can improve" beat={beat(3)}>
+          <p className="note">
+            Cuso doesn't control your pages, prices or checkout. These changes
+            would help the funnel most.
+          </p>
+          <Improvements items={strategy.improvements ?? []} />
+        </Section>
+      ) : null}
+
+      {(strategy.alternatives ?? []).length > 0 ? (
+        <Section title="Other ways Cuso considered" beat={beat(3)}>
+          <Alternatives
+            alternatives={strategy.alternatives ?? []}
+            onAsk={onAsk}
+          />
+        </Section>
+      ) : null}
 
       {barrier ? (
         <Section title="What stops people buying" beat={beat(3)}>
@@ -544,6 +612,17 @@ const SHEET_LABELS = {
 } as const;
 
 /** "Qualified intro calls" becomes "More qualified intro calls"; a verb stays. */
+/**
+ * The plan's business outcome in words. Older plans named a metric instead,
+ * and the oldest only goals.
+ */
+export function outcomeLine(strategy: Strategy): string {
+  const objective = strategy.objective;
+  if (objective?.outcome) return objective.outcome;
+  if (objective?.metric) return goalLine(objective.metric);
+  return strategy.goals[0] ?? "";
+}
+
 export function goalLine(metric: string): string {
   return /^(more|increase|grow|get|win|reach|raise|boost)\b/i.test(metric)
     ? metric
