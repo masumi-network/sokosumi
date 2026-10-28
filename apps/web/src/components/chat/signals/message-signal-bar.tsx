@@ -145,7 +145,12 @@ export function MessageSignalBar({
           }),
         })}`
       : "";
-    return `${text}${due}\n\n${t("taskSource")} ${chatRoomMessageHref(message.roomId, message.id)}`;
+    // Absolute, since a Coworker reading the Task is not inside the app.
+    const source = new URL(
+      chatRoomMessageHref(message.roomId, message.id),
+      window.location.origin,
+    );
+    return `${text}${due}\n\n${t("taskSource")} ${source}`;
   }
 
   function openTask(assigneeId?: string) {

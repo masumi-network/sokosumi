@@ -18,7 +18,6 @@ import {
 } from "@sokosumi/utils";
 import {
   requireTaskAssignableCoworker,
-  requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
   requireTaskWriteAccess,
   type TaskAssigner,
@@ -31,7 +30,10 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
-import type { AssignedTask } from "@/helpers/soko-bot-task-assign";
+import {
+  type AssignedTask,
+  requireTaskAssignableSokoBot,
+} from "@/helpers/soko-bot-task-assign";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
 import {
