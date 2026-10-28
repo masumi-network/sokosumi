@@ -10,14 +10,40 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { approveMock, revertMock, overviewMock, mockPlanMock, strategyMock } =
-  vi.hoisted(() => ({
-    approveMock: vi.fn(),
-    revertMock: vi.fn(),
-    overviewMock: vi.fn(),
-    mockPlanMock: vi.fn(),
-    strategyMock: vi.fn(),
-  }));
+const {
+  approveMock,
+  revertMock,
+  overviewMock,
+  mockPlanMock,
+  strategyMock,
+  hireMock,
+  saveBrainMock,
+  confirmBrainMock,
+} = vi.hoisted(() => ({
+  approveMock: vi.fn(),
+  revertMock: vi.fn(),
+  overviewMock: vi.fn(),
+  mockPlanMock: vi.fn(),
+  strategyMock: vi.fn(),
+  hireMock: vi.fn(),
+  saveBrainMock: vi.fn(),
+  confirmBrainMock: vi.fn(),
+}));
+
+vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/cmo-cuso.service")>();
+  return { ...actual, getCmoHireForUser: hireMock };
+});
+vi.mock("@/services/brand-brain.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/brand-brain.service")>();
+  return {
+    ...actual,
+    saveBrandBrain: saveBrainMock,
+    confirmBrandBrain: confirmBrainMock,
+  };
+});
 
 vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   const actual =
@@ -160,6 +186,45 @@ describe("CMO routes", () => {
       published: 0,
       failed: 1,
     });
+  });
+
+  it("saves the Brand Brain to the Project of the caller's Cuso", async () => {
+    hireMock.mockResolvedValue({ projectId: "project-1" });
+    const brandBrain = {
+      summary: "Acme sells rockets.",
+      voice: { tone: "Direct", do: [], dont: [], examples: [] },
+      audience: [],
+      products: [],
+      competitors: [],
+      channels: [],
+    };
+    const response = await createApp().request("/brand-brain", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandBrain }),
+    });
+    expect(response.status).toBe(200);
+    expect(saveBrainMock).toHaveBeenCalledWith("project-1", {
+      brandBrain: expect.objectContaining({ summary: "Acme sells rockets." }),
+    });
+  });
+
+  it("confirms the Project's Brand Brain as the caller", async () => {
+    hireMock.mockResolvedValue({ projectId: "project-1" });
+    const response = await createApp().request("/brand-brain/approve", {
+      method: "POST",
+    });
+    expect(response.status).toBe(200);
+    expect(confirmBrainMock).toHaveBeenCalledWith("project-1", "user-1");
+  });
+
+  it("answers 404 for the Brand Brain before Cuso is hired", async () => {
+    hireMock.mockResolvedValue(null);
+    const response = await createApp().request("/brand-brain/approve", {
+      method: "POST",
+    });
+    expect(response.status).toBe(404);
+    expect(confirmBrainMock).not.toHaveBeenCalled();
   });
 
   it("answers 409 when there is nothing to approve", async () => {

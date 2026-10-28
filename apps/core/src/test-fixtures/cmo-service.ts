@@ -45,21 +45,39 @@ export const messageFindMany = vi.fn();
 export const messageUpdate = vi.fn();
 export const chatRoomUpdate = vi.fn();
 export const projectUpdateMany = vi.fn();
+export const brainFindUnique = vi.fn();
+export const brainUpsert = vi.fn();
+export const brainUpdate = vi.fn();
+
+type HireFixture = {
+  workspaceId?: string;
+  websiteUrl?: string;
+  brandBrain?: unknown;
+  brandBrainUpdatedAt?: Date | null;
+  brandBrainApprovedAt?: Date | null;
+};
 
 // A hire read with its Project, as Core includes it: a fixture's own
-// workspaceId and websiteUrl stand for the Project's.
-export const withProject = (hire: unknown) =>
-  hire && typeof hire === "object"
-    ? {
-        ...hire,
-        project: {
-          workspaceId: (hire as { workspaceId?: string }).workspaceId ?? "ws-1",
-          websiteUrl:
-            (hire as { websiteUrl?: string }).websiteUrl ?? "https://acme.io",
-          workspace: { organizationId: "org-1" },
-        },
-      }
-    : hire;
+// workspaceId, websiteUrl and Brand Brain stand for the Project's.
+export const withProject = (hire: unknown) => {
+  if (!hire || typeof hire !== "object") return hire;
+  const fixture = hire as HireFixture;
+  return {
+    ...hire,
+    project: {
+      workspaceId: fixture.workspaceId ?? "ws-1",
+      websiteUrl: fixture.websiteUrl ?? "https://acme.io",
+      workspace: { organizationId: "org-1" },
+      brandBrain: fixture.brandBrain
+        ? {
+            body: fixture.brandBrain,
+            updatedAt: fixture.brandBrainUpdatedAt ?? null,
+            confirmedAt: fixture.brandBrainApprovedAt ?? null,
+          }
+        : null,
+    },
+  };
+};
 
 const client = {
   // Runs the callback against this same mock, as one transaction would.
@@ -77,6 +95,11 @@ const client = {
       return args?.include ? withProject(hire) : hire;
     },
     deleteMany: cmoDeleteMany,
+  },
+  brandBrain: {
+    findUnique: brainFindUnique,
+    upsert: brainUpsert,
+    update: brainUpdate,
   },
   user: {
     findUnique: async () => ({ preferredOrganizationId: "org-1" }),

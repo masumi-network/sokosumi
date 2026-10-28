@@ -153,6 +153,9 @@ describe("getCmoHireForUser", () => {
       workspaceId: "ws-org-1",
       websiteUrl: "https://acme.io",
       businessName: "acme.io",
+      brandBrain: null,
+      brandBrainUpdatedAt: null,
+      brandBrainApprovedAt: null,
     });
   });
 

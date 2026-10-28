@@ -13,6 +13,11 @@ import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
+import {
+  compactBrandBrain,
+  getBrandBrain,
+  parseCmoBrandBrain,
+} from "@/services/brand-brain.service";
 import { listHireableAgents } from "./agent-search";
 import {
   type ContextPacketReaderInput,
@@ -513,6 +518,15 @@ export class ContextPacketBuilder {
               loadCmoMarketingContext(input.sokoBotId),
             )
             .catch(() => null);
+    // Every bot of a Project reads its Brand Brain (ADR 0062); Cuso already
+    // has it in his marketing packet. A failed read leaves it out.
+    const brandBrainProjectId = input.sharedScope?.projectId ?? null;
+    const brandBrain =
+      marketing || !brandBrainProjectId
+        ? null
+        : await getBrandBrain(brandBrainProjectId)
+            .then((row) => compactBrandBrain(parseCmoBrandBrain(row?.body)))
+            .catch(() => null);
     const referenceId = organizationId ?? input.userId;
     // Only a shared bot acts for nobody, and only in an Organization.
     if (referenceId === null) throw new Error("Workspace is not accessible");
@@ -939,6 +953,9 @@ export class ContextPacketBuilder {
             jobs,
           ),
           updatedAt: project.updatedAt.toISOString(),
+          ...(brandBrain && project.id === brandBrainProjectId
+            ? { brandBrain }
+            : {}),
           trust: "untrusted-data",
         })),
         // Name only: enough to find a Project the owner names.

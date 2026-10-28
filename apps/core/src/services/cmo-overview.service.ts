@@ -7,12 +7,12 @@ import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
+import { parseCmoBrandBrain } from "@/services/brand-brain.service";
 import {
   activeCmoSubscription,
   cmoMockBilling,
   mayCommitCmo,
 } from "@/services/cmo-billing.service";
-import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 import {
   type CmoBrandVisual,
   parseCmoBrandVisual,
