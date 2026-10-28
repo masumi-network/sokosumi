@@ -48,6 +48,7 @@ The live tree is `apps/core/src/`.
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `routes/v1/`                                         | Versioned HTTP handlers (one file per method)                                               |
 | `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery                                                                  |
+| `routes/health/`                                     | Unauthenticated liveness probe (`GET /health`), no database call                            |
 | `schemas/`                                           | Zod / OpenAPI                                                                               |
 | `helpers/`                                           | Domain logic used by routes                                                                 |
 | `lib/`                                               | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry, evlog                                |
