@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -34,18 +32,4 @@ describe("StatusBadge label contrast", () => {
       ).toBeGreaterThanOrEqual(4.5);
     });
   }
-
-  it("paints the badge on -quaternary, not -quinary", () => {
-    // The quinary steps sit at 93 to 95 percent lightness, where every pair
-    // of the six tones measured under OKLab dE 6.0.
-    const badge = readFileSync(
-      "src/components/soko-bot/status-badge.tsx",
-      "utf8",
-    );
-    const tones = badge.slice(
-      badge.indexOf("const TONE_CLASSES"),
-      badge.indexOf("const DOT_CLASSES"),
-    );
-    expect(tones).not.toMatch(/bg-[a-z-]*-quinary/);
-  });
 });

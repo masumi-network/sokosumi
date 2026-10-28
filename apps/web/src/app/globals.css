@@ -309,10 +309,12 @@
    3:1 a field's only edge needs), and dark --quaternary/--quinary sit one
    step deeper so muted text clears 4.5:1 on them.
 
-   Temporary: the destructive, semantic, status, risk and presence ramps
-   still carry their pre-guide values. They move to the guide's green check,
-   yellow ! and Neutral 950 X together with `status-marker.tsx`, whose tests
-   measure them (SOKD-121).
+   Status follows the guide's green check, yellow ! and Neutral 950 X; in
+   progress is Iris. Green #00D43B (Proposed), Golden Yellow and Iris measure
+   2.00, 1.44 and 2.67:1 on white, so each is a fill under a Neutral 950
+   glyph and never text: `status-marker.tsx` paints them as a disc. The
+   destructive role is the X, so it is Neutral 950 (Neutral 50 in dark). The
+   ramps' -label and tint steps are neutral now.
 
    No glow (5.5): the focus halo is transparent. The only translucent
    values are the guide's alpha tones, black at (100 - N)% for Alpha N, and
@@ -367,8 +369,8 @@
   --scrollbar-thumb: #a3a3a3; /* Neutral 400 */
   --accent: #f5f5f5; /* Neutral 100 */
   --accent-foreground: #171717; /* Neutral 900 */
-  --destructive: hsla(0, 74%, 42%, 1);
-  --destructive-foreground: hsla(0, 86%, 97%, 1);
+  --destructive: #0c0c0c; /* Neutral 950 */
+  --destructive-foreground: #fafafa; /* Neutral 50 */
   --border: #e5e5e5; /* Neutral 200 */
   --input: #737373; /* Neutral 500 */
   /* Labelled controls (outline buttons, toggles, triggers) take the guide's
@@ -379,8 +381,8 @@
   --ring-halo: transparent;
   --primary-hover: #ff51ff; /* Iris Flower */
   --secondary-hover: #262626; /* Neutral 800 */
-  --destructive-hover: hsla(0, 74%, 36%, 1);
-  --destructive-halo: hsla(0, 74.0%, 42.0%, 0.22);
+  --destructive-hover: #262626; /* Neutral 800 */
+  --destructive-halo: transparent;
   /* Category palette, Proposed until guide 6.6 sets chart rules. Each
      -quinary is its base at .09 over the page, frozen. */
   --chart-1: #ff51ff; /* Iris Flower */
@@ -400,46 +402,46 @@
   --sidebar-border: #e5e5e5; /* Neutral 200 */
   --sidebar-ring: #0c0c0c; /* Neutral 950 */
 
-  --semantic-destructive: hsla(0, 74%, 42%, 1);
-  --semantic-destructive-solid: hsla(0, 74.0%, 42.0%, 1);
-  --semantic-destructive-tertiary: hsla(0, 53.6%, 83.8%, 1);
-  --semantic-destructive-quaternary: hsla(0, 100.0%, 90.0%, 1);
-  --semantic-destructive-quinary: hsla(0, 53.6%, 94.8%, 1);
-  --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
-  --semantic-destructive-label: hsla(0, 95.0%, 38.1%, 1);
-  --semantic-warning: hsla(25, 92%, 31%, 1);
-  --semantic-warning-tertiary: hsla(25, 41.3%, 80.7%, 1);
-  --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
-  --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
-  --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
-  --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
-  --semantic-success: hsla(142, 72%, 27%, 1);
-  --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
-  --semantic-success-quaternary: hsla(142, 100.0%, 90.0%, 1);
-  --semantic-success-quinary: hsla(142, 26.6%, 93.4%, 1);
-  --semantic-success-label: hsla(142, 95.0%, 25.6%, 1);
-  --semantic-success-foreground: hsla(138, 76%, 97%, 1);
+  --semantic-destructive: #0c0c0c; /* Neutral 950 */
+  --semantic-destructive-solid: #0c0c0c; /* Neutral 950 */
+  --semantic-destructive-tertiary: #d4d4d4; /* Neutral 300 */
+  --semantic-destructive-quaternary: #e5e5e5; /* Neutral 200 */
+  --semantic-destructive-quinary: #f5f5f5; /* Neutral 100 */
+  --semantic-destructive-foreground: #fafafa; /* Neutral 50 */
+  --semantic-destructive-label: #171717; /* Neutral 900 */
+  --semantic-warning: #ffd300; /* Golden Yellow */
+  --semantic-warning-tertiary: #d4d4d4; /* Neutral 300 */
+  --semantic-warning-quaternary: #e5e5e5; /* Neutral 200 */
+  --semantic-warning-quinary: #f5f5f5; /* Neutral 100 */
+  --semantic-warning-label: #171717; /* Neutral 900 */
+  --semantic-warning-foreground: #0c0c0c; /* Neutral 950 */
+  --semantic-success: #00d43b; /* Positive green (Proposed) */
+  --semantic-success-tertiary: #d4d4d4; /* Neutral 300 */
+  --semantic-success-quaternary: #e5e5e5; /* Neutral 200 */
+  --semantic-success-quinary: #f5f5f5; /* Neutral 100 */
+  --semantic-success-label: #171717; /* Neutral 900 */
+  --semantic-success-foreground: #0c0c0c; /* Neutral 950 */
   /* Third-party link colours inside native-looking social post previews. */
   --social-x-link: #1d9bf0;
   --social-linkedin-link: #0a66c2;
   --social-instagram-link: #00376b;
   --social-facebook-link: #0866ff;
   --social-youtube-link: #065fd4;
-  --presence-offline: hsla(220, 9%, 46%, 1);
-  --risk-high: hsla(32, 92%, 50%, 1);
-  --risk-high-foreground: hsla(0, 0%, 4%, 1);
+  --presence-offline: #737373; /* Neutral 500 */
+  --risk-high: #ffd300; /* Golden Yellow */
+  --risk-high-foreground: #0c0c0c; /* Neutral 950 */
 
-  --status-working: hsla(300, 60.0%, 38.0%, 1);
-  --status-external: hsla(240, 60.0%, 40.0%, 1);
-  --status-done: hsla(0, 0.0%, 45.0%, 1);
-  --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
-  --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
-  --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
-  --status-external-tertiary: hsla(240, 41.2%, 81.5%, 1);
-  --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
-  --status-working-label: hsla(300, 95.0%, 33.4%, 1);
-  --status-external-label: hsla(240, 95.0%, 58.7%, 1);
-  --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
+  --status-working: #ff51ff; /* Iris Flower */
+  --status-external: #0c0c0c; /* Neutral 950 */
+  --status-done: #737373; /* Neutral 500 */
+  --status-done-tertiary: #d4d4d4; /* Neutral 300 */
+  --status-working-tertiary: #d4d4d4; /* Neutral 300 */
+  --status-working-quaternary: #e5e5e5; /* Neutral 200 */
+  --status-external-tertiary: #d4d4d4; /* Neutral 300 */
+  --status-external-quaternary: #e5e5e5; /* Neutral 200 */
+  --status-working-label: #171717; /* Neutral 900 */
+  --status-external-label: #171717; /* Neutral 900 */
+  --status-done-quaternary: #e5e5e5; /* Neutral 200 */
 }
 
 /* Dark values are Open in the guide; these follow its best-case role table.
@@ -491,8 +493,8 @@
   --scrollbar-thumb: #525252; /* Neutral 600 */
   --accent: #262626; /* Neutral 800 */
   --accent-foreground: #fafafa; /* Neutral 50 */
-  --destructive: hsla(0, 84%, 60%, 1);
-  --destructive-foreground: hsla(0, 86%, 97%, 1);
+  --destructive: #fafafa; /* Neutral 50 */
+  --destructive-foreground: #0c0c0c; /* Neutral 950 */
   --border: #262626; /* Neutral 800 */
   --input: #737373; /* Neutral 500 */
   --control-border: #404040; /* Neutral 700 */
@@ -500,8 +502,8 @@
   --ring-halo: transparent;
   --primary-hover: #ff51ff; /* Iris Flower */
   --secondary-hover: #e5e5e5; /* Neutral 200 */
-  --destructive-hover: hsla(0, 74%, 39%, 1);
-  --destructive-halo: hsla(0, 84.0%, 60.0%, 0.26);
+  --destructive-hover: #e5e5e5; /* Neutral 200 */
+  --destructive-halo: transparent;
 
   --chart-1: #ff51ff; /* Iris Flower */
   --chart-2: #ff6400; /* Persimmon */
@@ -520,45 +522,45 @@
   --sidebar-border: #262626; /* Neutral 800 */
   --sidebar-ring: #fafafa; /* Neutral 50 */
 
-  --semantic-destructive: hsla(0, 84%, 60%, 1);
-  --semantic-destructive-solid: hsla(0, 74.0%, 46.0%, 1);
-  --semantic-destructive-tertiary: hsla(0, 50.9%, 26.4%, 1);
-  --semantic-destructive-quaternary: hsla(0, 47.1%, 16.5%, 1);
-  --semantic-destructive-quinary: hsla(0, 39.7%, 11.8%, 1);
-  --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
-  --semantic-destructive-label: hsla(0, 84.0%, 66.0%, 1);
-  --semantic-warning: hsla(43, 96%, 56%, 1);
-  --semantic-warning-tertiary: hsla(43, 68.1%, 24.8%, 1);
-  --semantic-warning-quaternary: hsla(43, 62.7%, 17.5%, 1);
-  --semantic-warning-quinary: hsla(43, 52.4%, 11.3%, 1);
-  --semantic-warning-label: hsla(43, 96.0%, 56.0%, 1);
-  --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
-  --semantic-success: hsla(142, 71%, 45%, 1);
-  --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
-  --semantic-success-quaternary: hsla(142, 56.7%, 14.7%, 1);
-  --semantic-success-quinary: hsla(142, 45.9%, 9.7%, 1);
-  --semantic-success-label: hsla(142, 71.0%, 45.0%, 1);
-  --semantic-success-foreground: hsla(0, 0%, 4%, 1);
+  --semantic-destructive: #fafafa; /* Neutral 50 */
+  --semantic-destructive-solid: #fafafa; /* Neutral 50 */
+  --semantic-destructive-tertiary: #404040; /* Neutral 700 */
+  --semantic-destructive-quaternary: #262626; /* Neutral 800 */
+  --semantic-destructive-quinary: #171717; /* Neutral 900 */
+  --semantic-destructive-foreground: #0c0c0c; /* Neutral 950 */
+  --semantic-destructive-label: #fafafa; /* Neutral 50 */
+  --semantic-warning: #ffd300; /* Golden Yellow */
+  --semantic-warning-tertiary: #404040; /* Neutral 700 */
+  --semantic-warning-quaternary: #262626; /* Neutral 800 */
+  --semantic-warning-quinary: #171717; /* Neutral 900 */
+  --semantic-warning-label: #fafafa; /* Neutral 50 */
+  --semantic-warning-foreground: #0c0c0c; /* Neutral 950 */
+  --semantic-success: #00d43b; /* Positive green (Proposed) */
+  --semantic-success-tertiary: #404040; /* Neutral 700 */
+  --semantic-success-quaternary: #262626; /* Neutral 800 */
+  --semantic-success-quinary: #171717; /* Neutral 900 */
+  --semantic-success-label: #fafafa; /* Neutral 50 */
+  --semantic-success-foreground: #0c0c0c; /* Neutral 950 */
   --social-x-link: #1d9bf0;
   --social-linkedin-link: #71b7fb;
   --social-instagram-link: #80c4ff;
   --social-facebook-link: #6ba4ff;
   --social-youtube-link: #3ea6ff;
-  --presence-offline: hsla(215, 14%, 55%, 1);
-  --risk-high: hsla(32, 92%, 50%, 1);
-  --risk-high-foreground: hsla(0, 0%, 4%, 1);
+  --presence-offline: #a3a3a3; /* Neutral 400 */
+  --risk-high: #ffd300; /* Golden Yellow */
+  --risk-high-foreground: #0c0c0c; /* Neutral 950 */
 
-  --status-working: hsla(300, 95.0%, 70.0%, 1);
-  --status-external: hsla(240, 95.0%, 70.0%, 1);
-  --status-done: hsla(0, 0.0%, 64.0%, 1);
-  --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
-  --status-working-tertiary: hsla(300, 37.5%, 30.4%, 1);
-  --status-working-quaternary: hsla(300, 35.0%, 21.2%, 1);
-  --status-external-tertiary: hsla(240, 37.5%, 30.4%, 1);
-  --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
-  --status-working-label: hsla(300, 95.0%, 70.0%, 1);
-  --status-external-label: hsla(240, 95.0%, 74.7%, 1);
-  --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
+  --status-working: #ff51ff; /* Iris Flower */
+  --status-external: #fafafa; /* Neutral 50 */
+  --status-done: #a3a3a3; /* Neutral 400 */
+  --status-done-tertiary: #404040; /* Neutral 700 */
+  --status-working-tertiary: #404040; /* Neutral 700 */
+  --status-working-quaternary: #262626; /* Neutral 800 */
+  --status-external-tertiary: #404040; /* Neutral 700 */
+  --status-external-quaternary: #262626; /* Neutral 800 */
+  --status-working-label: #fafafa; /* Neutral 50 */
+  --status-external-label: #fafafa; /* Neutral 50 */
+  --status-done-quaternary: #262626; /* Neutral 800 */
 }
 
 @layer base {

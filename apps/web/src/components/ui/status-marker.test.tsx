@@ -203,12 +203,17 @@ describe("tone styles", () => {
   );
 
   it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
-    "gives %s an onSurface twin of its dot",
+    "gives %s a dot in its disc colour, or else its glyph colour",
     (_name, tone) => {
-      const { dot, onSurface } = getToneStyle(tone);
+      const { disc, dot, onSurface } = getToneStyle(tone);
 
-      expect(onSurface).toBe(dot.replace("bg-", "text-"));
-      expect(onSurface).not.toMatch(/-foreground$/);
+      if (disc) {
+        expect(dot).toBe(disc);
+        expect(onSurface).toBe("text-foreground");
+      } else {
+        expect(dot).toBe(onSurface.replace("text-", "bg-"));
+        expect(onSurface).not.toMatch(/-foreground$/);
+      }
     },
   );
 
@@ -227,6 +232,7 @@ describe("tone styles", () => {
         ...utilitiesIn(style.box),
         style.label,
         style.mark,
+        ...(style.disc ? [style.disc] : []),
         style.labelOnSurface,
         style.dot,
         style.onSurface,
@@ -265,13 +271,15 @@ describe("tone styles", () => {
         entry.startsWith("bg-"),
       );
       const ground = fill ? tokenOf(fill) : "card-background";
+      // A glyph on a disc is measured on the disc, not on the chip.
+      const markGround = style.disc ? tokenOf(style.disc) : ground;
 
       for (const theme of [THEMES.light, THEMES.dark]) {
         expect(
           contrastOf(theme, ground, tokenOf(style.label)),
         ).toBeGreaterThanOrEqual(4.5);
         expect(
-          contrastOf(theme, ground, tokenOf(style.mark)),
+          contrastOf(theme, markGround, tokenOf(style.mark)),
         ).toBeGreaterThanOrEqual(3);
       }
     },
@@ -298,11 +306,15 @@ describe("tone styles", () => {
 
   /**
    * The bare dot is painted on a surface, not on a tone's fill, so the test
-   * above cannot see it for filled tones. List rows use --muted on hover,
-   * where the dark fault mark reaches only 2.53; that exception is recorded on
-   * the model and is not measured here.
+   * above cannot see it for filled tones. A disc-coloured dot is exempt: the
+   * guide's green, yellow and Iris sit under 3:1 on white, and the status word
+   * beside the dot carries the status (see `getToneStyle`).
    */
-  it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
+  it.each(
+    TONES_IN_USE.filter((tone) => !getToneStyle(tone).disc).map(
+      (tone) => [toneName(tone), tone] as const,
+    ),
+  )(
     "keeps the %s mark visible on the card surface",
     (_name, tone) => {
       for (const theme of [THEMES.light, THEMES.dark]) {
@@ -313,9 +325,9 @@ describe("tone styles", () => {
     },
   );
 
-  it("paints the solid fault dot with the solid fill, not its label", () => {
+  it("paints the solid fault dot as the X, not its label", () => {
     expect(getToneStyle({ hue: "fault", weight: "solid" }).dot).toBe(
-      "bg-semantic-destructive-solid",
+      "bg-semantic-destructive",
     );
   });
 

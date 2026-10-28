@@ -275,13 +275,15 @@ describe("TaskStatusPicker pending spinner", () => {
 
     const spinner = glyphOfTrigger();
 
-    expect(spinner).toHaveClass(
+    // COMPLETED is a disc hue: the disc holds the 14px box, the glyph rides
+    // inside it in the disc's own colour.
+    expect(spinner.parentElement).toHaveClass(
       "size-3.5",
       "shrink-0",
-      "animate-spin",
-      ROLE.mark,
+      "bg-semantic-success",
     );
-    expect(spinner).toHaveAttribute("stroke-width", "2.25");
+    expect(spinner).toHaveClass("animate-spin", ROLE.mark);
+    expect(spinner).toHaveAttribute("stroke-width", "2.75");
   });
 
   /** The spin is decoration; it stops when the reader asks for less motion. */
