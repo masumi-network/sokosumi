@@ -12,6 +12,8 @@ CREATE TABLE "cmo_hire" (
     "goals" TEXT NOT NULL,
     "brandBrain" JSONB,
     "brandBrainUpdatedAt" TIMESTAMP(3),
+    "brandBrainApprovedAt" TIMESTAMP(3),
+    "brandMedia" JSONB,
     "strategy" JSONB,
     "strategyUpdatedAt" TIMESTAMP(3),
     "strategyApprovedAt" TIMESTAMP(3),
@@ -22,6 +24,8 @@ CREATE TABLE "cmo_hire" (
     "mockPlanActivatedAt" TIMESTAMP(3),
     "accountsDoneAt" TIMESTAMP(3),
     "onboardedAt" TIMESTAMP(3),
+    "production" JSONB,
+    "sitePlatform" TEXT,
 
     CONSTRAINT "cmo_hire_pkey" PRIMARY KEY ("id")
 );
