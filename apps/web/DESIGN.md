@@ -531,8 +531,8 @@ primary on a neutral background. Brand names are always lowercase.
   outside the two documented exceptions.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
-  `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
-  `-quaternary` / `-quinary`) or a named token (`--overlay`).
+  `color-mix(…, transparent)` tints — use a neutral step (`--border`,
+  `--quinary`, `--muted`) or a named token (`--overlay`).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
 - A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
   directly on the white page.

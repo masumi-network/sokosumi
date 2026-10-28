@@ -32,7 +32,7 @@ import type { KindChoice } from "./use-notification-delivery";
  * the finger has already made, which is the one part of it a reader feels.
  */
 const CELL =
-  "focus-visible:border-ring flex size-8 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none";
+  "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none";
 /** Press feedback applies only to cells that save a preference. */
 const CELL_PRESS = "motion-safe:active:scale-95";
 const CELL_ON = "border-foreground bg-primary text-primary-foreground";

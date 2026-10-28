@@ -69,7 +69,7 @@ the token, not at the call site:
 
 | Token | Role |
 | --- | --- |
-| `--overlay` | the Alpha 50 scrim behind a dialog or behind a dialog |
+| `--overlay` | the Alpha 50 scrim behind a dialog or sheet |
 | `--overlay-primary` | drop-target wash over content that must stay readable |
 | `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
 | `--on-media`, `--on-media-muted` | label riding on a scrim |

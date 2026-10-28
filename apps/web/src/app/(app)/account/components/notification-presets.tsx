@@ -56,7 +56,7 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
  * word instead, the three presets stood at three widths down the right side.
  */
 const TRIGGER = cn(
-  "focus-visible:border-ring inline-flex h-8 shrink-0 items-center justify-between gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none",
+  "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring inline-flex h-8 shrink-0 items-center justify-between gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none",
   CELL_TRACK_SPAN,
 );
 
