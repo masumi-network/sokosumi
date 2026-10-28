@@ -1,6 +1,10 @@
 "use client";
 
-import type { ChatRoomPresence, Coworker, Member } from "@sokosumi/core-client";
+import type {
+  ChatPerson,
+  ChatRoomPresence,
+  Coworker,
+} from "@sokosumi/core-client";
 import { Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -121,22 +125,22 @@ export interface DirectDraftTarget {
 }
 
 export function buildDirectDraftTargets(
-  members: Member[],
+  people: ChatPerson[],
   coworkers: Coworker[],
   sokoBots: ChatComposeSokoBot[],
   currentUserId: string,
 ): DirectDraftTarget[] {
-  // Humans first so org members stay reachable when many AI coworkers exist;
+  // Humans first so people stay reachable when many AI coworkers exist;
   // pickers scroll rather than hard-capping the list.
   return [
-    ...members
-      .filter((member) => member.user.id !== currentUserId)
-      .map((member) => ({
-        key: `human:${member.user.id}`,
-        id: member.user.id,
-        name: member.user.name || member.user.email,
-        detail: member.user.email,
-        image: member.user.image ?? null,
+    ...people
+      .filter((person) => person.id !== currentUserId)
+      .map((person) => ({
+        key: `human:${person.id}`,
+        id: person.id,
+        name: person.name || person.email,
+        detail: person.email,
+        image: person.image,
         kind: "human" as const,
       })),
     ...coworkers.map((coworker) => ({

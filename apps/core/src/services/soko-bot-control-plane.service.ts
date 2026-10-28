@@ -3374,7 +3374,7 @@ export class SokoBotControlPlane {
     }
     const bot = await memberSokoBot(userId, workspaceId, selector);
     if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
-    // Cuso runs CMO's own version: any member may reach him (ADR 0060), and
+    // Cuso runs CMO's own version: any member may reach him (ADR 0061), and
     // moving him off it would leave the business's CMO without its agent.
     // Only the admin lab moves him.
     if (

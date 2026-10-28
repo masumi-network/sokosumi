@@ -134,7 +134,7 @@ export async function proactiveGate(
  * off: no rhythm runs for a team until a member turns it on. A shared bot's
  * rhythms have no Requester: nobody asked for them (ADR 0057). Cuso, a shared
  * CMO bot, is the exception: hiring him asked for his rhythms, so they are on
- * and run as the member who hired him (ADR 0060).
+ * and run as the member who hired him (ADR 0061).
  */
 export async function ensureSystemSchedules(bot: {
   id: string;
@@ -162,7 +162,7 @@ export async function ensureSystemSchedules(bot: {
         )?.versionId;
   // A CMO bot runs marketing rhythms, never the personal stand-up and wrap.
   // They are the work Cuso was hired for, so they run on his shared bot too
-  // (ADR 0060).
+  // (ADR 0061).
   const cmo = getSokoBotVersion(versionId).profile === "cmo";
   const rhythms = cmo ? SOKO_BOT_CMO_SCHEDULES : SOKO_BOT_SYSTEM_SCHEDULES;
   for (const schedule of rhythms) {

@@ -268,7 +268,7 @@ describe("advanceCmoProduction", () => {
     );
     expect(result).toMatchObject({ state: "running", ready: 0, total: 2 });
     const started = startTurn.mock.calls[0]?.[0];
-    // In Cuso's shared room, spent as his runner (ADR 0060).
+    // In Cuso's shared room, spent as his runner (ADR 0061).
     expect(started).toMatchObject({
       userId: "user-1",
       sokoBotId: "bot-1",

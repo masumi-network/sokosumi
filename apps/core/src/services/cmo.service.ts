@@ -233,7 +233,7 @@ export function cmoProjectName(businessName: string): string {
 
 /**
  * Who pays for Cuso and whose plan opens execution: the business's
- * organization, which every hire gets (ADR 0059).
+ * organization, which every hire gets (ADR 0060).
  */
 async function cmoPayer(
   hire: Pick<CmoHire, "workspaceId">,
@@ -270,7 +270,7 @@ export function parseCmoStrategy(value: unknown): CmoStrategy | null {
 }
 
 /**
- * The Cuso this person works with (ADR 0060): the live hire in their preferred
+ * The Cuso this person works with (ADR 0061): the live hire in their preferred
  * organization, which hiring made preferred, else the newest live hire of any
  * organization they belong to. A deleted or archived Cuso hired no one.
  */
@@ -358,7 +358,7 @@ export async function isCmoSubscribed(
 /**
  * Approving the strategy and starting the paid month spend the business's
  * money and publish in its name: the organization's owners and admins only
- * (ADR 0060). Every other member works with Cuso freely.
+ * (ADR 0061). Every other member works with Cuso freely.
  */
 async function mayCommitCmo(
   userId: string,
@@ -828,8 +828,8 @@ export function startCmoResearch(
 }
 
 /**
- * Hires Cuso into a new organization named after the business (ADR 0059):
- * his marketing Project, Cuso as its shared bot (ADR 0060) and the CMO record
+ * Hires Cuso into a new organization named after the business (ADR 0060):
+ * his marketing Project, Cuso as its shared bot (ADR 0061) and the CMO record
  * go there, and his first turn starts. A person who already works with a
  * live Cuso gets that hire back.
  */
@@ -1190,7 +1190,7 @@ export async function requestCmoStrategy(input: {
  * The member Cuso's own runs act as (his rhythms, the month's production, the
  * brand capture): who hired him while they are still a member of the
  * business, else its longest-standing owner or admin, so a hirer who left
- * never stalls the business's month (ADR 0060). Null only for an organization
+ * never stalls the business's month (ADR 0061). Null only for an organization
  * with neither.
  */
 export async function cmoRunnerUserId(
@@ -2448,7 +2448,7 @@ export async function getCmoOverview(
     where: { projectId: hire.projectId },
     _count: { _all: true },
   });
-  // The chat is Cuso's shared room with every member (ADR 0060).
+  // The chat is Cuso's shared room with every member (ADR 0061).
   if (!bot?.sharedRoomId || !project) return null;
   const strategy = parseCmoStrategy(hire.strategy);
   const web = getWebAppBaseUrl().replace(/\/+$/, "");

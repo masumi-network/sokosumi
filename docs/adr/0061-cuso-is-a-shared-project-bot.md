@@ -1,6 +1,6 @@
 # Cuso is a shared Project bot
 
-Cuso was a personal Soko Bot pinned to his marketing Project, so only the person who hired him could use him, and Core needed a pinned-bot shape no other bot has. CMO is a Sokosumi wrapper: the business's people should reach the same Cuso, in CMO and in Sokosumi. Cuso is now an ordinary shared Project bot (Project set, no personal owner) in the organization [ADR 0059](0059-every-cuso-hire-gets-its-own-organization.md) creates for each hire, so every member of that organization works with him.
+Cuso was a personal Soko Bot pinned to his marketing Project, so only the person who hired him could use him, and Core needed a pinned-bot shape no other bot has. CMO is a Sokosumi wrapper: the business's people should reach the same Cuso, in CMO and in Sokosumi. Cuso is now an ordinary shared Project bot (Project set, no personal owner) in the organization [ADR 0060](0060-every-cuso-hire-gets-its-own-organization.md) creates for each hire, so every member of that organization works with him.
 
 ## Decisions
 

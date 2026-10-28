@@ -1,6 +1,6 @@
 # Cuso works in the person's preferred workspace
 
-- Status: Superseded by [ADR-0059](../0059-every-cuso-hire-gets-its-own-organization.md)
+- Status: Superseded by [ADR-0060](../0060-every-cuso-hire-gets-its-own-organization.md)
 - Archived: live number 0053 stays with the Apple builds ADR; this one keeps no number
 
 Hiring Cuso puts Cuso, his marketing Project and the Brand Brain into the person's preferred Workspace: the one identity onboarding just created ([ADR 0051](../0051-cmo-runs-identity-onboarding-over-a-workspaces-resource.md)), or the one an existing Sokosumi user already prefers. Identity onboarding already asks who the work is for and, for an organization, its name and website, so Hiring Cuso reuses those answers instead of creating a Workspace of its own and asking again. The gate stays identity only: it never starts Cuso, and Hiring Cuso begins after it.

@@ -295,7 +295,7 @@ export async function captureCmoBrandMedia(
   });
   const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
   if (!hire || !brain.success) return null;
-  // The files are saved as Cuso's runner (ADR 0060). Loaded here: the CMO
+  // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
   // service imports this module.
   const { cmoRunnerUserId } = await import("@/services/cmo.service");
   const runnerId = await cmoRunnerUserId(hire);

@@ -691,7 +691,7 @@ function actingMemberOf(authorized: {
 
 /**
  * Whether a turn acts in its owner's name. On Cuso, a shared CMO bot, every
- * member's turn does: he works for the whole business (ADR 0060). On any other
+ * member's turn does: he works for the whole business (ADR 0061). On any other
  * shared bot a member is a teammate, and an assistant never is the owner.
  */
 function actsForOwner(authorized: AuthorizedSokoBotRuntime): boolean {

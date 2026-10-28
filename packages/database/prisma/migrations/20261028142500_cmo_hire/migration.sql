@@ -1,4 +1,4 @@
--- CMO.xyz: Cuso is a shared Soko Bot of the hire's Project (ADR 0060); this
+-- CMO.xyz: Cuso is a shared Soko Bot of the hire's Project (ADR 0061); this
 -- table holds what CMO adds on top. Who hired him is the bot's creator.
 CREATE TABLE "cmo_hire" (
     "id" UUID NOT NULL,

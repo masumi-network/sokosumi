@@ -29,7 +29,6 @@ struct ConversationSidebarView: View {
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
-    let hasOrganization: Bool
   }
 
   private var commands: SokosumiChat.SidebarCommands {
@@ -97,14 +96,14 @@ struct ConversationSidebarView: View {
       .toolbar {
         ToolbarItem {
           Button("New chat", systemImage: "square.and.pencil") {
-            startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
+            startDirect = .init(id: workspaces.compositionContext)
           }
           .disabled(!commands.newChat)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
-            createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
+            createChannel = .init(id: workspaces.compositionContext)
           }
           .disabled(!commands.createChannel)
           .help("Create channel")
@@ -140,7 +139,7 @@ struct ConversationSidebarView: View {
       meSection
     }
     .sheet(item: $startDirect) { presentation in
-      StartDirectView(hasOrganization: presentation.hasOrganization, currentUserId: workspaces.currentUserId, load: {
+      StartDirectView(currentUserId: workspaces.currentUserId, load: {
         try await workspaces.loadDirectRecipients(context: presentation.id)
       }, open: {
         try await workspaces.openDirect($0, context: presentation.id)
@@ -487,7 +486,7 @@ struct ConversationSidebarView: View {
       }
       if section == .channels {
         Button("Browse channels", systemImage: "list.bullet") {
-          browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
+          browseChannels = .init(id: workspaces.compositionContext)
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)

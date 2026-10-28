@@ -20,6 +20,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 const createRoomMock = vi.fn();
+const listPeopleMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 vi.mock("@/lib/services/user.service", () => ({
@@ -33,6 +34,7 @@ vi.mock("@/lib/services/user.service", () => ({
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     createRoom: (...args: unknown[]) => createRoomMock(...args),
+    listPeople: (...args: unknown[]) => listPeopleMock(...args),
   },
 }));
 
@@ -61,6 +63,13 @@ import {
   loadChatComposeRosterAction,
 } from "../actions";
 
+const eve = {
+  id: "user-eve",
+  name: "Eve",
+  email: "eve@partner.example",
+  image: null,
+};
+
 describe("loadChatComposeRosterAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,6 +94,7 @@ describe("loadChatComposeRosterAction", () => {
     });
     listCoworkersMock.mockResolvedValue([]);
     getMineMock.mockResolvedValue(null);
+    listPeopleMock.mockResolvedValue([eve]);
   });
 
   it("forwards self-only creation through the existing Core service without an organization", async () => {
@@ -137,7 +147,7 @@ describe("loadChatComposeRosterAction", () => {
     },
   );
 
-  it("returns self identity without an active organization", async () => {
+  it("returns self identity and everyone reachable without an active organization", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     await expect(loadChatComposeRosterAction()).resolves.toMatchObject({
       ok: true,
@@ -145,7 +155,36 @@ describe("loadChatComposeRosterAction", () => {
         currentUserId: "user-self",
         currentUserName: "Ada",
         hasOrganization: false,
+        people: [eve],
+        peopleLoadFailed: false,
       },
+    });
+  });
+
+  it("keeps a people failure as peopleLoadFailed beside the Organization roster", async () => {
+    listPeopleMock.mockRejectedValueOnce(new Error("Core unavailable"));
+    await expect(loadChatComposeRosterAction()).resolves.toMatchObject({
+      ok: true,
+      value: {
+        hasOrganization: true,
+        people: [],
+        peopleLoadFailed: true,
+        membersLoadFailed: false,
+      },
+    });
+  });
+
+  it("forwards a group Direct without an active organization for Core to judge", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    createRoomMock.mockResolvedValue({ room: { id: "group" }, created: false });
+    await expect(
+      createDirectRoomAction({ memberUserIds: ["user-2", "user-eve"] }),
+    ).resolves.toMatchObject({ ok: true, value: { id: "group" } });
+    expect(createRoomMock).toHaveBeenCalledWith({
+      kind: "direct",
+      memberUserIds: ["user-2", "user-eve"],
+      coworkerIds: [],
+      sokoBotIds: [],
     });
   });
 
@@ -165,9 +204,11 @@ describe("loadChatComposeRosterAction", () => {
         hasOrganization: true,
         canCreateExternal: false,
         members: [],
+        people: [eve],
         coworkers: [],
         sokoBots: [],
         membersLoadFailed: true,
+        peopleLoadFailed: false,
       },
     });
   });

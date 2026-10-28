@@ -2466,7 +2466,7 @@ model SokoBot {
   @@map("soko_bot")
 }
 
-/// Cuso hired through CMO.xyz (ADR 0060): a shared Soko Bot of a Project in
+/// Cuso hired through CMO.xyz (ADR 0061): a shared Soko Bot of a Project in
 /// the business's own organization, working for every member of it. This row
 /// holds what CMO adds on top: the start form's answers, the Brand Brain and
 /// the strategy (JSON, validated by the `@sokosumi/soko-bot` CMO schemas).

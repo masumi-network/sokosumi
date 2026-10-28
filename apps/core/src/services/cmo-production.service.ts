@@ -287,7 +287,7 @@ async function startProductionRun(
   const parent = await parentTurnId(hire.sokoBotId);
   if (!parent) throw new Error("Cuso has no turn to start production from");
   // The run reports in Cuso's shared room and spends as his runner: who hired
-  // him, or an owner or admin once they left (ADR 0060).
+  // him, or an owner or admin once they left (ADR 0061).
   const runnerId = await cmoRunnerUserId(hire);
   if (!runnerId || !bot.sharedRoomId)
     throw new Error("Cuso has no member or shared room to run production for");
@@ -511,7 +511,7 @@ export function kickCmoProduction(hireId: string): void {
 /** The cron: every approved hire, so new and missing pieces get made. */
 /**
  * Points Cuso's own rhythms at his runner, so they keep acting as a current
- * member once the person who hired him left the business (ADR 0060).
+ * member once the person who hired him left the business (ADR 0061).
  */
 async function keepCmoRhythmsWithRunner(hire: CmoHire): Promise<void> {
   const runnerId = await cmoRunnerUserId(hire);

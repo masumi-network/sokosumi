@@ -26,7 +26,7 @@ export function sokoBotActingUserId(record: {
  * its own: its Requester is a record, and a schedule another member edited
  * must never act for them. Cuso's own rhythms are the exception: they are the
  * work he was hired for, and run as the member who hired him, their Requester
- * since creation (ADR 0060).
+ * since creation (ADR 0061).
  */
 export function sokoBotScheduleActingUserId(schedule: {
   requestedByUserId: string | null;

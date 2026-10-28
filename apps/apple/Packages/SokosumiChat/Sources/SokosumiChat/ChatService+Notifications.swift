@@ -12,4 +12,11 @@ public extension ChatService {
   func workspaceOrganizationId(client: Client, workspaceId: String) async throws -> String? {
     try await call { try await client.getWorkspacesId(.init(path: .init(id: workspaceId))) }.ok.body.json.data.organizationId
   }
+
+  /// `GET /chats/rooms/{id}`: a notification's room the room list does not show yet, read for its workspace scope.
+  func room(client: Client, roomId: String, organizationSlug: String?) async throws -> Components.Schemas.ChatRoom {
+    try await call {
+      try await client.getChatsRoomsId(.init(path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug)))
+    }.ok.body.json.data
+  }
 }

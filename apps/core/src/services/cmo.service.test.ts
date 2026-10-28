@@ -226,7 +226,7 @@ beforeEach(() => {
   mockBilling.production = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
-  // Every hire lives in the business's organization (ADR 0059), and the
+  // Every hire lives in the business's organization (ADR 0060), and the
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });
@@ -1455,7 +1455,7 @@ describe("startCmoOnboarding", () => {
         }),
       }),
     );
-    // Cuso is the Project's shared bot, on the CMO version (ADR 0060).
+    // Cuso is the Project's shared bot, on the CMO version (ADR 0061).
     expect(createBot).toHaveBeenCalledWith(
       expect.objectContaining({
         callerUserId: "user-1",
