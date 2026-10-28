@@ -212,6 +212,10 @@ _Avoid_: Engagement over the selected period, treating an unavailable counter as
 A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
 _Avoid_: Draft, scheduled Social post, importing history as publishable content
 
+**Social comment**:
+A comment someone left on one of a Project's published Social posts. Mentions, direct messages, and comments on Social account posts published outside Sokosumi are not Social comments.
+_Avoid_: Social interaction, engagement, reply (when meaning the comment)
+
 ### Ads
 
 **Ad connection**:
