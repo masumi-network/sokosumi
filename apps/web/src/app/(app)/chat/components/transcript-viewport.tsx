@@ -256,6 +256,8 @@ export function TranscriptViewport({
   positionCallbackRef.current = onPositionChange;
   const lastPositionRef = useRef("");
   const hold = held !== false || holdOffBottom;
+  const holdRef = useRef(hold);
+  holdRef.current = hold;
   const landingRef = useRef(0);
   // Unmount ends a landing still polling for its row.
   useMountEffect(() => () => {
@@ -299,6 +301,32 @@ export function TranscriptViewport({
   const distanceFromEndRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const virtualizerRef = useRef<TranscriptVirtualizer | null>(null);
+  // Composer/keyboard resizing keeps the distance from the end for a
+  // reader following latest. History keeps its normal top offset.
+  // Whichever sees the new height first handles it: the virtualizer's
+  // onChange or the viewport's own observer of the scroller. Both run
+  // before the distance is recorded again, so it is the reader's distance
+  // from before the resize.
+  const followResize = (element: HTMLElement) => {
+    const height = element.clientHeight;
+    const previousHeight = viewportHeightRef.current;
+    viewportHeightRef.current = height;
+    const distance = distanceFromEndRef.current;
+    if (
+      !previousHeight ||
+      height === previousHeight ||
+      distance > (holdRef.current ? 0 : STICK_TO_BOTTOM_NEAR_PX)
+    ) {
+      return;
+    }
+    // From the DOM, not the offset plus the height change: the browser may
+    // already have clamped the offset to a taller scroller, and an append
+    // follow may already have moved it, so the change would apply twice.
+    const target = element.scrollHeight - height - distance;
+    if (Math.abs(target - element.scrollTop) >= 1) {
+      virtualizerRef.current?.scrollToOffset(target);
+    }
+  };
   const rowsRef = useRef(rows);
   if (rowsRef.current !== rows) {
     const previous = virtualizerRef.current;
@@ -464,20 +492,7 @@ export function TranscriptViewport({
       if (!element) {
         return;
       }
-      const height = instance.scrollRect?.height ?? 0;
-      const previousHeight = viewportHeightRef.current;
-      viewportHeightRef.current = height;
-      // Composer/keyboard resizing keeps the distance from the end for a
-      // reader following latest. History keeps its normal top offset.
-      if (
-        previousHeight &&
-        height !== previousHeight &&
-        distanceFromEndRef.current <= (hold ? 0 : STICK_TO_BOTTOM_NEAR_PX)
-      ) {
-        instance.scrollToOffset(
-          (instance.scrollOffset ?? 0) + previousHeight - height,
-        );
-      }
+      followResize(element);
       // A row that grew at the live edge is followed by a scroll write the
       // browser clamps until the taller list is laid out, so the DOM reads
       // far from the end for that frame. The virtualizer's offset already
@@ -535,6 +550,10 @@ export function TranscriptViewport({
         active.blur();
       }
     };
+    // The virtualizer's onChange runs only when the mounted rows change, and
+    // a draft growing a line changes none: watch the scroller itself too.
+    const keepDistance = new ResizeObserver(() => followResize(scroller));
+    keepDistance.observe(scroller);
     scroller.addEventListener("scroll", record, { passive: true });
     scroller.addEventListener("scrollend", settle, { passive: true });
     scroller.addEventListener("touchstart", touchStart, { passive: true });
@@ -543,6 +562,7 @@ export function TranscriptViewport({
     scroller.addEventListener("touchmove", onTouchMove, { passive: true });
     return () => {
       clearTimeout(idleTimer);
+      keepDistance.disconnect();
       scroller.removeEventListener("scroll", record);
       scroller.removeEventListener("scrollend", settle);
       scroller.removeEventListener("touchstart", touchStart);
