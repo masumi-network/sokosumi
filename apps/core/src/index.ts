@@ -22,6 +22,7 @@ import { appleClientMinimumBuildMiddleware } from "@/middleware/apple-client-min
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
+import healthRouter from "@/routes/health/index";
 import imageStudioAgentRouter from "@/routes/image-studio-agent/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
@@ -57,6 +58,7 @@ app.use("/v1/*", appleClientMinimumBuildMiddleware());
 app.onError(errorHandler);
 
 app.route("/", wellKnownRouter);
+app.route("/health", healthRouter);
 app.route("/auth", authRouter);
 app.route("/v1", apiV1);
 app.route("/sync", syncRouter);

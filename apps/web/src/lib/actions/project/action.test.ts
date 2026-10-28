@@ -337,7 +337,6 @@ describe("project actions", () => {
     for (const path of [
       "/projects",
       "/projects/project-1",
-      "/projects/project-1/calendar",
       "/calendar",
       "/tasks",
     ]) {

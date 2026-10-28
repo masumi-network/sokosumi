@@ -10,6 +10,17 @@ import { useId } from "react";
 import { CatchUpLine } from "@/components/chat/signals/catch-up-line";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
+/** Nothing written and nothing listed: the reader has read it all. */
+export function isCatchUpSummaryEmpty(summary: ChatCatchUpSummary): boolean {
+  return (
+    summary.headline == null &&
+    summary.needsYou.length === 0 &&
+    summary.decisions.length === 0 &&
+    summary.openLoops.length === 0 &&
+    summary.highlights.length === 0
+  );
+}
+
 interface CatchUpSummaryBodyProps {
   summary: ChatCatchUpSummary;
   /** Room-scoped: an item jumps in place instead of linking to its room. */

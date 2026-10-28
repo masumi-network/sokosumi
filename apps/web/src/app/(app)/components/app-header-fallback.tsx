@@ -7,6 +7,7 @@ import {
   HeaderLeadingBrandFallback,
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
+import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 
@@ -23,12 +24,10 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         </Suspense>
       </div>
 
-      {/* The real toggle, so the sidebar can be brought back while the frame
-          streams and nothing after it moves when the header takes over. */}
       <SidebarToggle />
 
       <HeaderCenter>
-        <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
+        <HeaderProjectScopeFallback />
       </HeaderCenter>
 
       {/* The phone's Workspace switcher, as `HeaderProfileSection` places

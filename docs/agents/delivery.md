@@ -27,7 +27,7 @@ docs(readme): update setup instructions
 
 ### Branches
 
-- **Linear issues**: When implementing a Linear issue, the branch name MUST start with the issue identifier (lowercased), followed by a short kebab-case description. For example, for `SOK-555` name the branch `sok-555-xxx-xxx-xxx`. Prefer the `gitBranchName` Linear provides for the issue when available.
+- **Sokosumi Tasks**: When implementing a Task, the branch name MUST start with the Task identifier (lowercased), followed by a short kebab-case description. For example, for `SOKD-109` name the branch `sokd-109-xxx-xxx-xxx`. Prefer `task.identifier` from `sokosumi --preprod tasks get … --json` when available. See [issue tracker](./issue-tracker.md).
 - **One branch per PR.** Start every new PR on a branch name no earlier PR used. Preview `DATABASE_URL*` env vars are scoped to the git branch and owned by one PR (`scripts/ci/preview-resources.ts`), so a reused branch fails `/deploy` with "owned by another workflow" until the old PR's preview is cleaned up.
 
 ### Pull Requests
@@ -56,7 +56,7 @@ docs(readme): update setup instructions
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Body**: write it with the [`pr` skill](../../.agents/skills/pr/SKILL.md); the repo has no PR template.
 - **Description**: Explain user-facing impact
-- **Links**: Reference Linear or GitHub issues
+- **Links**: Reference the Sokosumi Task identifier (and GitHub issues when relevant)
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
 - **Screenshots**: Attach for UI updates
 - **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm --filter @sokosumi/database data-migration:<name>`).

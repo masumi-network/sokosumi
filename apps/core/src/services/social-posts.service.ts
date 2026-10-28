@@ -58,6 +58,7 @@ import {
 } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { socialPostFormattingError } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -274,6 +275,8 @@ export interface CreateSocialPostInput
   socialConnectionId?: string;
   scheduledAt?: Date;
   timezone?: string;
+  /** A Soko Bot keeps a link in the post body because the owner asked. */
+  linkInPost?: boolean;
 }
 
 export interface UpdateSocialPostInput
@@ -281,6 +284,8 @@ export interface UpdateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** The Soko Bot editing it: its writing is checked for formatting mistakes. */
+  sokoBotId?: string;
   postId: string;
   text?: string;
   firstComment?: string;
@@ -291,6 +296,8 @@ export interface UpdateSocialPostInput
   scheduledAt?: Date;
   timezone?: string;
   revision: number;
+  /** A Soko Bot keeps a link in the post body because the owner asked. */
+  linkInPost?: boolean;
 }
 
 export interface ScheduleSocialPostInput extends ProjectScope {
@@ -548,6 +555,15 @@ function requireTextWithinLimit(
     );
   }
   return trimmed;
+}
+
+/** A Soko Bot's post that would show raw Markdown or a wall of hashtags. */
+function requireBotFormatting(
+  provider: string,
+  post: Parameters<typeof socialPostFormattingError>[1],
+): void {
+  const error = socialPostFormattingError(requireProvider(provider), post);
+  if (error) throw badRequest(error);
 }
 
 /** Publish and schedule refuse a post without the media the network needs. */
@@ -935,6 +951,13 @@ export async function createSocialPost(
     threadParts: input.threadParts ?? [],
     subscriptionType: connection?.subscriptionType,
   });
+  if (input.sokoBotId)
+    requireBotFormatting(provider, {
+      texts: [text, firstComment, ...threadParts.map((part) => part.text)],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
@@ -1140,6 +1163,23 @@ export async function updateSocialPost(
       : undefined;
   if (threadParts === undefined)
     requireStoredThreadParts(post, provider, subscriptionType);
+  if (
+    input.sokoBotId &&
+    (input.text !== undefined ||
+      input.firstComment !== undefined ||
+      input.threadParts !== undefined ||
+      providerChanged)
+  )
+    requireBotFormatting(provider, {
+      texts: [
+        text,
+        firstComment,
+        ...(threadParts ?? post.threadParts).map((part) => part.text),
+      ],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
 
   const quotedPostId =
     input.quotedPostId !== undefined ? input.quotedPostId : post.quotedPostId;
