@@ -1,5 +1,4 @@
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
-import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
@@ -22,7 +21,7 @@ interface AppShellLoadingFrameProps {
 
 export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
-    <BreadcrumbOverrideProvider>
+    <>
       <AppSidebarFallback />
       <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
         <div
@@ -57,6 +56,6 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
           </main>
         </div>
       </div>
-    </BreadcrumbOverrideProvider>
+    </>
   );
 }

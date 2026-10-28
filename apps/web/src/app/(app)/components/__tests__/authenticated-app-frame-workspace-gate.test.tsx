@@ -98,11 +98,6 @@ vi.mock("@/contexts/organization-seat-context", () => ({
     <>{children}</>
   ),
 }));
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  BreadcrumbOverrideProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}));
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
   HistorySearchDialogProvider: ({
     children,

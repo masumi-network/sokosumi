@@ -136,18 +136,6 @@ afterEach(() => {
 });
 
 describe("sidebar project scope", () => {
-  it("opens the chip's Create dialog from the desktop popover", async () => {
-    const user = userEvent.setup();
-    renderHarness();
-
-    await user.click(title());
-    await user.click(await screen.findByTestId("project-scope-create"));
-
-    expect(
-      await screen.findByRole("dialog", { name: "create-project" }),
-    ).toBeInTheDocument();
-  });
-
   it("hands the mobile title off to the chip's bottom sheet", async () => {
     const user = userEvent.setup();
     mocks.isMobile = true;
@@ -174,27 +162,6 @@ describe("sidebar project scope", () => {
     expect(
       await screen.findByRole("dialog", { name: "switchLabel" }),
     ).toBeInTheDocument();
-  });
-
-  it("closes the desktop popover and navigates when a project is picked", async () => {
-    const user = userEvent.setup();
-    mocks.loadPinned.mockResolvedValue([
-      { id: "p-2", name: "Beta", logo: null, closedAt: null },
-    ]);
-    renderHarness();
-
-    await user.click(title());
-    expect(
-      await screen.findByRole("dialog", { name: "switchLabel" }),
-    ).toBeInTheDocument();
-    await user.click(await screen.findByTestId("project-scope-item-p-2"));
-
-    expect(mocks.push).toHaveBeenCalledTimes(1);
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("dialog", { name: "switchLabel" }),
-      ).not.toBeInTheDocument(),
-    );
   });
 
   // As the workspace switcher: the hover and open fill cover the name and its
@@ -240,11 +207,14 @@ describe("sidebar project scope", () => {
     );
   });
 
-  // A thumb's 44px on the phone sheet, the sketch's 32px with a pointer.
-  it("keeps a touch-sized target on the phone sheet", () => {
+  // A thumb's 44px, and gone from md: the header's selector is the control.
+  it("keeps a touch-sized target on the phone sheet only", () => {
     renderHarness();
 
-    expect(tokens(title())).toEqual(expect.arrayContaining(["h-11", "md:h-8"]));
+    expect(tokens(title())).toContain("h-11");
+    expect(
+      tokens(title().closest('[data-sidebar="group"]') as Element),
+    ).toContain("md:hidden");
   });
 
   it("draws no rule under the picker", () => {

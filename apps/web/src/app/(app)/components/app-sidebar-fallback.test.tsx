@@ -79,10 +79,10 @@ describe("AppSidebarFallback", () => {
     const tasks = screen.getByRole("link", {
       name: (_, element) => element.getAttribute("href") === "/tasks",
     });
-    const line = tasks.closest(".border-s");
+    const line = tasks.closest('[class*="max-md:border-s"]');
 
     expect(tokens(line?.className ?? "")).toEqual(
-      expect.arrayContaining(["ms-4", "border-sidebar-border"]),
+      expect.arrayContaining(["max-md:ms-4", "border-sidebar-border"]),
     );
   });
 
@@ -96,7 +96,7 @@ describe("AppSidebarFallback", () => {
     const tasks = screen.getByRole("link", {
       name: (_, element) => element.getAttribute("href") === "/tasks",
     });
-    const line = tasks.closest(".border-s");
+    const line = tasks.closest('[class*="max-md:border-s"]');
 
     if (!placeholder || !line) throw new Error("no title placeholder or line");
     expect(placeholder).toHaveAttribute("aria-hidden");
@@ -274,7 +274,7 @@ describe("AppSidebarFallback", () => {
     const tasks = screen.getByRole("link", {
       name: (_, element) => element.getAttribute("href") === "/tasks",
     });
-    const scoped = tasks.closest(".border-s");
+    const scoped = tasks.closest('[class*="max-md:border-s"]');
     const roomList = container.querySelector(
       '[data-slot="sidebar-group"][aria-hidden]',
     );

@@ -7,6 +7,7 @@ import {
   HeaderLeadingBrandFallback,
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
+import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 
@@ -28,7 +29,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
       <SidebarToggle />
 
       <HeaderCenter>
-        <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
+        <HeaderProjectScopeFallback />
       </HeaderCenter>
 
       {/* The phone's Workspace switcher, as `HeaderProfileSection` places
