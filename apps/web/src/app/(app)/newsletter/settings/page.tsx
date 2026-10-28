@@ -4,7 +4,6 @@ import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 
-import { EmptyState } from "@/components/common/empty-state";
 import { newsletterService } from "@/lib/services/newsletter.service";
 
 import { NewsletterPageShell } from "../components/newsletter-page-shell";
@@ -62,22 +61,13 @@ export default async function NewsletterSettingsPage({
       tabs={getNewsletterTabs(project.id, !!newsletter, t)}
       title={page("title")}
     >
-      <div className="max-w-3xl min-w-0 space-y-6">
-        {!newsletter ? (
-          <EmptyState
-            title={t("emptyTitle")}
-            description={t("emptyDescription")}
-            className="py-4"
-          />
-        ) : null}
-        <NewsletterSettingsForm
-          key={newsletter?.id ?? project.id}
-          newsletter={newsletter}
-          projectId={project.id}
-          projectName={project.name}
-          projectLogo={project.logo}
-        />
-      </div>
+      <NewsletterSettingsForm
+        key={newsletter?.id ?? project.id}
+        newsletter={newsletter}
+        projectId={project.id}
+        projectName={project.name}
+        projectLogo={project.logo}
+      />
     </NewsletterPageShell>
   );
 }
