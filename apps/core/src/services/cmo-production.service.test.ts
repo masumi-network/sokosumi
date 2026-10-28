@@ -33,10 +33,6 @@ vi.mock("@/services/cmo.service", () => ({
   parseCmoStrategy: (value: unknown) => value ?? null,
 }));
 
-vi.mock("@/services/soko-bot-chat.service", () => ({
-  findOrOpenOwnerDirectRoom: async () => ({ id: "room-1" }),
-}));
-
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { startTurn, reconcileTurn: vi.fn() },
 }));
@@ -84,7 +80,6 @@ function strategy(calendar: CmoCalendarEntry[]): CmoStrategy {
 function hire(calendar: CmoCalendarEntry[], production?: unknown) {
   return {
     id: "cmo-1",
-    userId: "user-1",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
     projectId: "project-1",
@@ -246,10 +241,8 @@ describe("advanceCmoProduction", () => {
     listCmoChannels.mockResolvedValue([]);
     turnFindFirst.mockResolvedValue({ id: "turn-0" });
     botFindUniqueOrThrow.mockResolvedValue({
-      id: "bot-1",
-      userId: "user-1",
-      workspaceId: "ws-1",
-      workspace: { organizationId: null },
+      createdByUserId: "user-1",
+      sharedRoomId: "room-1",
     });
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
   });
@@ -268,7 +261,9 @@ describe("advanceCmoProduction", () => {
     );
     expect(result).toMatchObject({ state: "running", ready: 0, total: 2 });
     const started = startTurn.mock.calls[0]?.[0];
+    // In Cuso's shared room, spent as the member who hired him (ADR 0060).
     expect(started).toMatchObject({
+      userId: "user-1",
       sokoBotId: "bot-1",
       source: "EVENT",
       clientTurnId: `cmo:production:cmo-1:2026-11:${APPROVED}:1`,

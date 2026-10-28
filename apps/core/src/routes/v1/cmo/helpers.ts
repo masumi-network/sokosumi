@@ -1,9 +1,15 @@
 import { ComposioConfigError } from "@/clients/composio.client";
-import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
+import {
+  conflict,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { mapControlPlaneError } from "@/routes/v1/soko-bots/helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 import {
   CmoConflictError,
+  CmoForbiddenError,
   CmoNotFoundError,
   type CmoOverview,
   getCmoOverview,
@@ -87,6 +93,7 @@ export async function requireOverview(userId: string) {
 export function rethrow(error: unknown): never {
   if (error instanceof CmoNotFoundError) throw notFound(error.message);
   if (error instanceof CmoConflictError) throw conflict(error.message);
+  if (error instanceof CmoForbiddenError) throw forbidden(error.message);
   if (
     error instanceof ComposioConfigError ||
     (error instanceof SokoBotIntegrationError &&

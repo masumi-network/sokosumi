@@ -621,8 +621,9 @@ const PROJECT_SCOPED_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * A bot pinned to a Project (CMO.xyz's Cuso) works in that Project only:
- * its project-scoped tools default to it and refuse any other.
+ * A Project bot (a shared bot of one Project, such as CMO.xyz's Cuso) works in
+ * that Project only: its project-scoped tools default to it and refuse any
+ * other.
  */
 export async function pinToBotProject(
   input: ExecuteSokoBotToolInput,
@@ -686,6 +687,19 @@ function actingMemberOf(authorized: {
       "This action runs as a member, and nobody asked for this turn. Say what you would do in your chat; a member's request starts a turn that can do it.",
     );
   return actingUserId;
+}
+
+/**
+ * Whether a turn acts in its owner's name. On Cuso, a shared CMO bot, every
+ * member's turn does: he works for the whole business (ADR 0060). On any other
+ * shared bot a member is a teammate, and an assistant never is the owner.
+ */
+function actsForOwner(authorized: AuthorizedSokoBotRuntime): boolean {
+  if (authorized.askedByKind === "OWNER") return true;
+  return (
+    authorized.askedByKind === "TEAMMATE" &&
+    getSokoBotVersion(authorized.turn.versionId).profile === "cmo"
+  );
 }
 
 /** A Drive folder a tool may write into, normalized; "" is the top level. */
@@ -2063,10 +2077,7 @@ export class SokoBotRuntimeService {
     );
     // As with the plan: only the owner's own turns act in the brand's name,
     // and a cancelled or paused turn acts on nothing.
-    if (
-      authorized.askedByKind === "ASSISTANT" ||
-      authorized.askedByKind === "TEAMMATE"
-    ) {
+    if (!actsForOwner(authorized)) {
       throw new SokoBotRuntimeAuthorizationError(
         "Only the owner's turns answer comments in the brand's name",
       );
@@ -4945,10 +4956,7 @@ export class SokoBotRuntimeService {
     }
     // A teammate's turn never sees the plan (no marketing packet), so it may
     // not rewrite it either.
-    if (
-      authorized.askedByKind === "ASSISTANT" ||
-      authorized.askedByKind === "TEAMMATE"
-    ) {
+    if (!actsForOwner(authorized)) {
       throw new SokoBotRuntimeAuthorizationError(
         "Only the owner's turns change the Brand Brain, strategy and reports",
       );
@@ -5739,11 +5747,7 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    if (
-      authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT" ||
-      authorized.askedByKind === "TEAMMATE"
-    ) {
+    if (authorized.turn.chainDepth > 0 || !actsForOwner(authorized)) {
       throw new SokoBotRuntimeAuthorizationError(
         "Project social tools are only available for the owner",
       );

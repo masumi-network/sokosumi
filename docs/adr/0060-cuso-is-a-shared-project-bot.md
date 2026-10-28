@@ -7,7 +7,7 @@ Cuso was a personal Soko Bot pinned to his marketing Project, so only the person
 - **Every member acts in the brand's name.** A member's turn on Cuso may change the Brand Brain, strategy and reports, use the Project's social tools and answer Social comments. On any other shared bot a member's turn stays a teammate's.
 - **Owners and admins commit.** Approving the strategy and starting the paid month need the organization's owner or admin role, because they spend money and publish in the brand's name.
 - **The chat is Cuso's shared room.** Cuso talks in the public room every shared bot gets, with all the organization's members. Shared bots have no Direct chats, so Cuso's reports land there too.
-- **CMO shows the active organization's Cuso.** A hire belongs to its Project, not to a person; the CMO hire records who hired Cuso, and a person may reach several hires through several organizations.
+- **CMO shows the preferred organization's Cuso.** A hire belongs to its Project, not to a person, and a person may reach several through several organizations. CMO shows the one in the organization hiring made preferred, otherwise the newest; who hired Cuso is his bot's creator.
 
 ## Considered Options
 
@@ -18,5 +18,5 @@ Cuso was a personal Soko Bot pinned to his marketing Project, so only the person
 
 - `soko_bot` keeps main's owner-scope check and its one-personal-bot-per-workspace index; the pinned-bot index and every `projectId: null` filter that hid Cuso go away.
 - The CMO hire migration changes in place, which holds only while it has reached no production database; previews that applied it need `/reset-db`.
-- Cuso's turns draw on the organization's credit pool: a member's turn through that member's Seat, his scheduled runs on the pool alone.
+- Cuso's turns draw on the organization's credit pool through a member's Seat. His rhythms and the month's production run as the member who hired him, because his social tools need a member; unlike any other shared bot, his rhythms are on from the hire.
 - His memory is shared by everyone who works with him, and he sees only public Tasks.

@@ -8844,17 +8844,45 @@ describe("CMO record saves", () => {
     return tx;
   }
 
-  it.each(["TEAMMATE", "ASSISTANT"])(
-    "refuses a %s turn, which never sees the plan",
-    async (askedByKind) => {
-      transactionMock.mockClear();
-      const service = new SokoBotRuntimeService();
-      await expect(
-        service["saveCmoRecord"]({ ...owner, askedByKind } as never, report),
-      ).rejects.toThrow("Only the owner's turns");
-      expect(transactionMock).not.toHaveBeenCalled();
-    },
-  );
+  it("refuses an assistant's turn, which never sees the plan", async () => {
+    transactionMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service["saveCmoRecord"](
+        { ...owner, askedByKind: "ASSISTANT" } as never,
+        report,
+      ),
+    ).rejects.toThrow("Only the owner's turns");
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("saves a member's turn: Cuso works for the whole business", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](
+      { ...owner, askedByKind: "TEAMMATE" } as never,
+      report,
+    );
+    expect(tx.cmoHire.update).toHaveBeenCalled();
+  });
+
+  it("refuses a teammate's turn on any other shared bot", async () => {
+    transactionMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service["saveCmoRecord"](
+        {
+          ...owner,
+          turn: { ...owner.turn, versionId: null },
+          askedByKind: "TEAMMATE",
+        } as never,
+        report,
+      ),
+    ).rejects.toThrow();
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
 
   it("saves nothing once the turn is cancelled or the bot paused", async () => {
     const tx = cmoTx();

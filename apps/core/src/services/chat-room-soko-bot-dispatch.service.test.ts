@@ -270,7 +270,7 @@ describe("a shared Soko Bot mention", () => {
     });
     const [turn] = startTurn.mock.calls[0];
     expect(turn.userId).toBe("user-a");
-    // The id keeps a pinned bot (Cuso) apart from the owner's assistant.
+    // The id names the mentioned bot itself, not just its owner.
     expect(turn.sokoBotId).toBe(base.mention.sokoBot.id);
     expect(turn.message).toMatch(/^Ben \(a teammate, not your owner\) asked:/);
   });

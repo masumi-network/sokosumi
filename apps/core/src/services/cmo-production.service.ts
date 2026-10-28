@@ -280,24 +280,19 @@ async function startProductionRun(
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: hire.sokoBotId },
-    select: {
-      id: true,
-      userId: true,
-      workspaceId: true,
-      workspace: { select: { organizationId: true } },
-    },
+    select: { createdByUserId: true, sharedRoomId: true },
   });
   const parent = await parentTurnId(hire.sokoBotId);
   if (!parent) throw new Error("Cuso has no turn to start production from");
-  const { findOrOpenOwnerDirectRoom } = await import(
-    "@/services/soko-bot-chat.service"
-  );
-  const room = await findOrOpenOwnerDirectRoom(bot, hire.userId);
+  // The run reports in Cuso's shared room and spends as the member who hired
+  // him (ADR 0060).
+  if (!bot.createdByUserId || !bot.sharedRoomId)
+    throw new Error("Cuso has no hirer or shared room to run production for");
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: hire.userId,
+    userId: bot.createdByUserId,
     workspaceId: hire.workspaceId,
     sokoBotId: hire.sokoBotId,
     // One id per approval and attempt: two callers racing start the same
@@ -316,7 +311,7 @@ async function startProductionRun(
     background: {
       parentTurnId: parent,
       title: `Make ${hire.businessName}'s month`,
-      destinationRoomId: room.id,
+      destinationRoomId: bot.sharedRoomId,
     },
   });
   if (

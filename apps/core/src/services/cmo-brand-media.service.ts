@@ -287,14 +287,16 @@ export async function captureCmoBrandMedia(
     where: { id: hireId },
     select: {
       id: true,
-      userId: true,
       workspaceId: true,
       websiteUrl: true,
       brandBrain: true,
+      // The files are the hirer's, in the business's shared Project Drive.
+      sokoBot: { select: { createdByUserId: true } },
     },
   });
   const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
-  if (!hire || !brain.success) return null;
+  const hirerId = hire?.sokoBot.createdByUserId;
+  if (!hire || !hirerId || !brain.success) return null;
   const workspace = await prisma.workspace.findUnique({
     where: { id: hire.workspaceId },
     select: { organizationId: true },
@@ -303,7 +305,7 @@ export async function captureCmoBrandMedia(
   const drive: Drive = {
     workspaceId: hire.workspaceId,
     organizationId: workspace.organizationId,
-    userId: hire.userId,
+    userId: hirerId,
   };
   const ownPages = cmoOwnPages(hire.websiteUrl, brain.data);
   const competitorPages = cmoCompetitorPages(brain.data);

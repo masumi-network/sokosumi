@@ -228,17 +228,6 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
-  /**
-   * Pin a specific version instead of the promoted default: how products
-   * built on Soko Bots (CMO's Cuso) create their bot.
-   */
-  versionId?: string;
-  /**
-   * Pin the bot to one Project (CMO.xyz's Cuso). It lives beside the owner's
-   * personal assistant in the same workspace; null or absent is that
-   * personal assistant.
-   */
-  projectId?: string;
 }
 
 /**
@@ -1232,8 +1221,7 @@ export class SokoBotControlPlane {
     const hash = memoryHash(markdown);
     // Resolved outside the transaction: promoting a version affects new bots
     // only, so this is read once at creation and then pinned.
-    const defaultVersionId =
-      input.versionId ?? (await getDefaultSokoBotVersionId());
+    const defaultVersionId = await getDefaultSokoBotVersionId();
 
     const created = await prisma.$transaction(async (tx) => {
       // Only a live row: a deleted bot is a tombstone kept for provenance and
@@ -1242,7 +1230,6 @@ export class SokoBotControlPlane {
         where: {
           userId: input.userId,
           workspaceId: input.workspaceId,
-          projectId: input.projectId ?? null,
           deletedAt: null,
         },
       });
@@ -1287,7 +1274,6 @@ export class SokoBotControlPlane {
           userId: input.userId,
           createdByUserId: input.userId,
           workspaceId: input.workspaceId,
-          projectId: input.projectId ?? null,
           name,
           // Pin the version a bot was created on rather than leaving it null
           // and relying on the runtime fallback: the console can then show

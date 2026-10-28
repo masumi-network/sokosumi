@@ -893,7 +893,6 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
       userId: "user_1",
       workspaceId: "workspace_1",
-      projectId: null,
     });
     botFindFirstMock.mockClear();
     await plane.startTurn({

@@ -37,7 +37,7 @@ import {
   getWebAppBaseUrl,
   isProductionEnvironment,
 } from "@/config/env";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import {
@@ -70,6 +70,7 @@ import { contactListNameKey } from "@/services/contact-lists.service";
 
 export class CmoNotFoundError extends Error {}
 export class CmoConflictError extends Error {}
+export class CmoForbiddenError extends Error {}
 
 const CUSO_NAME = "Cuso";
 
@@ -231,18 +232,22 @@ export function cmoProjectName(businessName: string): string {
 }
 
 /**
- * Who pays for Cuso and whose plan opens execution: his Workspace's
- * organization when it has one, otherwise the owner.
+ * Who pays for Cuso and whose plan opens execution: the business's
+ * organization, which every hire gets (ADR 0059).
  */
 async function cmoPayer(
-  hire: Pick<CmoHire, "userId" | "workspaceId">,
-): Promise<{ organizationId: string | null; referenceId: string }> {
+  hire: Pick<CmoHire, "workspaceId">,
+): Promise<{ organizationId: string; referenceId: string }> {
   const row = await prisma.workspace.findUnique({
     where: { id: hire.workspaceId },
     select: { organizationId: true },
   });
-  const organizationId = row?.organizationId ?? null;
-  return { organizationId, referenceId: organizationId ?? hire.userId };
+  if (!row?.organizationId)
+    throw new Error("Cuso's workspace has no organization");
+  return {
+    organizationId: row.organizationId,
+    referenceId: row.organizationId,
+  };
 }
 
 /** "https://www.acme.io/about" → "acme.io"; falls back to the raw input. */
@@ -264,13 +269,42 @@ export function parseCmoStrategy(value: unknown): CmoStrategy | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** The person's hire while Cuso is live; a deleted or archived Cuso hired no one. */
+/**
+ * The Cuso this person works with (ADR 0060): the live hire in their preferred
+ * organization, which hiring made preferred, else the newest live hire of any
+ * organization they belong to. A deleted or archived Cuso hired no one.
+ */
 export async function getCmoHireForUser(
   userId: string,
 ): Promise<CmoHire | null> {
-  return prisma.cmoHire.findUnique({
-    where: { userId, sokoBot: { deletedAt: null, archivedAt: null } },
-  });
+  const [user, hires] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredOrganizationId: true },
+    }),
+    prisma.cmoHire.findMany({
+      where: {
+        sokoBot: { deletedAt: null, archivedAt: null },
+        project: {
+          workspace: { organization: { members: { some: { userId } } } },
+        },
+      },
+      include: {
+        project: {
+          select: { workspace: { select: { organizationId: true } } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const found =
+    hires.find(
+      (hire) =>
+        hire.project.workspace.organizationId === user?.preferredOrganizationId,
+    ) ?? hires[0];
+  if (!found) return null;
+  const { project: _project, ...hire } = found;
+  return hire;
 }
 
 export async function getCmoHireForBot(
@@ -315,10 +349,31 @@ export function cmoMockPlan(hire: Pick<CmoHire, "mockPlan">): string | null {
 
 /** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
 export async function isCmoSubscribed(
-  hire: Pick<CmoHire, "userId" | "workspaceId" | "mockPlan">,
+  hire: Pick<CmoHire, "workspaceId" | "mockPlan">,
 ): Promise<boolean> {
   if (cmoMockPlan(hire)) return true;
   return hasActiveCmoSubscription((await cmoPayer(hire)).referenceId);
+}
+
+/**
+ * Approving the strategy and starting the paid month spend the business's
+ * money and publish in its name: the organization's owners and admins only
+ * (ADR 0060). Every other member works with Cuso freely.
+ */
+async function requireCmoCommitter(
+  userId: string,
+  hire: Pick<CmoHire, "workspaceId">,
+): Promise<void> {
+  const { organizationId } = await cmoPayer(hire);
+  const member = await prisma.member.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { role: true },
+  });
+  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
+    throw new CmoForbiddenError(
+      "Only the organization's owners and admins approve Cuso's plan and start his month",
+    );
+  }
 }
 
 /** Activates a CMO tier without checkout, on local and preview runs only. */
@@ -331,6 +386,7 @@ export async function chooseCmoMockPlan(
   }
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  await requireCmoCommitter(userId, hire);
   await prisma.cmoHire.update({
     where: { id: hire.id },
     data: { mockPlan: plan, mockPlanActivatedAt: new Date() },
@@ -366,8 +422,10 @@ async function canFundFirstTurn(input: {
   return credits.spendable >= getEnv().SOKO_BOT_MIN_TURN_CREDITS;
 }
 
+/** A turn of Cuso's that `userId`, a member of his organization, started. */
 async function startCmoTurn(
-  hire: Pick<CmoHire, "userId" | "workspaceId" | "sokoBotId">,
+  hire: Pick<CmoHire, "workspaceId" | "sokoBotId">,
+  userId: string,
   input: { clientTurnId: string; message: string; route: PresetRoute },
 ): Promise<{ turnId: string }> {
   // The founder pressed the button and sees the refusal there, so the
@@ -376,7 +434,7 @@ async function startCmoTurn(
     "@/services/soko-bot-billing.service"
   );
   try {
-    await requireSokoBotTurnFunding(hire.userId, hire.sokoBotId);
+    await requireSokoBotTurnFunding(userId, hire.sokoBotId);
   } catch (error) {
     if (error instanceof SokoBotBillingAccessError) {
       throw new CmoConflictError(CMO_OUT_OF_CREDITS);
@@ -387,14 +445,14 @@ async function startCmoTurn(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: hire.userId,
+    userId,
     workspaceId: hire.workspaceId,
-    // Cuso, never the owner's personal assistant in the same workspace.
+    // Cuso, never the member's personal assistant in the same workspace.
     sokoBotId: hire.sokoBotId,
     clientTurnId: input.clientTurnId,
     message: input.message,
-    // The owner pressed the button, but no chat message carries the turn:
-    // EVENT delivers the answer to the owner's chat with Cuso.
+    // A member pressed the button, but no chat message carries the turn:
+    // EVENT delivers the answer to Cuso's shared room.
     source: "EVENT",
     presetRoute: input.route,
   });
@@ -492,7 +550,7 @@ const TURN_ROW_SELECT = {
 } as const;
 
 export async function cmoLearningState(
-  hire: Pick<CmoHire, "userId" | "sokoBotId" | "brandBrain">,
+  hire: Pick<CmoHire, "sokoBotId" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoLearningState> {
   if (parseCmoBrandBrain(hire.brandBrain)) return "done";
@@ -744,12 +802,18 @@ export async function retryCmoOnboarding(
   if (!hire.brandVisual) {
     waitUntil(learnCmoBrandVisual(hire).catch(() => undefined));
   }
-  return startCmoResearch(hire);
+  return startCmoResearch(hire, userId);
 }
 
-/** Starts Cuso's research turn for a hire; the CMO lab reruns it per brand. */
-export function startCmoResearch(hire: CmoHire): Promise<{ turnId: string }> {
-  return startCmoTurn(hire, {
+/**
+ * Starts Cuso's research turn for a hire, as the member `userId`; the CMO lab
+ * reruns it per brand.
+ */
+export function startCmoResearch(
+  hire: CmoHire,
+  userId: string,
+): Promise<{ turnId: string }> {
+  return startCmoTurn(hire, userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: onboardingMessage(hire),
     route: CMO_ONBOARDING_ROUTE,
@@ -758,8 +822,9 @@ export function startCmoResearch(hire: CmoHire): Promise<{ turnId: string }> {
 
 /**
  * Hires Cuso into a new organization named after the business (ADR 0059):
- * his marketing Project and the CMO record go there, and his first turn
- * starts. One CMO hire per person; a second call returns the existing one.
+ * his marketing Project, Cuso as its shared bot (ADR 0060) and the CMO record
+ * go there, and his first turn starts. A person who already works with a
+ * live Cuso gets that hire back.
  */
 export async function startCmoOnboarding(input: {
   userId: string;
@@ -767,16 +832,8 @@ export async function startCmoOnboarding(input: {
 }): Promise<CmoHire> {
   const existing = await getCmoHireForUser(input.userId);
   if (existing) return existing;
-  // A hire whose Cuso was deleted or archived would block the new one on the
-  // unique userId; only a dead one goes, so a racing live hire stays.
-  await prisma.cmoHire.deleteMany({
-    where: {
-      userId: input.userId,
-      sokoBot: {
-        OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
-      },
-    },
-  });
+  // shortcut: two racing submits can hire twice, in two organizations; the
+  // start form submits once. Add a per-person lock if duplicates show up.
 
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
@@ -824,20 +881,21 @@ export async function startCmoOnboarding(input: {
   });
 
   let created: CmoHire;
+  let sharedRoomId: string | null = null;
   try {
-    const { sokoBotControlPlane } = await import(
-      "@/services/soko-bot-control-plane.service"
+    const { createSharedSokoBot } = await import(
+      "@/services/soko-bot-shared-create.service"
     );
-    const bot = await sokoBotControlPlane.create({
-      userId: input.userId,
+    const bot = await createSharedSokoBot({
+      callerUserId: input.userId,
       workspaceId: workspace.id,
       projectId: project.id,
       name: CUSO_NAME,
       versionId: CMO_SOKO_BOT_VERSION_ID,
     });
+    sharedRoomId = bot.sharedRoomId;
     created = await prisma.cmoHire.create({
       data: {
-        userId: input.userId,
         workspaceId: workspace.id,
         sokoBotId: bot.id,
         projectId: project.id,
@@ -849,7 +907,12 @@ export async function startCmoOnboarding(input: {
       },
     });
   } catch (error) {
-    // No stray Project or Cuso: deleting the Project cascades to his bot.
+    // No stray Project, Cuso or room: deleting the Project cascades to his
+    // bot, which only lets go of its shared room.
+    if (sharedRoomId)
+      await prisma.chatRoom
+        .delete({ where: { id: sharedRoomId } })
+        .catch(() => undefined);
     await prisma.project
       .delete({ where: { id: project.id } })
       .catch((cleanupError) => {
@@ -859,11 +922,6 @@ export async function startCmoOnboarding(input: {
             cleanupError instanceof Error ? cleanupError.message : "unknown",
         });
       });
-    // A second submit lost the race: the first hire stands.
-    if (isPrismaUniqueViolation(error)) {
-      const winner = await getCmoHireForUser(input.userId);
-      if (winner) return winner;
-    }
     throw error;
   }
 
@@ -880,7 +938,7 @@ export async function startCmoOnboarding(input: {
 
   // A turn that cannot start (no credits yet) leaves the hire ready:
   // the learning card offers Try again and says why when it fails again.
-  await startCmoTurn(created, {
+  await startCmoTurn(created, input.userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.id}`,
     message: onboardingMessage({
       businessName,
@@ -1074,7 +1132,7 @@ export async function requestCmoStrategy(input: {
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
-  const started = await startCmoTurn(hire, {
+  const started = await startCmoTurn(hire, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: (input.note
       ? [
@@ -1121,6 +1179,16 @@ export async function requestCmoStrategy(input: {
   return started;
 }
 
+/** A write's target: the hire a member works with, or Cuso's own. */
+async function cmoHireWhere(
+  where: { userId: string } | { sokoBotId: string },
+): Promise<Prisma.CmoHireWhereUniqueInput> {
+  if ("sokoBotId" in where) return where;
+  const hire = await getCmoHireForUser(where.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  return { id: hire.id };
+}
+
 /**
  * Merges a save into the stored Brand Brain: sent sections replace theirs,
  * sent essentials replace the essentials. Until the essentials exist the
@@ -1133,7 +1201,10 @@ export async function saveCmoBrandBrain(
 ): Promise<CmoHire> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
-    const hire = await tx.cmoHire.findUnique({ where, select: { id: true } });
+    const hire = await tx.cmoHire.findUnique({
+      where: await cmoHireWhere(where),
+      select: { id: true },
+    });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
     // Section saves run in parallel: lock the row so none overwrites another.
     await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
@@ -1256,7 +1327,7 @@ export async function answerCmoBrandQuestion(
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const hire = await tx.cmoHire.findUnique({
-      where: { userId },
+      where: await cmoHireWhere({ userId }),
       select: { id: true },
     });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
@@ -1470,7 +1541,9 @@ export async function saveCmoStrategy(
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<CmoHire> {
-  const current = await db.cmoHire.findUnique({ where });
+  const current = await db.cmoHire.findUnique({
+    where: await cmoHireWhere(where),
+  });
   if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
   // What a save leaves out stays as stored; the merged plan must be whole.
   const before = parseCmoStrategy(current.strategy);
@@ -1596,7 +1669,7 @@ export async function answerCmoPlanQuestion(
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const hire = await tx.cmoHire.findUnique({
-      where: { userId },
+      where: await cmoHireWhere({ userId }),
       select: { id: true },
     });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
@@ -1663,6 +1736,7 @@ export async function applyCmoPlanAnswers(
 export async function approveCmoStrategy(userId: string): Promise<CmoHire> {
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  await requireCmoCommitter(userId, hire);
   if (!parseCmoStrategy(hire.strategy)) {
     throw new CmoConflictError("There is no strategy to approve yet");
   }
@@ -2281,7 +2355,7 @@ export function cmoUpNext(
     }));
 }
 
-/** Everything the CMO app shows, in one read. Opens the owner's chat. */
+/** Everything the CMO app shows, in one read, for one member of the business. */
 export async function getCmoOverview(
   userId: string,
   now: Date = new Date(),
@@ -2304,9 +2378,9 @@ export async function getCmoOverview(
       where: { id: hire.sokoBotId },
       select: {
         id: true,
-        userId: true,
         workspaceId: true,
         status: true,
+        sharedRoomId: true,
         workspace: { select: { organizationId: true } },
       },
     }),
@@ -2326,11 +2400,8 @@ export async function getCmoOverview(
     where: { projectId: hire.projectId },
     _count: { _all: true },
   });
-  if (!bot || !project) return null;
-  const { findOrOpenOwnerDirectRoom } = await import(
-    "@/services/soko-bot-chat.service"
-  );
-  const room = await findOrOpenOwnerDirectRoom(bot, userId);
+  // The chat is Cuso's shared room with every member (ADR 0060).
+  if (!bot?.sharedRoomId || !project) return null;
   const strategy = parseCmoStrategy(hire.strategy);
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
   const credits = await buildCreditsPayload({
@@ -2391,7 +2462,7 @@ export async function getCmoOverview(
     routines,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,
-    roomId: room.id,
+    roomId: bot.sharedRoomId,
     subscriptionActive: cmoPlan !== null,
     mockBilling: cmoMockBilling(),
     mockPlan,

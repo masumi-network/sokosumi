@@ -96,7 +96,8 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
       sokoBotId: true,
       projectId: true,
       businessName: true,
-      userId: true,
+      // Cuso is the business's shared bot; his hirer stands for it here.
+      sokoBot: { select: { createdByUserId: true } },
     },
   });
   if (hires.length === 0) return [];
@@ -106,7 +107,11 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
   const [owners, turns, sources, tools, images, charged, saves] =
     await Promise.all([
       prisma.user.findMany({
-        where: { id: { in: hires.map((hire) => hire.userId) } },
+        where: {
+          id: {
+            in: hires.flatMap((hire) => hire.sokoBot.createdByUserId ?? []),
+          },
+        },
         select: { id: true, email: true },
       }),
       prisma.$queryRaw<
@@ -220,7 +225,8 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
         sokoBotId: hire.sokoBotId,
         businessName: hire.businessName,
         ownerEmail:
-          owners.find((owner) => owner.id === hire.userId)?.email ?? "",
+          owners.find((owner) => owner.id === hire.sokoBot.createdByUserId)
+            ?.email ?? "",
         turns: number(turn?.turns),
         totalUsd:
           bySource.reduce((sum, line) => sum + line.costUsd, 0) + overheadUsd,
