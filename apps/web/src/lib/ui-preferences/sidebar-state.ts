@@ -15,11 +15,11 @@ export const SIDEBAR_MAX_WIDTH = 384;
 export const SIDEBAR_DEFAULT_WIDTH = 224;
 
 /**
- * Dragging the edge left of this x (px from the window's left) collapses the
- * sidebar on release instead of resizing it. Under the minimum width, so a
+ * Dragging the edge left of this x (px from the window's left) snaps the
+ * sidebar shut instead of resizing it. Under the minimum width, so a
  * drag that only reaches the minimum never collapses by accident.
  */
-export const SIDEBAR_COLLAPSE_AT = 144;
+export const SIDEBAR_COLLAPSE_AT = 160;
 
 export function clampSidebarWidth(px: number): number {
   return Math.round(

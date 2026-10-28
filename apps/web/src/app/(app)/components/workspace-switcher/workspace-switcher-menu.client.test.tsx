@@ -170,7 +170,7 @@ describe("WorkspaceSwitcherMenu", () => {
     const trigger = screen.getByRole("button", { name: "Org A" });
     const avatar = trigger.querySelector('span[aria-hidden="true"]');
     const name = within(trigger).getByText("Org A");
-    const chevron = trigger.querySelector(".lucide-arrow-left-right");
+    const chevron = trigger.querySelector(".lucide-chevrons-up-down");
 
     if (!avatar || !chevron) throw new Error("no avatar or chevron");
     expect(

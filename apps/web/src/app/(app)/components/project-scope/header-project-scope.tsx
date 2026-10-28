@@ -4,12 +4,14 @@ import { ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { Button } from "@/components/ui/button";
+import { WORKSPACE_SWITCHER_ROW_CLASS } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
+import { cn } from "@/lib/utils";
 
 import { useCurrentScope } from "./sidebar-project-scope-mobile";
 import { openScopeCreate } from "./sidebar-project-scope-state";
@@ -30,27 +32,31 @@ export function HeaderProjectScope() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
           aria-label={label}
           title={name}
           data-testid="project-scope-header-trigger"
           onPointerEnter={prefetch}
           onFocus={prefetch}
-          className="h-8 max-w-full min-w-0 shrink gap-2 px-2 font-medium data-[state=open]:bg-accent"
+          className={cn(
+            // The Workspace switcher's own row and pill, so the two pickers
+            // share type, height and fill.
+            WORKSPACE_SWITCHER_ROW_CLASS,
+            SIDEBAR_CONTROL_INTERACTION_CLASS,
+            "text-foreground press shrink rounded-full font-medium transition-[opacity,background-color]",
+          )}
         >
           {/* The mark's glyph names no size, so this box gives it one. */}
-          <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
+          <span aria-hidden className="flex shrink-0 [&>svg]:size-5">
             {mark}
           </span>
           <span className="min-w-0 truncate">{name}</span>
           <ChevronsUpDown
-            className="text-muted-foreground size-3.5 shrink-0"
+            className="text-muted-foreground size-3 shrink-0"
             aria-hidden
           />
-        </Button>
+        </button>
       </PopoverTrigger>
       <PopoverContent
         side="bottom"

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import { SidebarGroup, useSidebar } from "@/components/ui/sidebar";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ const SCOPE_TITLE_CLASS = cn(
 
 /**
  * The project scope as the title the phone sheet's nav sits under: the scope's
- * name and arrows, which hand off to the header's bottom sheet. From md the
+ * name and chevrons, which hand off to the header's bottom sheet. From md the
  * header's selector is the scope's control and this is hidden. A long name is
  * shortened with "…"; the accessible name keeps it whole, as "Project: …".
  */
@@ -53,7 +53,7 @@ export function SidebarProjectScope() {
         }}
       >
         <span className="min-w-0 truncate">{name}</span>
-        <ArrowLeftRight className={SCOPE_TITLE_ARROWS_CLASS} aria-hidden />
+        <ChevronsUpDown className={SCOPE_TITLE_ARROWS_CLASS} aria-hidden />
       </button>
     </SidebarGroup>
   );

@@ -9,6 +9,7 @@ import {
 } from "./header/header-leading-control.client";
 import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
 import { HeaderTrailing } from "./header/header-trailing.client";
+import { SidebarToggle } from "./header/sidebar-toggle.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -22,6 +23,8 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           <HeaderLeadingControl />
         </Suspense>
       </div>
+
+      <SidebarToggle />
 
       <HeaderCenter>
         <HeaderProjectScopeFallback />

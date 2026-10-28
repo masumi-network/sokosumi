@@ -1,21 +1,14 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   isMobile: false,
-  unread: false,
 }));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => mocks.isMobile }));
-vi.mock("@/app/chat/components/use-chat-tab-unread-presence", () => ({
-  useChatTabUnreadPresence: () => ({
-    showUnreadDot: mocks.unread,
-    unreadRoomCount: mocks.unread ? 1 : 0,
-  }),
-}));
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import {
@@ -42,8 +35,13 @@ function renderHandle(defaultOpen = true) {
   );
 }
 
+/** By slot, not role: a hidden sidebar takes the strip out of the tree. */
 function handle() {
-  return screen.getByRole("button", { name: /^(hide|show)$/ });
+  const node = document.querySelector<HTMLElement>(
+    '[data-slot="sidebar-edge-handle"]',
+  );
+  if (!node) throw new Error("no edge handle");
+  return node;
 }
 
 function drag(from: number, ...to: number[]) {
@@ -64,7 +62,6 @@ function userWidth() {
 
 beforeEach(() => {
   mocks.isMobile = false;
-  mocks.unread = false;
   clearCookies();
   document.documentElement.style.removeProperty(SIDEBAR_USER_WIDTH_VAR);
 });
@@ -78,18 +75,27 @@ describe("SidebarEdgeHandle", () => {
     mocks.isMobile = true;
     renderHandle();
 
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(
+      document.querySelector('[data-slot="sidebar-edge-handle"]'),
+    ).toBeNull();
   });
 
   it("names itself for what a click does", () => {
     const { unmount } = renderHandle(true);
-    expect(handle()).toHaveAccessibleName("hide");
+    expect(handle()).toHaveAttribute("aria-label", "hide");
     expect(handle()).toHaveAttribute("aria-expanded", "true");
     unmount();
 
     renderHandle(false);
-    expect(handle()).toHaveAccessibleName("show");
+    expect(handle()).toHaveAttribute("aria-label", "show");
     expect(handle()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("leaves the tab order and the tree while hidden: the header toggle is the control", () => {
+    renderHandle(false);
+
+    expect(handle()).toHaveAttribute("aria-hidden", "true");
+    expect(handle()).toHaveAttribute("tabindex", "-1");
   });
 
   it("hides the sidebar on a click, and shows it on the next", () => {
@@ -97,7 +103,7 @@ describe("SidebarEdgeHandle", () => {
 
     fireEvent.click(handle());
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(false);
-    expect(handle()).toHaveAccessibleName("show");
+    expect(handle()).toHaveAttribute("aria-label", "show");
 
     fireEvent.click(handle());
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(true);
@@ -111,7 +117,7 @@ describe("SidebarEdgeHandle", () => {
     expect(userWidth()).toBe("300px");
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBe(300);
     // The click that ends a drag is not a toggle.
-    expect(handle()).toHaveAccessibleName("hide");
+    expect(handle()).toHaveAttribute("aria-label", "hide");
   });
 
   it("clamps the width to the range", () => {
@@ -120,23 +126,37 @@ describe("SidebarEdgeHandle", () => {
     drag(224, 600);
     expect(userWidth()).toBe(`${SIDEBAR_MAX_WIDTH}px`);
 
-    drag(384, 150);
+    drag(384, 175);
     expect(userWidth()).toBe(`${SIDEBAR_MIN_WIDTH}px`);
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBe(
       SIDEBAR_MIN_WIDTH,
     );
   });
 
-  it("collapses when dragged past the line, and keeps the old width", () => {
-    renderHandle(true);
+  it("snaps shut as soon as the pointer crosses the line, keeping the old width", async () => {
+    const { container } = renderHandle(true);
     drag(224, 260, 300);
+    const wrapper = container.querySelector('[data-slot="sidebar-wrapper"]');
 
-    drag(300, 200, 100);
+    fireEvent.pointerDown(handle(), { clientX: 300, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 200, pointerId: 1 });
+    expect(wrapper).toHaveAttribute("data-resizing", "true");
+    fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
 
-    expect(handle()).toHaveAccessibleName("show");
+    // Before release: shut, and easing is back on so it slides out.
+    expect(handle()).toHaveAttribute("aria-label", "show");
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(false);
-    expect(userWidth()).toBe("300px");
+    expect(wrapper).not.toHaveAttribute("data-resizing");
+
+    // The rest of the drag does nothing.
+    fireEvent.pointerMove(handle(), { clientX: 400, pointerId: 1 });
+    fireEvent.pointerUp(handle(), { clientX: 400, pointerId: 1 });
+    fireEvent.click(handle());
+    expect(handle()).toHaveAttribute("aria-label", "show");
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBe(300);
+
+    // The width it reopens at is put back once it has slid out.
+    await waitFor(() => expect(userWidth()).toBe("300px"));
   });
 
   it("opens a collapsed sidebar when dragged out past the line", () => {
@@ -144,7 +164,7 @@ describe("SidebarEdgeHandle", () => {
 
     drag(4, 100, 280);
 
-    expect(handle()).toHaveAccessibleName("hide");
+    expect(handle()).toHaveAttribute("aria-label", "hide");
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(true);
     expect(userWidth()).toBe("280px");
   });
@@ -154,7 +174,7 @@ describe("SidebarEdgeHandle", () => {
 
     drag(4, 60, 100);
 
-    expect(handle()).toHaveAccessibleName("show");
+    expect(handle()).toHaveAttribute("aria-label", "show");
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBeNull();
   });
 
@@ -179,20 +199,5 @@ describe("SidebarEdgeHandle", () => {
     fireEvent.keyDown(handle(), { key: "ArrowLeft" });
     fireEvent.keyDown(handle(), { key: "ArrowLeft" });
     expect(userWidth()).toBe("208px");
-  });
-
-  it("carries the unread dot only while the sidebar is hidden", () => {
-    mocks.unread = true;
-    const { unmount, container } = renderHandle(true);
-    expect(
-      container.querySelector('[data-slot="sidebar-edge-unread-dot"]'),
-    ).toBeNull();
-    unmount();
-
-    const hidden = renderHandle(false);
-    expect(
-      hidden.container.querySelector('[data-slot="sidebar-edge-unread-dot"]'),
-    ).not.toBeNull();
-    expect(handle()).toHaveAccessibleDescription("unreadChats");
   });
 });
