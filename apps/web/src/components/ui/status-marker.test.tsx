@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -16,6 +14,13 @@ import {
   type StatusWeight,
 } from "@/components/ui/status-marker";
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/core-client";
+
+import {
+  BRIDGES,
+  contrastOf,
+  luminanceOf,
+  THEMES,
+} from "@/test/theme-tokens";
 
 const HUES: StatusHue[] = [
   "dormant",
@@ -50,22 +55,6 @@ const TONES_IN_USE: StatusTone[] = (() => {
   return [...seen.values()];
 })();
 
-const GLOBALS_CSS = readFileSync(
-  join(process.cwd(), "src/app/globals.css"),
-  "utf8",
-);
-
-function block(selector: string): string {
-  const start = GLOBALS_CSS.indexOf(selector);
-  return GLOBALS_CSS.slice(start, GLOBALS_CSS.indexOf("\n}", start));
-}
-
-const THEMES = {
-  light: block(":root {"),
-  dark: block(".dark {"),
-} as const;
-const BRIDGES = block("@theme inline {");
-
 /** The token a colour utility reads: `bg-status-working` -> `status-working`. */
 function tokenOf(utility: string): string {
   return utility.replace(/^(bg|text|border)-/, "");
@@ -78,34 +67,6 @@ function utilitiesIn(classes: string): string[] {
     .filter((entry) => entry.length > 0 && !entry.endsWith("-transparent"));
 }
 
-function declaredValue(theme: string, token: string): string {
-  const match = theme.match(new RegExp(`--${token}:\\s*hsla\\(([^)]*)\\)`));
-  if (!match) throw new Error(`--${token} is not declared in this theme`);
-  return match[1];
-}
-
-/** sRGB relative luminance, WCAG 2.1 definition. */
-function luminance(hsla: string): number {
-  const [h, s, l] = hsla
-    .split(",")
-    .slice(0, 3)
-    .map((part) => Number.parseFloat(part));
-  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
-  const channel = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(0) + 0.7152 * channel(8) + 0.0722 * channel(4);
-}
-
-function contrast(theme: string, a: string, b: string): number {
-  const [x, y] = [
-    luminance(declaredValue(theme, a)),
-    luminance(declaredValue(theme, b)),
-  ];
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
 
 function toneName(tone: StatusTone): string {
   return `${tone.hue}/${tone.weight}`;
@@ -280,8 +241,8 @@ describe("tone styles", () => {
         expect(bridge.test(BRIDGES), `--color-${token} has no bridge`).toBe(
           true,
         );
-        expect(() => declaredValue(THEMES.light, token)).not.toThrow();
-        expect(() => declaredValue(THEMES.dark, token)).not.toThrow();
+        expect(() => luminanceOf(THEMES.light, token)).not.toThrow();
+        expect(() => luminanceOf(THEMES.dark, token)).not.toThrow();
       }
     },
   );
@@ -307,10 +268,10 @@ describe("tone styles", () => {
 
       for (const theme of [THEMES.light, THEMES.dark]) {
         expect(
-          contrast(theme, ground, tokenOf(style.label)),
+          contrastOf(theme, ground, tokenOf(style.label)),
         ).toBeGreaterThanOrEqual(4.5);
         expect(
-          contrast(theme, ground, tokenOf(style.mark)),
+          contrastOf(theme, ground, tokenOf(style.mark)),
         ).toBeGreaterThanOrEqual(3);
       }
     },
@@ -329,7 +290,7 @@ describe("tone styles", () => {
 
       for (const theme of [THEMES.light, THEMES.dark]) {
         expect(
-          contrast(theme, "card-background", tokenOf(labelOnSurface)),
+          contrastOf(theme, "card-background", tokenOf(labelOnSurface)),
         ).toBeGreaterThanOrEqual(4.5);
       }
     },
@@ -346,7 +307,7 @@ describe("tone styles", () => {
     (_name, tone) => {
       for (const theme of [THEMES.light, THEMES.dark]) {
         expect(
-          contrast(theme, "card-background", tokenOf(getToneStyle(tone).dot)),
+          contrastOf(theme, "card-background", tokenOf(getToneStyle(tone).dot)),
         ).toBeGreaterThanOrEqual(3);
       }
     },

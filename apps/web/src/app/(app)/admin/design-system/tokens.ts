@@ -1,8 +1,8 @@
 /**
- * The Masumi Family values the preview documents, and their only home: the
- * preview wrapper writes each one as a `--ds-*` custom property, and
- * `design-system.css` maps the app's role tokens onto those properties. The
- * hex doubles as the label printed under each swatch.
+ * The Masumi Family values the preview's swatches document: the preview
+ * wrapper writes each one as a `--ds-*` custom property for the swatch to
+ * paint, and the hex doubles as its label. The components on the page read
+ * the app's own role tokens from `globals.css`.
  */
 export interface Swatch {
   name: string;
@@ -56,8 +56,7 @@ export const ALPHA_TONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95].map(
 
 /**
  * The positive mark is the one status value outside the palette (Proposed in
- * the guide). Warning is Golden Yellow and the X is Neutral 950, both mapped
- * in `design-system.css`.
+ * the guide). Warning is Golden Yellow and the X is Neutral 950.
  */
 const STATUS_VALUES = { "--ds-positive": "#00D43B" } as const;
 
@@ -89,10 +88,23 @@ export const THEME_ROLES = [
   { key: "scrim", light: "--ds-alpha-50", dark: "--ds-alpha-50" },
 ] as const;
 
+/** Gradient starting pairs (to be decided in the guide). */
 export const GRADIENTS = [
-  { key: "sakura", cssVar: "--ds-gradient-sakura" },
-  { key: "crimson", cssVar: "--ds-gradient-crimson" },
-  { key: "peach", cssVar: "--ds-gradient-peach" },
+  {
+    key: "sakura",
+    value:
+      "linear-gradient(135deg, var(--ds-iris-flower), var(--ds-vivid-sakura))",
+  },
+  {
+    key: "crimson",
+    value:
+      "linear-gradient(135deg, var(--ds-iris-flower), var(--ds-crimson-purple))",
+  },
+  {
+    key: "peach",
+    value:
+      "linear-gradient(135deg, var(--ds-peach-blossom), var(--ds-iris-flower))",
+  },
 ] as const;
 
 export const RADII = [

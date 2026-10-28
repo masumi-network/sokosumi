@@ -3,11 +3,11 @@ version: alpha
 name: Sokosumi
 description: >-
   Design system for Sokosumi — the AI-agent marketplace in the Sumi (AGENTIC)
-  family alongside masumi (blockchain layer) and kodosumi (the code). Deep-blue
-  primary on a neutral-gray base, Inter throughout, sentence case, segmented
-  full-bleed lines, soft glow for depth. Sokosumi is the "vessel" where masumi
-  (warm) and kodosumi (cool) palettes meet — its only chromatic accents beyond the
-  primary come from those two ecosystems. Tokens are CSS-first (Tailwind v4
+  family alongside masumi (blockchain layer) and kodosumi (the code). Follows the
+  Masumi Family Brand Guide (github.com/masumi-network/Masumi-Family-Brand-Guide):
+  Iris Flower primary as a fill with Neutral 950 text, shared neutrals, Inter
+  throughout, sentence case, segmented full-bleed lines, borders first. Chromatic
+  accents beyond the primary come only from the shared Masumi palette. Tokens are CSS-first (Tailwind v4
   `@theme` in apps/web/src/app/globals.css); there is no tailwind.config. shadcn/ui
   (new-york, neutral base, lucide) over Radix.
   Color values live only in apps/web/src/app/globals.css — do not duplicate a hex table here.
@@ -126,41 +126,45 @@ components:
 Sokosumi is the **AI-agent marketplace** in the **Sumi (AGENTIC)** family — alongside
 **masumi** (blockchain layer) and **kodosumi** (the code). Voice: **sincere, minimal,
 consistent** — heavy contrast, ample white space, restraint. Sokosumi is the **vessel**
-where masumi and kodosumi meet, so its own surface is **deep-blue primary on a neutral-gray
-base**; everything else is simplified to gray so the sibling palettes (and the work) stand
-out. Brand names and the first letter of any brand are always **lowercase**; UI copy is
+where masumi and kodosumi meet. It follows the
+[Masumi Family Brand Guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide):
+**Iris Flower primary on the shared neutrals**, and everything else is simplified to gray so
+the work stands out. Brand names and the first letter of any brand are always **lowercase**; UI copy is
 **sentence case**.
 
 - **Aesthetic:** intricate minimalism — Linear/Notion precision with a warm, human edge.
-- **Color discipline:** deep-blue primary + neutrals carry the UI; chromatic accents appear
-  **only when they communicate** (masumi/kodosumi charts, status, category), at most one
-  accent role per view.
+- **Color discipline:** neutrals carry the UI and Iris Flower is the one accent, as a fill;
+  other palette colours appear **only when they communicate** (charts, status, category).
+  One pink per view: never mix Iris with Electric Pink, Vivid Sakura or Peach Blossom.
 - **Theming:** dark mode is a `.dark` class that re-defines the same token names; reference one
-  token and theming is automatic. `--radius` and the solid category colours (`--chart-1`…`5`) are
-  identical across modes; their `-quinary` resting fills are retuned for dark.
+  token and theming is automatic. `--radius`, `--primary` and the solid category colours `--chart-1`…`4` are
+  identical across modes; `--chart-5` is a neutral that steps with the theme, and every
+  `-quinary` resting fill is retuned for dark.
 
 ## Colors
 
-### Primary — Sokosumi Blue, themeable
+### Primary — Iris Flower, a fill
 
-The primary is Sokosumi Blue. Light and dark values live in `globals.css`; dark mode
-raises the lightness so accent text and focus rings remain visible on dark surfaces.
-The working status uses a separate magenta hue, and the former `semantic-info` role
-has been consolidated into `status-working`.
+The primary is Iris Flower, the same in light and dark. It is a **fill**: the label on it
+is always `--primary-foreground` (Neutral 950, 7.33:1; white measures 2.67:1). It is never
+text, a border or a thin mark on the page, where it measures 2.67:1 on white. There is no
+hover pink: a primary keeps its fill and answers with the press.
 
-The primary family exposes `--primary-solid` (fill under a near-white label),
-`--primary-variant`, opaque ramp steps `--primary-tertiary`, `--primary-quaternary`, `--primary-quinary`
-(border / hover fill / resting fill). `--primary-iris` is a magenta (the `status-working`
-hue) that is bridged but unused today; reach for it only with a design decision. Never
-invent a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no step
-fits, add one in `globals.css`. Tokens may mix with `transparent` inside `globals.css`
-(`--overlay`, `--surface-glass`); call sites never do.
+`--primary-solid`, `--primary-solid-hover`, `--primary-hover`, `--primary-iris` and
+`--primary-variant` currently hold the same Iris value, and `--primary-tertiary`,
+`--primary-quaternary`, `--primary-quinary` hold neutral steps. They are aliases on their
+way out; prefer `bg-primary` and the neutral steps. Never invent a tint at the call site
+(`bg-primary/55`, `color-mix(…, transparent)`); if no step fits, add one in `globals.css`.
 
 ### Neutrals
 
-Black/White plus the neutral ramp (`--background` / `--card-background` through
-`--foreground`) and the step ramp (`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`).
-Values live in `globals.css`. Pages stack three surfaces (see **Page surfaces** under Layout):
+The guide's shared neutrals (White, Neutral 50 to 950, Black) behind the role ramp
+(`--background` / `--card-background` through `--foreground`) and the step ramp
+(`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`). Values live in
+`globals.css`. Three steps leave the guide's role table to stay AA: light
+`--muted-foreground` is Neutral 600 (Neutral 500 is 4.35:1 on the panel), `--input` is
+Neutral 500 in both themes (the guide's field border is under 3:1), and dark
+`--quaternary`/`--quinary` sit one step deeper so muted text clears 4.5:1 on them. Pages stack three surfaces (see **Page surfaces** under Layout):
 white `--background`, the light-gray `--card-background` panel, and white components with a
 `--border` hairline on top of it. Default border = `--border`; `--input` is a separate, stronger
 boundary for fields (input, textarea, select, checkbox, radio). Labelled controls (outline
@@ -168,14 +172,15 @@ buttons, toggles, triggers, option cards) take the soft `--control-border`. The 
 
 ### Category palette (ecosystem)
 
-Category accents come from the **real masumi (warm) + kodosumi (cool)** palettes, mapped to
-`--chart-1…5` — **never** stock shadcn chart defaults. Hex values live only in `globals.css`.
+Category accents come from the shared Masumi palette, mapped to `--chart-1…5` — **never**
+stock shadcn chart defaults. Hex values live only in `globals.css`. Proposed until the
+guide's data visualization rules (6.6) land.
 
-- `--chart-1` — kodosumi · Sky Blue
-- `--chart-2` — masumi · Electric Pink
-- `--chart-3` — kodosumi · Neon Grass
-- `--chart-4` — masumi · Golden Yellow
-- `--chart-5` — masumi · Persimmon
+- `--chart-1` — Iris Flower
+- `--chart-2` — Persimmon
+- `--chart-3` — Golden Yellow
+- `--chart-4` — Sand
+- `--chart-5` — Neutral 500 (light) / Neutral 400 (dark)
 
 These are vivid (built for fills/ink, not small text). Use as **solid fills** (badges, mock
 accents) or **`-quinary` resting fills** (chips — `--chart-N-quinary`); keep adjacent
@@ -507,8 +512,8 @@ primary on a neutral background. Brand names are always lowercase.
 ## Do's and Don'ts
 
 **Do**
-- Keep deep-blue primary + neutrals as the base; let chromatic accents (masumi/kodosumi
-  charts, status) appear only when they communicate.
+- Keep neutrals as the base and Iris Flower as the one accent fill; let other palette
+  colours (charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
 - Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
 - Build pages from the three layers: white page, borderless light-gray panel, white bordered

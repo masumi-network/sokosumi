@@ -310,7 +310,7 @@ export function StudioTemplateCarousel({
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 hidden bg-overlay-primary group-data-[studio-dragging]:block"
+          className="pointer-events-none absolute inset-0 z-20 hidden border-2 border-dashed border-foreground bg-overlay-primary group-data-[studio-dragging]:block"
         />
         <CarouselContent
           className={reduceMotion ? "py-1" : "items-center py-10"}

@@ -295,291 +295,146 @@
   --animate-roll-down: roll-down 0.2s ease-out forwards;
 }
 
+/* Theme tokens follow the Masumi Family Brand Guide, section 5.2:
+   https://github.com/masumi-network/Masumi-Family-Brand-Guide
+   Each value is a guide step named in its comment; the chart tints say how
+   they are derived. Iris Flower #FF51FF is the one primary and carries
+   Neutral 950 text (7.33:1; white is 2.67:1). It is a fill, never text, an
+   edge or a thin mark on the page.
+
+   Two light and three dark values leave the guide's role table to meet its
+   own AA floor (5.11); `token-contrast.test.ts` holds each pair:
+   muted text is Neutral 600, not 500 (4.35:1 on the Neutral 100 panel), the
+   field border is Neutral 500, not 300/700 (1.48:1 and 1.89:1 against the
+   3:1 a field's only edge needs), and dark --quaternary/--quinary sit one
+   step deeper so muted text clears 4.5:1 on them.
+
+   Temporary: the destructive, semantic, status, risk and presence ramps
+   still carry their pre-guide values. They move to the guide's green check,
+   yellow ! and Neutral 950 X together with `status-marker.tsx`, whose tests
+   measure them (SOKD-121).
+
+   No glow (5.5): the focus halo is transparent. The only translucent
+   values are the guide's alpha tones, black at (100 - N)% for Alpha N, and
+   the white on-media steps over user media. */
 :root {
   --radius: 0.625rem;
-  --background: hsla(0, 0%, 100%, 1);
-  --foreground: hsla(0, 0%, 4%, 1);
-  --card: hsla(300, 50%, 100%, 1);
-  --card-foreground: hsla(300, 0%, 4%, 1);
-  --card-background: hsla(0, 0%, 98%, 1);
-  /* The hover for a row that sits on --card-background. The step is capped
-     by the text riding on it, not by taste: --muted-foreground is 44% here,
-     which measures 4.727:1 on the resting 98% and 4.521:1 at 96%. The
-     floor is crossed just below that, at 95.8%, so there is no step worth
-     having between 96% and a fill that puts the row's own timestamps and
-     captions under 4.5:1. */
-  --card-background-hover: hsla(0, 0%, 96%, 1);
-  /* Translucency with a role. These keep their alpha on purpose: each one
-     must show what sits behind it, which is the one job a frozen step
-     cannot do. The scrims and the on-media steps sit over user media, not
-     over the page, so they hold the same value in both themes.
-
-     --on-media is a label, --on-media-muted a quieter label. The two steps
-     below it are not labels at all: -tertiary is the hairline, ring or
-     border drawn on media, and -quaternary is the hover wash under a
-     control. Reading "muted" as "faint" and using it as a wash paints an
-     85% white pill, which swallows the white icon on top of it.
-
-     --background-muted is the page-side twin of --muted-foreground, for a
-     quieter label on an inverted surface (one painted bg-foreground). It
-     follows the theme; the on-media steps do not. The alpha is .58, not the
-     .55 the call sites used to write by hand: .55 measures 4.34:1 on the dark
-     inverted surface, under the 4.5 floor, and the label it carries is 16 to
-     18px regular, which is not large text. .58 measures 4.82 dark and 6.87
-     light. */
-  --overlay: hsla(0, 0%, 100%, 0.5);
-  /* The drop-target wash. --overlay cannot serve here: it is the page
-     ground at half alpha, so over an unpainted surface it composites
-     back to the ground at 1.000:1 and disappears. The modal scrims get
-     away with it because they pair it with a backdrop blur. This one
-     tints instead, at 1.474:1 against the page, and leaves the text
-     under it at 12.41:1. */
-  --overlay-primary: hsla(201.8, 47.2%, 32.0%, 0.2);
-  --surface-glass: hsla(0, 0%, 100%, 0.8);
-  --surface-sticky: hsla(0, 0%, 100%, 0.95);
-  --scrim-soft: hsla(0, 0%, 0%, 0.25);
-  --scrim: hsla(0, 0%, 0%, 0.5);
-  --scrim-strong: hsla(0, 0%, 0%, 0.8);
-  --media-ground: hsla(0, 0%, 0%, 1);
+  --background: #ffffff; /* White */
+  --foreground: #171717; /* Neutral 900 */
+  --card: #ffffff; /* White */
+  --card-foreground: #171717; /* Neutral 900 */
+  --card-background: #f5f5f5; /* Neutral 100 */
+  --card-background-hover: #e5e5e5; /* Neutral 200 */
+  --overlay: rgb(0 0 0 / 0.5); /* Alpha 50 */
+  --overlay-primary: rgb(0 0 0 / 0.1); /* Alpha 90 */
+  --surface-glass: #ffffff; /* White */
+  --surface-sticky: #ffffff; /* White */
+  /* The scrims and on-media steps sit over user media, not the page, so they
+     hold the same value in both themes. */
+  --scrim-soft: rgb(0 0 0 / 0.3); /* Alpha 70 */
+  --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
+  --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
+  --media-ground: #000000; /* Black */
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
   --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
-  --background-muted: hsla(0, 0%, 100%, 0.58);
-  --popover: hsla(300, 50%, 100%, 1);
-  --popover-foreground: hsla(300, 0%, 4%, 1);
-  /* The brand primary. #2B5C78 exactly, at hue 201.8 and 47.2% saturation.
-     It replaces Wisteria Purple #6400FF and reads 7.23:1 as text on the page,
-     against the purple's 5.20. The three tints below are not picked by eye:
-     they are this base composited over the page at the ramp's own alpha
-     ladder, .28 / .18 / .09, then frozen, so the step spacing matches every
-     other tinted ramp in the file. */
-  --primary: hsla(201.8, 47.2%, 32.0%, 1); /* Sokosumi · #2B5C78 */
-  --primary-variant: hsla(201.8, 47.2%, 32.0%, 1);
-  --primary-tertiary: hsla(202.9, 21.6%, 81.0%, 1);
-  --primary-quaternary: hsla(201.4, 22.6%, 87.8%, 1);
-  --primary-quinary: hsla(205.7, 22.6%, 93.9%, 1);
-  --primary-foreground: hsla(0, 0%, 98%, 1);
-  /* The fill under a label. --primary is the accent and the text colour, so
-     in dark it has to stay light enough to read on the page, which leaves it
-     too light to carry a near-white label. This step is the other half: dark
-     enough for the label, still the brand hue. Light is the brand value
-     itself. Label measures 6.93:1 light and 5.40:1 dark. */
-  --primary-solid: hsla(201.8, 47.2%, 32.0%, 1);
-  --primary-solid-foreground: hsla(0, 0%, 98%, 1);
-  --primary-solid-hover: hsla(201.6, 47.1%, 37.1%, 1);
-  --primary-iris: hsla(300, 100%, 50%, 1);
-  --secondary: hsla(0, 0%, 4%, 0.95);
-  --secondary-foreground: hsla(0, 0%, 98%, 1);
-  --tertiary: hsla(0, 0.0%, 73.1%, 1);
-  --tertiary-foreground: hsla(0, 0.0%, 23.2%, 1);
-  /* The neutral pill fill. --muted is a surface token at 1.09:1 against the
-     page, which is below the edge a badge needs; this step matches the weight
-     of the tinted ramps' -quaternary. */
-  --quaternary: hsla(0, 0.0%, 82.7%, 1);
-  --quinary: hsla(0, 0.0%, 91.4%, 1);
-  --senary: hsla(0, 0.0%, 97.1%, 1);
-  --muted: hsla(300, 0%, 96%, 1);
-  --muted-foreground: hsla(0, 0.0%, 44.0%, 1);
-  /* An icon-only control that cannot be pressed. The usual `disabled:opacity-50`
-     carries a disabled button because the fill and border stay to hold it; a
-     lone icon at that opacity measures 1.99:1 here and stops reading as an
-     icon. This is the step below --muted-foreground that still clears 3:1 on
-     --card and on --card-background: 3.23 and 3.10. --tertiary is not it,
-     measuring 1.94 in light. */
-  --disabled-foreground: hsla(0, 0.0%, 56.0%, 1);
-  --scrollbar-thumb: hsla(0, 0%, 56%, 1);
-  --accent: hsla(300, 0%, 96%, 1);
-  --accent-foreground: hsla(330, 0%, 9%, 1);
+  /* A quieter label on an inverted (bg-foreground) surface. */
+  --background-muted: #a3a3a3; /* Neutral 400 */
+  --popover: #ffffff; /* White */
+  --popover-foreground: #171717; /* Neutral 900 */
+  --primary: #ff51ff; /* Iris Flower */
+  --primary-variant: #ff51ff; /* Iris Flower */
+  --primary-tertiary: #d4d4d4; /* Neutral 300 */
+  --primary-quaternary: #e5e5e5; /* Neutral 200 */
+  --primary-quinary: #f5f5f5; /* Neutral 100 */
+  --primary-foreground: #0c0c0c; /* Neutral 950 */
+  --primary-solid: #ff51ff; /* Iris Flower */
+  --primary-solid-foreground: #0c0c0c; /* Neutral 950 */
+  /* No hover pink: a primary keeps its fill and answers with the press. */
+  --primary-solid-hover: #ff51ff; /* Iris Flower */
+  --primary-iris: #ff51ff; /* Iris Flower */
+  --secondary: #0c0c0c; /* Neutral 950 */
+  --secondary-foreground: #fafafa; /* Neutral 50 */
+  --tertiary: #a3a3a3; /* Neutral 400 */
+  --tertiary-foreground: #404040; /* Neutral 700 */
+  --quaternary: #d4d4d4; /* Neutral 300 */
+  --quinary: #e5e5e5; /* Neutral 200 */
+  --senary: #fafafa; /* Neutral 50 */
+  --muted: #f5f5f5; /* Neutral 100 */
+  --muted-foreground: #525252; /* Neutral 600 */
+  --disabled-foreground: #a3a3a3; /* Neutral 400 */
+  --scrollbar-thumb: #a3a3a3; /* Neutral 400 */
+  --accent: #f5f5f5; /* Neutral 100 */
+  --accent-foreground: #171717; /* Neutral 900 */
   --destructive: hsla(0, 74%, 42%, 1);
   --destructive-foreground: hsla(0, 86%, 97%, 1);
-  --border: hsla(0, 0.0%, 88.6%, 1);
-  --input: hsla(0, 0.0%, 58.4%, 1);
-  /* The edge of a labelled control: outline buttons, toggles, triggers and
-     option cards. Their label or icon already names them, so the edge is not
-     the thing SC 1.4.11 measures and it can sit with the brand's soft
-     outlines instead of at --input's 3:1. Light matches the Draft status
-     outline (--status-done-tertiary). Fields keep --input: an empty text box
-     has nothing but its edge. */
-  --control-border: hsla(0, 0.0%, 84.6%, 1);
-  /* Focus is two-tone: --ring is the 1px solid core that carries the 3:1
-     (SC 1.4.11) at 7.23:1, --ring-halo is the wide soft glow the eye actually
-     reads. The halo is decorative, so its alpha is free. A uniformly
-     transparent ring cannot do both: it needs 0.55 alpha to reach 3:1. */
-  --ring: hsla(201.8, 47.2%, 32.0%, 1);
-  --ring-halo: hsla(201.8, 47.2%, 32.0%, 0.22);
-  --primary-hover: hsla(201.6, 47.1%, 37.1%, 1);
-  --secondary-hover: hsla(0, 0.0%, 17.9%, 1);
+  --border: #e5e5e5; /* Neutral 200 */
+  --input: #737373; /* Neutral 500 */
+  /* Labelled controls (outline buttons, toggles, triggers) take the guide's
+     field border: their label names them, so the edge is not what SC 1.4.11
+     measures. */
+  --control-border: #d4d4d4; /* Neutral 300 */
+  --ring: #0c0c0c; /* Neutral 950 */
+  --ring-halo: transparent;
+  --primary-hover: #ff51ff; /* Iris Flower */
+  --secondary-hover: #262626; /* Neutral 800 */
   --destructive-hover: hsla(0, 74%, 36%, 1);
-  /* The invalid-state halo. Same weight as --ring-halo so a field in error
-     reads as the same kind of mark as a focused one, in the danger hue. */
   --destructive-halo: hsla(0, 74.0%, 42.0%, 0.22);
-  /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
-  --chart-1: #00a4fa; /* kodosumi · Sky Blue */
-  --chart-2: #fa008c; /* masumi · Electric Pink */
-  --chart-3: #0afa14; /* kodosumi · Neon Grass */
-  --chart-4: #ffd300; /* masumi · Golden Yellow */
-  --chart-5: #ff6400; /* masumi · Persimmon */
-  --chart-1-quinary: hsla(201, 94.9%, 92.4%, 1);
-  --chart-2-quinary: hsla(326, 94.9%, 92.4%, 1);
-  --chart-3-quinary: hsla(123, 94.7%, 92.5%, 1);
-  --chart-4-quinary: hsla(49, 100.0%, 92.5%, 1);
-  --chart-5-quinary: hsla(24, 100.0%, 92.5%, 1);
-  --sidebar: hsla(300, 0%, 98%, 1);
-  --sidebar-foreground: hsla(300, 0%, 4%, 1);
-  --sidebar-accent: hsla(300, 0%, 96%, 1);
-  --sidebar-accent-foreground: hsla(330, 0%, 9%, 1);
-  --sidebar-border: hsla(0, 0.0%, 88.6%, 1);
-  --sidebar-ring: hsla(0, 0%, 63%, 1);
+  /* Category palette, Proposed until guide 6.6 sets chart rules. Each
+     -quinary is its base at .09 over the page, frozen. */
+  --chart-1: #ff51ff; /* Iris Flower */
+  --chart-2: #ff6400; /* Persimmon */
+  --chart-3: #ffd300; /* Golden Yellow */
+  --chart-4: #d7be8c; /* Sand */
+  --chart-5: #737373; /* Neutral 500 */
+  --chart-1-quinary: #ffefff;
+  --chart-2-quinary: #fff1e8;
+  --chart-3-quinary: #fffbe8;
+  --chart-4-quinary: #fbf9f5;
+  --chart-5-quinary: #f2f2f2;
+  --sidebar: #f5f5f5; /* Neutral 100 */
+  --sidebar-foreground: #171717; /* Neutral 900 */
+  --sidebar-accent: #e5e5e5; /* Neutral 200 */
+  --sidebar-accent-foreground: #171717; /* Neutral 900 */
+  --sidebar-border: #e5e5e5; /* Neutral 200 */
+  --sidebar-ring: #0c0c0c; /* Neutral 950 */
 
-  /* Semantic */
   --semantic-destructive: hsla(0, 74%, 42%, 1);
-  /* Fill role, separate from the text role above. A red that carries a white
-     label must be darker than a red that reads as text on the page, and in
-     dark mode those pull opposite ways: the text red lightens to clear the
-     page, the fill red darkens to carry white. One token cannot do both. */
   --semantic-destructive-solid: hsla(0, 74.0%, 42.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 53.6%, 83.8%, 1);
   --semantic-destructive-quaternary: hsla(0, 100.0%, 90.0%, 1);
   --semantic-destructive-quinary: hsla(0, 53.6%, 94.8%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
-  /* Label step: the marker hue at the lightness that clears 4.5 on the
-     role's own quaternary fill. 12px badge text is normal text, so 3:1
-     (SC 1.4.11, what the marker is tuned to) is not enough. Four dark steps
-     hold the same value as their base, which already clears 4.5 on a dark
-     tint. They stay separate tokens so retuning a glyph cannot move a label
-     under the threshold without the guard seeing it. */
   --semantic-destructive-label: hsla(0, 95.0%, 38.1%, 1);
-
   --semantic-warning: hsla(25, 92%, 31%, 1);
   --semantic-warning-tertiary: hsla(25, 41.3%, 80.7%, 1);
-  /* The light warning ramp is orange at hue 25. Four of its six steps were
-     amber 35; the label was already hue 26 and the foreground a hue-55
-     off-white, so "rotated from 35" describes the tint steps, not the ramp.
-     All six are hue 25 now. Dark stays at 43 and is not part of this change.
-
-     The complaint this answers was that the input-required label reads too
-     dark, not that it fails a floor. It did not fail one: the old hue-26
-     label measured 4.61:1 on the hue-35 tint. What it could not do was get lighter.
-     At 12px it is normal text, so SC 1.4.3 asks 4.5:1 on the tint, and yellow
-     carries more luminance than any other hue, which pinned the label near
-     L35 at the old saturation whatever else was tuned.
-
-     So two things moved together, and only one of them is the hue. Dropping
-     the label from S95 to S55 is what bought the lightness; rotating to hue
-     25 is what let the ramp around it stay legible while that happened. The
-     label ends at L38.0 and 4.53:1, so it is 3 lightness steps lighter at
-     essentially unchanged contrast (4.61 to 4.53, a 0.08 loss). That is the
-     honest summary: the reader gets the lighter text they asked for, and the
-     ratio is held, not improved.
-
-     Everything else on the ramp did improve, because those surfaces are not
-     bound by the tint: notice text on the quinary 4.84 to 5.85, on the page
-     5.47 to 6.70, the indicator's label on the solid 5.41 to 6.42, the glyph
-     on the tint 4.66 to 5.40, and the tint reads as a block more clearly,
-     1.13:1 to 1.19:1 against the card.
-
-     The cost is separation from the fault red, and it is larger than the
-     marks alone. Measured in OKLab dE x100, amber to orange:
-
-       mark   (--semantic-warning vs --semantic-destructive-solid)  12.52 to 8.58
-       fill   (both -quaternary, the badge's largest area)           7.60 to 5.42
-       border (both -tertiary, the outline weight)                   5.03 to 3.42
-
-     Only the mark stays above the 6.0 this model calls comfortably separate.
-     The fill drops under it and the border was already under it and got
-     worse. All three stay well above the 2.0 just-noticeable threshold, and
-     warning and fault never share a board column, but they do stack in one
-     list on the history rows, the needs-attention section and the status
-     picker menu. What keeps them apart there is the glyph and the word, which
-     rule 3 of the status model says carry the status anyway. Recorded here so
-     the next person retuning either ramp starts from the real numbers.
-
-     Hue 25 was chosen from a measured sheet of ten. */
   --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
   --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
   --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
   --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
-
   --semantic-success: hsla(142, 72%, 27%, 1);
-  --social-x-link: #1d9bf0;
-  --social-linkedin-link: #0a66c2;
-  --social-instagram-link: #00376b;
-  --social-facebook-link: #0866ff;
-  --social-youtube-link: #065fd4;
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
   --semantic-success-quaternary: hsla(142, 100.0%, 90.0%, 1);
   --semantic-success-quinary: hsla(142, 26.6%, 93.4%, 1);
   --semantic-success-label: hsla(142, 95.0%, 25.6%, 1);
   --semantic-success-foreground: hsla(138, 76%, 97%, 1);
-
-  /* Online and afk now come straight from --semantic-success and
-     --semantic-warning. Those forked here because the old warning reached only
-     2.25:1 on white; the corrected ramps measure 5.68 and 6.70 on the light
-     background, well past the 3:1 that a small non-text mark needs (WCAG 2.2
-     SC 1.4.11). The pair read 5.07 and 4.95 when this comment was written and
-     both ramps have moved since: success was retuned, and warning rotated
-     from hue 35 to hue 25, which raised it from 5.47 to 6.70.
-     Offline stays its own token: "no signal" is not a semantic state, and
-     --muted-foreground is a text role. Measured: 4.85 on white. */
+  /* Third-party link colours inside native-looking social post previews. */
+  --social-x-link: #1d9bf0;
+  --social-linkedin-link: #0a66c2;
+  --social-instagram-link: #00376b;
+  --social-facebook-link: #0866ff;
+  --social-youtube-link: #065fd4;
   --presence-offline: hsla(220, 9%, 46%, 1);
-
-  /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
-     only extra value, solid with a near-black label at 7.88:1. Same in both
-     themes: a solid fill is its own ground. */
   --risk-high: hsla(32, 92%, 50%, 1);
   --risk-high-foreground: hsla(0, 0%, 4%, 1);
 
-  /* Status roles. Colour says what the reader must do; the glyph says which
-     status it is. Two hues carry the waiting half: working 205 for "we are
-     working, wait" and external 240 for "someone else must act". The amber
-     semantic hue carries "you must act", green carries a result to read, red
-     a fault (tinted while it may still resolve, solid once it failed), and
-     grey carries the states nobody owes anything on. The two blues sit 35
-     degrees apart.
-
-     Resolved after the move to #2B5C78. The separation above was measured
-     against a brand at hue 263.5. The brand is now 201.8, which put working
-     at 205 only 3.2 degrees from it and the retired --semantic-info at 193
-     only 8.8 away. Anything inside 15 degrees reads as one colour, so brand,
-     "working" and "info" had become one.
-
-     Two things fixed it. --semantic-info is gone: every one of its five
-     consumers meant "in flight right now", never "here is information", so
-     it was the working role under a second name. They all read
-     --status-working now. And working moved from 205 to 300.
-
-     300 is not a taste call. Sweeping all 360 hues against both the task
-     tints and the Soko Bot badge tones at once, it is the only hue whose
-     nearest neighbour in either set stays above 7: 7.08 in each. Violet 272
-     scores better against the badge alone and fails here, landing 3.76 from
-     --status-external at 240.
-
-     Magenta carries less luminance than blue at the same HSL lightness, so
-     --status-working-label drops from 35.4% to 33.4%. At 35.4% it measured
-     4.39:1 on its own fill and missed the 4.5:1 that 12px badge text needs.
-     33.4% measures 4.80:1. The glyph reads 4.86:1 and the bare dot 6.37:1 on
-     --card-background, both past the 3:1 of SC 1.4.11.
-
-     The badge fill is a tint step, and -quaternary rather than -quinary: the
-     quinary steps sit at OKLab dE 4.4 to 6.6 from the light page, too close
-     to carry an edge on either channel. The neutral -quaternary step reaches
-     1.50:1 in light and 2.18:1 in dark.
-
-     The six role tints the status badge paints run from 1.11 to 1.54:1 in
-     light and 1.33 to 2.18:1 in dark. The five chromatic ones lean on hue
-     rather than on lightness: they sit at OKLab dE 7.1 to 15.5 from the light
-     page, and the label on top still clears 4.5:1. A grey at that luminance
-     would be invisible. */
   --status-working: hsla(300, 60.0%, 38.0%, 1);
   --status-external: hsla(240, 60.0%, 40.0%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
   --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
   --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
-  /* The outline border for the staged column. Same S and L as
-     --status-working-tertiary, so the two column hues carry the same
-     weight and only the hue separates them. */
   --status-external-tertiary: hsla(240, 41.2%, 81.5%, 1);
   --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
   --status-working-label: hsla(300, 95.0%, 33.4%, 1);
@@ -587,169 +442,112 @@
   --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
 }
 
+/* Dark values are Open in the guide; these follow its best-case role table.
+   Iris does not change. The X flips to Neutral 50, since Neutral 950 is the
+   page here. */
 .dark {
   --radius: 0.625rem;
-  --background: #121212;
-  --foreground: hsla(0, 0%, 98%, 1);
-  --card: var(--background);
-  --card-foreground: hsla(0, 0%, 98%, 1);
-  /* Raised tier. 9% cleared the old 4% page by 1.104:1; against the #121212
-     base it only reaches 1.045:1, so it moves to 11% for 1.111:1. --popover
-     and --sidebar hold the same value: one raised surface, one number. */
-  --card-background: hsla(0, 0%, 11%, 1);
-  /* The hover moves towards the page to separate the row from its card.
-     The earlier 50% text value required this darker fill for contrast.
-     Muted text now uses 72% so it also remains readable on lighter control
-     surfaces. Keep the existing darker hover direction on cards. Tracks the
-     card up: 8% under an 11% card is 1.072:1, the 1.069:1 it held at 6%. */
-  --card-background-hover: hsla(0, 0%, 8%, 1);
-  /* See the light block. The scrims do not change: they sit over media. */
-  --overlay: color-mix(in srgb, var(--background) 50%, transparent);
-  /* Same wash, more alpha: the dark primary is a lighter purple and
-     needs 0.32 to reach the same weight. 1.489:1 against the page,
-     text under it at 8.73:1. */
-  --overlay-primary: hsla(201.9, 46.9%, 48.0%, 0.32);
-  --surface-glass: color-mix(in srgb, var(--background) 80%, transparent);
-  --surface-sticky: color-mix(in srgb, var(--background) 95%, transparent);
-  --scrim-soft: hsla(0, 0%, 0%, 0.25);
-  --scrim: hsla(0, 0%, 0%, 0.5);
-  --scrim-strong: hsla(0, 0%, 0%, 0.8);
-  --media-ground: hsla(0, 0%, 0%, 1);
+  --background: #0c0c0c; /* Neutral 950 */
+  --foreground: #fafafa; /* Neutral 50 */
+  --card: #0c0c0c; /* Neutral 950 */
+  --card-foreground: #fafafa; /* Neutral 50 */
+  --card-background: #171717; /* Neutral 900 */
+  --card-background-hover: #262626; /* Neutral 800 */
+  --overlay: rgb(0 0 0 / 0.5); /* Alpha 50 */
+  --overlay-primary: rgb(0 0 0 / 0.1); /* Alpha 90 */
+  --surface-glass: #0c0c0c; /* Neutral 950 */
+  --surface-sticky: #0c0c0c; /* Neutral 950 */
+  --scrim-soft: rgb(0 0 0 / 0.3); /* Alpha 70 */
+  --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
+  --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
+  --media-ground: #000000; /* Black */
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
   --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
-  /* The page-side twin of --muted-foreground, so it follows the page. It was
-     left on the literal old 4% base when #5267 moved --background. */
-  --background-muted: color-mix(in srgb, var(--background) 58%, transparent);
-  --popover: hsla(0, 0%, 11%, 1);
-  --popover-foreground: hsla(0, 0%, 98%, 1);
-  /* Dark keeps the hue and the saturation and lifts the lightness to 48%.
-     #2B5C78 itself measures 2.74:1 on the dark page, under both the 4.5 text
-     floor and the 3:1 SC 1.4.11 ring floor, so the literal hex cannot carry
-     the text or the focus role here. At 48% it measures 5.20:1, which is the
-     weight the purple held at 5.07. Tints are this base over the page at
-     .40 / .26 / .14.
-
-     Inherited, not introduced: --primary on its own -quaternary measures
-     3.84:1. The purple sits at 3.75 for the same pair, so no lightness of
-     this hue fixes it. A hover wash that must carry its own accent text is a
-     ramp problem, tracked separately. */
-  --primary: hsla(201.9, 46.9%, 48.0%, 1);
-  --primary-variant: hsla(202.1, 47.3%, 56.1%, 1);
-  --primary-tertiary: hsla(202.2, 41.8%, 21.6%, 1);
-  --primary-quaternary: hsla(202, 38.5%, 15.3%, 1);
-  --primary-quinary: hsla(202.5, 30.8%, 10.2%, 1);
-  --primary-foreground: hsla(0, 0%, 4%, 1);
-  --primary-solid: hsla(202.2, 47.4%, 38.0%, 1);
-  --primary-solid-foreground: hsla(0, 0%, 98%, 1);
-  --primary-solid-hover: hsla(201.8, 47.4%, 41.0%, 1);
-  --primary-iris: hsla(300, 100%, 50%, 1);
-  --secondary: hsla(0, 0%, 100%, 0.95);
-  --secondary-foreground: hsla(0, 0%, 4%, 1);
-  --tertiary: hsla(0, 0.0%, 41.6%, 1);
-  --tertiary-foreground: hsla(0, 0.0%, 80.8%, 1);
-  --quaternary: hsla(0, 0.0%, 28.4%, 1);
-  --quinary: hsla(0, 0.0%, 17.2%, 1);
-  --senary: hsla(0, 0.0%, 8.8%, 1);
-  /* Interaction wash. 15% held 1.308:1 over the old 4% page; 17% holds
-     1.323:1 over #121212. Muted text on it stays at 7.14:1. */
-  --muted: hsla(0, 0%, 17%, 1);
-  --muted-foreground: hsla(0, 0.0%, 72.0%, 1);
-  /* 3.41 on --card and 3.10 on --card-background. Nudged 40% -> 41% so it
-     holds that 3.10 now the raised tier sits at 11%; at 40% it fell to 2.97.
-     --tertiary at 41.6% lands within a step of this in dark; it is light
-     mode the two disagree about. */
-  --disabled-foreground: hsla(0, 0.0%, 41.0%, 1);
-  --scrollbar-thumb: hsla(0, 0%, 40%, 1);
-  --accent: hsla(0, 0%, 17%, 1);
-  --accent-foreground: hsla(0, 0%, 98%, 1);
+  --background-muted: #525252; /* Neutral 600 */
+  --popover: #0c0c0c; /* Neutral 950 */
+  --popover-foreground: #fafafa; /* Neutral 50 */
+  --primary: #ff51ff; /* Iris Flower */
+  --primary-variant: #ff51ff; /* Iris Flower */
+  --primary-tertiary: #404040; /* Neutral 700 */
+  --primary-quaternary: #262626; /* Neutral 800 */
+  --primary-quinary: #171717; /* Neutral 900 */
+  --primary-foreground: #0c0c0c; /* Neutral 950 */
+  --primary-solid: #ff51ff; /* Iris Flower */
+  --primary-solid-foreground: #0c0c0c; /* Neutral 950 */
+  --primary-solid-hover: #ff51ff; /* Iris Flower */
+  --primary-iris: #ff51ff; /* Iris Flower */
+  --secondary: #fafafa; /* Neutral 50 */
+  --secondary-foreground: #0c0c0c; /* Neutral 950 */
+  --tertiary: #525252; /* Neutral 600 */
+  --tertiary-foreground: #d4d4d4; /* Neutral 300 */
+  --quaternary: #262626; /* Neutral 800 */
+  --quinary: #171717; /* Neutral 900 */
+  --senary: #171717; /* Neutral 900 */
+  --muted: #171717; /* Neutral 900 */
+  --muted-foreground: #a3a3a3; /* Neutral 400 */
+  --disabled-foreground: #525252; /* Neutral 600 */
+  --scrollbar-thumb: #525252; /* Neutral 600 */
+  --accent: #262626; /* Neutral 800 */
+  --accent-foreground: #fafafa; /* Neutral 50 */
   --destructive: hsla(0, 84%, 60%, 1);
   --destructive-foreground: hsla(0, 86%, 97%, 1);
-  --border: hsla(0, 0.0%, 20.4%, 1);
-  /* Control edges clear 3:1 on both the base and raised panels. */
-  --input: hsla(0, 0%, 40%, 1);
-  --control-border: hsla(0, 0%, 40%, 1);
-  --ring: hsla(201.9, 46.9%, 48.0%, 1);
-  --ring-halo: hsla(201.9, 46.9%, 48.0%, 0.26);
-  --primary-hover: hsla(201.8, 47.3%, 53.1%, 1);
-  --secondary-hover: hsla(0, 0.0%, 86.1%, 1);
+  --border: #262626; /* Neutral 800 */
+  --input: #737373; /* Neutral 500 */
+  --control-border: #404040; /* Neutral 700 */
+  --ring: #fafafa; /* Neutral 50 */
+  --ring-halo: transparent;
+  --primary-hover: #ff51ff; /* Iris Flower */
+  --secondary-hover: #e5e5e5; /* Neutral 200 */
   --destructive-hover: hsla(0, 74%, 39%, 1);
   --destructive-halo: hsla(0, 84.0%, 60.0%, 0.26);
-  /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
-  --chart-1: #00a4fa; /* kodosumi · Sky Blue */
-  --chart-2: #fa008c; /* masumi · Electric Pink */
-  --chart-3: #0afa14; /* kodosumi · Neon Grass */
-  --chart-4: #ffd300; /* masumi · Golden Yellow */
-  --chart-5: #ff6400; /* masumi · Persimmon */
-  --chart-1-quinary: hsla(201, 67.3%, 10.8%, 1);
-  --chart-2-quinary: hsla(326, 67.3%, 10.8%, 1);
-  --chart-3-quinary: hsla(123, 64.3%, 11.0%, 1);
-  --chart-4-quinary: hsla(49, 67.9%, 11.0%, 1);
-  --chart-5-quinary: hsla(24, 67.9%, 11.0%, 1);
-  /* The chrome is a raised panel, not the page. #5267 pointed this at
-     var(--background) and the sidebar and desktop header (md:bg-sidebar)
-     dissolved into the content area.
 
-     11%, not the 9% it held before #5267. 9% was calibrated against a 4%
-     page and cleared it by 1.104:1; against the #121212 base that same 9%
-     only reaches 1.045:1, under half the old separation. 11% lands on
-     1.099:1, so the seam reads as it did before the base moved. */
-  --sidebar: hsla(0, 0%, 11%, 1);
-  --sidebar-foreground: hsla(0, 0%, 98%, 1);
-  --sidebar-accent: hsla(0, 0%, 17%, 1);
-  --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
-  --sidebar-border: hsla(0, 0.0%, 20.4%, 1);
-  --sidebar-ring: hsla(300, 0%, 45%, 1);
+  --chart-1: #ff51ff; /* Iris Flower */
+  --chart-2: #ff6400; /* Persimmon */
+  --chart-3: #ffd300; /* Golden Yellow */
+  --chart-4: #d7be8c; /* Sand */
+  --chart-5: #a3a3a3; /* Neutral 400 */
+  --chart-1-quinary: #221222;
+  --chart-2-quinary: #22140b;
+  --chart-3-quinary: #221e0b;
+  --chart-4-quinary: #1e1c18;
+  --chart-5-quinary: #1a1a1a;
+  --sidebar: #171717; /* Neutral 900 */
+  --sidebar-foreground: #fafafa; /* Neutral 50 */
+  --sidebar-accent: #262626; /* Neutral 800 */
+  --sidebar-accent-foreground: #fafafa; /* Neutral 50 */
+  --sidebar-border: #262626; /* Neutral 800 */
+  --sidebar-ring: #fafafa; /* Neutral 50 */
 
-  /* Semantic */
   --semantic-destructive: hsla(0, 84%, 60%, 1);
-  /* The fill under a destructive label. Dialled against the near-white
-     --semantic-destructive-foreground: 5.05 on the label, 3.36 against the
-     page and 3.06 against the card, so the button's own edge still reads.
-     Lifted 44% -> 46% with the raised tier: the card it has to clear moved
-     to 11%, which took the old 44% down to 2.85 and under the 3:1 floor
-     that status-marker.test.tsx holds the fault mark to. */
   --semantic-destructive-solid: hsla(0, 74.0%, 46.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 50.9%, 26.4%, 1);
-  /* Darkened from 18.6% lightness. At 18.6% the step travelled 10.43 OKLab
-     dE from the popover surface, far enough that a hover over it read as
-     quicker than a neutral one. At 16.5% it travels 8.55, which is 0.0209
-     dE per millisecond over 410ms against the neutral row's 0.0210, and the
-     --semantic-destructive label on it goes 3.93 to 4.17. It stays 5.00 dE
-     clear of -quinary, so the two are still two surfaces. */
   --semantic-destructive-quaternary: hsla(0, 47.1%, 16.5%, 1);
   --semantic-destructive-quinary: hsla(0, 39.7%, 11.8%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
   --semantic-destructive-label: hsla(0, 84.0%, 66.0%, 1);
-
   --semantic-warning: hsla(43, 96%, 56%, 1);
   --semantic-warning-tertiary: hsla(43, 68.1%, 24.8%, 1);
   --semantic-warning-quaternary: hsla(43, 62.7%, 17.5%, 1);
   --semantic-warning-quinary: hsla(43, 52.4%, 11.3%, 1);
   --semantic-warning-label: hsla(43, 96.0%, 56.0%, 1);
   --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
-
   --semantic-success: hsla(142, 71%, 45%, 1);
-  --social-x-link: #1d9bf0;
-  --social-linkedin-link: #71b7fb;
-  /* Distinct from --foreground so tags stay visible as links. */
-  --social-instagram-link: #80c4ff;
-  --social-facebook-link: #6ba4ff;
-  --social-youtube-link: #3ea6ff;
   --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
   --semantic-success-quaternary: hsla(142, 56.7%, 14.7%, 1);
   --semantic-success-quinary: hsla(142, 45.9%, 9.7%, 1);
   --semantic-success-label: hsla(142, 71.0%, 45.0%, 1);
   --semantic-success-foreground: hsla(0, 0%, 4%, 1);
-
-  /* Measured against the dark ground: 5.61. */
+  --social-x-link: #1d9bf0;
+  --social-linkedin-link: #71b7fb;
+  --social-instagram-link: #80c4ff;
+  --social-facebook-link: #6ba4ff;
+  --social-youtube-link: #3ea6ff;
   --presence-offline: hsla(215, 14%, 55%, 1);
+  --risk-high: hsla(32, 92%, 50%, 1);
+  --risk-high-foreground: hsla(0, 0%, 4%, 1);
 
-  /* Status roles, dark. Same vocabulary as light: colour says what the reader
-     must do, the glyph says which status it is. The -label steps are badge
-     text and clear 4.5:1 on their own fill; the plain step is the glyph and
-     clears 3:1. */
   --status-working: hsla(300, 95.0%, 70.0%, 1);
   --status-external: hsla(240, 95.0%, 70.0%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
@@ -761,12 +559,6 @@
   --status-working-label: hsla(300, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
-
-  /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
-     only extra value, solid with a near-black label at 7.88:1. Same in both
-     themes: a solid fill is its own ground. */
-  --risk-high: hsla(32, 92%, 50%, 1);
-  --risk-high-foreground: hsla(0, 0%, 4%, 1);
 }
 
 @layer base {
@@ -1216,17 +1008,18 @@ time {
 }
 
 [data-message-id][data-search-landed] {
-  /* Dark runs stronger: a light primary over a 4% ground lifts far less than
-     the same mix of a saturated primary over white. */
-  --chat-jump-wash-lead: 16%;
-  --chat-jump-wash-mid: 11%;
-  --chat-jump-wash-edge: 10%;
+  /* A neutral wash: the primary is a fill, never a tint (guide 5.2). Dark
+     runs a little stronger, since white lifts a dark ground less than black
+     darkens a white one. */
+  --chat-jump-wash-lead: 8%;
+  --chat-jump-wash-mid: 6%;
+  --chat-jump-wash-edge: 5%;
 }
 
 .dark [data-message-id][data-search-landed] {
-  --chat-jump-wash-lead: 26%;
-  --chat-jump-wash-mid: 20%;
-  --chat-jump-wash-edge: 18%;
+  --chat-jump-wash-lead: 12%;
+  --chat-jump-wash-mid: 9%;
+  --chat-jump-wash-edge: 8%;
 }
 
 /* Wash: tint holds its strength all the way to the right edge so a wide row
@@ -1240,11 +1033,23 @@ time {
   pointer-events: none;
   background: linear-gradient(
     to right,
-    color-mix(in oklch, var(--primary) var(--chat-jump-wash-lead), transparent)
+    color-mix(
+        in oklch,
+        var(--foreground) var(--chat-jump-wash-lead),
+        transparent
+      )
       0%,
-    color-mix(in oklch, var(--primary) var(--chat-jump-wash-mid), transparent)
+    color-mix(
+        in oklch,
+        var(--foreground) var(--chat-jump-wash-mid),
+        transparent
+      )
       45%,
-    color-mix(in oklch, var(--primary) var(--chat-jump-wash-edge), transparent)
+    color-mix(
+        in oklch,
+        var(--foreground) var(--chat-jump-wash-edge),
+        transparent
+      )
       100%
   );
   animation: chat-jump-wash var(--chat-jump-hold) ease-out forwards;
@@ -1259,7 +1064,7 @@ time {
   left: 0;
   width: 3px;
   border-radius: 3px;
-  background: var(--primary);
+  background: var(--foreground);
   pointer-events: none;
   animation: chat-jump-rail var(--chat-jump-hold) ease-out forwards;
 }
