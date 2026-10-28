@@ -462,7 +462,7 @@ export type TaskAssigner =
 /**
  * Human task assign: marketplace coworker must be usable in the target
  * workspace and have the tasks capability. Personal assistants are assigned
- * via {@link requireTaskAssignableSokoBot}.
+ * via `requireTaskAssignableSokoBot` ({@link ./soko-bot-task-assign}).
  */
 export async function requireTaskAssignableCoworker(
   coworkerId: string,
