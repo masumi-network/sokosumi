@@ -48,6 +48,7 @@ import {
   cmoMixLedger,
   cmoPieceReady,
   cmoProductionMessage,
+  cmoReadyPieceIds,
 } from "./cmo-production.service";
 
 const NOW = new Date("2026-11-02T08:00:00Z");
@@ -132,6 +133,22 @@ describe("cmoPieceReady", () => {
   it("counts published and skipped pieces as done", () => {
     expect(cmoPieceReady(entry({ status: "published" }), connected)).toBe(true);
     expect(cmoPieceReady(entry({ status: "skipped" }), connected)).toBe(true);
+  });
+});
+
+describe("cmoReadyPieceIds", () => {
+  it("counts a picture for the first piece that uses it, not a second", () => {
+    const image = { format: "image", draft: "Words", imageFileId: "file-1" };
+    const ready = cmoReadyPieceIds(
+      [
+        entry({ ...image, id: "a" }),
+        entry({ ...image, id: "b" }),
+        entry({ ...image, id: "c", imageFileId: "file-2" }),
+        entry({ id: "d", draft: "Text only" }),
+      ],
+      new Set(),
+    );
+    expect([...ready]).toEqual(["a", "c", "d"]);
   });
 });
 

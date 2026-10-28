@@ -15,6 +15,8 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   type ChatResultReference,
+  CMO_PRODUCTION_MEDIA_PER_RUN,
+  CMO_PRODUCTION_TURN_PREFIX,
   type CmoStrategy,
   cmoStrategySavePart,
   composeSystemPrompt,
@@ -2020,6 +2022,24 @@ export class SokoBotRuntimeService {
     return hire?.strategyApprovedAt != null;
   }
 
+  /**
+   * Images and videos one turn may start. Cuso's production run makes a
+   * whole month at once; four images a turn left it 33 short.
+   */
+  private async mediaPerTurn(
+    authorized: AuthorizedSokoBotRuntime,
+  ): Promise<{ images: number; videos: number }> {
+    const chat = { images: MAX_IMAGES_PER_TURN, videos: MAX_VIDEOS_PER_TURN };
+    if (authorized.turn.source !== "EVENT") return chat;
+    const turn = await prisma.sokoBotTurn.findUnique({
+      where: { id: authorized.turn.id },
+      select: { clientTurnId: true },
+    });
+    return turn?.clientTurnId.startsWith(CMO_PRODUCTION_TURN_PREFIX)
+      ? CMO_PRODUCTION_MEDIA_PER_RUN
+      : chat;
+  }
+
   private async cmoHireOf(authorized: AuthorizedSokoBotRuntime) {
     const hire = await prisma.cmoHire.findUnique({
       where: { sokoBotId: authorized.turn.sokoBotId },
@@ -2133,9 +2153,10 @@ export class SokoBotRuntimeService {
         NOT: { toolCallId },
       },
     });
-    if (started >= MAX_IMAGES_PER_TURN)
+    const { images } = await this.mediaPerTurn(authorized);
+    if (started >= images)
       throw new SokoBotRuntimeValidationError(
-        `One turn may start at most ${MAX_IMAGES_PER_TURN} images. Show your owner these first.`,
+        `One turn may start at most ${images} images. Show your owner these first.`,
       );
     const aspectRatio = z
       .enum(IMAGE_ASPECT_RATIOS)
@@ -2259,9 +2280,10 @@ export class SokoBotRuntimeService {
         NOT: { toolCallId },
       },
     });
-    if (started >= MAX_VIDEOS_PER_TURN)
+    const { videos } = await this.mediaPerTurn(authorized);
+    if (started >= videos)
       throw new SokoBotRuntimeValidationError(
-        `One turn may start at most ${MAX_VIDEOS_PER_TURN} videos. Show your owner these first.`,
+        `One turn may start at most ${videos} videos. Show your owner these first.`,
       );
     this.requireImageProject(authorized, input.projectId);
     const scope = {

@@ -8002,6 +8002,24 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
+  it("lets Cuso's production run make a month of images, and only that run", async () => {
+    const production = new SokoBotRuntimeService();
+    production["mayActForOwner"] = vi.fn().mockResolvedValue(true);
+    const run = { ...ownerChat, turn: { ...ownerChat.turn, source: "EVENT" } };
+    const check = () =>
+      production["checkImageRequest"](run as never, request, "call-m");
+    toolCallCountMock.mockResolvedValue(4);
+    turnFindUniqueMock.mockResolvedValue({
+      clientTurnId: "cmo:production:hire-1:2026-10:1:1",
+    });
+    await expect(check()).resolves.toMatchObject({ credits: 4 });
+    toolCallCountMock.mockResolvedValue(60);
+    await expect(check()).rejects.toThrow("at most 60 images");
+    toolCallCountMock.mockResolvedValue(4);
+    turnFindUniqueMock.mockResolvedValue({ clientTurnId: "cmo:daily:hire-1" });
+    await expect(check()).rejects.toThrow("at most 4 images");
+  });
+
   it("starts an image within the price and links to the studio", async () => {
     images.create.mockResolvedValue({ id: "job-1", status: "QUEUED" });
     const result = await generate(ownerChat, request, "call-1");

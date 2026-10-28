@@ -875,6 +875,12 @@ export type CmoStrategySave = z.input<typeof cmoStrategySaveSchema>;
  * part keeps the fields a call must still fill in from replacing the saved
  * ones.
  */
+/** clientTurnId prefix of the run that makes the month after payment. */
+export const CMO_PRODUCTION_TURN_PREFIX = "cmo:production:";
+
+/** Media one production run may start: a month of pieces, not a chat's few. */
+export const CMO_PRODUCTION_MEDIA_PER_RUN = { images: 60, videos: 10 };
+
 /**
  * plan: every field but the calendar; calendar: the whole calendar; pieces:
  * only the calendar entries sent, merged by id (new ids are added, none is

@@ -1,5 +1,9 @@
 import type { CmoHire } from "@sokosumi/database";
-import type { CmoCalendarEntry, CmoStrategy } from "@sokosumi/soko-bot";
+import {
+  CMO_PRODUCTION_TURN_PREFIX,
+  type CmoCalendarEntry,
+  type CmoStrategy,
+} from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
@@ -85,6 +89,27 @@ export function cmoPieceReady(
   return true;
 }
 
+/**
+ * Ids of the finished pieces. A picture counts for the first piece that uses
+ * it: a production run once reused one image across two posts to finish
+ * sooner.
+ */
+export function cmoReadyPieceIds(
+  pieces: CmoCalendarEntry[],
+  connected: ReadonlySet<string>,
+): Set<string> {
+  const used = new Set<string>();
+  const ready = new Set<string>();
+  for (const entry of pieces) {
+    if (!cmoPieceReady(entry, connected)) continue;
+    const file = cmoPieceNeedsMedia(entry) ? entry.imageFileId : undefined;
+    if (file && used.has(file)) continue;
+    if (file) used.add(file);
+    ready.add(entry.id);
+  }
+  return ready;
+}
+
 /** The month's pieces still to come: what production makes and counts. */
 export function cmoProductionPieces(
   strategy: Pick<CmoStrategy, "calendar">,
@@ -113,12 +138,12 @@ export interface CmoProductionStatus {
 function status(
   state: CmoProductionStatus["state"],
   pieces: CmoCalendarEntry[],
-  connected: ReadonlySet<string>,
+  ready: ReadonlySet<string>,
   production: CmoProduction | null,
 ): CmoProductionStatus {
   return {
     state,
-    ready: pieces.filter((entry) => cmoPieceReady(entry, connected)).length,
+    ready: ready.size,
     total: pieces.length,
     finishedAt: production?.finishedAt ?? null,
   };
@@ -240,7 +265,7 @@ async function startProductionRun(
     sokoBotId: hire.sokoBotId,
     // One id per approval and attempt: two callers racing start the same
     // run, and a plan approved again starts its own.
-    clientTurnId: `cmo:production:${hire.id}:${month}:${hire.strategyApprovedAt?.getTime() ?? 0}:${attempt}`,
+    clientTurnId: `${CMO_PRODUCTION_TURN_PREFIX}${hire.id}:${month}:${hire.strategyApprovedAt?.getTime() ?? 0}:${attempt}`,
     message,
     source: "EVENT",
     presetRoute: {
@@ -306,11 +331,12 @@ export async function readCmoProduction(
       pending: [],
     };
   const pieces = cmoProductionPieces(strategy, now);
-  const pending = pieces.filter((entry) => !cmoPieceReady(entry, connected));
+  const ready = cmoReadyPieceIds(pieces, connected);
+  const pending = pieces.filter((entry) => !ready.has(entry.id));
   const stored = parseCmoProduction(hire.production);
   const production = stored?.month === strategy.month ? stored : null;
   const read = (state: CmoProductionStatus["state"]) => ({
-    status: status(state, pieces, connected, production),
+    status: status(state, pieces, ready, production),
     strategy,
     production,
     pending,
