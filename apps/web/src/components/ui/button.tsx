@@ -11,8 +11,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-primary text-primary-foreground",
-        default:
-          "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
+        // The guide's default is the bordered button: one filled primary per
+        // view, and Neutral 950 fill belongs to the X alone.
+        default: "border-border bg-background text-foreground hover:bg-accent",
         // No private focus ring. Every variant wears the one shared ring, so
         // the most dangerous button is not the one with the faintest focus
         // mark. Its own ring measured 1.41:1 in light and 1.70:1 in dark,

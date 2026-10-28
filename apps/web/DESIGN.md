@@ -68,14 +68,14 @@ spacing:        # Tailwind default 4-pt scale (no custom spacing token)
   12: 48px
 components:
   button:
-    backgroundColor: secondary
-    textColor: secondary-foreground
+    backgroundColor: background
+    textColor: foreground
     rounded: "{rounded.md}"
     height: h-10
     padding: 8px 16px
     typography: text-sm font-medium
   buttonHover:
-    backgroundColor: secondary-hover
+    backgroundColor: accent
   buttonPrimary:
     backgroundColor: primary
     textColor: primary-foreground
@@ -355,7 +355,7 @@ prop/state-driven.
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
   `transition-[color,background-color,border-color,transform] duration-150 ease-out press
   disabled:opacity-50`, hover per-variant (none on `primary`, which keeps its fill /
-  `hover:bg-secondary-hover` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
+  `hover:bg-accent` on the bordered `default` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
   Pass `loading` to the button whose request is running: it keeps the label and width and
   draws `ButtonLoadingBar`.
 - **Input** — h-10, `rounded-md border-input bg-transparent`, `text-base md:text-sm`
