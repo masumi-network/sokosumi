@@ -89,7 +89,7 @@ function ToggleButton({
           aria-describedby={describedBy}
           aria-keyshortcuts="Meta+B Control+B"
           onClick={toggleSidebar}
-          className="relative -ml-2 hidden size-10 shrink-0 motion-reduce:animate-none md:size-8 md:group-has-[[data-slot=sidebar][data-state=collapsed]]/sidebar-wrapper:inline-flex md:group-has-[[data-slot=sidebar][data-state=collapsed]]/sidebar-wrapper:animate-in md:group-has-[[data-slot=sidebar][data-state=collapsed]]/sidebar-wrapper:fade-in-0"
+          className="relative -ml-2 hidden size-10 shrink-0 motion-reduce:animate-none md:size-8 md:sidebar-hidden:inline-flex md:sidebar-hidden:animate-in md:sidebar-hidden:fade-in-0"
         >
           <PanelLeft aria-hidden />
           {children}

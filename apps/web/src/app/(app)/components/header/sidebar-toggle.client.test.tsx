@@ -118,9 +118,7 @@ describe("SidebarToggle", () => {
       .className.split(/\s+/);
 
     expect(classes).toContain("hidden");
-    expect(classes).toContain(
-      "md:group-has-[[data-slot=sidebar][data-state=collapsed]]/sidebar-wrapper:inline-flex",
-    );
+    expect(classes).toContain("md:sidebar-hidden:inline-flex");
   });
 
   it("is desktop only: the phone opens its sheet elsewhere", () => {

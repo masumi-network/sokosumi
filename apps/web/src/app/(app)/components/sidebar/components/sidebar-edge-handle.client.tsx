@@ -31,11 +31,13 @@ const SLIDE_OUT_MS = 250;
 
 interface Drag {
   startX: number;
-  moved: boolean;
+  /**
+   * `pressed` until the pointer travels `DRAG_START_PX`, then `dragging`; a
+   * snap-shut ends it as `snapped`, and the rest of the drag does nothing.
+   */
+  phase: "pressed" | "dragging" | "snapped";
   /** A drag that began collapsed opens the sidebar once it passes the line. */
   opened: boolean;
-  /** The sidebar snapped shut under this drag: the rest of it does nothing. */
-  snapped: boolean;
 }
 
 function readWidth() {
@@ -141,14 +143,13 @@ export function SidebarEdgeHandle() {
     swallowClick.current = false;
     drag.current = {
       startX: event.clientX,
-      moved: false,
+      phase: "pressed",
       opened: false,
-      snapped: false,
     };
   }
 
   function snapShut(current: Drag) {
-    current.snapped = true;
+    current.phase = "snapped";
     ref.current?.removeAttribute("data-dragging");
     // Easing back on, so the panel slides out instead of vanishing.
     wrapper()?.removeAttribute("data-resizing");
@@ -158,15 +159,15 @@ export function SidebarEdgeHandle() {
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     const current = drag.current;
-    if (!current || current.snapped) return;
+    if (!current || current.phase === "snapped") return;
     if (
-      !current.moved &&
+      current.phase === "pressed" &&
       Math.abs(event.clientX - current.startX) < DRAG_START_PX
     ) {
       return;
     }
-    if (!current.moved) {
-      current.moved = true;
+    if (current.phase === "pressed") {
+      current.phase = "dragging";
       wrapper()?.setAttribute("data-resizing", "true");
       ref.current?.setAttribute("data-dragging", "true");
     }
@@ -190,13 +191,13 @@ export function SidebarEdgeHandle() {
     drag.current = null;
     if (!current) return;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    if (!current.moved) return;
+    if (current.phase === "pressed") return;
 
     // A cancel is not followed by a click.
     swallowClick.current = !cancelled;
     ref.current?.removeAttribute("data-dragging");
     wrapper()?.removeAttribute("data-resizing");
-    if (current.snapped) return;
+    if (current.phase === "snapped") return;
 
     if (cancelled) {
       if (current.opened) {
