@@ -12,15 +12,18 @@ import {
   getCmoHireForUser,
 } from "@/services/cmo-cuso.service";
 
-/** Reads once what the site runs on, so Shopify is offered only to shops. */
+/**
+ * Reads once what the site runs on, onto the Project next to its website, so
+ * Shopify is offered only to shops.
+ */
 export async function learnCmoSitePlatform(
-  hire: Pick<CmoHireView, "id" | "websiteUrl">,
+  hire: Pick<CmoHireView, "projectId" | "websiteUrl">,
 ): Promise<void> {
   const { detectSitePlatform } = await import("@/lib/site-platform");
   const platform = await detectSitePlatform(hire.websiteUrl).catch(() => null);
   if (!platform) return;
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
+  await prisma.project.update({
+    where: { id: hire.projectId },
     data: { sitePlatform: platform },
   });
 }
@@ -79,7 +82,11 @@ export async function connectCmoMeasurement(input: {
   }
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (input.provider === "shopify" && hire.sitePlatform !== "shopify") {
+  const project = await prisma.project.findUnique({
+    where: { id: hire.projectId },
+    select: { sitePlatform: true },
+  });
+  if (input.provider === "shopify" && project?.sitePlatform !== "shopify") {
     throw new CmoConflictError("Shopify measures Shopify shops only");
   }
   const { connectSokoBotIntegration } = await import(

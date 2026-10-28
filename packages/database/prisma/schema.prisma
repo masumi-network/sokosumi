@@ -464,6 +464,9 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  /// What the website runs on when it is a shop system Cuso can measure
+  /// (only "shopify" today), learned once from the site; null otherwise.
+  sitePlatform            String?
   logo                    String?
   designMdUrl             String?
   designMdExtractionId    String?
