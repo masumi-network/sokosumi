@@ -53,7 +53,6 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "data-migration:better-auth-1-7-harvest": "tsx --env-file=../../apps/core/.env scripts/better-auth-1-7-harvest.ts",
     "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
     "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
