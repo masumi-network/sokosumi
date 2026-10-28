@@ -13,6 +13,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
+import { isMessageContinuation } from "@/app/chat/components/room-helpers";
 import { ChatMessageRow } from "@/app/chat/components/room-message-row";
 import { RoomSeenByLine } from "@/app/chat/components/room-seen-by-line";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
@@ -102,6 +103,26 @@ function FollowRoom() {
     <>
       <button
         type="button"
+        // An edit that makes a message above the view taller: on iOS during a
+        // touch the virtualizer holds the correction instead of writing it.
+        data-testid="grow-older"
+        onClick={() =>
+          setList((current) =>
+            current.map((item, index) =>
+              index === 5
+                ? {
+                    ...item,
+                    content: `${item.content}\n${"Edited line\n".repeat(12)}`,
+                  }
+                : item,
+            ),
+          )
+        }
+      >
+        Grow an older message
+      </button>
+      <button
+        type="button"
         data-testid="type-line"
         onClick={() => setDraftLines((lines) => lines + 1)}
       >
@@ -120,6 +141,33 @@ function FollowRoom() {
       >
         Send
       </button>
+      <button
+        type="button"
+        // The composer empties in a later commit than the shell's append.
+        data-testid="send-then-clear"
+        onClick={() => {
+          appendSent();
+          viewport.current?.pinToBottomAfterOwnSend();
+          setTimeout(() => setDraftLines(1));
+        }}
+      >
+        Send, then clear
+      </button>
+      <button
+        type="button"
+        // thread-panel's order: the composer empties, the reply appends and
+        // is pinned after the send resolves.
+        data-testid="clear-then-send"
+        onClick={() => {
+          setDraftLines(1);
+          setTimeout(() => {
+            appendSent();
+            viewport.current?.pinToBottomAfterOwnSend();
+          });
+        }}
+      >
+        Clear, then send
+      </button>
       <RoomShellLayout
         rootClassName="flex h-[calc(100dvh-40px)] min-h-0 min-w-0 flex-col overflow-hidden"
         reserveDesktopHeader={false}
@@ -137,12 +185,10 @@ function FollowRoom() {
                     coworkersById={new Map()}
                     coworkersBySlug={new Map()}
                     onToggleReaction={() => {}}
-                    isContinuation={
-                      row.previousMessage?.sender.type === "user" &&
-                      row.message.sender.type === "user" &&
-                      row.previousMessage.sender.user.id ===
-                        row.message.sender.user.id
-                    }
+                    isContinuation={isMessageContinuation(
+                      row.previousMessage,
+                      row.message,
+                    )}
                     seenBy={
                       row.message.id === newestId ? (
                         <RoomSeenByLine
