@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-
+import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { type Answer, QuestionCard } from "./questions-step";
 import { Refusal } from "./refusal";
 import { StepHead } from "./step-head";
@@ -55,30 +55,34 @@ export function CheckStep({
             : undefined
         }
         action={
-          <button
-            type="button"
-            className={
-              answered === questions.length
-                ? "ob-button ob-button-lg"
-                : "ob-button ob-button-quiet ob-button-lg"
-            }
-            disabled={going}
-            onClick={() =>
-              startGoing(async () => {
-                if (changes) setRefusal(await onUpdate());
-                else await onApprove();
-              })
-            }
-          >
-            {going ? (
-              <Loader2 size={16} className="ob-spin" aria-hidden="true" />
-            ) : changes ? (
-              <ArrowRight size={16} aria-hidden="true" />
-            ) : (
-              <Check size={16} aria-hidden="true" />
-            )}
-            {changes ? "Update the plan" : "Approve plan"}
-          </button>
+          !changes && !overview.viewerCanApprove ? (
+            <p className="ob-note">{APPROVED_BY_OWNERS}</p>
+          ) : (
+            <button
+              type="button"
+              className={
+                answered === questions.length
+                  ? "ob-button ob-button-lg"
+                  : "ob-button ob-button-quiet ob-button-lg"
+              }
+              disabled={going}
+              onClick={() =>
+                startGoing(async () => {
+                  if (changes) setRefusal(await onUpdate());
+                  else await onApprove();
+                })
+              }
+            >
+              {going ? (
+                <Loader2 size={16} className="ob-spin" aria-hidden="true" />
+              ) : changes ? (
+                <ArrowRight size={16} aria-hidden="true" />
+              ) : (
+                <Check size={16} aria-hidden="true" />
+              )}
+              {changes ? "Update the plan" : "Approve plan"}
+            </button>
+          )
         }
       />
       {refusal ? (

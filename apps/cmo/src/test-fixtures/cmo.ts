@@ -58,6 +58,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       },
     ],
     subscriptionActive: false,
+    viewerCanApprove: true,
     brandBrain: {
       summary: "Acme sells rockets.",
       voice: { tone: "Direct", do: [], dont: [], examples: [] },

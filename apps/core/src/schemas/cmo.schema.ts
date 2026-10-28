@@ -220,6 +220,11 @@ export const cmoOverviewSchema = z
         "Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.",
       ),
     subscriptionActive: z.boolean(),
+    viewerCanApprove: z
+      .boolean()
+      .describe(
+        "Whether this member may approve the strategy and start the paid month: the organization's owners and admins only. Every other member works with Cuso but cannot.",
+      ),
     work: z.union([cmoWorkSchema, z.null()]),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),

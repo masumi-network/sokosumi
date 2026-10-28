@@ -29814,6 +29814,10 @@ export const CmoOverviewSchema = {
         subscriptionActive: {
             type: 'boolean'
         },
+        viewerCanApprove: {
+            type: 'boolean',
+            description: 'Whether this member may approve the strategy and start the paid month: the organization\'s owners and admins only. Every other member works with Cuso but cannot.'
+        },
         work: {
             anyOf: [
                 {
@@ -33164,6 +33168,7 @@ export const CmoOverviewSchema = {
         'botStatus',
         'learning',
         'subscriptionActive',
+        'viewerCanApprove',
         'work',
         'brandVisual',
         'projectLogo',

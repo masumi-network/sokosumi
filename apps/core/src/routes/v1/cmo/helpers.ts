@@ -39,6 +39,7 @@ function mapOverview(overview: CmoOverview) {
     onboardedAt: hire.onboardedAt,
     routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,
+    viewerCanApprove: overview.viewerCanApprove,
     mockBilling: overview.mockBilling,
     mockPlan: overview.mockPlan,
     mockPlanActivatedAt: overview.mockPlanActivatedAt,

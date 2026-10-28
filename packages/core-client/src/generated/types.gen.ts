@@ -8610,6 +8610,10 @@ export type CmoOverview = {
      */
     learning: 'running' | 'failed' | 'done';
     subscriptionActive: boolean;
+    /**
+     * Whether this member may approve the strategy and start the paid month: the organization's owners and admins only. Every other member works with Cuso but cannot.
+     */
+    viewerCanApprove: boolean;
     work: CmoWork | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;

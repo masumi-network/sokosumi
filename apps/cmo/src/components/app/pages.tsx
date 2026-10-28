@@ -4,6 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { STARTED_BY_OWNERS } from "../../lib/approvers";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
@@ -279,20 +280,24 @@ export function SettingsPage({
             <span className="grow note">
               {mockPlan
                 ? `Active since ${formatDay(overview.mockPlanActivatedAt)}. Test plan, nothing is billed.`
-                : "Cuso drafts until you pick a plan."}
+                : overview.viewerCanApprove
+                  ? "Cuso drafts until you pick a plan."
+                  : STARTED_BY_OWNERS}
             </span>
-            <button
-              type="button"
-              className="button button-secondary button-small"
-              aria-expanded={changingPlan}
-              onClick={() => setChangingPlan((open) => !open)}
-            >
-              {changingPlan
-                ? "Close"
-                : mockPlan
-                  ? "Change plan"
-                  : "Pick a plan"}
-            </button>
+            {overview.viewerCanApprove ? (
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                aria-expanded={changingPlan}
+                onClick={() => setChangingPlan((open) => !open)}
+              >
+                {changingPlan
+                  ? "Close"
+                  : mockPlan
+                    ? "Change plan"
+                    : "Pick a plan"}
+              </button>
+            ) : null}
           </div>
           {changingPlan ? (
             <MockPlanTable

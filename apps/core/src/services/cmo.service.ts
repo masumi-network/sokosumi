@@ -360,16 +360,23 @@ export async function isCmoSubscribed(
  * money and publish in its name: the organization's owners and admins only
  * (ADR 0060). Every other member works with Cuso freely.
  */
+async function mayCommitCmo(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const member = await prisma.member.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { role: true },
+  });
+  return member !== null && isOrganizationOwnerOrAdmin(member.role);
+}
+
 async function requireCmoCommitter(
   userId: string,
   hire: Pick<CmoHire, "workspaceId">,
 ): Promise<void> {
   const { organizationId } = await cmoPayer(hire);
-  const member = await prisma.member.findUnique({
-    where: { userId_organizationId: { userId, organizationId } },
-    select: { role: true },
-  });
-  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
+  if (!(await mayCommitCmo(userId, organizationId))) {
     throw new CmoForbiddenError(
       "Only the organization's owners and admins approve Cuso's plan and start his month",
     );
@@ -2288,6 +2295,8 @@ export interface CmoOverview {
   }[];
   roomId: string;
   subscriptionActive: boolean;
+  /** This member may approve the strategy and start the paid month. */
+  viewerCanApprove: boolean;
   /** CMO_MOCK_BILLING: CMO offers its own tiers without checkout. */
   mockBilling: boolean;
   mockPlan: string | null;
@@ -2404,12 +2413,15 @@ export async function getCmoOverview(
   if (!bot?.sharedRoomId || !project) return null;
   const strategy = parseCmoStrategy(hire.strategy);
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
-  const credits = await buildCreditsPayload({
-    userId,
-    organizationId: payer.organizationId,
-    referenceId: payer.referenceId,
-    tx: prisma,
-  });
+  const [credits, viewerCanApprove] = await Promise.all([
+    buildCreditsPayload({
+      userId,
+      organizationId: payer.organizationId,
+      referenceId: payer.referenceId,
+      tx: prisma,
+    }),
+    mayCommitCmo(userId, payer.organizationId),
+  ]);
   const mockPlan = cmoMockPlan(hire);
   const cmoPlan = mockPlan ?? (await activeCmoPlan(payer.referenceId));
   const media = await cmoCalendarMedia({
@@ -2464,6 +2476,7 @@ export async function getCmoOverview(
     projectName: project.name,
     roomId: bot.sharedRoomId,
     subscriptionActive: cmoPlan !== null,
+    viewerCanApprove,
     mockBilling: cmoMockBilling(),
     mockPlan,
     mockPlanActivatedAt: mockPlan ? hire.mockPlanActivatedAt : null,
