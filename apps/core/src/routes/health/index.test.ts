@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import healthRouter from "./index.js";
 
 describe("health route", () => {
-  it("answers 200 without credentials", async () => {
+  it("answers 200 with the success envelope", async () => {
     const app = new Hono();
     app.use(requestId());
     app.route("/health", healthRouter);
