@@ -49,17 +49,16 @@ export interface SidebarSokoBotAvatar {
   seed: string;
 }
 
-/** The workspace's first Soko Bot (yours when you have one), live. */
+/** Your own Soko Bot, live. */
 export interface SidebarSokoBotLive extends SidebarSokoBotAvatar {
   name: string | null;
   status: SokoBotStatus;
   lastActivityAt: Date | null;
-  isYours: boolean;
 }
 
 /**
- * With the team's bot data, a live two-line row; without it (loading, no bot
- * in the workspace, Core unreachable), the static Soko Bots entry.
+ * With your bot, a live two-line row; without it (loading, no bot of your
+ * own, Core unreachable), the static Soko Bots entry.
  */
 export default function PersonalAssistantNav({
   bot = null,
@@ -126,14 +125,12 @@ function StaticSokoBotsRow() {
 
 /**
  * Face with a status dot, the bot's name, and what it is doing. Opens your
- * own bot, or the team's page when the bot is a teammate's. The people icon
- * at the end always opens the team's Soko Bots.
+ * bot; the people icon at the end opens the team's Soko Bots.
  */
 function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const pathname = usePathname();
-  const href = bot.isYours ? SOKO_BOT_ROUTE : SOKO_BOTS_ROUTE;
-  const isActive = isPathActive(pathname, href);
+  const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
   const isTeamActive = !isActive && isPathActive(pathname, SOKO_BOTS_ROUTE);
 
   return (
@@ -143,7 +140,7 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
       <SidebarMenuButton asChild isActive={isActive} lines={2}>
         <SheetClose asChild>
           <Link
-            href={href}
+            href={SOKO_BOT_ROUTE}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               isActive
