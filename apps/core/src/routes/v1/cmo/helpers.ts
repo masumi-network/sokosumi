@@ -23,7 +23,6 @@ function mapOverview(overview: CmoOverview) {
     id: hire.id,
     businessName: hire.businessName,
     websiteUrl: hire.websiteUrl,
-    goals: hire.goals,
     organizationSlug: overview.organizationSlug,
     projectName: overview.projectName,
     workspaceId: hire.workspaceId,

@@ -35,6 +35,13 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/services/cmo.service", () => ({
+  CMO_HIRE_PROJECT: {},
+  cmoHireView: ({
+    project,
+    ...hire
+  }: {
+    project: { workspaceId: string; websiteUrl: string };
+  }) => ({ ...hire, ...project, businessName: "acme.io" }),
   cmoRunnerUserId,
   isCmoSubscribed,
   listCmoChannels,
@@ -393,7 +400,13 @@ describe("advanceCmoProduction", () => {
 
 describe("syncCmoProduction", () => {
   it("points Cuso's rhythms at his runner once the hirer left", async () => {
-    hireFindMany.mockResolvedValue([{ id: "cmo-1", sokoBotId: "bot-1" }]);
+    hireFindMany.mockResolvedValue([
+      {
+        id: "cmo-1",
+        sokoBotId: "bot-1",
+        project: { workspaceId: "ws-1", websiteUrl: "https://acme.io" },
+      },
+    ]);
     cmoRunnerUserId.mockResolvedValue("owner-2");
     scheduleUpdateMany.mockResolvedValue({ count: 5 });
     await syncCmoProduction();

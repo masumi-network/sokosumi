@@ -1,4 +1,3 @@
-import type { CmoHire } from "@sokosumi/database";
 import {
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
@@ -11,6 +10,9 @@ import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
 import {
+  CMO_HIRE_PROJECT,
+  type CmoHireView,
+  cmoHireView,
   cmoRunnerUserId,
   isCmoSubscribed,
   listCmoChannels,
@@ -275,7 +277,7 @@ async function parentTurnId(sokoBotId: string): Promise<string | null> {
 }
 
 async function startProductionRun(
-  hire: CmoHire,
+  hire: CmoHireView,
   message: string,
   attempt: number,
   month: string,
@@ -353,7 +355,7 @@ interface ProductionRead {
 
 /** Where the month's production stands; reads only, never starts a run. */
 export async function readCmoProduction(
-  hire: CmoHire,
+  hire: CmoHireView,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
 ): Promise<ProductionRead> {
   const { connected, now } = context;
@@ -432,7 +434,7 @@ function runsToday(production: CmoProduction | null, now: Date): number {
 }
 
 export async function advanceCmoProduction(
-  hire: CmoHire,
+  hire: CmoHireView,
   now: Date = new Date(),
 ): Promise<CmoProductionStatus> {
   const connected = await connectedChannels(hire.projectId);
@@ -497,8 +499,8 @@ export async function advanceCmoProduction(
 export function kickCmoProduction(hireId: string): void {
   waitUntil(
     prisma.cmoHire
-      .findUnique({ where: { id: hireId } })
-      .then((hire) => (hire ? advanceCmoProduction(hire) : null))
+      .findUnique({ where: { id: hireId }, include: CMO_HIRE_PROJECT })
+      .then((hire) => (hire ? advanceCmoProduction(cmoHireView(hire)) : null))
       .catch((error: unknown) => {
         console.warn("CMO production could not start", {
           hireId,
@@ -513,7 +515,7 @@ export function kickCmoProduction(hireId: string): void {
  * Points Cuso's own rhythms at his runner, so they keep acting as a current
  * member once the person who hired him left the business (ADR 0061).
  */
-async function keepCmoRhythmsWithRunner(hire: CmoHire): Promise<void> {
+async function keepCmoRhythmsWithRunner(hire: CmoHireView): Promise<void> {
   const runnerId = await cmoRunnerUserId(hire);
   if (!runnerId) return;
   await prisma.sokoBotSchedule.updateMany({
@@ -532,10 +534,13 @@ async function keepCmoRhythmsWithRunner(hire: CmoHire): Promise<void> {
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
 ): Promise<{ checked: number }> {
-  const hires = await prisma.cmoHire.findMany({
-    where: { strategyApprovedAt: { not: null } },
-    orderBy: { updatedAt: "asc" },
-  });
+  const hires = (
+    await prisma.cmoHire.findMany({
+      where: { strategyApprovedAt: { not: null } },
+      include: CMO_HIRE_PROJECT,
+      orderBy: { updatedAt: "asc" },
+    })
+  ).map(cmoHireView);
   let checked = 0;
   for (const hire of hires) {
     if (!shouldContinue()) break;

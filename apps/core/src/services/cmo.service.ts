@@ -184,7 +184,7 @@ async function generateProjectDesignMd(
  * and, when the API is configured, a DESIGN.md on the Project.
  */
 export async function learnCmoBrandVisual(
-  hire: Pick<CmoHire, "id" | "projectId" | "websiteUrl">,
+  hire: Pick<CmoHireView, "id" | "projectId" | "websiteUrl">,
 ): Promise<CmoBrandVisual> {
   const [site, icon, designMd] = await Promise.all([
     readBrandVisual(hire.websiteUrl),
@@ -236,7 +236,7 @@ export function cmoProjectName(businessName: string): string {
  * organization, which every hire gets (ADR 0060).
  */
 async function cmoPayer(
-  hire: Pick<CmoHire, "workspaceId">,
+  hire: Pick<CmoHireView, "workspaceId">,
 ): Promise<{ organizationId: string; referenceId: string }> {
   const row = await prisma.workspace.findUnique({
     where: { id: hire.workspaceId },
@@ -270,13 +270,44 @@ export function parseCmoStrategy(value: unknown): CmoStrategy | null {
 }
 
 /**
+ * A CMO hire with what it reads off its Project, which keeps no copy: the
+ * workspace (the business's organization, which pays), the website, and the
+ * business name, the website's host.
+ */
+export type CmoHireView = CmoHire & {
+  workspaceId: string;
+  websiteUrl: string;
+  businessName: string;
+};
+
+/** The Project fields a hire read includes, for `cmoHireView`. */
+export const CMO_HIRE_PROJECT = {
+  project: { select: { workspaceId: true, websiteUrl: true } },
+} as const;
+
+export function cmoHireView({
+  project,
+  ...hire
+}: CmoHire & {
+  project: { workspaceId: string; websiteUrl: string | null };
+}): CmoHireView {
+  const websiteUrl = project.websiteUrl ?? "";
+  return {
+    ...hire,
+    workspaceId: project.workspaceId,
+    websiteUrl,
+    businessName: cmoBusinessNameFromUrl(websiteUrl),
+  };
+}
+
+/**
  * The Cuso this person works with (ADR 0061): the live hire in their preferred
  * organization, which hiring made preferred, else the newest live hire of any
  * organization they belong to. A deleted or archived Cuso hired no one.
  */
 export async function getCmoHireForUser(
   userId: string,
-): Promise<CmoHire | null> {
+): Promise<CmoHireView | null> {
   const [user, hires] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -291,7 +322,11 @@ export async function getCmoHireForUser(
       },
       include: {
         project: {
-          select: { workspace: { select: { organizationId: true } } },
+          select: {
+            workspaceId: true,
+            websiteUrl: true,
+            workspace: { select: { organizationId: true } },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -302,15 +337,17 @@ export async function getCmoHireForUser(
       (hire) =>
         hire.project.workspace.organizationId === user?.preferredOrganizationId,
     ) ?? hires[0];
-  if (!found) return null;
-  const { project: _project, ...hire } = found;
-  return hire;
+  return found ? cmoHireView(found) : null;
 }
 
 export async function getCmoHireForBot(
   sokoBotId: string,
-): Promise<CmoHire | null> {
-  return prisma.cmoHire.findUnique({ where: { sokoBotId } });
+): Promise<CmoHireView | null> {
+  const hire = await prisma.cmoHire.findUnique({
+    where: { sokoBotId },
+    include: CMO_HIRE_PROJECT,
+  });
+  return hire ? cmoHireView(hire) : null;
 }
 
 /** The org's active plan that lets Cuso execute, or null. */
@@ -343,13 +380,15 @@ function cmoMockBilling(): boolean {
 }
 
 /** The CMO tier picked without billing; ignored unless mock billing is on. */
-export function cmoMockPlan(hire: Pick<CmoHire, "mockPlan">): string | null {
+export function cmoMockPlan(
+  hire: Pick<CmoHireView, "mockPlan">,
+): string | null {
   return cmoMockBilling() ? hire.mockPlan : null;
 }
 
 /** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
 export async function isCmoSubscribed(
-  hire: Pick<CmoHire, "workspaceId" | "mockPlan">,
+  hire: Pick<CmoHireView, "workspaceId" | "mockPlan">,
 ): Promise<boolean> {
   if (cmoMockPlan(hire)) return true;
   return hasActiveCmoSubscription((await cmoPayer(hire)).referenceId);
@@ -373,7 +412,7 @@ async function mayCommitCmo(
 
 async function requireCmoCommitter(
   userId: string,
-  hire: Pick<CmoHire, "workspaceId">,
+  hire: Pick<CmoHireView, "workspaceId">,
 ): Promise<void> {
   const { organizationId } = await cmoPayer(hire);
   if (!(await mayCommitCmo(userId, organizationId))) {
@@ -431,7 +470,7 @@ async function canFundFirstTurn(input: {
 
 /** A turn of Cuso's that `userId`, a member of his organization, started. */
 async function startCmoTurn(
-  hire: Pick<CmoHire, "workspaceId" | "sokoBotId">,
+  hire: Pick<CmoHireView, "workspaceId" | "sokoBotId">,
   userId: string,
   input: { clientTurnId: string; message: string; route: PresetRoute },
 ): Promise<{ turnId: string }> {
@@ -469,13 +508,9 @@ async function startCmoTurn(
 function onboardingMessage(input: {
   businessName: string;
   websiteUrl: string;
-  goals: string;
 }): string {
   return [
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
-    ...(input.goals
-      ? [`Their main marketing goal, in their words: ${input.goals}`]
-      : []),
     "",
     "Learn the business and build its Brand Brain, following your Brand Brain skill: read the website, search for the company, its reviews, competitors, news and social profiles, and save each group of profile sections with save_brand_brain as soon as you have researched it, the essentials last. Write down only what you found, with the evidence, confidence, source and implication of every finding.",
     "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
@@ -557,7 +592,7 @@ const TURN_ROW_SELECT = {
 } as const;
 
 export async function cmoLearningState(
-  hire: Pick<CmoHire, "sokoBotId" | "brandBrain">,
+  hire: Pick<CmoHireView, "sokoBotId" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoLearningState> {
   if (parseCmoBrandBrain(hire.brandBrain)) return "done";
@@ -703,7 +738,7 @@ export function describeCmoStep(
 
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
-  hire: Pick<CmoHire, "sokoBotId" | "websiteUrl" | "brandBrain">,
+  hire: Pick<CmoHireView, "sokoBotId" | "websiteUrl" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
@@ -817,7 +852,7 @@ export async function retryCmoOnboarding(
  * reruns it per brand.
  */
 export function startCmoResearch(
-  hire: CmoHire,
+  hire: CmoHireView,
   userId: string,
 ): Promise<{ turnId: string }> {
   return startCmoTurn(hire, userId, {
@@ -887,7 +922,7 @@ export async function startCmoOnboarding(input: {
     select: { id: true },
   });
 
-  let created: CmoHire;
+  let created: CmoHireView;
   let sharedRoomId: string | null = null;
   try {
     const { createSharedSokoBot } = await import(
@@ -901,18 +936,12 @@ export async function startCmoOnboarding(input: {
       versionId: CMO_SOKO_BOT_VERSION_ID,
     });
     sharedRoomId = bot.sharedRoomId;
-    created = await prisma.cmoHire.create({
-      data: {
-        workspaceId: workspace.id,
-        sokoBotId: bot.id,
-        projectId: project.id,
-        businessName,
-        websiteUrl: input.websiteUrl,
-        // The start form no longer asks for a goal; Cuso works from the
-        // business's main offer.
-        goals: "",
-      },
-    });
+    created = cmoHireView(
+      await prisma.cmoHire.create({
+        data: { sokoBotId: bot.id, projectId: project.id },
+        include: CMO_HIRE_PROJECT,
+      }),
+    );
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his
     // bot, which only lets go of its shared room.
@@ -947,11 +976,7 @@ export async function startCmoOnboarding(input: {
   // the learning card offers Try again and says why when it fails again.
   await startCmoTurn(created, input.userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.id}`,
-    message: onboardingMessage({
-      businessName,
-      websiteUrl: input.websiteUrl,
-      goals: created.goals,
-    }),
+    message: onboardingMessage(created),
     route: CMO_ONBOARDING_ROUTE,
   }).catch((error) => {
     console.warn("CMO onboarding turn did not start", {
@@ -963,25 +988,9 @@ export async function startCmoOnboarding(input: {
   return created;
 }
 
-const GOAL_PRESETS = [
-  "more sales",
-  "more leads",
-  "brand awareness",
-  "launch something",
-];
-
-/**
- * The words the owner typed, if any: a preset goal is the app's English, so
- * only typed words say which language the owner reads.
- */
-export function ownWords(goals: string): string | null {
-  const typed = goals.replace(/^launch something:\s*/i, "").trim();
-  return typed && !GOAL_PRESETS.includes(typed.toLowerCase()) ? typed : null;
-}
-
 /** Reads once what the site runs on, so Shopify is offered only to shops. */
 export async function learnCmoSitePlatform(
-  hire: Pick<CmoHire, "id" | "websiteUrl">,
+  hire: Pick<CmoHireView, "id" | "websiteUrl">,
 ): Promise<void> {
   const { detectSitePlatform } = await import("@/lib/site-platform");
   const platform = await detectSitePlatform(hire.websiteUrl).catch(() => null);
@@ -1150,22 +1159,10 @@ export async function requestCmoStrategy(input: {
         ]
       : [
           `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-          ...(hire.goals
-            ? [
-                `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers, unless the owner's goal below names a product, launch or offer: then that is what the plan sells. Otherwise a single product or feature may carry one campaign, never the whole plan.`,
-                `Their goal, in their words: ${hire.goals}. When it names a product or launch, the plan is built around it. Otherwise it is the result they want from selling the main offer; never read a word in it as a topic, product or feature to promote.`,
-              ]
-            : [
-                `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
-                "The owner named no goal: set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
-              ]),
+          `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
+          "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
           ...ownerAnswers(brain),
           "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
-          ...(ownWords(hire.goals)
-            ? [
-                `The owner wrote that goal in their own words: write the plan itself (every field, calendar titles and briefs) in the language of "${ownWords(hire.goals)}". contentLanguage stays the language the audience reads.`,
-              ]
-            : []),
           "",
           "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
           "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId) whose approach shares match the mix. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
@@ -1194,7 +1191,7 @@ export async function requestCmoStrategy(input: {
  * with neither.
  */
 export async function cmoRunnerUserId(
-  hire: Pick<CmoHire, "workspaceId" | "sokoBotId">,
+  hire: Pick<CmoHireView, "workspaceId" | "sokoBotId">,
 ): Promise<string | null> {
   const [{ organizationId }, bot] = await Promise.all([
     cmoPayer(hire),
@@ -2018,7 +2015,6 @@ export async function loadCmoMarketingContext(
     business: {
       name: hire.businessName,
       websiteUrl: hire.websiteUrl,
-      goals: hire.goals,
       marketingProjectId: hire.projectId,
     },
     strategyApproved: hire.strategyApprovedAt !== null,
@@ -2310,7 +2306,7 @@ export interface CmoUpNextItem {
 }
 
 export interface CmoOverview {
-  hire: CmoHire;
+  hire: CmoHireView;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
   /** Cuso's Workspace's organization, when it is not a personal one. */
@@ -2560,7 +2556,7 @@ export const CMO_MAILING_LIST_NAME = "Newsletter";
 
 /** How many people are on the newsletter list. */
 async function cmoMailingListSize(
-  hire: Pick<CmoHire, "workspaceId">,
+  hire: Pick<CmoHireView, "workspaceId">,
 ): Promise<number> {
   return prisma.contactListMember.count({
     where: {

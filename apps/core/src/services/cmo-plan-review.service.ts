@@ -252,7 +252,7 @@ export function mixProblems(
 
 /**
  * Whether the plan sells what the business sells: Jev, a separate evaluation
- * model, reads the Brand Brain's main offer, the owner's goal and the plan's
+ * model, reads the Brand Brain's main offer and the plan's
  * headline parts. Plans once drifted to a side product whose name echoed the
  * goal ("More leads" turned into a lead-research plan). A failed check is no
  * finding, so the save never waits on it.
@@ -260,7 +260,6 @@ export function mixProblems(
 export async function cmoPlanDrift(input: {
   strategy: CmoStrategy;
   brain: CmoBrandBrain;
-  goals: string;
 }): Promise<{
   problem: string | null;
   verdict: CmoPlanOfferVerdict;
@@ -272,7 +271,6 @@ export async function cmoPlanDrift(input: {
       state: {
         mainOffer: brain.reveal?.positioning ?? brain.summary,
         products: brain.products,
-        ownerGoal: input.goals,
         plan: {
           idea: strategy.idea?.sentence,
           summary: strategy.summary,
@@ -285,7 +283,7 @@ export async function cmoPlanDrift(input: {
         sellsMainOffer: {
           type: "boolean",
           instructions:
-            "Does the plan sell the business's main offer, or the product or launch the owner named in their goal, rather than a narrower side product or feature? A word in the goal such as 'leads' is the result the owner wants, never the topic.",
+            "Does the plan sell the business's main offer rather than a narrower side product or feature?",
         },
       },
       timeoutMs: 15_000,
@@ -297,7 +295,7 @@ export async function cmoPlanDrift(input: {
     return {
       verdict: drifts ? "drift" : "ok",
       problem: drifts
-        ? `the plan drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it, or the product the owner named.`
+        ? `the plan drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it.`
         : null,
       costUsd,
     };

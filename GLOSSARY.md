@@ -103,7 +103,7 @@ CMO's flow after identity onboarding, from the start form (website and main goal
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
 **CMO hire**:
-The record that someone hired Cuso for a business: his Project, who hired him, the start form's answers, the Brand Brain, the strategy and Cuso's reports. One per Project.
+What CMO keeps on top of a Project for its Cuso: the Brand Brain, the strategy, Cuso's reports and the month's production. One per Project; the website and workspace are the Project's, and who hired him is his bot's creator.
 _Avoid_: CMO workspace (Cuso works in an ordinary Workspace; this is not one)
 
 **Brand Brain**:

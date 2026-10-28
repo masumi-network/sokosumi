@@ -28,7 +28,6 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     id: "cmo-1",
     businessName: "Acme",
     websiteUrl: "https://acme.io",
-    goals: "More sales",
     organizationSlug: null,
     projectName: "CMO.xyz · Acme",
     workspaceId: "ws-1",

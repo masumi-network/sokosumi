@@ -29802,9 +29802,6 @@ export const CmoOverviewSchema = {
         websiteUrl: {
             type: 'string'
         },
-        goals: {
-            type: 'string'
-        },
         organizationSlug: {
             anyOf: [
                 {
@@ -33189,7 +33186,6 @@ export const CmoOverviewSchema = {
         'id',
         'businessName',
         'websiteUrl',
-        'goals',
         'organizationSlug',
         'projectName',
         'workspaceId',

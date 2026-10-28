@@ -183,11 +183,7 @@ describe("cmoPlanDrift", () => {
       ]),
       costUsd: 0.0004,
     });
-    const drift = await cmoPlanDrift({
-      strategy: plan(),
-      brain,
-      goals: "More leads",
-    });
+    const drift = await cmoPlanDrift({ strategy: plan(), brain });
     expect(drift.problem).toMatch(/drifts from the main offer/);
     expect(drift.costUsd).toBe(0.0004);
     expect(drift.verdict).toBe("drift");
@@ -201,8 +197,7 @@ describe("cmoPlanDrift", () => {
       costUsd: 0.0004,
     });
     expect(
-      (await cmoPlanDrift({ strategy: plan(), brain, goals: "More leads" }))
-        .problem,
+      (await cmoPlanDrift({ strategy: plan(), brain })).problem,
     ).toBeNull();
   });
 
@@ -210,9 +205,7 @@ describe("cmoPlanDrift", () => {
     jev.answer = async () => {
       throw new TypeError("fetch failed");
     };
-    expect(
-      await cmoPlanDrift({ strategy: plan(), brain, goals: "More leads" }),
-    ).toEqual({
+    expect(await cmoPlanDrift({ strategy: plan(), brain })).toEqual({
       problem: null,
       verdict: "unavailable",
       costUsd: 0,

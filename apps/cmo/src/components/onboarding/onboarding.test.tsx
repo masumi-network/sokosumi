@@ -75,7 +75,6 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     id: "cmo-1",
     businessName: "acme.io",
     websiteUrl: "https://acme.io",
-    goals: "More sales",
     brandMedia: null,
     brandBrainApprovedAt: null,
     organizationSlug: null,

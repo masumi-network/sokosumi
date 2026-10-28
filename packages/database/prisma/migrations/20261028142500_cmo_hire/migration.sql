@@ -1,15 +1,12 @@
 -- CMO.xyz: Cuso is a shared Soko Bot of the hire's Project (ADR 0061); this
--- table holds what CMO adds on top. Who hired him is the bot's creator.
+-- table holds what CMO adds on top. The workspace, website and business name
+-- are the Project's, and who hired him is the bot's creator.
 CREATE TABLE "cmo_hire" (
     "id" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "workspaceId" UUID NOT NULL,
     "sokoBotId" UUID NOT NULL,
     "projectId" UUID NOT NULL,
-    "businessName" TEXT NOT NULL,
-    "websiteUrl" TEXT NOT NULL,
-    "goals" TEXT NOT NULL,
     "brandBrain" JSONB,
     "brandBrainUpdatedAt" TIMESTAMP(3),
     "brandBrainApprovedAt" TIMESTAMP(3),

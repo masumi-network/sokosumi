@@ -2476,19 +2476,13 @@ model CmoHire {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// The business's organization Workspace: the Project, Cuso and his work
-  /// live there, and its organization pays.
-  workspaceId String  @db.Uuid
-  sokoBotId   String  @unique @db.Uuid
-  sokoBot     SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
-  /// "CMO.xyz · <business>": Cuso's only Project. Social accounts connect,
-  /// posts, Tasks and files live here.
-  projectId   String  @unique @db.Uuid
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  businessName String
-  websiteUrl   String
-  goals        String
+  sokoBotId String  @unique @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// "CMO.xyz · <business>": Cuso's only Project. Its workspace (the
+  /// business's organization, which pays) and website are the hire's; Social
+  /// accounts connect, posts, Tasks and files live here.
+  projectId String  @unique @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   brandBrain           Json?
   brandBrainUpdatedAt  DateTime?

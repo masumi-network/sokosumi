@@ -61,16 +61,37 @@ const {
   getUserWorkspace: vi.fn(),
 }));
 
+// A hire read with its Project, as Core includes it: a fixture's own
+// workspaceId and websiteUrl stand for the Project's.
+const withProject = (hire: unknown) =>
+  hire && typeof hire === "object"
+    ? {
+        ...hire,
+        project: {
+          workspaceId: (hire as { workspaceId?: string }).workspaceId ?? "ws-1",
+          websiteUrl:
+            (hire as { websiteUrl?: string }).websiteUrl ?? "https://acme.io",
+          workspace: { organizationId: "org-1" },
+        },
+      }
+    : hire;
+
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     // Runs the callback against this same mock, as one transaction would.
     $transaction: (callback: (tx: unknown) => unknown) => callback(client),
     $executeRaw: vi.fn(async () => 1),
     cmoHire: {
-      findUnique: cmoFindUnique,
+      findUnique: async (args: { include?: unknown }) => {
+        const hire = await cmoFindUnique(args);
+        return args?.include ? withProject(hire) : hire;
+      },
       findMany: cmoFindMany,
       update: cmoUpdate,
-      create: cmoCreate,
+      create: async (args: { include?: unknown }) => {
+        const hire = await cmoCreate(args);
+        return args?.include ? withProject(hire) : hire;
+      },
       deleteMany: cmoDeleteMany,
     },
     user: {
@@ -170,7 +191,6 @@ import {
   listCmoMeasurement,
   mergeBrandVisual,
   mergeCalendarPieces,
-  ownWords,
   parseCmoUpdates,
   pauseCmoCalendarEntry,
   reportCmoUpdate,
@@ -234,9 +254,7 @@ beforeEach(() => {
   // the business's organization.
   cmoFindMany.mockImplementation(async (args: unknown) => {
     const hire = await cmoFindUnique(args);
-    return hire
-      ? [{ ...hire, project: { workspace: { organizationId: "org-1" } } }]
-      : [];
+    return hire ? [withProject(hire)] : [];
   });
 });
 
@@ -283,7 +301,11 @@ describe("cmoRunnerUserId", () => {
 describe("getCmoHireForUser", () => {
   const inOrg = (id: string, organizationId: string) => ({
     id,
-    project: { workspace: { organizationId } },
+    project: {
+      workspaceId: `ws-${organizationId}`,
+      websiteUrl: "https://acme.io",
+      workspace: { organizationId },
+    },
   });
 
   it("finds a live Cuso of any organization the person belongs to", async () => {
@@ -308,7 +330,12 @@ describe("getCmoHireForUser", () => {
       inOrg("cmo-new", "org-2"),
       inOrg("cmo-1", "org-1"),
     ]);
-    await expect(getCmoHireForUser("user-1")).resolves.toEqual({ id: "cmo-1" });
+    await expect(getCmoHireForUser("user-1")).resolves.toEqual({
+      id: "cmo-1",
+      workspaceId: "ws-org-1",
+      websiteUrl: "https://acme.io",
+      businessName: "acme.io",
+    });
   });
 
   it("falls back to the newest when the preferred one has none", async () => {
@@ -316,7 +343,7 @@ describe("getCmoHireForUser", () => {
       inOrg("cmo-new", "org-2"),
       inOrg("cmo-old", "org-3"),
     ]);
-    await expect(getCmoHireForUser("user-1")).resolves.toEqual({
+    await expect(getCmoHireForUser("user-1")).resolves.toMatchObject({
       id: "cmo-new",
     });
   });
@@ -383,17 +410,6 @@ describe("strategy approval → execution gate", () => {
           status: { in: ["active", "trialing"] },
         }),
       }),
-    );
-  });
-});
-
-describe("ownWords", () => {
-  it("finds the words an owner typed, not a preset goal", () => {
-    expect(ownWords("More leads")).toBeNull();
-    expect(ownWords("Launch something")).toBeNull();
-    expect(ownWords("Mehr Gäste")).toBe("Mehr Gäste");
-    expect(ownWords("Launch something: Unser Panettone")).toBe(
-      "Unser Panettone",
     );
   });
 });
@@ -1464,13 +1480,10 @@ describe("startCmoOnboarding", () => {
         versionId: CMO_SOKO_BOT_VERSION_ID,
       }),
     );
-    expect(cmoCreate.mock.lastCall?.[0].data).not.toHaveProperty("userId");
+    // The hire keeps no copy of the Project's workspace, website or name.
     expect(cmoCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        workspaceId: "ws-1",
-        businessName: "acme.io",
-        goals: "",
-      }),
+      data: { sokoBotId: "bot-1", projectId: "project-1" },
+      include: { project: { select: { workspaceId: true, websiteUrl: true } } },
     });
     // No goal is asked for, so Cuso's first turn names none.
     expect(startTurn.mock.lastCall?.[0].message).not.toMatch(/goal/i);

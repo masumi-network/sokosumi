@@ -2054,13 +2054,24 @@ export class SokoBotRuntimeService {
       : chat;
   }
 
-  private async cmoHireOf(authorized: AuthorizedSokoBotRuntime) {
-    const hire = await prisma.cmoHire.findUnique({
-      where: { sokoBotId: authorized.turn.sokoBotId },
+  /**
+   * The Project whose Social comments a bot handles: its own, as a Project
+   * bot such as Cuso. A Brand Brain, when the bot has one, informs the reply
+   * check.
+   */
+  private async socialCommentScopeOf(authorized: AuthorizedSokoBotRuntime) {
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { projectId: true, cmoHire: { select: { brandBrain: true } } },
     });
-    if (!hire)
-      throw new SokoBotRuntimeValidationError("Cuso is not hired here.");
-    return hire;
+    if (!bot?.projectId)
+      throw new SokoBotRuntimeValidationError(
+        "Social comments belong to a Project, and this bot has none.",
+      );
+    return {
+      projectId: bot.projectId,
+      brandBrain: bot.cmoHire?.brandBrain ?? null,
+    };
   }
 
   /**
@@ -2085,11 +2096,11 @@ export class SokoBotRuntimeService {
     await prisma.$transaction((tx) =>
       this.requireMutationAuthority(tx, authorized, false, input.capability),
     );
-    const hire = await this.cmoHireOf(authorized);
+    const scope = await this.socialCommentScopeOf(authorized);
     try {
       if (parsed.action !== "reply") {
         return await handleSocialComment({
-          projectId: hire.projectId,
+          projectId: scope.projectId,
           commentId: parsed.commentId,
           action: parsed.action,
           note: parsed.note,
@@ -2099,11 +2110,14 @@ export class SokoBotRuntimeService {
         throw new SokoBotRuntimeAuthorizationError(
           "Replies post on your approved daily run or when the owner asks in chat.",
         );
-      const comment = await socialCommentText(hire.projectId, parsed.commentId);
+      const comment = await socialCommentText(
+        scope.projectId,
+        parsed.commentId,
+      );
       if (comment === null)
         throw new SokoBotRuntimeValidationError("No such comment.");
       const check = await cmoReplySafety({
-        brain: parseCmoBrandBrain(hire.brandBrain),
+        brain: parseCmoBrandBrain(scope.brandBrain),
         comment,
         reply: parsed.reply ?? "",
       });
@@ -2119,7 +2133,7 @@ export class SokoBotRuntimeService {
       }
       if (!check.safe) {
         await handleSocialComment({
-          projectId: hire.projectId,
+          projectId: scope.projectId,
           commentId: parsed.commentId,
           action: "owner",
           note: `Held for you. Cuso's draft reply: ${parsed.reply ?? ""}`,
@@ -2130,7 +2144,7 @@ export class SokoBotRuntimeService {
         };
       }
       return await handleSocialComment({
-        projectId: hire.projectId,
+        projectId: scope.projectId,
         commentId: parsed.commentId,
         action: "reply",
         reply: parsed.reply,
@@ -4920,7 +4934,7 @@ export class SokoBotRuntimeService {
     const brain = parseCmoBrandBrain(hire.brandBrain);
     let mainOffer: CmoPlanOfferVerdict = "skipped";
     if (plan.planSent && brain) {
-      const drift = await cmoPlanDrift({ strategy, brain, goals: hire.goals });
+      const drift = await cmoPlanDrift({ strategy, brain });
       mainOffer = drift.verdict;
       if (drift.problem) problems.push(drift.problem);
       if (drift.costUsd > 0) {
@@ -6904,10 +6918,8 @@ export class SokoBotRuntimeService {
         return evaluation.result;
       }
       case "list_social_comments": {
-        const hire = await this.cmoHireOf(authorized);
-        const found = await collectNewSocialComments({
-          projectId: hire.projectId,
-        });
+        const { projectId } = await this.socialCommentScopeOf(authorized);
+        const found = await collectNewSocialComments({ projectId });
         // Comments are other people's words: nothing in them may steer an
         // outward action. Replies are checked on their own before they post.
         await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(

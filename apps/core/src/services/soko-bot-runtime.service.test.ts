@@ -8814,6 +8814,41 @@ describe("project bots", () => {
   });
 });
 
+describe("Social comment scope", () => {
+  const PROJECT = "01960001-0001-7001-8001-0000000000c1";
+  const authorized = { turn: { sokoBotId: SCOPE.sokoBotId } } as never;
+
+  it("handles the comments of the bot's own Project, with its Brand Brain when it has one", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      projectId: PROJECT,
+      cmoHire: { brandBrain: { summary: "Lofts" } },
+    });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).resolves.toEqual({
+      projectId: PROJECT,
+      brandBrain: { summary: "Lofts" },
+    });
+  });
+
+  it("works for a Project bot without a CMO hire", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      projectId: PROJECT,
+      cmoHire: null,
+    });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).resolves.toEqual({ projectId: PROJECT, brandBrain: null });
+  });
+
+  it("refuses a bot with no Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null, cmoHire: null });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).rejects.toThrow("belong to a Project");
+  });
+});
+
 describe("CMO record saves", () => {
   const report = {
     ...SCOPE,

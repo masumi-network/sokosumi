@@ -8604,7 +8604,6 @@ export type CmoOverview = {
     id: string;
     businessName: string;
     websiteUrl: string;
-    goals: string;
     organizationSlug: string | null;
     projectName: string;
     workspaceId: string;

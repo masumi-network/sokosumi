@@ -17,6 +17,8 @@ import { Prisma, type SokoBotTurnStatus } from "@sokosumi/database";
 import type { CmoStrategy } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import {
+  CMO_HIRE_PROJECT,
+  cmoHireView,
   getCmoHireForUser,
   parseCmoBrandBrain,
   parseCmoStrategy,
@@ -97,12 +99,15 @@ async function run(email: string, brand: Brand) {
   const user = await prisma.user.findUniqueOrThrow({ where: { email } });
   const current = await getCmoHireForUser(user.id);
   if (!current) throw new Error(`${email} works with no Cuso`);
+  // The website is the Project's; the hire keeps no copy.
+  await prisma.project.update({
+    where: { id: current.projectId },
+    data: { websiteUrl: brand.url },
+  });
   const hire = await prisma.cmoHire.update({
     where: { id: current.id },
+    include: CMO_HIRE_PROJECT,
     data: {
-      businessName: brand.name,
-      websiteUrl: brand.url,
-      goals: brand.goal,
       brandVisual: Prisma.DbNull,
       brandBrain: Prisma.DbNull,
       brandBrainUpdatedAt: null,
@@ -127,7 +132,9 @@ async function run(email: string, brand: Brand) {
     where: { id: hire.sokoBotId },
     data: { proactiveDailyLimit: 1_000 },
   });
-  const research = await settle((await startCmoResearch(hire, user.id)).turnId);
+  const research = await settle(
+    (await startCmoResearch(cmoHireView(hire), user.id)).turnId,
+  );
   const plan =
     research === "COMPLETED"
       ? await settle((await requestCmoStrategy({ userId: user.id })).turnId)

@@ -30,7 +30,6 @@ export function changeIdeas(overview: CmoOverview): string[] {
     ideas.push(`More ${channelLabel(more)}, less ${channelLabel(less)}`);
   }
   ideas.push("Fewer posts, more depth");
-  if (/launch/i.test(overview.goals)) ideas.push("Push the launch harder");
   const product = overview.brandBrain?.products
     .map(productName)
     .find((name) => name !== null);
