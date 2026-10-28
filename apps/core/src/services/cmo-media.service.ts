@@ -3,6 +3,7 @@ import { head } from "@vercel/blob";
 
 import type { FileActor } from "@/lib/files/actor";
 import { loadLiveResources } from "@/services/file-search.service";
+import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
 
 export interface CmoCalendarMedia {
   entryId: string;
@@ -76,4 +77,28 @@ export async function cmoCalendarMedia(input: {
     }),
   );
   return media.filter((item): item is CmoCalendarMedia => item !== null);
+}
+
+/**
+ * The image or video on each of the approved version's Social posts: the
+ * post's own media, already public in the owner's Files.
+ */
+export function cmoSocialPostMedia(
+  posts: MarketingStrategyPost[],
+): CmoCalendarMedia[] {
+  return posts.flatMap(({ entry, media }): CmoCalendarMedia[] => {
+    const [cover] = media;
+    if (!cover) return [];
+    const kind = cover.kind === "video" ? "video" : "image";
+    return [
+      media.length > 1
+        ? {
+            entryId: entry.id,
+            kind,
+            url: cover.fileUrl,
+            slides: media.map((file) => file.fileUrl),
+          }
+        : { entryId: entry.id, kind, url: cover.fileUrl },
+    ];
+  });
 }

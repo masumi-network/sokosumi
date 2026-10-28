@@ -8675,6 +8675,24 @@ export type SocialPost = {
     lastAttemptAt: Date | null;
     lastAttempt: SocialPostLastAttempt | null;
     revision: number;
+    /**
+     * The Marketing strategy version whose calendar planned this post; null for a post planned by hand.
+     */
+    marketingStrategyId?: string | null;
+    /**
+     * What the plan intends with the post: its calendar entry's title, format, hook, brief, why, approach, pillar and campaign.
+     */
+    planning?: {
+        id: string;
+        title: string;
+        format: string;
+        hook?: string;
+        brief?: string;
+        why?: string;
+        approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+        pillar?: string;
+        campaignId?: string;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
     canEdit: boolean;

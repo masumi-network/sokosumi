@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cancelSocialPost,
   cmoFindUnique,
+  connectionFindMany,
   memberFindUnique,
+  postCreateMany,
   postFindFirst,
+  postFindMany,
+  postUpdate,
   resetCmoServiceMocks,
   revised,
   seedStrategy,
@@ -258,21 +262,91 @@ describe("saving versions", () => {
     expect(plan(strategyRows[0]!)).toEqual(strategy);
   });
 
-  it("fills pieces into the approved version, not a newer draft", async () => {
+  it("fills pieces into the approved version's Social posts, not a newer draft", async () => {
     cmoFindUnique.mockResolvedValue(HIRE);
     const running = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
     const draft = seedStrategy(revised);
+    const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
+    postFindMany.mockResolvedValue([
+      {
+        id: postId,
+        status: "DRAFT",
+        planning: { id: "a", title: "Customer story", format: "post" },
+      },
+    ]);
+    connectionFindMany.mockResolvedValue([
+      { id: "conn-li", provider: "linkedin" },
+    ]);
+    const newsletter = {
+      id: "nl",
+      date: "2026-10-22",
+      channel: "newsletter",
+      title: "October issue",
+      format: "issue",
+      status: "draft" as const,
+      draft: "Hello.",
+    };
 
     await saveCmoStrategy(
       { sokoBotId: "bot-1" },
-      { calendar: [{ ...strategy.calendar[0]!, draft: "Written." }] },
+      {
+        calendar: [
+          // By the post's id, as Cuso's calendar shows it.
+          {
+            ...strategy.calendar[0]!,
+            id: postId,
+            draft: "Written.",
+            hook: "Ten minutes.",
+          },
+          {
+            ...strategy.calendar[0]!,
+            id: "news",
+            date: "2026-10-21",
+            time: "08:00",
+            title: "Award",
+            brief: "We won.",
+          },
+          newsletter,
+        ],
+      },
       { turnId: "turn-2", pieces: true },
     );
 
+    expect(postUpdate).toHaveBeenCalledWith({
+      where: { id: postId },
+      data: {
+        planning: {
+          id: "a",
+          title: "Customer story",
+          format: "post",
+          hook: "Ten minutes.",
+        },
+        scheduledAt: new Date("2026-10-20T09:00:00Z"),
+        text: "Written.",
+        revision: { increment: 1 },
+      },
+    });
+    // A piece the daily watch adds is a new draft of the running version.
+    expect(postCreateMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          marketingStrategyId: running.id,
+          workspaceId: "ws-1",
+          provider: "linkedin",
+          socialConnectionId: "conn-li",
+          status: "DRAFT",
+          text: "We won.",
+          scheduledAt: new Date("2026-10-21T08:00:00Z"),
+          creatorSokoBotId: "bot-1",
+          planning: expect.objectContaining({ id: "news", title: "Award" }),
+        }),
+      ],
+    });
+    // Only other channels stay in the plan.
     expect(strategyRows).toHaveLength(2);
-    expect(plan(running).calendar[0]).toMatchObject({ draft: "Written." });
+    expect(plan(running).calendar).toEqual([...strategy.calendar, newsletter]);
     expect(plan(draft)).toEqual(revised);
   });
 
@@ -358,51 +432,63 @@ describe("saving versions", () => {
 
 describe("pauseCmoCalendarEntry", () => {
   const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
-  const linked = {
-    ...strategy,
-    calendar: strategy.calendar.map((entry) =>
-      entry.id === "a"
-        ? { ...entry, status: "scheduled" as const, socialPostId: postId }
-        : entry,
-    ),
-  };
 
-  it("cancels the scheduled post and takes the entry out of the running plan", async () => {
+  it("cancels the entry's Social post and leaves the plan as approved", async () => {
     cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
-    const running = seedStrategy(linked, {
+    const running = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
     postFindFirst.mockResolvedValue({ status: "SCHEDULED", revision: 2 });
     cancelSocialPost.mockResolvedValue({});
 
-    await pauseCmoCalendarEntry({ userId: "user-1", entryId: "a" });
+    await pauseCmoCalendarEntry({ userId: "user-1", entryId: postId });
 
+    expect(postFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: postId, projectId: "project-1" },
+      }),
+    );
     expect(cancelSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId, revision: 2, projectId: "project-1" }),
     );
-    expect(strategyRows).toHaveLength(1);
-    expect(
-      plan(running).calendar.find((entry) => entry.id === "a")?.status,
-    ).toBe("skipped");
+    expect(plan(running)).toEqual(strategy);
   });
 
-  it("refuses a post that is already going out, and keeps the entry", async () => {
+  it("refuses a post that is already going out", async () => {
     cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
-    const running = seedStrategy(linked, {
-      approvedAt: new Date("2026-10-01T09:00:00Z"),
-    });
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     postFindFirst.mockResolvedValue({ status: "PUBLISHING", revision: 3 });
     cancelSocialPost.mockRejectedValue(
       new Error("The post can no longer be canceled"),
     );
 
     await expect(
-      pauseCmoCalendarEntry({ userId: "user-1", entryId: "a" }),
+      pauseCmoCalendarEntry({ userId: "user-1", entryId: postId }),
     ).rejects.toThrow("no longer be canceled");
     expect(cancelSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId, revision: 3 }),
     );
-    expect(plan(running)).toEqual(linked);
+  });
+
+  it("takes an entry on another channel out of the running plan", async () => {
+    cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
+    const newsletter = {
+      id: "nl",
+      date: "2026-10-22",
+      channel: "newsletter",
+      title: "October issue",
+      format: "issue",
+      status: "idea" as const,
+    };
+    const running = seedStrategy(
+      { ...strategy, calendar: [...strategy.calendar, newsletter] },
+      { approvedAt: new Date("2026-10-01T09:00:00Z") },
+    );
+
+    await pauseCmoCalendarEntry({ userId: "user-1", entryId: "nl" });
+
+    expect(postFindFirst).not.toHaveBeenCalled();
+    expect(plan(running).calendar.at(-1)?.status).toBe("skipped");
   });
 });
 

@@ -883,6 +883,15 @@ model SocialPost {
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
+  /// The Marketing strategy version whose calendar planned this post (ADR
+  /// 0062). Approving another version cancels its unpublished posts.
+  marketingStrategyId String?            @db.Uuid
+  marketingStrategy   MarketingStrategy? @relation(fields: [marketingStrategyId], references: [id], onDelete: SetNull)
+  /// What the plan intends with it: its calendar entry's id, title, format,
+  /// hook, brief, why, approach, pillar and campaign, validated by
+  /// `cmoSocialPostPlanningSchema` in `@sokosumi/soko-bot`.
+  planning            Json?
+
   attempts    SocialPostPublishAttempt[]
   comments    SocialComment[]
   threadParts SocialPostThreadPart[]
@@ -899,6 +908,7 @@ model SocialPost {
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
+  @@index([marketingStrategyId])
   @@map("social_post")
 }
 

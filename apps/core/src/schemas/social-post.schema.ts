@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { cmoSocialPostPlanningSchema } from "@sokosumi/soko-bot";
 import {
   isValidTimezone,
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -269,6 +270,14 @@ export const socialPostSchema = z
     // Keep the named component non-null so generated date transformers guard it.
     lastAttempt: z.union([socialPostLastAttemptSchema, z.null()]),
     revision: z.number().int().min(0).openapi({ example: 2 }),
+    marketingStrategyId: z.string().uuid().nullable().optional().openapi({
+      description:
+        "The Marketing strategy version whose calendar planned this post; null for a post planned by hand.",
+    }),
+    planning: cmoSocialPostPlanningSchema.nullable().optional().openapi({
+      description:
+        "What the plan intends with the post: its calendar entry's title, format, hook, brief, why, approach, pillar and campaign.",
+    }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     canEdit: z.boolean(),

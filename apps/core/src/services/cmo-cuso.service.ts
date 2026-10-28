@@ -54,6 +54,8 @@ export const CMO_HIRE_OMIT = {
   strategyUpdatedAt: true,
   strategyApprovedAt: true,
   strategyHistory: true,
+  // The month's production is read from the Social posts and Cuso's runs.
+  production: true,
 } as const;
 
 type CmoHireRow = Omit<CmoHire, keyof typeof CMO_HIRE_OMIT>;

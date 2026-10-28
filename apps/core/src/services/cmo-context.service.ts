@@ -21,7 +21,7 @@ import {
 import {
   approvedMarketingStrategy,
   newestMarketingStrategy,
-  parseMarketingPlan,
+  readMarketingPlan,
 } from "@/services/marketing-strategy.service";
 
 function calendarWindow(
@@ -53,7 +53,8 @@ export async function loadCmoMarketingContext(
     hire.projectId,
     options.executing ?? false,
   );
-  const strategy = parseMarketingPlan(version?.plan);
+  // Once approved, its social pieces are the Project's Social posts, under their ids.
+  const strategy = await readMarketingPlan(version);
   const [project, brandPictures] = await Promise.all([
     prisma.project.findUnique({
       where: { id: hire.projectId },

@@ -326,7 +326,7 @@ import {
 } from "@/services/image-studio-jobs.service";
 import {
   approvedMarketingStrategy,
-  parseMarketingPlan,
+  readMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { getNewsletter } from "@/services/newsletter.service";
 import {
@@ -5079,7 +5079,8 @@ export class SokoBotRuntimeService {
               tx,
             ),
           );
-          const stored = parseMarketingPlan(saved.plan);
+          // A running plan's social pieces are its Social posts.
+          const stored = await readMarketingPlan(saved);
           const calendar = stored?.calendar ?? [];
           const approved = saved.approvedAt !== null;
           const review = await this.reviewCmoPlan(authorized, input, {
@@ -5114,7 +5115,7 @@ export class SokoBotRuntimeService {
                 : draftProblems.length > 0
                   ? {
                       problems: draftProblems,
-                      next: "Rewrite these drafts (by id), update their Social posts when they have one, and save again with part calendar.",
+                      next: "Rewrite these drafts on their Social posts (the ids) with update_social_post; save other channels again with part pieces.",
                     }
                   : {}),
             },

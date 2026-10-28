@@ -39,6 +39,7 @@ import {
 import {
   type CmoCalendarMedia,
   cmoCalendarMedia,
+  cmoSocialPostMedia,
 } from "@/services/cmo-media.service";
 import {
   type CmoUpdateRecord,
@@ -48,8 +49,10 @@ import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
   listMarketingStrategies,
+  listMarketingStrategyPosts,
   newestMarketingStrategy,
   parseMarketingPlan,
+  withSocialPostCalendar,
 } from "@/services/marketing-strategy.service";
 
 /** Cuso's newest report cards CMO shows. */
@@ -226,9 +229,17 @@ export async function getCmoOverview(
     approvedMarketingStrategy(hire.projectId),
     listMarketingStrategies(hire.projectId),
   ]);
-  const strategy = parseMarketingPlan(newest?.plan);
+  // Once approved, a version's social pieces are the Project's Social posts.
+  const posts = approved ? await listMarketingStrategyPosts(approved) : [];
+  const planOf = (version: typeof newest) => {
+    const plan = parseMarketingPlan(version?.plan);
+    return plan && version?.approvedAt
+      ? withSocialPostCalendar(plan, posts)
+      : plan;
+  };
+  const strategy = planOf(newest);
   // Up next is what is carried out: the approved version's calendar.
-  const running = approved ? parseMarketingPlan(approved.plan) : strategy;
+  const running = approved ? planOf(approved) : strategy;
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
   const [credits, viewerCanApprove] = await Promise.all([
     buildCreditsPayload({
@@ -246,12 +257,15 @@ export async function getCmoOverview(
     cmoMockBilling() && cmoSubscription?.stripeSubscriptionId === null
       ? cmoSubscription
       : null;
-  const media = await cmoCalendarMedia({
-    strategy,
-    workspaceId: bot.workspaceId,
-    organizationId: bot.workspace.organizationId,
-    userId,
-  });
+  const media = [
+    ...(await cmoCalendarMedia({
+      strategy,
+      workspaceId: bot.workspaceId,
+      organizationId: bot.workspace.organizationId,
+      userId,
+    })),
+    ...cmoSocialPostMedia(posts),
+  ];
   const { readCmoProduction } = await import(
     "@/services/cmo-production.service"
   );

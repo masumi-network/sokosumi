@@ -11,8 +11,9 @@ model MarketingStrategy {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   /// The plan with its yes/no questions and their answers, validated by
-  /// `cmoStrategySchema` in `@sokosumi/soko-bot`. Its calendar stays inside
-  /// until the calendar becomes the Project's Social posts.
+  /// `cmoStrategySchema` in `@sokosumi/soko-bot`. Its calendar is the plan
+  /// as written; once approved, its social entries are the Project's Social
+  /// posts (`socialPosts`).
   plan Json
 
   /// Who wrote it: a bot's turn, or a member.
@@ -27,6 +28,8 @@ model MarketingStrategy {
   approvedAt       DateTime?
   approvedByUserId String?
   approvedByUser   User?     @relation("MarketingStrategyApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  socialPosts SocialPost[]
 
   @@unique([projectId], map: "marketing_strategy_one_approved_key", where: { approvedAt: { not: null } })
   @@index([projectId, createdAt])

@@ -28,6 +28,9 @@ export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
 export const postFindFirst = vi.fn();
 export const postFindMany = vi.fn();
+export const postUpdate = vi.fn();
+export const postCreateMany = vi.fn();
+export const postUpdateMany = vi.fn();
 export const cancelSocialPost = vi.fn();
 export const eventFindFirst = vi.fn();
 export const expireTurn = vi.fn();
@@ -176,9 +179,12 @@ const client = {
   $transaction: (callback: (tx: unknown) => unknown) => callback(client),
   $executeRaw: vi.fn(async () => 1),
   cmoHire: {
-    findUnique: async (args: { include?: unknown }) => {
+    findUnique: async (args: {
+      include?: unknown;
+      select?: { project?: unknown };
+    }) => {
       const hire = await cmoFindUnique(args);
-      return args?.include ? withProject(hire) : hire;
+      return args?.include || args?.select?.project ? withProject(hire) : hire;
     },
     findMany: cmoFindMany,
     update: cmoUpdate,
@@ -232,7 +238,15 @@ const client = {
   workspace: { findUnique: workspaceFindUnique },
   sokoBotTurn: { findFirst: turnFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },
-  socialPost: { findFirst: postFindFirst, findMany: postFindMany },
+  socialPost: {
+    findFirst: postFindFirst,
+    findMany: postFindMany,
+    update: postUpdate,
+    createMany: postCreateMany,
+    updateMany: postUpdateMany,
+  },
+  // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.
+  sokoBotSchedule: { findFirst: async () => null },
   sokoBotRuntimeEvent: { findFirst: eventFindFirst },
   sokoBotIntegration: { findMany: integrationFindMany },
 };
@@ -341,6 +355,9 @@ export function resetCmoServiceMocks(): void {
     sitePlatform: null,
   });
   fileLinkFindMany.mockResolvedValue([]);
+  // No Social posts or connections unless a test seeds them.
+  postFindMany.mockResolvedValue([]);
+  connectionFindMany.mockResolvedValue([]);
   // The hire a member works with is the one findUnique stands for here, in
   // the business's organization.
   cmoFindMany.mockImplementation(async (args: unknown) => {

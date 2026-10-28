@@ -31819,6 +31819,83 @@ export const SocialPostSchema = {
             minimum: 0,
             example: 2
         },
+        marketingStrategyId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Marketing strategy version whose calendar planned this post; null for a post planned by hand.'
+        },
+        planning: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 64
+                },
+                title: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                format: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                hook: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                brief: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                why: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                approach: {
+                    type: 'string',
+                    enum: [
+                        'educational',
+                        'thought-leadership',
+                        'problem-solution',
+                        'product-led',
+                        'social-proof',
+                        'people-led',
+                        'community-led',
+                        'entertainment',
+                        'research-led',
+                        'promotional'
+                    ]
+                },
+                pillar: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                campaignId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 64
+                }
+            },
+            required: [
+                'id',
+                'title',
+                'format'
+            ],
+            description: 'What the plan intends with the post: its calendar entry\'s title, format, hook, brief, why, approach, pillar and campaign.'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',

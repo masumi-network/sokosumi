@@ -3,6 +3,7 @@ import {
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
   type CmoBrandBrain,
+  type CmoCalendarEntry,
   type CmoPlanQuestion,
   type CmoStrategy,
   type CmoStrategySave,
@@ -27,6 +28,7 @@ import {
   approveMarketingStrategy,
   newestMarketingStrategy,
   parseMarketingPlan,
+  planMarketingStrategyPosts,
 } from "@/services/marketing-strategy.service";
 
 /**
@@ -58,7 +60,7 @@ export function cmoTurnExecutesPlan(turn: {
  * The version a turn reads and builds on: while it executes, the approved
  * one (executing rhythms and production never run without one, so only the
  * approval reminder falls back to the waiting draft); otherwise the newest.
- * Pieces and pauses fill in the executed version the same way.
+ * Pieces fill in the executed version the same way.
  */
 export async function cmoWorkingStrategy(
   projectId: string,
@@ -305,8 +307,9 @@ export function withoutDashes<T>(value: T): T {
  * Saves the strategy as a version of the Project's Marketing strategy. A
  * turn's first save adds a version and its later saves complete it (a plan
  * goes in two calls) until it is approved; no save changes another version.
- * Pieces (drafts, media, Social post ids) fill in the version being carried
- * out: until the calendar becomes Social posts, it lives in that version.
+ * Pieces fill in the version being carried out: once approved, its social
+ * pieces are its Social posts, and only entries on other channels (ads,
+ * articles, newsletters) stay in its plan.
  */
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
@@ -323,7 +326,11 @@ export async function saveCmoStrategy(
 ): Promise<MarketingStrategy> {
   const hire = await db.cmoHire.findUnique({
     where: await cmoHireWhere(where),
-    select: { projectId: true, sokoBotId: true },
+    select: {
+      projectId: true,
+      sokoBotId: true,
+      project: { select: { workspaceId: true } },
+    },
   });
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const own = options.turnId
@@ -339,6 +346,19 @@ export async function saveCmoStrategy(
   const target = options.pieces
     ? await cmoWorkingStrategy(hire.projectId, true, db)
     : own;
+  const pieces =
+    options.pieces && target?.approvedAt
+      ? await planMarketingStrategyPosts(db, {
+          version: target,
+          workspaceId: hire.project.workspaceId,
+          entries: (strategy.calendar ?? []) as CmoCalendarEntry[],
+          creator:
+            "sokoBotId" in where
+              ? { sokoBotId: hire.sokoBotId }
+              : { userId: where.userId },
+        })
+      : strategy.calendar;
+  if (target?.approvedAt && pieces?.length === 0) return target;
   const base =
     target ??
     (await cmoWorkingStrategy(hire.projectId, options.executing ?? false, db));
@@ -350,7 +370,7 @@ export async function saveCmoStrategy(
       Object.entries(strategy).filter(([, value]) => value !== undefined),
     ),
     calendar: options.pieces
-      ? mergeCalendarPieces(before?.calendar ?? [], strategy.calendar ?? [])
+      ? mergeCalendarPieces(before?.calendar ?? [], pieces ?? [])
       : (strategy.calendar ?? before?.calendar ?? []),
   });
   // A channel the plan now runs is no longer a proposal.
@@ -537,8 +557,9 @@ export async function approveCmoStrategy(
 }
 
 /**
- * The owner pauses one calendar entry from Up next: its scheduled post is
- * canceled so it cannot go out, and the entry leaves the plan (skipped).
+ * The owner pauses one calendar entry from Up next. A Social post (the
+ * entry's id) is canceled so it cannot go out; one already going out is
+ * refused (409). An entry on another channel leaves the plan (skipped).
  */
 export async function pauseCmoCalendarEntry(input: {
   userId: string;
@@ -546,6 +567,26 @@ export async function pauseCmoCalendarEntry(input: {
 }): Promise<void> {
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const post = UUID.test(input.entryId)
+    ? await prisma.socialPost.findFirst({
+        where: { id: input.entryId, projectId: hire.projectId },
+        select: { status: true, revision: true },
+      })
+    : null;
+  if (post) {
+    if (post.status === "CANCELED") return;
+    const { cancelSocialPost } = await import(
+      "@/services/social-posts.service"
+    );
+    await cancelSocialPost({
+      projectId: hire.projectId,
+      workspaceId: hire.workspaceId,
+      userId: input.userId,
+      postId: input.entryId,
+      revision: post.revision,
+    });
+    return;
+  }
   const strategy = parseMarketingPlan(
     (await cmoWorkingStrategy(hire.projectId, true))?.plan,
   );
@@ -553,28 +594,11 @@ export async function pauseCmoCalendarEntry(input: {
   if (!strategy || !entry) {
     throw new CmoNotFoundError("No such calendar entry");
   }
-  if (entry.socialPostId) {
-    const post = await prisma.socialPost.findFirst({
-      where: { id: entry.socialPostId, projectId: hire.projectId },
-      select: { status: true, revision: true },
-    });
-    // A post already going out refuses (409) and the entry stays as it is.
-    if (post && post.status !== "CANCELED") {
-      const { cancelSocialPost } = await import(
-        "@/services/social-posts.service"
-      );
-      await cancelSocialPost({
-        projectId: hire.projectId,
-        workspaceId: hire.workspaceId,
-        userId: input.userId,
-        postId: entry.socialPostId,
-        revision: post.revision,
-      });
-    }
-  }
   await saveCmoStrategy(
     { userId: input.userId },
     { calendar: [{ ...entry, status: "skipped" as const }] },
     { pieces: true },
   );
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

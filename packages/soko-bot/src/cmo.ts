@@ -451,6 +451,24 @@ export const cmoCalendarEntrySchema = z.object({
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
 
+/**
+ * What the plan intends with a Social post made from its calendar (ADR
+ * 0062): the entry's id and its planning fields. The post itself holds the
+ * words, media, network and time.
+ */
+export const cmoSocialPostPlanningSchema = cmoCalendarEntrySchema.pick({
+  id: true,
+  title: true,
+  format: true,
+  hook: true,
+  brief: true,
+  why: true,
+  approach: true,
+  pillar: true,
+  campaignId: true,
+});
+export type CmoSocialPostPlanning = z.infer<typeof cmoSocialPostPlanningSchema>;
+
 /** The funnel's stages, top to bottom. */
 export const CMO_FUNNEL_STAGES = [
   "awareness",
@@ -1032,7 +1050,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Keeps the made month current: finishes anything missing, replies to comments, and adjusts pieces for news, holidays and competitors.",
     prompt:
-      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any entry due in the next 3 days that still lacks its draft, its image or video, or its schedule on a connected network, and schedule finished drafts on any network connected since, the way your production skill makes a piece; save with save_strategy part pieces (only those entries: status, socialPostId, imageFileId, slideFileIds); 2) then the reply round (reading comments locks social changes and pictures for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy part pieces (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
+      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any Social post due in the next 3 days that still lacks its words, its image or video, or its schedule on a connected network, and schedule finished drafts on any network connected since, on the post itself (update_social_post, schedule_social_post), the way your production skill makes a piece; 2) then the reply round (reading comments locks social changes and pictures for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy part pieces (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",

@@ -22,6 +22,11 @@ const m = vi.hoisted(() => ({
   turnFindFirst: vi.fn(),
   eventFindFirst: vi.fn(),
   executeRaw: vi.fn(async () => 1),
+  postFindMany: vi.fn(),
+  postCreateMany: vi.fn(),
+  postUpdateMany: vi.fn(),
+  connectionFindMany: vi.fn(),
+  scheduleFindFirst: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => {
@@ -34,6 +39,13 @@ vi.mock("@/lib/db/prisma", () => {
       updateMany: m.strategyUpdateMany,
     },
     member: { findFirst: m.memberFindFirst },
+    socialPost: {
+      findMany: m.postFindMany,
+      createMany: m.postCreateMany,
+      updateMany: m.postUpdateMany,
+    },
+    projectSocialConnection: { findMany: m.connectionFindMany },
+    sokoBotSchedule: { findFirst: m.scheduleFindFirst },
     sokoBotTurn: { findFirst: m.turnFindFirst },
     sokoBotRuntimeEvent: { findFirst: m.eventFindFirst },
     $executeRaw: m.executeRaw,
@@ -140,6 +152,9 @@ beforeEach(() => {
   );
   m.memberFindFirst.mockResolvedValue({ role: "admin" });
   m.turnFindFirst.mockResolvedValue(null);
+  m.postFindMany.mockResolvedValue([]);
+  m.connectionFindMany.mockResolvedValue([]);
+  m.scheduleFindFirst.mockResolvedValue(null);
   m.strategyUpdate.mockImplementation(
     async (args: { where: { id: string }; data: object }) => ({
       ...version(args.where.id),
@@ -201,6 +216,116 @@ describe("Marketing strategy routes", () => {
     expect(m.strategyUpdate).toHaveBeenCalledWith({
       where: { id: NEW_ID },
       data: { approvedAt: expect.any(Date), approvedByUserId: "user_1" },
+    });
+  });
+
+  it("turns the approved calendar into draft Social posts and cancels the old plan's", async () => {
+    const author = "55555555-5555-4555-8555-555555555555";
+    m.strategyFindFirst.mockResolvedValue(
+      version(NEW_ID, null, {
+        ...PLAN,
+        calendar: [
+          {
+            id: "li-1",
+            date: "2099-11-03",
+            time: "09:30",
+            channel: "linkedin",
+            format: "text",
+            title: "Setup in ten minutes",
+            brief: "Show the setup end to end.",
+            why: "Proves the product is quick.",
+            approach: "educational",
+            campaignId: "launch",
+            status: "idea",
+          },
+          {
+            id: "x-1",
+            date: "2099-11-04",
+            channel: "x",
+            format: "text",
+            title: "Launch day",
+            draft: "We launch today.",
+            status: "draft",
+          },
+          // Not a social network, already past, or left out: no post.
+          {
+            id: "nl-1",
+            date: "2099-11-05",
+            channel: "newsletter",
+            format: "issue",
+            title: "November issue",
+            status: "idea",
+          },
+          {
+            id: "li-old",
+            date: "2020-01-01",
+            channel: "linkedin",
+            format: "text",
+            title: "Old",
+            status: "idea",
+          },
+          {
+            id: "li-skip",
+            date: "2099-11-06",
+            channel: "linkedin",
+            format: "text",
+            title: "Skipped",
+            status: "skipped",
+          },
+        ],
+      }),
+    );
+    m.connectionFindMany.mockResolvedValue([
+      { id: "conn-li", provider: "linkedin" },
+    ]);
+    m.scheduleFindFirst.mockResolvedValue({ timezone: "Europe/Zurich" });
+
+    const response = await post(`${NEW_ID}/approve`);
+
+    expect(response.status).toBe(200);
+    // Two plans never publish side by side: the old version's unpublished posts go.
+    expect(m.postUpdateMany).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
+        marketingStrategy: { id: { not: NEW_ID } },
+      },
+      data: {
+        status: "CANCELED",
+        canceledAt: expect.any(Date),
+        revision: { increment: 1 },
+      },
+    });
+    expect(m.postCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          marketingStrategyId: NEW_ID,
+          provider: "linkedin",
+          socialConnectionId: "conn-li",
+          text: "Show the setup end to end.",
+          status: "DRAFT",
+          scheduledAt: new Date("2099-11-03T08:30:00Z"),
+          timezone: "Europe/Zurich",
+          creatorSokoBotId: author,
+          planning: {
+            id: "li-1",
+            title: "Setup in ten minutes",
+            format: "text",
+            brief: "Show the setup end to end.",
+            why: "Proves the product is quick.",
+            approach: "educational",
+            campaignId: "launch",
+          },
+        },
+        expect.objectContaining({
+          provider: "x",
+          socialConnectionId: null,
+          text: "We launch today.",
+          planning: { id: "x-1", title: "Launch day", format: "text" },
+        }),
+      ],
     });
   });
 
