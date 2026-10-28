@@ -255,7 +255,10 @@ function ScopedMenuItems({
     // is the same box a Chat row's is.
     <SidebarGroup className="w-full px-2 py-0">
       {/* 4px over Work, so the first heading sits just under the project
-          title it hangs from. */}
+          title it hangs from. The 8px under the last group stacks on the
+          Chats group's own 8px: that wider gap is what separates the
+          project-scoped nav from the workspace-wide chats from md, where the
+          scope's hairline is gone. */}
       <SidebarGroupContent className="pt-1 pb-2">
         {NAV_GROUPS.map((group) => (
           <MenuGroup key={group} title={t(`groups.${group}`)}>
