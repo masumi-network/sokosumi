@@ -138,6 +138,7 @@ function overview() {
         changes: ["More LinkedIn"],
         results: "No provider metrics yet.",
         previousVersionId: "strategy-0",
+        versionId: "strategy-1",
       },
     ],
     channels: [],
@@ -195,6 +196,7 @@ describe("CMO routes", () => {
     // The version id stays in Core; the card only learns it can revert.
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
+    expect(body.data.updates[0].versionId).toBeUndefined();
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,

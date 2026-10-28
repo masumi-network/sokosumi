@@ -176,7 +176,11 @@ const marketingStrategy = {
       return { count: rows.length };
     },
   ),
-  deleteMany: vi.fn(async () => ({ count: 0 })),
+  deleteMany: vi.fn(async (args: { where?: StrategyWhere } = {}) => {
+    const rows = strategyRows.filter((row) => matchesStrategy(row, args.where));
+    for (const row of rows) strategyRows.splice(strategyRows.indexOf(row), 1);
+    return { count: rows.length };
+  }),
 };
 
 const client = {

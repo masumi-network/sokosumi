@@ -22,9 +22,12 @@ import {
   chatResultAvailableSchema,
   chatResultSnapshotSchema,
 } from "@/schemas/chat-result-preview.schema";
-import { CmoNotFoundError, findCusoForUser } from "@/services/cmo-cuso.service";
+import { CmoNotFoundError, requireCuso } from "@/services/cmo-cuso.service";
 import { approveCmoStrategy } from "@/services/cmo-strategy.service";
-import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
+import {
+  approvedMarketingStrategy,
+  discardMarketingStrategy,
+} from "@/services/marketing-strategy.service";
 import { setProjectLatestUpdate } from "@/services/project-latest-update";
 
 /** A report as CMO reads it: its card's message id and when it was posted. */
@@ -101,7 +104,7 @@ export async function reportCmoUpdate(
   const report: CmoReport = {
     ...update,
     ...(wroteThisTurn && approved && approved.id !== wroteThisTurn.id
-      ? { previousVersionId: approved.id }
+      ? { previousVersionId: approved.id, versionId: wroteThisTurn.id }
       : {}),
   };
   const id = randomUUID();
@@ -155,24 +158,41 @@ export async function reportCmoUpdate(
 
 /**
  * Puts back the strategy a weekly review or monthly strategy replaced, from
- * its card, by approving the version that ran before it again.
+ * its card: a version it wrote that still waits for approval is discarded;
+ * an approved one gives way to the version that ran before it. The card is
+ * marked reverted only when one of the two happened.
  */
 export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
 }): Promise<void> {
-  const hire = await findCusoForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const hire = await requireCuso({ userId: input.userId });
   const message = await prisma.chatRoomMessage.findFirst({
     where: { id: input.updateId, ...cmoReportMessageWhere(hire.sokoBotId) },
     select: { id: true, createdAt: true, metadata: true },
   });
   const target = message ? readCmoReport(message.metadata) : null;
-  if (!message || !target?.previousVersionId) {
+  if (!message || !target?.previousVersionId || !target.versionId) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (target.revertedAt) return;
-  await approveCmoStrategy(input.userId, target.previousVersionId);
+  const written = await prisma.marketingStrategy.findFirst({
+    where: { id: target.versionId, projectId: hire.projectId },
+    select: { approvedAt: true },
+  });
+  if (!written) {
+    throw new CmoNotFoundError("Nothing to revert for this update");
+  }
+  if (written.approvedAt) {
+    await approveCmoStrategy(input.userId, target.previousVersionId);
+  } else {
+    await discardMarketingStrategy({
+      projectId: hire.projectId,
+      workspaceId: hire.workspaceId,
+      userId: input.userId,
+      strategyId: target.versionId,
+    });
+  }
   await prisma.chatRoomMessage.update({
     where: { id: message.id },
     data: {

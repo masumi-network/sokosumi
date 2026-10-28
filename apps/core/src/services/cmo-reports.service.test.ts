@@ -83,6 +83,11 @@ import {
 beforeEach(resetCmoServiceMocks);
 
 const MESSAGE_ID = "0196a000-0000-7000-8000-000000000001";
+const HIRE = {
+  sokoBotId: "bot-1",
+  projectId: "project-1",
+  workspaceId: "ws-1",
+};
 
 function cuso() {
   return {
@@ -269,18 +274,17 @@ describe("weekly change and revert", () => {
       toolCallId: "call-1",
       update: weekly,
     });
-    expect(record.previousVersionId).toBe(before.id);
+    expect(record).toMatchObject({
+      previousVersionId: before.id,
+      versionId: review.id,
+    });
 
     // The owner approved the review's version, then reverts from the card.
     Object.assign(before, { approvedAt: null });
     Object.assign(review, { approvedAt: new Date("2026-10-05T09:00:00Z") });
-    cusoFind.mockResolvedValue({
-      sokoBotId: "bot-1",
-      projectId: "project-1",
-      workspaceId: "ws-1",
-    });
+    cusoFind.mockResolvedValue(HIRE);
     messageFindFirst.mockResolvedValue(
-      reportMessage({ previousVersionId: before.id }),
+      reportMessage({ previousVersionId: before.id, versionId: review.id }),
     );
     await revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID });
     expect(messageFindFirst.mock.calls[0]?.[0].where).toMatchObject({
@@ -298,6 +302,41 @@ describe("weekly change and revert", () => {
     expect(data.metadata.result_preview_snapshots).toEqual([{ kept: true }]);
   });
 
+  it("discards the review's version while it still waits for approval", async () => {
+    const before = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+      approvedByUserId: "user-2",
+    });
+    const review = seedStrategy(revised, { turnId: "turn-1" });
+    cusoFind.mockResolvedValue(HIRE);
+    messageFindFirst.mockResolvedValue(
+      reportMessage({ previousVersionId: before.id, versionId: review.id }),
+    );
+
+    await revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID });
+
+    expect(strategyRows).toEqual([
+      expect.objectContaining({ id: before.id, approvedByUserId: "user-2" }),
+    ]);
+    const { data } = messageUpdate.mock.calls[0]?.[0];
+    expect(data.metadata.cmo_report.revertedAt).toBeTruthy();
+  });
+
+  it("leaves the card unreverted when the review's version is gone", async () => {
+    const before = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    cusoFind.mockResolvedValue(HIRE);
+    messageFindFirst.mockResolvedValue(
+      reportMessage({ previousVersionId: before.id, versionId: "gone" }),
+    );
+
+    await expect(
+      revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID }),
+    ).rejects.toThrow("Nothing to revert");
+    expect(messageUpdate).not.toHaveBeenCalled();
+  });
+
   it("offers no revert when the review wrote no new version", async () => {
     seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     sokoBotFindUnique.mockResolvedValue(cuso());
@@ -312,20 +351,21 @@ describe("weekly change and revert", () => {
 
   it("reverts a card only once", async () => {
     const before = seedStrategy(strategy);
-    cusoFind.mockResolvedValue({ sokoBotId: "bot-1" });
+    cusoFind.mockResolvedValue(HIRE);
     messageFindFirst.mockResolvedValue(
       reportMessage({
         previousVersionId: before.id,
+        versionId: before.id,
         revertedAt: "2026-10-05T10:00:00Z",
       }),
     );
     await revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID });
-    expect(strategyRows.filter((row) => row.approvedAt)).toEqual([]);
+    expect(strategyRows).toHaveLength(1);
     expect(messageUpdate).not.toHaveBeenCalled();
   });
 
   it("finds nothing to revert on a card without a previous version", async () => {
-    cusoFind.mockResolvedValue({ sokoBotId: "bot-1" });
+    cusoFind.mockResolvedValue(HIRE);
     messageFindFirst.mockResolvedValue(reportMessage({ kind: "daily" }));
     await expect(
       revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID }),

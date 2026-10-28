@@ -120,7 +120,8 @@ export async function loadCmoMarketingContext(
         }
       : null,
     recentUpdates: (await listCmoReports(sokoBotId, 3)).map(
-      ({ previousVersionId: _previous, ...update }) => update,
+      ({ previousVersionId: _previous, versionId: _version, ...update }) =>
+        update,
     ),
   };
   return fitCmoMarketingContext(context, now);

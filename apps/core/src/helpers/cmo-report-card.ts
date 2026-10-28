@@ -16,6 +16,8 @@ const cmoReportSchema = cmoReportUpdateInputSchema.extend({
    * turn wrote a new one; reverting approves it again.
    */
   previousVersionId: z.string().optional(),
+  /** The version this turn wrote: reverting discards it while unapproved. */
+  versionId: z.string().optional(),
   revertedAt: z.string().optional(),
 });
 export type CmoReport = z.infer<typeof cmoReportSchema>;

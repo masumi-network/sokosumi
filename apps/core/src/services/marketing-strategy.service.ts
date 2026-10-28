@@ -135,16 +135,14 @@ async function strategyBeingWritten(projectId: string): Promise<boolean> {
   return (await settledTurnStatus(writing, new Date())) === "running";
 }
 
-/**
- * Approves one version and withdraws the approval of any other, so the
- * Project carries out exactly this one. Approving an older version reverts.
- */
-export async function approveMarketingStrategy(input: {
+interface VersionChange {
   projectId: string;
   workspaceId: string;
   userId: string;
   strategyId: string;
-}): Promise<MarketingStrategy> {
+}
+
+async function requireApprover(input: VersionChange): Promise<void> {
   const project = await prisma.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
     select: {
@@ -157,6 +155,36 @@ export async function approveMarketingStrategy(input: {
       "Only the Workspace's owners and admins approve a Marketing strategy",
     );
   }
+}
+
+/**
+ * Deletes a version nobody approved, as approving decides what runs: the
+ * Workspace's owners and admins only. An approved version is never deleted.
+ */
+export async function discardMarketingStrategy(
+  input: VersionChange,
+): Promise<void> {
+  await requireApprover(input);
+  const { count } = await prisma.marketingStrategy.deleteMany({
+    where: {
+      id: input.strategyId,
+      projectId: input.projectId,
+      approvedAt: null,
+    },
+  });
+  if (count === 0) {
+    throw conflict("That version is approved or gone; nothing was discarded");
+  }
+}
+
+/**
+ * Approves one version and withdraws the approval of any other, so the
+ * Project carries out exactly this one. Approving an older version reverts.
+ */
+export async function approveMarketingStrategy(
+  input: VersionChange,
+): Promise<MarketingStrategy> {
+  await requireApprover(input);
   if (await strategyBeingWritten(input.projectId)) {
     throw conflict(
       "A new version of the strategy is being written; approve when it is ready",

@@ -51,9 +51,9 @@ function mapOverview(overview: CmoOverview) {
     strategyVersion: overview.strategyVersions[0] ?? null,
     strategyVersions: overview.strategyVersions,
     updates: overview.updates.map(
-      ({ previousVersionId, revertedAt, ...update }) => ({
+      ({ previousVersionId, versionId, revertedAt, ...update }) => ({
         ...update,
-        revertible: previousVersionId !== undefined && !revertedAt,
+        revertible: !!previousVersionId && !!versionId && !revertedAt,
         revertedAt: revertedAt ?? null,
       }),
     ),

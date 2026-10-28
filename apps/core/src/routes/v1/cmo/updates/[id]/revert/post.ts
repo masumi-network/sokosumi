@@ -17,13 +17,14 @@ const route = createRoute({
   operationId: "revertCmoUpdate",
   tags: ["CMO"],
   description:
-    "Puts back the strategy a weekly review changed, from its report card.",
+    "Puts back the strategy a weekly review changed, from its report card: discards the version it wrote while that waits for approval, else approves the version before it again.",
   request: { params: cmoReportIdParamsSchema },
   responses: {
     200: jsonSuccessResponse(cmoOverviewSchema, "Strategy reverted"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Nothing to revert"),
+    409: jsonErrorResponse("The version changed meanwhile"),
   },
 });
 
