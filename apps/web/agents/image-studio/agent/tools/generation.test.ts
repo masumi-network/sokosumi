@@ -21,12 +21,17 @@ import options from "./list_image_options";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
+// eve 0.85 requires `to` and `channel` on ToolContext. This fixture does not call them.
 const ctx: Parameters<typeof generate.execute>[1] = {
   getSandbox: vi.fn(),
   getToken: vi.fn(),
   requireAuth: () => {
     throw new Error("Unexpected auth request");
   },
+  to: () => {
+    throw new Error("Unexpected channel send");
+  },
+  channel: { kind: "http", metadata: {} },
   abortSignal: new AbortController().signal,
   callId: "call-1",
   toolName: "generate_image",
