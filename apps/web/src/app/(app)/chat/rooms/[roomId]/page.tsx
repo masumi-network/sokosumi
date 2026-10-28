@@ -8,6 +8,7 @@ import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-vie
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
+import { isShownInEveryWorkspace } from "@/lib/chat/room-workspace-scope";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { userService } from "@/lib/services/user.service";
@@ -41,47 +42,6 @@ interface ChatRoomShellProps {
 }
 
 const ROOM_UNAVAILABLE_HREF = "/?notice=room-unavailable";
-
-/** Org-less matched channels open via roster membership, not host-org context. */
-function isMatchedMemberChannel(
-  room: Pick<
-    ChatRoom,
-    "organizationId" | "kind" | "discoverability" | "myAccess"
-  >,
-): boolean {
-  return (
-    room.organizationId === null &&
-    room.kind === "channel" &&
-    room.discoverability === "matched" &&
-    room.myAccess === "member"
-  );
-}
-
-/**
- * Mirrors Core's sidebar rule (ADR-0059): External channels, hosted or as a
- * Guest, matched channels and Personal Directs with only humans show in every
- * workspace, so a member opens them from any.
- */
-function isShownInEveryWorkspace(
-  room: Pick<
-    ChatRoom,
-    | "organizationId"
-    | "kind"
-    | "discoverability"
-    | "myAccess"
-    | "coworkerMembers"
-    | "sokoBotMembers"
-  >,
-): boolean {
-  if (room.kind === "channel") {
-    return room.discoverability === "external" || isMatchedMemberChannel(room);
-  }
-  return (
-    room.organizationId === null &&
-    room.coworkerMembers.length === 0 &&
-    room.sokoBotMembers.length === 0
-  );
-}
 
 function NoOrganizationCard({
   title,

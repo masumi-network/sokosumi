@@ -45,7 +45,16 @@ function roomCanPaint(
 export function PersistentRoomView({ children }: { children: ReactNode }) {
   const cache = useRoomCache();
   const path = useRoomSelection();
-  const [bootstrap, setBootstrap] = useState<RoomsClientProps | null>(null);
+  const [registered, setBootstrap] = useState<RoomsClientProps | null>(null);
+  // A page registered before a workspace switch never paints in the next one.
+  const bootstrap =
+    registered &&
+    cache?.matchesScope(
+      registered.currentUserId,
+      registered.activeOrganization?.id ?? null,
+    )
+      ? registered
+      : null;
   const requestedId = roomIdFromPath(path);
   // The click's read can seed the target before its page registers.
   useQuery<RoomTranscriptEntry>(
