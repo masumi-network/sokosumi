@@ -57,6 +57,32 @@ function isMatchedMemberChannel(
   );
 }
 
+/**
+ * Mirrors Core's sidebar rule (ADR-0059): External channels, hosted or as a
+ * Guest, matched channels and Personal Directs with only humans show in every
+ * workspace, so a member opens them from any.
+ */
+function isShownInEveryWorkspace(
+  room: Pick<
+    ChatRoom,
+    | "organizationId"
+    | "kind"
+    | "discoverability"
+    | "myAccess"
+    | "coworkerMembers"
+    | "sokoBotMembers"
+  >,
+): boolean {
+  if (room.kind === "channel") {
+    return room.discoverability === "external" || isMatchedMemberChannel(room);
+  }
+  return (
+    room.organizationId === null &&
+    room.coworkerMembers.length === 0 &&
+    room.sokoBotMembers.length === 0
+  );
+}
+
 function NoOrganizationCard({
   title,
   description,
@@ -144,12 +170,11 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       redirect(ROOM_UNAVAILABLE_HREF);
     }
 
+    // Personal AI 1:1s belong to the personal workspace.
     const isPersonalDirect =
       selectedRoom.organizationId === null && selectedRoom.kind === "direct";
-    const isGuestRoom = selectedRoom.myAccess === "guest";
-    const isMatchedRoom = isMatchedMemberChannel(selectedRoom);
 
-    if (!isPersonalDirect && !isGuestRoom && !isMatchedRoom) {
+    if (!isPersonalDirect && !isShownInEveryWorkspace(selectedRoom)) {
       return (
         <NoOrganizationCard
           title={t("NoOrganization.title")}
@@ -187,14 +212,10 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 
-  const isHostOrgRoom = selectedRoom.organizationId === activeOrganization.id;
-  const isGuestRoom = selectedRoom.myAccess === "guest";
-  const isPersonalDirect =
-    selectedRoom.organizationId === null &&
-    selectedRoom.kind === "direct" &&
-    selectedRoom.coworkerMembers.length === 0;
-  const isMatchedRoom = isMatchedMemberChannel(selectedRoom);
-  if (!isHostOrgRoom && !isGuestRoom && !isPersonalDirect && !isMatchedRoom) {
+  if (
+    selectedRoom.organizationId !== activeOrganization.id &&
+    !isShownInEveryWorkspace(selectedRoom)
+  ) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 

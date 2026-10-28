@@ -78,38 +78,38 @@ export const chatRoomCoworkerSelect = {
 type ChatRoomPresence = "online" | "afk" | "offline";
 
 /**
- * The active rooms one sidebar shows, as a `ChatRoom` filter: the active
- * organization's rooms, or with no active organization the Personal ones,
- * plus what shows in every sidebar (guest rooms, matched channels, Personal
- * human Directs). The caller adds the membership check. One definition, so
- * the list and whatever writes to "the rooms in this sidebar" cannot drift.
+ * The active rooms one sidebar shows, as a `ChatRoom` filter (ADR-0059): the
+ * active organization's rooms, or with no active organization the Personal
+ * ones, plus what shows in every sidebar (External channels, hosted or as a
+ * Guest; matched channels; Personal Directs with no coworker or Soko Bot).
+ * The caller adds the membership check. One definition, so the list and
+ * whatever writes to "the rooms in this sidebar" cannot drift.
  */
 export function membershipVisibleActiveRoomWhere(
-  userId: string,
   organizationId: string | null | undefined,
 ) {
-  const guestRoom = {
-    userMembers: { some: { userId, access: "guest" as const } },
-  };
-  const matched = {
-    organizationId: null,
-    kind: "channel" as const,
-    discoverability: "matched" as const,
-  };
+  const shownEverywhere = [
+    { kind: "channel" as const, discoverability: "external" as const },
+    {
+      organizationId: null,
+      kind: "channel" as const,
+      discoverability: "matched" as const,
+    },
+    {
+      organizationId: null,
+      kind: "direct" as const,
+      coworkerMembers: { none: {} },
+      sokoBotMembers: { none: {} },
+    },
+  ];
   return {
     archivedAt: null,
-    OR: organizationId
-      ? [
-          { organizationId },
-          guestRoom,
-          {
-            organizationId: null,
-            kind: "direct" as const,
-            coworkerMembers: { none: {} },
-          },
-          matched,
-        ]
-      : [{ organizationId: null, kind: "direct" as const }, guestRoom, matched],
+    OR: [
+      organizationId
+        ? { organizationId }
+        : { organizationId: null, kind: "direct" as const },
+      ...shownEverywhere,
+    ],
   };
 }
 
