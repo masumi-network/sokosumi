@@ -7215,6 +7215,24 @@ describe("Soko Bot project social tools", () => {
       },
     );
 
+    it.each(["SCHEDULE", "EVENT", "INGEST", "ADMIN_RETRY"] as const)(
+      "refuses ad tools on a %s turn",
+      async (source) => {
+        const turn = await turnFindUniqueMock();
+        turnFindUniqueMock.mockResolvedValue({ ...turn, source });
+        await expect(
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "list_ad_accounts",
+            toolCallId: "ads-not-chat",
+            input: { projectId },
+          }),
+        ).rejects.toThrow("only available when a person asks in chat");
+        expect(ads.accounts).not.toHaveBeenCalled();
+        expect(social.beta).not.toHaveBeenCalled();
+      },
+    );
+
     it("refuses ad reads without the ads beta", async () => {
       social.beta.mockRejectedValue(new Error("Ads is beta only"));
       await expect(
@@ -7386,6 +7404,28 @@ describe("Soko Bot project social tools", () => {
           input: { projectId, accountId: adAccountId },
         }),
       ).rejects.toThrow("The ads provider could not complete the request.");
+    });
+
+    it("treats a 5xx HTTPException as unknown, not a retryable refusal", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      ads.campaigns.mockRejectedValue(
+        new HTTPException(502, { message: "Google Ads timed out" }),
+      );
+      const failed = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_campaigns",
+        toolCallId: "ads-5xx",
+        input: { projectId, accountId: adAccountId },
+      });
+      await expect(failed).rejects.toBeInstanceOf(
+        SokoBotRuntimeValidationError,
+      );
+      await expect(failed).rejects.not.toBeInstanceOf(
+        SokoBotRefusedUnsentError,
+      );
+      await expect(failed).rejects.toThrow(
+        "The ads provider could not complete the request.",
+      );
     });
   });
 

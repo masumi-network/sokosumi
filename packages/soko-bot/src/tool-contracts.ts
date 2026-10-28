@@ -1,4 +1,5 @@
 import {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
   CONTACT_LIST_COLORS,
   CONTACT_SORT_FIELDS,
   contactChannelInputSchema,
@@ -7,6 +8,8 @@ import {
   contactInteractionInputSchema,
   createContactSchema,
   createDataTableSchema,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
   isValidTimezone,
   mergeContactsSchema,
   newsletterDraftInputSchema,
@@ -654,19 +657,17 @@ const adCampaignSpecShape = {
   languageIds: adIdsSchema,
   finalUrl: adUrlSchema,
 };
-// Mirrors GOOGLE_DISPLAY_IMAGE_ROLES in Core's ads library.
-const adImageRoleSchema = z.enum(["LANDSCAPE", "SQUARE", "LOGO"]);
+const adImageRoleSchema = z.enum(GOOGLE_DISPLAY_IMAGE_ROLES);
 const googleSearchCampaignSchema = z
   .object({
     type: z.literal("SEARCH"),
     ...adCampaignSpecShape,
-    // Mirrors GOOGLE_KEYWORD_MATCH_TYPES in Core's ads library.
     keywords: z
       .array(
         z
           .object({
             text: z.string().trim().min(1).max(80),
-            matchType: z.enum(["BROAD", "PHRASE", "EXACT"]),
+            matchType: z.enum(GOOGLE_KEYWORD_MATCH_TYPES),
           })
           .strict(),
       )
@@ -737,8 +738,7 @@ const getAdCampaignInputSchema = adCampaignInputSchema.extend({
 });
 const updateAdCampaignInputSchema = adCampaignInputSchema
   .extend({
-    // Mirrors AD_CAMPAIGN_SETTABLE_STATUSES in Core's ads library.
-    status: z.enum(["ACTIVE", "PAUSED"]).optional(),
+    status: z.enum(AD_CAMPAIGN_SETTABLE_STATUSES).optional(),
     dailyBudget: z.number().positive().optional(),
   })
   // Google writes a budget and a status separately: one change per call, so a

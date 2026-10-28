@@ -1,4 +1,8 @@
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import {
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,8 +14,6 @@ import {
   buildAdCampaign,
   completeDaysRange,
   fromMinorUnits,
-  GOOGLE_DISPLAY_IMAGE_ROLES,
-  GOOGLE_KEYWORD_MATCH_TYPES,
   sumAdMetrics,
 } from "./campaigns";
 

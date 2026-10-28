@@ -8843,7 +8843,7 @@
         "description": "Your assistant uses the Project's ad accounts from the Ads page.",
         "open": "Open",
         "empty": "No ad accounts connected yet.",
-        "connectOnAds": "Connect one on the Ads page",
+        "connectOnAds": "Connect one on the Ads page.",
         "providers": {
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"

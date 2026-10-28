@@ -1,3 +1,4 @@
+import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import sharp from "sharp";
 
 import {
@@ -5,7 +6,6 @@ import {
   GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
   type GoogleDisplayImage,
-  type GoogleDisplayImageRole,
 } from "@/lib/ads/campaigns";
 
 /** Google refuses a LANDSCAPE image more than 1% off 1.91:1; SQUARE and LOGO must be 1:1. */

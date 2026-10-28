@@ -8843,7 +8843,7 @@
         "description": "Dein Assistent nutzt die Werbekonten des Projekts von der Ads-Seite.",
         "open": "Öffnen",
         "empty": "Noch keine Werbekonten verbunden.",
-        "connectOnAds": "Verbinde eines auf der Ads-Seite",
+        "connectOnAds": "Verbinde eines auf der Ads-Seite.",
         "providers": {
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"

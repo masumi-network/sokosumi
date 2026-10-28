@@ -8843,7 +8843,7 @@
         "description": "Tu asistente usa las cuentas publicitarias del proyecto de la página de Ads.",
         "open": "Abrir",
         "empty": "Aún no hay cuentas publicitarias conectadas.",
-        "connectOnAds": "Conecta una en la página de Ads",
+        "connectOnAds": "Conecta una en la página de Ads.",
         "providers": {
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"

@@ -67,7 +67,7 @@ describe("AdAccountsSection", () => {
 
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Connect one on the Ads page" }),
+      screen.getByRole("link", { name: "Connect one on the Ads page." }),
     ).toHaveAttribute("href", "/ads");
   });
 
@@ -75,7 +75,7 @@ describe("AdAccountsSection", () => {
     renderSection([], "p9");
 
     expect(
-      screen.getByRole("link", { name: "Connect one on the Ads page" }),
+      screen.getByRole("link", { name: "Connect one on the Ads page." }),
     ).toHaveAttribute("href", "/ads?projectId=p9");
   });
 });

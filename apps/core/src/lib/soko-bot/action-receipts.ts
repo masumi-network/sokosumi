@@ -28,6 +28,26 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
 /** A Google campaign id: digits only. */
 const adCampaignIdSchema = z.string().regex(/^\d{1,20}$/);
 
+/** Provider ack shape per ads write; one table so create/update/edit/delete stay aligned. */
+const AD_WRITE_RECEIPT_PROOF = {
+  create_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    status: z.literal("PAUSED"),
+  }),
+  update_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    updated: z.literal(true),
+  }),
+  edit_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    edited: z.literal(true),
+  }),
+  delete_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    deleted: z.literal(true),
+  }),
+} as const;
+
 export const ACTION_CAPABILITIES = new Set([
   "newsletter_draft_issue",
   ...EXTERNAL_EFFECT_CAPABILITIES,
@@ -267,25 +287,11 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
-  } else if (capability === "create_ad_campaign") {
-    const acknowledged = z
-      .object({ campaignId: adCampaignIdSchema, status: z.literal("PAUSED") })
-      .safeParse(result);
-    if (acknowledged.success) targetId = acknowledged.data.campaignId;
-  } else if (capability === "update_ad_campaign") {
-    const acknowledged = z
-      .object({ campaignId: adCampaignIdSchema, updated: z.literal(true) })
-      .safeParse(result);
-    if (acknowledged.success) targetId = acknowledged.data.campaignId;
-  } else if (capability === "edit_ad_campaign") {
-    const acknowledged = z
-      .object({ campaignId: adCampaignIdSchema, edited: z.literal(true) })
-      .safeParse(result);
-    if (acknowledged.success) targetId = acknowledged.data.campaignId;
-  } else if (capability === "delete_ad_campaign") {
-    const acknowledged = z
-      .object({ campaignId: adCampaignIdSchema, deleted: z.literal(true) })
-      .safeParse(result);
+  } else if (capability in AD_WRITE_RECEIPT_PROOF) {
+    const acknowledged =
+      AD_WRITE_RECEIPT_PROOF[
+        capability as keyof typeof AD_WRITE_RECEIPT_PROOF
+      ].safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.campaignId;
   } else if (
     capability === "generate_image" ||
