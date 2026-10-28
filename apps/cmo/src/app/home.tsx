@@ -136,7 +136,7 @@ export async function Home({ searchParams, view }: HomeProps) {
     if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
       return <NameSetup saveName={saveName} signOut={signOut} />;
     }
-    // Hiring creates Cuso's own organization (ADR 0058).
+    // Hiring creates Cuso's own organization (ADR 0059).
     return (
       <Onboarding
         websiteUrl={await signUpWebsite(asPerson)}

@@ -757,7 +757,7 @@ export function startCmoResearch(hire: CmoHire): Promise<{ turnId: string }> {
 }
 
 /**
- * Hires Cuso into a new organization named after the business (ADR 0058):
+ * Hires Cuso into a new organization named after the business (ADR 0059):
  * his marketing Project and the CMO record go there, and his first turn
  * starts. One CMO hire per person; a second call returns the existing one.
  */
