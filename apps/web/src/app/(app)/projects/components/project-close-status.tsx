@@ -170,9 +170,7 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
       <Card
         role={status.state === "CLOSE_FAILED" ? "alert" : "status"}
         className={
-          status.state === "CLOSE_FAILED"
-            ? "border-semantic-destructive-tertiary"
-            : undefined
+          status.state === "CLOSE_FAILED" ? "border-border" : undefined
         }
       >
         <CardContent className="space-y-4">

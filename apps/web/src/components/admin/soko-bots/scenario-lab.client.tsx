@@ -768,10 +768,10 @@ function ScenarioRow({
                   className={cn(
                     "rounded-md border px-3 py-2 text-xs",
                     latest.judge.verdict === "pass"
-                      ? "border-semantic-success-tertiary"
+                      ? "border-border"
                       : latest.judge.verdict === "weak"
-                        ? "border-semantic-warning-tertiary"
-                        : "border-semantic-destructive-tertiary",
+                        ? "border-border"
+                        : "border-border",
                   )}
                 >
                   <p className="font-medium">
@@ -821,7 +821,7 @@ function ScenarioRow({
                       {check.pass ? (
                         <Check
                           aria-hidden
-                          className="text-semantic-success mt-0.5 size-3.5 shrink-0"
+                          className="text-foreground mt-0.5 size-3.5 shrink-0"
                         />
                       ) : (
                         <X

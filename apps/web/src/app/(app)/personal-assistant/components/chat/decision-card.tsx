@@ -105,7 +105,7 @@ export function DecisionCard({
           </p>
         ) : null}
         {!summary.acceptable ? (
-          <p role="status" className="text-semantic-warning text-xs">
+          <p role="status" className="text-foreground text-xs">
             {tProposal("incomplete")}
           </p>
         ) : null}
@@ -145,8 +145,9 @@ export function DecisionCard({
           <p
             className={cn(
               "text-xs",
-              decision.status === "ACCEPTED" && "text-semantic-success",
-              decision.status === "PROCESSING" && "text-semantic-warning",
+              (decision.status === "ACCEPTED" ||
+                decision.status === "PROCESSING") &&
+                "text-foreground",
               (decision.status === "REJECTED" ||
                 decision.status === "EXPIRED") &&
                 "text-muted-foreground",

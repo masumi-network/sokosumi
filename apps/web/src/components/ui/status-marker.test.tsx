@@ -221,8 +221,6 @@ describe("tone styles", () => {
    * A colour token becomes a utility only through a `--color-*` bridge in
    * `@theme inline`. Without one the class emits no CSS at all, the badge
    * silently inherits, and every string-comparing test stays green.
-   * `--status-external-tertiary` is new with this model and reads through
-   * exactly that seam.
    */
   it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
     "bridges every token %s paints with",

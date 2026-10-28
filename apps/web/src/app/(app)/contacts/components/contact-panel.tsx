@@ -628,16 +628,13 @@ function PanelBody({
                     : undefined
                 }
                 placeholder={t("panel.noFollowUp")}
-                displayClassName={cn(
-                  "tabular-nums",
-                  due && "text-semantic-destructive-label",
-                )}
+                displayClassName={cn("tabular-nums", due && "text-foreground")}
                 onSave={(followUpAt) =>
                   save({ followUpAt: followUpAt || null })
                 }
               />
               {due ? (
-                <span className="text-semantic-destructive-label shrink-0 text-xs">
+                <span className="text-foreground shrink-0 text-xs">
                   {t("grid.due")}
                 </span>
               ) : null}
@@ -934,7 +931,7 @@ function ChannelsSection({
           </div>
           {error ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <p role="alert" className="text-semantic-destructive-label">
+              <p role="alert" className="text-foreground">
                 {error}
               </p>
               {takenBy ? (

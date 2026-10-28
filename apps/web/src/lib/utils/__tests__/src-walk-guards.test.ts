@@ -143,6 +143,15 @@ const TOKEN_OPACITY = new RegExp(
 const PRIMARY_ON_TEXT_OR_EDGE =
   /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|caret|divide)-primary(?:-variant|-solid|-hover|-iris)?(?![\w-])/;
 
+/**
+ * Done green, input-required yellow and in-progress Iris are fills. On white
+ * they measure 2.00, 1.44 and 2.67:1, so none of them can be text, an icon or
+ * a thin edge. `risk-high` is the same Golden Yellow. The tail rejects
+ * `[\w-]`, so the fill-side `text-semantic-success-foreground` stays legal.
+ */
+const STATUS_FILL_ON_TEXT_OR_EDGE =
+  /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|divide)-(?:semantic-success|semantic-warning|status-working|risk-high)(?![\w-])/;
+
 const PRIMARY_EDGE_ALLOWLIST = new Set([
   // The arrow's polygon must match the tooltip's `bg-primary-solid` fill.
   "components/ui/tooltip.tsx",
@@ -230,6 +239,17 @@ describe("color tokens", () => {
       (rel) =>
         rel.startsWith("app/(app)/admin/design-system/") ||
         PRIMARY_EDGE_ALLOWLIST.has(rel),
+    );
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("paints no fill-only status colour on text or an edge", () => {
+    // Green, yellow and Iris are fills under a `-foreground` glyph. The
+    // status word or the glyph shape carries the meaning; text takes
+    // `text-foreground`, an edge takes `border-border`.
+    const violations = findColorViolations(STATUS_FILL_ON_TEXT_OR_EDGE, (rel) =>
+      rel.startsWith("app/(app)/admin/design-system/"),
     );
 
     expect(violations, violations.join("\n")).toEqual([]);

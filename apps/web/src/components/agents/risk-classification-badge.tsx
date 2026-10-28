@@ -17,15 +17,15 @@ import { cn } from "@/lib/utils";
 const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {
     labelKey: "minimal",
-    color: "bg-semantic-success-quaternary border-transparent text-foreground",
+    color: "bg-quinary border-transparent text-foreground",
     icon: MARKER_ICONS.riskMinimal,
-    iconColor: "text-semantic-success",
+    iconColor: "text-foreground",
   },
   LIMITED: {
     labelKey: "limited",
-    color: "bg-semantic-warning-quaternary border-transparent text-foreground",
+    color: "bg-quinary border-transparent text-foreground",
     icon: MARKER_ICONS.riskLimited,
-    iconColor: "text-semantic-warning",
+    iconColor: "text-foreground",
   },
   HIGH: {
     labelKey: "high",

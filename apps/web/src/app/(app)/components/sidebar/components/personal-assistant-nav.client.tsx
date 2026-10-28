@@ -251,7 +251,7 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
         <span
           aria-hidden
           data-testid="soko-bot-pulse"
-          className="border-status-working absolute inset-0 rounded-full border-2 motion-safe:animate-ping"
+          className="bg-status-working absolute inset-0 rounded-full motion-safe:animate-ping"
         />
       ) : null}
       {bot.imageUrl ? (

@@ -144,14 +144,6 @@ export function getTaskStatusDotColorClass(status: TaskStatus): string {
   return getToneStyle(getTaskStatusMarker(status).tone).dot;
 }
 
-export function getTaskStatusBorderColorClass(status: TaskStatus): string {
-  if (status === TaskStatus.COMPLETED) {
-    return "border-semantic-success-tertiary";
-  }
-
-  return "border-border";
-}
-
 function getTaskStatusLabel(status: TaskStatus): string {
   return STATUS_LABELS[status] ?? "Unknown";
 }

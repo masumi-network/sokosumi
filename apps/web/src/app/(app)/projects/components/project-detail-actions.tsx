@@ -169,7 +169,7 @@ export function ProjectDetailActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           {labels.closeDialog.scheduledPostsWarning ? (
-            <p role="status" className="text-semantic-warning text-sm">
+            <p role="status" className="text-foreground text-sm">
               {labels.closeDialog.scheduledPostsWarning}
             </p>
           ) : null}

@@ -66,24 +66,6 @@ export function getAgentStatusDotColorClass(status: AgentJobStatus) {
   }
 }
 
-export function getAgentStatusBorderColorClass(status: AgentJobStatus) {
-  switch (status) {
-    case AgentJobStatus.COMPLETED:
-      return "border-semantic-success-tertiary";
-    case AgentJobStatus.FAILED:
-      return "border-semantic-destructive-tertiary";
-    case AgentJobStatus.AWAITING_INPUT:
-      return "border-semantic-warning-tertiary";
-    case AgentJobStatus.AWAITING_PAYMENT:
-      return "border-semantic-warning-tertiary";
-    case AgentJobStatus.RUNNING:
-    case AgentJobStatus.INITIATED:
-      return "border-status-working-tertiary";
-    default:
-      return "border-status-done-tertiary";
-  }
-}
-
 function statusToLabelKey(status: AgentJobStatus) {
   switch (status) {
     case AgentJobStatus.INITIATED:

@@ -185,7 +185,7 @@ function JobVerificationBadgeBase({
     : isNotApplicable
       ? "text-muted-foreground"
       : isVerified
-        ? "text-semantic-success"
+        ? "text-foreground"
         : "text-semantic-destructive";
   const label = isPending
     ? t("VerificationBadge.pending", { direction: directionText })

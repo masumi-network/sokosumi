@@ -41,7 +41,7 @@ export function McpUrlDisplay({ url, className }: McpUrlDisplayProps) {
         aria-label={t("copyUrl")}
       >
         {copied ? (
-          <Check className="check-pop size-4 text-semantic-success" />
+          <Check className="check-pop size-4 text-foreground" />
         ) : (
           <Copy className="size-4" />
         )}

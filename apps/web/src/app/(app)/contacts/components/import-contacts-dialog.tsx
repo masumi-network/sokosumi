@@ -244,10 +244,7 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
               </p>
             ) : null}
             {error ? (
-              <p
-                role="alert"
-                className="text-semantic-destructive-label text-sm"
-              >
+              <p role="alert" className="text-foreground text-sm">
                 {error}
               </p>
             ) : null}

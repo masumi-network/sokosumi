@@ -142,7 +142,7 @@ export function ContactListDialog({
             <p
               id="contact-list-error"
               role="alert"
-              className="text-semantic-destructive-label text-sm"
+              className="text-foreground text-sm"
             >
               {error}
             </p>

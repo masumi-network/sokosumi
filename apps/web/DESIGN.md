@@ -191,11 +191,16 @@ text/icons **neutral** for contrast.
 Beyond the above, `globals.css` exposes:
 
 - **Semantic:** `--semantic-destructive`, `--semantic-warning`, `--semantic-success`, each
-  with `-tertiary/-quaternary/-quinary/-label/-foreground`; `--semantic-destructive-solid` is
-  the fill that carries a near-white label. There is no info role: it was retired into
+  with a `-foreground`. Success (green) and warning (Golden Yellow) are **fills only**, 2.00
+  and 1.44:1 on white, under their `-foreground` glyph; they are never text, an icon colour or
+  an edge. Destructive is Neutral 950 (Neutral 50 in dark), so it can be text.
+  `--semantic-destructive-solid` is the fill that carries a near-white label. There is no
+  tint or label step: chips and tints take the neutral roles (`bg-muted`, `bg-quinary`,
+  `border-border`, `text-foreground`). There is no info role: it was retired into
   `--status-working`.
-- **Status:** `--status-working`, `--status-external`, `--status-done` (with ramp steps),
-  `--presence-offline`, `--risk-high`.
+- **Status:** `--status-working` (Iris, a fill only), `--status-external`, `--status-done`
+  (neutral, no steps), `--presence-offline`, `--risk-high` (Golden Yellow, a fill only).
+  `src-walk-guards.test.ts` fails on a fill-only status colour used as text or an edge.
 - **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
   `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),

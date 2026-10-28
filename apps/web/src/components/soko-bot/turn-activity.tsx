@@ -189,15 +189,11 @@ export async function TurnActivity({
                   <span
                     className={cn(
                       "text-xs",
-                      delegation.outcome === "failed" &&
-                        "text-semantic-destructive",
-                      delegation.outcome === "ambiguous" &&
-                        "text-semantic-warning",
-                      delegation.outcome === "processing" &&
-                        "text-status-working",
-                      !["failed", "ambiguous", "processing"].includes(
+                      ["failed", "ambiguous", "processing"].includes(
                         delegation.outcome,
-                      ) && "text-muted-foreground",
+                      )
+                        ? "text-foreground"
+                        : "text-muted-foreground",
                     )}
                   >
                     {t.has(`outcome.${delegation.outcome}`)

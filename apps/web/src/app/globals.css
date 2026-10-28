@@ -118,28 +118,14 @@
 
   --color-semantic-destructive: var(--semantic-destructive);
   --color-semantic-destructive-solid: var(--semantic-destructive-solid);
-  --color-semantic-destructive-tertiary: var(--semantic-destructive-tertiary);
-  --color-semantic-destructive-quaternary: var(
-    --semantic-destructive-quaternary
-  );
-  --color-semantic-destructive-quinary: var(--semantic-destructive-quinary);
-  --color-semantic-destructive-label: var(--semantic-destructive-label);
   --color-semantic-destructive-foreground: var(
     --semantic-destructive-foreground
   );
 
   --color-semantic-warning: var(--semantic-warning);
-  --color-semantic-warning-tertiary: var(--semantic-warning-tertiary);
-  --color-semantic-warning-quaternary: var(--semantic-warning-quaternary);
-  --color-semantic-warning-quinary: var(--semantic-warning-quinary);
-  --color-semantic-warning-label: var(--semantic-warning-label);
   --color-semantic-warning-foreground: var(--semantic-warning-foreground);
 
   --color-semantic-success: var(--semantic-success);
-  --color-semantic-success-tertiary: var(--semantic-success-tertiary);
-  --color-semantic-success-quaternary: var(--semantic-success-quaternary);
-  --color-semantic-success-quinary: var(--semantic-success-quinary);
-  --color-semantic-success-label: var(--semantic-success-label);
   --color-semantic-success-foreground: var(--semantic-success-foreground);
 
   --color-presence-offline: var(--presence-offline);
@@ -147,22 +133,10 @@
   --color-risk-high: var(--risk-high);
   --color-risk-high-foreground: var(--risk-high-foreground);
   --color-status-working: var(--status-working);
-  --color-status-working-tertiary: var(--status-working-tertiary);
-  --color-status-working-quaternary: var(--status-working-quaternary);
-  --color-status-working-label: var(--status-working-label);
   --color-status-external: var(--status-external);
-  --color-status-external-tertiary: var(--status-external-tertiary);
-  --color-status-external-quaternary: var(--status-external-quaternary);
-  --color-status-external-label: var(--status-external-label);
   --color-status-done: var(--status-done);
-  --color-status-done-quaternary: var(--status-done-quaternary);
-  --color-status-done-tertiary: var(--status-done-tertiary);
 
   /* Custom Colors */
-  /* Duplicated the success ramp verbatim and, declared here, could not follow
-     the theme: 3.90:1 in dark. Alias the themed tokens instead. */
-  --color-agent-verified-background: var(--semantic-success-quinary);
-  --color-agent-verified-foreground: var(--semantic-success);
   /* Link/hashtag colors inside native-looking social post previews. */
   --color-social-x-link: var(--social-x-link);
   --color-social-linkedin-link: var(--social-linkedin-link);
@@ -314,7 +288,8 @@
    2.00, 1.44 and 2.67:1 on white, so each is a fill under a Neutral 950
    glyph and never text: `status-marker.tsx` paints them as a disc. The
    destructive role is the X, so it is Neutral 950 (Neutral 50 in dark). The
-   ramps' -label and tint steps are neutral now.
+   ramps carry no tint or label step: chips and tints are the neutral roles,
+   and `src-walk-guards.test.ts` fails on a fill colour used as text.
 
    No glow (5.5): the focus halo is transparent. The only translucent
    values are the guide's alpha tones, black at (100 - N)% for Alpha N, and
@@ -404,22 +379,10 @@
 
   --semantic-destructive: #0c0c0c; /* Neutral 950 */
   --semantic-destructive-solid: #0c0c0c; /* Neutral 950 */
-  --semantic-destructive-tertiary: #d4d4d4; /* Neutral 300 */
-  --semantic-destructive-quaternary: #e5e5e5; /* Neutral 200 */
-  --semantic-destructive-quinary: #f5f5f5; /* Neutral 100 */
   --semantic-destructive-foreground: #fafafa; /* Neutral 50 */
-  --semantic-destructive-label: #171717; /* Neutral 900 */
   --semantic-warning: #ffd300; /* Golden Yellow */
-  --semantic-warning-tertiary: #d4d4d4; /* Neutral 300 */
-  --semantic-warning-quaternary: #e5e5e5; /* Neutral 200 */
-  --semantic-warning-quinary: #f5f5f5; /* Neutral 100 */
-  --semantic-warning-label: #171717; /* Neutral 900 */
   --semantic-warning-foreground: #0c0c0c; /* Neutral 950 */
   --semantic-success: #00d43b; /* Positive green (Proposed) */
-  --semantic-success-tertiary: #d4d4d4; /* Neutral 300 */
-  --semantic-success-quaternary: #e5e5e5; /* Neutral 200 */
-  --semantic-success-quinary: #f5f5f5; /* Neutral 100 */
-  --semantic-success-label: #171717; /* Neutral 900 */
   --semantic-success-foreground: #0c0c0c; /* Neutral 950 */
   /* Third-party link colours inside native-looking social post previews. */
   --social-x-link: #1d9bf0;
@@ -434,14 +397,6 @@
   --status-working: #ff51ff; /* Iris Flower */
   --status-external: #0c0c0c; /* Neutral 950 */
   --status-done: #737373; /* Neutral 500 */
-  --status-done-tertiary: #d4d4d4; /* Neutral 300 */
-  --status-working-tertiary: #d4d4d4; /* Neutral 300 */
-  --status-working-quaternary: #e5e5e5; /* Neutral 200 */
-  --status-external-tertiary: #d4d4d4; /* Neutral 300 */
-  --status-external-quaternary: #e5e5e5; /* Neutral 200 */
-  --status-working-label: #171717; /* Neutral 900 */
-  --status-external-label: #171717; /* Neutral 900 */
-  --status-done-quaternary: #e5e5e5; /* Neutral 200 */
 }
 
 /* Dark values are Open in the guide; these follow its best-case role table.
@@ -524,22 +479,10 @@
 
   --semantic-destructive: #fafafa; /* Neutral 50 */
   --semantic-destructive-solid: #fafafa; /* Neutral 50 */
-  --semantic-destructive-tertiary: #404040; /* Neutral 700 */
-  --semantic-destructive-quaternary: #262626; /* Neutral 800 */
-  --semantic-destructive-quinary: #171717; /* Neutral 900 */
   --semantic-destructive-foreground: #0c0c0c; /* Neutral 950 */
-  --semantic-destructive-label: #fafafa; /* Neutral 50 */
   --semantic-warning: #ffd300; /* Golden Yellow */
-  --semantic-warning-tertiary: #404040; /* Neutral 700 */
-  --semantic-warning-quaternary: #262626; /* Neutral 800 */
-  --semantic-warning-quinary: #171717; /* Neutral 900 */
-  --semantic-warning-label: #fafafa; /* Neutral 50 */
   --semantic-warning-foreground: #0c0c0c; /* Neutral 950 */
   --semantic-success: #00d43b; /* Positive green (Proposed) */
-  --semantic-success-tertiary: #404040; /* Neutral 700 */
-  --semantic-success-quaternary: #262626; /* Neutral 800 */
-  --semantic-success-quinary: #171717; /* Neutral 900 */
-  --semantic-success-label: #fafafa; /* Neutral 50 */
   --semantic-success-foreground: #0c0c0c; /* Neutral 950 */
   --social-x-link: #1d9bf0;
   --social-linkedin-link: #71b7fb;
@@ -553,14 +496,6 @@
   --status-working: #ff51ff; /* Iris Flower */
   --status-external: #fafafa; /* Neutral 50 */
   --status-done: #a3a3a3; /* Neutral 400 */
-  --status-done-tertiary: #404040; /* Neutral 700 */
-  --status-working-tertiary: #404040; /* Neutral 700 */
-  --status-working-quaternary: #262626; /* Neutral 800 */
-  --status-external-tertiary: #404040; /* Neutral 700 */
-  --status-external-quaternary: #262626; /* Neutral 800 */
-  --status-working-label: #fafafa; /* Neutral 50 */
-  --status-external-label: #fafafa; /* Neutral 50 */
-  --status-done-quaternary: #262626; /* Neutral 800 */
 }
 
 @layer base {
