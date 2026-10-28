@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cmoFindUnique,
+  cmoUpdate,
   connectSokoBotIntegration,
   finalizeSokoBotIntegration,
   integrationFindMany,
+  projectFindUnique,
+  projectUpdate,
   resetCmoServiceMocks,
 } from "@/test-fixtures/cmo-service";
 
@@ -67,9 +70,14 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
+vi.mock("@/lib/site-platform", () => ({
+  detectSitePlatform: vi.fn(async () => "shopify"),
+}));
+
 import {
   connectCmoMeasurement,
   finalizeCmoMeasurement,
+  learnCmoSitePlatform,
   listCmoMeasurement,
 } from "./cmo-measurement.service";
 
@@ -80,8 +88,20 @@ describe("measurement", () => {
     id: "cmo-1",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
-    sitePlatform: "shopify",
+    projectId: "project-1",
   };
+
+  it("learns the site platform onto the Project, not the hire", async () => {
+    await learnCmoSitePlatform({
+      projectId: "project-1",
+      websiteUrl: "https://acme.io",
+    });
+    expect(projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: { sitePlatform: "shopify" },
+    });
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
 
   it("lists the sources with their connection state", async () => {
     integrationFindMany.mockResolvedValue([
@@ -105,7 +125,8 @@ describe("measurement", () => {
         "google_search_console",
       ]);
     }
-    cmoFindUnique.mockResolvedValue({ ...hire, sitePlatform: "other" });
+    cmoFindUnique.mockResolvedValue(hire);
+    projectFindUnique.mockResolvedValue({ sitePlatform: "other" });
     await expect(
       connectCmoMeasurement({
         userId: "user-1",
@@ -117,6 +138,7 @@ describe("measurement", () => {
 
   it("connects to Cuso's own bot and returns only to CMO", async () => {
     cmoFindUnique.mockResolvedValue(hire);
+    projectFindUnique.mockResolvedValue({ sitePlatform: "shopify" });
     connectSokoBotIntegration.mockResolvedValue({ redirectUrl: "https://x" });
     await connectCmoMeasurement({
       userId: "user-1",

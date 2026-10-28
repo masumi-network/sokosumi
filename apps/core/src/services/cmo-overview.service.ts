@@ -9,9 +9,8 @@ import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import { parseCmoBrandBrain } from "@/services/brand-brain.service";
 import {
-  activeCmoPlan,
+  activeCmoSubscription,
   cmoMockBilling,
-  cmoMockPlan,
   mayCommitCmo,
 } from "@/services/cmo-billing.service";
 import {
@@ -165,7 +164,7 @@ export async function getCmoOverview(
       : null,
     prisma.project.findUnique({
       where: { id: hire.projectId },
-      select: { name: true, logo: true },
+      select: { name: true, logo: true, sitePlatform: true },
     }),
     prisma.sokoBot.findUnique({
       where: { id: hire.sokoBotId },
@@ -185,9 +184,11 @@ export async function getCmoOverview(
       select: { provider: true },
     }),
     cmoMailingListSize(hire),
-    listCmoMeasurement(hire.sokoBotId, hire.sitePlatform),
+    listCmoMeasurement(hire.sokoBotId, project?.sitePlatform ?? null),
   ]);
-  if (hire.sitePlatform === null) waitUntil(learnCmoSitePlatform(hire));
+  if (project && project.sitePlatform === null) {
+    waitUntil(learnCmoSitePlatform(hire));
+  }
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
     where: { projectId: hire.projectId },
@@ -206,8 +207,13 @@ export async function getCmoOverview(
     }),
     mayCommitCmo(userId, payer.organizationId),
   ]);
-  const mockPlan = cmoMockPlan(hire);
-  const cmoPlan = mockPlan ?? (await activeCmoPlan(payer.referenceId));
+  const cmoSubscription = await activeCmoSubscription(payer.referenceId);
+  const cmoPlan = cmoSubscription?.plan ?? null;
+  // A mock plan is the CMO Subscription without Stripe, while mock billing is on.
+  const mockPlan =
+    cmoMockBilling() && cmoSubscription?.stripeSubscriptionId === null
+      ? cmoSubscription
+      : null;
   const media = await cmoCalendarMedia({
     strategy,
     workspaceId: bot.workspaceId,
@@ -262,8 +268,8 @@ export async function getCmoOverview(
     subscriptionActive: cmoPlan !== null,
     viewerCanApprove,
     mockBilling: cmoMockBilling(),
-    mockPlan,
-    mockPlanActivatedAt: mockPlan ? hire.mockPlanActivatedAt : null,
+    mockPlan: mockPlan?.plan ?? null,
+    mockPlanActivatedAt: mockPlan?.periodStart ?? null,
     brandBrain: parseCmoBrandBrain(hire.brandBrain),
     strategy,
     botStatus: bot.status,
