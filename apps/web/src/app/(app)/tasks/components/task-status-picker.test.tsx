@@ -84,8 +84,7 @@ describe("TaskStatusPicker", () => {
    * solid red fill and labels itself near-white, so a glyph taking the badge's
    * own mark colour would be near-white on a near-white popover.
    *
-   * `labelOnSurface` rather than `onSurface` because cmdk paints the selected
-   * row --accent, and the solid red measures 2.53:1 there in dark.
+   * `onSurface` is the X itself, which reads on the row in both themes.
    */
   it("draws the Failed menu glyph in the readable label colour", async () => {
     const user = userEvent.setup();
@@ -95,9 +94,8 @@ describe("TaskStatusPicker", () => {
 
     const row = screen.getByRole("option", { name: /Failed/ });
     const style = getToneStyle(getTaskStatusMarker(TaskStatus.FAILED).tone);
-    expect(row.querySelector("svg")).toHaveClass(style.labelOnSurface);
-    expect(style.labelOnSurface).not.toBe(style.mark);
-    expect(style.labelOnSurface).not.toBe(style.onSurface);
+    expect(row.querySelector("svg")).toHaveClass(style.onSurface);
+    expect(style.onSurface).not.toBe(style.mark);
   });
 
   /**

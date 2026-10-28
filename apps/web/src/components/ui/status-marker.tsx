@@ -41,8 +41,9 @@ import { cn } from "@/lib/utils";
  *
  * Three rules, in order:
  *
- * 1. Hue is the column. `task-column.ts` owns that grouping and this table
- *    follows it.
+ * 1. The hue follows the column. `task-column.ts` owns that grouping. Only
+ *    three columns get a guide colour; todo, backlog and a fault are
+ *    neutral, and their glyphs tell them apart.
  * 2. Weight is the status inside the column: `filled` is the column's
  *    ordinary state, `outline` the variant, a box with a hole in it.
  * 3. A fault leaves its column. Anything wrong is `fault`, wherever the board
@@ -109,7 +110,7 @@ const HUE_CLASSES: Record<StatusHue, HueClasses> = {
 };
 
 const CHIP = {
-  filled: "bg-quinary border-transparent",
+  filled: "bg-muted border-border",
   outline: "bg-transparent border-border",
   solid: "bg-semantic-destructive-solid border-transparent",
 } as const;
@@ -128,11 +129,6 @@ export interface ToneStyle {
   mark: string;
   /** The colour disc behind the glyph, when the hue has one. */
   disc?: string;
-  /**
-   * Label colour for text with no box behind it. It differs from `label` for
-   * `solid` only, whose Neutral 50 label would vanish off its own chip.
-   */
-  labelOnSurface: string;
   /** Dot fill for a mark drawn on the card rather than in a chip. */
   dot: string;
   /** Glyph colour for a mark drawn on the card rather than in a chip. */
@@ -152,7 +148,6 @@ export function getToneStyle(tone: StatusTone): ToneStyle {
       box: CHIP.solid,
       label: "text-semantic-destructive-foreground",
       mark: "text-semantic-destructive-foreground",
-      labelOnSurface: "text-foreground",
       dot: asFill(HUE_CLASSES.fault.mark),
       onSurface: HUE_CLASSES.fault.mark,
     };
@@ -165,7 +160,6 @@ export function getToneStyle(tone: StatusTone): ToneStyle {
     label: "text-foreground",
     mark: hue.mark,
     disc: hue.disc,
-    labelOnSurface: "text-foreground",
     dot: hue.disc ?? asFill(hue.mark),
     // Off its disc a glyph cannot keep the disc's Neutral 950: in dark it
     // would vanish into the card.

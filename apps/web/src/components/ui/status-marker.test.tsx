@@ -231,7 +231,6 @@ describe("tone styles", () => {
         style.label,
         style.mark,
         ...(style.disc ? [style.disc] : []),
-        style.labelOnSurface,
         style.dot,
         style.onSurface,
       ];
@@ -279,25 +278,6 @@ describe("tone styles", () => {
         expect(
           contrastOf(theme, markGround, tokenOf(style.mark)),
         ).toBeGreaterThanOrEqual(3);
-      }
-    },
-  );
-
-  /**
-   * `labelOnSurface` is what the activity feed and the share page paint, since
-   * both dropped the badge box. It is read on --card-background by definition,
-   * including for `solid`, whose own label is a near-white tuned for the solid
-   * fill and would measure 1.06:1 here.
-   */
-  it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
-    "keeps the %s inline label legible on the card",
-    (_name, tone) => {
-      const { labelOnSurface } = getToneStyle(tone);
-
-      for (const theme of [THEMES.light, THEMES.dark]) {
-        expect(
-          contrastOf(theme, "card-background", tokenOf(labelOnSurface)),
-        ).toBeGreaterThanOrEqual(4.5);
       }
     },
   );

@@ -6,24 +6,23 @@ import { cn } from "@/lib/utils";
 
 /**
  * Four ordered tiers with four distinct silhouettes, so the escalation does
- * not depend on telling amber from orange. The lower two are a tint, the upper
- * two are solid, and the glyph steps shield to triangle to octagon the way
- * road signs do.
+ * not depend on colour. The lower two are the neutral chip, high is the
+ * guide's yellow ! and unacceptable its Neutral 950 X, and the glyph steps
+ * shield to triangle to octagon the way road signs do.
  *
- * On the solid tiers the glyph takes the label colour, not the hue: a marker
- * in the fill colour has nothing to separate against. `--risk-high-foreground`
- * on `--risk-high` measures 7.88:1.
+ * On the solid tiers the glyph takes the label colour: Neutral 950 on yellow
+ * measures 13.57:1.
  */
 const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {
     labelKey: "minimal",
-    color: "bg-quinary border-transparent text-foreground",
+    color: "bg-muted border-border text-foreground",
     icon: MARKER_ICONS.riskMinimal,
     iconColor: "text-foreground",
   },
   LIMITED: {
     labelKey: "limited",
-    color: "bg-quinary border-transparent text-foreground",
+    color: "bg-muted border-border text-foreground",
     icon: MARKER_ICONS.riskLimited,
     iconColor: "text-foreground",
   },

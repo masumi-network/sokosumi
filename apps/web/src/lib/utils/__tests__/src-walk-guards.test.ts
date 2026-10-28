@@ -150,7 +150,7 @@ const PRIMARY_ON_TEXT_OR_EDGE =
  * `[\w-]`, so the fill-side `text-semantic-success-foreground` stays legal.
  */
 const STATUS_FILL_ON_TEXT_OR_EDGE =
-  /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|divide)-(?:semantic-success|semantic-warning|status-working|risk-high)(?![\w-])/;
+  /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|divide|caret)-(?:semantic-success|semantic-warning|status-working|risk-high)(?![\w-])/;
 
 const PRIMARY_EDGE_ALLOWLIST = new Set([
   // The arrow's polygon must match the tooltip's `bg-primary-solid` fill.

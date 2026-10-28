@@ -220,7 +220,7 @@ export function TaskStatusInline({
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium transition-colors duration-200",
-        style.labelOnSurface,
+        "text-foreground",
         className,
       )}
     >
