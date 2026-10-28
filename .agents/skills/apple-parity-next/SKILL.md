@@ -29,7 +29,7 @@ One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merge
    - answer once with technical reasoning;
    - never re-request review.
 
-   Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `scripts/update-core-api.py`; never hand-merge it. Re-run a CI job once when its log shows an infrastructure flake, a known-flaky test listed in the Resume checkpoint, or a failing test in code this PR did not touch; report a second failure instead of re-running again. Done when the user has merged the PR.
+   Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `apps/apple/scripts/update-core-api.py`; never hand-merge it. Re-run a CI job once when its log shows an infrastructure flake, a known-flaky test listed in the Resume checkpoint, or a failing test in code this PR did not touch; report a second failure instead of re-running again. Done when the user has merged the PR.
 6. **Mark the row Done.** From a fresh branch on the new `origin/main`, open one draft docs PR (`docs(apple): mark parity <row> done`) that sets this row's Status cell to `Done — [#<PR>](…)` with its merge date and squash SHA, keeping its unverified list. Then remove the row's subagent worktree with `git worktree remove --force <path>`, and its Xcode derived data: the `~/Library/Developer/Xcode/DerivedData/Sokosumi-*` folder whose `info.plist` `WorkspacePath` lies inside that worktree. Done when that PR is open and both are gone.
 
 ## Subagent brief
