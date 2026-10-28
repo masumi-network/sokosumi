@@ -1861,7 +1861,7 @@ function DrivePageWorkspace({
                 taskIdParam !== null ? (
                   <span
                     aria-hidden
-                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
                   />
                 ) : null}
               </Button>
@@ -1985,7 +1985,7 @@ function DrivePageWorkspace({
                     onActivate={navigateToTasksRoot}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
-                      <Folders className="text-primary size-5" />
+                      <Folders className="text-foreground size-5" />
                     </div>
                     <DriveItemName
                       name={t("tasksFolder")}
@@ -2385,7 +2385,7 @@ function DrivePageWorkspace({
                   className={cn(
                     "text-foreground press hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
-                      "bg-muted border-primary",
+                      "bg-muted border-foreground",
                   )}
                 >
                   <Folder className="text-muted-foreground size-4 shrink-0" />

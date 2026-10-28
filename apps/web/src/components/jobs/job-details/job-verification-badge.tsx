@@ -181,7 +181,7 @@ function JobVerificationBadgeBase({
         ? CheckCheck
         : X;
   const colorClass = isPending
-    ? "text-primary"
+    ? "text-foreground"
     : isNotApplicable
       ? "text-muted-foreground"
       : isVerified

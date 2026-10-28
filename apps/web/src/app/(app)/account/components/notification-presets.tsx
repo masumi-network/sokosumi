@@ -190,7 +190,7 @@ export function GroupAnswer({
             // says the group is on settings of its own, as loudly as a chosen
             // word does.
             preset === "CUSTOM"
-              ? "border-primary bg-primary-quinary text-primary"
+              ? "border-foreground bg-primary-quinary text-foreground"
               : "border-control-border bg-background",
             saving && "opacity-50",
           )}
@@ -206,7 +206,9 @@ export function GroupAnswer({
                 // the properties it may animate, and a child that sets
                 // `color` itself is not one of them.
                 "size-3.5 shrink-0 transition-colors",
-                preset === "CUSTOM" ? "text-primary" : "text-muted-foreground",
+                preset === "CUSTOM"
+                  ? "text-foreground"
+                  : "text-muted-foreground",
               )}
               aria-hidden="true"
             />

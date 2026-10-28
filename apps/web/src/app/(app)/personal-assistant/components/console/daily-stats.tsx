@@ -40,14 +40,14 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
             className={cn(
               "min-w-0 rounded-lg px-3 py-2.5",
               index === 0
-                ? "bg-primary-quinary text-primary"
+                ? "bg-primary-quinary text-foreground"
                 : "bg-card-background text-foreground",
             )}
           >
             <dt
               className={cn(
                 "truncate text-xs",
-                index === 0 ? "text-primary" : "text-muted-foreground",
+                index === 0 ? "text-foreground" : "text-muted-foreground",
               )}
             >
               {t(total.key)}
@@ -98,7 +98,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
                     width={barWidth}
                     height={messages}
                     rx={1}
-                    className="fill-primary"
+                    className="fill-foreground"
                   />
                 </g>
               );

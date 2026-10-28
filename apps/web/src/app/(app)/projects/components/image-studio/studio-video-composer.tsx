@@ -84,7 +84,7 @@ function chipClass(active: boolean): string {
     STUDIO_PILL_CLASS,
     "border",
     active
-      ? "border-primary bg-primary text-primary-foreground"
+      ? "border-foreground bg-primary text-primary-foreground"
       : "border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary",
   );
 }

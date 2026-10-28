@@ -17,7 +17,8 @@ function statusDotClass(turn: ChatTurn): string {
   if (isActiveTurn(turn)) return "bg-status-working animate-pulse";
   if (turn.status === "FAILED") return "bg-semantic-destructive";
   if (turn.status === "CANCELLED") return "bg-tertiary";
-  if (turn.decisions.some((d) => d.status === "PENDING")) return "bg-primary";
+  if (turn.decisions.some((d) => d.status === "PENDING"))
+    return "bg-foreground";
   return "bg-tertiary";
 }
 

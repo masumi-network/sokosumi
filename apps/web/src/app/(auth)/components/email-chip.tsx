@@ -29,7 +29,7 @@ export function EmailChip({ email, onChange, disabled }: EmailChipProps) {
     <>
       <span
         aria-hidden
-        className="bg-primary-quaternary text-primary flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
+        className="bg-primary-quaternary text-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
       >
         {email.charAt(0).toUpperCase()}
       </span>

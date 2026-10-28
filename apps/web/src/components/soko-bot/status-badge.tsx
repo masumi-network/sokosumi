@@ -39,7 +39,7 @@ export const STATUS_TONE_TEXT_CLASS: Record<StatusTone, string> = {
   success: "text-semantic-success",
   warning: "text-semantic-warning",
   danger: "text-semantic-destructive-label",
-  accent: "text-primary-variant",
+  accent: "text-foreground",
 };
 
 /** A tone's dot, for a status drawn as a dot outside a badge too. */
@@ -49,7 +49,7 @@ export const STATUS_TONE_DOT_CLASS: Record<StatusTone, string> = {
   success: "bg-semantic-success",
   warning: "bg-semantic-warning",
   danger: "bg-semantic-destructive",
-  accent: "bg-primary",
+  accent: "bg-foreground",
 };
 
 interface StatusBadgeProps {

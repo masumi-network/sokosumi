@@ -30,7 +30,9 @@ export function NotificationUnreadRail({
     <span
       className={cn(
         "w-0.5 shrink-0 self-stretch",
-        isRead ? "bg-transparent" : "bg-primary forced-colors:bg-[Highlight]",
+        isRead
+          ? "bg-transparent"
+          : "bg-foreground forced-colors:bg-[Highlight]",
       )}
       aria-hidden
     />

@@ -115,7 +115,7 @@ export function AdsDailyChart({
               <rect
                 className={
                   active === null || active === index
-                    ? "fill-primary"
+                    ? "fill-foreground"
                     : "fill-primary-tertiary"
                 }
                 height={height}

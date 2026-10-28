@@ -90,7 +90,7 @@ function ScoreChart({
     <div className="space-y-2">
       <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span className="inline-flex items-center gap-2">
-          <span aria-hidden className="bg-primary h-px w-4" />
+          <span aria-hidden className="bg-foreground h-px w-4" />
           {labels.scoreLegend}
         </span>
         {showThumbs ? (
@@ -158,7 +158,7 @@ function ScoreChart({
             data-series="judge-score"
             points={points}
             fill="none"
-            className="stroke-primary"
+            className="stroke-foreground"
             strokeWidth={1.5}
             strokeLinejoin="round"
           />
@@ -192,7 +192,7 @@ function ScoreChart({
                   cx={x(index)}
                   cy={scoreY(day.avgScore)}
                   r={2}
-                  className="fill-primary"
+                  className="fill-foreground"
                 >
                   <title>
                     {labels.scorePoint(date, day.avgScore, day.turns)}

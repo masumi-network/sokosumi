@@ -215,7 +215,7 @@ export function EditChannelDialog({
                       className={cn(
                         "flex items-start gap-3 rounded-lg border p-3 font-normal",
                         value === discoverability
-                          ? "border-primary bg-primary-quinary"
+                          ? "border-foreground bg-primary-quinary"
                           : "border-border",
                         locked
                           ? "cursor-not-allowed opacity-60"

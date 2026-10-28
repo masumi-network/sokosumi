@@ -88,7 +88,7 @@ export function MergeContactsDialog({
                   value={contact.id}
                   checked={winnerId === contact.id}
                   onChange={() => setWinnerId(contact.id)}
-                  className="accent-primary size-4 shrink-0"
+                  className="accent-foreground size-4 shrink-0"
                 />
                 <ContactAvatar
                   name={contact.name}

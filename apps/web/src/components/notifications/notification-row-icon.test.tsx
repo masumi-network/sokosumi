@@ -42,7 +42,7 @@ describe("NotificationRowIcon", () => {
     const circle = renderIcon(false);
 
     expect(circle.className).toContain("bg-primary-quaternary");
-    expect(circle.className).toContain("text-primary");
+    expect(circle.className).toContain("text-foreground");
   });
 
   it("recedes on a read row", () => {

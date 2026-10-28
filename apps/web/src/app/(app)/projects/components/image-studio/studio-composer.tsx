@@ -87,7 +87,7 @@ function chipClass(active: boolean, disabled = false): string {
     // Selected wins over disabled: a row that is locked by the batch ceiling
     // still has to say which value is in force.
     active
-      ? "border-primary bg-primary text-primary-foreground"
+      ? "border-foreground bg-primary text-primary-foreground"
       : "border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary",
     disabled && "cursor-not-allowed opacity-60 hover:border-border",
   );

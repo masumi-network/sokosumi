@@ -41,7 +41,7 @@ export function ProjectLatestUpdate({
             type="button"
             aria-expanded={expanded}
             aria-controls="project-latest-update-content"
-            className="text-primary hover:text-primary-hover text-xs font-medium transition-colors"
+            className="text-foreground underline underline-offset-4 text-xs font-medium"
             onClick={() => setExpanded((current) => !current)}
           >
             {expanded ? showLessLabel : showMoreLabel}

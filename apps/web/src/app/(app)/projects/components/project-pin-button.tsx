@@ -112,7 +112,7 @@ export function ProjectPinButton({
         // Solid ramp steps, not an opacity modifier: the colour-token rule is
         // absolute, and this is the same pairing the task-created badge uses.
         pinned
-          ? "text-primary bg-primary-quinary hover:bg-primary-quaternary"
+          ? "text-foreground bg-primary-quinary hover:bg-primary-quaternary"
           : "text-muted-foreground hover:text-foreground",
         className,
       )}

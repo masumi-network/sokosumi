@@ -239,7 +239,7 @@ function SocialDayList({
         <h3
           className={cn(
             "text-sm font-semibold",
-            dayKey === todayKey && "text-primary",
+            dayKey === todayKey && "text-foreground",
           )}
         >
           {heading}

@@ -58,14 +58,14 @@ export function SubscriptionPlanCard({
     <Card
       className={cn(
         "flex h-full flex-col",
-        plan.isCurrent ? "border-primary" : undefined,
+        plan.isCurrent ? "border-foreground" : undefined,
       )}
     >
       <CardHeader className="space-y-2">
         <CardTitle className="flex items-center justify-between">
           <span>{t(`Plans.${translationKey}.name`)}</span>
           {plan.isCurrent ? (
-            <span className="text-primary text-xs font-medium">
+            <span className="text-foreground text-xs font-medium">
               {t("currentPlanBadge")}
             </span>
           ) : null}

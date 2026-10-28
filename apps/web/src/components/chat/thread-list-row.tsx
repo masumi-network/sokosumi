@@ -52,7 +52,7 @@ export function ThreadGroupHeading({
       {count && count > 0 ? (
         <span
           aria-hidden="true"
-          className="bg-primary-quaternary text-primary-variant rounded-full px-1.5 text-2xs leading-4 font-semibold tracking-normal tabular-nums"
+          className="bg-primary-quaternary text-foreground rounded-full px-1.5 text-2xs leading-4 font-semibold tracking-normal tabular-nums"
         >
           {roomCountLabel(count)}
         </span>
@@ -130,9 +130,7 @@ export function ThreadListRowContent({
           <span
             className={cn(
               "shrink-0 text-xs tabular-nums",
-              unread
-                ? "text-primary-variant font-medium"
-                : "text-muted-foreground",
+              unread ? "text-foreground font-medium" : "text-muted-foreground",
             )}
           >
             {time}
@@ -141,7 +139,7 @@ export function ThreadListRowContent({
         <span className="flex min-w-0 items-center gap-1.5 text-xs">
           {newReplies ? (
             <>
-              <span className="text-primary-variant shrink-0 font-medium">
+              <span className="text-foreground shrink-0 font-medium">
                 {newReplies}
               </span>
               <span aria-hidden="true" className="text-muted-foreground">

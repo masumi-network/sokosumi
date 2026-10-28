@@ -33,7 +33,7 @@ const DEFAULT_DURATION = "21";
 const CUSTOM_DURATION = "custom";
 /** The chosen length takes the tint the app uses for what is on. */
 const DURATION_ITEM_CLASS =
-  "data-[state=on]:bg-primary-quaternary data-[state=on]:text-primary-variant data-[state=on]:font-medium";
+  "data-[state=on]:bg-primary-quaternary data-[state=on]:text-foreground data-[state=on]:font-medium";
 
 /**
  * Dates are entered in the admin's own time zone and sent to Core as UTC. A

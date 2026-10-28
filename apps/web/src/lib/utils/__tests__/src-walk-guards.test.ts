@@ -140,6 +140,16 @@ const TOKEN_OPACITY = new RegExp(
   `(?<![\\w/.-])(?:text-(?!(?:${FONT_SIZES})/)|(?:${COLOR_UTILITIES_NO_TEXT})-)[a-z0-9-]+/(?:\\[[0-9.]+%?\\]|\\d{1,3})(?![\\w.])`,
 );
 
+const PRIMARY_ON_TEXT_OR_EDGE =
+  /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|caret|divide)-primary(?:-variant|-solid|-hover|-iris)?(?![\w-])/;
+
+const PRIMARY_EDGE_ALLOWLIST = new Set([
+  // The arrow's polygon must match the tooltip's `bg-primary-solid` fill.
+  "components/ui/tooltip.tsx",
+  // Asserts that the retired chip class is dropped, so it has to name it.
+  "lib/utils/sanitizeMarkdown.test.ts",
+]);
+
 /**
  * A hex only counts when it is quote-delimited or inside an arbitrary Tailwind
  * value. A bare `#3617` in prose is an issue number, not a color.
@@ -206,6 +216,21 @@ describe("color tokens", () => {
 
   it("puts no opacity modifier on any color utility", () => {
     const violations = findColorViolations(TOKEN_OPACITY);
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("paints the primary on no text or edge", () => {
+    // Iris Flower, the primary, measures 2.67:1 on white. The Masumi Family
+    // guide allows it as a fill only, so text, borders, rings and thin marks
+    // take a foreground role. The tail rejects `[\w-]`, so the fill-side
+    // steps (`text-primary-foreground`, `border-primary-tertiary`) stay legal.
+    const violations = findColorViolations(
+      PRIMARY_ON_TEXT_OR_EDGE,
+      (rel) =>
+        rel.startsWith("app/(app)/admin/design-system/") ||
+        PRIMARY_EDGE_ALLOWLIST.has(rel),
+    );
 
     expect(violations, violations.join("\n")).toEqual([]);
   });

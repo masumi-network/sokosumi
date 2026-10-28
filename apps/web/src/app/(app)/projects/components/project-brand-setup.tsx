@@ -125,7 +125,7 @@ export function ProjectBrandSetup({
               className="size-24 rounded-lg text-2xl"
             />
             <span className="bg-primary-quinary border-primary-tertiary absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-md border">
-              <Check className="text-primary size-3.5" />
+              <Check className="text-foreground size-3.5" />
             </span>
           </div>
         ) : (

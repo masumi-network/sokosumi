@@ -40,7 +40,7 @@ export function CatchUpLine({
         const label = t(entry.bucket, { count: entry.count });
         const tone =
           entry.bucket === "needsYou"
-            ? "text-primary-variant font-medium"
+            ? "text-foreground font-medium"
             : "text-foreground";
         return (
           <Fragment key={entry.bucket}>

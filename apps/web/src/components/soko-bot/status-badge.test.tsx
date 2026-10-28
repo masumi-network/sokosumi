@@ -42,10 +42,11 @@ describe("StatusBadge label contrast", () => {
         <StatusBadge tone={tone}>Status</StatusBadge>,
       );
       const classes = container.firstElementChild?.className.split(" ") ?? [];
-      const foreground =
-        classes.find((value) =>
+      const foreground = classes.find(
+        (value) =>
+          value === "text-foreground" ||
           /^text-(primary|semantic|status)-/.test(value),
-        ) ?? classes.find((value) => value === "text-primary");
+      );
       const background = classes.find((value) => value.startsWith("bg-"));
       if (!foreground || !background) throw new Error("Missing badge colors");
       const text = luminance(theme, foreground.slice(5));

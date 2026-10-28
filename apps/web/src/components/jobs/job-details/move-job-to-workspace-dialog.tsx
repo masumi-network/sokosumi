@@ -130,7 +130,7 @@ export function MoveJobToWorkspaceDialog({
               className={cn(
                 "flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors",
                 selectedValue === option.id
-                  ? "border-primary bg-primary-quinary"
+                  ? "border-foreground bg-primary-quinary"
                   : "border-border press hover:bg-card-background",
               )}
             >

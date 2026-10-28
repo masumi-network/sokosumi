@@ -123,8 +123,8 @@ export function ChatUnreadsFilterChip({
       className={cn(
         UNREADS_CHIP_CLASS,
         unreadOnly
-          ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant active:bg-primary-quaternary"
-          : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant",
+          ? "bg-primary-quaternary text-foreground hover:bg-primary-quaternary active:bg-primary-quaternary"
+          : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-foreground",
       )}
     >
       {t("allUnreads")}
@@ -181,7 +181,7 @@ export function ChatMarkAllReadButton({
       disabled={isMarking}
       aria-busy={isMarking}
       onClick={handleMarkAllRead}
-      className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-primary-variant")}
+      className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-foreground")}
     >
       {isMarking ? (
         <Loader2

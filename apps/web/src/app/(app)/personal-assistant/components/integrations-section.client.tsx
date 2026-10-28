@@ -206,7 +206,7 @@ function Tile({
       {logoUrl ? (
         <img src={logoUrl} alt="" className="size-8 rounded object-contain" />
       ) : (
-        <span className="bg-primary-quinary text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
+        <span className="bg-primary-quinary text-foreground inline-flex size-8 items-center justify-center rounded text-sm font-medium">
           {name.slice(0, 1).toUpperCase()}
         </span>
       )}
@@ -214,7 +214,7 @@ function Tile({
       <span className="text-muted-foreground line-clamp-1 w-full text-2xs group-hover:hidden group-focus-visible:hidden">
         {caption ?? "\u00a0"}
       </span>
-      <span className="text-primary hidden w-full truncate text-2xs group-hover:block group-focus-visible:block">
+      <span className="text-foreground hidden w-full truncate text-2xs group-hover:block group-focus-visible:block">
         {actionLabel}
       </span>
     </button>

@@ -34,7 +34,7 @@ export function NotificationRowIcon({
         // the 3:1 floor, which is the worse trade.
         notification.isRead
           ? "bg-quinary text-muted-foreground"
-          : "bg-primary-quaternary text-primary",
+          : "bg-primary-quaternary text-foreground",
       )}
       aria-hidden
     >

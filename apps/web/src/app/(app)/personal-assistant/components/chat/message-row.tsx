@@ -182,7 +182,7 @@ function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
                   ? "bg-semantic-destructive"
                   : delegation.outcome === "processing"
                     ? "bg-status-working"
-                    : "bg-primary",
+                    : "bg-foreground",
               )}
               aria-hidden
             />

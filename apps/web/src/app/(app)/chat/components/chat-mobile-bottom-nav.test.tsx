@@ -328,7 +328,7 @@ describe("ChatMobileBottomNav", () => {
 
     expect(screen.getByLabelText("chatsUnread")).toBeTruthy();
     expect(screen.getByLabelText("chatsUnread").className).toContain(
-      "bg-primary",
+      "bg-foreground",
     );
     expect(screen.getByLabelText("chatsUnread").className).toContain(
       "size-1.5",

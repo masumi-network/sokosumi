@@ -66,7 +66,7 @@ describe("Markdown raw HTML", () => {
       <Markdown>
         {[
           "<u>under</u>",
-          '<span class="text-primary font-medium whitespace-nowrap other" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
+          '<span class="text-foreground font-medium whitespace-nowrap other" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
           "",
           '<video src="https://e.test/clip.mp4" controls loop muted autoplay></video>',
         ].join("\n")}
@@ -76,7 +76,7 @@ describe("Markdown raw HTML", () => {
     expect(container.querySelector("u")).toHaveTextContent("under");
     const chip = container.querySelector("span[data-direct-id]");
     expect(chip).toHaveClass(
-      "text-primary",
+      "text-foreground",
       "font-medium",
       "whitespace-nowrap",
     );

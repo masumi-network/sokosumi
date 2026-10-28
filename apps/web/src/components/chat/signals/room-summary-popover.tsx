@@ -59,7 +59,7 @@ export function RoomSummaryPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="text-primary-variant shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium hover:underline"
+          className="text-foreground shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium hover:underline"
           data-testid="room-summary-trigger"
         >
           {t("summarize")}

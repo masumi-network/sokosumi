@@ -78,7 +78,7 @@ export function MetricSparkline({
           key={`line-${run[0]?.x}`}
           d={linePath(run)}
           fill="none"
-          className="stroke-primary"
+          className="stroke-foreground"
           strokeWidth="2"
           vectorEffect="non-scaling-stroke"
         />

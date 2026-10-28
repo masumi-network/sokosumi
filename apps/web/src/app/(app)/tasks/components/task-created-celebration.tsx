@@ -56,7 +56,7 @@ const STATUS_CARD_STYLES: Record<
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {
-    badge: "bg-primary-quinary text-primary",
+    badge: "bg-primary-quinary text-foreground",
     dot: CELEBRATION_SCHEDULED_DOT,
   },
 };

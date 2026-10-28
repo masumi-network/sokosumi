@@ -216,7 +216,7 @@ export function TaskMetadata({
           {project ? (
             <Link
               href={`/projects/${project.id}`}
-              className="hover:text-primary truncate transition-colors"
+              className="hover:text-foreground truncate transition-colors"
             >
               {project.name}
             </Link>

@@ -125,7 +125,7 @@ export function ChatMobileBottomNav({
                   {showChatsUnreadDot ? (
                     <span
                       aria-label={t("chatsUnread")}
-                      className="bg-primary ring-background absolute -top-0.5 -right-0.5 size-1.5 rounded-full ring-2"
+                      className="bg-foreground ring-background absolute -top-0.5 -right-0.5 size-1.5 rounded-full ring-2"
                     />
                   ) : null}
                 </span>

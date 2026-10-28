@@ -24,7 +24,7 @@ interface ThreadIconCircleProps {
 }
 
 const TONE_CLASS: Record<ThreadIconCircleTone, string> = {
-  attention: "bg-primary-quaternary text-primary-variant",
+  attention: "bg-primary-quaternary text-foreground",
   quiet: "bg-sidebar-accent text-muted-foreground",
   read: "text-muted-foreground",
 };

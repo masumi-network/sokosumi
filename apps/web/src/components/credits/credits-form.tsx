@@ -315,7 +315,7 @@ export default function CreditsForm({
                         className={cn(
                           "h-auto min-h-36 w-full flex-col items-start justify-between gap-6 whitespace-normal rounded-xl px-4 py-4 text-left",
                           isSelected
-                            ? "border-primary ring-primary bg-primary-quinary border shadow-sm ring-1 hover:bg-primary-quinary"
+                            ? "border-foreground ring-ring bg-primary-quinary border shadow-sm ring-1 hover:bg-primary-quinary"
                             : "hover:bg-card-background",
                         )}
                       >
@@ -334,7 +334,7 @@ export default function CreditsForm({
                         </div>
                         <div className="space-y-1">
                           {formattedCardSavings ? (
-                            <p className="text-primary text-xl font-medium">
+                            <p className="text-foreground text-xl font-medium">
                               {t("youSaveLabel", {
                                 amount: formattedCardSavings,
                               })}
@@ -420,7 +420,7 @@ export default function CreditsForm({
                     </p>
                   ) : null}
                   {formattedSavings ? (
-                    <p className="text-primary text-sm font-medium">
+                    <p className="text-foreground text-sm font-medium">
                       {t("youSaveLabel", { amount: formattedSavings })}
                     </p>
                   ) : null}

@@ -54,7 +54,7 @@ function TemplateButton({
         STUDIO_SELECT_NONE_CLASS,
         STUDIO_TOUCH_CALLOUT_NONE_CLASS,
         large
-          ? "border-border data-[studio-snap-target]:border-primary flex-col overflow-hidden border p-2"
+          ? "border-border data-[studio-snap-target]:border-foreground flex-col overflow-hidden border p-2"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
         large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}

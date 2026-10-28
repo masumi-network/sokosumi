@@ -23,7 +23,7 @@ export function ChatCaughtUp({ title, description }: ChatCaughtUpProps) {
       data-testid="chat-caught-up"
       className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
     >
-      <span className="bg-primary-quaternary text-primary-variant grid size-8 place-items-center rounded-full">
+      <span className="bg-primary-quaternary text-foreground grid size-8 place-items-center rounded-full">
         <CheckCheck className="size-4" aria-hidden />
       </span>
       <p className="text-sm font-medium">{title}</p>

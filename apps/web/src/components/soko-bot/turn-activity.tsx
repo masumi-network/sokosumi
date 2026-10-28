@@ -175,7 +175,7 @@ export async function TurnActivity({
                 {delegation.taskId ? (
                   <Link
                     href={`/tasks/${encodeURIComponent(delegation.taskId)}`}
-                    className="text-primary underline-offset-4 hover:underline"
+                    className="text-foreground underline-offset-4 underline"
                   >
                     {t("openTask")}
                   </Link>

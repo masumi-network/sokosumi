@@ -123,7 +123,7 @@ function ChainRow({
       <span
         className={cn(
           "text-xs font-medium",
-          tone === "accent" ? "text-primary" : "text-muted-foreground",
+          tone === "accent" ? "text-foreground" : "text-muted-foreground",
         )}
       >
         {label}

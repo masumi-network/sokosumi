@@ -465,7 +465,7 @@ function MessageQuoteBlock({
       {expanded || overflows ? (
         <button
           type="button"
-          className="text-primary press hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          className="text-foreground press underline underline-offset-4 mt-0.5 text-xs font-medium rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -2080,7 +2080,7 @@ function FailedMentionActions({
     >
       <button
         type="button"
-        className="text-primary press hover:text-primary-hover font-medium"
+        className="text-foreground press underline underline-offset-4 font-medium"
         data-testid="coworker-mention-retry"
         onClick={onRetryMention}
       >
@@ -2116,7 +2116,7 @@ function OutboundFailedActions({
       {onRetryOutbound ? (
         <button
           type="button"
-          className="text-primary press hover:text-primary-hover font-medium"
+          className="text-foreground press underline underline-offset-4 font-medium"
           onClick={() => onRetryOutbound(message)}
         >
           {t("Outbound.retry")}
@@ -2125,7 +2125,7 @@ function OutboundFailedActions({
       {onRemoveOutbound ? (
         <button
           type="button"
-          className="text-primary press hover:text-primary-hover font-medium"
+          className="text-foreground press underline underline-offset-4 font-medium"
           onClick={() => onRemoveOutbound(message)}
         >
           {t("Outbound.remove")}
@@ -2207,7 +2207,7 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-primary press hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press hover:underline -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2219,7 +2219,7 @@ function ThreadReplyBar({
         // message; on a painted bar it pushes the rule and the rounded edge
         // into the content column's `overflow-x-clip`, which cuts them off.
         unreadReplyCount > 0 &&
-          "bg-primary-quaternary text-primary-variant mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+          "bg-primary-quaternary text-foreground mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
       )}
       onClick={() => onOpenThread(message)}
     >
@@ -2311,7 +2311,7 @@ function MessageMetaFooter({
                       "border-border bg-background inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       onToggleReaction && "press hover:bg-muted",
                       reaction.reactedByCurrentUser &&
-                        "border-primary-tertiary bg-primary-quinary text-primary",
+                        "border-primary-tertiary bg-primary-quinary text-foreground",
                     )}
                     aria-label={t("Reactions.toggle", {
                       emoji: reaction.emoji,

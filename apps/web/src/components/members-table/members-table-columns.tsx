@@ -143,7 +143,7 @@ function SeatStatusCell({ member }: { member: MemberRowData["member"] }) {
       <span
         className={
           isAssigned
-            ? "bg-primary-quinary text-primary inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+            ? "bg-primary-quinary text-foreground inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
             : "bg-muted text-muted-foreground inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
         }
       >

@@ -59,7 +59,7 @@ export function ProjectProperties({
               target="_blank"
               rel="noopener noreferrer"
               title={websiteUrl}
-              className="hover:text-primary inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring"
+              className="hover:text-foreground inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring"
             >
               <span className="truncate">{websiteHostname}</span>
               <ExternalLink

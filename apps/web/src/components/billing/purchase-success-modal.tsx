@@ -79,7 +79,7 @@ function PurchaseSuccessModalContent({
           }
         >
           <Check
-            className="text-primary size-7"
+            className="text-foreground size-7"
             strokeWidth={2.5}
             aria-hidden
           />

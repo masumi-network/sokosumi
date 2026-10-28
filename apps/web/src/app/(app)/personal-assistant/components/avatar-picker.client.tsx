@@ -146,7 +146,7 @@ function AvatarTile({
         "group relative aspect-square overflow-hidden rounded-xl border transition-colors",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         selected
-          ? "border-primary ring-ring-halo ring-2"
+          ? "border-foreground ring-ring-halo ring-2"
           : "border-border hover:border-tertiary",
       )}
     >

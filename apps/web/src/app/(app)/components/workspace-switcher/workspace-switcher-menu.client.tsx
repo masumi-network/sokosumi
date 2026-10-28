@@ -205,7 +205,7 @@ export default function WorkspaceSwitcherMenu({
             onClick={openCreateWorkspace}
           >
             <Avatar className="bg-primary-quinary flex size-6 items-center justify-center gap-2">
-              <Plus className="text-primary size-4" />
+              <Plus className="text-foreground size-4" />
             </Avatar>
             <span>{tOrganizationSwitcher("createWorkspace")}</span>
           </DropdownMenuItem>

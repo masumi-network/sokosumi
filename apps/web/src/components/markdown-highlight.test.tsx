@@ -97,11 +97,11 @@ describe("Markdown search term highlight", () => {
     "keeps a mention chip intact for the term %s",
     (term) => {
       const container = renderHighlighted(
-        '<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="user" data-direct-id="test-1">@Test User</span> wrote',
+        '<span class="text-foreground font-medium whitespace-nowrap" data-direct-kind="user" data-direct-id="test-1">@Test User</span> wrote',
         term,
       );
 
-      const chip = container.querySelector("span.text-primary");
+      const chip = container.querySelector("span.text-foreground");
       expect(chip).toHaveClass("font-medium", "whitespace-nowrap");
       expect(chip).toHaveAttribute("data-direct-kind", "user");
       expect(chip).toHaveAttribute("data-direct-id", "test-1");
