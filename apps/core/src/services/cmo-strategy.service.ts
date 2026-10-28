@@ -86,8 +86,7 @@ export async function setCmoAdBudget(input: {
   monthly: number;
   currency: string;
 }): Promise<{ turnId: string }> {
-  const hire = await findCusoForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const hire = await requireCuso({ userId: input.userId });
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(hire.projectId))?.plan,
   );
@@ -95,11 +94,22 @@ export async function setCmoAdBudget(input: {
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
-  // The owner's budget is a version of its own, which Cuso's rewrite builds on.
+  const started = await requestCmoStrategy({
+    userId: input.userId,
+    note:
+      input.monthly > 0
+        ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
+        : "I don't want to spend on ads this month. Leave paid ads out and make the plan work without them.",
+  });
+  // The owner's budget is the version Cuso's re-plan completes: his turn's
+  // saves update it, so a budget writes one version.
+  // shortcut: a turn that saves before this create adds a second version;
+  // its first save takes a model call, so upgrade only if that ever shows.
   await prisma.marketingStrategy.create({
     data: {
       projectId: hire.projectId,
       authorUserId: input.userId,
+      turnId: started.turnId,
       plan: {
         ...strategy,
         ads: {
@@ -113,13 +123,7 @@ export async function setCmoAdBudget(input: {
       },
     },
   });
-  return requestCmoStrategy({
-    userId: input.userId,
-    note:
-      input.monthly > 0
-        ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
-        : "I don't want to spend on ads this month. Leave paid ads out and make the plan work without them.",
-  });
+  return started;
 }
 
 /**

@@ -85,6 +85,7 @@ import {
   pauseCmoCalendarEntry,
   requestCmoStrategy,
   saveCmoStrategy,
+  setCmoAdBudget,
   withoutDashes,
 } from "./cmo-strategy.service";
 
@@ -212,6 +213,29 @@ describe("requestCmoStrategy", () => {
 
     expect(approvedRows()).toHaveLength(1);
     expect(strategyRows).toHaveLength(1);
+  });
+
+  it("writes one version for an ad budget, which Cuso's re-plan completes", async () => {
+    cusoFind.mockResolvedValue(hire);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await setCmoAdBudget({ userId: "user-1", monthly: 500, currency: "eur" });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "Ads around the owner's budget." },
+      { turnId: "turn-9" },
+    );
+
+    expect(strategyRows).toHaveLength(2);
+    const added = strategyRows.find((row) => row.id !== running.id)!;
+    expect(added).toMatchObject({ authorUserId: "user-1", turnId: "turn-9" });
+    expect(plan(added).summary).toBe("Ads around the owner's budget.");
+    expect(added.plan).toMatchObject({
+      ads: { monthly: 500, currency: "EUR", setByOwner: true },
+    });
   });
 });
 
