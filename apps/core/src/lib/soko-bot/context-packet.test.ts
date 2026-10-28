@@ -4,6 +4,7 @@ const {
   agentCountMock,
   agentFindManyMock,
   billingMock,
+  brandBrainFindUniqueMock,
   coworkerCountMock,
   coworkerFindManyMock,
   creditCostFindManyMock,
@@ -26,6 +27,7 @@ const {
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   billingMock: vi.fn(),
+  brandBrainFindUniqueMock: vi.fn(),
   coworkerCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
@@ -54,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
+    brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
     creditCost: { findMany: creditCostFindManyMock },
     job: { count: jobCountMock, findMany: jobFindManyMock },
@@ -626,6 +629,48 @@ describe("ContextPacketBuilder", () => {
         where: { sokoBotId: sharedScope.sokoBotId },
       }),
     );
+  });
+
+  it("gives a Project bot its Project's Brand Brain", async () => {
+    const sharedScope = {
+      sokoBotId: buildInput().sokoBotId,
+      workspaceId: buildInput().workspaceId,
+      projectId: "project-1",
+    };
+    projectFindManyMock.mockResolvedValue([project("project-1")]);
+    brandBrainFindUniqueMock.mockResolvedValue({
+      body: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: ["Founders"],
+        products: ["Rockets"],
+        competitors: [],
+        channels: [],
+        questions: [],
+      },
+    });
+
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      sharedScope,
+    });
+
+    expect(brandBrainFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { projectId: "project-1" } }),
+    );
+    expect(result.packet.projects[0]).toMatchObject({
+      id: "project-1",
+      brandBrain: {
+        summary: "Acme sells rockets.",
+        audience: ["Founders"],
+      },
+    });
+  });
+
+  it("gives a personal assistant no Brand Brain", async () => {
+    await new ContextPacketBuilder().build(buildInput());
+
+    expect(brandBrainFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("loads only public Tasks and Jobs for teammate audience packets", async () => {

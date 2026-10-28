@@ -30,13 +30,6 @@ vi.mock("@/services/file-metadata.service", () => ({
 }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   cmoRunnerUserId: async () => "user-1",
-  CMO_HIRE_PROJECT: { project: { select: { workspaceId: true } } },
-  cmoHireView: ({
-    project,
-    ...hire
-  }: {
-    project: { workspaceId: string; websiteUrl: string };
-  }) => ({ ...hire, ...project }),
 }));
 vi.mock("@sokosumi/net", () => ({
   ssrfSafeFetch: async () =>
@@ -186,10 +179,15 @@ describe("captureCmoBrandMedia", () => {
       id: "hire-1",
       sokoBotId: "bot-1",
       projectId: "project-1",
-      brandBrain: brain({
-        competitors: [{ name: "Rival Co", url: "https://rival.example/x" }],
-      }),
-      project: { workspaceId: "ws-1", websiteUrl: "https://acme.io" },
+      project: {
+        workspaceId: "ws-1",
+        websiteUrl: "https://acme.io",
+        brandBrain: {
+          body: brain({
+            competitors: [{ name: "Rival Co", url: "https://rival.example/x" }],
+          }),
+        },
+      },
     });
     db.workspace.findUnique.mockResolvedValue({ organizationId: "org-1" });
     db.fileProjectLink.findFirst.mockResolvedValue(null);

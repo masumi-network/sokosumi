@@ -44,27 +44,56 @@ export function cmoBusinessNameFromUrl(websiteUrl: string): string {
   }
 }
 
+/** The hire columns the Project now owns: a hire read leaves them out. */
+export const CMO_HIRE_OMIT = {
+  brandBrain: true,
+  brandBrainUpdatedAt: true,
+  brandBrainApprovedAt: true,
+} as const;
+
+type CmoHireRow = Omit<CmoHire, keyof typeof CMO_HIRE_OMIT>;
+
 /**
  * A CMO hire with what it reads off its Project, which keeps no copy: the
- * workspace (the business's organization, which pays), the website, and the
- * business name, the website's host.
+ * workspace (the business's organization, which pays), the website, the
+ * business name (the website's host), and the Project's Brand Brain under
+ * the names CMO's screens read.
  */
-export type CmoHireView = CmoHire & {
+export type CmoHireView = CmoHireRow & {
   workspaceId: string;
   websiteUrl: string;
   businessName: string;
+  brandBrain: Prisma.JsonValue | null;
+  brandBrainUpdatedAt: Date | null;
+  brandBrainApprovedAt: Date | null;
 };
 
 /** The Project fields a hire read includes, for `cmoHireView`. */
 export const CMO_HIRE_PROJECT = {
-  project: { select: { workspaceId: true, websiteUrl: true } },
+  project: {
+    select: {
+      workspaceId: true,
+      websiteUrl: true,
+      brandBrain: {
+        select: { body: true, updatedAt: true, confirmedAt: true },
+      },
+    },
+  },
 } as const;
 
 export function cmoHireView({
   project,
   ...hire
-}: CmoHire & {
-  project: { workspaceId: string; websiteUrl: string | null };
+}: CmoHireRow & {
+  project: {
+    workspaceId: string;
+    websiteUrl: string | null;
+    brandBrain: {
+      body: Prisma.JsonValue;
+      updatedAt: Date | null;
+      confirmedAt: Date | null;
+    } | null;
+  };
 }): CmoHireView {
   const websiteUrl = project.websiteUrl ?? "";
   return {
@@ -72,6 +101,9 @@ export function cmoHireView({
     workspaceId: project.workspaceId,
     websiteUrl,
     businessName: cmoBusinessNameFromUrl(websiteUrl),
+    brandBrain: project.brandBrain?.body ?? null,
+    brandBrainUpdatedAt: project.brandBrain?.updatedAt ?? null,
+    brandBrainApprovedAt: project.brandBrain?.confirmedAt ?? null,
   };
 }
 
@@ -95,11 +127,11 @@ export async function getCmoHireForUser(
           workspace: { organization: { members: { some: { userId } } } },
         },
       },
+      omit: CMO_HIRE_OMIT,
       include: {
         project: {
           select: {
-            workspaceId: true,
-            websiteUrl: true,
+            ...CMO_HIRE_PROJECT.project.select,
             workspace: { select: { organizationId: true } },
           },
         },
@@ -120,6 +152,7 @@ export async function getCmoHireForBot(
 ): Promise<CmoHireView | null> {
   const hire = await prisma.cmoHire.findUnique({
     where: { sokoBotId },
+    omit: CMO_HIRE_OMIT,
     include: CMO_HIRE_PROJECT,
   });
   return hire ? cmoHireView(hire) : null;

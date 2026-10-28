@@ -276,17 +276,21 @@ import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
+  cmoBrandSectionsSaved,
+  getBrandBrain,
+  parseCmoBrandBrain,
+  saveBrandBrain,
+} from "@/services/brand-brain.service";
+import {
   hydrateChatResultSnapshots,
   resolveChatResultReference,
 } from "@/services/chat-result-preview.service";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
-import {
-  cmoBrandSectionsSaved,
-  parseCmoBrandBrain,
-  saveCmoBrandBrain,
-} from "@/services/cmo-brand-brain.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
-import { CmoNotFoundError } from "@/services/cmo-cuso.service";
+import {
+  CmoNotFoundError,
+  getCmoHireForBot,
+} from "@/services/cmo-cuso.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -2064,7 +2068,10 @@ export class SokoBotRuntimeService {
   private async socialCommentScopeOf(authorized: AuthorizedSokoBotRuntime) {
     const bot = await prisma.sokoBot.findUnique({
       where: { id: authorized.turn.sokoBotId },
-      select: { projectId: true, cmoHire: { select: { brandBrain: true } } },
+      select: {
+        projectId: true,
+        project: { select: { brandBrain: { select: { body: true } } } },
+      },
     });
     if (!bot?.projectId)
       throw new SokoBotRuntimeValidationError(
@@ -2072,7 +2079,7 @@ export class SokoBotRuntimeService {
       );
     return {
       projectId: bot.projectId,
-      brandBrain: bot.cmoHire?.brandBrain ?? null,
+      brandBrain: bot.project?.brandBrain?.body ?? null,
     };
   }
 
@@ -4933,7 +4940,9 @@ export class SokoBotRuntimeService {
     });
     if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
-    const brain = parseCmoBrandBrain(hire.brandBrain);
+    const brain = parseCmoBrandBrain(
+      (await getBrandBrain(hire.projectId))?.body,
+    );
     let mainOffer: CmoPlanOfferVerdict = "skipped";
     if (plan.planSent && brain) {
       const drift = await cmoPlanDrift({ strategy, brain });
@@ -4999,9 +5008,23 @@ export class SokoBotRuntimeService {
           const save = SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(
             input.input,
           );
-          const saved = await write((tx) => saveCmoBrandBrain(where, save, tx));
-          if (save.brandBrain) scheduleCmoBrandMedia(saved);
-          const stored = parseCmoBrandBrain(saved.brandBrain);
+          // The Brand Brain is the Project's (ADR 0062): Cuso's own Project.
+          const saved = await write(async (tx) => {
+            const bot = await tx.sokoBot.findUnique({
+              where: { id: authorized.turn.sokoBotId },
+              select: { projectId: true },
+            });
+            if (!bot?.projectId)
+              throw new SokoBotRuntimeValidationError(
+                "A Brand Brain belongs to a Project, and this bot has none.",
+              );
+            return saveBrandBrain(bot.projectId, save, tx);
+          });
+          if (save.brandBrain) {
+            const hire = await getCmoHireForBot(authorized.turn.sokoBotId);
+            if (hire) scheduleCmoBrandMedia(hire);
+          }
+          const stored = parseCmoBrandBrain(saved.body);
           // The owner opens on the reveal and answers the questions next, so
           // essentials without them leave two empty screens.
           const missing = stored
@@ -5014,9 +5037,9 @@ export class SokoBotRuntimeService {
             targetId: saved.id,
             result: {
               saved: "brandBrain",
-              sections: cmoBrandSectionsSaved(saved.brandBrain),
+              sections: cmoBrandSectionsSaved(saved.body),
               essentials: stored !== null,
-              updatedAt: saved.brandBrainUpdatedAt?.toISOString(),
+              updatedAt: saved.updatedAt?.toISOString(),
               ...(missing.length > 0
                 ? {
                     missing,

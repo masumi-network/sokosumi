@@ -8821,7 +8821,7 @@ describe("Social comment scope", () => {
   it("handles the comments of the bot's own Project, with its Brand Brain when it has one", async () => {
     botFindUniqueMock.mockResolvedValueOnce({
       projectId: PROJECT,
-      cmoHire: { brandBrain: { summary: "Lofts" } },
+      project: { brandBrain: { body: { summary: "Lofts" } } },
     });
     await expect(
       new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
@@ -8831,10 +8831,10 @@ describe("Social comment scope", () => {
     });
   });
 
-  it("works for a Project bot without a CMO hire", async () => {
+  it("works for a Project without a Brand Brain", async () => {
     botFindUniqueMock.mockResolvedValueOnce({
       projectId: PROJECT,
-      cmoHire: null,
+      project: { brandBrain: null },
     });
     await expect(
       new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
@@ -8842,7 +8842,7 @@ describe("Social comment scope", () => {
   });
 
   it("refuses a bot with no Project", async () => {
-    botFindUniqueMock.mockResolvedValueOnce({ projectId: null, cmoHire: null });
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null, project: null });
     await expect(
       new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
     ).rejects.toThrow("belong to a Project");
@@ -8931,6 +8931,48 @@ describe("CMO record saves", () => {
       service["saveCmoRecord"](owner as never, report),
     ).rejects.toThrow("no longer writable");
     expect(tx.cmoHire.update).not.toHaveBeenCalled();
+  });
+
+  it("saves the Brand Brain to Cuso's Project", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000c2";
+    const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      brandBrain: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue({
+          id: "brain-1",
+          body: { profile: {} },
+          updatedAt: null,
+        }),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_brand_brain",
+      toolCallId: "brain",
+      input: {
+        sections: {
+          pricing: {
+            answer: "From 9 dollars",
+            findings: [
+              { point: "From 9 dollars", evidence: "fact", confidence: "high" },
+            ],
+          },
+        },
+      },
+    });
+    const upsert = tx.brandBrain.upsert.mock.calls[0]?.[0];
+    expect(upsert.where).toEqual({ projectId: PROJECT });
+    expect(upsert.create.body.profile.pricing.answer).toBe("From 9 dollars");
   });
 
   it("checks the turn's authority inside the transaction that writes", async () => {

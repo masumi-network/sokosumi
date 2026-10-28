@@ -6407,6 +6407,640 @@ export type ProjectContextMd = ProjectContextMdMetadata & {
     content: string;
 };
 
+export type BrandBrain = {
+    /**
+     * Null until its essentials are saved.
+     */
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
+        marketingToday?: {
+            summary: string;
+            channels?: Array<{
+                name: string;
+                url?: string;
+                followers?: string;
+                postsPerMonth?: number;
+                lastPost?: string;
+                formats?: Array<string>;
+                themes?: Array<string>;
+                basis: 'measured' | 'estimated' | 'unknown';
+            }>;
+            website?: {
+                blog?: string;
+                newsletter?: boolean;
+                notes?: Array<string>;
+            };
+            ads?: {
+                status: 'running' | 'none_found' | 'unknown';
+                note?: string;
+            };
+        };
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+    } | null;
+    /**
+     * When the essentials were last saved.
+     */
+    updatedAt: Date | null;
+    confirmedAt: Date | null;
+    /**
+     * The member who last confirmed it.
+     */
+    confirmedBy: {
+        id: string;
+        name: string;
+    } | null;
+};
+
+export type BrandBrainRequest = {
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
+        marketingToday?: {
+            summary: string;
+            channels?: Array<{
+                name: string;
+                url?: string;
+                followers?: string;
+                postsPerMonth?: number;
+                lastPost?: string;
+                formats?: Array<string>;
+                themes?: Array<string>;
+                basis: 'measured' | 'estimated' | 'unknown';
+            }>;
+            website?: {
+                blog?: string;
+                newsletter?: boolean;
+                notes?: Array<string>;
+            };
+            ads?: {
+                status: 'running' | 'none_found' | 'unknown';
+                note?: string;
+            };
+        };
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+    };
+};
+
+export type BrandBrainAnswerRequest = {
+    questionId: string;
+    answer: 'yes' | 'no' | 'unsure';
+    /**
+     * After a no: what is true instead, in the member's words.
+     */
+    note?: string;
+};
+
 export type ProjectDesignMdWrite = {
     content: string;
     extractionId?: string | null;
@@ -9322,320 +9956,6 @@ export type CmoTurnStarted = {
     turnId: string;
 };
 
-export type CmoBrandBrainRequest = {
-    brandBrain: {
-        summary: string;
-        voice: {
-            tone: string;
-            do: Array<string>;
-            dont: Array<string>;
-            examples: Array<string>;
-        };
-        audience: Array<string>;
-        products: Array<string>;
-        offers?: Array<{
-            name: string;
-            what: string;
-            price: string;
-            forWhom?: string;
-            url?: string;
-        }>;
-        competitors: Array<{
-            name: string;
-            url?: string;
-            note?: string;
-        }>;
-        alternatives?: Array<{
-            name: string;
-            url?: string;
-            note?: string;
-        }>;
-        channels: Array<{
-            name: string;
-            url?: string;
-            note?: string;
-        }>;
-        profile?: {
-            company?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            offer?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            problems?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            customers?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            buyers?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            value?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            pricing?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            positioning?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            competition?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            sales?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            marketing?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            content?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            proof?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            reputation?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            momentum?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-            opportunities?: {
-                headline?: string;
-                answer: string;
-                findings?: Array<{
-                    point: string;
-                    evidence: 'fact' | 'claim' | 'inference';
-                    confidence: 'high' | 'medium' | 'low';
-                    sourceUrl?: string;
-                    asOf?: string;
-                    implication?: string;
-                }>;
-                openQuestions?: Array<string>;
-            };
-        };
-        reveal?: {
-            positioning: string;
-            insights: Array<{
-                title: string;
-                detail: string;
-                sourceUrl?: string;
-            }>;
-            map?: {
-                x: {
-                    low: string;
-                    high: string;
-                };
-                y: {
-                    low: string;
-                    high: string;
-                };
-                players: Array<{
-                    name: string;
-                    x: number;
-                    y: number;
-                    you?: boolean;
-                }>;
-            };
-            buyers: Array<{
-                role: string;
-                wants: string;
-                worry: string;
-            }>;
-        };
-        marketingToday?: {
-            summary: string;
-            channels?: Array<{
-                name: string;
-                url?: string;
-                followers?: string;
-                postsPerMonth?: number;
-                lastPost?: string;
-                formats?: Array<string>;
-                themes?: Array<string>;
-                basis: 'measured' | 'estimated' | 'unknown';
-            }>;
-            website?: {
-                blog?: string;
-                newsletter?: boolean;
-                notes?: Array<string>;
-            };
-            ads?: {
-                status: 'running' | 'none_found' | 'unknown';
-                note?: string;
-            };
-        };
-        questions?: Array<{
-            id: string;
-            question: string;
-            statement: string;
-            section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
-            answer?: 'yes' | 'no' | 'unsure';
-            note?: string;
-        }>;
-    };
-};
-
-export type CmoBrandAnswerRequest = {
-    questionId: string;
-    answer: 'yes' | 'no' | 'unsure';
-    /**
-     * After a no: what is true instead, in the owner's words.
-     */
-    note?: string;
-};
-
 export type CmoStrategyRequest = {
     note?: string;
 };
@@ -9646,6 +9966,15 @@ export type CmoAdBudgetRequest = {
      * ISO 4217, such as EUR.
      */
     currency: string;
+};
+
+export type CmoBrandAnswerRequest = {
+    questionId: string;
+    answer: 'yes' | 'no' | 'unsure';
+    /**
+     * After a no: what is true instead, in the owner's words.
+     */
+    note?: string;
 };
 
 export type CmoMeasurementConnect = {
@@ -48126,6 +48455,437 @@ export type GetProjectsByIdContextMdResponses = {
 
 export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
 
+export type GetProjectBrandBrainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain';
+};
+
+export type GetProjectBrandBrainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectBrandBrainError = GetProjectBrandBrainErrors[keyof GetProjectBrandBrainErrors];
+
+export type GetProjectBrandBrainResponses = {
+    /**
+     * Brand Brain
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectBrandBrainResponse = GetProjectBrandBrainResponses[keyof GetProjectBrandBrainResponses];
+
+export type UpdateProjectBrandBrainData = {
+    body: BrandBrainRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain';
+};
+
+export type UpdateProjectBrandBrainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateProjectBrandBrainError = UpdateProjectBrandBrainErrors[keyof UpdateProjectBrandBrainErrors];
+
+export type UpdateProjectBrandBrainResponses = {
+    /**
+     * Brand Brain saved
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateProjectBrandBrainResponse = UpdateProjectBrandBrainResponses[keyof UpdateProjectBrandBrainResponses];
+
+export type ConfirmProjectBrandBrainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain/confirm';
+};
+
+export type ConfirmProjectBrandBrainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Brand Brain is still being built
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConfirmProjectBrandBrainError = ConfirmProjectBrandBrainErrors[keyof ConfirmProjectBrandBrainErrors];
+
+export type ConfirmProjectBrandBrainResponses = {
+    /**
+     * Brand Brain confirmed
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConfirmProjectBrandBrainResponse = ConfirmProjectBrandBrainResponses[keyof ConfirmProjectBrandBrainResponses];
+
+export type AnswerProjectBrandBrainQuestionData = {
+    body: BrandBrainAnswerRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain/answers';
+};
+
+export type AnswerProjectBrandBrainQuestionErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found, or no such question
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerProjectBrandBrainQuestionError = AnswerProjectBrandBrainQuestionErrors[keyof AnswerProjectBrandBrainQuestionErrors];
+
+export type AnswerProjectBrandBrainQuestionResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerProjectBrandBrainQuestionResponse = AnswerProjectBrandBrainQuestionResponses[keyof AnswerProjectBrandBrainQuestionResponses];
+
 export type DeleteProjectsByIdDesignMdData = {
     body?: never;
     headers?: {
@@ -63005,7 +63765,7 @@ export type RetryCmoOnboardingResponses = {
 export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
 
 export type UpdateCmoBrandBrainData = {
-    body?: CmoBrandBrainRequest;
+    body?: BrandBrainRequest;
     path?: never;
     query?: never;
     url: '/cmo/brand-brain';
@@ -63131,7 +63891,7 @@ export type ApproveCmoBrandBrainErrors = {
         };
     };
     /**
-     * Cuso is still building the Brand Brain
+     * The Brand Brain is still being built
      */
     409: {
         error: string;
@@ -63166,7 +63926,7 @@ export type ApproveCmoBrandBrainResponses = {
 export type ApproveCmoBrandBrainResponse = ApproveCmoBrandBrainResponses[keyof ApproveCmoBrandBrainResponses];
 
 export type AnswerCmoBrandQuestionData = {
-    body?: CmoBrandAnswerRequest;
+    body?: BrandBrainAnswerRequest;
     path?: never;
     query?: never;
     url: '/cmo/brand-brain/answers';

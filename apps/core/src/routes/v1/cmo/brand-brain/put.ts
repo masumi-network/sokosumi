@@ -3,13 +3,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import {
-  cmoBrandBrainRequestSchema,
-  cmoOverviewSchema,
-} from "@/schemas/cmo.schema";
-import { saveCmoBrandBrain } from "@/services/cmo-brand-brain.service";
+import { brandBrainRequestSchema } from "@/schemas/brand-brain.schema";
+import { cmoOverviewSchema } from "@/schemas/cmo.schema";
+import { saveBrandBrain } from "@/services/brand-brain.service";
 
-import { requireOverview, rethrow } from "../helpers";
+import { requireCmoProjectId, requireOverview } from "../helpers";
 
 const route = createRoute({
   method: "put",
@@ -18,7 +16,7 @@ const route = createRoute({
   tags: ["CMO"],
   request: {
     body: {
-      content: { "application/json": { schema: cmoBrandBrainRequestSchema } },
+      content: { "application/json": { schema: brandBrainRequestSchema } },
     },
   },
   responses: {
@@ -33,7 +31,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { brandBrain } = c.req.valid("json");
-    await saveCmoBrandBrain({ userId }, { brandBrain }).catch(rethrow);
+    await saveBrandBrain(await requireCmoProjectId(userId), { brandBrain });
     return ok(c, await requireOverview(userId));
   });
 }

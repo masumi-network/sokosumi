@@ -1,13 +1,15 @@
 import {
-  type CmoBrandBrain,
   type CmoStrategy,
   type CmoSystemSchedule,
   cmoRoutineSkipReason,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
+import {
+  compactBrandBrain,
+  parseCmoBrandBrain,
+} from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
-import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import { getCmoHireForBot, listCmoChannels } from "@/services/cmo-cuso.service";
 import { parseCmoUpdates } from "@/services/cmo-reports.service";
@@ -229,41 +231,6 @@ export function fitCmoMarketingContext(
 /** The last day a turn sees full drafts for. */
 function draftHorizon(now: Date): string {
   return new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
-}
-
-/**
- * The Brand Brain as a turn reads it: each section's headline, answer, what
- * its findings mean and its open questions. The findings themselves stay
- * stored; a full profile no longer fits Cuso's context packet.
- */
-export function compactBrandBrain(
-  brain: CmoBrandBrain | null,
-): Record<string, unknown> | null {
-  if (!brain) return null;
-  const profile = Object.fromEntries(
-    Object.entries(brain.profile ?? {}).flatMap(([key, section]) =>
-      section
-        ? [
-            [
-              key,
-              {
-                headline: section.headline,
-                answer: section.answer,
-                soWhat: section.findings
-                  .map((finding) => finding.implication)
-                  .filter(Boolean)
-                  .slice(0, 2),
-                openQuestions: section.openQuestions,
-                findingsStored: section.findings.length,
-              },
-            ],
-          ]
-        : [],
-    ),
-  );
-  // An answered question already lives in its section as a finding.
-  const questions = brain.questions.filter((question) => !question.answer);
-  return { ...brain, profile, questions };
 }
 
 /** The packet appended to a CMO rhythm's prompt. */
