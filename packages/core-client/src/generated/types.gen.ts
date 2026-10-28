@@ -7032,7 +7032,7 @@ export type BrandBrainRequest = {
     };
 };
 
-export type BrandBrainAnswerRequest = {
+export type QuestionAnswerRequest = {
     questionId: string;
     answer: 'yes' | 'no' | 'unsure';
     /**
@@ -7271,13 +7271,220 @@ export type MarketingStrategy = MarketingStrategyVersion & {
     };
 };
 
-export type CmoBrandAnswerRequest = {
-    questionId: string;
-    answer: 'yes' | 'no' | 'unsure';
+export type MarketingStrategyRequest = {
     /**
-     * After a no: what is true instead, in the owner's words.
+     * The whole plan, with its calendar and any yes/no questions.
      */
-    note?: string;
+    plan: {
+        month: string;
+        summary: string;
+        why?: string;
+        goals: Array<string>;
+        audience?: string;
+        contentLanguage?: string;
+        positioning?: string;
+        pillars: Array<string>;
+        channels: Array<{
+            channel: string;
+            cadence: string;
+            why?: string;
+        }>;
+        idea?: {
+            who: string;
+            position: string;
+            attract: string;
+            offer: string;
+            sentence: string;
+        };
+        alternatives?: Array<{
+            sentence: string;
+            why: string;
+        }>;
+        ladder?: {
+            entry?: {
+                what: string;
+                why?: string;
+            };
+            core: {
+                what: string;
+                why?: string;
+            };
+            next?: {
+                what: string;
+                why?: string;
+            };
+        };
+        pace?: {
+            level: 'steady' | 'active' | 'all_in';
+            why: string;
+            perWeek: number;
+        };
+        ads?: {
+            monthly: number;
+            currency: string;
+            expect: string;
+            without: string;
+            setByOwner?: boolean;
+        };
+        beforeAfter?: Array<{
+            channel: string;
+            before: string;
+            after: string;
+        }>;
+        improvements?: Array<{
+            area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            idea: string;
+            why: string;
+            url?: string;
+        }>;
+        start?: {
+            working?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            gaps?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            resources?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+        };
+        objective?: {
+            outcome?: string;
+            metric?: string;
+            baseline?: string;
+            baselineBasis?: 'fact' | 'assumption';
+            target?: string;
+            why?: string;
+        };
+        barrier?: {
+            kind: 'awareness' | 'understanding' | 'trust';
+            text: string;
+        };
+        mix?: Array<{
+            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            share: number;
+            why: string;
+        }>;
+        focus?: {
+            segment: string;
+            problem: string;
+            trigger?: string;
+            objections?: Array<string>;
+            where?: Array<string>;
+        };
+        offer?: {
+            what: string;
+            why: string;
+            proof?: Array<string>;
+            action: string;
+        };
+        campaigns?: Array<{
+            id: string;
+            name: string;
+            message: string;
+            audience?: string;
+            offer?: string;
+            channels?: Array<string>;
+            assets?: Array<string>;
+            start: string;
+            end: string;
+            budget?: string;
+            metric: string;
+        }>;
+        funnel?: Array<{
+            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+            name: string;
+            goal: string;
+            channels?: Array<string>;
+            metric: string;
+            target?: string;
+            owner?: 'cuso' | 'you' | 'shared';
+            plays?: Array<{
+                channel: string;
+                what: string;
+                cadence?: string;
+            }>;
+            measure?: {
+                value?: string;
+                basis: 'measured' | 'estimated' | 'unknown';
+                source?: string;
+            };
+        }>;
+        proposals?: Array<{
+            channel: string;
+            why: string;
+            what: string;
+            perMonth: number;
+        }>;
+        journey?: Array<{
+            step: string;
+            fix?: string;
+        }>;
+        weeks?: Array<{
+            focus: string;
+            tasks?: Array<{
+                task: string;
+                owner: 'cuso' | 'you';
+                due?: string;
+                approval?: boolean;
+            }>;
+        }>;
+        budget?: {
+            total: string;
+            basis?: 'fact' | 'assumption';
+            lines?: Array<{
+                item: string;
+                amount: string;
+            }>;
+        };
+        measurement?: {
+            primary: string;
+            supporting?: Array<string>;
+            tracking?: Array<string>;
+            rules?: Array<{
+                when: string;
+                then: string;
+            }>;
+        };
+        openQuestions?: Array<string>;
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+        calendar: Array<{
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        }>;
+        previews?: Array<{
+            kind: 'post' | 'ad' | 'seo' | 'newsletter';
+            channel: string;
+            title: string;
+            body: string;
+        }>;
+        changes?: Array<string>;
+    };
 };
 
 export type ProjectDesignMdWrite = {
@@ -9827,7 +10034,7 @@ export type CmoOverview = {
         }>;
     } | null;
     brandBrainUpdatedAt: Date | null;
-    brandBrainApprovedAt: Date | null;
+    brandBrainConfirmedAt: Date | null;
     brandMedia: CmoBrandMedia | null;
     strategy: {
         month: string;
@@ -10222,13 +10429,6 @@ export type CmoTurnStarted = {
 
 export type CmoStrategyRequest = {
     note?: string;
-};
-
-export type CmoStrategyApproveRequest = {
-    /**
-     * The Marketing strategy version to approve; the newest when left out. An older one reverts to it.
-     */
-    versionId?: string;
 };
 
 export type CmoAdBudgetRequest = {
@@ -49057,7 +49257,7 @@ export type ConfirmProjectBrandBrainResponses = {
 export type ConfirmProjectBrandBrainResponse = ConfirmProjectBrandBrainResponses[keyof ConfirmProjectBrandBrainResponses];
 
 export type AnswerProjectBrandBrainQuestionData = {
-    body: BrandBrainAnswerRequest;
+    body: QuestionAnswerRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -49179,7 +49379,16 @@ export type ListProjectMarketingStrategiesData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
     url: '/projects/{id}/marketing-strategies';
 };
 
@@ -49257,12 +49466,87 @@ export type ListProjectMarketingStrategiesResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: PaginationMetadata;
         };
     };
 };
 
 export type ListProjectMarketingStrategiesResponse = ListProjectMarketingStrategiesResponses[keyof ListProjectMarketingStrategiesResponses];
+
+export type CreateProjectMarketingStrategyData = {
+    body: MarketingStrategyRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies';
+};
+
+export type CreateProjectMarketingStrategyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateProjectMarketingStrategyError = CreateProjectMarketingStrategyErrors[keyof CreateProjectMarketingStrategyErrors];
+
+export type CreateProjectMarketingStrategyResponses = {
+    /**
+     * Marketing strategy version written
+     */
+    201: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateProjectMarketingStrategyResponse = CreateProjectMarketingStrategyResponses[keyof CreateProjectMarketingStrategyResponses];
 
 export type GetProjectMarketingStrategyData = {
     body?: never;
@@ -49371,20 +49655,6 @@ export type GetProjectMarketingStrategyResponse = GetProjectMarketingStrategyRes
 
 export type ApproveProjectMarketingStrategyData = {
     body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
     path: {
         id: string;
         strategyId: string;
@@ -49394,21 +49664,6 @@ export type ApproveProjectMarketingStrategyData = {
 };
 
 export type ApproveProjectMarketingStrategyErrors = {
-    /**
-     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
     /**
      * Unauthorized
      */
@@ -49490,21 +49745,7 @@ export type ApproveProjectMarketingStrategyResponses = {
 export type ApproveProjectMarketingStrategyResponse = ApproveProjectMarketingStrategyResponses[keyof ApproveProjectMarketingStrategyResponses];
 
 export type AnswerProjectMarketingStrategyQuestionData = {
-    body: CmoBrandAnswerRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
+    body: QuestionAnswerRequest;
     path: {
         id: string;
         strategyId: string;
@@ -49514,21 +49755,6 @@ export type AnswerProjectMarketingStrategyQuestionData = {
 };
 
 export type AnswerProjectMarketingStrategyQuestionErrors = {
-    /**
-     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
     /**
      * Unauthorized
      */
@@ -64384,240 +64610,6 @@ export type RetryCmoOnboardingResponses = {
 
 export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
 
-export type UpdateCmoBrandBrainData = {
-    body?: BrandBrainRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/brand-brain';
-};
-
-export type UpdateCmoBrandBrainErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type UpdateCmoBrandBrainError = UpdateCmoBrandBrainErrors[keyof UpdateCmoBrandBrainErrors];
-
-export type UpdateCmoBrandBrainResponses = {
-    /**
-     * Brand Brain saved
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type UpdateCmoBrandBrainResponse = UpdateCmoBrandBrainResponses[keyof UpdateCmoBrandBrainResponses];
-
-export type ApproveCmoBrandBrainData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/cmo/brand-brain/approve';
-};
-
-export type ApproveCmoBrandBrainErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The Brand Brain is still being built
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ApproveCmoBrandBrainError = ApproveCmoBrandBrainErrors[keyof ApproveCmoBrandBrainErrors];
-
-export type ApproveCmoBrandBrainResponses = {
-    /**
-     * Brand Brain approved
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ApproveCmoBrandBrainResponse = ApproveCmoBrandBrainResponses[keyof ApproveCmoBrandBrainResponses];
-
-export type AnswerCmoBrandQuestionData = {
-    body?: BrandBrainAnswerRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/brand-brain/answers';
-};
-
-export type AnswerCmoBrandQuestionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet, or no such question
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type AnswerCmoBrandQuestionError = AnswerCmoBrandQuestionErrors[keyof AnswerCmoBrandQuestionErrors];
-
-export type AnswerCmoBrandQuestionResponses = {
-    /**
-     * Answer saved
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type AnswerCmoBrandQuestionResponse = AnswerCmoBrandQuestionResponses[keyof AnswerCmoBrandQuestionResponses];
-
 export type RequestCmoStrategyData = {
     body?: CmoStrategyRequest;
     path?: never;
@@ -64706,94 +64698,6 @@ export type RequestCmoStrategyResponses = {
 
 export type RequestCmoStrategyResponse = RequestCmoStrategyResponses[keyof RequestCmoStrategyResponses];
 
-export type ApproveCmoStrategyData = {
-    body?: CmoStrategyApproveRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/strategy/approve';
-};
-
-export type ApproveCmoStrategyErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet, or no such version
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * There is no strategy to approve yet, or Cuso is writing a new version
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ApproveCmoStrategyError = ApproveCmoStrategyErrors[keyof ApproveCmoStrategyErrors];
-
-export type ApproveCmoStrategyResponses = {
-    /**
-     * Strategy approved
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ApproveCmoStrategyResponse = ApproveCmoStrategyResponses[keyof ApproveCmoStrategyResponses];
-
 export type SetCmoAdBudgetData = {
     body?: CmoAdBudgetRequest;
     path?: never;
@@ -64881,79 +64785,6 @@ export type SetCmoAdBudgetResponses = {
 };
 
 export type SetCmoAdBudgetResponse = SetCmoAdBudgetResponses[keyof SetCmoAdBudgetResponses];
-
-export type AnswerCmoPlanQuestionData = {
-    body?: CmoBrandAnswerRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/strategy/answers';
-};
-
-export type AnswerCmoPlanQuestionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet, or no such question
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type AnswerCmoPlanQuestionError = AnswerCmoPlanQuestionErrors[keyof AnswerCmoPlanQuestionErrors];
-
-export type AnswerCmoPlanQuestionResponses = {
-    /**
-     * Answer saved
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type AnswerCmoPlanQuestionResponse = AnswerCmoPlanQuestionResponses[keyof AnswerCmoPlanQuestionResponses];
 
 export type ApplyCmoPlanAnswersData = {
     body?: never;
@@ -65098,6 +64929,21 @@ export type RevertCmoUpdateErrors = {
             method: string;
         };
     };
+    /**
+     * The version changed meanwhile
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type RevertCmoUpdateError = RevertCmoUpdateErrors[keyof RevertCmoUpdateErrors];
@@ -65159,7 +65005,7 @@ export type PauseCmoCalendarEntryErrors = {
         };
     };
     /**
-     * No such calendar entry
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -65174,7 +65020,7 @@ export type PauseCmoCalendarEntryErrors = {
         };
     };
     /**
-     * The post can no longer be canceled
+     * Not a planned Social post, or it can no longer be canceled
      */
     409: {
         error: string;

@@ -170,32 +170,32 @@ async function generateProjectDesignMd(
  * from the API, else one of the site's own colours and fonts.
  */
 export async function learnCmoBrandVisual(
-  hire: Pick<Cuso, "projectId" | "websiteUrl">,
+  cuso: Pick<Cuso, "projectId" | "websiteUrl">,
 ): Promise<void> {
   const [site, , designMd] = await Promise.all([
-    readBrandVisual(hire.websiteUrl),
-    resolveSiteIconAsProjectLogo(hire.websiteUrl, hire.projectId)
+    readBrandVisual(cuso.websiteUrl),
+    resolveSiteIconAsProjectLogo(cuso.websiteUrl, cuso.projectId)
       .then(async (logo) => {
         if (logo) {
           await prisma.project.update({
-            where: { id: hire.projectId },
+            where: { id: cuso.projectId },
             data: { logo },
           });
         }
       })
       .catch(() => null),
-    generateProjectDesignMd(hire.projectId, hire.websiteUrl).catch(() => null),
+    generateProjectDesignMd(cuso.projectId, cuso.websiteUrl).catch(() => null),
   ]);
   if (designMd) return;
   if (!site.siteName && site.colors.length === 0 && site.fonts.length === 0)
     return;
   const stored = await uploadDesignMdContent({
-    content: siteDesignMd(site, hire.websiteUrl),
-    owner: { kind: "project", id: hire.projectId },
+    content: siteDesignMd(site, cuso.websiteUrl),
+    owner: { kind: "project", id: cuso.projectId },
   });
   if (!stored) return;
   await prisma.project.update({
-    where: { id: hire.projectId },
+    where: { id: cuso.projectId },
     data: { designMdUrl: stored, designMdExtractionId: null },
   });
 }

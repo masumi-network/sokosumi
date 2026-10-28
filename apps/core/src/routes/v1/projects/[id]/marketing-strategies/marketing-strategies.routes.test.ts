@@ -11,10 +11,13 @@ import mountAnswer from "./[strategyId]/answers/post";
 import mountApprove from "./[strategyId]/approve/post";
 import mountGet from "./[strategyId]/get";
 import mountList from "./get";
+import mountCreate from "./post";
 
 const m = vi.hoisted(() => ({
   projectFindFirst: vi.fn(),
   strategyFindMany: vi.fn(),
+  strategyCount: vi.fn(),
+  strategyCreate: vi.fn(),
   strategyFindFirst: vi.fn(),
   strategyUpdate: vi.fn(),
   strategyUpdateMany: vi.fn(),
@@ -27,6 +30,8 @@ const m = vi.hoisted(() => ({
   postUpdateMany: vi.fn(),
   connectionFindMany: vi.fn(),
   scheduleFindFirst: vi.fn(),
+  sokoBotFindFirst: vi.fn(),
+  kickCmoProduction: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => {
@@ -34,6 +39,8 @@ vi.mock("@/lib/db/prisma", () => {
     project: { findFirst: m.projectFindFirst },
     marketingStrategy: {
       findMany: m.strategyFindMany,
+      count: m.strategyCount,
+      create: m.strategyCreate,
       findFirst: m.strategyFindFirst,
       update: m.strategyUpdate,
       updateMany: m.strategyUpdateMany,
@@ -46,6 +53,7 @@ vi.mock("@/lib/db/prisma", () => {
     },
     projectSocialConnection: { findMany: m.connectionFindMany },
     sokoBotSchedule: { findFirst: m.scheduleFindFirst },
+    sokoBot: { findFirst: m.sokoBotFindFirst },
     sokoBotTurn: { findFirst: m.turnFindFirst },
     sokoBotRuntimeEvent: { findFirst: m.eventFindFirst },
     $executeRaw: m.executeRaw,
@@ -54,6 +62,9 @@ vi.mock("@/lib/db/prisma", () => {
     callback(client);
   return { default: client };
 });
+vi.mock("@/services/cmo-production.service", () => ({
+  kickCmoProduction: m.kickCmoProduction,
+}));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { expireTurn: vi.fn(async () => true) },
 }));
@@ -122,6 +133,7 @@ function createApp(workspace: WorkspaceContext = WORKSPACE) {
     await next();
   });
   mountList(app);
+  mountCreate(app);
   mountGet(app);
   mountApprove(app);
   mountAnswer(app);
@@ -137,24 +149,29 @@ const post = (path: string, body?: unknown) =>
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
+/** The Project as access checks and approval read it. */
+function projectRow(
+  workspace = {
+    userId: null as string | null,
+    organizationId: "organization_1" as string | null,
+  },
+) {
+  return {
+    id: PROJECT_ID,
+    workspaceId: WORKSPACE_ID,
+    workspace: { id: WORKSPACE_ID, ...workspace },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  m.projectFindFirst.mockImplementation(async (args: { select?: object }) =>
-    args.select && "workspace" in args.select
-      ? {
-          workspace: {
-            id: WORKSPACE_ID,
-            userId: null,
-            organizationId: "organization_1",
-          },
-        }
-      : { id: PROJECT_ID },
-  );
+  m.projectFindFirst.mockResolvedValue(projectRow());
   m.memberFindFirst.mockResolvedValue({ role: "admin" });
   m.turnFindFirst.mockResolvedValue(null);
   m.postFindMany.mockResolvedValue([]);
   m.connectionFindMany.mockResolvedValue([]);
   m.scheduleFindFirst.mockResolvedValue(null);
+  m.sokoBotFindFirst.mockResolvedValue(null);
   m.strategyUpdate.mockImplementation(
     async (args: { where: { id: string }; data: object }) => ({
       ...version(args.where.id),
@@ -167,6 +184,7 @@ describe("Marketing strategy routes", () => {
   it("lists every version newest first, without plans", async () => {
     const { plan: _plan, ...listed } = version(NEW_ID);
     m.strategyFindMany.mockResolvedValue([listed]);
+    m.strategyCount.mockResolvedValue(1);
 
     const response = await createApp().request(BASE);
 
@@ -182,12 +200,80 @@ describe("Marketing strategy routes", () => {
     );
   });
 
+  it("lists versions a page at a time", async () => {
+    const { plan: _new, ...newest } = version(NEW_ID);
+    const { plan: _old, ...older } = version(OLD_ID);
+    m.strategyFindMany.mockResolvedValue([newest, older]);
+    m.strategyCount.mockResolvedValue(3);
+
+    const response = await createApp().request(`${BASE}?limit=1`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { id: string }[];
+      meta: { pagination: { nextCursor: string | null; total: number } };
+    };
+    expect(body.data.map((item) => item.id)).toEqual([NEW_ID]);
+    expect(body.meta.pagination).toMatchObject({
+      nextCursor: NEW_ID,
+      total: 3,
+    });
+
+    m.strategyFindMany.mockResolvedValue([older]);
+    await createApp().request(`${BASE}?limit=1&cursor=${NEW_ID}`);
+    expect(m.strategyFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ take: 2, skip: 1, cursor: { id: NEW_ID } }),
+    );
+  });
+
+  it("writes a version as the member who sent it, unapproved", async () => {
+    m.strategyCreate.mockImplementation(
+      async (args: { data: Partial<MarketingStrategy> }) => ({
+        ...version(NEW_ID),
+        authorSokoBotId: null,
+        turnId: null,
+        ...args.data,
+      }),
+    );
+
+    const response = await createApp().request(BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: PLAN }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(m.strategyCreate).toHaveBeenCalledWith({
+      data: {
+        projectId: PROJECT_ID,
+        authorUserId: "user_1",
+        plan: expect.objectContaining({ summary: PLAN.summary }),
+      },
+    });
+    const body = (await response.json()) as {
+      data: { authorUserId: string; approvedAt: null };
+    };
+    expect(body.data).toMatchObject({
+      authorUserId: "user_1",
+      approvedAt: null,
+    });
+  });
+
   it("is not found for a Project outside the member's Workspace", async () => {
     m.projectFindFirst.mockResolvedValue(null);
 
     const response = await createApp().request(BASE);
 
     expect(response.status).toBe(404);
+  });
+
+  it("is not found for someone no longer a member of the Workspace", async () => {
+    m.memberFindFirst.mockResolvedValue(null);
+
+    const response = await createApp().request(BASE);
+
+    expect(response.status).toBe(404);
+    expect(m.strategyFindMany).not.toHaveBeenCalled();
   });
 
   it("reads one version with its plan", async () => {
@@ -217,6 +303,17 @@ describe("Marketing strategy routes", () => {
       where: { id: NEW_ID },
       data: { approvedAt: expect.any(Date), approvedByUserId: "user_1" },
     });
+    expect(m.kickCmoProduction).not.toHaveBeenCalled();
+  });
+
+  it("has the Project's Cuso make the approved month", async () => {
+    m.strategyFindFirst.mockResolvedValue(version(NEW_ID));
+    m.sokoBotFindFirst.mockResolvedValue({ id: "cuso-bot" });
+
+    const response = await post(`${NEW_ID}/approve`);
+
+    expect(response.status).toBe(200);
+    expect(m.kickCmoProduction).toHaveBeenCalledWith("cuso-bot");
   });
 
   it("turns the approved calendar into draft Social posts and cancels the old plan's", async () => {
@@ -350,16 +447,8 @@ describe("Marketing strategy routes", () => {
   });
 
   it("lets a personal Workspace's owner approve", async () => {
-    m.projectFindFirst.mockImplementation(async (args: { select?: object }) =>
-      args.select && "workspace" in args.select
-        ? {
-            workspace: {
-              id: WORKSPACE_ID,
-              userId: "user_1",
-              organizationId: null,
-            },
-          }
-        : { id: PROJECT_ID },
+    m.projectFindFirst.mockResolvedValue(
+      projectRow({ userId: "user_1", organizationId: null }),
     );
     m.strategyFindFirst.mockResolvedValue(version(NEW_ID));
 

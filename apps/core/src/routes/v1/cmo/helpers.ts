@@ -11,7 +11,6 @@ import {
   CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
-  findCusoForUser,
 } from "@/services/cmo-cuso.service";
 import {
   type CmoOverview,
@@ -20,15 +19,15 @@ import {
 import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 
 function mapOverview(overview: CmoOverview) {
-  const { hire } = overview;
+  const { cuso } = overview;
   return cmoOverviewSchema.parse({
-    businessName: hire.businessName,
-    websiteUrl: hire.websiteUrl,
+    businessName: cuso.businessName,
+    websiteUrl: cuso.websiteUrl,
     organizationSlug: overview.organizationSlug,
     projectName: overview.projectName,
-    workspaceId: hire.workspaceId,
-    sokoBotId: hire.sokoBotId,
-    projectId: hire.projectId,
+    workspaceId: cuso.workspaceId,
+    sokoBotId: cuso.sokoBotId,
+    projectId: cuso.projectId,
     roomId: overview.roomId,
     botStatus: overview.botStatus,
     learning: overview.learning,
@@ -43,8 +42,8 @@ function mapOverview(overview: CmoOverview) {
     mockPlan: overview.mockPlan,
     mockPlanActivatedAt: overview.mockPlanActivatedAt,
     brandBrain: overview.brandBrain,
-    brandBrainUpdatedAt: hire.brandBrainUpdatedAt,
-    brandBrainApprovedAt: hire.brandBrainApprovedAt,
+    brandBrainUpdatedAt: cuso.brandBrainUpdatedAt,
+    brandBrainConfirmedAt: cuso.brandBrainConfirmedAt,
     brandMedia: overview.brandMedia,
     strategy: overview.strategy,
     media: overview.media,
@@ -80,7 +79,7 @@ function mapOverview(overview: CmoOverview) {
       published: overview.posts.PUBLISHED ?? 0,
       failed: (overview.posts.FAILED ?? 0) + (overview.posts.MISSED ?? 0),
     },
-    createdAt: hire.createdAt,
+    createdAt: cuso.createdAt,
   });
 }
 
@@ -88,13 +87,6 @@ export async function requireOverview(userId: string) {
   const overview = await getCmoOverview(userId);
   if (!overview) throw notFound("Cuso is not hired yet");
   return mapOverview(overview);
-}
-
-/** The Project of the Cuso this member works with: his Brand Brain is its. */
-export async function requireCmoProjectId(userId: string): Promise<string> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw notFound("Cuso is not hired yet");
-  return hire.projectId;
 }
 
 export function rethrow(error: unknown): never {

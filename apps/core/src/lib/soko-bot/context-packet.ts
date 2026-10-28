@@ -16,7 +16,7 @@ import prisma from "@/lib/db/prisma";
 import {
   compactBrandBrain,
   getBrandBrain,
-  parseCmoBrandBrain,
+  parseBrandBrain,
 } from "@/services/brand-brain.service";
 import { listHireableAgents } from "./agent-search";
 import {
@@ -535,7 +535,7 @@ export class ContextPacketBuilder {
       marketing || !brandBrainProjectId
         ? null
         : await getBrandBrain(brandBrainProjectId)
-            .then((row) => compactBrandBrain(parseCmoBrandBrain(row?.body)))
+            .then((row) => compactBrandBrain(parseBrandBrain(row?.body)))
             .catch(() => null);
     const referenceId = organizationId ?? input.userId;
     // Only a shared bot acts for nobody, and only in an Organization.

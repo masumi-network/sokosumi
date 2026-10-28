@@ -38,8 +38,8 @@ import {
   learnCmoBrandVisual,
 } from "./cmo-brand-visual.service";
 
-const hire = {
-  id: "hire-1",
+const cuso = {
+  id: "cuso-1",
   projectId: "project-1",
   websiteUrl: "https://acme.io",
 };
@@ -59,7 +59,7 @@ beforeEach(() => {
 
 describe("brand capture", () => {
   it("writes the Project's logo and a DESIGN.md of the site's look, nothing on the hire", async () => {
-    await learnCmoBrandVisual(hire);
+    await learnCmoBrandVisual(cuso);
 
     expect(mocks.projectUpdate).toHaveBeenCalledWith({
       where: { id: "project-1" },
@@ -78,7 +78,7 @@ describe("brand capture", () => {
   });
 
   it("reads back what it wrote as the brand's look", async () => {
-    await learnCmoBrandVisual(hire);
+    await learnCmoBrandVisual(cuso);
     const written = mocks.upload.mock.calls[0]?.[0].content as string;
     mocks.readDesignMd.mockResolvedValue(written);
 

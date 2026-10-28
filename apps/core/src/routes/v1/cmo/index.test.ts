@@ -10,47 +10,20 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  approveMock,
-  revertMock,
-  overviewMock,
-  mockPlanMock,
-  strategyMock,
-  hireMock,
-  saveBrainMock,
-  confirmBrainMock,
-} = vi.hoisted(() => ({
-  approveMock: vi.fn(),
-  revertMock: vi.fn(),
-  overviewMock: vi.fn(),
-  mockPlanMock: vi.fn(),
-  strategyMock: vi.fn(),
-  hireMock: vi.fn(),
-  saveBrainMock: vi.fn(),
-  confirmBrainMock: vi.fn(),
-}));
-
-vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/services/cmo-cuso.service")>();
-  return { ...actual, findCusoForUser: hireMock };
-});
-vi.mock("@/services/brand-brain.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/services/brand-brain.service")>();
-  return {
-    ...actual,
-    saveBrandBrain: saveBrainMock,
-    confirmBrandBrain: confirmBrainMock,
-  };
-});
+const { revertMock, overviewMock, mockPlanMock, strategyMock } = vi.hoisted(
+  () => ({
+    revertMock: vi.fn(),
+    overviewMock: vi.fn(),
+    mockPlanMock: vi.fn(),
+    strategyMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-strategy.service")>();
   return {
     ...actual,
-    approveCmoStrategy: approveMock,
     requestCmoStrategy: strategyMock,
   };
 });
@@ -72,7 +45,6 @@ vi.mock("@/services/cmo-billing.service", async (importOriginal) => {
 
 import {
   CmoConflictError,
-  CmoForbiddenError,
   CmoNotFoundError,
 } from "@/services/cmo-cuso.service";
 import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
@@ -84,7 +56,7 @@ const REPORT_ID = "0196a000-0000-7000-8000-000000000001";
 
 function overview() {
   return {
-    hire: {
+    cuso: {
       businessName: "Acme",
       websiteUrl: "https://acme.io",
       goals: "More sales",
@@ -92,7 +64,7 @@ function overview() {
       sokoBotId: "bot-1",
       projectId: "project-1",
       brandBrainUpdatedAt: null,
-      brandBrainApprovedAt: null,
+      brandBrainConfirmedAt: null,
       createdAt: NOW,
     },
     onboardingStep: "done",
@@ -178,13 +150,10 @@ describe("CMO routes", () => {
     overviewMock.mockResolvedValue(overview());
   });
 
-  it("approves the strategy for the caller and returns the overview", async () => {
-    approveMock.mockResolvedValue({});
-    const response = await createApp().request("/strategy/approve", {
-      method: "POST",
-    });
+  it("returns the overview of the caller's Cuso", async () => {
+    const response = await createApp().request("/");
     expect(response.status).toBe(200);
-    expect(approveMock).toHaveBeenCalledWith("user-1", undefined);
+    expect(overviewMock).toHaveBeenCalledWith("user-1");
     const body = await response.json();
     expect(body.data.strategyVersion).toMatchObject({
       id: "strategy-1",
@@ -203,75 +172,6 @@ describe("CMO routes", () => {
       published: 0,
       failed: 1,
     });
-  });
-
-  it("approves a named version, which reverts to it", async () => {
-    approveMock.mockResolvedValue({});
-    const versionId = "0196a000-0000-7000-8000-000000000001";
-    const response = await createApp().request("/strategy/approve", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ versionId }),
-    });
-    expect(response.status).toBe(200);
-    expect(approveMock).toHaveBeenCalledWith("user-1", versionId);
-  });
-
-  it("saves the Brand Brain to the Project of the caller's Cuso", async () => {
-    hireMock.mockResolvedValue({ projectId: "project-1" });
-    const brandBrain = {
-      summary: "Acme sells rockets.",
-      voice: { tone: "Direct", do: [], dont: [], examples: [] },
-      audience: [],
-      products: [],
-      competitors: [],
-      channels: [],
-    };
-    const response = await createApp().request("/brand-brain", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ brandBrain }),
-    });
-    expect(response.status).toBe(200);
-    expect(saveBrainMock).toHaveBeenCalledWith("project-1", {
-      brandBrain: expect.objectContaining({ summary: "Acme sells rockets." }),
-    });
-  });
-
-  it("confirms the Project's Brand Brain as the caller", async () => {
-    hireMock.mockResolvedValue({ projectId: "project-1" });
-    const response = await createApp().request("/brand-brain/approve", {
-      method: "POST",
-    });
-    expect(response.status).toBe(200);
-    expect(confirmBrainMock).toHaveBeenCalledWith("project-1", "user-1");
-  });
-
-  it("answers 404 for the Brand Brain before Cuso is hired", async () => {
-    hireMock.mockResolvedValue(null);
-    const response = await createApp().request("/brand-brain/approve", {
-      method: "POST",
-    });
-    expect(response.status).toBe(404);
-    expect(confirmBrainMock).not.toHaveBeenCalled();
-  });
-
-  it("answers 409 when there is nothing to approve", async () => {
-    approveMock.mockRejectedValue(new CmoConflictError("No strategy"));
-    const response = await createApp().request("/strategy/approve", {
-      method: "POST",
-    });
-    expect(response.status).toBe(409);
-  });
-
-  it("answers 403 when a member who is not an owner or admin approves", async () => {
-    approveMock.mockRejectedValue(
-      new CmoForbiddenError("Only the organization's owners and admins"),
-    );
-    const response = await createApp().request("/strategy/approve", {
-      method: "POST",
-    });
-    expect(response.status).toBe(403);
   });
 
   it("answers 409 when Cuso is already working on a turn", async () => {

@@ -16,7 +16,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import type { SokoBotTurnStatus } from "@sokosumi/database";
 import type { CmoStrategy } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import { parseCmoBrandBrain } from "@/services/brand-brain.service";
+import { parseBrandBrain } from "@/services/brand-brain.service";
 import { findCusoForUser } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
@@ -112,19 +112,19 @@ async function run(email: string, brand: Brand) {
     where: { projectId: current.projectId },
   });
   // Read again: his website and business name are the Project's new ones.
-  const hire = await findCusoForUser(user.id);
-  if (!hire) throw new Error(`${email} works with no Cuso`);
+  const cuso = await findCusoForUser(user.id);
+  if (!cuso) throw new Error(`${email} works with no Cuso`);
   // Hiring progress is read from the data; only skipping accounts is stored.
   await prisma.user.update({
     where: { id: user.id },
     data: { cmoAccountsSkipped: false },
   });
   await prisma.marketingStrategy.deleteMany({
-    where: { projectId: hire.projectId },
+    where: { projectId: cuso.projectId },
   });
   // A stopped lab run leaves its turns active, and they would block this one.
   await prisma.sokoBotTurn.updateMany({
-    where: { sokoBotId: hire.sokoBotId, status: { in: ACTIVE } },
+    where: { sokoBotId: cuso.sokoBotId, status: { in: ACTIVE } },
     data: {
       status: "FAILED",
       errorKind: "lab_run_stopped",
@@ -133,17 +133,17 @@ async function run(email: string, brand: Brand) {
   });
   // A lab run is many turns a day; the owner's daily brake would stop it.
   await prisma.sokoBot.update({
-    where: { id: hire.sokoBotId },
+    where: { id: cuso.sokoBotId },
     data: { proactiveDailyLimit: 1_000 },
   });
-  const research = await settle((await startCmoResearch(hire, user.id)).turnId);
+  const research = await settle((await startCmoResearch(cuso, user.id)).turnId);
   const plan =
     research === "COMPLETED"
       ? await settle((await requestCmoStrategy({ userId: user.id })).turnId)
       : "SKIPPED";
   const [brain, strategy] = await Promise.all([
-    prisma.brandBrain.findUnique({ where: { projectId: hire.projectId } }),
-    newestMarketingStrategy(hire.projectId),
+    prisma.brandBrain.findUnique({ where: { projectId: cuso.projectId } }),
+    newestMarketingStrategy(cuso.projectId),
   ]);
   return {
     research,
@@ -156,7 +156,7 @@ function judge(
   brand: Brand,
   saved: { brandBrain: unknown; strategy: unknown },
 ): { pass: boolean; findings: string[]; summary?: string; offer?: string } {
-  const brain = parseCmoBrandBrain(saved.brandBrain);
+  const brain = parseBrandBrain(saved.brandBrain);
   const strategy = parseMarketingPlan(saved.strategy) as CmoStrategy | null;
   const findings: string[] = [];
   if (!brain) findings.push("no Brand Brain");

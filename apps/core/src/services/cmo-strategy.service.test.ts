@@ -3,7 +3,6 @@ import {
   cancelSocialPost,
   connectionFindMany,
   cusoFind,
-  memberFindUnique,
   postCreateMany,
   postFindFirst,
   postFindMany,
@@ -14,7 +13,6 @@ import {
   startTurn,
   strategy,
   strategyRows,
-  turnFindFirst,
 } from "@/test-fixtures/cmo-service";
 
 vi.mock(
@@ -78,7 +76,6 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
-  approveCmoStrategy,
   cmoPlanAnswerNote,
   keepCalendarWork,
   keepPlanAnswers,
@@ -99,91 +96,6 @@ const HIRE = {
 const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
-describe("approveCmoStrategy", () => {
-  it("approves the newest version and records who approved it", async () => {
-    cusoFind.mockResolvedValue(HIRE);
-    seedStrategy(strategy);
-    const newest = seedStrategy(revised);
-
-    await approveCmoStrategy("user-1");
-
-    expect(approvedRows()).toEqual([
-      expect.objectContaining({
-        id: newest.id,
-        approvedAt: expect.any(Date),
-        approvedByUserId: "user-1",
-      }),
-    ]);
-  });
-
-  it("reverts by approving an older version, which withdraws the newer approval", async () => {
-    cusoFind.mockResolvedValue(HIRE);
-    const older = seedStrategy(strategy);
-    seedStrategy(revised, {
-      approvedAt: new Date("2026-10-02T09:00:00Z"),
-      approvedByUserId: "user-1",
-    });
-
-    await approveCmoStrategy("user-2", older.id);
-
-    expect(approvedRows()).toEqual([
-      expect.objectContaining({ id: older.id, approvedByUserId: "user-2" }),
-    ]);
-    expect(plan(approvedRows()[0]!).summary).toBe(strategy.summary);
-  });
-
-  it("keeps the first approval time when the same version is approved again", async () => {
-    cusoFind.mockResolvedValue(HIRE);
-    const first = new Date("2026-10-01T09:00:00Z");
-    seedStrategy(strategy, { approvedAt: first, approvedByUserId: "user-1" });
-
-    await approveCmoStrategy("user-2");
-
-    expect(approvedRows()).toEqual([
-      expect.objectContaining({
-        approvedAt: first,
-        approvedByUserId: "user-1",
-      }),
-    ]);
-  });
-
-  it("needs a strategy", async () => {
-    cusoFind.mockResolvedValue(HIRE);
-    await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
-  });
-
-  it("leaves approving to the organization's owners and admins", async () => {
-    cusoFind.mockResolvedValue(HIRE);
-    seedStrategy(strategy);
-    memberFindUnique.mockResolvedValue({ role: "member" });
-    await expect(approveCmoStrategy("user-2")).rejects.toMatchObject({
-      status: 403,
-    });
-    expect(approvedRows()).toEqual([]);
-
-    memberFindUnique.mockResolvedValue({ role: "admin" });
-    turnFindFirst.mockResolvedValue(null);
-    await approveCmoStrategy("user-2");
-    expect(approvedRows()).toHaveLength(1);
-  });
-
-  it("waits while Cuso writes the strategy the owner asked for", async () => {
-    cusoFind.mockResolvedValue(HIRE);
-    seedStrategy(strategy);
-    turnFindFirst.mockResolvedValue({
-      id: "turn-1",
-      status: "RUNNING",
-      eveSessionId: null,
-      createdAt: new Date(),
-      clientTurnId: "cmo:strategy:bot-1:1",
-    });
-    await expect(approveCmoStrategy("user-1")).rejects.toMatchObject({
-      status: 409,
-    });
-    expect(approvedRows()).toEqual([]);
-  });
-});
-
 describe("requestCmoStrategy", () => {
   const brandBrain = {
     summary: "Acme sells rockets.",
@@ -194,7 +106,7 @@ describe("requestCmoStrategy", () => {
     channels: [],
     profile: {},
   };
-  const hire = {
+  const cuso = {
     ...HIRE,
     userId: "user-1",
     businessName: "Acme",
@@ -203,7 +115,7 @@ describe("requestCmoStrategy", () => {
   };
 
   it("leaves the approved version running while Cuso writes a new one", async () => {
-    cusoFind.mockResolvedValue(hire);
+    cusoFind.mockResolvedValue(cuso);
     seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
@@ -216,7 +128,7 @@ describe("requestCmoStrategy", () => {
   });
 
   it("writes one version for an ad budget, which Cuso's re-plan completes", async () => {
-    cusoFind.mockResolvedValue(hire);
+    cusoFind.mockResolvedValue(cuso);
     const running = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });

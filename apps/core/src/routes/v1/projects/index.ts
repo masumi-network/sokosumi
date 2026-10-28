@@ -39,6 +39,7 @@ import mountAnswerProjectMarketingStrategyQuestion from "./[id]/marketing-strate
 import mountApproveProjectMarketingStrategy from "./[id]/marketing-strategies/[strategyId]/approve/post.js";
 import mountGetProjectMarketingStrategy from "./[id]/marketing-strategies/[strategyId]/get.js";
 import mountListProjectMarketingStrategies from "./[id]/marketing-strategies/get.js";
+import mountCreateProjectMarketingStrategy from "./[id]/marketing-strategies/post.js";
 import mountGetProjectNeedsAttention from "./[id]/needs-attention/get.js";
 import mountGetNewsletterAnalytics from "./[id]/newsletter/analytics/get.js";
 import mountGetProjectNewsletter from "./[id]/newsletter/get.js";
@@ -114,6 +115,7 @@ mountPutProjectBrandBrain(app);
 mountConfirmProjectBrandBrain(app);
 mountAnswerProjectBrandBrainQuestion(app);
 mountListProjectMarketingStrategies(app);
+mountCreateProjectMarketingStrategy(app);
 mountGetProjectMarketingStrategy(app);
 mountApproveProjectMarketingStrategy(app);
 mountAnswerProjectMarketingStrategyQuestion(app);

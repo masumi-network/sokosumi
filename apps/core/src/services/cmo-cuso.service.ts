@@ -22,10 +22,10 @@ export class CmoForbiddenError extends Error {}
  * organization, which every hire gets (ADR 0060).
  */
 export async function cmoPayer(
-  hire: Pick<Cuso, "workspaceId">,
+  cuso: Pick<Cuso, "workspaceId">,
 ): Promise<{ organizationId: string; referenceId: string }> {
   const row = await prisma.workspace.findUnique({
-    where: { id: hire.workspaceId },
+    where: { id: cuso.workspaceId },
     select: { organizationId: true },
   });
   if (!row?.organizationId)
@@ -96,7 +96,7 @@ export type Cuso = {
   businessName: string;
   brandBrain: Prisma.JsonValue | null;
   brandBrainUpdatedAt: Date | null;
-  brandBrainApprovedAt: Date | null;
+  brandBrainConfirmedAt: Date | null;
 };
 
 /** Null for a bot without a Project, which `CUSO_BOT_WHERE` never returns. */
@@ -112,7 +112,7 @@ function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
     businessName: cmoBusinessNameFromUrl(websiteUrl),
     brandBrain: project.brandBrain?.body ?? null,
     brandBrainUpdatedAt: project.brandBrain?.updatedAt ?? null,
-    brandBrainApprovedAt: project.brandBrain?.confirmedAt ?? null,
+    brandBrainConfirmedAt: project.brandBrain?.confirmedAt ?? null,
   };
 }
 
@@ -181,12 +181,23 @@ export async function startCmoProduction(sokoBotId: string): Promise<void> {
   kickCmoProduction(sokoBotId);
 }
 
+/** A Project's Cuso, if it has one, makes its newly approved month. */
+export async function startCmoProductionForProject(
+  projectId: string,
+): Promise<void> {
+  const cuso = await prisma.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId },
+    select: { id: true },
+  });
+  if (cuso) await startCmoProduction(cuso.id);
+}
+
 /** What the founder reads when a step cannot start for lack of credits. */
 export const CMO_OUT_OF_CREDITS = "You're out of credits";
 
 /** A turn of Cuso's that `userId`, a member of his organization, started. */
 export async function startCmoTurn(
-  hire: Pick<Cuso, "workspaceId" | "sokoBotId">,
+  cuso: Pick<Cuso, "workspaceId" | "sokoBotId">,
   userId: string,
   input: { clientTurnId: string; message: string; route: PresetRoute },
 ): Promise<{ turnId: string }> {
@@ -196,7 +207,7 @@ export async function startCmoTurn(
     "@/services/soko-bot-billing.service"
   );
   try {
-    await requireSokoBotTurnFunding(userId, hire.sokoBotId);
+    await requireSokoBotTurnFunding(userId, cuso.sokoBotId);
   } catch (error) {
     if (error instanceof SokoBotBillingAccessError) {
       throw new CmoConflictError(CMO_OUT_OF_CREDITS);
@@ -208,9 +219,9 @@ export async function startCmoTurn(
   );
   const started = await sokoBotControlPlane.startTurn({
     userId,
-    workspaceId: hire.workspaceId,
+    workspaceId: cuso.workspaceId,
     // Cuso, never the member's personal assistant in the same workspace.
-    sokoBotId: hire.sokoBotId,
+    sokoBotId: cuso.sokoBotId,
     clientTurnId: input.clientTurnId,
     message: input.message,
     // A member pressed the button, but no chat message carries the turn:
@@ -298,12 +309,12 @@ export const TURN_ROW_SELECT = {
  * with neither.
  */
 export async function cmoRunnerUserId(
-  hire: Pick<Cuso, "workspaceId" | "sokoBotId">,
+  cuso: Pick<Cuso, "workspaceId" | "sokoBotId">,
 ): Promise<string | null> {
   const [{ organizationId }, bot] = await Promise.all([
-    cmoPayer(hire),
+    cmoPayer(cuso),
     prisma.sokoBot.findUnique({
-      where: { id: hire.sokoBotId },
+      where: { id: cuso.sokoBotId },
       select: { createdByUserId: true },
     }),
   ]);

@@ -8,7 +8,7 @@ import { getWebAppBaseUrl } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
-import { parseCmoBrandBrain } from "@/services/brand-brain.service";
+import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   activeCmoSubscription,
   cmoMockBilling,
@@ -50,6 +50,7 @@ import {
   approvedMarketingStrategy,
   listMarketingStrategies,
   listMarketingStrategyPosts,
+  type MarketingStrategyVersion,
   newestMarketingStrategy,
   parseMarketingPlan,
   withSocialPostCalendar,
@@ -65,10 +66,6 @@ export interface CmoUpNextItem {
   title: string;
   status: string;
 }
-
-export type CmoStrategyVersion = Awaited<
-  ReturnType<typeof listMarketingStrategies>
->[number];
 
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
@@ -98,7 +95,7 @@ export function cmoOnboardingStep(input: {
 }
 
 export interface CmoOverview {
-  hire: Cuso;
+  cuso: Cuso;
   onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
@@ -136,7 +133,7 @@ export interface CmoOverview {
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: CmoStrategy | null;
   /** Every version, newest first; the first is the one `strategy` shows. */
-  strategyVersions: CmoStrategyVersion[];
+  strategyVersions: MarketingStrategyVersion[];
   botStatus: string;
   updates: CmoUpdateRecord[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
@@ -203,9 +200,9 @@ export async function getCmoOverview(
   userId: string,
   now: Date = new Date(),
 ): Promise<CmoOverview | null> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) return null;
-  const payer = await cmoPayer(hire);
+  const cuso = await findCusoForUser(userId);
+  if (!cuso) return null;
+  const payer = await cmoPayer(cuso);
   const [organization, project, bot, channels, viewer] = await Promise.all([
     payer.organizationId
       ? prisma.organization.findUnique({
@@ -214,7 +211,7 @@ export async function getCmoOverview(
         })
       : null,
     prisma.project.findUnique({
-      where: { id: hire.projectId },
+      where: { id: cuso.projectId },
       select: {
         name: true,
         logo: true,
@@ -223,7 +220,7 @@ export async function getCmoOverview(
       },
     }),
     prisma.sokoBot.findUnique({
-      where: { id: hire.sokoBotId },
+      where: { id: cuso.sokoBotId },
       select: {
         id: true,
         workspaceId: true,
@@ -232,7 +229,7 @@ export async function getCmoOverview(
         workspace: { select: { organizationId: true } },
       },
     }),
-    listCmoChannels(hire.projectId),
+    listCmoChannels(cuso.projectId),
     prisma.user.findUnique({
       where: { id: userId },
       select: { cmoAccountsSkipped: true },
@@ -240,26 +237,32 @@ export async function getCmoOverview(
   ]);
   const [adConnections, mailingListSize, measurement] = await Promise.all([
     prisma.projectAdConnection.findMany({
-      where: { projectId: hire.projectId, status: "active" },
+      where: { projectId: cuso.projectId, status: "active" },
       select: { provider: true },
     }),
-    cmoMailingListSize(hire),
-    listCmoMeasurement(hire.sokoBotId, project?.sitePlatform ?? null),
+    cmoMailingListSize(cuso),
+    listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
   ]);
   if (project && project.sitePlatform === null) {
-    waitUntil(learnCmoSitePlatform(hire));
+    waitUntil(learnCmoSitePlatform(cuso));
   }
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
-    where: { projectId: hire.projectId },
+    where: { projectId: cuso.projectId },
     _count: { _all: true },
   });
   // The chat is Cuso's shared room with every member (ADR 0061).
   if (!bot?.sharedRoomId || !project) return null;
-  const [newest, approved, strategyVersions] = await Promise.all([
-    newestMarketingStrategy(hire.projectId),
-    approvedMarketingStrategy(hire.projectId),
-    listMarketingStrategies(hire.projectId),
+  const [newest, approved, [strategyVersions]] = await Promise.all([
+    newestMarketingStrategy(cuso.projectId),
+    approvedMarketingStrategy(cuso.projectId),
+    // shortcut: CMO lists the newest 50 versions only; page through the
+    // Project route once a business keeps more.
+    listMarketingStrategies(cuso.projectId, {
+      cursor: undefined,
+      take: 50,
+      skip: undefined,
+    }),
   ]);
   // Once approved, a version's social pieces are the Project's Social posts.
   const posts = approved ? await listMarketingStrategyPosts(approved) : [];
@@ -301,7 +304,7 @@ export async function getCmoOverview(
   const { readCmoProduction } = await import(
     "@/services/cmo-production.service"
   );
-  const production = await readCmoProduction(hire, {
+  const production = await readCmoProduction(cuso, {
     connected: new Set(
       channels
         .filter((channel) => channel.status === "ACTIVE")
@@ -310,17 +313,17 @@ export async function getCmoOverview(
     subscribed: cmoPlan !== null,
     now,
   });
-  const learning = await cmoLearningState(hire, now);
-  const work = await cmoWork(hire, now);
-  const brandBrain = parseCmoBrandBrain(hire.brandBrain);
+  const learning = await cmoLearningState(cuso, now);
+  const work = await cmoWork(cuso, now);
+  const brandBrain = parseBrandBrain(cuso.brandBrain);
   // Blob storage not answering leaves the research out, not the page.
   const brandMedia = await cmoBrandMedia({
-    projectId: hire.projectId,
-    websiteUrl: hire.websiteUrl,
+    projectId: cuso.projectId,
+    websiteUrl: cuso.websiteUrl,
     brain: brandBrain,
   }).catch((error) => {
     console.warn("CMO brand media not read", {
-      projectId: hire.projectId,
+      projectId: cuso.projectId,
       error: error instanceof Error ? error.message : "unknown",
     });
     return null;
@@ -330,7 +333,7 @@ export async function getCmoOverview(
     brandMedia?.pictures.map((picture) => picture.url) ?? [],
   );
   const schedules = await prisma.sokoBotSchedule.findMany({
-    where: { sokoBotId: hire.sokoBotId, systemKey: { not: null } },
+    where: { sokoBotId: cuso.sokoBotId, systemKey: { not: null } },
     select: {
       systemKey: true,
       nextRunAt: true,
@@ -350,9 +353,9 @@ export async function getCmoOverview(
     };
   });
   return {
-    hire,
+    cuso,
     onboardingStep: cmoOnboardingStep({
-      brandBrainConfirmed: hire.brandBrainApprovedAt !== null,
+      brandBrainConfirmed: cuso.brandBrainConfirmedAt !== null,
       strategyApproved: approved !== null,
       connected: channels.some((channel) => channel.status === "ACTIVE"),
       accountsSkipped: viewer?.cmoAccountsSkipped ?? false,
@@ -377,7 +380,7 @@ export async function getCmoOverview(
     strategy,
     strategyVersions,
     botStatus: bot.status,
-    updates: await listCmoReports(hire.sokoBotId, CMO_REPORTS_SHOWN),
+    updates: await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN),
     channels,
     upNext: cmoUpNext(
       running,
@@ -387,9 +390,9 @@ export async function getCmoOverview(
         .map((channel) => channel.provider),
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
-    connectChannelUrl: `${web}/social?projectId=${hire.projectId}`,
+    connectChannelUrl: `${web}/social?projectId=${cuso.projectId}`,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
-    connectAdsUrl: `${web}/ads?projectId=${hire.projectId}`,
+    connectAdsUrl: `${web}/ads?projectId=${cuso.projectId}`,
     measurement,
     production: production.status,
     mailingListSize,
@@ -415,12 +418,12 @@ export const CMO_MAILING_LIST_NAME = "Newsletter";
 
 /** How many people are on the newsletter list. */
 async function cmoMailingListSize(
-  hire: Pick<Cuso, "workspaceId">,
+  cuso: Pick<Cuso, "workspaceId">,
 ): Promise<number> {
   return prisma.contactListMember.count({
     where: {
       list: {
-        workspaceId: hire.workspaceId,
+        workspaceId: cuso.workspaceId,
         nameKey: contactListNameKey(CMO_MAILING_LIST_NAME),
       },
       contact: { mergedIntoId: null },

@@ -80,7 +80,7 @@ import {
 beforeEach(resetCmoServiceMocks);
 
 describe("cmoRunnerUserId", () => {
-  const hire = { workspaceId: "ws-1", sokoBotId: "bot-1" };
+  const cuso = { workspaceId: "ws-1", sokoBotId: "bot-1" };
 
   it("runs as the hirer while they are still a member", async () => {
     sokoBotFindUnique.mockResolvedValue({ createdByUserId: "hirer" });
@@ -88,7 +88,7 @@ describe("cmoRunnerUserId", () => {
       { userId: "owner" },
       { userId: "hirer" },
     ]);
-    await expect(cmoRunnerUserId(hire)).resolves.toBe("hirer");
+    await expect(cmoRunnerUserId(cuso)).resolves.toBe("hirer");
     expect(memberFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -106,13 +106,13 @@ describe("cmoRunnerUserId", () => {
       { userId: "owner" },
       { userId: "admin" },
     ]);
-    await expect(cmoRunnerUserId(hire)).resolves.toBe("owner");
+    await expect(cmoRunnerUserId(cuso)).resolves.toBe("owner");
   });
 
   it("never matches every member when the hirer's account is gone", async () => {
     sokoBotFindUnique.mockResolvedValue({ createdByUserId: null });
     memberFindMany.mockResolvedValue([]);
-    await expect(cmoRunnerUserId(hire)).resolves.toBeNull();
+    await expect(cmoRunnerUserId(cuso)).resolves.toBeNull();
     expect(memberFindMany.mock.calls[0]?.[0].where.OR).toEqual([
       { role: { in: ["owner", "admin"] } },
     ]);
@@ -168,7 +168,7 @@ describe("findCusoForUser", () => {
       businessName: "acme.io",
       brandBrain: null,
       brandBrainUpdatedAt: null,
-      brandBrainApprovedAt: null,
+      brandBrainConfirmedAt: null,
     });
   });
 

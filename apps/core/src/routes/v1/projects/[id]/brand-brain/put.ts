@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -10,11 +10,11 @@ import {
   brandBrainProjectParamsSchema,
   brandBrainRequestSchema,
   brandBrainSchema,
-  mapBrandBrainForApi,
 } from "@/schemas/brand-brain.schema";
 import { getBrandBrain, saveBrandBrain } from "@/services/brand-brain.service";
 
-import { brandBrainScope } from "./context";
+import { requireWorkspaceProject } from "../access";
+import { mapBrandBrainForApi } from "./context";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -42,7 +42,12 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   app.openapi(route, async (c) => {
-    const { projectId } = await brandBrainScope(c, c.req.valid("param").id);
+    const { userId } = await requireAuthorizedUserContext(c.var.authContext);
+    const { projectId } = await requireWorkspaceProject(
+      c,
+      c.req.valid("param").id,
+      userId,
+    );
     await saveBrandBrain(projectId, c.req.valid("json"));
     return ok(c, mapBrandBrainForApi(await getBrandBrain(projectId)));
   });

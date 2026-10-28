@@ -59,7 +59,7 @@ type CusoFixture = {
   websiteUrl?: string;
   brandBrain?: unknown;
   brandBrainUpdatedAt?: Date | null;
-  brandBrainApprovedAt?: Date | null;
+  brandBrainConfirmedAt?: Date | null;
 };
 
 /**
@@ -82,7 +82,7 @@ export const asCusoBot = (cuso: unknown) => {
         ? {
             body: fixture.brandBrain,
             updatedAt: fixture.brandBrainUpdatedAt ?? null,
-            confirmedAt: fixture.brandBrainApprovedAt ?? null,
+            confirmedAt: fixture.brandBrainConfirmedAt ?? null,
           }
         : null,
     },

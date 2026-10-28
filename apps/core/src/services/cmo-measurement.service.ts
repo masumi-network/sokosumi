@@ -9,7 +9,7 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
-  findCusoForUser,
+  requireCuso,
 } from "@/services/cmo-cuso.service";
 
 /**
@@ -17,13 +17,13 @@ import {
  * Shopify is offered only to shops.
  */
 export async function learnCmoSitePlatform(
-  hire: Pick<Cuso, "projectId" | "websiteUrl">,
+  cuso: Pick<Cuso, "projectId" | "websiteUrl">,
 ): Promise<void> {
   const { detectSitePlatform } = await import("@/lib/site-platform");
-  const platform = await detectSitePlatform(hire.websiteUrl).catch(() => null);
+  const platform = await detectSitePlatform(cuso.websiteUrl).catch(() => null);
   if (!platform) return;
   await prisma.project.update({
-    where: { id: hire.projectId },
+    where: { id: cuso.projectId },
     data: { sitePlatform: platform },
   });
 }
@@ -80,10 +80,9 @@ export async function connectCmoMeasurement(input: {
   if (!isFirstPartyAppUrl(input.returnUrl)) {
     throw new CmoConflictError("The return address must be CMO's own page");
   }
-  const hire = await findCusoForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const cuso = await requireCuso({ userId: input.userId });
   const project = await prisma.project.findUnique({
-    where: { id: hire.projectId },
+    where: { id: cuso.projectId },
     select: { sitePlatform: true },
   });
   if (input.provider === "shopify" && project?.sitePlatform !== "shopify") {
@@ -94,10 +93,10 @@ export async function connectCmoMeasurement(input: {
   );
   return connectSokoBotIntegration({
     userId: input.userId,
-    workspaceId: hire.workspaceId,
+    workspaceId: cuso.workspaceId,
     provider: input.provider,
     returnUrl: input.returnUrl,
-    selector: { kind: "id", sokoBotId: hire.sokoBotId },
+    selector: { kind: "id", sokoBotId: cuso.sokoBotId },
   });
 }
 
@@ -109,15 +108,14 @@ export async function finalizeCmoMeasurement(input: {
   if (!isCmoMeasurementSource(input.provider)) {
     throw new CmoNotFoundError("CMO does not measure with that source");
   }
-  const hire = await findCusoForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const cuso = await requireCuso({ userId: input.userId });
   const { finalizeSokoBotIntegration } = await import(
     "@/services/soko-bot-integration-connection.service"
   );
   await finalizeSokoBotIntegration({
     userId: input.userId,
-    workspaceId: hire.workspaceId,
+    workspaceId: cuso.workspaceId,
     provider: input.provider,
-    selector: { kind: "id", sokoBotId: hire.sokoBotId },
+    selector: { kind: "id", sokoBotId: cuso.sokoBotId },
   });
 }

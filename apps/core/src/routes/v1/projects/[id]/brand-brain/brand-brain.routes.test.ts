@@ -105,7 +105,11 @@ function stored(extra: object = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.projectFindFirst.mockResolvedValue({ id: PROJECT_ID });
+  m.projectFindFirst.mockResolvedValue({
+    id: PROJECT_ID,
+    workspaceId: WORKSPACE_ID,
+    workspace: { userId: "user_1", organizationId: null },
+  });
   m.brainFindUnique.mockResolvedValue(stored());
   m.brainUpdate.mockImplementation(async (args) => ({
     ...stored(),

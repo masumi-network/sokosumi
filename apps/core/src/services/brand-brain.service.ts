@@ -21,7 +21,7 @@ import prisma from "@/lib/db/prisma";
  * membership; nothing here is CMO's.
  */
 
-export function parseCmoBrandBrain(value: unknown): CmoBrandBrain | null {
+export function parseBrandBrain(value: unknown): CmoBrandBrain | null {
   const parsed = cmoBrandBrainSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
@@ -94,7 +94,7 @@ export async function saveBrandBrain(
       ...stored.profile,
       ...kept,
     });
-    const before = parseCmoBrandBrain(stored);
+    const before = parseBrandBrain(stored);
     const essentials = save.brandBrain
       ? {
           ...save.brandBrain,
@@ -158,7 +158,7 @@ export async function confirmBrandBrain(
   userId: string,
 ): Promise<StoredBrandBrain> {
   const current = await getBrandBrain(projectId);
-  if (!parseCmoBrandBrain(current?.body)) {
+  if (!parseBrandBrain(current?.body)) {
     throw conflict("The Brand Brain is still being built");
   }
   return prisma.brandBrain.update({
@@ -179,7 +179,7 @@ export async function answerBrandBrainQuestion(
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const brain = parseCmoBrandBrain(await lockBrandBrain(tx, projectId));
+    const brain = parseBrandBrain(await lockBrandBrain(tx, projectId));
     const question = brain?.questions.find(
       (candidate) => candidate.id === input.questionId,
     );
@@ -224,7 +224,7 @@ export async function answerBrandBrainQuestion(
 }
 
 /** The profile sections a stored Brand Brain holds, in profile order. */
-export function cmoBrandSectionsSaved(value: unknown): CmoBrandSectionKey[] {
+export function brandBrainSectionsSaved(value: unknown): CmoBrandSectionKey[] {
   const { profile } = storedBrandBrain(value);
   return CMO_BRAND_SECTION_KEYS.filter((key) => profile[key]);
 }

@@ -113,15 +113,15 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
     createdByUserId: bot.createdByUserId,
   }));
   if (hires.length === 0) return [];
-  const bots = hires.map((hire) => hire.sokoBotId);
-  const projects = hires.map((hire) => hire.projectId);
+  const bots = hires.map((cuso) => cuso.sokoBotId);
+  const projects = hires.map((cuso) => cuso.projectId);
 
   const [owners, turns, sources, tools, images, charged, saves] =
     await Promise.all([
       prisma.user.findMany({
         where: {
           id: {
-            in: hires.flatMap((hire) => hire.createdByUserId ?? []),
+            in: hires.flatMap((cuso) => cuso.createdByUserId ?? []),
           },
         },
         select: { id: true, email: true },
@@ -206,12 +206,12 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
     ]);
 
   return hires
-    .map((hire) => {
-      const turn = turns.find((row) => row.sokoBotId === hire.sokoBotId);
+    .map((cuso) => {
+      const turn = turns.find((row) => row.sokoBotId === cuso.sokoBotId);
       // Both halves of the union can name the same model.
       const merged = new Map<string, CmoSpendLine>();
       for (const row of sources) {
-        if (row.sokoBotId !== hire.sokoBotId) continue;
+        if (row.sokoBotId !== cuso.sokoBotId) continue;
         const source = row.source ?? "unknown";
         const line = merged.get(source) ?? {
           source,
@@ -231,13 +231,13 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
       );
       const overheadUsd = number(turn?.overhead) / MICROS;
       const imagesCredits = convertCentsToCredits(
-        images.find((row) => row.projectId === hire.projectId)?.cents ?? 0n,
+        images.find((row) => row.projectId === cuso.projectId)?.cents ?? 0n,
       );
       return {
-        sokoBotId: hire.sokoBotId,
-        businessName: hire.businessName,
+        sokoBotId: cuso.sokoBotId,
+        businessName: cuso.businessName,
         ownerEmail:
-          owners.find((owner) => owner.id === hire.createdByUserId)?.email ??
+          owners.find((owner) => owner.id === cuso.createdByUserId)?.email ??
           "",
         turns: number(turn?.turns),
         totalUsd:
@@ -246,19 +246,19 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
         imagesCredits,
         chargedCredits:
           convertCentsToCredits(
-            charged.find((row) => row.sokoBotId === hire.sokoBotId)?.cents ??
+            charged.find((row) => row.sokoBotId === cuso.sokoBotId)?.cents ??
               0n,
           ) + imagesCredits,
         bySource,
         tools: tools
-          .filter((row) => row.sokoBotId === hire.sokoBotId)
+          .filter((row) => row.sokoBotId === cuso.sokoBotId)
           .map((row) => ({
             capability: row.capability,
             calls: number(row.calls),
           }))
           .sort((a, b) => b.calls - a.calls),
         planChecks: planChecks(
-          saves.filter((save) => save.turn.sokoBotId === hire.sokoBotId),
+          saves.filter((save) => save.turn.sokoBotId === cuso.sokoBotId),
         ),
       };
     })

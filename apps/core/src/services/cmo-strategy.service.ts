@@ -1,7 +1,6 @@
 import { type MarketingStrategy, type Prisma } from "@sokosumi/database";
 import {
   CMO_PRODUCTION_TURN_PREFIX,
-  type CmoBrandAnswer,
   type CmoBrandBrain,
   type CmoCalendarEntry,
   type CmoPlanQuestion,
@@ -11,21 +10,16 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
-import { parseCmoBrandBrain } from "@/services/brand-brain.service";
+import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   CmoConflictError,
-  CmoNotFoundError,
   type Cuso,
-  findCusoForUser,
   requireCuso,
   STRATEGY_TURN_PREFIX,
-  startCmoProduction,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
-  answerMarketingStrategyQuestion,
   approvedMarketingStrategy,
-  approveMarketingStrategy,
   newestMarketingStrategy,
   parseMarketingPlan,
   planMarketingStrategyPosts,
@@ -86,9 +80,9 @@ export async function setCmoAdBudget(input: {
   monthly: number;
   currency: string;
 }): Promise<{ turnId: string }> {
-  const hire = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso({ userId: input.userId });
   const strategy = parseMarketingPlan(
-    (await newestMarketingStrategy(hire.projectId))?.plan,
+    (await newestMarketingStrategy(cuso.projectId))?.plan,
   );
   if (!strategy) {
     throw new CmoConflictError("Cuso has not written the strategy yet");
@@ -107,7 +101,7 @@ export async function setCmoAdBudget(input: {
   // its first save takes a model call, so upgrade only if that ever shows.
   await prisma.marketingStrategy.create({
     data: {
-      projectId: hire.projectId,
+      projectId: cuso.projectId,
       authorUserId: input.userId,
       turnId: started.turnId,
       plan: {
@@ -134,9 +128,8 @@ export async function requestCmoStrategy(input: {
   userId: string;
   note?: string;
 }): Promise<{ turnId: string }> {
-  const hire = await findCusoForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const brain = parseCmoBrandBrain(hire.brandBrain);
+  const cuso = await requireCuso({ userId: input.userId });
+  const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
@@ -144,18 +137,18 @@ export async function requestCmoStrategy(input: {
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
-  return startCmoTurn(hire, input.userId, {
-    clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.sokoBotId}:${Date.now()}`,
+  return startCmoTurn(cuso, input.userId, {
+    clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
     message: (input.note
       ? [
-          `Change ${hire.businessName}'s marketing strategy. The owner asked: ${input.note}`,
+          `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
           "",
           "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
           "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
         ]
       : [
-          `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-          `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
+          `Write ${cuso.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+          `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
           "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
           ...ownerAnswers(brain),
           "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
@@ -326,10 +319,10 @@ export async function saveCmoStrategy(
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
-  const hire = await requireCuso(where, db);
+  const cuso = await requireCuso(where, db);
   if (options.pieces) {
     // Pieces write the approved version's Social posts and never a plan.
-    const approved = await approvedMarketingStrategy(hire.projectId, db);
+    const approved = await approvedMarketingStrategy(cuso.projectId, db);
     if (!approved) {
       throw new CmoConflictError(
         "Pieces fill in the approved strategy; no version is approved yet",
@@ -337,11 +330,11 @@ export async function saveCmoStrategy(
     }
     await planMarketingStrategyPosts(db, {
       version: approved,
-      workspaceId: hire.workspaceId,
+      workspaceId: cuso.workspaceId,
       entries: (strategy.calendar ?? []) as CmoCalendarEntry[],
       creator:
         "sokoBotId" in where
-          ? { sokoBotId: hire.sokoBotId }
+          ? { sokoBotId: cuso.sokoBotId }
           : { userId: where.userId },
     });
     return approved;
@@ -349,7 +342,7 @@ export async function saveCmoStrategy(
   const own = options.turnId
     ? await db.marketingStrategy.findFirst({
         where: {
-          projectId: hire.projectId,
+          projectId: cuso.projectId,
           turnId: options.turnId,
           approvedAt: null,
         },
@@ -358,7 +351,7 @@ export async function saveCmoStrategy(
     : null;
   const base =
     own ??
-    (await cmoWorkingStrategy(hire.projectId, options.executing ?? false, db));
+    (await cmoWorkingStrategy(cuso.projectId, options.executing ?? false, db));
   // What a save leaves out stays as stored; the merged plan must be whole.
   const before = parseMarketingPlan(base?.plan);
   const whole = cmoStrategySchema.parse({
@@ -415,11 +408,11 @@ export async function saveCmoStrategy(
   }
   return db.marketingStrategy.create({
     data: {
-      projectId: hire.projectId,
+      projectId: cuso.projectId,
       plan: stored,
       turnId: options.turnId ?? null,
       ...("sokoBotId" in where
-        ? { authorSokoBotId: hire.sokoBotId }
+        ? { authorSokoBotId: cuso.sokoBotId }
         : { authorUserId: where.userId }),
     },
   });
@@ -457,26 +450,11 @@ export function keepPlanAnswers(
 
 /** The newest version CMO shows, or "Cuso has not written it yet". */
 async function newestCmoStrategy(
-  hire: Pick<Cuso, "projectId">,
+  cuso: Pick<Cuso, "projectId">,
 ): Promise<MarketingStrategy> {
-  const newest = await newestMarketingStrategy(hire.projectId);
+  const newest = await newestMarketingStrategy(cuso.projectId);
   if (!newest) throw new CmoConflictError("There is no strategy yet");
   return newest;
-}
-
-/** The owner answers one of the newest version's yes/no questions. */
-export async function answerCmoPlanQuestion(
-  userId: string,
-  input: { questionId: string; answer: CmoBrandAnswer; note?: string },
-): Promise<void> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const newest = await newestCmoStrategy(hire);
-  await answerMarketingStrategyQuestion({
-    projectId: hire.projectId,
-    strategyId: newest.id,
-    ...input,
-  });
 }
 
 /**
@@ -502,36 +480,13 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
 export async function applyCmoPlanAnswers(
   userId: string,
 ): Promise<{ turnId: string }> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const newest = await newestCmoStrategy(hire);
+  const cuso = await requireCuso({ userId });
+  const newest = await newestCmoStrategy(cuso);
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
   return requestCmoStrategy({ userId, note });
-}
-
-/**
- * An owner or admin approves a version, the newest unless one is named
- * (reverting approves an older one): from now on Cuso carries out that one.
- */
-export async function approveCmoStrategy(
-  userId: string,
-  versionId?: string,
-): Promise<MarketingStrategy> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const strategyId = versionId ?? (await newestCmoStrategy(hire)).id;
-  const approved = await approveMarketingStrategy({
-    projectId: hire.projectId,
-    workspaceId: hire.workspaceId,
-    userId,
-    strategyId,
-  });
-  // Already paying (a re-approved plan): the month is made right away.
-  await startCmoProduction(hire.sokoBotId);
-  return approved;
 }
 
 /**
@@ -544,10 +499,10 @@ export async function pauseCmoCalendarEntry(input: {
   userId: string;
   entryId: string;
 }): Promise<void> {
-  const hire = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso({ userId: input.userId });
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({
-        where: { id: input.entryId, projectId: hire.projectId },
+        where: { id: input.entryId, projectId: cuso.projectId },
         select: { status: true, revision: true },
       })
     : null;
@@ -557,8 +512,8 @@ export async function pauseCmoCalendarEntry(input: {
   if (post.status === "CANCELED") return;
   const { cancelSocialPost } = await import("@/services/social-posts.service");
   await cancelSocialPost({
-    projectId: hire.projectId,
-    workspaceId: hire.workspaceId,
+    projectId: cuso.projectId,
+    workspaceId: cuso.workspaceId,
     userId: input.userId,
     postId: input.entryId,
     revision: post.revision,

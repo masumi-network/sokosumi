@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
 import {
-  CMO_BRAND_ANSWERS,
   cmoBrandBrainSchema,
   cmoReportUpdateInputSchema,
   cmoStrategySchema,
@@ -30,31 +29,6 @@ export const cmoMockPlanRequestSchema = z
       .describe("A CMO tier id from CMO's own plan config."),
   })
   .openapi("CmoMockPlanRequest");
-
-export const cmoBrandAnswerRequestSchema = z
-  .object({
-    questionId: z.string().trim().min(1).max(40),
-    answer: z.enum(CMO_BRAND_ANSWERS),
-    note: z
-      .string()
-      .trim()
-      .max(400)
-      .optional()
-      .describe("After a no: what is true instead, in the owner's words."),
-  })
-  .openapi("CmoBrandAnswerRequest");
-
-export const cmoStrategyApproveRequestSchema = z
-  .object({
-    versionId: z
-      .string()
-      .uuid()
-      .optional()
-      .describe(
-        "The Marketing strategy version to approve; the newest when left out. An older one reverts to it.",
-      ),
-  })
-  .openapi("CmoStrategyApproveRequest");
 
 export const cmoMeasurementSchema = z
   .object({
@@ -253,7 +227,7 @@ export const cmoOverviewSchema = z
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
-    brandBrainApprovedAt: z.union([dateTimeSchema, z.null()]),
+    brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
     strategy: z.union([cmoStrategySchema, z.null()]),
     media: z

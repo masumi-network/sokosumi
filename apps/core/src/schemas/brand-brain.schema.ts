@@ -1,11 +1,7 @@
 import { z } from "@hono/zod-openapi";
-import { CMO_BRAND_ANSWERS, cmoBrandBrainSchema } from "@sokosumi/soko-bot";
+import { cmoBrandBrainSchema } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
-import {
-  parseCmoBrandBrain,
-  type StoredBrandBrain,
-} from "@/services/brand-brain.service";
 
 export const brandBrainProjectParamsSchema = z.object({
   id: z
@@ -32,28 +28,6 @@ export const brandBrainSchema = z
   })
   .openapi("BrandBrain");
 
-export function mapBrandBrainForApi(stored: StoredBrandBrain | null) {
-  return brandBrainSchema.parse({
-    brandBrain: parseCmoBrandBrain(stored?.body),
-    updatedAt: stored?.updatedAt ?? null,
-    confirmedAt: stored?.confirmedAt ?? null,
-    confirmedBy: stored?.confirmedBy ?? null,
-  });
-}
-
 export const brandBrainRequestSchema = z
   .object({ brandBrain: cmoBrandBrainSchema })
   .openapi("BrandBrainRequest");
-
-export const brandBrainAnswerRequestSchema = z
-  .object({
-    questionId: z.string().trim().min(1).max(40),
-    answer: z.enum(CMO_BRAND_ANSWERS),
-    note: z
-      .string()
-      .trim()
-      .max(400)
-      .optional()
-      .describe("After a no: what is true instead, in the member's words."),
-  })
-  .openapi("BrandBrainAnswerRequest");

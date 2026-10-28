@@ -76,7 +76,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     businessName: "acme.io",
     websiteUrl: "https://acme.io",
     brandMedia: null,
-    brandBrainApprovedAt: null,
+    brandBrainConfirmedAt: null,
     organizationSlug: null,
     projectName: "CMO.xyz · acme.io",
     workspaceId: "ws-1",
@@ -164,7 +164,7 @@ describe("onboarding steps", () => {
     // Approving the Brand Brain opens Cuso's questions before the plan.
     expect(
       onboardingStep(
-        overview({ strategy: null, brandBrainApprovedAt: new Date() }),
+        overview({ strategy: null, brandBrainConfirmedAt: new Date() }),
       ),
     ).toBe("questions");
     expect(
@@ -190,7 +190,7 @@ describe("onboarding steps", () => {
       <QuestionsStep
         overview={overview({
           strategy: null,
-          brandBrainApprovedAt: new Date(),
+          brandBrainConfirmedAt: new Date(),
           brandBrain: {
             ...brain,
             questions: [

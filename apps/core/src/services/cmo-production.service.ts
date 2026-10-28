@@ -258,19 +258,19 @@ function approvalRunPrefix(sokoBotId: string, approvedAt: Date): string {
 }
 
 async function startProductionRun(
-  hire: Cuso,
+  cuso: Cuso,
   message: string,
   clientTurnId: string,
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
-    where: { id: hire.sokoBotId },
+    where: { id: cuso.sokoBotId },
     select: { sharedRoomId: true },
   });
-  const parent = await parentTurnId(hire.sokoBotId);
+  const parent = await parentTurnId(cuso.sokoBotId);
   if (!parent) throw new Error("Cuso has no turn to start production from");
   // The run reports in Cuso's shared room and spends as his runner: who hired
   // him, or an owner or admin once they left (ADR 0061).
-  const runnerId = await cmoRunnerUserId(hire);
+  const runnerId = await cmoRunnerUserId(cuso);
   if (!runnerId || !bot.sharedRoomId)
     throw new Error("Cuso has no member or shared room to run production for");
   const { sokoBotControlPlane } = await import(
@@ -278,8 +278,8 @@ async function startProductionRun(
   );
   const started = await sokoBotControlPlane.startTurn({
     userId: runnerId,
-    workspaceId: hire.workspaceId,
-    sokoBotId: hire.sokoBotId,
+    workspaceId: cuso.workspaceId,
+    sokoBotId: cuso.sokoBotId,
     clientTurnId,
     message,
     source: "EVENT",
@@ -293,7 +293,7 @@ async function startProductionRun(
     },
     background: {
       parentTurnId: parent,
-      title: `Make ${hire.businessName}'s month`,
+      title: `Make ${cuso.businessName}'s month`,
       destinationRoomId: bot.sharedRoomId,
     },
   });
@@ -372,12 +372,12 @@ interface ProductionRead {
 
 /** Where the month's production stands; reads only, never starts a run. */
 export async function readCmoProduction(
-  hire: Cuso,
+  cuso: Cuso,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
 ): Promise<ProductionRead> {
   const { connected, now } = context;
   // Only the approved version is made; a draft is never produced.
-  const approved = await approvedMarketingStrategy(hire.projectId);
+  const approved = await approvedMarketingStrategy(cuso.projectId);
   const plan = parseMarketingPlan(approved?.plan);
   const approvedAt = approved?.approvedAt ?? null;
   if (!approved || !plan || !approvedAt)
@@ -414,8 +414,8 @@ export async function readCmoProduction(
     runs,
   });
   if (!context.subscribed) return read("waiting");
-  const all = await productionRuns(hire.sokoBotId, approvedAt, now);
-  const prefix = approvalRunPrefix(hire.sokoBotId, approvedAt);
+  const all = await productionRuns(cuso.sokoBotId, approvedAt, now);
+  const prefix = approvalRunPrefix(cuso.sokoBotId, approvedAt);
   const runs = all.filter((run) => run.clientTurnId.startsWith(prefix));
   if (pending.length === 0) return read("ready", runs);
   if (all[0] && RUN_ACTIVE.has(all[0].status)) return read("running", runs);
@@ -443,35 +443,35 @@ export async function readCmoProduction(
  * Safe to call any time and from anywhere; it is a no-op while a run works.
  */
 export async function advanceCmoProduction(
-  hire: Cuso,
+  cuso: Cuso,
   now: Date = new Date(),
 ): Promise<CmoProductionStatus> {
-  const connected = await connectedChannels(hire.projectId);
+  const connected = await connectedChannels(cuso.projectId);
   const {
     status: current,
     strategy,
     approvedAt,
     pending,
     runs,
-  } = await readCmoProduction(hire, {
+  } = await readCmoProduction(cuso, {
     connected,
-    subscribed: await isCmoSubscribed(hire),
+    subscribed: await isCmoSubscribed(cuso),
     now,
   });
   if (!strategy || !approvedAt || current.state !== "running") return current;
   if (runs[0] && RUN_ACTIVE.has(runs[0].status)) return current;
   const attempt = runs.length + 1;
   await startProductionRun(
-    hire,
+    cuso,
     cmoProductionMessage({
-      businessName: hire.businessName,
+      businessName: cuso.businessName,
       strategy,
       pending,
       connected,
       attempt,
       topUp: runs.some((run) => run.status === "COMPLETED"),
     }),
-    `${approvalRunPrefix(hire.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
+    `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
   );
   return current;
 }
@@ -480,7 +480,7 @@ export async function advanceCmoProduction(
 export function kickCmoProduction(sokoBotId: string): void {
   waitUntil(
     findCusoForBot(sokoBotId)
-      .then((hire) => (hire ? advanceCmoProduction(hire) : null))
+      .then((cuso) => (cuso ? advanceCmoProduction(cuso) : null))
       .catch((error: unknown) => {
         console.warn("CMO production could not start", {
           sokoBotId,
@@ -494,12 +494,12 @@ export function kickCmoProduction(sokoBotId: string): void {
  * Points Cuso's own rhythms at his runner, so they keep acting as a current
  * member once the person who hired him left the business (ADR 0061).
  */
-async function keepCmoRhythmsWithRunner(hire: Cuso): Promise<void> {
-  const runnerId = await cmoRunnerUserId(hire);
+async function keepCmoRhythmsWithRunner(cuso: Cuso): Promise<void> {
+  const runnerId = await cmoRunnerUserId(cuso);
   if (!runnerId) return;
   await prisma.sokoBotSchedule.updateMany({
     where: {
-      sokoBotId: hire.sokoBotId,
+      sokoBotId: cuso.sokoBotId,
       systemKey: { in: SOKO_BOT_CMO_SCHEDULES.map((schedule) => schedule.key) },
       OR: [
         { requestedByUserId: null },
@@ -516,15 +516,15 @@ export async function syncCmoProduction(
 ): Promise<{ checked: number }> {
   const hires = await listCusosWithApprovedStrategy();
   let checked = 0;
-  for (const hire of hires) {
+  for (const cuso of hires) {
     if (!shouldContinue()) break;
     try {
-      await keepCmoRhythmsWithRunner(hire);
-      await advanceCmoProduction(hire);
+      await keepCmoRhythmsWithRunner(cuso);
+      await advanceCmoProduction(cuso);
       checked += 1;
     } catch (error) {
       console.warn("CMO production sync skipped a Cuso", {
-        sokoBotId: hire.sokoBotId,
+        sokoBotId: cuso.sokoBotId,
         error: error instanceof Error ? error.message : "unknown",
       });
     }

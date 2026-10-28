@@ -7,7 +7,7 @@ import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
 import {
   compactBrandBrain,
-  parseCmoBrandBrain,
+  parseBrandBrain,
 } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
@@ -47,32 +47,32 @@ export async function loadCmoMarketingContext(
   now: Date = new Date(),
   options: { executing?: boolean } = {},
 ): Promise<Record<string, unknown> | null> {
-  const hire = await findCusoForBot(sokoBotId);
-  if (!hire) return null;
+  const cuso = await findCusoForBot(sokoBotId);
+  if (!cuso) return null;
   const version = await cmoWorkingStrategy(
-    hire.projectId,
+    cuso.projectId,
     options.executing ?? false,
   );
   // Once approved, its social pieces are the Project's Social posts, under their ids.
   const strategy = await readMarketingPlan(version);
   const [project, brandPictures] = await Promise.all([
     prisma.project.findUnique({
-      where: { id: hire.projectId },
+      where: { id: cuso.projectId },
       select: { logo: true, designMdUrl: true },
     }),
-    listCmoBrandPictures(hire.projectId),
+    listCmoBrandPictures(cuso.projectId),
   ]);
   const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
   const context: MarketingContext = {
     business: {
-      name: hire.businessName,
-      websiteUrl: hire.websiteUrl,
-      marketingProjectId: hire.projectId,
+      name: cuso.businessName,
+      websiteUrl: cuso.websiteUrl,
+      marketingProjectId: cuso.projectId,
     },
     /** Whether the strategy shown is the approved version Cuso carries out. */
     strategyApproved: version?.approvedAt != null,
-    subscriptionActive: await isCmoSubscribed(hire),
-    connectedChannels: (await listCmoChannels(hire.projectId)).map(
+    subscriptionActive: await isCmoSubscribed(cuso),
+    connectedChannels: (await listCmoChannels(cuso.projectId)).map(
       (channel) => ({
         provider: channel.provider,
         handle: channel.externalHandle,
@@ -80,7 +80,7 @@ export async function loadCmoMarketingContext(
         socialConnectionId: channel.id,
       }),
     ),
-    brandBrain: compactBrandBrain(parseCmoBrandBrain(hire.brandBrain)),
+    brandBrain: compactBrandBrain(parseBrandBrain(cuso.brandBrain)),
     /**
      * The Project's logo and DESIGN.md (colours, fonts, type): use them in
      * images and layouts.
@@ -254,16 +254,16 @@ export async function buildCmoBeatPacket(
   now: Date,
   key: CmoSystemSchedule["key"],
 ): Promise<{ packet: string; skip: boolean }> {
-  const hire = await findCusoForBot(sokoBotId);
-  if (!hire) return { packet: "", skip: true };
+  const cuso = await findCusoForBot(sokoBotId);
+  if (!cuso) return { packet: "", skip: true };
   // Nothing runs without a reason: no approved strategy, no Brand Brain,
   // or not the reminder's one slot. A skipped run costs no turn.
   const [approved, newest] = await Promise.all([
-    approvedMarketingStrategy(hire.projectId),
-    newestMarketingStrategy(hire.projectId),
+    approvedMarketingStrategy(cuso.projectId),
+    newestMarketingStrategy(cuso.projectId),
   ]);
   const skipReason = cmoRoutineSkipReason(key, {
-    brandBrain: parseCmoBrandBrain(hire.brandBrain) !== null,
+    brandBrain: parseBrandBrain(cuso.brandBrain) !== null,
     strategySavedAt: newest?.updatedAt ?? null,
     strategyApproved: approved !== null,
     now,
@@ -274,10 +274,10 @@ export async function buildCmoBeatPacket(
     executing: true,
   });
   if (!context) return { packet: "", skip: true };
-  const posts = hire
+  const posts = cuso
     ? await prisma.socialPost.findMany({
         where: {
-          projectId: hire.projectId,
+          projectId: cuso.projectId,
           updatedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) },
         },
         orderBy: { updatedAt: "desc" },

@@ -1,15 +1,15 @@
 "use server";
 
 import {
-  answerCmoBrandQuestion,
-  answerCmoPlanQuestion,
+  answerProjectBrandBrainQuestion,
+  answerProjectMarketingStrategyQuestion,
   applyCmoPlanAnswers,
-  approveCmoBrandBrain,
-  approveCmoStrategy,
+  approveProjectMarketingStrategy,
   type CmoMeasurement,
   type CmoOverview,
   chooseCmoMockPlan,
   completeCmoOnboarding,
+  confirmProjectBrandBrain,
   connectCmoMeasurement,
   finalizeCmoMeasurement,
   getChatsRoomsByIdMessages,
@@ -29,7 +29,7 @@ import {
   type SubscriptionCatalog,
   setCmoAdBudget,
   startCmoOnboarding,
-  updateCmoBrandBrain,
+  updateProjectBrandBrain,
 } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
@@ -52,6 +52,12 @@ export async function loadOverview(): Promise<CmoOverview | null> {
   if (response?.status === 404) return null;
   if (!data) throw new Error("Could not load CMO");
   return data.data;
+}
+
+async function requireOverview(): Promise<CmoOverview> {
+  const overview = await loadOverview();
+  if (!overview) throw new Error("Cuso is not hired yet");
+  return overview;
 }
 
 /** What the start form shows after a submit that did not finish. */
@@ -104,25 +110,33 @@ export async function onboard(
   return { ...result, errors: {} };
 }
 
-/** Approves the newest strategy version, or the one named (going back to it). */
+/**
+ * Approves the newest strategy version, or the one named (going back to it),
+ * on the Project's Marketing strategy.
+ */
 export async function approveStrategy(
   versionId?: string,
 ): Promise<CmoOverview> {
-  const core = await requireCore();
-  const { data } = await approveCmoStrategy({
-    ...core,
-    body: versionId ? { versionId } : {},
+  const { overview, ...options } = await cusoProject();
+  const strategyId = versionId ?? overview.strategyVersion?.id;
+  if (!strategyId) throw new Error("There is no strategy to approve yet");
+  const { error } = await approveProjectMarketingStrategy({
+    ...options,
+    path: { ...options.path, strategyId },
   });
-  if (!data) throw new Error("Could not approve the strategy");
-  return data.data;
+  if (error)
+    throw new Error(errorText(error, "Could not approve the strategy"));
+  return requireOverview();
 }
 
-/** The owner approved the Brand Brain; Cuso's questions come next. */
+/** A member confirmed the Project's Brand Brain; Cuso's questions come next. */
 export async function approveBrandBrain(): Promise<CmoOverview> {
-  const core = await requireCore();
-  const { data } = await approveCmoBrandBrain(core);
-  if (!data) throw new Error("Could not approve the Brand Brain");
-  return data.data;
+  const { overview: _overview, ...options } = await cusoProject();
+  const { error } = await confirmProjectBrandBrain(options);
+  if (error) {
+    throw new Error(errorText(error, "Could not approve the Brand Brain"));
+  }
+  return requireOverview();
 }
 
 /** One answer to one of Cuso's questions: yes, no (with what is true) or not sure. */
@@ -131,22 +145,31 @@ export async function answerBrandQuestion(answer: {
   answer: "yes" | "no" | "unsure";
   note?: string;
 }): Promise<CmoOverview> {
-  const core = await requireCore();
-  const { data } = await answerCmoBrandQuestion({ ...core, body: answer });
-  if (!data) throw new Error("Could not save the answer");
-  return data.data;
+  const { overview: _overview, ...options } = await cusoProject();
+  const { error } = await answerProjectBrandBrainQuestion({
+    ...options,
+    body: answer,
+  });
+  if (error) throw new Error(errorText(error, "Could not save the answer"));
+  return requireOverview();
 }
 
-/** One answer to one of the plan's yes/no questions. */
+/** One answer to one of the newest plan's yes/no questions. */
 export async function answerPlanQuestion(answer: {
   questionId: string;
   answer: "yes" | "no" | "unsure";
   note?: string;
 }): Promise<CmoOverview> {
-  const core = await requireCore();
-  const { data } = await answerCmoPlanQuestion({ ...core, body: answer });
-  if (!data) throw new Error("Could not save the answer");
-  return data.data;
+  const { overview, ...options } = await cusoProject();
+  const strategyId = overview.strategyVersion?.id;
+  if (!strategyId) throw new Error("There is no strategy yet");
+  const { error } = await answerProjectMarketingStrategyQuestion({
+    ...options,
+    path: { ...options.path, strategyId },
+    body: answer,
+  });
+  if (error) throw new Error(errorText(error, "Could not save the answer"));
+  return requireOverview();
 }
 
 /** Cuso fits the plan to the owner's answers. */
@@ -166,10 +189,14 @@ export async function applyPlanAnswers(): Promise<{
 export async function saveBrandBrain(
   brandBrain: NonNullable<CmoOverview["brandBrain"]>,
 ): Promise<CmoOverview> {
-  const core = await requireCore();
-  const { data } = await updateCmoBrandBrain({ ...core, body: { brandBrain } });
-  if (!data) throw new Error("Could not save the Brand Brain");
-  return data.data;
+  const { overview: _overview, ...options } = await cusoProject();
+  const { error } = await updateProjectBrandBrain({
+    ...options,
+    body: { brandBrain },
+  });
+  if (error)
+    throw new Error(errorText(error, "Could not save the Brand Brain"));
+  return requireOverview();
 }
 
 export async function pauseEntry(id: string): Promise<CmoOverview> {
@@ -333,9 +360,7 @@ export async function finishAccounts(): Promise<CmoOverview> {
     body: { cmoAccountsSkipped: true },
   });
   if (error) throw new Error(errorText(error, "Could not continue"));
-  const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
-  return overview;
+  return requireOverview();
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
@@ -420,11 +445,14 @@ async function inCusoWorkspace(
   };
 }
 
-/** Request options for Cuso's Project on the standard Project routes. */
+/**
+ * Request options for Cuso's Project on the standard Project routes, with
+ * the overview they were read from.
+ */
 async function cusoProject() {
-  const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  const overview = await requireOverview();
   return {
+    overview,
     ...(await inCusoWorkspace(overview)),
     path: { id: overview.projectId },
   };
@@ -434,8 +462,9 @@ async function cusoProject() {
 export async function connectChannel(
   provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
 ): Promise<{ url: string | null; error: string | null }> {
+  const { overview: _overview, ...options } = await cusoProject();
   const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
-    ...(await cusoProject()),
+    ...options,
     body: { action: "connect", provider, callbackUrl: await callbackUrl() },
   });
   if (!data) {
@@ -446,8 +475,9 @@ export async function connectChannel(
 
 /** Finishes a connection after the provider sent the founder back. */
 export async function finalizeChannel(connectionId: string): Promise<boolean> {
+  const { overview: _overview, ...options } = await cusoProject();
   const { error } = await postProjectsByIdSocialConnectionsFinalize({
-    ...(await cusoProject()),
+    ...options,
     body: { connectionId },
   });
   return !error;

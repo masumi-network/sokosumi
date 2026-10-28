@@ -32,6 +32,14 @@ export const marketingStrategyVersionSchema = z
   })
   .openapi("MarketingStrategyVersion");
 
+export const marketingStrategyRequestSchema = z
+  .object({
+    plan: cmoStrategySchema.describe(
+      "The whole plan, with its calendar and any yes/no questions.",
+    ),
+  })
+  .openapi("MarketingStrategyRequest");
+
 export const marketingStrategySchema = marketingStrategyVersionSchema
   .extend({
     plan: cmoStrategySchema.describe(

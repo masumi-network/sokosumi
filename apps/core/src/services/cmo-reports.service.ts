@@ -22,10 +22,14 @@ import {
   chatResultAvailableSchema,
   chatResultSnapshotSchema,
 } from "@/schemas/chat-result-preview.schema";
-import { CmoNotFoundError, requireCuso } from "@/services/cmo-cuso.service";
-import { approveCmoStrategy } from "@/services/cmo-strategy.service";
+import {
+  CmoNotFoundError,
+  requireCuso,
+  startCmoProduction,
+} from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
+  approveMarketingStrategy,
   discardMarketingStrategy,
 } from "@/services/marketing-strategy.service";
 import { setProjectLatestUpdate } from "@/services/project-latest-update";
@@ -166,9 +170,9 @@ export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
 }): Promise<void> {
-  const hire = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso({ userId: input.userId });
   const message = await prisma.chatRoomMessage.findFirst({
-    where: { id: input.updateId, ...cmoReportMessageWhere(hire.sokoBotId) },
+    where: { id: input.updateId, ...cmoReportMessageWhere(cuso.sokoBotId) },
     select: { id: true, createdAt: true, metadata: true },
   });
   const target = message ? readCmoReport(message.metadata) : null;
@@ -177,18 +181,25 @@ export async function revertCmoUpdate(input: {
   }
   if (target.revertedAt) return;
   const written = await prisma.marketingStrategy.findFirst({
-    where: { id: target.versionId, projectId: hire.projectId },
+    where: { id: target.versionId, projectId: cuso.projectId },
     select: { approvedAt: true },
   });
   if (!written) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (written.approvedAt) {
-    await approveCmoStrategy(input.userId, target.previousVersionId);
+    await approveMarketingStrategy({
+      projectId: cuso.projectId,
+      workspaceId: cuso.workspaceId,
+      userId: input.userId,
+      strategyId: target.previousVersionId,
+    });
+    // Already paying: the month put back is made right away.
+    await startCmoProduction(cuso.sokoBotId);
   } else {
     await discardMarketingStrategy({
-      projectId: hire.projectId,
-      workspaceId: hire.workspaceId,
+      projectId: cuso.projectId,
+      workspaceId: cuso.workspaceId,
       userId: input.userId,
       strategyId: target.versionId,
     });

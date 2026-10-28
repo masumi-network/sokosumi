@@ -10,20 +10,20 @@ import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
-  cmoBrandSectionsSaved,
-  parseCmoBrandBrain,
+  brandBrainSectionsSaved,
+  parseBrandBrain,
 } from "@/services/brand-brain.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
   CMO_OUT_OF_CREDITS,
   CmoConflictError,
   type CmoLearningState,
-  CmoNotFoundError,
   type Cuso,
   cmoBusinessNameFromUrl,
   findCusoForBot,
   findCusoForUser,
   ONBOARDING_TURN_PREFIX,
+  requireCuso,
   STRATEGY_TURN_PREFIX,
   settledTurnStatus,
   startCmoProduction,
@@ -79,13 +79,13 @@ function onboardingMessage(input: {
 }
 
 export async function cmoLearningState(
-  hire: Pick<Cuso, "sokoBotId" | "brandBrain">,
+  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoLearningState> {
-  if (parseCmoBrandBrain(hire.brandBrain)) return "done";
+  if (parseBrandBrain(cuso.brandBrain)) return "done";
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: hire.sokoBotId,
+      sokoBotId: cuso.sokoBotId,
       clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
     },
     orderBy: { createdAt: "desc" },
@@ -225,12 +225,12 @@ export function describeCmoStep(
 
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
-  hire: Pick<Cuso, "sokoBotId" | "websiteUrl" | "brandBrain">,
+  cuso: Pick<Cuso, "sokoBotId" | "websiteUrl" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: hire.sokoBotId,
+      sokoBotId: cuso.sokoBotId,
       OR: [
         { clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX } },
         { clientTurnId: { startsWith: STRATEGY_TURN_PREFIX } },
@@ -256,7 +256,7 @@ export async function cmoWork(
     const described = describeCmoStep(
       call.capability,
       call.input,
-      hire.websiteUrl,
+      cuso.websiteUrl,
     );
     if (!described) return [];
     return [
@@ -280,7 +280,7 @@ export async function cmoWork(
     status: await settledTurnStatus(turn, now),
     startedAt: turn.createdAt,
     steps,
-    sectionsSaved: cmoBrandSectionsSaved(hire.brandBrain).length,
+    sectionsSaved: brandBrainSectionsSaved(cuso.brandBrain).length,
     sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
   };
 }
@@ -291,21 +291,19 @@ export async function cmoWork(
  * read from the data, so nothing is stored here.
  */
 export async function completeCmoOnboarding(userId: string): Promise<void> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (!(await approvedMarketingStrategy(hire.projectId))) {
+  const cuso = await requireCuso({ userId });
+  if (!(await approvedMarketingStrategy(cuso.projectId))) {
     throw new CmoConflictError("Approve the strategy first");
   }
-  await startCmoProduction(hire.sokoBotId);
+  await startCmoProduction(cuso.sokoBotId);
 }
 
 /** Starts learning again after a failed or stuck first look. */
 export async function retryCmoOnboarding(
   userId: string,
 ): Promise<{ turnId: string }> {
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const state = await cmoLearningState(hire);
+  const cuso = await requireCuso({ userId });
+  const state = await cmoLearningState(cuso);
   if (state !== "failed") {
     throw new CmoConflictError(
       state === "running"
@@ -314,13 +312,13 @@ export async function retryCmoOnboarding(
     );
   }
   const project = await prisma.project.findUnique({
-    where: { id: hire.projectId },
+    where: { id: cuso.projectId },
     select: { designMdUrl: true },
   });
   if (!project?.designMdUrl) {
-    waitUntil(learnCmoBrandVisual(hire).catch(() => undefined));
+    waitUntil(learnCmoBrandVisual(cuso).catch(() => undefined));
   }
-  return startCmoResearch(hire, userId);
+  return startCmoResearch(cuso, userId);
 }
 
 /**
@@ -328,12 +326,12 @@ export async function retryCmoOnboarding(
  * reruns it per brand.
  */
 export function startCmoResearch(
-  hire: Cuso,
+  cuso: Cuso,
   userId: string,
 ): Promise<{ turnId: string }> {
-  return startCmoTurn(hire, userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${hire.sokoBotId}:${Date.now()}`,
-    message: onboardingMessage(hire),
+  return startCmoTurn(cuso, userId, {
+    clientTurnId: `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
+    message: onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,
   });
 }

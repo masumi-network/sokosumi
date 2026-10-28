@@ -1,6 +1,6 @@
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
-import { parseCmoBrandBrain } from "@/services/brand-brain.service";
+import { parseBrandBrain } from "@/services/brand-brain.service";
 
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
 const BRAND_BLOCK_MAX_CHARS = 1600;
@@ -64,7 +64,7 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
 
 /** The Brand Brain lines a picture can follow: its summary, voice, audience and products. */
 function brandBrainText(body: unknown): string | null {
-  const brain = parseCmoBrandBrain(body);
+  const brain = parseBrandBrain(body);
   if (!brain) return null;
   return clipBrandText(
     [

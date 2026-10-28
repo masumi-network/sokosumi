@@ -56,7 +56,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     work: null,
     brandVisual: null,
     brandMedia: null,
-    brandBrainApprovedAt: null,
+    brandBrainConfirmedAt: null,
     projectLogo: null,
     onboardingStep: "done",
     mockBilling: false,

@@ -139,7 +139,7 @@ type Run = {
 };
 
 /** A hire whose Project's approved version became these Social posts. */
-function hire(posts: MarketingStrategyPost[], runs: Run[] = []) {
+function cuso(posts: MarketingStrategyPost[], runs: Run[] = []) {
   approvedStrategy.mockResolvedValue({
     id: "strategy-1",
     projectId: "project-1",
@@ -306,13 +306,13 @@ describe("advanceCmoProduction", () => {
 
   it("waits until the plan is approved and paid for", async () => {
     isCmoSubscribed.mockResolvedValue(false);
-    const result = await advanceCmoProduction(hire([post({})]), NOW);
+    const result = await advanceCmoProduction(cuso([post({})]), NOW);
     expect(result.state).toBe("waiting");
     expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("never makes a draft: no approved version, no run", async () => {
-    const draftOnly = hire([post({})]);
+    const draftOnly = cuso([post({})]);
     approvedStrategy.mockResolvedValue(null);
     const result = await advanceCmoProduction(draftOnly, NOW);
     expect(result.state).toBe("waiting");
@@ -321,7 +321,7 @@ describe("advanceCmoProduction", () => {
 
   it("starts one background run for the month's Social posts, under Cuso's newest turn", async () => {
     const result = await advanceCmoProduction(
-      hire([post({ id: "a" }), post({ id: "b" })]),
+      cuso([post({ id: "a" }), post({ id: "b" })]),
       NOW,
     );
     expect(result).toMatchObject({ state: "running", ready: 0, total: 2 });
@@ -338,7 +338,7 @@ describe("advanceCmoProduction", () => {
   });
 
   it("reads the runs from Cuso's production turns", async () => {
-    await advanceCmoProduction(hire([post({})]), NOW);
+    await advanceCmoProduction(cuso([post({})]), NOW);
     expect(turnFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -351,7 +351,7 @@ describe("advanceCmoProduction", () => {
 
   it("leaves a working run alone", async () => {
     const result = await advanceCmoProduction(
-      hire(
+      cuso(
         [post({})],
         [{ clientTurnId: `${RUN}:1:0`, status: "RUNNING", createdAt: NOW }],
       ),
@@ -364,7 +364,7 @@ describe("advanceCmoProduction", () => {
   it("counts the month ready when every post is made, from when the run finished", async () => {
     const finished = hoursAgo(1);
     const result = await advanceCmoProduction(
-      hire(
+      cuso(
         [post({ draft: "Done." }), post({ id: "old", status: "published" })],
         [
           {
@@ -388,7 +388,7 @@ describe("advanceCmoProduction", () => {
 
   it("makes what the daily watch adds after the month is made", async () => {
     await advanceCmoProduction(
-      hire(
+      cuso(
         [post({ draft: "Done." }), post({ id: "news" })],
         [
           {
@@ -413,11 +413,11 @@ describe("advanceCmoProduction", () => {
       status: "FAILED",
       createdAt: hoursAgo(n),
     }));
-    const stuck = await advanceCmoProduction(hire([post({})], runs), NOW);
+    const stuck = await advanceCmoProduction(cuso([post({})], runs), NOW);
     expect(stuck.state).toBe("stuck");
     expect(startTurn).not.toHaveBeenCalled();
     const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000);
-    await advanceCmoProduction(hire([post({})], runs), nextDay);
+    await advanceCmoProduction(cuso([post({})], runs), nextDay);
     expect(startTurn).toHaveBeenCalledTimes(1);
   });
 
@@ -430,12 +430,12 @@ describe("advanceCmoProduction", () => {
     const runs = [
       { clientTurnId: `${RUN}:1:1`, status: "COMPLETED", createdAt: NOW },
     ];
-    const stalled = await advanceCmoProduction(hire(posts, runs), NOW);
+    const stalled = await advanceCmoProduction(cuso(posts, runs), NOW);
     expect(stalled.state).toBe("stuck");
     expect(startTurn).not.toHaveBeenCalled();
     // A run that crashed is tried again at once.
     await advanceCmoProduction(
-      hire(posts, [{ ...runs[0]!, status: "FAILED" }]),
+      cuso(posts, [{ ...runs[0]!, status: "FAILED" }]),
       NOW,
     );
     expect(startTurn).toHaveBeenCalledTimes(1);
@@ -443,7 +443,7 @@ describe("advanceCmoProduction", () => {
 
   it("starts afresh for a newly approved version", async () => {
     await advanceCmoProduction(
-      hire(
+      cuso(
         [post({})],
         [
           {

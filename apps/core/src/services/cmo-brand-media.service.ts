@@ -498,32 +498,32 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     "@/services/cmo-cuso.service"
   );
   // The workspace, website and Brand Brain are the Project's (ADR 0062).
-  const hire = await findCusoForBot(sokoBotId);
-  const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
-  if (!hire || !brain.success) return;
+  const cuso = await findCusoForBot(sokoBotId);
+  const brain = cmoBrandBrainSchema.safeParse(cuso?.brandBrain);
+  if (!cuso || !brain.success) return;
   const recent = await prisma.fileProjectLink.findFirst({
     where: {
-      projectId: hire.projectId,
+      projectId: cuso.projectId,
       updatedAt: { gte: new Date(Date.now() - RECAPTURE_AFTER_MS) },
       resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
     },
     select: { id: true },
   });
   if (recent) return;
-  const runnerId = await cmoRunnerUserId(hire);
+  const runnerId = await cmoRunnerUserId(cuso);
   if (!runnerId) return;
   const workspace = await prisma.workspace.findUnique({
-    where: { id: hire.workspaceId },
+    where: { id: cuso.workspaceId },
     select: { organizationId: true },
   });
   if (!workspace) return;
   const drive: Drive = {
-    workspaceId: hire.workspaceId,
+    workspaceId: cuso.workspaceId,
     organizationId: workspace.organizationId,
     userId: runnerId,
-    projectId: hire.projectId,
+    projectId: cuso.projectId,
   };
-  const ownPages = cmoOwnPages(hire.websiteUrl, brain.data);
+  const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data);
   const competitorPages = cmoCompetitorPages(brain.data);
 
   const media = await withBrowser(async (browser: Browser) => {
@@ -533,7 +533,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     }));
     const phone = await capturePage(
       browser,
-      ownPages[0]?.url ?? hire.websiteUrl,
+      ownPages[0]?.url ?? cuso.websiteUrl,
       MOBILE,
     );
     const rivals = await inBatches(competitorPages, async (page) => ({

@@ -5,11 +5,10 @@ import prisma from "@/lib/db/prisma";
 import {
   CmoConflictError,
   CmoForbiddenError,
-  CmoNotFoundError,
   type Cuso,
   cmoPayer,
   findCusoForBot,
-  findCusoForUser,
+  requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
@@ -49,9 +48,9 @@ export function cmoMockBilling(): boolean {
 
 /** The paying organization's CMO Subscription, mock or paid, lets Cuso execute. */
 export async function isCmoSubscribed(
-  hire: Pick<Cuso, "workspaceId">,
+  cuso: Pick<Cuso, "workspaceId">,
 ): Promise<boolean> {
-  return hasActiveCmoSubscription((await cmoPayer(hire)).referenceId);
+  return hasActiveCmoSubscription((await cmoPayer(cuso)).referenceId);
 }
 
 /**
@@ -72,9 +71,9 @@ export async function mayCommitCmo(
 
 export async function requireCmoCommitter(
   userId: string,
-  hire: Pick<Cuso, "workspaceId">,
+  cuso: Pick<Cuso, "workspaceId">,
 ): Promise<void> {
-  const { organizationId } = await cmoPayer(hire);
+  const { organizationId } = await cmoPayer(cuso);
   if (!(await mayCommitCmo(userId, organizationId))) {
     throw new CmoForbiddenError(
       "Only the organization's owners and admins approve Cuso's plan and start his month",
@@ -98,10 +97,9 @@ export async function chooseCmoMockPlan(
   if (!plans.includes(plan)) {
     throw new CmoConflictError(`${plan} is not a CMO plan on this server`);
   }
-  const hire = await findCusoForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  await requireCmoCommitter(userId, hire);
-  const { referenceId } = await cmoPayer(hire);
+  const cuso = await requireCuso({ userId });
+  await requireCmoCommitter(userId, cuso);
+  const { referenceId } = await cmoPayer(cuso);
   const mock = await prisma.subscription.findFirst({
     where: { referenceId, plan: { in: plans }, stripeSubscriptionId: null },
     select: { id: true },
@@ -112,7 +110,7 @@ export async function chooseCmoMockPlan(
   } else {
     await prisma.subscription.create({ data: { referenceId, ...data } });
   }
-  await startCmoProduction(hire.sokoBotId);
+  await startCmoProduction(cuso.sokoBotId);
 }
 
 /**
@@ -125,11 +123,11 @@ export async function cmoExecutionRefusal(input: {
   versionId: string | null;
 }): Promise<string | null> {
   if (getSokoBotVersion(input.versionId).profile !== "cmo") return null;
-  const hire = await findCusoForBot(input.sokoBotId);
-  if (!hire) return null;
+  const cuso = await findCusoForBot(input.sokoBotId);
+  if (!cuso) return null;
   const verdict = cmoMayExecute({
-    approved: (await approvedMarketingStrategy(hire.projectId)) !== null,
-    subscribed: await isCmoSubscribed(hire),
+    approved: (await approvedMarketingStrategy(cuso.projectId)) !== null,
+    subscribed: await isCmoSubscribed(cuso),
   });
   return verdict.ok ? null : verdict.reason;
 }

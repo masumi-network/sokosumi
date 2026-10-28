@@ -275,9 +275,9 @@ import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
-  cmoBrandSectionsSaved,
+  brandBrainSectionsSaved,
   getBrandBrain,
-  parseCmoBrandBrain,
+  parseBrandBrain,
   saveBrandBrain,
 } from "@/services/brand-brain.service";
 import {
@@ -2129,7 +2129,7 @@ export class SokoBotRuntimeService {
       if (comment === null)
         throw new SokoBotRuntimeValidationError("No such comment.");
       const check = await cmoReplySafety({
-        brain: parseCmoBrandBrain(scope.brandBrain),
+        brain: parseBrandBrain(scope.brandBrain),
         comment,
         reply: parsed.reply ?? "",
       });
@@ -4951,7 +4951,7 @@ export class SokoBotRuntimeService {
         })
       : null;
     const brain = bot?.projectId
-      ? parseCmoBrandBrain((await getBrandBrain(bot.projectId))?.body)
+      ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
       : null;
     let mainOffer: CmoPlanOfferVerdict = "skipped";
     if (plan.planSent && brain) {
@@ -5031,7 +5031,7 @@ export class SokoBotRuntimeService {
             return saveBrandBrain(bot.projectId, save, tx);
           });
           if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
-          const stored = parseCmoBrandBrain(saved.body);
+          const stored = parseBrandBrain(saved.body);
           // The owner opens on the reveal and answers the questions next, so
           // essentials without them leave two empty screens.
           const missing = stored
@@ -5044,7 +5044,7 @@ export class SokoBotRuntimeService {
             targetId: saved.id,
             result: {
               saved: "brandBrain",
-              sections: cmoBrandSectionsSaved(saved.body),
+              sections: brandBrainSectionsSaved(saved.body),
               essentials: stored !== null,
               updatedAt: saved.updatedAt?.toISOString(),
               ...(missing.length > 0

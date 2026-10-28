@@ -58,6 +58,10 @@ export const MARKETING_STRATEGY_VERSION_SELECT = {
   approvedByUserId: true,
 } as const satisfies Prisma.MarketingStrategySelect;
 
+export type MarketingStrategyVersion = Prisma.MarketingStrategyGetPayload<{
+  select: typeof MARKETING_STRATEGY_VERSION_SELECT;
+}>;
+
 const NEWEST_FIRST = [
   { createdAt: "desc" },
   { id: "desc" },
@@ -84,11 +88,36 @@ export function newestMarketingStrategy(
   });
 }
 
-export function listMarketingStrategies(projectId: string) {
-  return prisma.marketingStrategy.findMany({
-    where: { projectId },
-    orderBy: [...NEWEST_FIRST],
-    select: MARKETING_STRATEGY_VERSION_SELECT,
+/** A page of versions, newest first, and how many the Project has. */
+export async function listMarketingStrategies(
+  projectId: string,
+  page: { cursor: string | undefined; take: number; skip: number | undefined },
+): Promise<[MarketingStrategyVersion[], number]> {
+  return Promise.all([
+    prisma.marketingStrategy.findMany({
+      where: { projectId },
+      orderBy: [...NEWEST_FIRST],
+      select: MARKETING_STRATEGY_VERSION_SELECT,
+      take: page.take,
+      skip: page.skip,
+      cursor: page.cursor ? { id: page.cursor } : undefined,
+    }),
+    prisma.marketingStrategy.count({ where: { projectId } }),
+  ]);
+}
+
+/** A member's own version: unapproved until an owner or admin approves it. */
+export function createMarketingStrategy(input: {
+  projectId: string;
+  userId: string;
+  plan: CmoStrategy;
+}): Promise<MarketingStrategy> {
+  return prisma.marketingStrategy.create({
+    data: {
+      projectId: input.projectId,
+      authorUserId: input.userId,
+      plan: input.plan,
+    },
   });
 }
 

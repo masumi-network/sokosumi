@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -12,7 +13,8 @@ import {
 } from "@/schemas/marketing-strategy.schema";
 import { getMarketingStrategy } from "@/services/marketing-strategy.service";
 
-import { mapMarketingStrategy, marketingStrategyScope } from "../context";
+import { requireWorkspaceProject } from "../../access";
+import { mapMarketingStrategy } from "../context";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -37,8 +39,9 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
+    const { userId } = await requireAuthorizedUserContext(c.var.authContext);
     const { id, strategyId } = c.req.valid("param");
-    const { projectId } = await marketingStrategyScope(c, id);
+    const { projectId } = await requireWorkspaceProject(c, id, userId);
     const version = await getMarketingStrategy(projectId, strategyId);
     return ok(c, marketingStrategySchema.parse(mapMarketingStrategy(version)));
   });
