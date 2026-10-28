@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, FolderKanban, Layers, X } from "lucide-react";
+import { ArrowLeftRight, FolderKanban, Layers, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
@@ -38,7 +38,11 @@ import {
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
 
-/** The current scope as a name and a mark, for any trigger. */
+/**
+ * The current scope as a name and a mark. The sidebar's title shows the name
+ * alone; the header chip shows both. The mark's glyph names no size: the
+ * chip's box gives it one.
+ */
 export function useCurrentScope() {
   const t = useTranslations("App.ProjectScope");
   const scope = useProjectScopeSwitch();
@@ -46,17 +50,17 @@ export function useCurrentScope() {
   // A project still loading reads as "Project", never as the workspace.
   const name =
     scope.projectId === null
-      ? t("workspaceView")
+      ? t("allProjects")
       : (selectedProject?.name ?? t("label"));
 
   return {
     ...scope,
     name,
-    /** "Project: Acme", for accessible names and the rail tooltip. */
-    label: scope.projectId === null ? name : `${t("label")}: ${name}`,
+    /** "Project: Acme", "Project: All projects", for accessible names. */
+    label: `${t("label")}: ${name}`,
     mark:
       scope.projectId === null ? (
-        <Layers className="size-4 shrink-0" aria-hidden />
+        <Layers className="shrink-0" aria-hidden />
       ) : selectedProject ? (
         <ProjectAvatar
           name={selectedProject.name}
@@ -64,7 +68,7 @@ export function useCurrentScope() {
           className="size-5 shrink-0"
         />
       ) : (
-        <FolderKanban className="size-4 shrink-0" aria-hidden />
+        <FolderKanban className="shrink-0" aria-hidden />
       ),
   };
 }
@@ -105,11 +109,12 @@ export function SidebarScopeMobileChip() {
               onPointerDown={prefetch}
               className="h-11 max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent"
             >
-              <span aria-hidden className="flex shrink-0">
+              {/* The mark's glyph names no size, so this box gives it one. */}
+              <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
                 {mark}
               </span>
               <span className="min-w-0 truncate">{name}</span>
-              <ChevronsUpDown
+              <ArrowLeftRight
                 className="text-muted-foreground size-3.5 shrink-0"
                 aria-hidden
               />

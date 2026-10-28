@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { PerformanceMetric } from "@/components/performance/performance-metric";
 import { cn } from "@/lib/utils";
-import { MetricSparkline } from "./metric-sparkline";
 
 type Headline = {
   current: {
@@ -92,53 +91,24 @@ export function SocialPerformanceOverview({
         {visibleCards.map((card) => {
           const delta = headline.deltas[card.key];
           return (
-            <article key={card.key} className="flex min-w-0 flex-col">
-              <p className="text-muted-foreground mb-1 text-sm">{card.label}</p>
-              <div className="flex flex-col items-start gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
-                <p
-                  className="text-2xl font-semibold tracking-tight whitespace-nowrap tabular-nums sm:text-4xl"
-                  title={
-                    card.value == null
-                      ? t("unavailable")
-                      : format.number(card.value)
-                  }
-                >
-                  {number(card.value, true)}
-                </p>
-                {delta != null ? (
-                  <span
-                    className={cn(
-                      "flex items-center gap-0.5 text-xs font-medium whitespace-nowrap tabular-nums sm:gap-1 sm:text-base",
-                      delta >= 0
-                        ? "text-semantic-success"
-                        : "text-semantic-destructive",
-                    )}
-                    title={t("performance.previousPeriod")}
-                  >
-                    {delta >= 0 ? (
-                      <ArrowUpRight className="size-3 sm:size-4" aria-hidden />
-                    ) : (
-                      <ArrowDownRight
-                        className="size-3 sm:size-4"
-                        aria-hidden
-                      />
-                    )}
-                    {format.number(delta, {
-                      signDisplay: "always",
-                      maximumFractionDigits: 2,
-                    })}
-                  </span>
-                ) : null}
-              </div>
-              <div className="mt-auto">
-                <MetricSparkline
-                  label={t("performance.sparkline", { metric: card.label })}
-                  values={headline.daily.map((day) =>
-                    card.key === "postCount" ? day.postCount : day[card.key],
-                  )}
-                />
-              </div>
-            </article>
+            <PerformanceMetric
+              key={card.key}
+              label={card.label}
+              value={number(card.value, true)}
+              title={
+                card.value == null
+                  ? t("unavailable")
+                  : format.number(card.value)
+              }
+              delta={delta}
+              deltaTitle={t("performance.previousPeriod")}
+              sparkline={{
+                label: t("performance.sparkline", { metric: card.label }),
+                values: headline.daily.map((day) =>
+                  card.key === "postCount" ? day.postCount : day[card.key],
+                ),
+              }}
+            />
           );
         })}
       </div>

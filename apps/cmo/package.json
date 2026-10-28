@@ -21,7 +21,7 @@
     "@sokosumi/core-client": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "@vercel/related-projects": "1.1.1",
-    "better-auth": "1.7.13",
+    "better-auth": "1.7.14",
     "lucide-react": "1.52.0",
     "motion": "14.0.0",
     "next": "16.4.3",

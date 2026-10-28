@@ -21,7 +21,6 @@ import mountList from "./get";
 import mountCreate from "./post";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
@@ -34,13 +33,6 @@ const m = vi.hoisted(() => ({
   deleteMany: vi.fn(),
   transaction: vi.fn(),
 }));
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUnique: m.workspace },
@@ -107,7 +99,6 @@ function app(authenticated = true) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
@@ -129,6 +120,7 @@ beforeEach(() => {
   const tx = {
     newsletterIssue: {
       updateMany: m.updateMany,
+      deleteMany: m.deleteMany,
       findUniqueOrThrow: m.findUniqueOrThrow,
     },
   };
@@ -152,6 +144,31 @@ describe("newsletter issue routes", () => {
         },
       }),
     );
+  });
+
+  it("lists issues delivered or scheduled within a date range", async () => {
+    const from = "2026-10-01T00:00:00.000Z";
+    const to = "2026-11-01T00:00:00.000Z";
+    const response = await app().request(`${BASE}?from=${from}&to=${to}`);
+    expect(response.status).toBe(200);
+    const range = { gte: new Date(from), lt: new Date(to) };
+    expect(m.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          newsletterId: NEWSLETTER_ID,
+          OR: [{ scheduledAt: range }, { scheduledAt: null, sentAt: range }],
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    "from=2026-10-01T00:00:00.000Z",
+    "from=2026-10-01T00:00:00.000Z&to=2026-10-01T00:00:00.000Z",
+    "from=2026-10-01T00:00:00.000Z&to=2027-01-01T00:00:00.000Z",
+  ])("rejects an incomplete or oversized range: %s", async (query) => {
+    expect((await app().request(`${BASE}?${query}`)).status).toBe(422);
+    expect(m.findMany).not.toHaveBeenCalled();
   });
 
   it("creates a draft with validated blocks and a public subject slug", async () => {
@@ -335,26 +352,6 @@ describe("newsletter issue routes", () => {
         ).status,
       ).toBe(422);
     }
-  });
-
-  it("hides every operation while disabled", async () => {
-    m.enabled = false;
-    const server = app();
-    const requests = [
-      server.request(BASE),
-      server.request(BASE, json("POST", INPUT)),
-      server.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`),
-      server.request(
-        `${BASE}/${NEWSLETTER_ISSUE_ID}`,
-        json("PATCH", { subject: "Updated", revision: 0 }),
-      ),
-      server.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`, { method: "DELETE" }),
-    ];
-    expect(
-      (await Promise.all(requests)).map((response) => response.status),
-    ).toEqual([404, 404, 404, 404, 404]);
-    expect(m.project).not.toHaveBeenCalled();
-    expect(m.create).not.toHaveBeenCalled();
   });
 
   it("rejects unauthorized and inaccessible project requests", async () => {

@@ -94,6 +94,7 @@ function overview() {
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
     measurement: [],
+    production: { state: "waiting", ready: 0, total: 0, finishedAt: null },
     mailingListSize: 0,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 12 },

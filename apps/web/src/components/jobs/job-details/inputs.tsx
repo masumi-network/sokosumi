@@ -9,6 +9,7 @@ import { InputType } from "@sokosumi/masumi/types";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -302,8 +303,7 @@ function JobDetailsInputsInner({
                 className={cn(
                   "space-y-4",
                   !open && "max-h-48 overflow-hidden",
-                  shouldFade &&
-                    "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
+                  shouldFade && COLLAPSED_FADE_CLASS,
                 )}
               >
                 {displayInputEntries.map(([key, value]) => {

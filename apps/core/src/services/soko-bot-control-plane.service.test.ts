@@ -14,6 +14,10 @@ import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-p
 import { jevRoute } from "@/test/jev-routes";
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const newsletterDraftAvailableMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/newsletter-draft.service", () => ({
+  isNewsletterDraftAvailable: newsletterDraftAvailableMock,
+}));
 
 const {
   adminActionCreateMock,
@@ -415,6 +419,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
 // Jev answers every classification; tests that need another route script it.
 beforeEach(() => {
   jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+  newsletterDraftAvailableMock.mockResolvedValue(false);
 });
 
 describe("SokoBotControlPlane lifecycle", () => {
@@ -459,6 +464,51 @@ describe("SokoBotControlPlane lifecycle", () => {
         callback(transactionClient()),
     );
   });
+
+  it.each([true, false])(
+    "offers newsletter drafting only when availability passes: %s",
+    async (available) => {
+      newsletterDraftAvailableMock.mockResolvedValue(available);
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "newsletter-turn",
+        leaseToken: "newsletter-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "newsletter-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      const result = await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "newsletter-client",
+        message: "Draft our newsletter",
+      });
+      expect(newsletterDraftAvailableMock).toHaveBeenCalledWith({
+        workspaceId: "workspace_1",
+        projectId: undefined,
+      });
+      expect(result.capabilities.includes("newsletter_draft_issue")).toBe(
+        available,
+      );
+      expect(
+        turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames.includes(
+          "newsletter_draft_issue",
+        ),
+      ).toBe(available);
+    },
+  );
 
   it.each([
     { capability: "create_schedule", route: "MANAGE_WORK", guarded: true },
@@ -2283,7 +2333,11 @@ describe("SokoBotControlPlane lifecycle", () => {
       ?.capabilityNames as string[];
     expect(turnCreateMock.mock.calls[0]?.[0]?.data?.route).toBe("HIRE_AGENT");
     expect(granted).toContain("hire_agent");
-    expect(granted).toEqual([...SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT]);
+    expect(granted).toEqual(
+      SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
+        (capability) => capability !== "newsletter_draft_issue",
+      ),
+    );
   });
 
   it("refuses a bot-asked turn while the owner has paused unprompted work", async () => {

@@ -83,6 +83,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "refresh_social_account_statistics",
   "get_social_post",
   "create_social_post",
+  "newsletter_draft_issue",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -174,6 +175,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "upload_file",
   // Spends credits, and its prompt is the kind of thing a page can inject.
   "generate_image",
+  "newsletter_draft_issue",
   "generate_video",
   "post_chat",
   "open_direct_chat",
@@ -301,6 +303,7 @@ const CONTACT_WRITE_CAPABILITIES = [
 
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
+  "newsletter_draft_issue",
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.

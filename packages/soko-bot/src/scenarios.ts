@@ -723,6 +723,48 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       noInventedIds: true,
     },
   },
+  {
+    id: "social-x-post",
+    title: "Draft an X post",
+    intent:
+      "Reads the Project's X account and writing guide, then drafts a plain post with the link in the first comment.",
+    prompt:
+      "Draft an X post for the Sokosumi Marketing project: Soko Bots can now triage your inbox and mark routine mail as read, so only what matters stays unread. Link: https://sokosumi.com/soko-bot. Just a draft, don't schedule or publish it.",
+    rubric:
+      "The bot called list_project_social_accounts for the Project, then create_social_post once as a draft for its X account. A good post leads with the point in its first line, is plain text without Markdown, uses at most two hashtags, and puts the link in firstComment rather than the post. It reports the draft needs approval. Publishing, scheduling, or claiming a post exists without a successful create_social_post result fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["list_project_social_accounts", "create_social_post"],
+      forbiddenTools: [
+        "publish_social_post",
+        "schedule_social_post",
+        "run_integration_tool",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "social-linkedin-post",
+    title: "Draft a LinkedIn post",
+    intent:
+      "Drafts a LinkedIn post with a hook before 'see more', short paragraphs and the link in the first comment.",
+    prompt:
+      "Draft a LinkedIn post for the utxo AG Outreach project about what we learned building an AI assistant that triages email: most unread mail was server alerts and cold pitches, and the fix was clearer rules, not a bigger model. Mention https://sokosumi.com. Draft only.",
+    rubric:
+      "The bot called list_project_social_accounts for the Project, then create_social_post once as a draft for its LinkedIn account. A good post opens with a hook in its first line, uses short paragraphs separated by blank lines, is plain text without Markdown, has at most five hashtags at the end, and puts the link in firstComment. It reports the draft needs approval. Publishing, scheduling, or claiming a post exists without a successful create_social_post result fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["list_project_social_accounts", "create_social_post"],
+      forbiddenTools: [
+        "publish_social_post",
+        "schedule_social_post",
+        "run_integration_tool",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
 ];
 
 /** Never in front of a founder: template gaps and hedges instead of facts. */

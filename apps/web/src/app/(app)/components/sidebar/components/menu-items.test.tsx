@@ -2,11 +2,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: null, isPending: false }),
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const setOpenMobileMock = vi.fn();
-const openNewTaskWizardMock = vi.fn();
 const { pathnameRef, searchRef } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   searchRef: { current: "" },
@@ -19,14 +17,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-}));
-
-let newTaskWizardValue: {
-  openNewTaskWizard: typeof openNewTaskWizardMock;
-} | null = { openNewTaskWizard: openNewTaskWizardMock };
-
-vi.mock("@/app/components/new-task-wizard-provider", () => ({
-  useOptionalNewTaskWizard: () => newTaskWizardValue,
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -51,48 +41,39 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuButton: ({
     children,
     onClick,
-    tooltip,
     asChild: _asChild,
     isActive: _isActive,
     ...props
   }: {
     children: React.ReactNode;
     onClick?: () => void;
-    tooltip?: string | { children: React.ReactNode };
     asChild?: boolean;
     isActive?: boolean;
   }) => (
-    <>
-      <button type="button" onClick={onClick} {...props}>
-        {children}
-      </button>
-      <span data-testid="menu-tooltip">
-        {typeof tooltip === "string" ? tooltip : tooltip?.children}
-      </span>
-    </>
+    <button type="button" onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
-  // Props ride through: the separator item states on its own `<li>` whether
-  // it survives the collapse to the rail.
+  // Props ride through, so the separator item keeps its own `<li>` markup.
   SidebarMenuItem: ({ children, ...props }: { children: React.ReactNode }) => (
     <li {...props}>{children}</li>
   ),
-  // A marker, not the real bar: how it looks belongs to the primitive that
-  // owns it, and `ui/__tests__/sidebar-rail-selection.test.tsx` pins that.
-  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
-  useSidebar: () => ({
-    isMobile: sidebarIsMobile,
-    setOpenMobile: setOpenMobileMock,
-  }),
+  useSidebar: () => ({ isMobile: sidebarIsMobile }),
 }));
 
 vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    ...props
   }: {
     children: React.ReactNode;
     href: string;
-  }) => <a href={href}>{children}</a>,
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
@@ -105,12 +86,16 @@ function renderMenu(
   hasAssignedSeat = true,
   isMobile = true,
   socialBetaEnabled = false,
+  newsletterEnabled = false,
 ) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems socialBetaEnabled={socialBetaEnabled} />
+        <MenuItems
+          socialBetaEnabled={socialBetaEnabled}
+          newsletterEnabled={newsletterEnabled}
+        />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
@@ -120,7 +105,6 @@ describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -129,24 +113,13 @@ describe("MenuItems", () => {
     expect(screen.queryByRole("link", { name: /history/i })).toBeNull();
   });
 
-  it("opens the New Task wizard in place and closes the mobile sidebar for seated members", () => {
-    renderMenu();
+  // New task is the sidebar header's action (`SidebarNewTaskButton`).
+  it("has no New task row, and no separator under one", () => {
+    const { container } = renderMenu();
 
     expect(screen.queryByRole("link", { name: /newTask/i })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /newTask/i }));
-
-    expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
-  });
-
-  it("links New Task to the Task Manager while the wizard is unavailable", () => {
-    newTaskWizardValue = null;
-    renderMenu();
-
-    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
-      "href",
-      "/tasks?create=true",
-    );
+    expect(screen.queryByRole("button", { name: /newTask/i })).toBeNull();
+    expect(container.querySelector('li[aria-hidden="true"]')).toBeNull();
   });
 
   it("leaves Search to the app header", () => {
@@ -158,10 +131,6 @@ describe("MenuItems", () => {
   it("keeps product destinations when the member has no assigned seat", () => {
     renderMenu(false);
 
-    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
-      "href",
-      "/tasks?create=true",
-    );
     expect(
       screen.getByRole("link", { name: /taskManager/i }),
     ).toBeInTheDocument();
@@ -189,33 +158,6 @@ describe("MenuItems", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Schedules and the studio on desktop", () => {
-    const { container } = renderMenu(true, false);
-    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
-      (element) => element.textContent ?? "",
-    );
-
-    const primaryOrder = [
-      "exploreAgents",
-      "taskManager",
-      "schedules",
-      "contacts",
-      "contentStudio",
-      "social",
-      "drive",
-    ];
-    const positions = primaryOrder.map((label) =>
-      menuLabels.findIndex((text) => text.includes(label)),
-    );
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    expect(screen.getByRole("link", { name: /drive/i })).toHaveAttribute(
-      "href",
-      "/drive",
-    );
-  });
-
   it("orders primary destinations Agents, Tasks, Schedules, Studio", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
@@ -241,6 +183,15 @@ describe("MenuItems", () => {
     expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
 
+  it("names the Social destination Social posts", () => {
+    renderMenu();
+
+    expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
+      "href",
+      "/social",
+    );
+  });
+
   it("shows public Social scoped like the rows above it", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
@@ -254,21 +205,6 @@ describe("MenuItems", () => {
       "href",
       "/social?projectId=project-1",
     );
-  });
-
-  it("puts Social after the studio and before Files", () => {
-    const { container } = renderMenu(true, false, true);
-    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
-      (element) => element.textContent ?? "",
-    );
-
-    const order = ["contentStudio", "social", "drive"];
-    const positions = order.map((label) =>
-      menuLabels.findIndex((text) => text.includes(label)),
-    );
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
   /** The retained beta flag gates Ads only. */
@@ -291,43 +227,7 @@ describe("MenuItems", () => {
     );
   });
 
-  it("puts Ads after Social and before Files", () => {
-    const { container } = renderMenu(true, false, true);
-    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
-      (element) => element.textContent ?? "",
-    );
-
-    const order = ["social", "ads", "drive"];
-    const positions = order.map((label) =>
-      menuLabels.findIndex((text) => text.includes(label)),
-    );
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-  });
-
-  it("keeps the separator under New Task on the collapsed rail", () => {
-    const { container } = render(
-      <TestQueryProvider>
-        <MenuItems />
-      </TestQueryProvider>,
-    );
-    const separator = container.querySelector('li[aria-hidden="true"]');
-
-    // The one action set apart from the destinations under it. It used to be
-    // expanded-only, which made it 17px the rail did not have, so everything
-    // below New Task jumped on a toggle. It is not the hairline between chat
-    // sections that the Rail section header entry rules out (CONTEXT.md).
-    expect(separator).not.toBeNull();
-    expect(separator?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-    expect(separator?.firstElementChild?.className.split(/\s+/)).toContain(
-      "bg-sidebar-border",
-    );
-  });
-
-  it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
+  it("puts each destination's icon in the shared row slot", () => {
     render(
       <TestQueryProvider>
         <MenuItems />
@@ -338,76 +238,202 @@ describe("MenuItems", () => {
     // axis a room's mark does — and the label after it on the same column.
     const slot = link.querySelector('[data-slot="sidebar-row-slot"]');
     expect(slot?.querySelector("svg")).not.toBeNull();
-    const label = slot?.nextElementSibling;
-    expect(label).not.toBeNull();
-    // Shared label class: still in the flow and the accessibility tree.
-    // `absolute` painted the name on the mark; `sr-only` clipped it on
-    // frame one. max-width eases to 0 instead.
-    expect(label?.className.split(/\s+/)).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(label?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:sr-only",
-    );
-    expect(label?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
+    expect(slot?.nextElementSibling).toHaveTextContent("exploreAgents");
+  });
+});
+
+/** The destinations a nav heading folds, in order, by its `aria-controls`. */
+function destinationsUnder(heading: string) {
+  const button = screen.getByRole("button", { name: heading });
+  const group = document.getElementById(
+    button.getAttribute("aria-controls") ?? "",
+  );
+  if (!group) return [];
+  return within(group)
+    .getAllByRole("link")
+    .map((link) => link.textContent);
+}
+
+describe("MenuItems groups", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+    searchRef.current = "";
   });
 
-  it("keeps the New Task pill's inset and padding across the collapse", () => {
-    renderMenu(true, false);
-    const pill = document.querySelector("[data-sidebar-new-task]");
-    // The rail square's own 4px inset and padding, at every width, so the
-    // collapse narrows the pill without sliding its edge.
-    expect(pill?.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(["ml-1", "pl-1", "w-[calc(100%-0.5rem)]"]),
-    );
-    // And the name clips instead of re-ellipsizing on every frame.
-    expect(
-      pill
-        ?.querySelector('[data-slot="sidebar-row-slot"]')
-        ?.nextElementSibling?.className.split(/\s+/),
-    ).toContain("text-clip!");
-  });
+  it("files each destination under its Work, Records or Marketing heading", () => {
+    renderMenu(true, false, true);
 
-  it("gives every menu item its label as a hover hint for the collapsed rail", () => {
-    renderMenu(true, false);
-
-    expect(
-      screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
-    ).toEqual([
-      "newTask",
+    expect(destinationsUnder("groups.work")).toEqual([
+      "home",
       "exploreAgents",
       "taskManager",
       "schedules",
-      "contacts",
+    ]);
+    expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
+    expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
-      "drive",
+      "ads",
+    ]);
+  });
+
+  it("puts the headings in the order Work, Records, Marketing", () => {
+    renderMenu(true, false);
+
+    const headings = screen
+      .getAllByRole("button", { name: /^groups\./ })
+      .map((button) => button.textContent);
+    expect(headings).toEqual([
+      "groups.work",
+      "groups.records",
+      "groups.marketing",
+    ]);
+  });
+
+  it("folds a group from its heading and opens it again", () => {
+    renderMenu(true, false);
+    const heading = screen.getByRole("button", { name: "groups.marketing" });
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(heading);
+
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "social" })).toBeNull();
+    // Only its own rows go.
+    expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
+
+    fireEvent.click(heading);
+
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("link", { name: "contentStudio" }),
+    ).toBeInTheDocument();
+  });
+
+  // The wordmark's link to `/` became this row when the Workspace switcher
+  // took the sidebar header.
+  it("leads Work with Home, a plain link to the home page", () => {
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, false);
+
+    expect(destinationsUnder("groups.work")[0]).toBe("home");
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  // The phone keeps Home on the Sokosumi icon in its top bar.
+  it("groups the phone sheet the same way, without Home", () => {
+    renderMenu(true, true);
+
+    expect(destinationsUnder("groups.work")).toEqual([
+      "exploreAgents",
+      "taskManager",
+      "schedules",
+    ]);
+    // Files stays on the You page there.
+    expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
+    expect(destinationsUnder("groups.marketing")).toEqual([
+      "contentStudio",
+      "social",
     ]);
   });
 });
 
-// Collapsed to icons a nav row is a bare glyph and the neutral fill was
-// carrying hover and selection alike, so you could not tell the open
-// destination from the one under the cursor. Selection moves to the rail's
-// right edge, the same mark an open Chat room gets.
-describe("MenuItems rail selection bar", () => {
+describe("MenuItems newsletter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+    searchRef.current = "";
+  });
+
+  it("leaves Newsletter out of the Instant Nav shell by default", () => {
+    render(
+      <TestQueryProvider>
+        <MenuItems />
+      </TestQueryProvider>,
+    );
+
+    expect(screen.queryByRole("link", { name: "newsletter" })).toBeNull();
+  });
+
+  it("shows Newsletter when enabled independently of the Ads beta", () => {
+    renderMenu(true, false, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "href",
+      "/newsletter",
+    );
+    expect(screen.queryByRole("link", { name: "ads" })).toBeNull();
+  });
+
+  it("carries the selected project to Newsletter", () => {
+    pathnameRef.current = "/studio";
+    searchRef.current = "projectId=project-1";
+    renderMenu(true, true, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "href",
+      "/newsletter?projectId=project-1",
+    );
+  });
+
+  it("files Newsletter under Marketing, after Social and Ads", () => {
+    renderMenu(true, false, true, true);
+
+    expect(destinationsUnder("groups.marketing")).toEqual([
+      "contentStudio",
+      "social",
+      "ads",
+      "newsletter",
+    ]);
+  });
+
+  it.each([
+    "/newsletter",
+    "/newsletter/issues",
+    "/newsletter/issues/issue-1",
+    "/newsletter/subscribers",
+    "/newsletter/settings",
+  ])("marks Newsletter current on %s", (pathname) => {
+    pathnameRef.current = pathname;
+    renderMenu(true, false, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it.each(["/projects/project-1/newsletter", "/newsletter-archive"])(
+    "does not mark Newsletter current on %s",
+    (pathname) => {
+      pathnameRef.current = pathname;
+      renderMenu(true, false, false, true);
+
+      expect(
+        screen.getByRole("link", { name: "newsletter" }),
+      ).not.toHaveAttribute("aria-current");
+    },
+  );
+});
+
+describe("MenuItems current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/";
   });
 
   // A count alone would pass with the mark on the wrong row, which is the one
   // way this can fail without looking broken.
   function markedHrefs() {
-    return screen
-      .getAllByTestId("rail-selection-bar")
-      .map((bar) =>
-        bar.closest("li")?.querySelector("a")?.getAttribute("href"),
-      );
+    return [...document.querySelectorAll('a[aria-current="page"]')].map(
+      (link) => link.getAttribute("href"),
+    );
   }
 
   it("marks exactly the destination the reader is on", () => {
@@ -422,18 +448,23 @@ describe("MenuItems rail selection bar", () => {
     expect(markedHrefs()).toEqual(["/tasks"]);
   });
 
-  // The actions (new task, search) are not destinations, so nothing is open.
-  it("marks nothing on a route no nav item owns", () => {
+  it("marks Home on the home page, and only there", () => {
     pathnameRef.current = "/";
-    renderMenu();
-    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+    renderMenu(true, false);
+    expect(markedHrefs()).toEqual(["/"]);
+  });
+
+  // A route no destination owns has nothing open.
+  it("marks nothing on a route no nav item owns", () => {
+    pathnameRef.current = "/account";
+    renderMenu(true, false);
+    expect(markedHrefs()).toEqual([]);
   });
 });
 
 describe("MenuItems project scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/tasks";
     searchRef.current = "";
   });
@@ -478,26 +509,6 @@ describe("MenuItems project scope", () => {
     );
   });
 
-  it("passes the current project when opening New Task", () => {
-    searchRef.current = "projectId=p-1";
-    renderMenu();
-
-    fireEvent.click(screen.getByRole("button", { name: /newTask/i }));
-
-    expect(openNewTaskWizardMock).toHaveBeenCalledWith({ projectId: "p-1" });
-  });
-
-  it("keeps the current project in the New Task fallback link", () => {
-    searchRef.current = "projectId=p-1";
-    newTaskWizardValue = null;
-    renderMenu();
-
-    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
-      "href",
-      "/tasks?projectId=p-1&create=true",
-    );
-  });
-
   it("keeps the project when navigating from its overview", () => {
     pathnameRef.current = "/projects/p-1";
     renderMenu(true, false);
@@ -506,6 +517,6 @@ describe("MenuItems project scope", () => {
       "href",
       "/tasks?projectId=p-1",
     );
-    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+    expect(document.querySelector('a[aria-current="page"]')).toBeNull();
   });
 });

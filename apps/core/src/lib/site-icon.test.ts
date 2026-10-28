@@ -49,10 +49,28 @@ describe("parseIconCandidates", () => {
     expect(urls(html)).toEqual(["https://example.com/real.png"]);
   });
 
-  it("falls back to og:image when no icon link is declared", () => {
-    expect(urls(`<meta property="og:image" content="/og.png">`)).toEqual([
-      "https://example.com/og.png",
-    ]);
+  it("falls back to a square og:image when no icon link is declared", () => {
+    expect(
+      urls(`
+        <meta property="og:image" content="/og.png">
+        <meta property="og:image:width" content="512">
+        <meta property="og:image:height" content="512">
+      `),
+    ).toEqual(["https://example.com/og.png"]);
+  });
+
+  it("never uses a wide or unsized share card as a logo", () => {
+    // masumi.network: its icon links 404, and the 1920x1080 card cropped to
+    // a square showed a pink block with a dot for a logo.
+    expect(
+      urls(`
+        <meta property="og:image" content="/card.jpg">
+        <meta property="og:image:width" content="1920">
+        <meta property="og:image:height" content="1080">
+        <meta name="twitter:image" content="/card.jpg">
+      `),
+    ).toEqual([]);
+    expect(urls(`<meta property="og:image" content="/og.png">`)).toEqual([]);
   });
 
   it("skips links with no href and unresolvable URLs", () => {
@@ -100,31 +118,12 @@ describe("rankCandidates", () => {
   it("ranks declared icons above the og:image fallback", () => {
     const html = `
       <meta property="og:image" content="/og.png">
+      <meta property="og:image:width" content="400">
+      <meta property="og:image:height" content="400">
       <link rel="icon" sizes="32x32" href="/32.png">
     `;
     expect(urls(html)).toEqual([
       "https://example.com/32.png",
-      "https://example.com/og.png",
-    ]);
-  });
-
-  it("tries the well-known icons before a wide og:image banner", () => {
-    // apple.com declares no icon; its og:image is a 1200x630 banner.
-    const ranked = rankCandidates([
-      ...parseIconCandidates(
-        '<meta property="og:image" content="/og.png">',
-        "https://example.com/",
-      ),
-      {
-        url: "https://example.com/apple-touch-icon.png",
-        size: 180,
-        priority: 1,
-      },
-      { url: "https://example.com/favicon.ico", size: 0, priority: 0 },
-    ]).map((candidate) => candidate.url);
-    expect(ranked).toEqual([
-      "https://example.com/apple-touch-icon.png",
-      "https://example.com/favicon.ico",
       "https://example.com/og.png",
     ]);
   });

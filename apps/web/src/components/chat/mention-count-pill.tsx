@@ -16,8 +16,8 @@ const MENTION_COUNT_CAP = 9;
  *
  * The sidebar has two marks. A muted number says how much is unread, the same
  * way for a channel, a Direct and a Thread. This pill says the reader was
- * named: tinted primary with an `@`, the one spot of colour on a row, matching
- * the collapsed rail's mention pill. A row draws one or the other.
+ * named: tinted primary with an `@`, the one spot of colour on a row. A row
+ * draws one or the other.
  *
  * `text-primary-variant`, not `text-primary`: on the `-quaternary` tint in
  * dark mode `--primary` measures 3.83:1, under the 4.5:1 floor for text this

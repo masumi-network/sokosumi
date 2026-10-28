@@ -828,6 +828,12 @@ model SocialPost {
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
   media        Json    @default("[]")
 
+  quotedPostId         String?      @db.Uuid
+  quotedPost           SocialPost?  @relation("SocialPostQuotes", fields: [quotedPostId], references: [id], onDelete: SetNull)
+  quotingPosts         SocialPost[] @relation("SocialPostQuotes")
+  /// Quote dependency failure. Retained by a SQL delete trigger when the FK is cleared.
+  needsAttentionReason String?
+
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
   /// IANA zone the scheduling human used. Display only.
@@ -849,13 +855,15 @@ model SocialPost {
   scheduledByCoworkerId String?
   scheduledByCoworker   Coworker? @relation("SocialPostScheduledByCoworker", fields: [scheduledByCoworkerId], references: [id], onDelete: Restrict)
 
-  canceledAt          DateTime?
-  publishedAt         DateTime?
-  publishedExternalId String?
-  publishedUrl        String?
+  canceledAt                   DateTime?
+  publishedAt                  DateTime?
+  publishedExternalId          String?
+  publishedUrl                 String?
+  /// In-flight X thread part (1 is the main post). Unconfirmed creates must never be retried blindly.
+  publishingThreadPartPosition Int?
   /// Latest lifetime metrics and refresh state; no history or credentials.
-  statistics          Json?
-  lastError           String?
+  statistics                   Json?
+  lastError                    String?
 
   /// Publish attempts made so far (scheduler and publish-now alike).
   attemptCount   Int       @default(0)
@@ -869,14 +877,17 @@ model SocialPost {
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
-  attempts SocialPostPublishAttempt[]
-  comments SocialComment[]
+  attempts    SocialPostPublishAttempt[]
+  comments    SocialComment[]
+  threadParts SocialPostThreadPart[]
 
   @@index([projectId, status, scheduledAt])
+  @@index([workspaceId, projectId, createdAt, id], map: "social_post_workspaceId_projectId_createdAt_id_idx")
   @@index([status, scheduledAt])
   @@index([status, nextAttemptAt])
   @@index([workspaceId, scheduledAt])
   @@index([socialConnectionId])
+  @@index([quotedPostId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
@@ -925,6 +936,24 @@ model SocialComment {
   @@index([projectId, status])
   @@index([socialPostId])
   @@map("social_comment")
+}
+
+/// Additional X posts in one account's thread; position 1 remains on SocialPost.
+/// The position range CHECK lives in SQL because Prisma cannot express CHECKs.
+model SocialPostThreadPart {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  postId         String     @db.Uuid
+  post           SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  position       Int
+  text           String
+  /// Same Drive attachment shape as SocialPost.media.
+  media          Json       @default("[]")
+  externalPostId String?
+  publishedAt    DateTime?
+  error          String?
+
+  @@unique([postId, position], map: "social_post_thread_part_postId_position_key")
+  @@map("social_post_thread_part")
 }
 
 model SocialPostPublishAttempt {
@@ -2466,40 +2495,40 @@ model CmoHire {
   websiteUrl   String
   goals        String
 
-  brandBrain          Json?
-  brandBrainUpdatedAt DateTime?
+  brandBrain           Json?
+  brandBrainUpdatedAt  DateTime?
   /// The owner approved the Brand Brain; his yes/no questions come next.
   brandBrainApprovedAt DateTime?
   /// Screenshots of the brand's site and its competitors' homepages, and the
   /// pictures on the brand's site, saved to the owner's Files after research.
-  brandMedia          Json?
-  strategy            Json?
-  strategyUpdatedAt   DateTime?
+  brandMedia           Json?
+  strategy             Json?
+  strategyUpdatedAt    DateTime?
   /// The owner approved the strategy: from here Cuso executes on its own.
   /// Cleared when the owner asks for a new strategy.
-  strategyApprovedAt  DateTime?
+  strategyApprovedAt   DateTime?
   /// Strategies Cuso replaced, newest first, so the owner can revert.
-  strategyHistory     Json?
+  strategyHistory      Json?
   /// Cuso's daily, weekly and request reports, newest first (chat cards).
-  updates             Json?
+  updates              Json?
   /// The brand's look, read from the site at signup: logo, colours, fonts.
-  brandVisual         Json?
+  brandVisual          Json?
   /// A CMO tier picked without real billing; counts only while
   /// CMO_MOCK_BILLING is on (local and preview runs).
-  mockPlan            String?
-  mockPlanActivatedAt DateTime?
+  mockPlan             String?
+  mockPlanActivatedAt  DateTime?
   /// The owner connected or skipped the Accounts step, so onboarding resumes
   /// on the plan step.
-  accountsDoneAt      DateTime?
+  accountsDoneAt       DateTime?
   /// The owner finished onboarding (strategy, accounts, plan) and landed in
   /// the chat; until then CMO shows the onboarding steps.
-  onboardedAt         DateTime?
+  onboardedAt          DateTime?
   /// The month's production after payment: which strategy month it makes,
   /// its background runs and when every piece was ready.
-  production          Json?
+  production           Json?
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today); null otherwise.
-  sitePlatform        String?
+  sitePlatform         String?
 
   @@map("cmo_hire")
 }

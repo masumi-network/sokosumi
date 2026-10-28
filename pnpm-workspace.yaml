@@ -16,17 +16,19 @@ fetchRetryMaxtimeout: 120000
 networkConcurrency: 8
 
 overrides:
-  # js-yaml GHSA-52cp-r559-cp3m (quadratic CPU via merge-key chains) and
-  # GHSA-5p4m-2wfm-xmqj (quadratic CPU in !!omap resolution, CVE-2026-59870).
-  # @hey-api/json-schema-ref-parser@1.4.4 still pins js-yaml@4.2.0 (vulnerable).
-  # Patched floor is 4.3.1; pin latest 4.x patch.
+  # js-yaml GHSA-2883-xcg3-v3hh (CVE-2026-84375) patched in 4.3.2;
+  # GHSA-5p4m-2wfm-xmqj patched in 4.3.1; GHSA-52cp-r559-cp3m patched in 4.3.0.
+  # 2026-10-27 re-resolve with overrides removed landed only js-yaml@4.2.0 via
+  # @hey-api/json-schema-ref-parser@1.4.4 (latest; still depends on 4.2.0).
+  # 4.3.2 is the latest 4.x patch. 5.x is a separate major.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c.
-  # After #6555, main still resolves 6.29.0, 7.30.0, and eve's 8.10.2
-  # (an unrelated 8.12.3 copy is already present). No undici override on main.
-  # Patched floors are 6.29.1, 7.30.1, and 8.12.2; pin the latest patch on each line.
-  "undici@6": "6.29.1"
-  "undici@7": "7.30.1"
+  # Patched floors are 6.29.1, 7.30.1, and 8.12.2.
+  # 2026-10-27 re-resolve with overrides removed already landed only
+  # undici@6.29.1 and undici@7.30.1, so those pins were dropped.
+  # undici@8 still landed 8.10.2 from eve@0.83.2 plus an unrelated 8.12.3
+  # from @scalar/json-magic. eve@0.84.0 still declares undici 8.10.2.
+  # Latest 8.x patch is 8.12.3.
   "undici@8": "8.12.3"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. Fresh re-resolve without the override
   # already lands only esbuild@0.28.2 (patched). tsup 9 / tsx ~0.28 / react-email

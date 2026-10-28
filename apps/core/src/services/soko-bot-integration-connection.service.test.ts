@@ -285,6 +285,14 @@ describe("choosing the Composio auth config", () => {
     });
   });
 
+  it("links X through the Project socials auth config when Composio manages none", async () => {
+    mocks.env = { COMPOSIO_X_AUTH_CONFIG_ID: "ac_x" };
+    mocks.listAuthConfigs.mockResolvedValue({ items: [] });
+    await connect("connector", "twitter");
+    expect(linkedAuthConfigId()).toBe("ac_x");
+    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["googleads", "COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID", "ac_google"],
     ["metaads", "COMPOSIO_METAADS_AUTH_CONFIG_ID", "ac_meta"],

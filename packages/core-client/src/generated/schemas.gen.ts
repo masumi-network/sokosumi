@@ -3062,6 +3062,11 @@ export const ChatMessageSignalSchema = {
                     minimum: 0,
                     maximum: 1
                 },
+                announcement: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
                 fyi: {
                     type: 'number',
                     minimum: 0,
@@ -3149,13 +3154,14 @@ export const ChatSignalTagSchema = {
         'commitment',
         'blocker',
         'decisionMade',
+        'announcement',
         'fyi',
         'urgent',
         'chitChat',
         'workRequest',
         'escalation'
     ],
-    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -12823,6 +12829,7 @@ export const ChatCatchUpBucketSchema = {
         'urgent',
         'blocker',
         'decisionMade',
+        'announcement',
         'needsDecision',
         'commitment',
         'workRequest',
@@ -13049,6 +13056,23 @@ export const ChatSkillCatalogItemSchema = {
         'source',
         'description',
         'installs'
+    ]
+} as const;
+
+export const ChatStickerSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url',
+        'name'
     ]
 } as const;
 
@@ -22004,6 +22028,44 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             format: 'uuid'
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        waitingForQuotedPost: {
+            type: 'boolean',
+            description: 'A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post\'s state; no publish attempt is consumed.'
+        },
+        needsAttentionReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
+        },
+        threadPartCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Total posts including the main text/media (1 for a single post).'
+        },
+        publishedThreadPartCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        failedThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1
+        },
+        partiallyPublished: {
+            type: 'boolean',
+            description: 'Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.'
+        },
         provider: {
             type: 'string',
             enum: [
@@ -22145,6 +22207,12 @@ export const SocialPostCalendarItemSchema = {
         'kind',
         'id',
         'postId',
+        'quotedPostId',
+        'needsAttentionReason',
+        'threadPartCount',
+        'publishedThreadPartCount',
+        'failedThreadPartPosition',
+        'partiallyPublished',
         'provider',
         'text',
         'status',
@@ -22355,6 +22423,13 @@ export const NewsletterSchema = {
             type: 'string',
             format: 'uuid'
         },
+        contactListId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
         name: {
             type: 'string'
         },
@@ -22401,6 +22476,7 @@ export const NewsletterSchema = {
         'id',
         'projectId',
         'workspaceId',
+        'contactListId',
         'name',
         'senderName',
         'replyTo',
@@ -22440,6 +22516,257 @@ export const NewsletterBrandSchema = {
             maxLength: 5000
         }
     }
+} as const;
+
+export const NewsletterAnalyticsSchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        totals: {
+            $ref: '#/components/schemas/NewsletterAnalyticsTotals'
+        },
+        subscriberGrowth: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    },
+                    newActive: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    unsubscribed: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    bounced: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    net: {
+                        type: 'integer'
+                    },
+                    runningTotal: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'date',
+                    'newActive',
+                    'unsubscribed',
+                    'bounced',
+                    'net',
+                    'runningTotal'
+                ]
+            }
+        },
+        engagement: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    },
+                    uniqueOpens: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    uniqueClicks: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'date',
+                    'uniqueOpens',
+                    'uniqueClicks'
+                ]
+            }
+        },
+        issuesPagination: {
+            $ref: '#/components/schemas/PaginationMetadata'
+        },
+        issues: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    subject: {
+                        type: 'string'
+                    },
+                    sentAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    sent: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    uniqueOpens: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    uniqueClicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    unsubscribes: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    openRate: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    clickRate: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'id',
+                    'subject',
+                    'sentAt',
+                    'sent',
+                    'uniqueOpens',
+                    'uniqueClicks',
+                    'unsubscribes',
+                    'openRate',
+                    'clickRate'
+                ]
+            }
+        }
+    },
+    required: [
+        'from',
+        'to',
+        'totals',
+        'subscriberGrowth',
+        'engagement',
+        'issuesPagination',
+        'issues'
+    ]
+} as const;
+
+export const NewsletterAnalyticsTotalsSchema = {
+    type: 'object',
+    properties: {
+        sent: {
+            type: 'integer',
+            minimum: 0
+        },
+        delivered: {
+            type: 'integer',
+            minimum: 0
+        },
+        uniqueOpens: {
+            type: 'integer',
+            minimum: 0
+        },
+        uniqueClicks: {
+            type: 'integer',
+            minimum: 0
+        },
+        unsubscribes: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            description: 'Distinct newsletter unsubscribers, including manual changes. Null for an individual issue because unsubscribe links do not identify an issue.'
+        },
+        bounces: {
+            type: 'integer',
+            minimum: 0
+        },
+        complaints: {
+            type: 'integer',
+            minimum: 0
+        },
+        openRate: {
+            type: 'number',
+            minimum: 0,
+            description: 'Unique subscribers who opened / delivered sends; falls back to sent when delivered is zero. Fraction, not percentage.'
+        },
+        clickRate: {
+            type: 'number',
+            minimum: 0,
+            description: 'Unique subscribers who clicked / delivered sends; falls back to sent when delivered is zero. Fraction, not percentage.'
+        },
+        activeSubscribers: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Current active subscribers in this newsletter, independent of date range or issue.'
+        }
+    },
+    required: [
+        'sent',
+        'delivered',
+        'uniqueOpens',
+        'uniqueClicks',
+        'unsubscribes',
+        'bounces',
+        'complaints',
+        'openRate',
+        'clickRate',
+        'activeSubscribers'
+    ]
+} as const;
+
+export const NewsletterIssueAnalyticsSchema = {
+    type: 'object',
+    properties: {
+        totals: {
+            $ref: '#/components/schemas/NewsletterAnalyticsTotals'
+        },
+        topLinks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    uniqueClicks: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'url',
+                    'uniqueClicks'
+                ]
+            }
+        }
+    },
+    required: [
+        'totals',
+        'topLinks'
+    ]
 } as const;
 
 export const NewsletterIssueSchema = {
@@ -22509,6 +22836,12 @@ export const NewsletterIssueSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         approvedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        approvedByName: {
             type: [
                 'string',
                 'null'
@@ -22725,6 +23058,86 @@ export const NewsletterIssueStatusSchema = {
     ]
 } as const;
 
+export const DraftNewsletterIssueRequestSchema = {
+    type: 'object',
+    properties: {
+        brief: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000
+        },
+        useProjectMemory: {
+            type: 'boolean',
+            default: false
+        },
+        useRecentSocialPosts: {
+            type: 'boolean',
+            default: false
+        },
+        template: {
+            type: 'string',
+            enum: [
+                'TEXT',
+                'IMAGES',
+                'BUTTONS'
+            ],
+            default: 'TEXT'
+        },
+        imageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 10,
+            default: []
+        }
+    },
+    required: [
+        'brief'
+    ],
+    additionalProperties: false
+} as const;
+
+export const NewsletterIssueRevisionRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const ScheduleNewsletterIssueRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/NewsletterIssueRevisionRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                timezone: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 100
+                }
+            },
+            required: [
+                'scheduledAt',
+                'timezone'
+            ]
+        }
+    ]
+} as const;
+
 export const CreateNewsletterIssueRequestSchema = {
     type: 'object',
     properties: {
@@ -22895,6 +23308,29 @@ export const NewsletterSubscriberSchema = {
                 'null'
             ]
         },
+        contact: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         status: {
             $ref: '#/components/schemas/NewsletterSubscriberStatus'
         },
@@ -22944,6 +23380,7 @@ export const NewsletterSubscriberSchema = {
         'newsletterId',
         'email',
         'name',
+        'contact',
         'status',
         'source',
         'consentAt',
@@ -22970,7 +23407,8 @@ export const NewsletterSubscriberSourceSchema = {
         'MANUAL',
         'CSV_IMPORT',
         'SIGNUP_FORM',
-        'API'
+        'API',
+        'CONTACTS'
     ]
 } as const;
 
@@ -22988,15 +23426,20 @@ export const AddNewsletterSubscriberRequestSchema = {
             maxLength: 200
         },
         consent: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
+            $ref: '#/components/schemas/NewsletterConsent'
         }
     },
     required: [
         'email',
         'consent'
+    ]
+} as const;
+
+export const NewsletterConsentSchema = {
+    type: 'string',
+    enum: [
+        'CONFIRMED',
+        'ASK'
     ]
 } as const;
 
@@ -23011,6 +23454,18 @@ export const NewsletterImportResultSchema = {
             type: 'integer',
             minimum: 0,
             description: 'Valid rows skipped because the email already exists in the newsletter or CSV.'
+        },
+        skippedUnsubscribed: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedBounced: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingConfirmation: {
+            type: 'integer',
+            minimum: 0
         },
         invalid: {
             type: 'array',
@@ -23036,6 +23491,9 @@ export const NewsletterImportResultSchema = {
     required: [
         'imported',
         'skippedExisting',
+        'skippedUnsubscribed',
+        'skippedBounced',
+        'pendingConfirmation',
         'invalid'
     ]
 } as const;
@@ -23048,14 +23506,77 @@ export const ImportNewsletterSubscribersRequestSchema = {
             maxLength: 5000000
         },
         consent: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
+            $ref: '#/components/schemas/NewsletterConsent'
         }
     },
     required: [
         'csv',
+        'consent'
+    ]
+} as const;
+
+export const NewsletterAddFromContactsResultSchema = {
+    type: 'object',
+    properties: {
+        added: {
+            type: 'integer',
+            minimum: 0
+        },
+        alreadySubscribed: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedUnsubscribed: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedBounced: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedNoEmail: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingConfirmation: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'added',
+        'alreadySubscribed',
+        'skippedUnsubscribed',
+        'skippedBounced',
+        'skippedNoEmail',
+        'pendingConfirmation'
+    ]
+} as const;
+
+export const AddNewsletterSubscribersFromContactsRequestSchema = {
+    type: 'object',
+    properties: {
+        contactIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 1000
+        },
+        listIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 20
+        },
+        consent: {
+            $ref: '#/components/schemas/NewsletterConsent'
+        }
+    },
+    required: [
         'consent'
     ]
 } as const;
@@ -25987,6 +26508,90 @@ export const SocialPostSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             }
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        quotedPost: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostQuotedPost'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        needsAttentionReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
+        },
+        waitingForQuotedPost: {
+            type: 'boolean',
+            description: 'A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post\'s state; no publish attempt is consumed.'
+        },
+        movedQuotes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    scheduledAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'scheduledAt'
+                ]
+            },
+            description: 'Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.'
+        },
+        threadParts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostThreadPart'
+            }
+        },
+        publishingThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 25
+        },
+        threadPartCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Total posts including the main text/media (1 for a single post).'
+        },
+        publishedThreadPartCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        failedThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1
+        },
+        partiallyPublished: {
+            type: 'boolean',
+            description: 'Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.'
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -26006,7 +26611,14 @@ export const SocialPostSchema = {
             example: 'Europe/Zurich'
         },
         socialConnection: {
-            $ref: '#/components/schemas/SocialPostSocialConnection'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostSocialConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         creator: {
             $ref: '#/components/schemas/SocialPostCreator'
@@ -26141,6 +26753,15 @@ export const SocialPostSchema = {
         'text',
         'firstComment',
         'media',
+        'quotedPostId',
+        'quotedPost',
+        'needsAttentionReason',
+        'threadParts',
+        'publishingThreadPartPosition',
+        'threadPartCount',
+        'publishedThreadPartCount',
+        'failedThreadPartPosition',
+        'partiallyPublished',
         'status',
         'scheduledAt',
         'timezone',
@@ -26220,6 +26841,83 @@ export const SocialPostMediaRefSchema = {
     ]
 } as const;
 
+export const SocialPostQuotedPostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SocialPostStatus'
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedExternalId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        account: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostSocialConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        text: {
+            type: 'string'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 1
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'status',
+        'scheduledAt',
+        'timezone',
+        'publishedExternalId',
+        'publishedUrl',
+        'account',
+        'text',
+        'media'
+    ]
+} as const;
+
 export const SocialPostStatusSchema = {
     type: 'string',
     enum: [
@@ -26235,10 +26933,7 @@ export const SocialPostStatusSchema = {
 } as const;
 
 export const SocialPostSocialConnectionSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -26294,6 +26989,59 @@ export const SocialPostSocialConnectionSchema = {
         'avatarUrl',
         'subscriptionType',
         'status'
+    ]
+} as const;
+
+export const SocialPostThreadPartSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        position: {
+            type: 'integer',
+            minimum: 2,
+            maximum: 25
+        },
+        text: {
+            type: 'string'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
+        externalPostId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'position',
+        'text',
+        'media',
+        'externalPostId',
+        'publishedAt',
+        'error'
     ]
 } as const;
 
@@ -26455,7 +27203,8 @@ export const CreateSocialPostRequestSchema = {
         },
         firstComment: {
             type: 'string',
-            example: '#launch'
+            example: '#launch',
+            description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
         media: {
             type: 'array',
@@ -26464,6 +27213,39 @@ export const CreateSocialPostRequestSchema = {
             },
             maxItems: 4,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+        },
+        threadParts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string',
+                        example: 'Shipping the new Calendar today.'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialPostMediaRef'
+                        },
+                        maxItems: 4,
+                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                    }
+                },
+                required: [
+                    'text'
+                ]
+            },
+            maxItems: 24,
+            description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
+        },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Another X post in the same project. Only the thread\'s first part quotes it. Until its X id is confirmed, schedule strictly after its scheduledAt; publish now is unavailable.'
         },
         socialConnectionId: {
             type: 'string',
@@ -26548,7 +27330,8 @@ export const UpdateSocialPostRequestSchema = {
         },
         firstComment: {
             type: 'string',
-            example: '#launch'
+            example: '#launch',
+            description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
         media: {
             type: 'array',
@@ -26558,12 +27341,54 @@ export const UpdateSocialPostRequestSchema = {
             maxItems: 4,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
+        threadParts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string',
+                        example: 'Shipping the new Calendar today.'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialPostMediaRef'
+                        },
+                        maxItems: 4,
+                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                    }
+                },
+                required: [
+                    'text'
+                ]
+            },
+            maxItems: 24,
+            description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
+        },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.'
+        },
         socialConnectionId: {
             type: [
                 'string',
                 'null'
             ],
             format: 'uuid'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
         },
         revision: {
             type: 'integer',
@@ -26617,6 +27442,28 @@ export const ApproveSocialPostRequestSchema = {
         }
     },
     required: [
+        'revision'
+    ]
+} as const;
+
+export const ResumeSocialPostThreadRequestSchema = {
+    type: 'object',
+    properties: {
+        confirmedNotPosted: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'confirmedNotPosted',
         'revision'
     ]
 } as const;
@@ -26971,6 +27818,64 @@ export const PublicNewsletterSchema = {
         'name',
         'senderName',
         'brand'
+    ]
+} as const;
+
+export const PublicNewsletterIssueSummarySchema = {
+    type: 'object',
+    properties: {
+        publicSlug: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sentAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'publicSlug',
+        'subject',
+        'previewText',
+        'sentAt'
+    ]
+} as const;
+
+export const PublicNewsletterIssueSchema = {
+    type: 'object',
+    properties: {
+        subject: {
+            type: 'string'
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sentAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        html: {
+            type: 'string'
+        }
+    },
+    required: [
+        'subject',
+        'previewText',
+        'sentAt',
+        'html'
     ]
 } as const;
 
@@ -31831,6 +32736,49 @@ export const CmoOverviewSchema = {
                             maxItems: 5,
                             default: []
                         },
+                        questions: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    question: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 160
+                                    },
+                                    statement: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    answer: {
+                                        type: 'string',
+                                        enum: [
+                                            'yes',
+                                            'no',
+                                            'unsure'
+                                        ]
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'question',
+                                    'statement'
+                                ]
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
                         calendar: {
                             type: 'array',
                             items: {
@@ -32096,6 +33044,9 @@ export const CmoOverviewSchema = {
             },
             description: 'Where Cuso reads the funnel\'s numbers: Google Analytics, Search Console and Shopify.'
         },
+        production: {
+            $ref: '#/components/schemas/CmoProduction'
+        },
         mailingListSize: {
             type: 'integer'
         },
@@ -32202,6 +33153,7 @@ export const CmoOverviewSchema = {
         'adProviders',
         'connectAdsUrl',
         'measurement',
+        'production',
         'mailingListSize',
         'subscribeUrl',
         'billing',
@@ -32749,6 +33701,44 @@ export const CmoMeasurementSchema = {
         'measures',
         'status'
     ]
+} as const;
+
+export const CmoProductionSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'waiting',
+                'running',
+                'ready',
+                'stuck'
+            ]
+        },
+        ready: {
+            type: 'integer'
+        },
+        total: {
+            type: 'integer'
+        },
+        finishedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'state',
+        'ready',
+        'total',
+        'finishedAt'
+    ],
+    description: 'After payment Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
 
 export const CmoOnboardingRequestSchema = {

@@ -214,7 +214,6 @@ import {
   appendMessage,
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
-  getRoomDisplayName,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -258,6 +257,7 @@ import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
+import { useRoomDisplayName } from "./use-room-display-name";
 
 /** The active organization as a room reads it. */
 export interface RoomWorkspace {
@@ -606,6 +606,7 @@ function RoomView({
   registerRefresh?: MutableRefObject<() => void>;
 }) {
   const t = useTranslations("App.Channels");
+  const roomDisplayName = useRoomDisplayName();
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
@@ -1207,7 +1208,7 @@ function RoomView({
     return selectedRoomIdRef.current === roomId;
   }
   const selectedRoomDisplayName = selectedRoom
-    ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
+    ? roomDisplayName(selectedRoom, currentUserId)
     : "";
   const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 

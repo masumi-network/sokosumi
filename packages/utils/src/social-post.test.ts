@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isXLongPostSubscription,
   SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
@@ -53,6 +54,7 @@ describe("per-provider limits and requirements", () => {
     "allows long X posts for %s accounts",
     (subscriptionType) => {
       expect(socialPostTextLimit("x", subscriptionType)).toBe(25_000);
+      expect(isXLongPostSubscription(subscriptionType)).toBe(true);
     },
   );
 
@@ -60,6 +62,7 @@ describe("per-provider limits and requirements", () => {
     "keeps the default X limit for %s",
     (subscriptionType) => {
       expect(socialPostTextLimit("x", subscriptionType)).toBe(280);
+      expect(isXLongPostSubscription(subscriptionType)).toBe(false);
     },
   );
 

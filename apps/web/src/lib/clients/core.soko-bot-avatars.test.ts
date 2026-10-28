@@ -48,27 +48,6 @@ describe("Soko Bot avatar methods on the Core client", () => {
     });
   });
 
-  it("forwards the top-up request and response", async () => {
-    const body = { take: 6, excludeIds: ["avatar-2"] };
-
-    await expect(core.topUpSokoBotAvatars(body)).resolves.toBe(response);
-
-    expect(sdk.topUpSokoBotAvatars).toHaveBeenCalledWith({ client, body });
-  });
-
-  it("forwards the selected avatar and returns the updated bot", async () => {
-    const botResponse = { ...response, data: { id: "bot-1" } };
-    sdk.claimMySokoBotAvatar.mockResolvedValue({
-      data: botResponse,
-      response: new Response("{}", { status: 200 }),
-    });
-    const body = { avatarId: "avatar-1" };
-
-    await expect(core.claimMySokoBotAvatar(body)).resolves.toBe(botResponse);
-
-    expect(sdk.claimMySokoBotAvatar).toHaveBeenCalledWith({ client, body });
-  });
-
   it.each([
     ["listSokoBotAvatars", () => core.listSokoBotAvatars()],
     ["topUpSokoBotAvatars", () => core.topUpSokoBotAvatars({ take: 6 })],

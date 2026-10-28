@@ -11,17 +11,17 @@ import {
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
   NEWSLETTER_SUBSCRIBER_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import router from "../index";
 
 const m = vi.hoisted(() => {
   const state: {
-    enabled: boolean;
     secret?: string;
     subscriber: NewsletterSubscriber | null;
     events: Prisma.NewsletterEventCreateManyInput[];
-  } = { enabled: true, subscriber: null, events: [] };
+  } = { subscriber: null, events: [] };
   return {
     state,
     findSend: vi.fn(),
@@ -37,7 +37,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.state.enabled,
       RESEND_NEWSLETTER_WEBHOOK_SECRET: m.state.secret,
     }),
   };
@@ -111,7 +110,6 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NEWSLETTER_NOW);
-  m.state.enabled = true;
   m.state.secret = SECRET;
   m.state.subscriber = { ...NEWSLETTER_SUBSCRIBER };
   m.state.events = [];
@@ -139,7 +137,11 @@ beforeEach(() => {
       where,
       data,
     }: {
-      where: { id: string; status: { not: string } };
+      where: {
+        id: string;
+        status: { not: string };
+        OR?: Array<{ bouncedAt: null | { gt: Date } }>;
+      };
       data: {
         status: NewsletterSubscriber["status"];
         bouncedAt?: Date;
@@ -150,7 +152,14 @@ beforeEach(() => {
       if (
         !subscriber ||
         subscriber.id !== where.id ||
-        subscriber.status === where.status.not
+        subscriber.status === where.status.not ||
+        (where.OR &&
+          subscriber.bouncedAt &&
+          !where.OR.some(
+            (condition) =>
+              condition.bouncedAt &&
+              subscriber.bouncedAt! > condition.bouncedAt.gt,
+          ))
       ) {
         return { count: 0 };
       }
@@ -172,6 +181,30 @@ afterEach(() => {
 });
 
 describe("POST /v1/webhooks/resend/newsletter", () => {
+  it.each(["other", null])(
+    "acknowledges but ignores issues in workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      // The send exists, but only outside the beta-scoped lookup.
+      m.findSend.mockImplementation(({ where }) =>
+        !where.issue ||
+        where.issue.project.workspace.organization.slug ===
+          workspace.organization?.slug
+          ? { id: SEND_ID }
+          : null,
+      );
+      const response = await app().request(
+        URL,
+        signedRequest(JSON.stringify(payload("email.complained"))),
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { received: true } });
+      expect(m.createEvents).not.toHaveBeenCalled();
+      expect(m.updateSubscriber).not.toHaveBeenCalled();
+      expect(m.state.subscriber?.status).toBe("ACTIVE");
+    },
+  );
+
   it("verifies the original raw body without session auth", async () => {
     const body = JSON.stringify(
       payload("email.delivered", { subject: "News — hello" }),
@@ -186,7 +219,12 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ data: { received: true } });
     expect(m.findSend).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { providerMessageId: EMAIL_ID } }),
+      expect.objectContaining({
+        where: {
+          providerMessageId: EMAIL_ID,
+          issue: { project: { workspace: { organization: { slug: "utxo" } } } },
+        },
+      }),
     );
     expect(m.state.events).toHaveLength(1);
   });
@@ -249,21 +287,6 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
   it("returns 503 without processing when the secret is missing", async () => {
     m.state.secret = undefined;
     expect((await app().request(URL, signedRequest())).status).toBe(503);
-    expect(m.findSend).not.toHaveBeenCalled();
-    expect(m.transaction).not.toHaveBeenCalled();
-  });
-
-  it("returns 404 before checking the secret, headers or body when disabled", async () => {
-    m.state.enabled = false;
-    m.state.secret = undefined;
-    const response = await app().request(URL, {
-      method: "POST",
-      body: "not-json",
-    });
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({
-      message: "Newsletter is not enabled",
-    });
     expect(m.findSend).not.toHaveBeenCalled();
     expect(m.transaction).not.toHaveBeenCalled();
   });
@@ -336,6 +359,32 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
       expect(m.state.subscriber).toEqual(NEWSLETTER_SUBSCRIBER);
     },
   );
+
+  it("preserves the earliest permanent bounce across repeated and out-of-order reports", async () => {
+    const server = app();
+    for (const [index, at] of [
+      "2026-10-22T10:00:00Z",
+      "2026-10-23T10:00:00Z",
+      "2026-10-21T10:00:00Z",
+    ].entries()) {
+      const event = {
+        ...payload("email.bounced", { bounce: { type: "hard" } }),
+        created_at: at,
+      };
+      expect(
+        (
+          await server.request(
+            URL,
+            signedRequest(JSON.stringify(event), { id: `bounce-${index}` }),
+          )
+        ).status,
+      ).toBe(200);
+      expect(m.state.subscriber?.bouncedAt).toEqual(
+        new Date(index < 2 ? "2026-10-22T10:00:00Z" : "2026-10-21T10:00:00Z"),
+      );
+    }
+    expect(m.state.events).toHaveLength(3);
+  });
 
   it.each(["ACTIVE", "BOUNCED"] as const)(
     "unsubscribes a %s subscriber on complaint",
@@ -428,7 +477,8 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
   ])(
     "retries an early %s event until its send is saved",
     async (type, status) => {
-      m.findSend.mockResolvedValueOnce(null);
+      // Neither the beta-scoped lookup nor the existence check finds it yet.
+      m.findSend.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       const server = app();
       const body = JSON.stringify(
         payload(type, {
@@ -509,7 +559,6 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
       responses: {
         "200": expect.any(Object),
         "401": expect.any(Object),
-        "404": expect.any(Object),
         "503": expect.any(Object),
       },
     });

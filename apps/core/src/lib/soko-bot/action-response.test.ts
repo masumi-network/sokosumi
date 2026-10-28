@@ -60,6 +60,22 @@ describe("action lines the owner reads", () => {
     vi.resetAllMocks();
   });
 
+  it("links a verified newsletter draft to the editor for human review", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "newsletter_draft_issue",
+        targetId: "issue-one",
+        result: { projectId, status: "DRAFT" },
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Drafted newsletter issue for review ([Review draft](/newsletter/issues/issue-one?projectId=${projectId}&draftedBySokoBot=true)).`,
+    );
+    expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",
@@ -1071,6 +1087,59 @@ describe("authoritative action responses", () => {
       }
     },
   );
+
+  it("restates an account's text limit and a post's thread and quote", async () => {
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        receipt({
+          capability: "list_project_social_accounts",
+          result: {
+            enabledProviders: ["x"],
+            accounts: [
+              {
+                id: "account-one",
+                provider: "x",
+                externalHandle: "acme",
+                status: "active",
+                connectedAt: null,
+                disconnectedAt: null,
+                textLimit: 25_000,
+              },
+            ],
+          },
+        }),
+        receipt({
+          capability: "get_social_post",
+          result: {
+            id: "post-one",
+            provider: "x",
+            status: "NEEDS_APPROVAL",
+            text: "Launch",
+            revision: 0,
+            scheduledAt: null,
+            timezone: null,
+            publishedUrl: null,
+            threadPartCount: 3,
+            quotedPostId: "post-zero",
+          },
+        }),
+      ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Done",
+      true,
+      {
+        kind: "REPORT",
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    expect(response.answerText).toContain("Text limit: 25000 characters.");
+    expect(response.answerText).toContain("Thread of 3 posts.");
+    expect(response.answerText).toContain('Quotes post "post-zero".');
+  });
 
   it.each([
     ["list_project_social_accounts", {}],

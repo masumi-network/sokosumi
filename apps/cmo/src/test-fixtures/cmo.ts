@@ -77,6 +77,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     connectChannelUrl: "http://web/social?projectId=project-1",
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
+    production: { state: "waiting", ready: 0, total: 0, finishedAt: null },
     measurement: [
       {
         provider: "google_analytics",

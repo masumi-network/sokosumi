@@ -12,7 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook } from "@/lib/hono";
-import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 
 const EVENT_TYPES = new Map<string, NewsletterEventType>([
   ["email.delivered", "DELIVERED"],
@@ -42,7 +42,6 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(z.object({ received: z.boolean() }), "Received"),
     401: jsonErrorResponse("Invalid webhook signature"),
-    404: jsonErrorResponse("Newsletter is not enabled"),
     422: jsonErrorResponse("Invalid webhook payload"),
     500: jsonErrorResponse("Internal Server Error"),
     503: jsonErrorResponse("Newsletter webhooks are not configured"),
@@ -52,7 +51,6 @@ const route = createRoute({
 const app = new OpenAPIHono({ defaultHook: defaultValidationHook });
 
 app.openapi(route, async (c) => {
-  assertNewsletterEnabled();
   const secret = getEnv().RESEND_NEWSLETTER_WEBHOOK_SECRET;
   if (!secret) {
     throw serviceUnavailable(
@@ -85,7 +83,10 @@ app.openapi(route, async (c) => {
   }
   const { created_at: occurredAt, data } = parsed.data;
   const send = await prisma.newsletterSend.findUnique({
-    where: { providerMessageId: data.email_id },
+    where: {
+      providerMessageId: data.email_id,
+      issue: NEWSLETTER_BETA_SCOPE,
+    },
     select: {
       id: true,
       issueId: true,
@@ -95,7 +96,14 @@ app.openapi(route, async (c) => {
   });
   if (!send) {
     // Resend can notify us before the sender persists the provider message ID.
-    if (data.tags?.category === "newsletter") {
+    // Sends outside the beta workspace exist and are acknowledged without effects.
+    if (
+      data.tags?.category === "newsletter" &&
+      !(await prisma.newsletterSend.findUnique({
+        where: { providerMessageId: data.email_id },
+        select: { id: true },
+      }))
+    ) {
       throw serviceUnavailable("Newsletter send is not available yet");
     }
     return ok(c, { received: true });
@@ -129,6 +137,9 @@ app.openapi(route, async (c) => {
         where: {
           id: send.subscriberId,
           status: { not: "UNSUBSCRIBED" },
+          ...(permanentBounce
+            ? { OR: [{ bouncedAt: null }, { bouncedAt: { gt: occurredAt } }] }
+            : {}),
         },
         data:
           type === "COMPLAINED"

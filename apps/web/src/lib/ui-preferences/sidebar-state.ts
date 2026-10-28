@@ -2,7 +2,7 @@ const SIDEBAR_STATE_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 /**
- * Window width below which the sidebar shows as the rail whatever the stored
+ * Window width below which the sidebar starts hidden whatever the stored
  * preference says: a 14rem panel takes too much of a narrow window, and the
  * content beside it is the reason the window is open.
  *
@@ -54,17 +54,17 @@ export function serializeSidebarStateCookie(open: boolean): string {
 }
 
 /**
- * Pre-paint fixup for the collapsed rail.
+ * Pre-paint fixup for the hidden sidebar.
  *
  * The app shell is a static Instant Nav prerender, so the layout cannot call
- * `cookies()` and every sidebar streams in expanded. `SidebarProvider` restores
+ * `cookies()` and every sidebar streams in shown. `SidebarProvider` restores
  * the preference in `useLayoutEffect`, but that only runs after hydration —
- * seconds after the shell paints — which is the expanded-then-collapse flash.
+ * seconds after the shell paints — which is the shown-then-hidden flash.
  *
- * This runs before paint instead: when the cookie says collapsed — or the
- * window is below `SIDEBAR_COMPACT_BREAKPOINT`, where the rail is the default
- * whatever the cookie says — it rewrites `data-state` / `data-collapsible` on
- * each sidebar as it streams in, so the first frame is already the rail.
+ * This runs before paint instead: when the cookie says hidden — or the window
+ * is below `SIDEBAR_COMPACT_BREAKPOINT`, where hidden is the default whatever
+ * the cookie says — it rewrites `data-state` / `data-collapsible` on each
+ * sidebar as it streams in, so the first frame is already hidden.
  * Hydration lands on the same values, so React never has to correct anything.
  * Only the cookie's own value is read; nothing is persisted here.
  *
