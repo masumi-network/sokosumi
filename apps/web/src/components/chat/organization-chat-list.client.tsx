@@ -564,7 +564,14 @@ export function OrganizationChatList({
           // empty list animates in: `initial={false}` only spares the rows
           // already here when the filter comes on. Hidden while it holds
           // nothing, so it adds no gap.
-          <div className="[&:not(:has(li,[role=status]))]:hidden">
+          <div
+            className={cn(
+              "[&:not(:has(li,[role=status]))]:hidden",
+              // The message is a row of the list above it, not a section: it
+              // takes the row pitch, not the gap that sets sections apart.
+              caughtUp && "-mt-2",
+            )}
+          >
             <AnimatePresence initial={false}>
               {caughtUp ? (
                 // A message, not a row: nothing here opens. The way back to
