@@ -86,8 +86,8 @@ export class RoomTranscriptCache {
 
   constructor(
     readonly client: QueryClient,
-    userId: string,
-    workspaceId: string | null,
+    private readonly userId: string,
+    private readonly workspaceId: string | null,
   ) {
     this.prefix = [
       "room-transcript",
@@ -108,10 +108,7 @@ export class RoomTranscriptCache {
   }
 
   matchesScope(userId: string, workspaceId: string | null) {
-    return (
-      this.prefix[1] === userId &&
-      this.prefix[2] === (workspaceId ?? "personal-workspace")
-    );
+    return this.userId === userId && this.workspaceId === workspaceId;
   }
 
   /**
@@ -119,11 +116,7 @@ export class RoomTranscriptCache {
    * room shows in every workspace (ADR-0059), so the room stays painted.
    */
   forWorkspace(workspaceId: string | null, openRoomId: string | undefined) {
-    const next = new RoomTranscriptCache(
-      this.client,
-      this.prefix[1],
-      workspaceId,
-    );
+    const next = new RoomTranscriptCache(this.client, this.userId, workspaceId);
     const entry = openRoomId ? this.get(openRoomId) : undefined;
     const room = entry?.bootstrap.rooms.find(({ id }) => id === openRoomId);
     if (openRoomId && entry && room && isShownInEveryWorkspace(room)) {

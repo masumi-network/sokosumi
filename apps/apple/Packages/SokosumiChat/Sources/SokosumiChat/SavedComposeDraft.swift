@@ -10,15 +10,32 @@ public struct SavedComposeDraft {
     organizationId: String?,
     roomId: String,
     parentMessageId: String? = nil,
+    formerOrganizationId: String? = nil,
     defaults: UserDefaults = .standard
   ) {
     self.defaults = defaults
+    key = Self.key(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)
+    // A room shown in every workspace (ADR 0059) was keyed by the workspace's Organization before; move that draft once.
+    if organizationId == nil, let formerOrganizationId {
+      moveDraft(from: Self.key(userId: userId, organizationId: formerOrganizationId, roomId: roomId, parentMessageId: parentMessageId))
+    }
+  }
+
+  private static func key(userId: String, organizationId: String?, roomId: String, parentMessageId: String?) -> String {
     // Length prefixes avoid collisions even when identifiers contain separators.
     var parts = [userId, organizationId == nil ? "personal" : "organization", organizationId ?? "", roomId]
     if let parentMessageId {
       parts += ["thread", parentMessageId]
     }
-    key = "sokosumi.composeDraft.v1." + parts.map { "\($0.utf8.count):\($0)" }.joined()
+    return "sokosumi.composeDraft.v1." + parts.map { "\($0.utf8.count):\($0)" }.joined()
+  }
+
+  private func moveDraft(from oldKey: String) {
+    for suffix in ["", ".attachments"] where defaults.object(forKey: key + suffix) == nil {
+      guard let old = defaults.object(forKey: oldKey + suffix) else { continue }
+      defaults.set(old, forKey: key + suffix)
+      defaults.removeObject(forKey: oldKey + suffix)
+    }
   }
 
   func loadAttachments() -> [ComposeAttachment] {

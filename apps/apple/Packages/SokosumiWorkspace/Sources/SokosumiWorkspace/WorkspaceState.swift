@@ -87,7 +87,7 @@ public final class WorkspaceState: ObservableObject {
   /// The workspace a room's drafts are saved under: none for a room shown in every workspace, so its draft is the
   /// same in each of them.
   public func draftOrganizationId(roomId: String) -> String? {
-    rooms.first { $0.id == roomId }?.isShownInEveryWorkspace == true ? nil : selection?.workspace.organizationId
+    rooms.isShownInEveryWorkspace(roomId: roomId) ? nil : selection?.workspace.organizationId
   }
 
   public var currentUserName: String {
@@ -915,7 +915,7 @@ public final class WorkspaceState: ObservableObject {
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), context == compositionContext else { return }
       // A room shown in every workspace is the same room in the new one, so it stays selected (ADR 0059).
-      let kept = rooms.first { $0.id == selectedRoomId && $0.isShownInEveryWorkspace }?.id
+      let kept = selectedRoomId.flatMap { rooms.isShownInEveryWorkspace(roomId: $0) ? $0 : nil }
       sidebar.dropPendingActions()
       archivedChannels.reset()
       pendingInvitations.reset()

@@ -1540,9 +1540,13 @@ struct WorkspaceRealtimeTests {
     #expect(result == .unavailable && presenter.dismissed == ["sokosumi-room:\(roomB)"])
   }
 
-  @Test func openingANotificationSwitchesToItsWorkspace() async throws {
+  /// A room the list does not show yet is read first (web `isRoomShownInEveryWorkspace`): a Channel, or a failed read,
+  /// switches.
+  @Test(arguments: [false, true])
+  func openingANotificationSwitchesToItsWorkspace(roomReadFails: Bool) async throws {
     let (state, _, transport) = try realtimeState(notificationLoadScript + [
       (200, realtimeReadBody(id: roomA)),
+      roomReadFails ? (500, realtimeErrorBody) : (200, realtimeReadBody(id: "550e8400-e29b-41d4-a716-446655440702")),
       (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: ["550e8400-e29b-41d4-a716-446655440702"])),
@@ -1557,7 +1561,30 @@ struct WorkspaceRealtimeTests {
     let operations = transport.operationIDs
     let read = try #require(operations.firstIndex(of: "patch/notifications/{id}/read"))
     let lookup = try #require(operations.firstIndex(of: "get/workspaces/{id}"))
-    #expect(read < lookup)
+    let roomLookup = try #require(operations.firstIndex(of: "get/chats/rooms/{id}"))
+    #expect(read < roomLookup && roomLookup < lookup)
+  }
+
+  /// ADR 0059: an External channel the room list does not show yet (new, or a stale list) still opens in this
+  /// workspace: its own read says it is shown in every workspace.
+  @Test func openingANotificationForAnUnlistedRoomShownInEveryWorkspaceStaysInThisWorkspace() async throws {
+    let external = #""external""#
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA], discoverability: external)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA, discoverability: external)),
+      (500, realtimeErrorBody),
+      (200, realtimeReadBody(id: roomB, discoverability: external)),
+      (200, realtimeRoomsBody(ids: [roomA, roomB], discoverability: external)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB, discoverability: external))
+    ])
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB, workspaceId: acmeWorkspaceId))
+    await waitForRealtimeIdle(state)
+    #expect(result == .opened && state.selectionId == "personal" && state.selectedRoomId == roomB)
+    #expect(transport.operationIDs.contains("get/chats/rooms/{id}"))
+    #expect(!transport.operationIDs.contains("get/workspaces/{id}"))
   }
 
   /// ADR 0059: a Personal Direct or External channel opens in the current workspace; Channels still switch (above).

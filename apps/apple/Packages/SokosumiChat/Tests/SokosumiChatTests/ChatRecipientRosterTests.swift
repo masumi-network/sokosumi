@@ -283,7 +283,7 @@ struct ChatRecipientRosterTests {
     #expect(roster.targets.map(\.id) == [.human("me"), .human("peer"), .coworker("usable"), .sokoBot("bot")])
     #expect(roster.targets.dropFirst().first?.name == "peer@example.com")
     #expect(roster.targets.last?.name == "Personal assistant")
-    #expect(!roster.membersLoadFailed)
+    #expect(!roster.humansLoadFailed)
     #expect(!roster.recipientsLoadFailed)
     let requests = await transport.requests
     let header = try #require(HTTPField.Name("X-Organization-Slug"))
@@ -312,7 +312,7 @@ struct ChatRecipientRosterTests {
     )
     #expect(roster.targets.map(\.id) == [.human("me"), .human("colleague-a"), .human("colleague-b"), .human("guest")])
     #expect(roster.targets.last == .init(id: .human("guest"), name: "Guest", detail: "guest@example.com"))
-    #expect(!roster.membersLoadFailed)
+    #expect(!roster.humansLoadFailed)
     #expect(await transport.requests.allSatisfy { $0.path?.contains("/organizations/") != true })
   }
 
@@ -328,7 +328,7 @@ struct ChatRecipientRosterTests {
     )
     // Web's `peopleLoadFailed`: the people notice shows, AI coworkers and Message yourself stay.
     #expect(roster.targets.map(\.id) == [.human("me"), .coworker("ai")])
-    #expect(roster.membersLoadFailed)
+    #expect(roster.humansLoadFailed)
     #expect(!roster.recipientsLoadFailed)
     let requests = await transport.requests
     #expect(requests.count == 3)
@@ -370,7 +370,7 @@ struct ChatRecipientRosterTests {
     )
     #expect(roster.targets == [.messageYourself(userId: "me", name: "Ada", imageURL: nil)])
     #expect(roster.recipientsLoadFailed)
-    #expect(roster.membersLoadFailed)
+    #expect(roster.humansLoadFailed)
   }
 
   /// Without a reader there is nothing to offer, so the failure stays a failure; a 401 always does, so the

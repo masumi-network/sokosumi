@@ -42,7 +42,10 @@ import SwiftUI
         }
         return false
       }
-      .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: roomId), roomId: roomId))
+      .modifier(ComposerAttachmentPane(
+        userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: roomId),
+        formerOrganizationId: workspaces.selection?.workspace.organizationId, roomId: roomId
+      ))
       .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
       .task(id: input) {
         guard let next = try? await PreparedTranscript.prepare(input, reusing: waitingTranscript ?? preparedTranscript), !Task.isCancelled else { return }
@@ -137,6 +140,7 @@ import SwiftUI
             ChatComposerView(
               userId: workspaces.currentUserId,
               organizationId: workspaces.draftOrganizationId(roomId: roomId),
+              formerOrganizationId: workspaces.selection?.workspace.organizationId,
               roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
               transcriptShown: !transcriptLoading, onAccepted: { followLatest() }
             )

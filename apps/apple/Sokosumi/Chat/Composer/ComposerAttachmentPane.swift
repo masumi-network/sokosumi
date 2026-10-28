@@ -11,9 +11,12 @@
     @StateObject private var ingress = ComposerAttachmentIngress()
     let roomId: String
 
-    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil) {
+    init(userId: String, organizationId: String?, formerOrganizationId: String? = nil, roomId: String, parentMessageId: String? = nil) {
       self.roomId = roomId
-      _uploads = StateObject(wrappedValue: ComposeUploads(savedDraft: SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)))
+      _uploads = StateObject(wrappedValue: ComposeUploads(savedDraft: SavedComposeDraft(
+        userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId,
+        formerOrganizationId: formerOrganizationId
+      )))
     }
 
     private var enabled: Bool {

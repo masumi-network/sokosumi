@@ -3,7 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { directReachableUserWhere } from "@/routes/v1/chats/rooms/helpers";
+import { directReachableUserWhere } from "./helpers";
 
 const url = process.env.DATABASE_URL;
 const enabled =

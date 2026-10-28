@@ -40,7 +40,7 @@ public extension WorkspaceState {
     try? await service.markNotificationRead(client: client, id: target.id)
     guard phase == .ready else { return .unavailable }
     // A room shown in every workspace opens in this one (ADR 0059).
-    if let workspaceId = target.workspaceId, rooms.first(where: { $0.id == target.roomId })?.isShownInEveryWorkspace != true {
+    if let workspaceId = target.workspaceId, await !isShownInEveryWorkspace(roomId: target.roomId, client: client) {
       try await switchWorkspaceIfNeeded(workspaceId: workspaceId, client: client)
       guard phase == .ready else { return .unavailable }
     }
@@ -53,6 +53,16 @@ public extension WorkspaceState {
 }
 
 extension WorkspaceState {
+  /// A room the list does not show yet (a new External channel, a stale list) is read, as web does; a failed read
+  /// counts as not shown everywhere, so the notification switches as before.
+  private func isShownInEveryWorkspace(roomId: String, client: Client) async -> Bool {
+    if rooms.contains(where: { $0.id == roomId }) {
+      return rooms.isShownInEveryWorkspace(roomId: roomId)
+    }
+    let room = try? await service.room(client: client, roomId: roomId, organizationSlug: selection?.workspace.organizationSlug)
+    return room?.isShownInEveryWorkspace == true
+  }
+
   /// A failed lookup navigates without a switch; a failed switch does not
   /// navigate (web `handleNotificationNavigation`).
   private func switchWorkspaceIfNeeded(workspaceId: String, client: Client) async throws {

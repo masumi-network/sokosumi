@@ -125,7 +125,7 @@ struct StartDirectView: View {
       }
     } else {
       VStack(spacing: 8) {
-        if picker.roster.membersLoadFailed {
+        if picker.roster.humansLoadFailed {
           HStack {
             Text(picker.roster.recipientsLoadFailed
               ? "Couldn’t load recipients. You can still message yourself."

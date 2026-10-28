@@ -15,7 +15,7 @@ afterAll(async () => {
 
 const migrationSql = readFileSync(
   new URL(
-    "../../../../../../../packages/database/prisma/migrations/20261028120000_retire_org_directs/migration.sql",
+    "../../../../../../../packages/database/prisma/migrations/20261028142317_retire_org_directs/migration.sql",
     import.meta.url,
   ),
   "utf8",
@@ -28,12 +28,16 @@ const ANA = `ana-${randomUUID()}`;
 const BEN = `ben-${randomUUID()}`;
 const CY = `cy-${randomUUID()}`;
 const BOT = randomUUID();
+const VENDOR = randomUUID();
+const COWORKER = `coworker-${randomUUID()}`;
 const PAIR_KEY = [ANA, BEN].sort().join(":");
 const GROUP_KEY = `direct:v2:${[ANA, BEN, CY]
   .map((id) => `user:${id}`)
   .sort()
   .join(":")}`;
 const BOT_KEY = `sokoBot:${ANA}:${BOT}`;
+const FORMER_KEY = [ANA, CY].sort().join(":");
+const COWORKER_KEY = `coworker:${ANA}:${COWORKER}`;
 
 // Oldest first: the Org1 Direct survives the Personal and Org2 copies.
 const ORG1_PAIR = randomUUID();
@@ -42,6 +46,11 @@ const ORG2_PAIR = randomUUID();
 const ORG1_GROUP = randomUUID();
 const BOT_DIRECT = randomUUID();
 const CHANNEL = randomUUID();
+// Cy left the older Org1 copy; the Personal copy still has Cy.
+const ORG1_FORMER_PAIR = randomUUID();
+const PERSONAL_FORMER_PAIR = randomUUID();
+const ORG1_COWORKER = randomUUID();
+const ORG2_COWORKER = randomUUID();
 
 const at = (minute: number) => new Date(Date.UTC(2026, 9, 1, 12, minute));
 
@@ -68,6 +77,8 @@ async function withDuplicateDirects(
         }
         await tx.$executeRaw`INSERT INTO workspace (id, "organizationId", "updatedAt") VALUES (${WS1}::uuid, ${ORG1}, now())`;
         await tx.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${ANA}, ${WS1}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO vendor (id, name, slug, "updatedAt") VALUES (${VENDOR}::uuid, 'Vendor', ${`vendor-${VENDOR}`}, now())`;
+        await tx.$executeRaw`INSERT INTO coworker (id, slug, name, "vendorId", "updatedAt") VALUES (${COWORKER}, ${COWORKER}, 'Coworker', ${VENDOR}::uuid, now())`;
 
         const rooms: [string, string | null, string, string, number][] = [
           [ORG1_PAIR, ORG1, "direct", PAIR_KEY, 0],
@@ -75,12 +86,19 @@ async function withDuplicateDirects(
           [ORG2_PAIR, ORG2, "direct", PAIR_KEY, 20],
           [ORG1_GROUP, ORG1, "direct", GROUP_KEY, 0],
           [BOT_DIRECT, ORG1, "direct", BOT_KEY, 0],
+          [ORG1_FORMER_PAIR, ORG1, "direct", FORMER_KEY, 0],
+          [PERSONAL_FORMER_PAIR, null, "direct", FORMER_KEY, 10],
+          [ORG1_COWORKER, ORG1, "direct", COWORKER_KEY, 0],
+          [ORG2_COWORKER, ORG2, "direct", COWORKER_KEY, 10],
         ];
         for (const [id, org, kind, key, minute] of rooms) {
           await tx.$executeRaw`INSERT INTO chat_room (id, "organizationId", name, kind, "directKey", "createdByUserId", "createdAt", "updatedAt") VALUES (${id}::uuid, ${org}, 'Direct', ${kind}, ${key}, ${ANA}, ${at(minute)}, ${at(minute)})`;
         }
         await tx.$executeRaw`INSERT INTO chat_room (id, "organizationId", name, slug, kind, discoverability, "createdByUserId", "updatedAt") VALUES (${CHANNEL}::uuid, ${ORG1}, 'general', ${`general-${CHANNEL}`}, 'channel', 'public', ${ANA}, now())`;
         await tx.$executeRaw`INSERT INTO chat_room_soko_bot_member (id, "roomId", "sokoBotId") VALUES (${randomUUID()}::uuid, ${BOT_DIRECT}::uuid, ${BOT}::uuid)`;
+        for (const roomId of [ORG1_COWORKER, ORG2_COWORKER]) {
+          await tx.$executeRaw`INSERT INTO chat_room_coworker_member (id, "roomId", "coworkerId") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${COWORKER})`;
+        }
 
         // An earlier exit already took Cy out of the group.
         const memberships: [string, string][] = [
@@ -94,6 +112,11 @@ async function withDuplicateDirects(
           [ORG1_GROUP, BEN],
           [BOT_DIRECT, ANA],
           [CHANNEL, ANA],
+          [ORG1_FORMER_PAIR, ANA],
+          [PERSONAL_FORMER_PAIR, ANA],
+          [PERSONAL_FORMER_PAIR, CY],
+          [ORG1_COWORKER, ANA],
+          [ORG2_COWORKER, ANA],
         ];
         for (const [roomId, userId] of memberships) {
           await tx.$executeRaw`INSERT INTO chat_room_user_member (id, "roomId", "userId", access, "createdAt") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${userId}, 'member', now())`;
@@ -207,18 +230,51 @@ describe.skipIf(!enabled)("retiring Org Directs against PostgreSQL", () => {
     });
   });
 
+  it("keeps a member of any copy in the merged Direct, even one who left the older Org Direct", async () => {
+    await withDuplicateDirects(async (tx) => {
+      await tx.$executeRawUnsafe(migrationSql);
+
+      expect(await roomsWithKey(tx, FORMER_KEY)).toEqual([
+        { id: ORG1_FORMER_PAIR, organizationId: null },
+      ]);
+      expect(await memberIds(tx, ORG1_FORMER_PAIR)).toEqual([ANA, CY].sort());
+    });
+  });
+
+  it("leaves Coworker 1:1s in their Organizations, unmerged", async () => {
+    await withDuplicateDirects(async (tx) => {
+      await tx.$executeRawUnsafe(migrationSql);
+
+      const rooms = await roomsWithKey(tx, COWORKER_KEY);
+      expect(rooms).toHaveLength(2);
+      expect(rooms).toEqual(
+        expect.arrayContaining([
+          { id: ORG1_COWORKER, organizationId: ORG1 },
+          { id: ORG2_COWORKER, organizationId: ORG2 },
+        ]),
+      );
+    });
+  });
+
   it("keeps Personal Directs on Organization exit, drops its Channels and AI Directs, and restores nothing on rejoin", async () => {
     await withDuplicateDirects(async (tx) => {
       await tx.$executeRawUnsafe(migrationSql);
 
       await tx.$executeRaw`DELETE FROM member WHERE "userId" = ${ANA} AND "organizationId" = ${ORG1}`;
 
-      expect(await roomIdsOf(tx, ANA)).toEqual([ORG1_PAIR, ORG1_GROUP].sort());
+      // Org1's Coworker 1:1 goes with the Channel; Org2's stays.
+      const anaAfterExit = [
+        ORG1_PAIR,
+        ORG1_GROUP,
+        ORG1_FORMER_PAIR,
+        ORG2_COWORKER,
+      ].sort();
+      expect(await roomIdsOf(tx, ANA)).toEqual(anaAfterExit);
       expect(await roomsWithKey(tx, BOT_KEY)).toEqual([]);
 
       await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${ANA}, ${ORG1}, 'member', now())`;
 
-      expect(await roomIdsOf(tx, ANA)).toEqual([ORG1_PAIR, ORG1_GROUP].sort());
+      expect(await roomIdsOf(tx, ANA)).toEqual(anaAfterExit);
     });
   });
 });

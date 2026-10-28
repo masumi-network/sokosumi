@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useState,
 } from "react";
+import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
 import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
@@ -21,10 +22,6 @@ const RoomBootstrapContext = createContext<
 >(null);
 
 const NO_ROOM_KEY = ["room-transcript", "no-room"];
-
-function roomIdFromPath(path: string | null | undefined): string | undefined {
-  return path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
-}
 
 /** Cached room, or the page bootstrap that just registered this room. */
 function roomCanPaint(
@@ -45,7 +42,7 @@ function roomCanPaint(
 export function PersistentRoomView({ children }: { children: ReactNode }) {
   const cache = useRoomCache();
   const path = useRoomSelection();
-  const [registered, setBootstrap] = useState<RoomsClientProps | null>(null);
+  const [registered, setRegistered] = useState<RoomsClientProps | null>(null);
   // A page registered before a workspace switch never paints in the next one.
   const bootstrap =
     registered &&
@@ -83,7 +80,7 @@ export function PersistentRoomView({ children }: { children: ReactNode }) {
   if (nextPaintedId !== paintedId) setPaintedId(nextPaintedId);
   const roomId = cache ? nextPaintedId : requestedId;
   return (
-    <RoomBootstrapContext value={setBootstrap}>
+    <RoomBootstrapContext value={setRegistered}>
       {cache && roomId ? (
         <SelectedRoom key={roomId} roomId={roomId} bootstrap={bootstrap}>
           {children}

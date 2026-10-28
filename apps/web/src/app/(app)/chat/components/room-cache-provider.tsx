@@ -10,6 +10,7 @@ import {
   useEffectEvent,
   useState,
 } from "react";
+import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
 import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
@@ -139,16 +140,11 @@ function RoomCacheSession({
     () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
   if (!cache.matchesScope(currentUserId, workspaceId))
-    setCache(
-      cache.forWorkspace(
-        workspaceId,
-        pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1],
-      ),
-    );
+    setCache(cache.forWorkspace(workspaceId, roomIdFromPath(pathname)));
   useEffect(() => {
     const select = (url: URL) => {
       setNavigation({ pathname, target: url.pathname + url.search });
-      const roomId = url.pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+      const roomId = roomIdFromPath(url.pathname);
       if (!roomId) return;
       cache.prefetch(roomId, () =>
         provisionalRoomBootstrap(roomId, currentUserId, workspaceId),

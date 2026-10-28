@@ -31,7 +31,7 @@ import SwiftUI
       let messages = prepared.map { Array(input.messages.prefix(1)) + $0.overlaying(Array(input.messages.dropFirst())) } ?? []
       ReplyThreadContent(messages: messages, preparedTranscript: prepared,
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
-        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: workspaces.openRoom.room.timeline.roomId ?? ""), roomId: workspaces.openRoom.room.timeline.roomId ?? "", parentMessageId: workspaces.openRoom.thread.parent?.id))
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: workspaces.openRoom.room.timeline.roomId ?? ""), formerOrganizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.openRoom.room.timeline.roomId ?? "", parentMessageId: workspaces.openRoom.thread.parent?.id))
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.openRoom.room.timeline.roomId ?? "", workspaces.openRoom.thread.parent?.id ?? ""])
         .onChange(of: workspaces.openRoom.thread.transcript.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == input {
@@ -231,6 +231,7 @@ import SwiftUI
             ReadOnlyDirectNoticeView(notice: notice)
           } else {
             ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.draftOrganizationId(roomId: parent.roomId),
+                             formerOrganizationId: workspaces.selection?.workspace.organizationId,
                              roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
                              onAccepted: { scroll.followLatest() })
               .id(parent.id)

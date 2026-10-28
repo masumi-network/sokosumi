@@ -11,3 +11,10 @@ public extension Components.Schemas.ChatRoom {
     return organizationId == nil && coworkerMembers.isEmpty && sokoBotMembers.isEmpty
   }
 }
+
+public extension [Components.Schemas.ChatRoom] {
+  /// Whether the listed room with this id shows in every workspace; false when it is not listed.
+  func isShownInEveryWorkspace(roomId: String) -> Bool {
+    first { $0.id == roomId }?.isShownInEveryWorkspace == true
+  }
+}

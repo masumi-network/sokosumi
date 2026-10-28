@@ -117,31 +117,23 @@ const chatRoomUserParticipantSchema = z
   })
   .openapi("ChatRoomUserParticipant");
 
+const personFields = {
+  id: z.string().openapi({ example: "user_123" }),
+  name: z.string().openapi({ example: "Jane Doe" }),
+  email: z.string().openapi({ example: "jane@example.com" }),
+  image: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/avatar.png" }),
+};
+
 /** A human a Direct was started for who is no longer in it. Not a roster entry. */
 const chatRoomFormerUserMemberSchema = z
-  .object({
-    id: z.string().openapi({ example: "user_123" }),
-    name: z.string().openapi({ example: "Jane Doe" }),
-    email: z.string().openapi({ example: "jane@example.com" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/avatar.png" }),
-  })
+  .object(personFields)
   .openapi("ChatRoomFormerUserMember");
 
 /** Someone the reader may start a Personal Direct with (ADR-0059). */
-export const chatPersonSchema = z
-  .object({
-    id: z.string().openapi({ example: "user_123" }),
-    name: z.string().openapi({ example: "Jane Doe" }),
-    email: z.string().openapi({ example: "jane@example.com" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/avatar.png" }),
-  })
-  .openapi("ChatPerson");
+export const chatPersonSchema = z.object(personFields).openapi("ChatPerson");
 
 const chatRoomCoworkerParticipantSchema = z
   .object({

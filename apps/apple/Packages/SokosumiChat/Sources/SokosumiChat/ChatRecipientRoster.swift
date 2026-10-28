@@ -36,14 +36,16 @@ public extension ChatRecipientTarget {
 
 public struct ChatRecipientRoster: Equatable, Sendable {
   public let targets: [ChatRecipientTarget]
-  public let membersLoadFailed: Bool
+  /// The humans could not be loaded: the Organization's members for a Channel, the reader's people for a Direct (web
+  /// `membersLoadFailed` / `peopleLoadFailed`).
+  public let humansLoadFailed: Bool
   /// Nobody but the reader could be loaded, so Message yourself is the one target (web's catch in
   /// `loadChatComposeRosterAction`).
   public let recipientsLoadFailed: Bool
 
-  public init(targets: [ChatRecipientTarget], membersLoadFailed: Bool = false, recipientsLoadFailed: Bool = false) {
+  public init(targets: [ChatRecipientTarget], humansLoadFailed: Bool = false, recipientsLoadFailed: Bool = false) {
     self.targets = targets
-    self.membersLoadFailed = membersLoadFailed
+    self.humansLoadFailed = humansLoadFailed
     self.recipientsLoadFailed = recipientsLoadFailed
   }
 
@@ -81,10 +83,10 @@ public extension ChatService {
       if case ChatServiceError.unauthorized = error {
         throw error
       }
-      return .init(targets: [yourself], membersLoadFailed: true, recipientsLoadFailed: true)
+      return .init(targets: [yourself], humansLoadFailed: true, recipientsLoadFailed: true)
     }
     let others = roster.targets.filter { $0.id != yourself?.id }
-    return .init(targets: (yourself.map { [$0] } ?? []) + others, membersLoadFailed: roster.membersLoadFailed)
+    return .init(targets: (yourself.map { [$0] } ?? []) + others, humansLoadFailed: roster.humansLoadFailed)
   }
 
   /// The Channel roster: the active Organization's members, its coworkers and the reader's assistant.
@@ -102,7 +104,7 @@ public extension ChatService {
     async let members = humans()
     let (people, agents, assistant) = try await (members, coworkers, bot)
     try Task.checkCancellation()
-    return ChatRecipientRoster(targets: people.targets + agents + assistant, membersLoadFailed: people.membersLoadFailed)
+    return ChatRecipientRoster(targets: people.targets + agents + assistant, humansLoadFailed: people.humansLoadFailed)
   }
 
   private func chatCoworkers(client: Client, organizationSlug: String?) async throws -> [ChatRecipientTarget] {
@@ -149,7 +151,7 @@ public extension ChatService {
     }
   }
 
-  /// People failing leaves AI recipients usable (`membersLoadFailed`); a 401 still ends the session.
+  /// People failing leaves AI recipients usable (`humansLoadFailed`); a 401 still ends the session.
   private func softHumans(_ load: () async throws -> [ChatRecipientTarget]) async throws -> ChatRecipientRoster {
     do {
       let targets = try await load()
@@ -160,7 +162,7 @@ public extension ChatService {
       if case .unauthorized = error {
         throw error
       }
-      return .init(targets: [], membersLoadFailed: true)
+      return .init(targets: [], humansLoadFailed: true)
     }
   }
 }
