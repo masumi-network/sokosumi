@@ -768,8 +768,8 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("creates a direct room with 201, then returns existing with 200", async () => {
-    const created = directRoom();
+  it("creates a Personal Direct from an Organization workspace with 201, then returns it with 200", async () => {
+    const created = directRoom({ organizationId: null });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
 
@@ -787,14 +787,14 @@ describe("POST /chats/rooms", () => {
     const createdBody = await createResponse.json();
     expect(createdBody.data.kind).toBe("direct");
     expect(createdBody.data.id).toBe(ROOM_ID);
-    expect(createdBody.data.organizationId).toBe(ORG_ID);
+    expect(createdBody.data.organizationId).toBeNull();
     expect(userFindManyMock).toHaveBeenCalled();
     expect(coworkerFindManyMock).not.toHaveBeenCalled();
     expect(sokoBotFindManyMock).not.toHaveBeenCalled();
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          organizationId: ORG_ID,
+          organizationId: null,
           kind: "direct",
           slug: null,
         }),
@@ -1241,6 +1241,7 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          organizationId: null,
           kind: "direct",
           slug: null,
           directKey: GROUP_DIRECT_KEY,
@@ -1515,15 +1516,13 @@ describe("POST /chats/rooms", () => {
   });
 
   it("re-reads and returns 200 when a directKey unique race wins", async () => {
-    const existing = directRoom();
+    const existing = directRoom({ organizationId: null });
     roomFindFirstMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(existing);
     roomCreateMock.mockRejectedValue({
       code: "P2002",
-      meta: { target: ["organizationId", "directKey"] },
+      meta: { target: ["directKey"] },
     });
 
     const app = createApp(userAuthContext);
@@ -1539,11 +1538,11 @@ describe("POST /chats/rooms", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.id).toBe(ROOM_ID);
-    expect(roomFindFirstMock).toHaveBeenCalledTimes(4);
+    expect(roomFindFirstMock).toHaveBeenCalledTimes(2);
     expect(roomFindFirstMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          organizationId: ORG_ID,
+          organizationId: null,
           directKey: DIRECT_KEY,
         }),
       }),

@@ -1805,35 +1805,6 @@ export async function usersShareExternalChannel(
   return room != null;
 }
 
-export async function findLiveDirectByParticipantKey(
-  tx: Prisma.TransactionClient | typeof prisma,
-  directKey: string,
-  organizationId: string | null,
-) {
-  const personal = await tx.chatRoom.findFirst({
-    where: {
-      organizationId: null,
-      directKey,
-      archivedAt: null,
-    },
-    include: chatRoomInclude,
-  });
-  if (personal) {
-    return personal;
-  }
-  if (!organizationId) {
-    return null;
-  }
-  return tx.chatRoom.findFirst({
-    where: {
-      organizationId,
-      directKey,
-      archivedAt: null,
-    },
-    include: chatRoomInclude,
-  });
-}
-
 /**
  * Org room → org Workspace. Personal room → personal workspace of the acting
  * human (membership) / message sender (dispatch). Fail closed if missing.
@@ -2327,9 +2298,8 @@ function parseDirectCreateShape(params: {
  * room instead of racing into duplicates.
  *
  * Coworker 1:1 inherits the active organization when set, else personal.
- * Human 1:1 reuses a Personal Direct if one exists, else an Org Direct when
- * both are Members of the active org, else creates a Personal Direct when
- * they share an External channel. Multi-human groups stay org-scoped.
+ * Every human Direct (1:1 or group) is a Personal Direct, reused by its
+ * participant key whichever workspace is active (ADR-0059).
  */
 /**
  * Self Direct has only the current user and is always personal.
@@ -2559,12 +2529,13 @@ export async function createOrGetDirectRoom(params: {
         coworkerIds: [],
       });
       directKeyRef.current = directKey;
+      // Human Directs are Personal Directs: never tied to an Organization (ADR-0059).
+      createOrganizationIdRef.current = null;
 
-      const existing = await findLiveDirectByParticipantKey(
-        tx,
+      const existing = await findOrRestoreDirectByKey(tx, {
+        organizationId: null,
         directKey,
-        targetsAreOrgTeammates ? activeOrganizationId : null,
-      );
+      });
       if (existing) {
         return { room: existing, created: false };
       }
@@ -2586,15 +2557,10 @@ export async function createOrGetDirectRoom(params: {
         }
       }
 
-      const organizationId = targetsAreOrgTeammates
-        ? activeOrganizationId
-        : null;
-      createOrganizationIdRef.current = organizationId;
-
       return createDirectRoomRecord({
         tx,
         currentUserId,
-        organizationId,
+        organizationId: null,
         directKey,
         memberUserIds,
         coworkerIds: [],
@@ -2617,17 +2583,10 @@ export async function createOrGetDirectRoom(params: {
     if (params.transaction) throw error;
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
-      const existing =
-        shape.kind !== "human-direct"
-          ? await findOrRestoreDirectByKey(prisma, {
-              organizationId: createOrganizationIdRef.current,
-              directKey: directKeyRef.current,
-            })
-          : await findLiveDirectByParticipantKey(
-              prisma,
-              directKeyRef.current,
-              createOrganizationIdRef.current,
-            );
+      const existing = await findOrRestoreDirectByKey(prisma, {
+        organizationId: createOrganizationIdRef.current,
+        directKey: directKeyRef.current,
+      });
 
       if (existing) {
         const room =

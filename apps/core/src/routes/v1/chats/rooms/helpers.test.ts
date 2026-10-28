@@ -11,10 +11,8 @@ import {
   buildDirectRoomName,
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
-  chatRoomInclude,
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
-  findLiveDirectByParticipantKey,
   getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
   loadFormerDirectUserMembers,
@@ -1342,55 +1340,6 @@ describe("mapChatRoom room read receipts", () => {
 
     expect(mapped.coworkerMembers[0]).not.toHaveProperty("lastReadAt");
     expect(mapped.sokoBotMembers[0]).not.toHaveProperty("lastReadAt");
-  });
-});
-
-describe("findLiveDirectByParticipantKey", () => {
-  const DIRECT_KEY = "direct:v2:user:member-1:user:guest-1";
-
-  it("returns the Personal Direct and skips the org lookup", async () => {
-    const personal = { id: "personal-dm", organizationId: null };
-    const findFirst = vi.fn().mockResolvedValueOnce(personal);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, ORG_ID),
-    ).resolves.toEqual(personal);
-    expect(findFirst).toHaveBeenCalledOnce();
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        organizationId: null,
-        directKey: DIRECT_KEY,
-        archivedAt: null,
-      },
-      include: chatRoomInclude,
-    });
-  });
-
-  it("returns null when neither Personal nor Org Direct exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, ORG_ID),
-    ).resolves.toBeNull();
-    expect(findFirst).toHaveBeenCalledTimes(2);
-  });
-
-  it("returns null without an org lookup when there is no Personal Direct and no org", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, null),
-    ).resolves.toBeNull();
-    expect(findFirst).toHaveBeenCalledOnce();
   });
 });
 
