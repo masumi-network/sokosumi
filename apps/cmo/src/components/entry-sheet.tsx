@@ -65,9 +65,11 @@ export function EntrySheet({
             {formatName(entry.channel, entry.format)}
             {formatHasVideo(entry.channel, entry.format)
               ? " · video by Cuso"
-              : formatHasImage(entry.channel, entry.format)
-                ? " · image by Cuso"
-                : ""}
+              : media?.slides
+                ? ` · ${media.slides.length} images by Cuso`
+                : formatHasImage(entry.channel, entry.format)
+                  ? " · image by Cuso"
+                  : ""}
           </span>
           <button
             type="button"
@@ -97,6 +99,17 @@ export function EntrySheet({
             preload="metadata"
             aria-label={`Video for ${entry.title}`}
           />
+        ) : media?.slides ? (
+          <ol className="sheet-slides" aria-label={`Slides for ${entry.title}`}>
+            {media.slides.map((slide, index) => (
+              <li key={slide}>
+                <img
+                  src={slide}
+                  alt={`Slide ${index + 1} of ${media.slides?.length}`}
+                />
+              </li>
+            ))}
+          </ol>
         ) : media?.kind === "image" ? (
           <img className="sheet-media" src={media.url} alt={entry.title} />
         ) : null}

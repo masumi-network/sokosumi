@@ -25,12 +25,16 @@ const webp = ref({
 });
 
 describe("validateSocialPostMedia platform limits", () => {
-  it("rejects a second Instagram image", () => {
-    expect(validateSocialPostMedia("instagram", [jpeg])).toEqual({ ok: true });
+  it("takes up to ten Instagram images, published as a carousel", () => {
     expect(validateSocialPostMedia("instagram", [jpeg, jpeg])).toEqual({
-      ok: false,
-      reason: "too_many_images",
+      ok: true,
     });
+    expect(
+      validateSocialPostMedia(
+        "instagram",
+        Array.from({ length: 11 }, () => jpeg),
+      ),
+    ).toEqual({ ok: false, reason: "too_many_images" });
   });
 
   it("accepts webp on Facebook and X, not LinkedIn", () => {

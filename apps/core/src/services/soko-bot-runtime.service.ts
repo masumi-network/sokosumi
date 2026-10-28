@@ -2180,17 +2180,23 @@ export class SokoBotRuntimeService {
         );
       throw error;
     }
+    const referenceFileIds = await this.imageReferenceFiles(
+      authorized,
+      input.referenceFileIds ?? [],
+    );
     await ensureImageCatalogFresh();
     const model = imageModel();
     const settings: ImageJobSettings = {
       ...DEFAULT_SETTINGS,
+      // Every network takes a JPEG; Instagram takes nothing else.
+      ...(model.outputFormats.includes("jpeg") ? { outputFormat: "jpeg" } : {}),
       ...(aspectRatio.data ? { aspectRatio: aspectRatio.data } : {}),
     };
     let credits: number;
     try {
       credits = creditsPerImage(
         model,
-        resolveImageSettings(model.id, settings, 0),
+        resolveImageSettings(model.id, settings, referenceFileIds.length),
       );
     } catch (error) {
       throw new SokoBotRuntimeValidationError(
@@ -2201,7 +2207,33 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeValidationError(
         `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
       );
-    return { input, model, settings, credits };
+    return { input, model, settings, credits, referenceFileIds };
+  }
+
+  /** Reference Files for an image: image Files the owner may open, in order. */
+  private async imageReferenceFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    ids: string[],
+  ): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: ids,
+    });
+    for (const id of ids) {
+      const file = files.find((candidate) => candidate.id === id);
+      if (
+        !file ||
+        file.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
+        !file.mimeType?.startsWith("image/")
+      )
+        throw new SokoBotRuntimeValidationError(
+          `File ${id} is not an image in the owner's Files; use a picture id from brandPictures, list_files or get_image`,
+        );
+    }
+    return ids;
   }
 
   /** Starts an image in a Project's Content Studio, once checked. */
@@ -2212,15 +2244,14 @@ export class SokoBotRuntimeService {
   ) {
     // Checked again here, after the reservation: a price or access change
     // since the preflight still refuses before anything is sent.
-    const { input, model, settings, credits } = await this.checkImageRequest(
-      authorized,
-      raw,
-      toolCallId,
-    ).catch((error: unknown) => {
-      throw new SokoBotImageRefusedError(
-        error instanceof Error ? error.message : "Image refused",
+    const { input, model, settings, credits, referenceFileIds } =
+      await this.checkImageRequest(authorized, raw, toolCallId).catch(
+        (error: unknown) => {
+          throw new SokoBotImageRefusedError(
+            error instanceof Error ? error.message : "Image refused",
+          );
+        },
       );
-    });
     const studioUrl = studioLink(input.projectId);
     let job: Awaited<ReturnType<typeof createImageJob>>;
     try {
@@ -2233,6 +2264,7 @@ export class SokoBotRuntimeService {
         modelId: model.id,
         settings,
         referenceAssetIds: [],
+        referenceFileIds,
         parentAssetId: null,
         idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
       });

@@ -242,6 +242,8 @@ export const cmoOverviewSchema = z
           entryId: z.string(),
           kind: z.enum(["image", "video"]),
           url: z.string(),
+          /** A carousel's slides in order, the cover first. */
+          slides: z.array(z.string()).optional(),
         }),
       )
       .describe(

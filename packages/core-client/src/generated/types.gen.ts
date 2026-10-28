@@ -9123,6 +9123,7 @@ export type CmoOverview = {
             why?: string;
             socialPostId?: string;
             imageFileId?: string;
+            slideFileIds?: Array<string>;
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -9143,6 +9144,7 @@ export type CmoOverview = {
         entryId: string;
         kind: 'image' | 'video';
         url: string;
+        slides?: Array<string>;
     }>;
     strategyUpdatedAt: Date | null;
     strategyApprovedAt: Date | null;

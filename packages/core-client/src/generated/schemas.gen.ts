@@ -27232,7 +27232,7 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
+            maxItems: 10,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         threadParts: {
@@ -27249,7 +27249,7 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 4,
+                        maxItems: 10,
                         description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
                     }
                 },
@@ -27359,7 +27359,7 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
+            maxItems: 10,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         threadParts: {
@@ -27376,7 +27376,7 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 4,
+                        maxItems: 10,
                         description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
                     }
                 },
@@ -32871,6 +32871,14 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    slideFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 10
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -32994,6 +33002,12 @@ export const CmoOverviewSchema = {
                     },
                     url: {
                         type: 'string'
+                    },
+                    slides: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
                     }
                 },
                 required: [

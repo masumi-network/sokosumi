@@ -305,7 +305,7 @@ vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   rateAgentFit: marketplace.rate,
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
-  imageModel: () => ({ id: "gemini-flash" }),
+  imageModel: () => ({ id: "gemini-flash", outputFormats: ["png", "jpeg"] }),
   resolveImageSettings: (_id: string, settings: unknown) => settings,
 }));
 vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
@@ -8038,6 +8038,57 @@ describe("Content Studio image tools", () => {
       credits: 4,
       studioUrl: "/studio?projectId=project-1",
     });
+  });
+
+  it("makes a JPEG and sends the owner's product photos as references", async () => {
+    const photo = "11111111-1111-4111-8111-111111111111";
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: photo,
+        displayName: "leggings.jpg",
+        mimeType: "image/jpeg",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/leggings.jpg",
+      },
+    ]);
+    images.create.mockResolvedValue({ id: "job-2", status: "QUEUED" });
+    await generate(
+      ownerChat,
+      { ...request, referenceFileIds: [photo] },
+      "call-ref",
+    );
+    expect(images.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceFileIds: [photo],
+        settings: expect.objectContaining({ outputFormat: "jpeg" }),
+      }),
+    );
+  });
+
+  it("refuses a reference that is not an image in the owner's Files", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        displayName: "notes.md",
+        mimeType: "text/markdown",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/notes.md",
+      },
+    ]);
+    await expect(
+      generate(
+        ownerChat,
+        {
+          ...request,
+          referenceFileIds: [
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+          ],
+        },
+        "call-bad-ref",
+      ),
+    ).rejects.toThrow("is not an image in the owner's Files");
+    expect(images.create).not.toHaveBeenCalled();
   });
 
   it("declines an image that costs more than it may spend", async () => {

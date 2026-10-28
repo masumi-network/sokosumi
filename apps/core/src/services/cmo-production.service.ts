@@ -57,7 +57,11 @@ const PIECES_PER_RUN = 40;
 
 const RUN_ACTIVE = new Set(["STARTING", "RUNNING", "CANCEL_REQUESTED"]);
 
-type Format = { image: boolean; video?: boolean };
+type Format = {
+  image: boolean;
+  video?: boolean;
+  slides?: readonly [number, number];
+};
 type Channel = { group: string; formats: Record<string, Format> };
 
 function channelOf(key: string): Channel | undefined {
@@ -72,6 +76,24 @@ export function cmoPieceNeedsMedia(
   return Boolean(format?.image || format?.video);
 }
 
+/** The fewest slides a carousel format needs; 0 for a single-image format. */
+export function cmoPieceMinSlides(
+  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+): number {
+  return channelOf(entry.channel)?.formats[entry.format]?.slides?.[0] ?? 0;
+}
+
+/** Every picture a piece shows: its cover and, for a carousel, each slide. */
+function pieceFiles(entry: CmoCalendarEntry): string[] {
+  if (!cmoPieceNeedsMedia(entry)) return [];
+  return [
+    ...new Set([
+      ...(entry.imageFileId ? [entry.imageFileId] : []),
+      ...(entry.slideFileIds ?? []),
+    ]),
+  ];
+}
+
 /**
  * A finished piece: its words are written, its picture is made when the
  * format has one, and on a connected network it is a scheduled post.
@@ -83,6 +105,8 @@ export function cmoPieceReady(
   if (entry.status === "published" || entry.status === "skipped") return true;
   if (!entry.draft?.trim()) return false;
   if (cmoPieceNeedsMedia(entry) && !entry.imageFileId) return false;
+  if (new Set(entry.slideFileIds ?? []).size < cmoPieceMinSlides(entry))
+    return false;
   const social = channelOf(entry.channel)?.group === "social";
   if (social && connected.has(entry.channel) && !entry.socialPostId)
     return false;
@@ -102,9 +126,9 @@ export function cmoReadyPieceIds(
   const ready = new Set<string>();
   for (const entry of pieces) {
     if (!cmoPieceReady(entry, connected)) continue;
-    const file = cmoPieceNeedsMedia(entry) ? entry.imageFileId : undefined;
-    if (file && used.has(file)) continue;
-    if (file) used.add(file);
+    const files = pieceFiles(entry);
+    if (files.some((file) => used.has(file))) continue;
+    for (const file of files) used.add(file);
     ready.add(entry.id);
   }
   return ready;
@@ -185,10 +209,23 @@ function pieceLine(entry: CmoCalendarEntry): string {
     entry.campaignId ? `campaign ${entry.campaignId}` : "",
     `"${entry.title}"`,
     entry.brief ? `brief: ${entry.brief}` : "",
+    cmoPieceMinSlides(entry) > 0 ? carouselNote(entry) : "",
     entry.draft ? "(draft written; finish what is missing)" : "",
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/**
+ * A carousel's line in the brief. One product photo is enough for its slides:
+ * a run once asked the owner for more photos and made none.
+ */
+function carouselNote(entry: CmoCalendarEntry): string {
+  const made = entry.slideFileIds?.length ?? 0;
+  const count = `carousel: at least ${cmoPieceMinSlides(entry)} slides, ${made} made`;
+  return entry.imageFileId
+    ? `${count}; make the rest yourself with generate_image, referenceFileIds ["${entry.imageFileId}"], each a different view of the same product (detail, on an anonymous model, flat lay). These are your pictures of the real product, not invented ones; do not wait for more photos`
+    : count;
 }
 
 /** What the production run reads: the whole month to make, in one brief. */

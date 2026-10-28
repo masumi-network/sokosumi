@@ -150,6 +150,36 @@ describe("cmoReadyPieceIds", () => {
     );
     expect([...ready]).toEqual(["a", "c", "d"]);
   });
+
+  it("finishes a carousel only with its slides, none shared with another piece", () => {
+    const carousel = {
+      channel: "instagram",
+      format: "carousel",
+      draft: "Swipe for three fits",
+      imageFileId: "s1",
+    };
+    const ready = cmoReadyPieceIds(
+      [
+        entry({ ...carousel, id: "two", slideFileIds: ["s1", "s2"] }),
+        entry({ ...carousel, id: "three", slideFileIds: ["s1", "s2", "s3"] }),
+        entry({
+          ...carousel,
+          id: "shared",
+          imageFileId: "t1",
+          slideFileIds: ["t1", "t2", "s3"],
+        }),
+        entry({
+          id: "single",
+          channel: "instagram",
+          format: "image",
+          draft: "One picture",
+          imageFileId: "s2",
+        }),
+      ],
+      new Set(),
+    );
+    expect([...ready]).toEqual(["three"]);
+  });
 });
 
 describe("cmoProductionMessage", () => {
@@ -187,6 +217,25 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("The month is made.");
     expect(message).toContain("Connected networks: none yet");
+  });
+
+  it("has a carousel's slides made from its product photo", () => {
+    const carousel = entry({
+      channel: "instagram",
+      format: "carousel",
+      imageFileId: "photo-1",
+      slideFileIds: ["photo-1"],
+    });
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy([carousel]),
+      pending: [carousel],
+      connected: new Set(),
+      attempt: 1,
+      topUp: true,
+    });
+    expect(message).toContain("carousel: at least 3 slides, 1 made");
+    expect(message).toContain('referenceFileIds ["photo-1"]');
   });
 });
 

@@ -20,6 +20,8 @@ const {
   getBalanceMock,
   projectFindUniqueMock,
   ssrfSafeFetchMock,
+  fileFindFirstMock,
+  blobHeadMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -40,6 +42,13 @@ const {
   getBalanceMock: vi.fn(),
   projectFindUniqueMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
+  fileFindFirstMock: vi.fn(),
+  blobHeadMock: vi.fn(),
+}));
+
+vi.mock("@vercel/blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/blob")>()),
+  head: blobHeadMock,
 }));
 
 // The submit-time balance check: read-only, and not what this suite is about.
@@ -79,6 +88,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: vi.fn(),
     },
     project: { findUnique: projectFindUniqueMock },
+    fileResource: { findFirst: fileFindFirstMock },
     transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -165,6 +175,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     prompt: BASE_INPUT.prompt,
     settings: BASE_INPUT.settings,
     referenceAssetIds: [],
+    referenceFileIds: [],
     parentAssetId: null,
     status: "PENDING",
     submitAttempts: 0,
@@ -439,6 +450,64 @@ describe("image studio job submission", () => {
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         input: expect.objectContaining({
           image_urls: ["https://v3b.fal.media/files/x.png"],
+        }),
+      }),
+    );
+  });
+
+  it("sends a workspace image File as a reference to the edit endpoint", async () => {
+    jobCreateMock.mockImplementation(async ({ data }) =>
+      jobRow({
+        kind: data.kind,
+        model: data.model,
+        referenceFileIds: data.referenceFileIds,
+      }),
+    );
+    jobFindUniqueOrThrowMock.mockResolvedValue(
+      jobRow({
+        kind: "EDIT",
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        referenceFileIds: ["file-1"],
+      }),
+    );
+    fileFindFirstMock.mockResolvedValue({
+      sourceId: "drive/w/leggings.jpg",
+      mimeType: "image/jpeg",
+    });
+    blobHeadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/drive/w/leggings.jpg",
+    });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(new Uint8Array([1, 2]), {
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/l.jpg");
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-3" });
+
+    await createImageJob({ ...BASE_INPUT, referenceFileIds: ["file-1"] });
+
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "EDIT",
+          referenceFileIds: ["file-1"],
+        }),
+      }),
+    );
+    expect(fileFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "file-1",
+          workspaceId: "workspace-1",
+        }),
+      }),
+    );
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        input: expect.objectContaining({
+          image_urls: ["https://v3b.fal.media/files/l.jpg"],
         }),
       }),
     );

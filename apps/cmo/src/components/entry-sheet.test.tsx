@@ -41,4 +41,24 @@ describe("EntrySheet", () => {
       '<img class="sheet-media" src="https://blob/i.png" alt="Trace a request through a workflow"',
     );
   });
+
+  it("lays a carousel's slides out in order to swipe", () => {
+    const html = renderToStaticMarkup(
+      <EntrySheet
+        entry={{ ...entry, channel: "instagram", format: "carousel" }}
+        media={{
+          entryId: "cal-1",
+          kind: "image",
+          url: "https://blob/1.jpg",
+          slides: ["https://blob/1.jpg", "https://blob/2.jpg"],
+        }}
+        onClose={() => {}}
+      />,
+    );
+    expect(html).toContain("2 images by Cuso");
+    expect(html).toContain('<ol class="sheet-slides"');
+    expect(html).toContain('src="https://blob/1.jpg" alt="Slide 1 of 2"');
+    expect(html).toContain('src="https://blob/2.jpg" alt="Slide 2 of 2"');
+    expect(html).not.toContain('class="sheet-media"');
+  });
 });

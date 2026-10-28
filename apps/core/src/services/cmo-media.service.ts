@@ -8,6 +8,8 @@ export interface CmoCalendarMedia {
   entryId: string;
   kind: "image" | "video";
   url: string;
+  /** A carousel's slides in order, the cover first. */
+  slides?: string[];
 }
 
 /**
@@ -35,8 +37,22 @@ export async function cmoCalendarMedia(input: {
   const files = await loadLiveResources({
     workspaceId: input.workspaceId,
     actor,
-    resourceIds: [...new Set(attached.map((entry) => entry.imageFileId))],
+    resourceIds: [
+      ...new Set(
+        attached.flatMap((entry) => [
+          entry.imageFileId,
+          ...(entry.slideFileIds ?? []),
+        ]),
+      ),
+    ],
   });
+  const blobUrl = async (fileId: string) => {
+    const file = files.find((item) => item.id === fileId);
+    if (!file?.mimeType?.startsWith("image/")) return null;
+    return await head(file.sourceId)
+      .then((blob) => blob.url)
+      .catch(() => null);
+  };
   const media = await Promise.all(
     attached.map(async (entry): Promise<CmoCalendarMedia | null> => {
       const file = files.find((item) => item.id === entry.imageFileId);
@@ -50,7 +66,13 @@ export async function cmoCalendarMedia(input: {
       const url = await head(file.sourceId)
         .then((blob) => blob.url)
         .catch(() => null);
-      return url ? { entryId: entry.id, kind, url } : null;
+      if (!url) return null;
+      const slides = (
+        await Promise.all((entry.slideFileIds ?? []).map(blobUrl))
+      ).filter((slide): slide is string => slide !== null);
+      return slides.length > 1
+        ? { entryId: entry.id, kind, url, slides }
+        : { entryId: entry.id, kind, url };
     }),
   );
   return media.filter((item): item is CmoCalendarMedia => item !== null);

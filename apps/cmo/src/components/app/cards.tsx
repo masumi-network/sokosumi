@@ -434,7 +434,7 @@ const UPDATE_TITLES = {
   monthly: "Next month's strategy",
   brand: "Brand Brain refreshed",
   request: "Done",
-  production: "Your month is ready",
+  production: "Your month",
 } as const;
 
 const CHANGE_LABELS = {

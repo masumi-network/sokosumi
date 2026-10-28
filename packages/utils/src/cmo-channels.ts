@@ -24,6 +24,7 @@ export const CMO_CHANNELS = {
         name: "Multi-image post",
         what: "Two to four images that tell one story",
         image: true,
+        slides: [2, 4],
       },
       video: {
         name: "Short video",
@@ -96,6 +97,12 @@ export const CMO_CHANNELS = {
         what: "A branded card with one line people save and share",
         image: true,
       },
+      carousel: {
+        name: "Carousel",
+        what: "Three to ten slides people swipe through and save",
+        image: true,
+        slides: [3, 10],
+      },
       reel: {
         name: "Reel",
         what: "A vertical 10 to 15 second video Cuso makes",
@@ -147,6 +154,7 @@ export const CMO_CHANNELS = {
         name: "Swipe-through ad",
         what: "Several cards, each with its own image and line",
         image: true,
+        slides: [2, 10],
       },
     },
   },
@@ -209,7 +217,14 @@ export const CMO_CHANNELS = {
     owner: "connect" | "ad_account" | "mailing_list" | "publish";
     formats: Record<
       string,
-      { name: string; what: string; image: boolean; video?: boolean }
+      {
+        name: string;
+        what: string;
+        image: boolean;
+        video?: boolean;
+        /** A multi-image format: the fewest and most slides it takes. */
+        slides?: readonly [number, number];
+      }
     >;
   }
 >;
@@ -264,7 +279,7 @@ export function normalizeCmoChannelFormat(
     (/search/.test(raw) && pick("search_ad")) ||
     (/display|banner/.test(raw) && pick("display_ad")) ||
     (/carousel|slide|album|images/.test(raw) &&
-      pick("carousel_ad", "images")) ||
+      pick("carousel", "carousel_ad", "images")) ||
     (/thread|reply/.test(raw) && pick("reply", "post")) ||
     (/quote/.test(raw) && pick("quote_card", "image")) ||
     (/link/.test(raw) && pick("link")) ||

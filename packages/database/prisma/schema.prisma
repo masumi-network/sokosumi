@@ -5202,6 +5202,9 @@ model ProjectImageJob {
   /// Assets whose bytes were sent as references. Stored as ids, never as URLs:
   /// a URL in this column would be a durable public handle on a private asset.
   referenceAssetIds String[] @db.Uuid
+  /// Files (a brand's product photos) sent as references after the assets,
+  /// readable by the person who asked. Ids for the same reason as above.
+  referenceFileIds  String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 

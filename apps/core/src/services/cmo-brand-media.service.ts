@@ -208,13 +208,41 @@ async function downloadPicture(
   }
 }
 
-const EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/avif": "avif",
-  "image/gif": "gif",
-};
+/**
+ * The picture as a JPEG, drawn on a white canvas in the capture browser:
+ * Instagram posts only JPEGs, and Cuso posts these photos as they are.
+ */
+async function asJpeg(
+  browser: Browser,
+  picture: { body: Buffer; contentType: string },
+): Promise<Buffer | null> {
+  if (picture.contentType === "image/jpeg") return picture.body;
+  const page = await browser.newPage();
+  try {
+    const jpeg = await page.evaluate(
+      async (source: string) => {
+        const image = new Image();
+        image.src = source;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d");
+        if (!context) return null;
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0);
+        return canvas.toDataURL("image/jpeg", 0.92);
+      },
+      `data:${picture.contentType};base64,${picture.body.toString("base64")}`,
+    );
+    return jpeg ? Buffer.from(jpeg.split(",")[1] ?? "", "base64") : null;
+  } catch {
+    return null;
+  } finally {
+    await page.close();
+  }
+}
 
 const RECAPTURE_AFTER_MS = 10 * 60_000;
 const capturing = new Set<string>();
@@ -294,7 +322,23 @@ export async function captureCmoBrandMedia(
       page,
       capture: await capturePage(browser, page.url),
     }));
-    return { own, phone, rivals };
+    const seen = new Set<string>();
+    const candidates = own
+      .flatMap(({ capture }) => (capture as PageCapture | null)?.images ?? [])
+      .filter((image) => {
+        const key = image.url.split("?")[0] ?? image.url;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, MAX_PICTURES);
+    const pictures: { image: SiteImage; body: Buffer }[] = [];
+    for (const image of candidates) {
+      const picture = await downloadPicture(image);
+      const body = picture ? await asJpeg(browser, picture) : null;
+      if (body) pictures.push({ image, body });
+    }
+    return { own, phone, rivals, pictures };
   });
 
   const pages: CmoBrandMedia["pages"] = [];
@@ -346,27 +390,15 @@ export async function captureCmoBrandMedia(
   }
 
   const pictures: CmoBrandMedia["pictures"] = [];
-  const seen = new Set<string>();
-  const candidates = media.own
-    .flatMap(({ capture }) => (capture as PageCapture | null)?.images ?? [])
-    .filter((image) => {
-      const key = image.url.split("?")[0] ?? image.url;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, MAX_PICTURES);
-  for (const [index, image] of candidates.entries()) {
-    const picture = await downloadPicture(image);
-    if (!picture) continue;
+  for (const [index, { image, body }] of media.pictures.entries()) {
     const saved = await saveToDrive(
       drive,
       {
         folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`,
-        filename: `picture-${String(index + 1).padStart(2, "0")}.${EXTENSIONS[picture.contentType] ?? "jpg"}`,
+        filename: `picture-${String(index + 1).padStart(2, "0")}.jpg`,
       },
-      picture.body,
-      picture.contentType,
+      body,
+      "image/jpeg",
     );
     pictures.push({
       ...saved,

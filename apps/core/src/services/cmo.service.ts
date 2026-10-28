@@ -52,6 +52,7 @@ import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
+import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   type CmoCalendarMedia,
   cmoCalendarMedia,
@@ -1913,6 +1914,8 @@ export async function loadCmoMarketingContext(
     brandBrain: compactBrandBrain(parseCmoBrandBrain(hire.brandBrain)),
     /** The brand's logo, colours and fonts: use them in images and layouts. */
     brandVisual: parseCmoBrandVisual(hire.brandVisual),
+    /** The brand's own photos from its site: references for generate_image. */
+    brandPictures: cmoBrandPictures(hire.brandMedia),
     strategy: strategy
       ? {
           ...strategy,
@@ -1943,6 +1946,23 @@ export async function loadCmoMarketingContext(
       .map(({ previousStrategy: _previous, ...update }) => update),
   };
   return fitCmoMarketingContext(context, now);
+}
+
+/** The pictures research saved from the brand's pages, as Files to reference. */
+export function cmoBrandPictures(
+  brandMedia: unknown,
+): { fileId: string; alt: string; size: string }[] {
+  return (parseCmoBrandMedia(brandMedia)?.pictures ?? []).flatMap((picture) =>
+    picture.fileId
+      ? [
+          {
+            fileId: picture.fileId,
+            alt: picture.alt.slice(0, 80),
+            size: `${picture.width}x${picture.height}`,
+          },
+        ]
+      : [],
+  );
 }
 
 /**

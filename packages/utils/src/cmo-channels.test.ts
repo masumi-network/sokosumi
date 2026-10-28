@@ -8,7 +8,8 @@ import {
 describe("CMO channels", () => {
   it("offers only formats the publishers support", () => {
     expect(isCmoChannelFormat("instagram", "image")).toBe(true);
-    expect(isCmoChannelFormat("instagram", "carousel")).toBe(false);
+    expect(isCmoChannelFormat("instagram", "carousel")).toBe(true);
+    expect(isCmoChannelFormat("facebook", "carousel")).toBe(false);
     expect(isCmoChannelFormat("x", "thread")).toBe(false);
     expect(isCmoChannelFormat("tiktok", "video")).toBe(false);
     // Videos come from Content Studio; YouTube takes only Shorts.
@@ -30,9 +31,13 @@ describe("CMO channels", () => {
       channel: "linkedin",
       format: "images",
     });
-    // A carousel is not a single image: no silent swap, the save check asks.
-    expect(normalizeCmoChannelFormat("instagram", "carousel")).toEqual({
+    expect(normalizeCmoChannelFormat("instagram", "Slides")).toEqual({
       channel: "instagram",
+      format: "carousel",
+    });
+    // A carousel is not a single image: no silent swap, the save check asks.
+    expect(normalizeCmoChannelFormat("facebook", "carousel")).toEqual({
+      channel: "facebook",
       format: "carousel",
     });
     expect(normalizeCmoChannelFormat("linkedin", "unicorn")).toEqual({
