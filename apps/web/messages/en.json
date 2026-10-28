@@ -8137,6 +8137,19 @@
           "overview": "Overview",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG or WebP images up to 2 MiB. Select a sticker, then send.",
+        "upload": "Upload sticker",
+        "invalid": "Choose a PNG, JPEG or WebP image no larger than 2 MiB.",
+        "uploadFailed": "Unable to save sticker. Try uploading again.",
+        "loading": "Loading stickers…",
+        "loadFailed": "Unable to load stickers.",
+        "retry": "Try again",
+        "empty": "Upload a sticker to start your collection.",
+        "collection": "Saved stickers",
+        "select": "Select {name}"
       }
     },
     "Drive": {

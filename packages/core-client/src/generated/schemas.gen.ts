@@ -12889,6 +12889,23 @@ export const ChatSkillCatalogItemSchema = {
     ]
 } as const;
 
+export const ChatStickerSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url',
+        'name'
+    ]
+} as const;
+
 export const ChatUnreadThreadSchema = {
     type: 'object',
     properties: {
