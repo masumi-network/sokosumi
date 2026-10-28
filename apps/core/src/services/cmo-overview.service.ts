@@ -7,6 +7,7 @@ import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
+import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import {
   activeCmoPlan,
   cmoMockBilling,
@@ -14,9 +15,10 @@ import {
   mayCommitCmo,
 } from "@/services/cmo-billing.service";
 import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
+import { cmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   type CmoBrandVisual,
-  parseCmoBrandVisual,
+  cmoBrandVisual,
 } from "@/services/cmo-brand-visual.service";
 import {
   type CmoHireView,
@@ -64,7 +66,10 @@ export interface CmoOverview {
   learning: CmoLearningState;
   /** Cuso's latest research or strategy work, step by step. */
   work: CmoWork | null;
+  /** The Project's logo and DESIGN.md, with the research pictures. */
   brandVisual: CmoBrandVisual | null;
+  /** Brand research screenshots and pictures, the Project's files. */
+  brandMedia: CmoBrandMedia | null;
   /** The Project's logo (the site's best icon), when one was found. */
   projectLogo: string | null;
   /** What Cuso does when, for Settings. */
@@ -165,7 +170,7 @@ export async function getCmoOverview(
       : null,
     prisma.project.findUnique({
       where: { id: hire.projectId },
-      select: { name: true, logo: true },
+      select: { name: true, logo: true, designMdUrl: true },
     }),
     prisma.sokoBot.findUnique({
       where: { id: hire.sokoBotId },
@@ -228,6 +233,23 @@ export async function getCmoOverview(
   });
   const learning = await cmoLearningState(hire, now);
   const work = await cmoWork(hire, now);
+  const brandBrain = parseCmoBrandBrain(hire.brandBrain);
+  // Blob storage not answering leaves the research out, not the page.
+  const brandMedia = await cmoBrandMedia({
+    projectId: hire.projectId,
+    websiteUrl: hire.websiteUrl,
+    brain: brandBrain,
+  }).catch((error) => {
+    console.warn("CMO brand media not read", {
+      projectId: hire.projectId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
+  });
+  const brandVisual = await cmoBrandVisual(
+    project,
+    brandMedia?.pictures.map((picture) => picture.url) ?? [],
+  );
   const schedules = await prisma.sokoBotSchedule.findMany({
     where: { sokoBotId: hire.sokoBotId, systemKey: { not: null } },
     select: {
@@ -253,7 +275,8 @@ export async function getCmoOverview(
     media,
     learning,
     work,
-    brandVisual: parseCmoBrandVisual(hire.brandVisual),
+    brandVisual,
+    brandMedia,
     projectLogo: project.logo,
     routines,
     organizationSlug: organization?.slug ?? null,
@@ -264,7 +287,7 @@ export async function getCmoOverview(
     mockBilling: cmoMockBilling(),
     mockPlan,
     mockPlanActivatedAt: mockPlan ? hire.mockPlanActivatedAt : null,
-    brandBrain: parseCmoBrandBrain(hire.brandBrain),
+    brandBrain,
     strategy,
     botStatus: bot.status,
     updates: parseCmoUpdates(hire.updates),

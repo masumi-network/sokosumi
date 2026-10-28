@@ -67,7 +67,6 @@ function overview() {
       projectId: "project-1",
       brandBrainUpdatedAt: null,
       brandBrainApprovedAt: null,
-      brandMedia: null,
       strategyUpdatedAt: NOW,
       strategyApprovedAt: NOW,
       accountsDoneAt: NOW,
@@ -90,6 +89,7 @@ function overview() {
     learning: "done",
     work: null,
     brandVisual: null,
+    brandMedia: null,
     projectLogo: null,
     routines: [],
     updates: [

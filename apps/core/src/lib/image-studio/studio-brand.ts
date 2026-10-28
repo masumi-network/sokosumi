@@ -1,8 +1,5 @@
-import { ssrfSafeFetch } from "@sokosumi/net";
-import { isDesignMdBlobUrl } from "@sokosumi/utils";
-
-import { LIMITS } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
+import { readDesignMdContent } from "@/lib/design-md-blob";
 
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
 const BRAND_BLOCK_MAX_CHARS = 1600;
@@ -58,14 +55,5 @@ function clipBrandText(value: string | null | undefined): string | null {
 }
 
 async function readDesignMd(url: string | null): Promise<string | null> {
-  if (!url || !isDesignMdBlobUrl(url)) return null;
-  try {
-    const response = await ssrfSafeFetch(url, {
-      maxResponseBytes: LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
-    });
-    if (!response.ok) return null;
-    return clipBrandText(await response.text());
-  } catch {
-    return null;
-  }
+  return clipBrandText(await readDesignMdContent(url));
 }

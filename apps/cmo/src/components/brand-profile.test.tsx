@@ -177,21 +177,18 @@ describe("Brand Brain reveal", () => {
                 ...shot("home"),
                 label: "Home",
                 pageUrl: "https://acme.io/",
-                title: "Acme",
                 device: "desktop",
               },
               {
                 ...shot("home-mobile"),
                 label: "Home on a phone",
                 pageUrl: "https://acme.io/",
-                title: "Acme",
                 device: "mobile",
               },
               {
                 ...shot("pricing"),
                 label: "Pricing",
                 pageUrl: "https://acme.io/pricing",
-                title: "Pricing",
                 device: "desktop",
               },
             ],
@@ -205,10 +202,7 @@ describe("Brand Brain reveal", () => {
             pictures: [
               {
                 ...shot("picture-01"),
-                sourceUrl: "https://acme.io/rocket.png",
-                alt: "The Rocket Pro on the pad",
-                width: 1600,
-                height: 900,
+                alt: "the rocket pro on the pad",
               },
             ],
           },
@@ -221,7 +215,7 @@ describe("Brand Brain reveal", () => {
     expect(html).toContain('src="https://blob.example/home-mobile.jpg"');
     expect(html).toContain("From your site");
     expect(html).toContain('src="https://blob.example/pricing.jpg"');
-    expect(html).toContain('alt="The Rocket Pro on the pad"');
+    expect(html).toContain('alt="the rocket pro on the pad"');
     expect(html).toContain('src="https://blob.example/boring.jpg"');
     // A competitor whose homepage did not load still has a card.
     expect(html).toContain("Quiet Rockets");

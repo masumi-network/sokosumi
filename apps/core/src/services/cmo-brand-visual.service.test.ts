@@ -1,93 +1,139 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resetCmoServiceMocks } from "@/test-fixtures/cmo-service";
 
-vi.mock(
-  "@/lib/db/prisma",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.prisma,
-);
-vi.mock(
-  "@/services/social-posts.service",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.socialPosts,
-);
-vi.mock(
-  "@/services/soko-bot-shared-create.service",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.sharedCreate,
-);
-vi.mock(
-  "@/services/soko-bot-control-plane.service",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.controlPlane,
-);
-vi.mock(
-  "@/helpers/organization-workspace",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
-      .organizationWorkspace,
-);
-vi.mock(
-  "@/helpers/user-workspaces",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
-      .userWorkspaces,
-);
-vi.mock(
-  "@/helpers/subscription",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.subscription,
-);
-vi.mock(
-  "@/services/soko-bot-billing.service",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.billing,
-);
-vi.mock(
-  "@vercel/functions",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
-      .vercelFunctions,
-);
-vi.mock(
-  "@/services/soko-bot-integration-connection.service",
-  async () =>
-    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
-      .integrationConnection,
-);
-vi.mock("@/config/env", async (importOriginal) =>
-  (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
-    await importOriginal<typeof import("@/config/env")>(),
-  ),
-);
+const mocks = vi.hoisted(() => ({
+  projectUpdate: vi.fn(),
+  cmoHireUpdate: vi.fn(),
+  readBrandVisual: vi.fn(),
+  siteIcon: vi.fn(),
+  upload: vi.fn(),
+  readDesignMd: vi.fn(),
+}));
 
-import { mergeBrandVisual } from "./cmo-brand-visual.service";
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    project: { update: mocks.projectUpdate },
+    cmoHire: { update: mocks.cmoHireUpdate },
+  },
+}));
+vi.mock("@/lib/brand-visual", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/brand-visual")>()),
+  readBrandVisual: mocks.readBrandVisual,
+}));
+vi.mock("@/lib/site-icon", () => ({
+  resolveSiteIconAsProjectLogo: mocks.siteIcon,
+}));
+vi.mock("@/lib/design-md-blob", () => ({
+  uploadDesignMdContent: mocks.upload,
+  readDesignMdContent: mocks.readDesignMd,
+}));
+// No DESIGN.md API: brand capture writes the site's own look instead.
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), MASUMI_DESIGN_MD_API_KEY: undefined }),
+  };
+});
 
-beforeEach(resetCmoServiceMocks);
+import {
+  cmoBrandVisual,
+  learnCmoBrandVisual,
+} from "./cmo-brand-visual.service";
 
-describe("brand visual", () => {
-  it("lets the DESIGN.md colours lead and keeps the site's logo", () => {
-    const visual = mergeBrandVisual(
-      {
-        logoUrl: "https://acme.io/logo.svg",
-        colors: ["#ff6a00"],
-        fonts: ["Inter"],
-        siteName: "Acme",
-        images: ["https://acme.io/hero.jpg"],
-      },
-      "https://blob/icon.png",
-      {
-        url: "https://blob/design.md",
-        content: "Primary: `#6400FF` Accent: `#6a05ff`",
-      },
-    );
-    expect(visual).toEqual({
-      logoUrl: "https://acme.io/logo.svg",
-      colors: ["#6400ff", "#ff6a00"],
-      fonts: ["Inter"],
-      siteName: "Acme",
-      designMdUrl: "https://blob/design.md",
-      images: ["https://acme.io/hero.jpg"],
+const hire = {
+  id: "hire-1",
+  projectId: "project-1",
+  websiteUrl: "https://acme.io",
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.readBrandVisual.mockResolvedValue({
+    logoUrl: "https://acme.io/logo.svg",
+    colors: ["#ff6a00", "#1a73e8"],
+    fonts: ["Inter"],
+    siteName: "Acme Rockets",
+    images: [],
+  });
+  mocks.siteIcon.mockResolvedValue("https://blob.example/logo.png");
+  mocks.upload.mockResolvedValue("https://blob.example/DESIGN.md");
+});
+
+describe("brand capture", () => {
+  it("writes the Project's logo and a DESIGN.md of the site's look, nothing on the hire", async () => {
+    await learnCmoBrandVisual(hire);
+
+    expect(mocks.projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: { logo: "https://blob.example/logo.png" },
     });
+    expect(mocks.projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: {
+        designMdUrl: "https://blob.example/DESIGN.md",
+        designMdExtractionId: null,
+      },
+    });
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: { kind: "project", id: "project-1" } }),
+    );
+    expect(mocks.cmoHireUpdate).not.toHaveBeenCalled();
+  });
+
+  it("reads back what it wrote as the brand's look", async () => {
+    await learnCmoBrandVisual(hire);
+    const written = mocks.upload.mock.calls[0]?.[0].content as string;
+    mocks.readDesignMd.mockResolvedValue(written);
+
+    expect(
+      await cmoBrandVisual(
+        {
+          logo: "https://blob.example/logo.png",
+          designMdUrl: "https://blob.example/DESIGN.md",
+        },
+        ["https://blob.example/01-red-sneaker.jpg"],
+      ),
+    ).toEqual({
+      logoUrl: "https://blob.example/logo.png",
+      colors: ["#ff6a00", "#1a73e8"],
+      fonts: ["Inter"],
+      siteName: "Acme Rockets",
+      designMdUrl: "https://blob.example/DESIGN.md",
+      images: ["https://blob.example/01-red-sneaker.jpg"],
+    });
+  });
+});
+
+describe("cmoBrandVisual", () => {
+  it("reads colours, fonts and name from a DESIGN.md the API wrote", async () => {
+    mocks.readDesignMd.mockResolvedValue(
+      [
+        "---",
+        "name: Plausible Analytics",
+        "colors:",
+        '  primary: "#6400FF"',
+        "typography:",
+        "  body:",
+        "    fontFamily: Inter, sans-serif",
+        "---",
+        "Accent: `#6a05ff`",
+      ].join("\n"),
+    );
+    expect(
+      await cmoBrandVisual(
+        { logo: null, designMdUrl: "https://blob/d.md" },
+        [],
+      ),
+    ).toMatchObject({
+      colors: ["#6400ff"],
+      fonts: ["Inter"],
+      siteName: "Plausible Analytics",
+    });
+  });
+
+  it("is null when the Project has neither logo nor DESIGN.md", async () => {
+    expect(await cmoBrandVisual({ logo: null, designMdUrl: null }, [])).toBe(
+      null,
+    );
   });
 });

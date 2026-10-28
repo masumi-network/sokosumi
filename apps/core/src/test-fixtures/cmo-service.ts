@@ -29,6 +29,8 @@ export const expireTurn = vi.fn();
 export const startTurn = vi.fn();
 export const createBot = vi.fn();
 export const projectCreate = vi.fn();
+export const projectFindUnique = vi.fn();
+export const fileLinkFindMany = vi.fn();
 export const projectDelete = vi.fn();
 export const cmoCreate = vi.fn();
 export const createOrganizationWorkspace = vi.fn();
@@ -74,7 +76,12 @@ const client = {
   member: { findUnique: memberFindUnique, findMany: memberFindMany },
   sokoBot: { findUnique: sokoBotFindUnique },
   chatRoom: { delete: chatRoomDelete },
-  project: { create: projectCreate, delete: projectDelete },
+  project: {
+    create: projectCreate,
+    delete: projectDelete,
+    findUnique: projectFindUnique,
+  },
+  fileProjectLink: { findMany: fileLinkFindMany },
   organization: { findFirst: organizationFindFirst },
   subscription: { findFirst: subscriptionFindFirst },
   workspace: { findUnique: workspaceFindUnique },
@@ -173,6 +180,9 @@ export function resetCmoServiceMocks(): void {
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });
+  // A Project with no logo, DESIGN.md or Brand research files yet.
+  projectFindUnique.mockResolvedValue({ logo: null, designMdUrl: null });
+  fileLinkFindMany.mockResolvedValue([]);
   // The hire a member works with is the one findUnique stands for here, in
   // the business's organization.
   cmoFindMany.mockImplementation(async (args: unknown) => {

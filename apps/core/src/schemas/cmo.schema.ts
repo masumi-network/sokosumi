@@ -145,8 +145,13 @@ export const cmoBrandVisualSchema = z
     designMdUrl: z.union([z.string(), z.null()]),
     images: z
       .array(z.string())
-      .describe("Photos from the site, og:image first, for post previews."),
+      .describe(
+        "The brand's pictures from the Project's Brand research files, for post previews.",
+      ),
   })
+  .describe(
+    "The brand's look, read from the Project's logo and DESIGN.md (colours, fonts and name).",
+  )
   .openapi("CmoBrandVisual");
 
 const cmoMediaFileSchema = z.object({
@@ -163,7 +168,6 @@ export const cmoBrandMediaSchema = z
         cmoMediaFileSchema.extend({
           label: z.string(),
           pageUrl: z.string(),
-          title: z.string(),
           device: z.enum(["desktop", "mobile"]),
         }),
       )
@@ -176,10 +180,8 @@ export const cmoBrandMediaSchema = z
     pictures: z
       .array(
         cmoMediaFileSchema.extend({
-          sourceUrl: z.string(),
+          /** Read from the file name; empty when the site gave none. */
           alt: z.string(),
-          width: z.number(),
-          height: z.number(),
         }),
       )
       .describe(

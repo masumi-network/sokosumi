@@ -1,10 +1,15 @@
+import {
+  FileMetadataState,
+  FileResourceLifecycle,
+  FileSourceKind,
+} from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { type CmoBrandBrain, cmoBrandBrainSchema } from "@sokosumi/soko-bot";
 import {
   buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathnameWithFolder,
 } from "@sokosumi/utils";
-import { put } from "@vercel/blob";
+import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
 
@@ -17,18 +22,194 @@ import {
   type SiteImage,
   withBrowser,
 } from "@/lib/site-capture";
-import { type CmoBrandMedia, cmoBrandMediaSchema } from "@/schemas/cmo.schema";
+import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
+import { updateFileMetadata } from "@/services/file-metadata.service";
 
-/** Where the material lands in the owner's Files. */
+/** Where the material lands: the Project's files, in this Drive folder. */
 export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
 
-export function parseCmoBrandMedia(value: unknown): CmoBrandMedia | null {
-  const parsed = cmoBrandMediaSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+/** Screenshot file names (without ".jpg") and how CMO labels them, in order. */
+const PAGE_LABELS: Record<string, string> = {
+  home: "Home",
+  "home-mobile": "Home on a phone",
+  pricing: "Pricing",
+  product: "Product",
+  customers: "Customers",
+  about: "About",
+};
+
+interface ResearchFile {
+  fileId: string;
+  pathname: string;
+  /** "", "Competitors" or "Pictures". */
+  folder: string;
+  /** The file name without ".jpg". */
+  name: string;
+}
+
+/**
+ * The brand research saved as the Project's files, newest first: what a
+ * member confirmed on the Project (capture confirms each file it saves).
+ */
+async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
+  const marker = `/${CMO_BRAND_MEDIA_FOLDER}/`;
+  const links = await prisma.fileProjectLink.findMany({
+    where: {
+      projectId,
+      state: FileMetadataState.CONFIRMED,
+      resource: {
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        lifecycle: FileResourceLifecycle.ACTIVE,
+        sourceId: { contains: marker },
+      },
+    },
+    select: { resource: { select: { id: true, sourceId: true } } },
+    orderBy: { resource: { updatedAt: "desc" } },
+  });
+  const seen = new Set<string>();
+  return links.flatMap(({ resource }) => {
+    if (seen.has(resource.id)) return [];
+    seen.add(resource.id);
+    const path = resource.sourceId.slice(
+      resource.sourceId.indexOf(marker) + marker.length,
+    );
+    const slash = path.lastIndexOf("/");
+    return [
+      {
+        fileId: resource.id,
+        pathname: resource.sourceId,
+        folder: slash === -1 ? "" : path.slice(0, slash),
+        name: path.slice(slash + 1).replace(/\.jpg$/, ""),
+      },
+    ];
+  });
+}
+
+/**
+ * The pictures, one per slot ("01-red-sneaker"): a later capture whose
+ * picture had other alt text saved a second file for the same slot.
+ * shortcut: the older file stays in the Project; delete it on recapture if
+ * stale pictures confuse members.
+ */
+function latestPictures(files: ResearchFile[]): ResearchFile[] {
+  const slots = new Map<string, ResearchFile>();
+  for (const file of files) {
+    if (file.folder !== "Pictures") continue;
+    const slot = file.name.match(/\d+/)?.[0] ?? file.name;
+    if (!slots.has(slot)) slots.set(slot, file);
+  }
+  return [...slots.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, file]) => file);
+}
+
+/** "01-red-sneaker" reads "red sneaker"; "picture-02" had no alt text. */
+function pictureAlt(name: string): string {
+  return name
+    .replace(/^(picture-)?\d+-?/, "")
+    .replace(/-/g, " ")
+    .trim();
+}
+
+/** The brand's own photos from the Project's files: references for images. */
+export async function listCmoBrandPictures(
+  projectId: string,
+): Promise<{ fileId: string; alt: string }[]> {
+  return latestPictures(await listResearchFiles(projectId)).map((file) => ({
+    fileId: file.fileId,
+    alt: pictureAlt(file.name),
+  }));
+}
+
+/**
+ * What CMO shows of the research, read from the Project's files: the pages
+ * (home first, then home on a phone), each competitor the Brand Brain names
+ * and the pictures. Null before research saved anything.
+ */
+export async function cmoBrandMedia(input: {
+  projectId: string;
+  websiteUrl: string;
+  brain: CmoBrandBrain | null;
+}): Promise<CmoBrandMedia | null> {
+  const files = await listResearchFiles(input.projectId);
+  const first = files[0];
+  if (!first) return null;
+  const marker = `/${CMO_BRAND_MEDIA_FOLDER}/`;
+  const prefix = first.pathname.slice(
+    0,
+    first.pathname.indexOf(marker) + marker.length,
+  );
+  const blobs = new Map<string, { url: string; uploadedAt: Date }>();
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix, cursor });
+    for (const blob of page.blobs) blobs.set(blob.pathname, blob);
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  // A new capture keeps the file name, so the stamp stops browsers and the
+  // CDN from showing the one before.
+  const shown = (file: ResearchFile) => {
+    const blob = blobs.get(file.pathname);
+    return blob
+      ? {
+          url: `${blob.url}?v=${blob.uploadedAt.getTime()}`,
+          fileId: file.fileId,
+        }
+      : null;
+  };
+  const ownPages = input.brain
+    ? cmoOwnPages(input.websiteUrl, input.brain)
+    : [];
+  const labels = Object.keys(PAGE_LABELS);
+  const pages = files
+    .filter((file) => file.folder === "" && PAGE_LABELS[file.name])
+    .sort((a, b) => labels.indexOf(a.name) - labels.indexOf(b.name))
+    .flatMap((file) => {
+      const saved = shown(file);
+      if (!saved) return [];
+      const mobile = file.name === "home-mobile";
+      const label = PAGE_LABELS[file.name] as string;
+      const page = ownPages.find(
+        (candidate) => candidate.label === (mobile ? "Home" : label),
+      );
+      return [
+        {
+          ...saved,
+          label,
+          pageUrl: page?.url ?? new URL("/", input.websiteUrl).href,
+          device: mobile ? ("mobile" as const) : ("desktop" as const),
+        },
+      ];
+    });
+  const competitors = (
+    input.brain ? cmoCompetitorPages(input.brain) : []
+  ).flatMap((competitor) => {
+    const file = files.find(
+      (candidate) =>
+        candidate.folder === "Competitors" &&
+        candidate.name === slug(competitor.name),
+    );
+    const saved = file ? shown(file) : null;
+    return saved
+      ? [{ ...saved, name: competitor.name, pageUrl: competitor.url }]
+      : [];
+  });
+  const pictures = latestPictures(files).flatMap((file) => {
+    const saved = shown(file);
+    return saved ? [{ ...saved, alt: pictureAlt(file.name) }] : [];
+  });
+  const stamps = [...blobs.values()].map((blob) => blob.uploadedAt.getTime());
+  if (stamps.length === 0) return null;
+  return {
+    capturedAt: new Date(Math.max(...stamps)).toISOString(),
+    pages,
+    competitors,
+    pictures,
+  };
 }
 
 const MAX_OWN_PAGES = 4;
@@ -109,15 +290,55 @@ interface Drive {
   workspaceId: string;
   organizationId: string | null;
   userId: string;
+  /** Cuso's Project: every saved file is confirmed as one of its files. */
+  projectId: string;
 }
 
-/** Writes bytes into the owner's Files, as a re-upload when the name exists. */
+/** Confirms the file on the Project, as Cuso's runner; best effort. */
+async function linkToProject(drive: Drive, resourceId: string): Promise<void> {
+  try {
+    // The index job queued on upload may edit the metadata at the same time.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const resource = await prisma.fileResource.findUnique({
+        where: { id: resourceId },
+        select: { metadataRevision: true },
+      });
+      if (!resource) return;
+      const outcome = await updateFileMetadata({
+        workspaceId: drive.workspaceId,
+        actor: {
+          userId: drive.userId,
+          organizationId: drive.organizationId,
+          kind: "soko_bot",
+        },
+        resourceId,
+        request: {
+          expectedMetadataRevision: resource.metadataRevision,
+          confirmProjectIds: [drive.projectId],
+        },
+      });
+      if (outcome.status !== "conflict") return;
+    }
+  } catch (error) {
+    console.warn("CMO brand media not linked to the Project", {
+      projectId: drive.projectId,
+      resourceId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
+/**
+ * Writes bytes into the organization's Files (the runner's when there is no
+ * organization), as a re-upload when the name exists, and confirms the file
+ * on the Project.
+ */
 async function saveToDrive(
   drive: Drive,
   path: { folder: string; filename: string },
   body: Buffer,
   contentType: string,
-): Promise<{ url: string; fileId: string | null }> {
+): Promise<void> {
   const pathname = drive.organizationId
     ? buildOrganizationDriveFilePathnameWithFolder(
         drive.organizationId,
@@ -148,7 +369,7 @@ async function saveToDrive(
     mimeType: contentType,
     sizeBytes: body.length,
   });
-  const blob = await put(pathname, body, {
+  await put(pathname, body, {
     access: "public",
     contentType,
     addRandomSuffix: false,
@@ -159,12 +380,7 @@ async function saveToDrive(
     sizeBytes: body.length,
     mimeType: contentType,
   });
-  // A new capture keeps the file name, so the stamp stops browsers and the
-  // CDN from showing the one before.
-  return {
-    url: `${blob.url}?v=${Date.now()}`,
-    fileId: activated?.resourceId ?? null,
-  };
+  if (activated) await linkToProject(drive, activated.resourceId);
 }
 
 /** Runs `work` over `items`, `PARALLEL` at a time, keeping their order. */
@@ -252,13 +468,7 @@ const capturing = new Set<string>();
  * named, pages cited). A second essentials save in the same research, or one
  * while a capture runs here, does not start another.
  */
-export function scheduleCmoBrandMedia(hire: {
-  id: string;
-  brandMedia: unknown;
-}): void {
-  const media = parseCmoBrandMedia(hire.brandMedia);
-  if (media && Date.now() - Date.parse(media.capturedAt) < RECAPTURE_AFTER_MS)
-    return;
+export function scheduleCmoBrandMedia(hire: { id: string }): void {
   if (capturing.has(hire.id)) return;
   capturing.add(hire.id);
   waitUntil(
@@ -276,39 +486,45 @@ export function scheduleCmoBrandMedia(hire: {
 /**
  * Captures what research can show, not just say: the brand's own pages (and
  * its homepage on a phone), each competitor's homepage, and the large
- * pictures on the brand's pages. Everything goes into the owner's Files under
- * "Brand research" for later posts, and onto the hire for the Brand Brain.
- * Best effort: a page that does not load is left out.
+ * pictures on the brand's pages. Everything is saved as the Project's files
+ * under "Brand research", for every member and for later posts. Best effort:
+ * a page that does not load is left out. Nothing runs when the last capture
+ * is minutes old.
  */
-export async function captureCmoBrandMedia(
-  hireId: string,
-): Promise<CmoBrandMedia | null> {
-  const hire = await prisma.cmoHire.findUnique({
-    where: { id: hireId },
-    select: {
-      id: true,
-      workspaceId: true,
-      websiteUrl: true,
-      brandBrain: true,
-      sokoBotId: true,
-    },
-  });
-  const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
-  if (!hire || !brain.success) return null;
+export async function captureCmoBrandMedia(hireId: string): Promise<void> {
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
   // service imports this module.
-  const { cmoRunnerUserId } = await import("@/services/cmo-cuso.service");
+  const { cmoRunnerUserId, cmoHireView, CMO_HIRE_PROJECT } = await import(
+    "@/services/cmo-cuso.service"
+  );
+  const row = await prisma.cmoHire.findUnique({
+    where: { id: hireId },
+    include: CMO_HIRE_PROJECT,
+  });
+  const hire = row ? cmoHireView(row) : null;
+  const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
+  if (!hire || !brain.success) return;
+  const recent = await prisma.fileProjectLink.findFirst({
+    where: {
+      projectId: hire.projectId,
+      updatedAt: { gte: new Date(Date.now() - RECAPTURE_AFTER_MS) },
+      resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
+    },
+    select: { id: true },
+  });
+  if (recent) return;
   const runnerId = await cmoRunnerUserId(hire);
-  if (!runnerId) return null;
+  if (!runnerId) return;
   const workspace = await prisma.workspace.findUnique({
     where: { id: hire.workspaceId },
     select: { organizationId: true },
   });
-  if (!workspace) return null;
+  if (!workspace) return;
   const drive: Drive = {
     workspaceId: hire.workspaceId,
     organizationId: workspace.organizationId,
     userId: runnerId,
+    projectId: hire.projectId,
   };
   const ownPages = cmoOwnPages(hire.websiteUrl, brain.data);
   const competitorPages = cmoCompetitorPages(brain.data);
@@ -346,43 +562,28 @@ export async function captureCmoBrandMedia(
     return { own, phone, rivals, pictures };
   });
 
-  const pages: CmoBrandMedia["pages"] = [];
+  // File names carry what CMO shows and Cuso picks by (cmoBrandMedia).
   for (const { page, capture } of media.own) {
     if (!capture) continue;
-    const saved = await saveToDrive(
+    await saveToDrive(
       drive,
       { folder: CMO_BRAND_MEDIA_FOLDER, filename: `${slug(page.label)}.jpg` },
       capture.screenshot,
       "image/jpeg",
     );
-    pages.push({
-      ...saved,
-      label: page.label,
-      pageUrl: capture.url,
-      title: capture.title,
-      device: "desktop",
-    });
     if (page.label === "Home" && media.phone) {
-      const phone = await saveToDrive(
+      await saveToDrive(
         drive,
         { folder: CMO_BRAND_MEDIA_FOLDER, filename: "home-mobile.jpg" },
         media.phone.screenshot,
         "image/jpeg",
       );
-      pages.push({
-        ...phone,
-        label: "Home on a phone",
-        pageUrl: media.phone.url,
-        title: media.phone.title,
-        device: "mobile",
-      });
     }
   }
 
-  const competitors: CmoBrandMedia["competitors"] = [];
   for (const { page, capture } of media.rivals) {
     if (!capture) continue;
-    const saved = await saveToDrive(
+    await saveToDrive(
       drive,
       {
         folder: `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
@@ -391,39 +592,20 @@ export async function captureCmoBrandMedia(
       capture.screenshot,
       "image/jpeg",
     );
-    competitors.push({ ...saved, name: page.name, pageUrl: capture.url });
   }
 
-  const pictures: CmoBrandMedia["pictures"] = [];
   for (const [index, { image, body }] of media.pictures.entries()) {
-    const saved = await saveToDrive(
+    const slot = String(index + 1).padStart(2, "0");
+    // The alt text names the picture, so Cuso finds a product's photo.
+    const filename = image.alt.trim()
+      ? `${slot}-${slug(image.alt)}.jpg`
+      : `picture-${slot}.jpg`;
+    await saveToDrive(
       drive,
-      {
-        folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`,
-        filename: `picture-${String(index + 1).padStart(2, "0")}.jpg`,
-      },
+      { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
       body,
       "image/jpeg",
     );
-    pictures.push({
-      ...saved,
-      sourceUrl: image.url,
-      alt: image.alt,
-      width: image.width,
-      height: image.height,
-    });
   }
   nudgeFileIndexing();
-
-  const result: CmoBrandMedia = {
-    capturedAt: new Date().toISOString(),
-    pages,
-    competitors,
-    pictures,
-  };
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { brandMedia: result },
-  });
-  return result;
 }
