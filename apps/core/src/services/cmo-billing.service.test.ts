@@ -7,7 +7,9 @@ import {
   resetCmoServiceMocks,
   seedStrategy,
   strategy,
+  subscriptionCreate,
   subscriptionFindFirst,
+  subscriptionUpdate,
 } from "@/test-fixtures/cmo-service";
 
 vi.mock(
@@ -147,7 +149,7 @@ describe("strategy approval → execution gate", () => {
 });
 
 describe("mock billing", () => {
-  const approvedWithMockPlan = {
+  const approved = {
     id: "cmo-1",
     userId: "user-1",
     workspaceId: "ws-1",
@@ -158,60 +160,100 @@ describe("mock billing", () => {
     seedStrategy(strategy, { approvedAt: new Date() });
   });
 
-  it("lets a mock plan open execution while CMO_MOCK_BILLING is on", async () => {
+  it("counts only Subscription rows, never a tier stored on the hire", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
-    subscriptionFindFirst.mockResolvedValue(null);
-    expect(
-      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
-    ).toBeNull();
-    expect(subscriptionFindFirst).not.toHaveBeenCalled();
-  });
-
-  it("ignores a stored mock plan when the flag is off (production)", async () => {
-    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    cmoFindUnique.mockResolvedValue({ ...approved, mockPlan: "growth" });
     subscriptionFindFirst.mockResolvedValue(null);
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toMatch(/subscribe/);
+  });
+
+  it("opens execution through the mock plan's Subscription row", async () => {
+    mockBilling.on = true;
+    cmoFindUnique.mockResolvedValue(approved);
+    subscriptionFindFirst.mockResolvedValue({
+      plan: "growth",
+      stripeSubscriptionId: null,
+    });
+    expect(
+      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
+    ).toBeNull();
+  });
+
+  it("creates an active CMO Subscription without Stripe IDs for the paying organization", async () => {
+    mockBilling.on = true;
+    cmoFindUnique.mockResolvedValue(approved);
+    subscriptionFindFirst.mockResolvedValue(null);
+    await chooseCmoMockPlan("user-1", "growth");
+    expect(subscriptionCreate).toHaveBeenCalledWith({
+      data: {
+        referenceId: "org-1",
+        plan: "growth",
+        status: "active",
+        periodStart: expect.any(Date),
+      },
+    });
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+
+  it("moves the organization's mock Subscription to the newly chosen tier", async () => {
+    mockBilling.on = true;
+    cmoFindUnique.mockResolvedValue(approved);
+    subscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
+    await chooseCmoMockPlan("user-1", "scale");
+    expect(subscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          referenceId: "org-1",
+          stripeSubscriptionId: null,
+        }),
+      }),
+    );
+    expect(subscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: { plan: "scale", status: "active", periodStart: expect.any(Date) },
+    });
+    expect(subscriptionCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a tier that is not a CMO plan", async () => {
+    mockBilling.on = true;
+    cmoFindUnique.mockResolvedValue(approved);
+    await expect(chooseCmoMockPlan("user-1", "enterprise")).rejects.toThrow(
+      /not a CMO plan/i,
+    );
+    expect(subscriptionCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses the mock plan while mock billing is off", async () => {
+    cmoFindUnique.mockResolvedValue(approved);
+    await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
+      /mock billing is off/i,
+    );
+    expect(subscriptionCreate).not.toHaveBeenCalled();
+    expect(subscriptionUpdate).not.toHaveBeenCalled();
   });
 
   it("ignores CMO_MOCK_BILLING on production", async () => {
     mockBilling.on = true;
     mockBilling.production = true;
-    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
-    subscriptionFindFirst.mockResolvedValue(null);
-    expect(
-      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
-    ).toMatch(/subscribe/);
+    cmoFindUnique.mockResolvedValue(approved);
     await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
       /mock billing is off/i,
     );
-    expect(cmoUpdate).not.toHaveBeenCalled();
-  });
-
-  it("stores the chosen tier only while the flag is on", async () => {
-    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
-    await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
-      /mock billing is off/i,
-    );
-    expect(cmoUpdate).not.toHaveBeenCalled();
-
-    mockBilling.on = true;
-    await chooseCmoMockPlan("user-1", "scale");
-    expect(cmoUpdate.mock.calls[0]?.[0].data).toMatchObject({
-      mockPlan: "scale",
-      mockPlanActivatedAt: expect.any(Date),
-    });
+    expect(subscriptionCreate).not.toHaveBeenCalled();
+    expect(subscriptionUpdate).not.toHaveBeenCalled();
   });
 
   it("starts the paid month for owners and admins only", async () => {
     mockBilling.on = true;
-    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    cmoFindUnique.mockResolvedValue(approved);
     memberFindUnique.mockResolvedValue({ role: "member" });
     await expect(chooseCmoMockPlan("user-2", "scale")).rejects.toBeInstanceOf(
       CmoForbiddenError,
     );
-    expect(cmoUpdate).not.toHaveBeenCalled();
+    expect(subscriptionCreate).not.toHaveBeenCalled();
+    expect(subscriptionUpdate).not.toHaveBeenCalled();
   });
 });

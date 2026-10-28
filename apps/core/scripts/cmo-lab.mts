@@ -16,8 +16,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { Prisma, type SokoBotTurnStatus } from "@sokosumi/database";
 import type { CmoStrategy } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
+import { parseCmoBrandBrain } from "@/services/brand-brain.service";
 import {
+  CMO_HIRE_OMIT,
   CMO_HIRE_PROJECT,
   cmoHireView,
   getCmoHireForUser,
@@ -107,13 +108,16 @@ async function run(email: string, brand: Brand) {
     where: { id: current.projectId },
     data: { websiteUrl: brand.url },
   });
+  // The Brand Brain is the Project's too.
+  await prisma.brandBrain.deleteMany({
+    where: { projectId: current.projectId },
+  });
   const hire = await prisma.cmoHire.update({
     where: { id: current.id },
+    omit: CMO_HIRE_OMIT,
     include: CMO_HIRE_PROJECT,
     data: {
       brandVisual: Prisma.DbNull,
-      brandBrain: Prisma.DbNull,
-      brandBrainUpdatedAt: null,
       accountsDoneAt: null,
     },
   });
@@ -141,14 +145,14 @@ async function run(email: string, brand: Brand) {
     research === "COMPLETED"
       ? await settle((await requestCmoStrategy({ userId: user.id })).turnId)
       : "SKIPPED";
-  const saved = await prisma.cmoHire.findUniqueOrThrow({
-    where: { id: hire.id },
-  });
-  const strategy = await newestMarketingStrategy(hire.projectId);
+  const [brain, strategy] = await Promise.all([
+    prisma.brandBrain.findUnique({ where: { projectId: hire.projectId } }),
+    newestMarketingStrategy(hire.projectId),
+  ]);
   return {
     research,
     plan,
-    ...judge(brand, { brandBrain: saved.brandBrain, strategy: strategy?.plan }),
+    ...judge(brand, { brandBrain: brain?.body, strategy: strategy?.plan }),
   };
 }
 

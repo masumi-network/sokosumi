@@ -37,6 +37,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/services/cmo-cuso.service", () => ({
+  CMO_HIRE_OMIT: {},
   CMO_HIRE_PROJECT: {},
   cmoHireView: ({
     project,

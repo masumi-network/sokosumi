@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { type CmoHire, type Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   type CmoReportUpdateInput,
   cmoReportUpdateInputSchema,
@@ -87,7 +87,7 @@ export async function reportCmoUpdate(
 export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
-}): Promise<CmoHire> {
+}): Promise<void> {
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const updates = parseCmoUpdates(hire.updates);
@@ -95,9 +95,9 @@ export async function revertCmoUpdate(input: {
   if (!target?.previousVersionId) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
-  if (target.revertedAt) return hire;
+  if (target.revertedAt) return;
   await approveCmoStrategy(input.userId, target.previousVersionId);
-  return prisma.cmoHire.update({
+  await prisma.cmoHire.update({
     where: { id: hire.id },
     data: {
       updates: updates.map((update) =>

@@ -86,7 +86,6 @@ describe("buildCmoBeatPacket", () => {
       websiteUrl: "https://acme.io",
       goals: "More leads",
       brandBrain: { summary: long },
-      mockPlan: null,
       updates: [],
     });
     seedStrategy(

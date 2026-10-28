@@ -19,6 +19,10 @@ export const finalizeSokoBotIntegration = vi.fn();
 export const cmoFindUnique = vi.fn();
 export const cmoUpdate = vi.fn();
 export const subscriptionFindFirst = vi.fn();
+export const subscriptionCreate = vi.fn();
+export const subscriptionUpdate = vi.fn();
+export const projectFindUnique = vi.fn();
+export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
@@ -36,21 +40,39 @@ export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const cmoDeleteMany = vi.fn();
 export const getUserWorkspace = vi.fn();
+export const brainFindUnique = vi.fn();
+export const brainUpsert = vi.fn();
+export const brainUpdate = vi.fn();
+
+type HireFixture = {
+  workspaceId?: string;
+  websiteUrl?: string;
+  brandBrain?: unknown;
+  brandBrainUpdatedAt?: Date | null;
+  brandBrainApprovedAt?: Date | null;
+};
 
 // A hire read with its Project, as Core includes it: a fixture's own
-// workspaceId and websiteUrl stand for the Project's.
-export const withProject = (hire: unknown) =>
-  hire && typeof hire === "object"
-    ? {
-        ...hire,
-        project: {
-          workspaceId: (hire as { workspaceId?: string }).workspaceId ?? "ws-1",
-          websiteUrl:
-            (hire as { websiteUrl?: string }).websiteUrl ?? "https://acme.io",
-          workspace: { organizationId: "org-1" },
-        },
-      }
-    : hire;
+// workspaceId, websiteUrl and Brand Brain stand for the Project's.
+export const withProject = (hire: unknown) => {
+  if (!hire || typeof hire !== "object") return hire;
+  const fixture = hire as HireFixture;
+  return {
+    ...hire,
+    project: {
+      workspaceId: fixture.workspaceId ?? "ws-1",
+      websiteUrl: fixture.websiteUrl ?? "https://acme.io",
+      workspace: { organizationId: "org-1" },
+      brandBrain: fixture.brandBrain
+        ? {
+            body: fixture.brandBrain,
+            updatedAt: fixture.brandBrainUpdatedAt ?? null,
+            confirmedAt: fixture.brandBrainApprovedAt ?? null,
+          }
+        : null,
+    },
+  };
+};
 
 /**
  * The Project's Marketing strategy versions, as rows in memory: tests seed
@@ -159,6 +181,11 @@ const client = {
     },
     deleteMany: cmoDeleteMany,
   },
+  brandBrain: {
+    findUnique: brainFindUnique,
+    upsert: brainUpsert,
+    update: brainUpdate,
+  },
   user: {
     findUnique: async () => ({ preferredOrganizationId: "org-1" }),
   },
@@ -173,6 +200,8 @@ const client = {
   project: {
     create: projectCreate,
     delete: projectDelete,
+    findUnique: projectFindUnique,
+    update: projectUpdate,
     // Cuso's Project lives in the business's organization (ADR 0060).
     findFirst: async () => ({
       workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
@@ -180,7 +209,11 @@ const client = {
   },
   marketingStrategy,
   organization: { findFirst: organizationFindFirst },
-  subscription: { findFirst: subscriptionFindFirst },
+  subscription: {
+    findFirst: subscriptionFindFirst,
+    create: subscriptionCreate,
+    update: subscriptionUpdate,
+  },
   workspace: { findUnique: workspaceFindUnique },
   sokoBotTurn: { findFirst: turnFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },

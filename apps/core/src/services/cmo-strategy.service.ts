@@ -10,7 +10,7 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
-import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
+import { parseCmoBrandBrain } from "@/services/brand-brain.service";
 import {
   CmoConflictError,
   type CmoHireView,

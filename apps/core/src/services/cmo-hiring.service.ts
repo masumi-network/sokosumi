@@ -1,4 +1,3 @@
-import { type CmoHire } from "@sokosumi/database";
 import {
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
@@ -13,9 +12,10 @@ import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
   cmoBrandSectionsSaved,
   parseCmoBrandBrain,
-} from "@/services/cmo-brand-brain.service";
+} from "@/services/brand-brain.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
+  CMO_HIRE_OMIT,
   CMO_HIRE_PROJECT,
   CMO_OUT_OF_CREDITS,
   CmoConflictError,
@@ -360,7 +360,7 @@ export function startCmoResearch(
 export async function startCmoOnboarding(input: {
   userId: string;
   websiteUrl: string;
-}): Promise<CmoHire> {
+}): Promise<CmoHireView> {
   const existing = await getCmoHireForUser(input.userId);
   if (existing) return existing;
   // shortcut: two racing submits can hire twice, in two organizations; the
@@ -428,6 +428,7 @@ export async function startCmoOnboarding(input: {
     created = cmoHireView(
       await prisma.cmoHire.create({
         data: { sokoBotId: bot.id, projectId: project.id },
+        omit: CMO_HIRE_OMIT,
         include: CMO_HIRE_PROJECT,
       }),
     );

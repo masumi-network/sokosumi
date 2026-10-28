@@ -14,27 +14,31 @@ import {
 } from "@/services/cmo-cuso.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
-/** The org's active plan that lets Cuso execute, or null. */
-export async function activeCmoPlan(
-  referenceId: string,
-): Promise<string | null> {
+/**
+ * The org's active Subscription on a plan that lets Cuso execute, or null.
+ * A mock plan is one of these rows without Stripe IDs.
+ */
+export async function activeCmoSubscription(referenceId: string): Promise<{
+  plan: string;
+  stripeSubscriptionId: string | null;
+  periodStart: Date | null;
+} | null> {
   const plans = getEnv().CMO_SUBSCRIPTION_PLANS;
-  const subscription = await prisma.subscription.findFirst({
+  return prisma.subscription.findFirst({
     where: {
       referenceId,
       plan: { in: plans },
       status: { in: ["active", "trialing"] },
     },
-    select: { plan: true },
+    select: { plan: true, stripeSubscriptionId: true, periodStart: true },
   });
-  return subscription?.plan ?? null;
 }
 
-/** Execution (scheduling, publishing) needs a paid plan on the org. */
+/** Execution (scheduling, publishing) needs a CMO plan on the org. */
 export async function hasActiveCmoSubscription(
   referenceId: string,
 ): Promise<boolean> {
-  return (await activeCmoPlan(referenceId)) !== null;
+  return (await activeCmoSubscription(referenceId)) !== null;
 }
 
 /** CMO_MOCK_BILLING, which production ignores so a stray value cannot make plans free. */
@@ -43,18 +47,10 @@ export function cmoMockBilling(): boolean {
   return env.CMO_MOCK_BILLING && !isProductionEnvironment(env);
 }
 
-/** The CMO tier picked without billing; ignored unless mock billing is on. */
-export function cmoMockPlan(
-  hire: Pick<CmoHireView, "mockPlan">,
-): string | null {
-  return cmoMockBilling() ? hire.mockPlan : null;
-}
-
-/** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
+/** The paying organization's CMO Subscription, mock or paid, lets Cuso execute. */
 export async function isCmoSubscribed(
-  hire: Pick<CmoHireView, "workspaceId" | "mockPlan">,
+  hire: Pick<CmoHireView, "workspaceId">,
 ): Promise<boolean> {
-  if (cmoMockPlan(hire)) return true;
   return hasActiveCmoSubscription((await cmoPayer(hire)).referenceId);
 }
 
@@ -86,7 +82,11 @@ export async function requireCmoCommitter(
   }
 }
 
-/** Activates a CMO tier without checkout, on local and preview runs only. */
+/**
+ * Activates a CMO tier without checkout, on local and preview runs only: an
+ * active Subscription row for the paying organization without Stripe IDs,
+ * moved to the new tier when the organization already has one.
+ */
 export async function chooseCmoMockPlan(
   userId: string,
   plan: string,
@@ -94,13 +94,24 @@ export async function chooseCmoMockPlan(
   if (!cmoMockBilling()) {
     throw new CmoConflictError("Mock billing is off on this server");
   }
+  const plans = getEnv().CMO_SUBSCRIPTION_PLANS;
+  if (!plans.includes(plan)) {
+    throw new CmoConflictError(`${plan} is not a CMO plan on this server`);
+  }
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   await requireCmoCommitter(userId, hire);
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { mockPlan: plan, mockPlanActivatedAt: new Date() },
+  const { referenceId } = await cmoPayer(hire);
+  const mock = await prisma.subscription.findFirst({
+    where: { referenceId, plan: { in: plans }, stripeSubscriptionId: null },
+    select: { id: true },
   });
+  const data = { plan, status: "active", periodStart: new Date() };
+  if (mock) {
+    await prisma.subscription.update({ where: { id: mock.id }, data });
+  } else {
+    await prisma.subscription.create({ data: { referenceId, ...data } });
+  }
   await startCmoProduction(hire.id);
 }
 

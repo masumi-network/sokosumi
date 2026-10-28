@@ -283,17 +283,28 @@ export function scheduleCmoBrandMedia(hire: {
 export async function captureCmoBrandMedia(
   hireId: string,
 ): Promise<CmoBrandMedia | null> {
-  const hire = await prisma.cmoHire.findUnique({
+  const row = await prisma.cmoHire.findUnique({
     where: { id: hireId },
     select: {
       id: true,
-      workspaceId: true,
-      websiteUrl: true,
-      brandBrain: true,
       sokoBotId: true,
+      project: {
+        select: {
+          workspaceId: true,
+          websiteUrl: true,
+          brandBrain: { select: { body: true } },
+        },
+      },
     },
   });
-  const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
+  // The workspace, website and Brand Brain are the Project's (ADR 0062).
+  const hire = row && {
+    id: row.id,
+    sokoBotId: row.sokoBotId,
+    workspaceId: row.project.workspaceId,
+    websiteUrl: row.project.websiteUrl ?? "",
+  };
+  const brain = cmoBrandBrainSchema.safeParse(row?.project.brandBrain?.body);
   if (!hire || !brain.success) return null;
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
   // service imports this module.

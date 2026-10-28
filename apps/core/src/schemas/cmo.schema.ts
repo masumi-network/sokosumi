@@ -31,10 +31,6 @@ export const cmoMockPlanRequestSchema = z
   })
   .openapi("CmoMockPlanRequest");
 
-export const cmoBrandBrainRequestSchema = z
-  .object({ brandBrain: cmoBrandBrainSchema })
-  .openapi("CmoBrandBrainRequest");
-
 export const cmoBrandAnswerRequestSchema = z
   .object({
     questionId: z.string().trim().min(1).max(40),

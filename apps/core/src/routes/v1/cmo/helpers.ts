@@ -12,6 +12,7 @@ import {
   CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
+  getCmoHireForUser,
 } from "@/services/cmo-cuso.service";
 import {
   type CmoOverview,
@@ -90,6 +91,13 @@ export async function requireOverview(userId: string) {
   const overview = await getCmoOverview(userId);
   if (!overview) throw notFound("Cuso is not hired yet");
   return mapOverview(overview);
+}
+
+/** The Project of the Cuso this member works with: his Brand Brain is its. */
+export async function requireCmoProjectId(userId: string): Promise<string> {
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw notFound("Cuso is not hired yet");
+  return hire.projectId;
 }
 
 export function rethrow(error: unknown): never {
