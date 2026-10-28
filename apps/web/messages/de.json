@@ -8083,12 +8083,14 @@
         "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
         "taskDue": "Fällig {date}",
         "taskSource": "Aus dem Chat:",
+        "taskFrom": "{name} schrieb:",
         "Buckets": {
           "needsYou": "{count, plural, one {# Frage an dich} other {# Fragen an dich}}",
           "escalation": "{count, plural, one {# Eskalation} other {# Eskalationen}}",
           "urgent": "{count, plural, one {# dringend} other {# dringend}}",
           "blocker": "{count, plural, one {# Blocker} other {# Blocker}}",
           "decisionMade": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+          "announcement": "{count, plural, one {# Ankündigung} other {# Ankündigungen}}",
           "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
           "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
           "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
@@ -8108,6 +8110,7 @@
           "urgent": "Dringend",
           "blocker": "Blocker",
           "decisionMade": "Entscheidung",
+          "announcement": "Ankündigung",
           "needsDecision": "Braucht eine Entscheidung",
           "commitment": "Zusage",
           "commitmentDue": "Zusage · fällig {date}",
@@ -8117,6 +8120,7 @@
           "question": "Stellt jemandem eine Frage",
           "needsDecision": "Braucht eine Entscheidung",
           "decisionMade": "Entscheidung getroffen",
+          "announcement": "Ankündigung",
           "commitment": "Zusage",
           "blocker": "Blocker",
           "urgent": "Dringend",
@@ -8137,6 +8141,19 @@
           "overview": "Überblick",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Sticker",
+        "hint": "PNG, JPEG oder WebP, bis zu 2 MiB. Sticker auswählen und senden.",
+        "upload": "Sticker hochladen",
+        "invalid": "Wähle ein PNG-, JPEG- oder WebP-Bild mit höchstens 2 MiB.",
+        "uploadFailed": "Sticker konnte nicht gespeichert werden. Lade ihn erneut hoch.",
+        "loading": "Sticker werden geladen…",
+        "loadFailed": "Sticker konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "empty": "Lade einen Sticker hoch, um deine Sammlung zu beginnen.",
+        "collection": "Gespeicherte Sticker",
+        "select": "{name} auswählen"
       }
     },
     "Drive": {

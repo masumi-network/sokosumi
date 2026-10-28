@@ -6568,6 +6568,11 @@ describe("Soko Bot project social tools", () => {
       });
       expect(result).toEqual({
         enabledProviders: ["x", "youtube", "linkedin"],
+        writingGuides: {
+          youtube: expect.arrayContaining([
+            expect.stringMatching(/Plain text only/),
+          ]),
+        },
         accounts: [
           expect.objectContaining({
             provider: "youtube",

@@ -739,6 +739,7 @@ export type ChatMessageSignal = {
         commitment?: number;
         blocker?: number;
         decisionMade?: number;
+        announcement?: number;
         fyi?: number;
         urgent?: number;
         chitChat?: number;
@@ -765,7 +766,7 @@ export type ChatMessageSignal = {
 };
 
 /**
- * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
  */
 export const ChatSignalTag = {
     QUESTION: 'question',
@@ -773,6 +774,7 @@ export const ChatSignalTag = {
     COMMITMENT: 'commitment',
     BLOCKER: 'blocker',
     DECISION_MADE: 'decisionMade',
+    ANNOUNCEMENT: 'announcement',
     FYI: 'fyi',
     URGENT: 'urgent',
     CHIT_CHAT: 'chitChat',
@@ -781,7 +783,7 @@ export const ChatSignalTag = {
 } as const;
 
 /**
- * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
  */
 export type ChatSignalTag = typeof ChatSignalTag[keyof typeof ChatSignalTag];
 
@@ -3532,6 +3534,7 @@ export const ChatCatchUpBucket = {
     URGENT: 'urgent',
     BLOCKER: 'blocker',
     DECISION_MADE: 'decisionMade',
+    ANNOUNCEMENT: 'announcement',
     NEEDS_DECISION: 'needsDecision',
     COMMITMENT: 'commitment',
     WORK_REQUEST: 'workRequest',
@@ -3615,6 +3618,11 @@ export type ChatSkillCatalogItem = {
     source: string;
     description: string | null;
     installs: number;
+};
+
+export type ChatSticker = {
+    url: string;
+    name: string;
 };
 
 export type ChatUnreadThread = {
@@ -26528,6 +26536,199 @@ export type SearchChatSkillsResponses = {
 };
 
 export type SearchChatSkillsResponse = SearchChatSkillsResponses[keyof SearchChatSkillsResponses];
+
+export type ListChatStickersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/chats/stickers';
+};
+
+export type ListChatStickersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListChatStickersError = ListChatStickersErrors[keyof ListChatStickersErrors];
+
+export type ListChatStickersResponses = {
+    /**
+     * Saved stickers
+     */
+    200: {
+        data: Array<ChatSticker>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListChatStickersResponse = ListChatStickersResponses[keyof ListChatStickersResponses];
+
+export type UploadChatStickerData = {
+    body: Blob | File;
+    path?: never;
+    query: {
+        filename: string;
+    };
+    url: '/chats/stickers';
+};
+
+export type UploadChatStickerErrors = {
+    /**
+     * Invalid image
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid filename
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UploadChatStickerError = UploadChatStickerErrors[keyof UploadChatStickerErrors];
+
+export type UploadChatStickerResponses = {
+    /**
+     * Sticker saved
+     */
+    201: {
+        data: ChatSticker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UploadChatStickerResponse = UploadChatStickerResponses[keyof UploadChatStickerResponses];
 
 export type GetChatsThreadsUnreadData = {
     body?: never;

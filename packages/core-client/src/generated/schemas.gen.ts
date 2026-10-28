@@ -2899,6 +2899,11 @@ export const ChatMessageSignalSchema = {
                     minimum: 0,
                     maximum: 1
                 },
+                announcement: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
                 fyi: {
                     type: 'number',
                     minimum: 0,
@@ -2986,13 +2991,14 @@ export const ChatSignalTagSchema = {
         'commitment',
         'blocker',
         'decisionMade',
+        'announcement',
         'fyi',
         'urgent',
         'chitChat',
         'workRequest',
         'escalation'
     ],
-    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -12660,6 +12666,7 @@ export const ChatCatchUpBucketSchema = {
         'urgent',
         'blocker',
         'decisionMade',
+        'announcement',
         'needsDecision',
         'commitment',
         'workRequest',
@@ -12886,6 +12893,23 @@ export const ChatSkillCatalogItemSchema = {
         'source',
         'description',
         'installs'
+    ]
+} as const;
+
+export const ChatStickerSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url',
+        'name'
     ]
 } as const;
 
