@@ -4399,6 +4399,7 @@
       },
       "show": "Mostrar barra lateral",
       "hide": "Ocultar barra lateral",
+      "resize": "Cambiar el tamaño de la barra lateral",
       "unreadChats": "Chats sin leer"
     },
     "HistorySearchDialog": {

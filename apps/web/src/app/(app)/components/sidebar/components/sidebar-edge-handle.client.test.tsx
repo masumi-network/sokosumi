@@ -54,6 +54,10 @@ function drag(from: number, ...to: number[]) {
   fireEvent.click(handle());
 }
 
+function expectHidden() {
+  expect(handle()).toHaveAttribute("aria-hidden", "true");
+}
+
 function userWidth() {
   return document.documentElement.style.getPropertyValue(
     SIDEBAR_USER_WIDTH_VAR,
@@ -80,22 +84,56 @@ describe("SidebarEdgeHandle", () => {
     ).toBeNull();
   });
 
-  it("names itself for what a click does", () => {
-    const { unmount } = renderHandle(true);
-    expect(handle()).toHaveAttribute("aria-label", "hide");
-    expect(handle()).toHaveAttribute("aria-expanded", "true");
-    unmount();
+  it("is a window splitter while shown, with its width as the value", () => {
+    renderHandle(true);
 
-    renderHandle(false);
-    expect(handle()).toHaveAttribute("aria-label", "show");
-    expect(handle()).toHaveAttribute("aria-expanded", "false");
+    expect(handle()).toHaveAttribute("role", "separator");
+    expect(handle()).toHaveAttribute("aria-orientation", "vertical");
+    expect(handle()).toHaveAttribute("aria-label", "resize");
+    expect(handle()).toHaveAttribute("aria-valuenow", "224");
+    expect(handle()).toHaveAttribute(
+      "aria-valuemin",
+      String(SIDEBAR_MIN_WIDTH),
+    );
+    expect(handle()).toHaveAttribute(
+      "aria-valuemax",
+      String(SIDEBAR_MAX_WIDTH),
+    );
+    expect(handle()).toHaveAttribute("tabindex", "0");
   });
 
   it("leaves the tab order and the tree while hidden: the header toggle is the control", () => {
     renderHandle(false);
 
     expect(handle()).toHaveAttribute("aria-hidden", "true");
-    expect(handle()).toHaveAttribute("tabindex", "-1");
+    expect(handle()).not.toHaveAttribute("role");
+    expect(handle()).not.toHaveAttribute("tabindex");
+  });
+
+  it("keeps its value in step with a drag and with the arrow keys", () => {
+    renderHandle(true);
+
+    drag(224, 260, 300);
+    expect(handle()).toHaveAttribute("aria-valuenow", "300");
+
+    fireEvent.keyDown(handle(), { key: "ArrowLeft" });
+    expect(handle()).toHaveAttribute("aria-valuenow", "284");
+  });
+
+  it("starts from the stored width", () => {
+    document.cookie = "sidebar_width=310; path=/";
+    renderHandle(true);
+
+    expect(handle()).toHaveAttribute("aria-valuenow", "310");
+  });
+
+  it("hides on Enter, as the window splitter pattern does", () => {
+    renderHandle(true);
+
+    fireEvent.keyDown(handle(), { key: "Enter" });
+
+    expect(parseSidebarStateCookieHeader(document.cookie)).toBe(false);
+    expectHidden();
   });
 
   it("hides the sidebar on a click, and shows it on the next", () => {
@@ -103,7 +141,7 @@ describe("SidebarEdgeHandle", () => {
 
     fireEvent.click(handle());
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(false);
-    expect(handle()).toHaveAttribute("aria-label", "show");
+    expect(handle()).toHaveAttribute("aria-hidden", "true");
 
     fireEvent.click(handle());
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(true);
@@ -117,7 +155,7 @@ describe("SidebarEdgeHandle", () => {
     expect(userWidth()).toBe("300px");
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBe(300);
     // The click that ends a drag is not a toggle.
-    expect(handle()).toHaveAttribute("aria-label", "hide");
+    expect(handle()).toHaveAttribute("role", "separator");
   });
 
   it("clamps the width to the range", () => {
@@ -144,7 +182,7 @@ describe("SidebarEdgeHandle", () => {
     fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
 
     // Before release: shut, and easing is back on so it slides out.
-    expect(handle()).toHaveAttribute("aria-label", "show");
+    expect(handle()).toHaveAttribute("aria-hidden", "true");
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(false);
     expect(wrapper).not.toHaveAttribute("data-resizing");
 
@@ -152,7 +190,7 @@ describe("SidebarEdgeHandle", () => {
     fireEvent.pointerMove(handle(), { clientX: 400, pointerId: 1 });
     fireEvent.pointerUp(handle(), { clientX: 400, pointerId: 1 });
     fireEvent.click(handle());
-    expect(handle()).toHaveAttribute("aria-label", "show");
+    expect(handle()).toHaveAttribute("aria-hidden", "true");
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBe(300);
 
     // The width it reopens at is put back once it has slid out.
@@ -164,7 +202,7 @@ describe("SidebarEdgeHandle", () => {
 
     drag(4, 100, 280);
 
-    expect(handle()).toHaveAttribute("aria-label", "hide");
+    expect(handle()).toHaveAttribute("role", "separator");
     expect(parseSidebarStateCookieHeader(document.cookie)).toBe(true);
     expect(userWidth()).toBe("280px");
   });
@@ -174,7 +212,7 @@ describe("SidebarEdgeHandle", () => {
 
     drag(4, 60, 100);
 
-    expect(handle()).toHaveAttribute("aria-label", "show");
+    expect(handle()).toHaveAttribute("aria-hidden", "true");
     expect(parseSidebarWidthCookieHeader(document.cookie)).toBeNull();
   });
 
@@ -209,7 +247,7 @@ describe("SidebarEdgeHandle", () => {
     fireEvent.pointerCancel(handle(), { clientX: 260, pointerId: 1 });
 
     fireEvent.click(handle());
-    expect(handle()).toHaveAttribute("aria-label", "show");
+    expect(handle()).toHaveAttribute("aria-hidden", "true");
   });
 
   it("puts the stored width back at once when it reopens mid-slide", () => {
@@ -225,7 +263,7 @@ describe("SidebarEdgeHandle", () => {
     // The strip, pressed inside the slide-out window: no waiting on the timer.
     fireEvent.click(handle());
 
-    expect(handle()).toHaveAttribute("aria-label", "hide");
+    expect(handle()).toHaveAttribute("role", "separator");
     expect(userWidth()).toBe("300px");
   });
 

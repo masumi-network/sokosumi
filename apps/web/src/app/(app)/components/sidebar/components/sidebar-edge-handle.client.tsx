@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { KeyboardEvent, PointerEvent } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
 import { SIDEBAR_HIDE_TRANSITION } from "@/components/ui/sidebar-classes";
@@ -12,6 +12,8 @@ import {
   parseSidebarWidthCookieHeader,
   SIDEBAR_COLLAPSE_AT,
   SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
   SIDEBAR_USER_WIDTH_VAR,
   serializeSidebarWidthCookie,
 } from "@/lib/ui-preferences/sidebar-state";
@@ -64,10 +66,12 @@ function commitWidth(px: number) {
 /**
  * The sidebar's edge as a control: drag it to resize; drag it past the
  * collapse line and the sidebar snaps shut, sliding out the way ⌘B hides it.
- * A click (or Enter) hides or shows it. Hidden, the edge is a strip on the
- * window's left that can be dragged back out; the header's toggle is the
- * visible control then, so the strip leaves the tab order and the
- * accessibility tree. ⌘B / Ctrl+B toggles through `SidebarProvider`.
+ * A click hides or shows it. Shown, it is a window splitter for assistive
+ * technology (`role="separator"`, value in px): arrows resize, Enter hides.
+ * Hidden, the edge is a strip on the window's left that can be dragged back
+ * out; the header's toggle is the visible control then, so the strip leaves
+ * the tab order and the accessibility tree. ⌘B / Ctrl+B toggles through
+ * `SidebarProvider`.
  *
  * Must follow the sidebar as its sibling: it reads the sidebar's `data-state`
  * through `peer-*`, so the boot script's pre-paint collapse moves it too.
@@ -77,11 +81,14 @@ function commitWidth(px: number) {
 export function SidebarEdgeHandle() {
   const t = useTranslations("App.Sidebar");
   const { open, setOpen, toggleSidebar, isMobile } = useSidebar();
-  const ref = useRef<HTMLButtonElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The click that ends a drag must not also toggle.
   const swallowClick = useRef(false);
+  // What the splitter reports; the width itself lives on `<html>` while
+  // dragging, so a move never re-renders.
+  const [width, setWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
 
   const wrapper = () =>
     ref.current?.closest<HTMLElement>('[data-slot="sidebar-wrapper"]');
@@ -108,6 +115,9 @@ export function SidebarEdgeHandle() {
   // Leaving mid-drag or mid-slide must not strand `data-resizing` on the
   // wrapper or a timer that writes to a document nobody is dragging.
   useMountEffect(() => {
+    // The stored width, for the splitter's value: the cookie is not there on
+    // the server.
+    setWidth(readWidth());
     const node = ref.current;
     return () => {
       if (restoreTimer.current) clearTimeout(restoreTimer.current);
@@ -121,7 +131,7 @@ export function SidebarEdgeHandle() {
     return null;
   }
 
-  function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     // A press that lands mid-slide takes the stored width, not the narrowed
@@ -146,7 +156,7 @@ export function SidebarEdgeHandle() {
     restoreAfterSlideOut();
   }
 
-  function onPointerMove(event: PointerEvent<HTMLButtonElement>) {
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     const current = drag.current;
     if (!current || current.snapped) return;
     if (
@@ -175,7 +185,7 @@ export function SidebarEdgeHandle() {
     applyWidth(clampSidebarWidth(event.clientX));
   }
 
-  function endDrag(event: PointerEvent<HTMLButtonElement>, cancelled: boolean) {
+  function endDrag(event: PointerEvent<HTMLDivElement>, cancelled: boolean) {
     const current = drag.current;
     drag.current = null;
     if (!current) return;
@@ -199,7 +209,9 @@ export function SidebarEdgeHandle() {
       return;
     }
     if (open || current.opened) {
-      commitWidth(clampSidebarWidth(event.clientX));
+      const next = clampSidebarWidth(event.clientX);
+      commitWidth(next);
+      setWidth(next);
     }
   }
 
@@ -211,8 +223,13 @@ export function SidebarEdgeHandle() {
     toggleSidebar();
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!open) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      toggleSidebar();
+      return;
+    }
     const step =
       event.key === "ArrowLeft"
         ? -KEY_STEP_PX
@@ -221,19 +238,29 @@ export function SidebarEdgeHandle() {
           : 0;
     if (step === 0) return;
     event.preventDefault();
-    commitWidth(clampSidebarWidth(readWidth() + step));
+    const next = clampSidebarWidth(readWidth() + step);
+    commitWidth(next);
+    setWidth(next);
   }
 
   return (
-    <button
+    <div
       ref={ref}
-      type="button"
       data-slot="sidebar-edge-handle"
-      aria-label={open ? t("hide") : t("show")}
-      aria-expanded={open}
-      aria-hidden={open ? undefined : true}
-      aria-keyshortcuts="Meta+B Control+B"
-      tabIndex={open ? 0 : -1}
+      // Shown: the window splitter pattern. Hidden: the header toggle is the
+      // control, and the strip is only a drag target.
+      {...(open
+        ? {
+            role: "separator",
+            "aria-orientation": "vertical",
+            "aria-label": t("resize"),
+            "aria-valuenow": width,
+            "aria-valuemin": SIDEBAR_MIN_WIDTH,
+            "aria-valuemax": SIDEBAR_MAX_WIDTH,
+            "aria-keyshortcuts": "Meta+B Control+B",
+            tabIndex: 0,
+          }
+        : { "aria-hidden": true })}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(event) => endDrag(event, false)}
@@ -243,12 +270,17 @@ export function SidebarEdgeHandle() {
       className={cn(
         // Straddles the sidebar's border, 3px each side; hidden, the strip
         // hugs the window's edge. Follows the panel as it slides.
-        "group/edge fixed inset-y-0 z-20 hidden w-1.5 cursor-col-resize touch-none outline-hidden md:block",
+        "group/edge fixed inset-y-0 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
         "left-[calc(var(--sidebar-width)-3px)] peer-data-[state=collapsed]:left-0 peer-data-[state=collapsed]:w-2",
         `transition-[left] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
+        // A 6px strip is too thin to hit: its target reaches 8px into each
+        // side, 22px in all, over the sidebar's and the page's own edges.
+        "before:absolute before:inset-y-0 before:-right-2 before:-left-2",
         // The line: a 2px rule on the edge, shown on hover, focus and drag.
         "after:absolute after:inset-y-0 after:left-0.5 after:w-0.5 after:bg-transparent peer-data-[state=collapsed]:after:left-0",
         "hover:after:bg-sidebar-ring focus-visible:after:bg-sidebar-ring data-[dragging=true]:after:bg-sidebar-ring",
+        // Keyboard focus rings the whole strip, not only the line.
+        "focus-visible:outline-2 focus-visible:outline-sidebar-ring",
       )}
     />
   );

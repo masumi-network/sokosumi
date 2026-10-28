@@ -4399,6 +4399,7 @@
       },
       "show": "Seitenleiste einblenden",
       "hide": "Seitenleiste ausblenden",
+      "resize": "Größe der Seitenleiste ändern",
       "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {

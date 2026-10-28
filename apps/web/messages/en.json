@@ -4399,6 +4399,7 @@
       },
       "show": "Show sidebar",
       "hide": "Hide sidebar",
+      "resize": "Resize sidebar",
       "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {
