@@ -11723,7 +11723,8 @@ export const ChatResultAvailableSchema = {
                 'job',
                 'file',
                 'decision',
-                'project_selection'
+                'project_selection',
+                'cmo_report'
             ]
         },
         title: {
@@ -38432,7 +38433,7 @@ export const CmoBrandVisualSchema = {
             items: {
                 type: 'string'
             },
-            description: 'Photos from the site, og:image first, for post previews.'
+            description: 'The brand\'s pictures from the Project\'s Brand research files, for post previews.'
         }
     },
     required: [
@@ -38442,7 +38443,8 @@ export const CmoBrandVisualSchema = {
         'siteName',
         'designMdUrl',
         'images'
-    ]
+    ],
+    description: 'The brand\'s look, read from the Project\'s logo and DESIGN.md (colours, fonts and name).'
 } as const;
 
 export const CmoRoutineSchema = {
@@ -38523,9 +38525,6 @@ export const CmoBrandMediaSchema = {
                     pageUrl: {
                         type: 'string'
                     },
-                    title: {
-                        type: 'string'
-                    },
                     device: {
                         type: 'string',
                         enum: [
@@ -38539,7 +38538,6 @@ export const CmoBrandMediaSchema = {
                     'fileId',
                     'label',
                     'pageUrl',
-                    'title',
                     'device'
                 ]
             },
@@ -38597,26 +38595,14 @@ export const CmoBrandMediaSchema = {
                             }
                         ]
                     },
-                    sourceUrl: {
-                        type: 'string'
-                    },
                     alt: {
                         type: 'string'
-                    },
-                    width: {
-                        type: 'number'
-                    },
-                    height: {
-                        type: 'number'
                     }
                 },
                 required: [
                     'url',
                     'fileId',
-                    'sourceUrl',
-                    'alt',
-                    'width',
-                    'height'
+                    'alt'
                 ]
             },
             description: 'The large pictures on the brand\'s pages: products, screens, people.'

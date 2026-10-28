@@ -7,7 +7,6 @@ import {
 } from "@/helpers/error";
 import { mapControlPlaneError } from "@/routes/v1/soko-bots/helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
-import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   CmoConflictError,
   CmoForbiddenError,
@@ -48,7 +47,7 @@ function mapOverview(overview: CmoOverview) {
     brandBrain: overview.brandBrain,
     brandBrainUpdatedAt: hire.brandBrainUpdatedAt,
     brandBrainApprovedAt: hire.brandBrainApprovedAt,
-    brandMedia: parseCmoBrandMedia(hire.brandMedia),
+    brandMedia: overview.brandMedia,
     strategy: overview.strategy,
     media: overview.media,
     strategyVersion: overview.strategyVersions[0] ?? null,

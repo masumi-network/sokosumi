@@ -1002,7 +1002,8 @@
         "studio_job": "Generación en Studio",
         "job": "Resultado del agente",
         "file": "Archivo",
-        "decision": "Aprobación"
+        "decision": "Aprobación",
+        "cmo_report": "Informe"
       },
       "status": {
         "DRAFT": "Borrador",

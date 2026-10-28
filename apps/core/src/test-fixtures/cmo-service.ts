@@ -34,12 +34,19 @@ export const expireTurn = vi.fn();
 export const startTurn = vi.fn();
 export const createBot = vi.fn();
 export const projectCreate = vi.fn();
+export const fileLinkFindMany = vi.fn();
 export const projectDelete = vi.fn();
 export const cmoCreate = vi.fn();
 export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const cmoDeleteMany = vi.fn();
 export const getUserWorkspace = vi.fn();
+export const messageUpsert = vi.fn();
+export const messageFindFirst = vi.fn();
+export const messageFindMany = vi.fn();
+export const messageUpdate = vi.fn();
+export const chatRoomUpdate = vi.fn();
+export const projectUpdateMany = vi.fn();
 export const brainFindUnique = vi.fn();
 export const brainUpsert = vi.fn();
 export const brainUpdate = vi.fn();
@@ -196,18 +203,26 @@ const client = {
     findMany: memberFindMany,
   },
   sokoBot: { findUnique: sokoBotFindUnique },
-  chatRoom: { delete: chatRoomDelete },
+  chatRoom: { delete: chatRoomDelete, update: chatRoomUpdate },
+  chatRoomMessage: {
+    upsert: messageUpsert,
+    findFirst: messageFindFirst,
+    findMany: messageFindMany,
+    update: messageUpdate,
+  },
   project: {
     create: projectCreate,
     delete: projectDelete,
     findUnique: projectFindUnique,
     update: projectUpdate,
+    updateMany: projectUpdateMany,
     // Cuso's Project lives in the business's organization (ADR 0060).
     findFirst: async () => ({
       workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
     }),
   },
   marketingStrategy,
+  fileProjectLink: { findMany: fileLinkFindMany },
   organization: { findFirst: organizationFindFirst },
   subscription: {
     findFirst: subscriptionFindFirst,
@@ -307,10 +322,25 @@ export function resetCmoServiceMocks(): void {
   mockBilling.production = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
+  // A report message comes back as it was written.
+  messageUpsert.mockImplementation(async (args) => ({
+    id: args.create.id,
+    createdAt: args.create.createdAt,
+    metadata: args.create.metadata,
+  }));
+  projectUpdateMany.mockResolvedValue({ count: 1 });
+  messageFindMany.mockResolvedValue([]);
   // Every hire lives in the business's organization (ADR 0060), and the
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });
+  // A Project with no logo, DESIGN.md, site platform or Brand research files.
+  projectFindUnique.mockResolvedValue({
+    logo: null,
+    designMdUrl: null,
+    sitePlatform: null,
+  });
+  fileLinkFindMany.mockResolvedValue([]);
   // The hire a member works with is the one findUnique stands for here, in
   // the business's organization.
   cmoFindMany.mockImplementation(async (args: unknown) => {

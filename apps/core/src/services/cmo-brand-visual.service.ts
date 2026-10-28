@@ -1,44 +1,109 @@
-import { z } from "zod";
 import { getEnv } from "@/config/env";
 import {
   type BrandVisual,
   brandColors,
   brandFontName,
-  distinctColors,
   readBrandVisual,
 } from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
-import { uploadDesignMdContent } from "@/lib/design-md-blob";
+import {
+  readDesignMdContent,
+  uploadDesignMdContent,
+} from "@/lib/design-md-blob";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
-import { type CmoHireView } from "@/services/cmo-cuso.service";
+import type { CmoHireView } from "@/services/cmo-cuso.service";
 
-export const cmoBrandVisualSchema = z.object({
-  logoUrl: z.string().url().nullable(),
-  colors: z.array(z.string().regex(/^#[0-9a-f]{6}$/)).max(8),
-  fonts: z.array(z.string().max(80)).max(4),
-  siteName: z.string().max(120).nullable(),
-  designMdUrl: z.string().url().nullable(),
-  images: z.array(z.string().url()).max(8).default([]),
-});
-export type CmoBrandVisual = z.infer<typeof cmoBrandVisualSchema>;
+/** The brand's look as CMO shows it, read from the Project. */
+export interface CmoBrandVisual {
+  logoUrl: string | null;
+  colors: string[];
+  fonts: string[];
+  siteName: string | null;
+  designMdUrl: string | null;
+  images: string[];
+}
 
-export function parseCmoBrandVisual(value: unknown): CmoBrandVisual | null {
-  const parsed = cmoBrandVisualSchema.safeParse(value);
-  if (!parsed.success) return null;
-  // Rows saved before the filters tightened still carry fallbacks, icon
-  // fonts, near-repeat colours and raw entities.
-  const fonts = parsed.data.fonts
-    .map(brandFontName)
+/**
+ * Name, colours and fonts in a DESIGN.md: its front matter's `name` and
+ * `fontFamily` entries (CSS `font-family` too), and its colours, most used
+ * first.
+ */
+export function brandLookFromDesignMd(
+  content: string,
+): Pick<CmoBrandVisual, "colors" | "fonts" | "siteName"> {
+  const name = content
+    .match(/^---\n[\s\S]*?^name:\s*(.+)$/m)?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, "");
+  const fonts = [
+    ...content.matchAll(/font-?family["']?\s*:\s*["']?([^"',;\n]+)/gi),
+  ]
+    .map((match) => brandFontName(match[1] ?? ""))
     .filter((font): font is string => font !== null);
   return {
-    ...parsed.data,
-    colors: distinctColors(parsed.data.colors),
-    fonts: [...new Set(fonts)],
-    siteName: parsed.data.siteName
-      ? decodeEntities(parsed.data.siteName)
-      : null,
+    colors: brandColors(content, 5),
+    fonts: [...new Set(fonts)].slice(0, 4),
+    siteName: name ? decodeEntities(name).slice(0, 120) : null,
   };
+}
+
+/**
+ * The brand's look from the Project's logo and DESIGN.md, with `images` (the
+ * Brand research pictures) for post previews. Null when the Project has
+ * neither.
+ */
+export async function cmoBrandVisual(
+  project: { logo: string | null; designMdUrl: string | null },
+  images: string[],
+): Promise<CmoBrandVisual | null> {
+  if (!project.logo && !project.designMdUrl) return null;
+  const designMd = await readDesignMdContent(project.designMdUrl);
+  return {
+    logoUrl: project.logo,
+    ...(designMd
+      ? brandLookFromDesignMd(designMd)
+      : { colors: [], fonts: [], siteName: null }),
+    designMdUrl: project.designMdUrl,
+    images: images.slice(0, 8),
+  };
+}
+
+/**
+ * A DESIGN.md of what the site's own pages show, for when the DESIGN.md API
+ * is not configured or fails: its name, colours and fonts in the front
+ * matter `brandLookFromDesignMd` reads.
+ */
+export function siteDesignMd(site: BrandVisual, websiteUrl: string): string {
+  const quote = (value: string) => JSON.stringify(value);
+  return [
+    "---",
+    ...(site.siteName ? [`name: ${quote(site.siteName)}`] : []),
+    ...(site.colors.length
+      ? [
+          "colors:",
+          ...site.colors.map(
+            (color, index) => `  brand-${index + 1}: ${quote(color)}`,
+          ),
+        ]
+      : []),
+    ...(site.fonts.length
+      ? [
+          "typography:",
+          ...site.fonts.map(
+            (font, index) =>
+              `  font-${index + 1}:\n    fontFamily: ${quote(font)}`,
+          ),
+        ]
+      : []),
+    "---",
+    "",
+    `# ${site.siteName ?? new URL(websiteUrl).hostname}`,
+    "",
+    `The colours and fonts ${websiteUrl} uses, most used first.`,
+    ...(site.logoUrl ? ["", `Logo: ${site.logoUrl}`] : []),
+    "",
+  ].join("\n");
 }
 
 const DESIGN_MD_POLL_MS = 3_000;
@@ -100,14 +165,14 @@ async function generateProjectDesignMd(
 }
 
 /**
- * Reads how the brand looks and keeps it on the CMO hire: the logo (the
- * site's own, else its best icon stored as the Project logo), colours, fonts
- * and, when the API is configured, a DESIGN.md on the Project.
+ * Reads how the brand looks into the Project, where Cuso, CMO and Image
+ * Studio read it: the site's best icon as the Project logo, and a DESIGN.md
+ * from the API, else one of the site's own colours and fonts.
  */
 export async function learnCmoBrandVisual(
-  hire: Pick<CmoHireView, "id" | "projectId" | "websiteUrl">,
-): Promise<CmoBrandVisual> {
-  const [site, icon, designMd] = await Promise.all([
+  hire: Pick<CmoHireView, "projectId" | "websiteUrl">,
+): Promise<void> {
+  const [site, , designMd] = await Promise.all([
     readBrandVisual(hire.websiteUrl),
     resolveSiteIconAsProjectLogo(hire.websiteUrl, hire.projectId)
       .then(async (logo) => {
@@ -117,32 +182,20 @@ export async function learnCmoBrandVisual(
             data: { logo },
           });
         }
-        return logo;
       })
       .catch(() => null),
     generateProjectDesignMd(hire.projectId, hire.websiteUrl).catch(() => null),
   ]);
-  const visual = mergeBrandVisual(site, icon, designMd);
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { brandVisual: visual },
+  if (designMd) return;
+  if (!site.siteName && site.colors.length === 0 && site.fonts.length === 0)
+    return;
+  const stored = await uploadDesignMdContent({
+    content: siteDesignMd(site, hire.websiteUrl),
+    owner: { kind: "project", id: hire.projectId },
   });
-  return visual;
-}
-
-/** The DESIGN.md's colours lead when there is one; the site fills the rest. */
-export function mergeBrandVisual(
-  site: BrandVisual,
-  iconUrl: string | null,
-  designMd: { url: string; content: string } | null,
-): CmoBrandVisual {
-  const designColors = designMd ? brandColors(designMd.content, 5) : [];
-  return {
-    logoUrl: site.logoUrl ?? iconUrl,
-    colors: distinctColors([...designColors, ...site.colors]).slice(0, 5),
-    fonts: site.fonts,
-    siteName: site.siteName,
-    designMdUrl: designMd?.url ?? null,
-    images: site.images,
-  };
+  if (!stored) return;
+  await prisma.project.update({
+    where: { id: hire.projectId },
+    data: { designMdUrl: stored, designMdExtractionId: null },
+  });
 }

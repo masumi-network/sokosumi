@@ -330,7 +330,11 @@ export async function retryCmoOnboarding(
         : "Cuso already learned the business",
     );
   }
-  if (!hire.brandVisual) {
+  const project = await prisma.project.findUnique({
+    where: { id: hire.projectId },
+    select: { designMdUrl: true },
+  });
+  if (!project?.designMdUrl) {
     waitUntil(learnCmoBrandVisual(hire).catch(() => undefined));
   }
   return startCmoResearch(hire, userId);

@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   CalendarClock,
+  ClipboardList,
   Download,
   FileText,
   FolderKanban,
@@ -67,6 +68,7 @@ const icons = {
   file: FileText,
   decision: MessageSquare,
   project_selection: FolderKanban,
+  cmo_report: ClipboardList,
 };
 
 /**

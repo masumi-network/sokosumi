@@ -117,6 +117,36 @@ describe("thread", () => {
     expect(kinds).toEqual(["learning", "brandBrain", "strategy", "message"]);
   });
 
+  it("shows a report's message in the room as its card, once", () => {
+    const messages = toCusoMessages([
+      cmoChatMessage(),
+      cmoChatMessage({
+        id: "report-1",
+        content: "Week 1",
+        createdAt: new Date("2026-10-01T09:04:00Z"),
+      }),
+    ]);
+    const update = {
+      id: "report-1",
+      at: new Date("2026-10-01T09:04:00Z"),
+      kind: "weekly" as const,
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: [],
+      revertible: false,
+      revertedAt: null,
+    };
+    const thread = buildThread(overview({ updates: [update] }), messages);
+    expect(thread.map((item) => item.kind)).toEqual([
+      "learning",
+      "brandBrain",
+      "strategy",
+      "message",
+      "update",
+    ]);
+  });
+
   it("asks to subscribe and connect only after approval", () => {
     const before = buildThread(overview(), []).map((item) => item.kind);
     expect(before).not.toContain("subscribe");

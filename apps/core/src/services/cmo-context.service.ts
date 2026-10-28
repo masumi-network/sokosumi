@@ -4,15 +4,15 @@ import {
   cmoRoutineSkipReason,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { readDesignMdContent } from "@/lib/design-md-blob";
 import {
   compactBrandBrain,
   parseCmoBrandBrain,
 } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
-import { parseCmoBrandMedia } from "@/services/cmo-brand-media.service";
-import { parseCmoBrandVisual } from "@/services/cmo-brand-visual.service";
+import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import { getCmoHireForBot, listCmoChannels } from "@/services/cmo-cuso.service";
-import { parseCmoUpdates } from "@/services/cmo-reports.service";
+import { listCmoReports } from "@/services/cmo-reports.service";
 import {
   CMO_VISIBLE_CALENDAR_DAYS,
   calendarBounds,
@@ -54,6 +54,14 @@ export async function loadCmoMarketingContext(
     options.executing ?? false,
   );
   const strategy = parseMarketingPlan(version?.plan);
+  const [project, brandPictures] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id: hire.projectId },
+      select: { logo: true, designMdUrl: true },
+    }),
+    listCmoBrandPictures(hire.projectId),
+  ]);
+  const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
   const context: MarketingContext = {
     business: {
       name: hire.businessName,
@@ -72,10 +80,19 @@ export async function loadCmoMarketingContext(
       }),
     ),
     brandBrain: compactBrandBrain(parseCmoBrandBrain(hire.brandBrain)),
-    /** The brand's logo, colours and fonts: use them in images and layouts. */
-    brandVisual: parseCmoBrandVisual(hire.brandVisual),
-    /** The brand's own photos from its site: references for generate_image. */
-    brandPictures: cmoBrandPictures(hire.brandMedia),
+    /**
+     * The Project's logo and DESIGN.md (colours, fonts, type): use them in
+     * images and layouts.
+     */
+    brandLook: {
+      logoUrl: project?.logo ?? null,
+      designMd: designMd?.slice(0, CMO_DESIGN_MD_CHARS) ?? null,
+    },
+    /** The brand's own photos, the Project's files: generate_image references. */
+    brandPictures: brandPictures.map((picture) => ({
+      ...picture,
+      alt: picture.alt.slice(0, 80),
+    })),
     strategy: strategy
       ? {
           ...strategy,
@@ -101,29 +118,15 @@ export async function loadCmoMarketingContext(
           calendarTotal: strategy.calendar.length,
         }
       : null,
-    recentUpdates: parseCmoUpdates(hire.updates)
-      .slice(0, 3)
-      .map(({ previousVersionId: _previous, ...update }) => update),
+    recentUpdates: (await listCmoReports(sokoBotId, 3)).map(
+      ({ previousVersionId: _previous, ...update }) => update,
+    ),
   };
   return fitCmoMarketingContext(context, now);
 }
 
-/** The pictures research saved from the brand's pages, as Files to reference. */
-export function cmoBrandPictures(
-  brandMedia: unknown,
-): { fileId: string; alt: string; size: string }[] {
-  return (parseCmoBrandMedia(brandMedia)?.pictures ?? []).flatMap((picture) =>
-    picture.fileId
-      ? [
-          {
-            fileId: picture.fileId,
-            alt: picture.alt.slice(0, 80),
-            size: `${picture.width}x${picture.height}`,
-          },
-        ]
-      : [],
-  );
-}
+/** Enough DESIGN.md for colours, fonts and type, as Image Studio reads it. */
+const CMO_DESIGN_MD_CHARS = 1_600;
 
 /**
  * Bytes Cuso's marketing context may take of the 48 KB packet; the rest is

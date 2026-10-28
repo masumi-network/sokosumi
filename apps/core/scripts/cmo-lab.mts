@@ -103,10 +103,14 @@ async function run(email: string, brand: Brand) {
   const user = await prisma.user.findUniqueOrThrow({ where: { email } });
   const current = await getCmoHireForUser(user.id);
   if (!current) throw new Error(`${email} works with no Cuso`);
-  // The website is the Project's; the hire keeps no copy.
+  // The website and the brand's look are the Project's; the hire keeps no copy.
   await prisma.project.update({
     where: { id: current.projectId },
-    data: { websiteUrl: brand.url },
+    data: {
+      websiteUrl: brand.url,
+      designMdUrl: null,
+      designMdExtractionId: null,
+    },
   });
   // The Brand Brain is the Project's too.
   await prisma.brandBrain.deleteMany({

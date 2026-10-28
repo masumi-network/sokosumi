@@ -1,88 +1,161 @@
-import { randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
   type CmoReportUpdateInput,
   cmoReportUpdateInputSchema,
 } from "@sokosumi/soko-bot";
-import { z } from "zod";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
+import {
+  CMO_REPORT_KEY,
+  CMO_REPORT_MESSAGE_PREFIX,
+  type CmoReport,
+  cmoReportCard,
+  cmoReportMarkdown,
+  cmoReportMessageWhere,
+  readCmoReport,
+} from "@/helpers/cmo-report-card";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import {
+  chatResultAvailableSchema,
+  chatResultSnapshotSchema,
+} from "@/schemas/chat-result-preview.schema";
 import {
   CmoNotFoundError,
   getCmoHireForUser,
 } from "@/services/cmo-cuso.service";
 import { approveCmoStrategy } from "@/services/cmo-strategy.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
+import { setProjectLatestUpdate } from "@/services/project-latest-update";
 
-const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
-  id: z.string(),
-  at: z.string(),
-  /**
-   * Weekly and monthly: the Marketing strategy version approved before this
-   * turn wrote a new one; reverting approves it again.
-   */
-  previousVersionId: z.string().optional(),
-  revertedAt: z.string().optional(),
-});
-export type CmoUpdateRecord = z.infer<typeof cmoUpdateRecordSchema>;
+/** A report as CMO reads it: its card's message id and when it was posted. */
+export type CmoUpdateRecord = CmoReport & { id: string; at: string };
 
-const UPDATES_LIMIT = 60;
+function toRecord(message: {
+  id: string;
+  createdAt: Date;
+  metadata: unknown;
+}): CmoUpdateRecord | null {
+  const report = readCmoReport(message.metadata);
+  return report
+    ? { ...report, id: message.id, at: message.createdAt.toISOString() }
+    : null;
+}
 
-export function parseCmoUpdates(value: unknown): CmoUpdateRecord[] {
-  const parsed = z.array(cmoUpdateRecordSchema).safeParse(value);
-  return parsed.success ? parsed.data : [];
+/** Cuso's reports, newest first, read from the cards in his shared room. */
+export async function listCmoReports(
+  sokoBotId: string,
+  take: number,
+  db: Prisma.TransactionClient = prisma,
+): Promise<CmoUpdateRecord[]> {
+  const messages = await db.chatRoomMessage.findMany({
+    where: cmoReportMessageWhere(sokoBotId),
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, createdAt: true, metadata: true },
+  });
+  return messages.flatMap((message) => toRecord(message) ?? []);
 }
 
 /**
- * Stores Cuso's report as a chat card. A weekly or monthly report that wrote
- * a new strategy version keeps the version approved before it, so the owner
- * can revert the whole review in one step.
+ * Posts Cuso's report as a result card in his shared room and makes it the
+ * Project's latest update. A weekly or monthly report that wrote a new
+ * strategy version keeps the version approved before it, so the owner can
+ * revert the whole review from the card in one step.
  */
 export async function reportCmoUpdate(
   input: {
     sokoBotId: string;
     turnId: string;
+    toolCallId: string;
     update: CmoReportUpdateInput;
   },
   db: Prisma.TransactionClient = prisma,
 ): Promise<CmoUpdateRecord> {
-  const hire = await db.cmoHire.findUnique({
-    where: { sokoBotId: input.sokoBotId },
+  const bot = await db.sokoBot.findUnique({
+    where: { id: input.sokoBotId },
+    select: {
+      workspaceId: true,
+      projectId: true,
+      sharedRoomId: true,
+      cmoHire: { select: { id: true } },
+    },
   });
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!bot?.cmoHire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const { sharedRoomId: roomId, projectId } = bot;
+  if (!roomId || !projectId) {
+    throw new CmoNotFoundError("Cuso has no shared room in a Project");
+  }
   const update = cmoReportUpdateInputSchema.parse(input.update);
   const [wroteThisTurn, approved] =
     update.kind === "weekly" || update.kind === "monthly"
       ? await Promise.all([
           db.marketingStrategy.findFirst({
-            where: { projectId: hire.projectId, turnId: input.turnId },
+            where: { projectId, turnId: input.turnId },
             select: { id: true },
           }),
-          approvedMarketingStrategy(hire.projectId, db),
+          approvedMarketingStrategy(projectId, db),
         ])
       : [null, null];
-  const record: CmoUpdateRecord = {
+  const report: CmoReport = {
     ...update,
-    id: randomBytes(8).toString("hex"),
-    at: new Date().toISOString(),
     ...(wroteThisTurn && approved && approved.id !== wroteThisTurn.id
       ? { previousVersionId: approved.id }
       : {}),
   };
-  await db.cmoHire.update({
-    where: { id: hire.id },
-    data: {
-      updates: [record, ...parseCmoUpdates(hire.updates)].slice(
-        0,
-        UPDATES_LIMIT,
-      ),
-    },
+  const id = randomUUID();
+  const at = new Date();
+  const snapshot = chatResultSnapshotSchema.parse({
+    workspaceId: bot.workspaceId,
+    reference: { kind: "cmo_report", id },
+    data: chatResultAvailableSchema.parse({
+      id: randomUUID(),
+      state: "available",
+      capturedAt: at,
+      kind: "cmo_report",
+      ...cmoReportCard(report, projectId),
+    }),
   });
+  const message = await db.chatRoomMessage.upsert({
+    where: {
+      roomId_clientMessageId: {
+        roomId,
+        clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`,
+      },
+    },
+    create: {
+      id,
+      roomId,
+      clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`,
+      senderSokoBotId: input.sokoBotId,
+      content: report.headline,
+      createdAt: at,
+      metadata: {
+        [CMO_REPORT_KEY]: jsonInput(report),
+        [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue([snapshot]),
+        soko_bot: { turn_id: input.turnId },
+      },
+    },
+    update: {},
+    select: { id: true, createdAt: true, metadata: true },
+  });
+  await db.chatRoom.update({
+    where: { id: roomId },
+    data: { updatedAt: at },
+  });
+  await setProjectLatestUpdate(
+    { projectId, markdown: cmoReportMarkdown(report), at },
+    db,
+  );
+  const record = toRecord(message);
+  if (!record) throw new CmoNotFoundError("The report card is unreadable");
   return record;
 }
 
 /**
- * Puts back the strategy a weekly review or monthly strategy replaced, by
- * approving the version that ran before it again.
+ * Puts back the strategy a weekly review or monthly strategy replaced, from
+ * its card, by approving the version that ran before it again.
  */
 export async function revertCmoUpdate(input: {
   userId: string;
@@ -90,21 +163,23 @@ export async function revertCmoUpdate(input: {
 }): Promise<void> {
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const updates = parseCmoUpdates(hire.updates);
-  const target = updates.find((update) => update.id === input.updateId);
-  if (!target?.previousVersionId) {
+  const message = await prisma.chatRoomMessage.findFirst({
+    where: { id: input.updateId, ...cmoReportMessageWhere(hire.sokoBotId) },
+    select: { id: true, createdAt: true, metadata: true },
+  });
+  const target = message ? readCmoReport(message.metadata) : null;
+  if (!message || !target?.previousVersionId) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (target.revertedAt) return;
   await approveCmoStrategy(input.userId, target.previousVersionId);
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
+  await prisma.chatRoomMessage.update({
+    where: { id: message.id },
     data: {
-      updates: updates.map((update) =>
-        update.id === target.id
-          ? { ...update, revertedAt: new Date().toISOString() }
-          : update,
-      ),
+      metadata: jsonInput({
+        ...(message.metadata as Record<string, unknown>),
+        [CMO_REPORT_KEY]: { ...target, revertedAt: new Date().toISOString() },
+      }),
     },
   });
 }

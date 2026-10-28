@@ -17,6 +17,8 @@ export const chatResultReferenceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("job"), ...resource }).strict(),
   z.object({ kind: z.literal("file"), ...resource }).strict(),
   z.object({ kind: z.literal("decision"), ...resource }).strict(),
+  /** A Cuso report: its message in his shared room. */
+  z.object({ kind: z.literal("cmo_report"), ...resource }).strict(),
   z
     .object({
       kind: z.literal("project_selection"),

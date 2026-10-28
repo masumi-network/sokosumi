@@ -2,12 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cmoFindUnique,
   connectionFindMany,
+  fileLinkFindMany,
+  messageFindMany,
   postFindMany,
+  projectFindUnique,
   resetCmoServiceMocks,
   seedStrategy,
   strategy,
   subscriptionFindFirst,
 } from "@/test-fixtures/cmo-service";
+
+const readDesignMd = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/design-md-blob", () => ({
+  readDesignMdContent: readDesignMd,
+  uploadDesignMdContent: vi.fn(),
+}));
 
 vi.mock(
   "@/lib/db/prisma",
@@ -69,9 +78,57 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { fitCmoMarketingContext } from "./cmo-context.service";
+import {
+  fitCmoMarketingContext,
+  loadCmoMarketingContext,
+} from "./cmo-context.service";
 
 beforeEach(resetCmoServiceMocks);
+
+describe("loadCmoMarketingContext", () => {
+  it("gives Cuso the Project's logo, DESIGN.md and Brand research pictures", async () => {
+    const { loadCmoMarketingContext } = await import("./cmo-context.service");
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      brandBrain: null,
+      mockPlan: null,
+      updates: [],
+    });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    projectFindUnique.mockResolvedValue({
+      logo: "https://blob.example/logo.png",
+      designMdUrl: "https://blob.example/DESIGN.md",
+    });
+    readDesignMd.mockResolvedValue('---\nname: Acme\n---\nPrimary: "#ff6a00"');
+    const research = "drive/organizations/org-1/Brand research";
+    fileLinkFindMany.mockResolvedValue([
+      {
+        resource: {
+          id: "f-shoe",
+          sourceId: `${research}/Pictures/01-red-shoe.jpg`,
+        },
+      },
+      { resource: { id: "f-home", sourceId: `${research}/home.jpg` } },
+    ]);
+
+    const context = await loadCmoMarketingContext("bot-1");
+
+    expect(context).toMatchObject({
+      brandLook: {
+        logoUrl: "https://blob.example/logo.png",
+        designMd: '---\nname: Acme\n---\nPrimary: "#ff6a00"',
+      },
+      brandPictures: [{ fileId: "f-shoe", alt: "red shoe" }],
+    });
+    expect(context).not.toHaveProperty("brandVisual");
+    expect(projectFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "project-1" } }),
+    );
+  });
+});
 
 describe("buildCmoBeatPacket", () => {
   it("stays well under the message limit with a long plan", async () => {
@@ -115,7 +172,6 @@ describe("buildCmoBeatPacket", () => {
 
 describe("loadCmoMarketingContext", () => {
   it("shows a rhythm the approved version and every other turn the newest draft", async () => {
-    const { loadCmoMarketingContext } = await import("./cmo-context.service");
     cmoFindUnique.mockResolvedValue({
       id: "cmo-1",
       workspaceId: "ws-1",
@@ -143,6 +199,41 @@ describe("loadCmoMarketingContext", () => {
       strategyApproved: false,
       strategy: { summary: "A draft waiting for approval." },
     });
+  });
+
+  it("gives Cuso his latest reports from the cards in his room", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+    });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    messageFindMany.mockResolvedValue([
+      {
+        id: "message-1",
+        createdAt: new Date("2026-10-05T09:03:00Z"),
+        metadata: {
+          cmo_report: {
+            kind: "weekly",
+            headline: "Week 1",
+            done: [],
+            upNext: [],
+            changes: [],
+            previousVersionId: "strategy-0",
+          },
+        },
+      },
+    ]);
+    const context = await loadCmoMarketingContext("bot-1");
+    expect(messageFindMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { senderSokoBotId: "bot-1" },
+      take: 3,
+    });
+    expect(context?.recentUpdates).toEqual([
+      expect.objectContaining({ id: "message-1", headline: "Week 1" }),
+    ]);
+    expect(JSON.stringify(context)).not.toContain("previousVersionId");
   });
 });
 

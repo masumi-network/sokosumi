@@ -3299,7 +3299,7 @@ export type ChatResultAvailable = {
     id: string;
     state: 'available';
     capturedAt: Date;
-    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection';
+    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection' | 'cmo_report';
     title: string;
     status: string | null;
     summary?: string | null;
@@ -10082,6 +10082,9 @@ export type CmoWorkStep = {
     at: Date;
 };
 
+/**
+ * The brand's look, read from the Project's logo and DESIGN.md (colours, fonts and name).
+ */
 export type CmoBrandVisual = {
     logoUrl: string | null;
     colors: Array<string>;
@@ -10089,7 +10092,7 @@ export type CmoBrandVisual = {
     siteName: string | null;
     designMdUrl: string | null;
     /**
-     * Photos from the site, og:image first, for post previews.
+     * The brand's pictures from the Project's Brand research files, for post previews.
      */
     images: Array<string>;
 };
@@ -10113,7 +10116,6 @@ export type CmoBrandMedia = {
         fileId: string | null;
         label: string;
         pageUrl: string;
-        title: string;
         device: 'desktop' | 'mobile';
     }>;
     /**
@@ -10131,10 +10133,7 @@ export type CmoBrandMedia = {
     pictures: Array<{
         url: string;
         fileId: string | null;
-        sourceUrl: string;
         alt: string;
-        width: number;
-        height: number;
     }>;
 };
 

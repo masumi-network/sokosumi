@@ -657,6 +657,37 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toEqual({ client_message_id: "turn-1" });
   });
 
+  it("keeps a Cuso report's stored strategy out of the message", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: null,
+      senderCoworkerId: null,
+      senderSokoBotId: null,
+      content: "Week 1",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: {
+        cmo_report: { headline: "Week 1", previousVersionId: "strategy-0" },
+        soko_bot: { turn_id: "turn-1" },
+      },
+      clientMessageId: "cmo-report:turn-1:call-1",
+      responsesApiResponseId: null,
+      senderUser: null,
+      senderCoworker: null,
+      senderSokoBot: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      pins: [],
+      threadReplyCount: 0,
+    });
+
+    expect(mapped.metadata).toEqual({ soko_bot: { turn_id: "turn-1" } });
+  });
+
   it("soft-parses legacy quotes without attachment", () => {
     const quote = {
       messageId: "550e8400-e29b-41d4-a716-446655440004",
