@@ -37,9 +37,6 @@ public extension ChatService {
     }
     var body = first.requestBody
     if case .human = first {
-      guard selection.recipients.count == 1 || organizationSlug != nil else {
-        throw ChatServiceError.unexpectedResponse("Select an organization to start a group Direct.")
-      }
       body.memberUserIds = selection.recipients.compactMap {
         if case let .human(id) = $0 {
           return id

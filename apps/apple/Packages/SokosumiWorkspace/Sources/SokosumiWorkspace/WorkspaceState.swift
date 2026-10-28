@@ -476,16 +476,14 @@ public final class WorkspaceState: ObservableObject {
       userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
     )
     return try await workspaceOperation(context: context) { client, slug in
-      try await service.directRecipients(
-        client: client, yourself: yourself, organizationId: selection?.workspace.organizationId, organizationSlug: slug
-      )
+      try await service.directRecipients(client: client, yourself: yourself, organizationSlug: slug)
     }
   }
 
   @discardableResult
   public func openParticipantDirect(_ recipient: DirectRecipient) async throws -> Bool {
     guard canOpenDirect(recipient) else { return false }
-    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil, currentUserId: currentUserId)
+    var recipients = DirectConversationSelection(currentUserId: currentUserId)
     recipients.add(recipient)
     return try await openDirect(recipients, context: compositionContext)
   }

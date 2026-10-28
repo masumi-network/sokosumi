@@ -70,12 +70,11 @@ public struct ChatRecipientRoster: Equatable, Sendable {
 
 public extension ChatService {
   /// The New chat roster: Message yourself first (nil without a signed-in reader), then everyone else but the reader.
-  func directRecipients(
-    client: Client, yourself: ChatRecipientTarget?, organizationId: String?, organizationSlug: String?
-  ) async throws -> ChatRecipientRoster {
+  /// People are everyone the reader shares an Organization or External channel with, whatever the workspace.
+  func directRecipients(client: Client, yourself: ChatRecipientTarget?, organizationSlug: String?) async throws -> ChatRecipientRoster {
     let roster: ChatRecipientRoster
     do {
-      roster = try await chatRecipients(client: client, organizationId: organizationId, organizationSlug: organizationSlug)
+      roster = try await recipients(client: client, organizationSlug: organizationSlug) { try await chatPeople(client: client) }
     } catch {
       // Web keeps Message yourself whatever else fails; a 401 still ends the session and a cancel stays one.
       guard let yourself, !(error is CancellationError), !Task.isCancelled else { throw error }
@@ -88,10 +87,19 @@ public extension ChatService {
     return .init(targets: (yourself.map { [$0] } ?? []) + others, membersLoadFailed: roster.membersLoadFailed)
   }
 
+  /// The Channel roster: the active Organization's members, its coworkers and the reader's assistant.
   func chatRecipients(client: Client, organizationId: String?, organizationSlug: String?) async throws -> ChatRecipientRoster {
+    try await recipients(client: client, organizationSlug: organizationSlug) {
+      try await chatMembers(client: client, organizationId: organizationId)
+    }
+  }
+
+  private func recipients(
+    client: Client, organizationSlug: String?, humans: @Sendable () async throws -> ChatRecipientRoster
+  ) async throws -> ChatRecipientRoster {
     async let coworkers = chatCoworkers(client: client, organizationSlug: organizationSlug)
     async let bot = chatAssistant(client: client, organizationSlug: organizationSlug)
-    async let members = chatMembers(client: client, organizationId: organizationId)
+    async let members = humans()
     let (people, agents, assistant) = try await (members, coworkers, bot)
     try Task.checkCancellation()
     return ChatRecipientRoster(targets: people.targets + agents + assistant, membersLoadFailed: people.membersLoadFailed)
@@ -121,17 +129,32 @@ public extension ChatService {
     return [.init(id: .sokoBot(bot.id), name: name.isEmpty ? "Personal assistant" : name, imageURL: bot.avatarImageUrl)]
   }
 
+  private func chatPeople(client: Client) async throws -> ChatRecipientRoster {
+    try await softHumans {
+      try await call { try await client.listChatPeople() }.ok.body.json.data.map {
+        ChatRecipientTarget(id: .human($0.id), name: $0.name.isEmpty ? $0.email : $0.name, detail: $0.email, imageURL: $0.image)
+      }
+    }
+  }
+
   private func chatMembers(client: Client, organizationId: String?) async throws -> ChatRecipientRoster {
     guard let organizationId else { return .init(targets: []) }
-    do {
-      let members = try await call { try await client.getOrganizationsIdMembers(.init(path: .init(id: organizationId))) }.ok.body.json.data
-      try Task.checkCancellation()
-      return .init(targets: members.map {
+    return try await softHumans {
+      try await call { try await client.getOrganizationsIdMembers(.init(path: .init(id: organizationId))) }.ok.body.json.data.map {
         ChatRecipientTarget(
           id: .human($0.user.id), name: $0.user.name.isEmpty ? $0.user.email : $0.user.name,
           detail: $0.user.email, imageURL: $0.user.image
         )
-      })
+      }
+    }
+  }
+
+  /// People failing leaves AI recipients usable (`membersLoadFailed`); a 401 still ends the session.
+  private func softHumans(_ load: () async throws -> [ChatRecipientTarget]) async throws -> ChatRecipientRoster {
+    do {
+      let targets = try await load()
+      try Task.checkCancellation()
+      return .init(targets: targets)
     } catch let error as ChatServiceError {
       try Task.checkCancellation()
       if case .unauthorized = error {

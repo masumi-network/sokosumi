@@ -64,6 +64,10 @@ private func memberFixture(id: String, name: String) -> String {
   """
 }
 
+private func personFixture(id: String, name: String) -> String {
+  #"{"id":"\#(id)","name":"\#(name)","email":"\#(id)@example.com","image":null}"#
+}
+
 private func editableRoomFixture() -> Components.Schemas.ChatRoom {
   Components.Schemas.ChatRoom(
     id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
@@ -268,13 +272,13 @@ struct ChatRecipientRosterTests {
         coworkerFixture(id: "empty-endpoint", endpoint: " "),
         coworkerFixture(id: "tasks", capabilities: #"["tasks"]"#)
       ].joined(separator: ",") + "]")),
-      "get/organizations/{id}/members": (200, rosterEnvelope("[" + [memberFixture(id: "me", name: "Me"), memberFixture(id: "peer", name: "")].joined(separator: ",") + "]")),
+      "listChatPeople": (200, rosterEnvelope("[" + [personFixture(id: "me", name: "Me"), personFixture(id: "peer", name: "")].joined(separator: ",") + "]")),
       "getMySokoBot": (200, rosterEnvelope(#"{"sokoBot":\#(assistantFixture)}"#))
     ])
     let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let roster = try await ChatService().directRecipients(
       client: client, yourself: .messageYourself(userId: "me", name: "Ada Lovelace", imageURL: "https://example.com/ada.png"),
-      organizationId: "org", organizationSlug: "team"
+      organizationSlug: "team"
     )
     #expect(roster.targets.map(\.id) == [.human("me"), .human("peer"), .coworker("usable"), .sokoBot("bot")])
     #expect(roster.targets.dropFirst().first?.name == "peer@example.com")
@@ -283,31 +287,52 @@ struct ChatRecipientRosterTests {
     #expect(!roster.recipientsLoadFailed)
     let requests = await transport.requests
     let header = try #require(HTTPField.Name("X-Organization-Slug"))
-    #expect(requests.filter { $0.path?.contains("/organizations/") != true }.allSatisfy { $0.headerFields[header] == "team" })
+    // People ignore the active workspace; coworkers and the assistant still belong to it.
+    #expect(requests.filter { $0.path?.hasSuffix("/chats/people") != true }.allSatisfy { $0.headerFields[header] == "team" })
+    #expect(requests.contains { $0.path?.hasSuffix("/chats/people") == true && $0.headerFields[header] == nil })
     #expect(requests.contains { $0.path?.contains("scope=available") == true && $0.path?.contains("capability=chat") == true })
     #expect(roster.sections(query: "  HELPER-SLUG ").flatMap(\.targets).map(\.id) == [.coworker("usable")])
     #expect(roster.sections(query: "@example.com").flatMap(\.targets).map(\.id) == [.human("peer")])
   }
 
-  @Test func partialMembersFailureKeepsAIAndPersonalSkipsMembers() async throws {
-    for organization in [nil, "org"] {
-      let transport = RosterTransport([
-        "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
-        "get/organizations/{id}/members": (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/organizations/org/members","method":"GET"}}"#),
-        "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
-      ])
-      let roster = try await ChatService().directRecipients(
-        client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
-        yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: organization, organizationSlug: nil
-      )
-      // Message yourself needs no organization and no member list (web `create-direct-dialog.tsx`:53-64).
-      #expect(roster.targets.map(\.id) == [.human("me"), .coworker("ai")])
-      #expect(roster.membersLoadFailed == (organization != nil))
-      #expect(!roster.recipientsLoadFailed)
-      let requests = await transport.requests
-      #expect(requests.count == (organization == nil ? 2 : 3))
-      #expect(requests.allSatisfy { $0.headerFields[HTTPField.Name("X-Organization-Slug")!] == nil })
-    }
+  /// In the personal workspace the people come from every Organization and External channel the reader shares
+  /// (`GET /chats/people`, deduplicated by Core); the reader is offered only as Message yourself.
+  @Test func personalWorkspaceListsPeopleFromEveryOrganizationAndExternalChannel() async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "listChatPeople": (200, rosterEnvelope("[" + [
+        personFixture(id: "colleague-a", name: "Ada"), personFixture(id: "colleague-b", name: "Bea"),
+        personFixture(id: "guest", name: "Guest"), personFixture(id: "me", name: "Me")
+      ].joined(separator: ",") + "]")),
+      "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
+    ])
+    let roster = try await ChatService().directRecipients(
+      client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
+      yourself: .messageYourself(userId: "me", name: "Me", imageURL: nil), organizationSlug: nil
+    )
+    #expect(roster.targets.map(\.id) == [.human("me"), .human("colleague-a"), .human("colleague-b"), .human("guest")])
+    #expect(roster.targets.last == .init(id: .human("guest"), name: "Guest", detail: "guest@example.com"))
+    #expect(!roster.membersLoadFailed)
+    #expect(await transport.requests.allSatisfy { $0.path?.contains("/organizations/") != true })
+  }
+
+  @Test func peopleFailureKeepsAIAndMessageYourself() async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
+      "listChatPeople": (500, errorEnvelope("Internal Server Error", message: "Unavailable")),
+      "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
+    ])
+    let roster = try await ChatService().directRecipients(
+      client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
+      yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationSlug: nil
+    )
+    // Web's `peopleLoadFailed`: the people notice shows, AI coworkers and Message yourself stay.
+    #expect(roster.targets.map(\.id) == [.human("me"), .coworker("ai")])
+    #expect(roster.membersLoadFailed)
+    #expect(!roster.recipientsLoadFailed)
+    let requests = await transport.requests
+    #expect(requests.count == 3)
+    #expect(requests.allSatisfy { $0.headerFields[HTTPField.Name("X-Organization-Slug")!] == nil })
   }
 
   // MARK: Message yourself (row 27c)
@@ -317,14 +342,14 @@ struct ChatRecipientRosterTests {
   @Test func messageYourselfLeadsThePeopleAndIsFoundByNameYouAndTheReader() async throws {
     let transport = RosterTransport([
       "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
-      "get/organizations/{id}/members": (200, rosterEnvelope("[" + [memberFixture(id: "peer", name: "Francis"), memberFixture(id: "me", name: "Ada")]
+      "listChatPeople": (200, rosterEnvelope("[" + [personFixture(id: "peer", name: "Francis"), personFixture(id: "me", name: "Ada")]
           .joined(separator: ",") + "]")),
       "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
     ])
     let roster = try await ChatService().directRecipients(
       client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
       yourself: .messageYourself(userId: "me", name: "Ada", imageURL: "https://example.com/ada.png"),
-      organizationId: "org", organizationSlug: "acme"
+      organizationSlug: "acme"
     )
     let yourself = ChatRecipientTarget(id: .human("me"), name: "Message yourself", detail: "You · Ada", imageURL: "https://example.com/ada.png")
     #expect(ChatRecipientTarget.messageYourself(userId: "me", name: "Ada", imageURL: "https://example.com/ada.png") == yourself)
@@ -337,12 +362,11 @@ struct ChatRecipientRosterTests {
 
   /// Web's roster action catches every recipient failure and still offers Message yourself
   /// (`actions.ts`:211-224); the coworker list failing used to fail the whole picker.
-  @Test(arguments: [nil, "org"])
-  func aRecipientFailureStillOffersMessageYourself(organization: String?) async throws {
+  @Test func aRecipientFailureStillOffersMessageYourself() async throws {
     let transport = RosterTransport(["get/coworkers": (503, #"{"message":"Try again"}"#)])
     let roster = try await ChatService().directRecipients(
       client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
-      yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: organization, organizationSlug: nil
+      yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationSlug: nil
     )
     #expect(roster.targets == [.messageYourself(userId: "me", name: "Ada", imageURL: nil)])
     #expect(roster.recipientsLoadFailed)
@@ -356,14 +380,14 @@ struct ChatRecipientRosterTests {
     await #expect(throws: ChatServiceError.self) {
       try await ChatService().directRecipients(
         client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: unavailable),
-        yourself: nil, organizationId: nil, organizationSlug: nil
+        yourself: nil, organizationSlug: nil
       )
     }
     let expired = RosterTransport(["get/coworkers": (401, errorEnvelope("Unauthorized", message: "Session expired"))])
     await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
       try await ChatService().directRecipients(
         client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: expired),
-        yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: nil, organizationSlug: nil
+        yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationSlug: nil
       )
     }
   }

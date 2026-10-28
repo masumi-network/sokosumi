@@ -475,7 +475,7 @@ struct WorkspaceStateTests {
     state.rooms[0].coworkerMembers = [.init(id: "peer", name: "Peer", slug: "peer", caption: nil, image: nil, presence: .online)]
     transport.pauseDirect = true
     let context = state.compositionContext
-    var recipients = DirectConversationSelection(hasOrganization: false, currentUserId: "user_1")
+    var recipients = DirectConversationSelection(currentUserId: "user_1")
     recipients.add(.coworker("peer"))
     let request = Task {
       if fromPicker {
@@ -521,8 +521,8 @@ struct WorkspaceStateTests {
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
-      // The coworker list and the assistant, in either order.
-      (503, unavailable), (503, unavailable),
+      // The coworker list, the people and the assistant, in any order.
+      (503, unavailable), (503, unavailable), (503, unavailable),
       (200, selfDirect),
       (200, transcriptPageBody(messages: [], nextCursor: nil))
     ], visible: false)
@@ -532,7 +532,7 @@ struct WorkspaceStateTests {
     let roster = try await state.loadDirectRecipients(context: context)
     #expect(roster.targets == [.messageYourself(userId: "user_1", name: "Me", imageURL: nil)])
     #expect(roster.recipientsLoadFailed)
-    var selection = DirectConversationSelection(hasOrganization: false, currentUserId: state.currentUserId)
+    var selection = DirectConversationSelection(currentUserId: state.currentUserId)
     try selection.add(#require(roster.targets.first).id)
     #expect(try await state.openDirect(selection, context: context))
     await waitForTranscriptIdle(state)
@@ -561,7 +561,7 @@ struct WorkspaceStateTests {
     await state.reload()
     await waitForTranscriptIdle(state)
     let context = state.compositionContext
-    var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "user_1")
+    var selection = DirectConversationSelection(currentUserId: "user_1")
     selection.add(.coworker("peer"))
     transport.pauseDirect = true
     let request = Task { try await state.openDirect(selection, context: context) }
@@ -591,7 +591,7 @@ struct WorkspaceStateTests {
     await state.reload()
     await waitForTranscriptIdle(state)
     let context = state.compositionContext
-    var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "user_1")
+    var selection = DirectConversationSelection(currentUserId: "user_1")
     selection.add(.coworker("peer"))
     transport.pauseDirect = true
     let request = Task { try await state.openDirect(selection, context: context) }
