@@ -287,14 +287,19 @@ export async function captureCmoBrandMedia(
     where: { id: hireId },
     select: {
       id: true,
-      userId: true,
       workspaceId: true,
       websiteUrl: true,
       brandBrain: true,
+      sokoBotId: true,
     },
   });
   const brain = cmoBrandBrainSchema.safeParse(hire?.brandBrain);
   if (!hire || !brain.success) return null;
+  // The files are saved as Cuso's runner (ADR 0060). Loaded here: the CMO
+  // service imports this module.
+  const { cmoRunnerUserId } = await import("@/services/cmo.service");
+  const runnerId = await cmoRunnerUserId(hire);
+  if (!runnerId) return null;
   const workspace = await prisma.workspace.findUnique({
     where: { id: hire.workspaceId },
     select: { organizationId: true },
@@ -303,7 +308,7 @@ export async function captureCmoBrandMedia(
   const drive: Drive = {
     workspaceId: hire.workspaceId,
     organizationId: workspace.organizationId,
-    userId: hire.userId,
+    userId: runnerId,
   };
   const ownPages = cmoOwnPages(hire.websiteUrl, brain.data);
   const competitorPages = cmoCompetitorPages(brain.data);

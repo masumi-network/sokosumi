@@ -32,7 +32,11 @@ vi.mock("@/services/cmo.service", async (importOriginal) => {
   };
 });
 
-import { CmoConflictError, CmoNotFoundError } from "@/services/cmo.service";
+import {
+  CmoConflictError,
+  CmoForbiddenError,
+  CmoNotFoundError,
+} from "@/services/cmo.service";
 import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
 
 import cmoRouter from "./index";
@@ -63,6 +67,7 @@ function overview() {
     projectName: "CMO.xyz · Acme",
     roomId: "room-1",
     subscriptionActive: false,
+    viewerCanApprove: true,
     mockBilling: false,
     mockPlan: null,
     mockPlanActivatedAt: null,
@@ -151,6 +156,16 @@ describe("CMO routes", () => {
       method: "POST",
     });
     expect(response.status).toBe(409);
+  });
+
+  it("answers 403 when a member who is not an owner or admin approves", async () => {
+    approveMock.mockRejectedValue(
+      new CmoForbiddenError("Only the organization's owners and admins"),
+    );
+    const response = await createApp().request("/strategy/approve", {
+      method: "POST",
+    });
+    expect(response.status).toBe(403);
   });
 
   it("answers 409 when Cuso is already working on a turn", async () => {

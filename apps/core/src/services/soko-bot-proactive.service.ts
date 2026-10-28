@@ -132,11 +132,15 @@ export async function proactiveGate(
  * Creates the built-in rhythms a bot is missing; idempotent per (bot, key).
  * A shared bot gets only the rhythms with an owner-free prompt, all switched
  * off: no rhythm runs for a team until a member turns it on. A shared bot's
- * rhythms have no Requester: nobody asked for them (ADR 0057).
+ * rhythms have no Requester: nobody asked for them (ADR 0057). Cuso, a shared
+ * CMO bot, is the exception: hiring him asked for his rhythms, so they are on
+ * and run as the member who hired him (ADR 0060).
  */
 export async function ensureSystemSchedules(bot: {
   id: string;
   userId: string | null;
+  /** Who hired Cuso: his rhythms run as that member. */
+  createdByUserId?: string | null;
   workspaceId: string;
   ingestTimezone: string;
   versionId?: string | null;
@@ -157,13 +161,15 @@ export async function ensureSystemSchedules(bot: {
           })
         )?.versionId;
   // A CMO bot runs marketing rhythms, never the personal stand-up and wrap.
-  const rhythms =
-    getSokoBotVersion(versionId).profile === "cmo"
-      ? SOKO_BOT_CMO_SCHEDULES
-      : SOKO_BOT_SYSTEM_SCHEDULES;
+  // They are the work Cuso was hired for, so they run on his shared bot too
+  // (ADR 0060).
+  const cmo = getSokoBotVersion(versionId).profile === "cmo";
+  const rhythms = cmo ? SOKO_BOT_CMO_SCHEDULES : SOKO_BOT_SYSTEM_SCHEDULES;
   for (const schedule of rhythms) {
     if (have.has(schedule.key)) continue;
-    const prompt = sokoBotSystemSchedulePrompt(schedule, shared);
+    const prompt = cmo
+      ? schedule.prompt
+      : sokoBotSystemSchedulePrompt(schedule, shared);
     if (prompt === null) continue;
     const nextRunAt = computeNextRunWithMinimumInterval(
       { cron: schedule.cronExpression, timezone: bot.ingestTimezone },
@@ -174,10 +180,11 @@ export async function ensureSystemSchedules(bot: {
       .create({
         data: {
           sokoBotId: bot.id,
-          requestedByUserId: bot.userId,
+          requestedByUserId:
+            bot.userId ?? (cmo ? (bot.createdByUserId ?? null) : null),
           workspaceId: bot.workspaceId,
           name: schedule.name,
-          ...(shared ? { enabled: false } : {}),
+          ...(shared && !cmo ? { enabled: false } : {}),
           timezone: bot.ingestTimezone,
           cronExpression: schedule.cronExpression,
           prompt,

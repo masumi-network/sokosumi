@@ -103,6 +103,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     onboardedAt: null,
     routines: [],
     subscriptionActive: false,
+    viewerCanApprove: true,
     brandBrain: brain,
     brandBrainUpdatedAt: new Date("2026-10-05T09:01:00Z"),
     strategy,
@@ -347,6 +348,19 @@ describe("strategy", () => {
     expect(html).toContain("Inbox");
     expect(html).toContain("Approve plan");
     expect(html).not.toContain("likes");
+  });
+
+  it("tells a member who is not an owner or admin who approves", () => {
+    const html = renderToStaticMarkup(
+      <StrategyStep
+        overview={overview({ viewerCanApprove: false })}
+        onChange={async () => null}
+        onSetAds={async () => null}
+        onApprove={async () => {}}
+      />,
+    );
+    expect(html).not.toContain("Approve plan");
+    expect(html).toContain("An owner or admin of the business approves");
   });
 
   it("leads back to the current step when opened again after approval", () => {

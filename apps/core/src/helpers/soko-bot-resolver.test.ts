@@ -121,17 +121,12 @@ beforeEach(() => {
 });
 
 describe("memberSokoBot: me", () => {
-  it("finds the member's personal bot, never one pinned to a Project", async () => {
+  it("finds the member's personal bot with today's query", async () => {
     const resolved = await memberSokoBot("owner", ORG_WS, ME);
 
     expect(resolved).toMatchObject({ id: "personal" });
     expect(findFirstMock).toHaveBeenCalledWith({
-      where: {
-        userId: "owner",
-        workspaceId: ORG_WS,
-        projectId: null,
-        archivedAt: null,
-      },
+      where: { userId: "owner", workspaceId: ORG_WS, archivedAt: null },
     });
   });
 

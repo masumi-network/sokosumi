@@ -10,6 +10,7 @@ import {
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
+  getSokoBotVersion,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
   limitSokoBotWrites,
@@ -228,17 +229,6 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
-  /**
-   * Pin a specific version instead of the promoted default: how products
-   * built on Soko Bots (CMO's Cuso) create their bot.
-   */
-  versionId?: string;
-  /**
-   * Pin the bot to one Project (CMO.xyz's Cuso). It lives beside the owner's
-   * personal assistant in the same workspace; null or absent is that
-   * personal assistant.
-   */
-  projectId?: string;
 }
 
 /**
@@ -723,6 +713,7 @@ export class SokoBotControlPlane {
             select: {
               sokoBotId: true,
               requestedByUserId: true,
+              systemKey: true,
               workspaceId: true,
               sokoBot: { select: { userId: true } },
             },
@@ -1232,8 +1223,7 @@ export class SokoBotControlPlane {
     const hash = memoryHash(markdown);
     // Resolved outside the transaction: promoting a version affects new bots
     // only, so this is read once at creation and then pinned.
-    const defaultVersionId =
-      input.versionId ?? (await getDefaultSokoBotVersionId());
+    const defaultVersionId = await getDefaultSokoBotVersionId();
 
     const created = await prisma.$transaction(async (tx) => {
       // Only a live row: a deleted bot is a tombstone kept for provenance and
@@ -1242,7 +1232,6 @@ export class SokoBotControlPlane {
         where: {
           userId: input.userId,
           workspaceId: input.workspaceId,
-          projectId: input.projectId ?? null,
           deletedAt: null,
         },
       });
@@ -1287,7 +1276,6 @@ export class SokoBotControlPlane {
           userId: input.userId,
           createdByUserId: input.userId,
           workspaceId: input.workspaceId,
-          projectId: input.projectId ?? null,
           name,
           // Pin the version a bot was created on rather than leaving it null
           // and relying on the runtime fallback: the console can then show
@@ -3386,6 +3374,17 @@ export class SokoBotControlPlane {
     }
     const bot = await memberSokoBot(userId, workspaceId, selector);
     if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
+    // Cuso runs CMO's own version: any member may reach him (ADR 0060), and
+    // moving him off it would leave the business's CMO without its agent.
+    // Only the admin lab moves him.
+    if (
+      !options.allowUnpromoted &&
+      getSokoBotVersion(bot.versionId).profile === "cmo"
+    ) {
+      throw new SokoBotValidationError(
+        "Cuso runs CMO's own version, which cannot be changed here",
+      );
+    }
     const updated = await prisma.sokoBot.updateMany({
       where: { id: bot.id, archivedAt: null },
       data: { versionId },
@@ -4389,6 +4388,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
+            systemKey: scheduleRun.schedule.systemKey,
             sokoBot: bot,
           }),
           sokoBotId: bot.id,

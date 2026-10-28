@@ -2,7 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useState, useTransition } from "react";
-
+import { APPROVED_BY_OWNERS, STARTED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
 import { ExpandableText } from "./expandable-text";
@@ -287,14 +287,16 @@ export function StrategyCard({
           </>
         ) : (
           <>
-            <button
-              type="button"
-              className="button button-accent button-small"
-              disabled={pending}
-              onClick={() => startTransition(actions.approve)}
-            >
-              {pending ? "Approving" : "Approve strategy"}
-            </button>
+            {overview.viewerCanApprove ? (
+              <button
+                type="button"
+                className="button button-accent button-small"
+                disabled={pending}
+                onClick={() => startTransition(actions.approve)}
+              >
+                {pending ? "Approving" : "Approve strategy"}
+              </button>
+            ) : null}
             <button
               type="button"
               className="button button-secondary button-small"
@@ -303,7 +305,9 @@ export function StrategyCard({
               Change something
             </button>
             <span className="note">
-              This is the only thing you approve. Cuso runs the rest.
+              {overview.viewerCanApprove
+                ? "This is the only thing you approve. Cuso runs the rest."
+                : APPROVED_BY_OWNERS}
             </span>
           </>
         )}
@@ -341,6 +345,8 @@ export function SubscribeCard({
       <div className="cf">
         {subscribed ? (
           <span className="tag ok">Subscribed</span>
+        ) : !overview.viewerCanApprove ? (
+          <span className="note">{STARTED_BY_OWNERS}</span>
         ) : overview.mockBilling ? (
           <button
             type="button"

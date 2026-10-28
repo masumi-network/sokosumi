@@ -1,19 +1,9 @@
--- CMO.xyz: Cuso is a personal Soko Bot pinned to one Project in the Workspace
--- the person chose (ADR 0053), beside any personal assistant there. A pinned
--- bot sets both userId and projectId, which the owner-scope CHECK forbade.
-ALTER TABLE "soko_bot" DROP CONSTRAINT IF EXISTS "soko_bot_owner_scope_check";
-
--- One live personal assistant per user and workspace; pinned bots sit beside it.
-DROP INDEX IF EXISTS "soko_bot_user_workspace_live_key";
-CREATE UNIQUE INDEX "soko_bot_user_workspace_live_key" ON "soko_bot"("userId", "workspaceId") WHERE "deletedAt" IS NULL AND "projectId" IS NULL;
--- One live pinned bot per Project. Shared project bots (no userId) are not limited.
-CREATE UNIQUE INDEX "soko_bot_project_live_key" ON "soko_bot"("projectId") WHERE "deletedAt" IS NULL AND "projectId" IS NOT NULL AND "userId" IS NOT NULL;
-
+-- CMO.xyz: Cuso is a shared Soko Bot of the hire's Project (ADR 0060); this
+-- table holds what CMO adds on top. Who hired him is the bot's creator.
 CREATE TABLE "cmo_hire" (
     "id" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "userId" TEXT NOT NULL,
     "workspaceId" UUID NOT NULL,
     "sokoBotId" UUID NOT NULL,
     "projectId" UUID NOT NULL,
@@ -36,7 +26,6 @@ CREATE TABLE "cmo_hire" (
     CONSTRAINT "cmo_hire_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "cmo_hire_userId_key" ON "cmo_hire"("userId");
 CREATE UNIQUE INDEX "cmo_hire_sokoBotId_key" ON "cmo_hire"("sokoBotId");
 CREATE UNIQUE INDEX "cmo_hire_projectId_key" ON "cmo_hire"("projectId");
 

@@ -3,6 +3,7 @@ import {
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
   type CmoStrategy,
+  SOKO_BOT_CMO_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
@@ -10,6 +11,7 @@ import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
 import {
+  cmoRunnerUserId,
   isCmoSubscribed,
   listCmoChannels,
   parseCmoStrategy,
@@ -280,24 +282,20 @@ async function startProductionRun(
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: hire.sokoBotId },
-    select: {
-      id: true,
-      userId: true,
-      workspaceId: true,
-      workspace: { select: { organizationId: true } },
-    },
+    select: { sharedRoomId: true },
   });
   const parent = await parentTurnId(hire.sokoBotId);
   if (!parent) throw new Error("Cuso has no turn to start production from");
-  const { findOrOpenOwnerDirectRoom } = await import(
-    "@/services/soko-bot-chat.service"
-  );
-  const room = await findOrOpenOwnerDirectRoom(bot, hire.userId);
+  // The run reports in Cuso's shared room and spends as his runner: who hired
+  // him, or an owner or admin once they left (ADR 0060).
+  const runnerId = await cmoRunnerUserId(hire);
+  if (!runnerId || !bot.sharedRoomId)
+    throw new Error("Cuso has no member or shared room to run production for");
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: hire.userId,
+    userId: runnerId,
     workspaceId: hire.workspaceId,
     sokoBotId: hire.sokoBotId,
     // One id per approval and attempt: two callers racing start the same
@@ -316,7 +314,7 @@ async function startProductionRun(
     background: {
       parentTurnId: parent,
       title: `Make ${hire.businessName}'s month`,
-      destinationRoomId: room.id,
+      destinationRoomId: bot.sharedRoomId,
     },
   });
   if (
@@ -511,6 +509,26 @@ export function kickCmoProduction(hireId: string): void {
 }
 
 /** The cron: every approved hire, so new and missing pieces get made. */
+/**
+ * Points Cuso's own rhythms at his runner, so they keep acting as a current
+ * member once the person who hired him left the business (ADR 0060).
+ */
+async function keepCmoRhythmsWithRunner(hire: CmoHire): Promise<void> {
+  const runnerId = await cmoRunnerUserId(hire);
+  if (!runnerId) return;
+  await prisma.sokoBotSchedule.updateMany({
+    where: {
+      sokoBotId: hire.sokoBotId,
+      systemKey: { in: SOKO_BOT_CMO_SCHEDULES.map((schedule) => schedule.key) },
+      OR: [
+        { requestedByUserId: null },
+        { requestedByUserId: { not: runnerId } },
+      ],
+    },
+    data: { requestedByUserId: runnerId },
+  });
+}
+
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
 ): Promise<{ checked: number }> {
@@ -522,6 +540,7 @@ export async function syncCmoProduction(
   for (const hire of hires) {
     if (!shouldContinue()) break;
     try {
+      await keepCmoRhythmsWithRunner(hire);
       await advanceCmoProduction(hire);
       checked += 1;
     } catch (error) {

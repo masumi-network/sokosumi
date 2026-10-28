@@ -32,6 +32,11 @@ export interface CreateSharedSokoBotInput {
   personalityStyle?: number | null;
   /** IANA timezone, validated by the route; the column default otherwise. */
   timezone?: string;
+  /**
+   * Pin a specific version instead of the promoted default: how products
+   * built on Soko Bots (CMO's Cuso) create their bot.
+   */
+  versionId?: string;
 }
 
 async function requireOrganizationId(
@@ -93,7 +98,7 @@ export async function createSharedSokoBot(
   const organizationId = await requireOrganizationId(input.workspaceId, client);
   const markdown = renderSokoBotMemory(createEmptySokoBotMemory());
   const hash = memoryHash(markdown);
-  const versionId = await getDefaultSokoBotVersionId();
+  const versionId = input.versionId ?? (await getDefaultSokoBotVersionId());
 
   const created = await client.$transaction(
     async (tx) => {

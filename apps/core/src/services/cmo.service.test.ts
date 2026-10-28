@@ -1,3 +1,4 @@
+import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -24,7 +25,17 @@ const {
   integrationFindMany,
   connectSokoBotIntegration,
   finalizeSokoBotIntegration,
+  memberFindUnique,
+  chatRoomDelete,
+  cmoFindMany,
+  memberFindMany,
+  sokoBotFindUnique,
 } = vi.hoisted(() => ({
+  memberFindMany: vi.fn(),
+  sokoBotFindUnique: vi.fn(),
+  cmoFindMany: vi.fn(),
+  memberFindUnique: vi.fn(),
+  chatRoomDelete: vi.fn(),
   integrationFindMany: vi.fn(),
   connectSokoBotIntegration: vi.fn(),
   finalizeSokoBotIntegration: vi.fn(),
@@ -57,10 +68,17 @@ vi.mock("@/lib/db/prisma", () => {
     $executeRaw: vi.fn(async () => 1),
     cmoHire: {
       findUnique: cmoFindUnique,
+      findMany: cmoFindMany,
       update: cmoUpdate,
       create: cmoCreate,
       deleteMany: cmoDeleteMany,
     },
+    user: {
+      findUnique: async () => ({ preferredOrganizationId: "org-1" }),
+    },
+    member: { findUnique: memberFindUnique, findMany: memberFindMany },
+    sokoBot: { findUnique: sokoBotFindUnique },
+    chatRoom: { delete: chatRoomDelete },
     project: { create: projectCreate, delete: projectDelete },
     organization: { findFirst: organizationFindFirst },
     subscription: { findFirst: subscriptionFindFirst },
@@ -90,8 +108,11 @@ vi.mock("@/config/env", async (importOriginal) => {
 
 vi.mock("@/services/social-posts.service", () => ({ cancelSocialPost }));
 
+vi.mock("@/services/soko-bot-shared-create.service", () => ({
+  createSharedSokoBot: createBot,
+}));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { expireTurn, startTurn, create: createBot },
+  sokoBotControlPlane: { expireTurn, startTurn },
 }));
 
 vi.mock("@/helpers/organization-workspace", () => ({
@@ -128,17 +149,20 @@ vi.mock("@/services/soko-bot-integration-connection.service", () => ({
 import {
   answerCmoBrandQuestion,
   approveCmoStrategy,
+  CmoForbiddenError,
   chooseCmoMockPlan,
   cmoBusinessNameFromUrl,
   cmoExecutionRefusal,
   cmoLearningState,
   cmoPlanAnswerNote,
+  cmoRunnerUserId,
   cmoUpNext,
   connectCmoMeasurement,
   describeCmoStep,
   finalizeCmoMeasurement,
   finishCmoAccountsStep,
   fitCmoMarketingContext,
+  getCmoHireForUser,
   hasActiveCmoSubscription,
   keepCalendarWork,
   keepPlanAnswers,
@@ -202,6 +226,100 @@ beforeEach(() => {
   mockBilling.production = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
+  // Every hire lives in the business's organization (ADR 0059), and the
+  // member asking owns it unless a test says otherwise.
+  workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
+  memberFindUnique.mockResolvedValue({ role: "owner" });
+  // The hire a member works with is the one findUnique stands for here, in
+  // the business's organization.
+  cmoFindMany.mockImplementation(async (args: unknown) => {
+    const hire = await cmoFindUnique(args);
+    return hire
+      ? [{ ...hire, project: { workspace: { organizationId: "org-1" } } }]
+      : [];
+  });
+});
+
+describe("cmoRunnerUserId", () => {
+  const hire = { workspaceId: "ws-1", sokoBotId: "bot-1" };
+
+  it("runs as the hirer while they are still a member", async () => {
+    sokoBotFindUnique.mockResolvedValue({ createdByUserId: "hirer" });
+    memberFindMany.mockResolvedValue([
+      { userId: "owner" },
+      { userId: "hirer" },
+    ]);
+    await expect(cmoRunnerUserId(hire)).resolves.toBe("hirer");
+    expect(memberFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: "org-1",
+          OR: [{ userId: "hirer" }, { role: { in: ["owner", "admin"] } }],
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+    );
+  });
+
+  it("falls back to the longest-standing owner or admin once the hirer left", async () => {
+    sokoBotFindUnique.mockResolvedValue({ createdByUserId: "hirer" });
+    memberFindMany.mockResolvedValue([
+      { userId: "owner" },
+      { userId: "admin" },
+    ]);
+    await expect(cmoRunnerUserId(hire)).resolves.toBe("owner");
+  });
+
+  it("never matches every member when the hirer's account is gone", async () => {
+    sokoBotFindUnique.mockResolvedValue({ createdByUserId: null });
+    memberFindMany.mockResolvedValue([]);
+    await expect(cmoRunnerUserId(hire)).resolves.toBeNull();
+    expect(memberFindMany.mock.calls[0]?.[0].where.OR).toEqual([
+      { role: { in: ["owner", "admin"] } },
+    ]);
+  });
+});
+
+describe("getCmoHireForUser", () => {
+  const inOrg = (id: string, organizationId: string) => ({
+    id,
+    project: { workspace: { organizationId } },
+  });
+
+  it("finds a live Cuso of any organization the person belongs to", async () => {
+    await getCmoHireForUser("user-1");
+    expect(cmoFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          sokoBot: { deletedAt: null, archivedAt: null },
+          project: {
+            workspace: {
+              organization: { members: { some: { userId: "user-1" } } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    );
+  });
+
+  it("prefers the preferred organization's Cuso over a newer one", async () => {
+    cmoFindMany.mockResolvedValueOnce([
+      inOrg("cmo-new", "org-2"),
+      inOrg("cmo-1", "org-1"),
+    ]);
+    await expect(getCmoHireForUser("user-1")).resolves.toEqual({ id: "cmo-1" });
+  });
+
+  it("falls back to the newest when the preferred one has none", async () => {
+    cmoFindMany.mockResolvedValueOnce([
+      inOrg("cmo-new", "org-2"),
+      inOrg("cmo-old", "org-3"),
+    ]);
+    await expect(getCmoHireForUser("user-1")).resolves.toEqual({
+      id: "cmo-new",
+    });
+  });
 });
 
 describe("strategy approval → execution gate", () => {
@@ -213,14 +331,13 @@ describe("strategy approval → execution gate", () => {
     strategyApprovedAt: approvedAt,
   });
 
-  it("asks the owner's own plan when Cuso works in their personal workspace", async () => {
+  it("asks the business organization's plan", async () => {
     cmoFindUnique.mockResolvedValue(workspace(new Date()));
-    workspaceFindUnique.mockResolvedValue({ organizationId: null });
     subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
     await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" });
     expect(subscriptionFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ referenceId: "user-1" }),
+        where: expect.objectContaining({ referenceId: "org-1" }),
       }),
     );
   });
@@ -296,6 +413,31 @@ describe("approveCmoStrategy", () => {
   it("needs a strategy", async () => {
     cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategy: null });
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
+  });
+
+  it("leaves approving to the organization's owners and admins", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      workspaceId: "ws-1",
+      strategy,
+      strategyApprovedAt: null,
+    });
+    memberFindUnique.mockResolvedValue({ role: "member" });
+    await expect(approveCmoStrategy("user-2")).rejects.toBeInstanceOf(
+      CmoForbiddenError,
+    );
+    expect(memberFindUnique).toHaveBeenCalledWith({
+      where: {
+        userId_organizationId: { userId: "user-2", organizationId: "org-1" },
+      },
+      select: { role: true },
+    });
+    expect(cmoUpdate).not.toHaveBeenCalled();
+
+    memberFindUnique.mockResolvedValue({ role: "admin" });
+    turnFindFirst.mockResolvedValue(null);
+    await approveCmoStrategy("user-2");
+    expect(cmoUpdate).toHaveBeenCalled();
   });
 
   it("waits while Cuso writes the strategy the owner asked for", async () => {
@@ -386,7 +528,6 @@ describe("mock billing", () => {
 
   it("ignores a stored mock plan when the flag is off (production)", async () => {
     cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
-    workspaceFindUnique.mockResolvedValue({ organizationId: null });
     subscriptionFindFirst.mockResolvedValue(null);
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
@@ -397,7 +538,6 @@ describe("mock billing", () => {
     mockBilling.on = true;
     mockBilling.production = true;
     cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
-    workspaceFindUnique.mockResolvedValue({ organizationId: null });
     subscriptionFindFirst.mockResolvedValue(null);
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
@@ -421,6 +561,16 @@ describe("mock billing", () => {
       mockPlan: "scale",
       mockPlanActivatedAt: expect.any(Date),
     });
+  });
+
+  it("starts the paid month for owners and admins only", async () => {
+    mockBilling.on = true;
+    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    memberFindUnique.mockResolvedValue({ role: "member" });
+    await expect(chooseCmoMockPlan("user-2", "scale")).rejects.toBeInstanceOf(
+      CmoForbiddenError,
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -1305,9 +1455,16 @@ describe("startCmoOnboarding", () => {
         }),
       }),
     );
+    // Cuso is the Project's shared bot, on the CMO version (ADR 0060).
     expect(createBot).toHaveBeenCalledWith(
-      expect.objectContaining({ workspaceId: "ws-1", projectId: "project-1" }),
+      expect.objectContaining({
+        callerUserId: "user-1",
+        workspaceId: "ws-1",
+        projectId: "project-1",
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+      }),
     );
+    expect(cmoCreate.mock.lastCall?.[0].data).not.toHaveProperty("userId");
     expect(cmoCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         workspaceId: "ws-1",
@@ -1377,50 +1534,15 @@ describe("startCmoOnboarding", () => {
     expect(cmoCreate).not.toHaveBeenCalled();
   });
 
-  it("keeps the hire a second submit lost the race to, and cleans up", async () => {
-    cmoCreate.mockRejectedValue(
-      Object.assign(new Error("unique"), { code: "P2002" }),
-    );
-    cmoFindUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "cmo-0", workspaceId: "ws-1" });
+  it("removes his shared room with the Project when the CMO record fails", async () => {
+    createBot.mockResolvedValue({ id: "bot-1", sharedRoomId: "room-1" });
+    chatRoomDelete.mockResolvedValue({ id: "room-1" });
+    cmoCreate.mockRejectedValue(new Error("record failed"));
 
-    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
-      id: "cmo-0",
-    });
+    await expect(startCmoOnboarding(input)).rejects.toThrow("record failed");
+    expect(chatRoomDelete).toHaveBeenCalledWith({ where: { id: "room-1" } });
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
     expect(startTurn).not.toHaveBeenCalled();
-  });
-
-  it("hires again once the person's Cuso was deleted or archived", async () => {
-    getUserWorkspace.mockResolvedValue({
-      id: "ws-1",
-      kind: "personal",
-      name: "Ana Example",
-    });
-
-    await startCmoOnboarding(input);
-
-    // Only a live Cuso counts as the person's hire.
-    expect(cmoFindUnique).toHaveBeenCalledWith({
-      where: {
-        userId: "user-1",
-        sokoBot: { deletedAt: null, archivedAt: null },
-      },
-    });
-    // The dead hire gives way, so the unique userId does not block the new one.
-    expect(cmoDeleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: "user-1",
-        sokoBot: {
-          OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
-        },
-      },
-    });
-    expect(cmoDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
-      cmoCreate.mock.invocationCallOrder[0],
-    );
-    expect(cmoCreate).toHaveBeenCalled();
   });
 
   it("returns the person's existing Cuso without hiring again", async () => {
@@ -1546,7 +1668,6 @@ describe("buildCmoBeatPacket", () => {
       mockPlan: null,
       updates: [],
     });
-    workspaceFindUnique.mockResolvedValue({ organizationId: null });
     subscriptionFindFirst.mockResolvedValue(null);
     connectionFindMany.mockResolvedValue([]);
     postFindMany.mockResolvedValue([]);

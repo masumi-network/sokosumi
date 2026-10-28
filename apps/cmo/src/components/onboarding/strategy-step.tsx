@@ -4,7 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, Loader2, Wand2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useRef, useState, useTransition } from "react";
-
+import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { formatDay, planWeeks } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { ChannelIcon } from "../channel-icon";
@@ -148,6 +148,8 @@ export function StrategyStep({
                 </>
               )}
             </button>
+          ) : !overview.viewerCanApprove ? (
+            <p className="ob-note">{APPROVED_BY_OWNERS}</p>
           ) : (
             <button
               type="button"

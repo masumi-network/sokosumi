@@ -42,12 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       name: true,
       image: true,
       sokoBots: {
-        // The teammate's personal assistant, never a project bot (Cuso).
-        where: {
-          workspaceId: workspace.workspaceId,
-          projectId: null,
-          archivedAt: null,
-        },
+        where: { workspaceId: workspace.workspaceId, archivedAt: null },
         take: 1,
         select: BOT_TEAM_SELECT,
       },
