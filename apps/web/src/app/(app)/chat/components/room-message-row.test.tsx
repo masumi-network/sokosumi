@@ -1354,6 +1354,19 @@ describe("ChatMessageRow", () => {
     expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
   });
 
+  it("renders a sent sticker for another participant without the sender's collection", () => {
+    const url =
+      "https://test.public.blob.vercel-storage.com/stickers/alice/id/wave.png";
+    renderRow({
+      currentUserId: "recipient-user",
+      message: userMessage({ content: `[wave.png](${url})\n` }),
+    });
+    const image = screen.getByRole("img", { name: "wave.png" });
+    expect(image).toHaveAttribute("src", url);
+    expect(image).toHaveAttribute("width", "160");
+    expect(screen.queryByTestId("chip")).not.toBeInTheDocument();
+  });
+
   it("uses large variant for a single image attachment", () => {
     renderRow({
       message: userMessage({

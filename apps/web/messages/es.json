@@ -3143,7 +3143,7 @@
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
-        "emptyDescription": "Elige un nombre, un remitente y una marca a continuación. Después, guarda los ajustes para crear el boletín.",
+        "emptyDescription": "Elige un nombre, un remitente y una marca. Después, guarda los ajustes para crear el boletín.",
         "general": "General",
         "brand": "Marca",
         "welcome": "Correo de bienvenida",
@@ -3158,7 +3158,7 @@
           "name": "Nombre del boletín",
           "senderName": "Nombre del remitente",
           "replyTo": "Correo de respuesta",
-          "logoUrl": "URL del logotipo",
+          "logoUrl": "Logotipo",
           "primaryColor": "Color principal",
           "accentColor": "Color de acento",
           "fontFamily": "Familia tipográfica",
@@ -3538,6 +3538,41 @@
             "net": "Crecimiento neto",
             "runningTotal": "Total de suscriptores activos"
           }
+        },
+        "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
+        "brandDescription": "El logotipo, los colores y la fuente de tus números.",
+        "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
+        "unsavedChanges": "Tienes cambios sin guardar.",
+        "colorPlaceholder": "Sin color",
+        "presetColors": "Colores predefinidos",
+        "clearColor": {
+          "primaryColor": "Quitar color principal",
+          "accentColor": "Quitar color de acento"
+        },
+        "Logo": {
+          "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
+          "upload": "Subir",
+          "replace": "Reemplazar",
+          "remove": "Quitar logotipo",
+          "previewAlt": "Logotipo del boletín",
+          "uploadError": "No se pudo subir el logotipo. Inténtalo de nuevo.",
+          "fileTooLarge": "El archivo es demasiado grande",
+          "fileTypeNotAccepted": "Este tipo de archivo no se admite",
+          "maxFilesExceeded": "Sube un solo logotipo a la vez"
+        },
+        "Preview": {
+          "title": "Vista previa",
+          "description": "Un boceto de cómo se ve tu marca en un número. Se actualiza mientras escribes.",
+          "from": "De {sender}",
+          "sampleHeading": "Tu próximo número",
+          "sampleBody": "Aquí aparece el contenido de tu número, con la fuente de tu marca.",
+          "button": "Leer más",
+          "unsubscribe": "Darse de baja",
+          "primary": "Principal",
+          "accent": "Acento",
+          "unset": "Predeterminado",
+          "welcome": "Correo de bienvenida",
+          "noSubject": "Aún sin asunto"
         }
       }
     },
@@ -8048,12 +8083,14 @@
         "editTagsNote": "Tu corrección vale para todos en la sala.",
         "taskDue": "Vence {date}",
         "taskSource": "Del chat:",
+        "taskFrom": "{name} escribió:",
         "Buckets": {
           "needsYou": "{count, plural, one {# pregunta para ti} other {# preguntas para ti}}",
           "escalation": "{count, plural, one {# escalada} other {# escaladas}}",
           "urgent": "{count, plural, one {# urgente} other {# urgentes}}",
           "blocker": "{count, plural, one {# bloqueo} other {# bloqueos}}",
           "decisionMade": "{count, plural, one {# decisión} other {# decisiones}}",
+          "announcement": "{count, plural, one {# anuncio} other {# anuncios}}",
           "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
           "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
           "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
@@ -8073,6 +8110,7 @@
           "urgent": "Urgente",
           "blocker": "Bloqueo",
           "decisionMade": "Decisión",
+          "announcement": "Anuncio",
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
@@ -8082,6 +8120,7 @@
           "question": "Hace una pregunta a alguien",
           "needsDecision": "Necesita una decisión",
           "decisionMade": "Decisión tomada",
+          "announcement": "Anuncio",
           "commitment": "Compromiso",
           "blocker": "Bloqueo",
           "urgent": "Urgente",
@@ -8102,6 +8141,19 @@
           "overview": "Resumen",
           "threads": "Hilos"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG o WebP, hasta 2 MiB. Selecciona un sticker y envíalo.",
+        "upload": "Subir sticker",
+        "invalid": "Elige una imagen PNG, JPEG o WebP de hasta 2 MiB.",
+        "uploadFailed": "No se pudo guardar el sticker. Intenta subirlo de nuevo.",
+        "loading": "Cargando stickers…",
+        "loadFailed": "No se pudieron cargar los stickers.",
+        "retry": "Reintentar",
+        "empty": "Sube un sticker para empezar tu colección.",
+        "collection": "Stickers guardados",
+        "select": "Seleccionar {name}"
       }
     },
     "Drive": {

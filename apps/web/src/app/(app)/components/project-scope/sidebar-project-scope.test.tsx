@@ -223,7 +223,7 @@ describe("sidebar project scope", () => {
   });
 
   // The title the nav sits under, not one more row of it: no leading mark,
-  // a semibold name shortened with "…" that stays whole in its name.
+  // a medium name shortened with "…" that stays whole in its name.
   it("is a title rather than a sidebar row", () => {
     const { container } = renderHarness();
     const name = within(title()).getByText("allProjects", { exact: true });
@@ -234,7 +234,7 @@ describe("sidebar project scope", () => {
         '[data-testid="project-scope-sidebar-title"] [data-slot="sidebar-row-slot"]',
       ),
     ).toBeNull();
-    expect(tokens(title())).toContain("font-semibold");
+    expect(tokens(title())).toContain("font-medium");
     expect(tokens(name)).toEqual(
       expect.arrayContaining(["min-w-0", "truncate"]),
     );

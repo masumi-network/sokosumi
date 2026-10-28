@@ -3143,7 +3143,7 @@
         "navigation": "Newsletter-Bereiche",
         "settings": "Einstellungen",
         "emptyTitle": "Richte deinen Newsletter ein",
-        "emptyDescription": "Wähle unten einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
+        "emptyDescription": "Wähle einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
         "general": "Allgemein",
         "brand": "Erscheinungsbild",
         "welcome": "Begrüßungs-E-Mail",
@@ -3158,7 +3158,7 @@
           "name": "Newsletter-Name",
           "senderName": "Absendername",
           "replyTo": "Antwort-E-Mail-Adresse",
-          "logoUrl": "Logo-URL",
+          "logoUrl": "Logo",
           "primaryColor": "Primärfarbe",
           "accentColor": "Akzentfarbe",
           "fontFamily": "Schriftart",
@@ -3538,6 +3538,41 @@
             "net": "Nettowachstum",
             "runningTotal": "Aktive Abonnenten insgesamt"
           }
+        },
+        "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
+        "brandDescription": "Logo, Farben und Schrift deiner Ausgaben.",
+        "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
+        "unsavedChanges": "Du hast ungespeicherte Änderungen.",
+        "colorPlaceholder": "Keine Farbe",
+        "presetColors": "Vorgegebene Farben",
+        "clearColor": {
+          "primaryColor": "Primärfarbe entfernen",
+          "accentColor": "Akzentfarbe entfernen"
+        },
+        "Logo": {
+          "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
+          "upload": "Hochladen",
+          "replace": "Ersetzen",
+          "remove": "Logo entfernen",
+          "previewAlt": "Newsletter-Logo",
+          "uploadError": "Das Logo konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Dieser Dateityp wird nicht unterstützt",
+          "maxFilesExceeded": "Lade jeweils nur ein Logo hoch"
+        },
+        "Preview": {
+          "title": "Vorschau",
+          "description": "Eine Skizze, wie dein Erscheinungsbild in einer Ausgabe wirkt. Aktualisiert sich beim Tippen.",
+          "from": "Von {sender}",
+          "sampleHeading": "Deine nächste Ausgabe",
+          "sampleBody": "Hier erscheint der Inhalt deiner Ausgabe in deiner Schrift.",
+          "button": "Weiterlesen",
+          "unsubscribe": "Abmelden",
+          "primary": "Primär",
+          "accent": "Akzent",
+          "unset": "Standard",
+          "welcome": "Begrüßungs-E-Mail",
+          "noSubject": "Noch kein Betreff"
         }
       }
     },
@@ -8048,12 +8083,14 @@
         "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
         "taskDue": "Fällig {date}",
         "taskSource": "Aus dem Chat:",
+        "taskFrom": "{name} schrieb:",
         "Buckets": {
           "needsYou": "{count, plural, one {# Frage an dich} other {# Fragen an dich}}",
           "escalation": "{count, plural, one {# Eskalation} other {# Eskalationen}}",
           "urgent": "{count, plural, one {# dringend} other {# dringend}}",
           "blocker": "{count, plural, one {# Blocker} other {# Blocker}}",
           "decisionMade": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+          "announcement": "{count, plural, one {# Ankündigung} other {# Ankündigungen}}",
           "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
           "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
           "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
@@ -8073,6 +8110,7 @@
           "urgent": "Dringend",
           "blocker": "Blocker",
           "decisionMade": "Entscheidung",
+          "announcement": "Ankündigung",
           "needsDecision": "Braucht eine Entscheidung",
           "commitment": "Zusage",
           "commitmentDue": "Zusage · fällig {date}",
@@ -8082,6 +8120,7 @@
           "question": "Stellt jemandem eine Frage",
           "needsDecision": "Braucht eine Entscheidung",
           "decisionMade": "Entscheidung getroffen",
+          "announcement": "Ankündigung",
           "commitment": "Zusage",
           "blocker": "Blocker",
           "urgent": "Dringend",
@@ -8102,6 +8141,19 @@
           "overview": "Überblick",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Sticker",
+        "hint": "PNG, JPEG oder WebP, bis zu 2 MiB. Sticker auswählen und senden.",
+        "upload": "Sticker hochladen",
+        "invalid": "Wähle ein PNG-, JPEG- oder WebP-Bild mit höchstens 2 MiB.",
+        "uploadFailed": "Sticker konnte nicht gespeichert werden. Lade ihn erneut hoch.",
+        "loading": "Sticker werden geladen…",
+        "loadFailed": "Sticker konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "empty": "Lade einen Sticker hoch, um deine Sammlung zu beginnen.",
+        "collection": "Gespeicherte Sticker",
+        "select": "{name} auswählen"
       }
     },
     "Drive": {

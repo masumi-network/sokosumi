@@ -3143,7 +3143,7 @@
         "navigation": "Newsletter sections",
         "settings": "Settings",
         "emptyTitle": "Set up your newsletter",
-        "emptyDescription": "Choose a name, sender, and brand below, then save your settings to create the newsletter.",
+        "emptyDescription": "Choose a name, sender, and brand, then save your settings to create the newsletter.",
         "general": "General",
         "brand": "Brand",
         "welcome": "Welcome email",
@@ -3158,7 +3158,7 @@
           "name": "Newsletter name",
           "senderName": "Sender name",
           "replyTo": "Reply-to email",
-          "logoUrl": "Logo URL",
+          "logoUrl": "Logo",
           "primaryColor": "Primary color",
           "accentColor": "Accent color",
           "fontFamily": "Font family",
@@ -3538,6 +3538,41 @@
             "net": "Net growth",
             "runningTotal": "Active subscriber total"
           }
+        },
+        "generalDescription": "Who the newsletter comes from and where replies go.",
+        "brandDescription": "The logo, colors, and font your issues use.",
+        "welcomeCardDescription": "An optional first email for new subscribers.",
+        "unsavedChanges": "You have unsaved changes.",
+        "colorPlaceholder": "No color",
+        "presetColors": "Preset colors",
+        "clearColor": {
+          "primaryColor": "Clear primary color",
+          "accentColor": "Clear accent color"
+        },
+        "Logo": {
+          "description": "Upload an image up to {maxSize}. Save settings to use it in your issues.",
+          "upload": "Upload",
+          "replace": "Replace",
+          "remove": "Remove logo",
+          "previewAlt": "Newsletter logo",
+          "uploadError": "Failed to upload the logo. Try again.",
+          "fileTooLarge": "File is too large",
+          "fileTypeNotAccepted": "File type is not accepted",
+          "maxFilesExceeded": "Upload one logo at a time"
+        },
+        "Preview": {
+          "title": "Preview",
+          "description": "A sketch of how your brand looks in an issue. Updates as you type.",
+          "from": "From {sender}",
+          "sampleHeading": "Your next issue",
+          "sampleBody": "Your issue content appears here, in your brand font.",
+          "button": "Read more",
+          "unsubscribe": "Unsubscribe",
+          "primary": "Primary",
+          "accent": "Accent",
+          "unset": "Default",
+          "welcome": "Welcome email",
+          "noSubject": "No subject yet"
         }
       }
     },
@@ -8048,12 +8083,14 @@
         "editTagsNote": "Your correction applies for everyone in the room.",
         "taskDue": "Due {date}",
         "taskSource": "From the chat:",
+        "taskFrom": "{name} wrote:",
         "Buckets": {
           "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
           "escalation": "{count, plural, one {# escalation} other {# escalations}}",
           "urgent": "{count, plural, one {# urgent} other {# urgent}}",
           "blocker": "{count, plural, one {# blocker} other {# blockers}}",
           "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "announcement": "{count, plural, one {# announcement} other {# announcements}}",
           "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
           "commitment": "{count, plural, one {# commitment} other {# commitments}}",
           "workRequest": "{count, plural, one {# work request} other {# work requests}}",
@@ -8073,6 +8110,7 @@
           "urgent": "Urgent",
           "blocker": "Blocker",
           "decisionMade": "Decision",
+          "announcement": "Announcement",
           "needsDecision": "Needs a decision",
           "commitment": "Commitment",
           "commitmentDue": "Commitment · due {date}",
@@ -8082,6 +8120,7 @@
           "question": "Asks someone a question",
           "needsDecision": "Needs a decision",
           "decisionMade": "Decision made",
+          "announcement": "Announcement",
           "commitment": "Commitment",
           "blocker": "Blocker",
           "urgent": "Urgent",
@@ -8102,6 +8141,19 @@
           "overview": "Overview",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG or WebP images up to 2 MiB. Select a sticker, then send.",
+        "upload": "Upload sticker",
+        "invalid": "Choose a PNG, JPEG or WebP image no larger than 2 MiB.",
+        "uploadFailed": "Unable to save sticker. Try uploading again.",
+        "loading": "Loading stickers…",
+        "loadFailed": "Unable to load stickers.",
+        "retry": "Try again",
+        "empty": "Upload a sticker to start your collection.",
+        "collection": "Saved stickers",
+        "select": "Select {name}"
       }
     },
     "Drive": {
