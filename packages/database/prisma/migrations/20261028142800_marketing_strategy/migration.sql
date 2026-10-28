@@ -10,7 +10,7 @@ CREATE TABLE "marketing_strategy" (
     "plan" JSONB NOT NULL,
     "authorSokoBotId" UUID,
     "authorUserId" TEXT,
-    "turnId" UUID,
+    "authorTurnId" UUID,
     "approvedAt" TIMESTAMP(3),
     "approvedByUserId" TEXT,
 
@@ -31,6 +31,9 @@ ALTER TABLE "marketing_strategy" ADD CONSTRAINT "marketing_strategy_authorSokoBo
 
 -- AddForeignKey
 ALTER TABLE "marketing_strategy" ADD CONSTRAINT "marketing_strategy_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "marketing_strategy" ADD CONSTRAINT "marketing_strategy_authorTurnId_fkey" FOREIGN KEY ("authorTurnId") REFERENCES "soko_bot_turn"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "marketing_strategy" ADD CONSTRAINT "marketing_strategy_approvedByUserId_fkey" FOREIGN KEY ("approvedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;

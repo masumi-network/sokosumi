@@ -1,4 +1,7 @@
-import type { CmoCalendarEntry, CmoStrategy } from "@sokosumi/soko-bot";
+import type {
+  CmoCalendarEntry,
+  MarketingStrategyPlan,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
@@ -113,7 +116,7 @@ function post(
   };
 }
 
-function strategy(calendar: CmoCalendarEntry[]): CmoStrategy {
+function strategy(calendar: CmoCalendarEntry[]): MarketingStrategyPlan {
   return {
     month: "2026-11",
     summary: "Seed recipe videos, then the first-order offer.",
@@ -127,7 +130,7 @@ function strategy(calendar: CmoCalendarEntry[]): CmoStrategy {
     calendar,
     previews: [],
     changes: [],
-  } as unknown as CmoStrategy;
+  } as unknown as MarketingStrategyPlan;
 }
 
 /** Production turns of Cuso's bot, newest first, as the runs query reads them. */

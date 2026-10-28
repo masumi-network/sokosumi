@@ -128,7 +128,7 @@ export function seedStrategy(
     plan: plan as MarketingStrategy["plan"],
     authorSokoBotId: "bot-1",
     authorUserId: null,
-    turnId: null,
+    authorTurnId: null,
     approvedAt: null,
     approvedByUserId: null,
     ...fields,

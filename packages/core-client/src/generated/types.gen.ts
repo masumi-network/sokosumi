@@ -41269,14 +41269,6 @@ export type GetUsersByIdPreferencesResponses = {
              */
             tagDirectMessages?: boolean;
             /**
-             * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
-             */
-            cmoAccountsSkipped?: boolean;
-            /**
-             * Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.
-             */
-            cmoSubscribeLater?: boolean;
-            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -41309,14 +41301,6 @@ export type PatchUsersByIdPreferencesData = {
          * Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.
          */
         tagDirectMessages?: boolean;
-        /**
-         * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
-         */
-        cmoAccountsSkipped?: boolean;
-        /**
-         * Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.
-         */
-        cmoSubscribeLater?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -41425,14 +41409,6 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.
              */
             tagDirectMessages?: boolean;
-            /**
-             * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
-             */
-            cmoAccountsSkipped?: boolean;
-            /**
-             * Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.
-             */
-            cmoSubscribeLater?: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */

@@ -487,6 +487,7 @@ model Project {
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
+  socialComments          SocialComment[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
   brandBrain       BrandBrain?
@@ -888,7 +889,7 @@ model SocialPost {
   marketingStrategy   MarketingStrategy? @relation(fields: [marketingStrategyId], references: [id], onDelete: SetNull)
   /// What the plan intends with it: its calendar entry's id, title, format,
   /// hook, brief, why, approach, pillar and campaign, validated by
-  /// `cmoSocialPostPlanningSchema` in `@sokosumi/soko-bot`.
+  /// `socialPostPlanningSchema` in `@sokosumi/soko-bot`.
   planning            Json?
 
   attempts    SocialPostPublishAttempt[]
@@ -930,6 +931,7 @@ model SocialComment {
   updatedAt DateTime @updatedAt
 
   projectId    String     @db.Uuid
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   socialPostId String     @db.Uuid
   socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
 
@@ -2647,14 +2649,16 @@ model SokoBotTurn {
   responseContract      Json?
   deliveries            SokoBotDelivery[]
 
-  contextSnapshot  SokoBotContextSnapshot?
-  events           SokoBotEvent[]
-  runtimeEvents    SokoBotRuntimeEvent[]
-  toolCalls        SokoBotToolCall[]
-  delegations      SokoBotDelegation[]
-  pendingDecisions SokoBotPendingDecision[]
-  memoryRevisions  SokoBotMemoryRevision[]
-  scheduleRun      SokoBotScheduleRun?
+  contextSnapshot     SokoBotContextSnapshot?
+  events              SokoBotEvent[]
+  runtimeEvents       SokoBotRuntimeEvent[]
+  toolCalls           SokoBotToolCall[]
+  delegations         SokoBotDelegation[]
+  pendingDecisions    SokoBotPendingDecision[]
+  memoryRevisions     SokoBotMemoryRevision[]
+  scheduleRun         SokoBotScheduleRun?
+  /// Marketing strategy versions this turn wrote.
+  marketingStrategies MarketingStrategy[]
 
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])

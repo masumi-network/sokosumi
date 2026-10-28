@@ -1,4 +1,4 @@
-import type { CmoBrandBrain } from "@sokosumi/soko-bot";
+import type { BrandBrain } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
@@ -73,7 +73,7 @@ const finding = (sourceUrl: string) => ({
   sourceUrl,
 });
 
-function brain(extra: Partial<CmoBrandBrain>): CmoBrandBrain {
+function brain(extra: Partial<BrandBrain>): BrandBrain {
   return {
     summary: "Acme sells rockets.",
     voice: { tone: "Direct", do: [], dont: [], examples: [] },

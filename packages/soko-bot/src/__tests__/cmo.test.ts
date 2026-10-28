@@ -4,12 +4,12 @@ import {
   cmoMayExecute,
   cmoRoutineSkipReason,
   cmoSaveStrategyInputSchema,
-  cmoStrategySchema,
   isCmoScheduleKey,
   parseCmoStrategySave,
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
+import { marketingStrategyPlanSchema } from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import {
@@ -96,7 +96,7 @@ describe("cmoMayExecute", () => {
 
 describe("CMO strategy and rhythms", () => {
   it("fills defaults the bot can leave out", () => {
-    const strategy = cmoStrategySchema.parse({
+    const strategy = marketingStrategyPlanSchema.parse({
       month: "2026-10",
       summary: "Grow LinkedIn reach with founder-led posts.",
       goals: ["More demo requests"],
@@ -222,7 +222,7 @@ describe("CMO strategy and rhythms", () => {
     }
     // A plan saved before proposals named a channel still reads.
     expect(
-      cmoStrategySchema.parse({
+      marketingStrategyPlanSchema.parse({
         ...proposing("instagram").strategy,
         proposals: [{ name: "Reddit", what: "Answers", why: "Threads" }],
       }).proposals,

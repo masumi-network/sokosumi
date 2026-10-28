@@ -4,7 +4,7 @@ import {
   FileSourceKind,
 } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
-import { type CmoBrandBrain, cmoBrandBrainSchema } from "@sokosumi/soko-bot";
+import { type BrandBrain, brandBrainSchema } from "@sokosumi/soko-bot";
 import {
   buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathnameWithFolder,
@@ -133,7 +133,7 @@ export async function listCmoBrandPictures(
 export async function cmoBrandMedia(input: {
   projectId: string;
   websiteUrl: string;
-  brain: CmoBrandBrain | null;
+  brain: BrandBrain | null;
 }): Promise<CmoBrandMedia | null> {
   const files = await listResearchFiles(input.projectId);
   const first = files[0];
@@ -242,7 +242,7 @@ function sameSite(a: URL, b: URL): boolean {
  */
 export function cmoOwnPages(
   websiteUrl: string,
-  brain: CmoBrandBrain,
+  brain: BrandBrain,
 ): { label: string; url: string }[] {
   const site = new URL(websiteUrl);
   const cited = [
@@ -273,7 +273,7 @@ export function cmoOwnPages(
 
 /** Competitors with a homepage, as the Brand Brain lists them. */
 export function cmoCompetitorPages(
-  brain: CmoBrandBrain,
+  brain: BrandBrain,
 ): { name: string; url: string }[] {
   return brain.competitors
     .map((competitor) => {
@@ -499,7 +499,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   );
   // The workspace, website and Brand Brain are the Project's (ADR 0062).
   const cuso = await findCusoForBot(sokoBotId);
-  const brain = cmoBrandBrainSchema.safeParse(cuso?.brandBrain);
+  const brain = brandBrainSchema.safeParse(cuso?.brandBrain);
   if (!cuso || !brain.success) return;
   const recent = await prisma.fileProjectLink.findFirst({
     where: {

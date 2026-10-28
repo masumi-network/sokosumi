@@ -1,12 +1,12 @@
 import { type MarketingStrategy, type Prisma } from "@sokosumi/database";
 import {
+  type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
-  type CmoBrandBrain,
   type CmoCalendarEntry,
   type CmoPlanQuestion,
-  type CmoStrategy,
   type CmoStrategySave,
-  cmoStrategySchema,
+  type MarketingStrategyPlan,
+  marketingStrategyPlanSchema,
 } from "@sokosumi/soko-bot";
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
@@ -104,7 +104,7 @@ export async function setCmoAdBudget(input: {
     data: {
       projectId: cuso.projectId,
       authorUserId: input.userId,
-      turnId: started.turnId,
+      authorTurnId: started.turnId,
       plan: {
         ...strategy,
         ads: {
@@ -168,7 +168,7 @@ export async function requestCmoStrategy(input: {
 }
 
 /** The owner's answers, for the strategy request; none when nothing was answered. */
-function ownerAnswers(brain: CmoBrandBrain): string[] {
+function ownerAnswers(brain: BrandBrain): string[] {
   const answered = brain.questions.filter(
     (question) => question.answer && question.answer !== "unsure",
   );
@@ -204,10 +204,10 @@ export function calendarBounds(
  * the calendar outright.
  */
 function withHiddenCalendar(
-  previous: CmoStrategy["calendar"],
-  incoming: CmoStrategy["calendar"],
+  previous: MarketingStrategyPlan["calendar"],
+  incoming: MarketingStrategyPlan["calendar"],
   now: Date,
-): CmoStrategy["calendar"] {
+): MarketingStrategyPlan["calendar"] {
   const { from, to } = calendarBounds(now, CMO_VISIBLE_CALENDAR_DAYS);
   const seen = new Set(incoming.map((entry) => entry.id));
   const covered = new Set(
@@ -243,9 +243,9 @@ function sameTitle(left: string, right: string): boolean {
  * dropped, so a moved piece shows once.
  */
 export function keepCalendarWork(
-  previous: CmoStrategy["calendar"],
-  incoming: CmoStrategy["calendar"],
-): CmoStrategy["calendar"] {
+  previous: MarketingStrategyPlan["calendar"],
+  incoming: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] {
   const before = new Map(previous.map((entry) => [entry.id, entry]));
   // Entries past the first week reach Cuso without their words (the
   // packet's detailsStored); sent back under the same title, they keep them.
@@ -344,7 +344,7 @@ export async function saveCmoStrategy(
     ? await db.marketingStrategy.findFirst({
         where: {
           projectId: cuso.projectId,
-          turnId: options.turnId,
+          authorTurnId: options.turnId,
           approvedAt: null,
         },
         orderBy: { createdAt: "desc" },
@@ -355,7 +355,7 @@ export async function saveCmoStrategy(
     (await cmoWorkingStrategy(cuso.projectId, options.executing ?? false, db));
   // What a save leaves out stays as stored; the merged plan must be whole.
   const before = parseMarketingPlan(base?.plan);
-  const whole = cmoStrategySchema.parse({
+  const whole = marketingStrategyPlanSchema.parse({
     ...before,
     ...Object.fromEntries(
       Object.entries(strategy).filter(([, value]) => value !== undefined),
@@ -411,7 +411,7 @@ export async function saveCmoStrategy(
     data: {
       projectId: cuso.projectId,
       plan: stored,
-      turnId: options.turnId ?? null,
+      authorTurnId: options.turnId ?? null,
       ...("sokoBotId" in where
         ? { authorSokoBotId: cuso.sokoBotId }
         : { authorUserId: where.userId }),
@@ -423,9 +423,9 @@ export async function saveCmoStrategy(
  * A model sometimes writes line breaks as the two characters "\\n" inside a
  * draft; they would show up literally in a post.
  */
-export function withLineBreaks<T extends { calendar: CmoStrategy["calendar"] }>(
-  strategy: T,
-): T {
+export function withLineBreaks<
+  T extends { calendar: MarketingStrategyPlan["calendar"] },
+>(strategy: T): T {
   return {
     ...strategy,
     calendar: strategy.calendar.map((entry) =>

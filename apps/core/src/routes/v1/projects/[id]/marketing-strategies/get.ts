@@ -64,7 +64,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const page = versions.slice(0, take);
     return ok(
       c,
-      page.map(({ turnId: _turnId, ...version }) =>
+      page.map(({ authorTurnId: _authorTurnId, ...version }) =>
         marketingStrategyVersionSchema.parse(version),
       ),
       createPaginationMeta(page, total, take, versions.length > take, cursor),

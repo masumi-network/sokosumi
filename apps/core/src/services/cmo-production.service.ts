@@ -1,7 +1,7 @@
 import {
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
-  type CmoStrategy,
+  type MarketingStrategyPlan,
   SOKO_BOT_CMO_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
@@ -159,7 +159,7 @@ async function connectedChannels(projectId: string): Promise<Set<string>> {
 
 /** The mix as the calendar holds it, so the brief shows what each piece serves. */
 export function cmoMixLedger(
-  strategy: Pick<CmoStrategy, "mix" | "calendar">,
+  strategy: Pick<MarketingStrategyPlan, "mix" | "calendar">,
 ): string {
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
@@ -206,7 +206,7 @@ function carouselNote(piece: CmoPiece): string {
 /** What the production run reads: the whole month to make, in one brief. */
 export function cmoProductionMessage(input: {
   businessName: string;
-  strategy: CmoStrategy;
+  strategy: MarketingStrategyPlan;
   pending: CmoPiece[];
   connected: ReadonlySet<string>;
   attempt: number;
@@ -362,7 +362,7 @@ function readyAtStart(run: ProductionRun): number | null {
 
 interface ProductionRead {
   status: CmoProductionStatus;
-  strategy: CmoStrategy | null;
+  strategy: MarketingStrategyPlan | null;
   /** When the version being made was approved: one run id per approval. */
   approvedAt: Date | null;
   pending: CmoPiece[];

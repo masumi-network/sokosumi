@@ -115,7 +115,7 @@ function version(
     plan: plan as MarketingStrategy["plan"],
     authorSokoBotId: "55555555-5555-4555-8555-555555555555",
     authorUserId: null,
-    turnId: "66666666-6666-4666-8666-666666666666",
+    authorTurnId: "66666666-6666-4666-8666-666666666666",
     approvedAt,
     approvedByUserId: approvedAt ? "user_0" : null,
   };
@@ -194,7 +194,7 @@ describe("Marketing strategy routes", () => {
       expect.objectContaining({ id: NEW_ID, approvedAt: null }),
     ]);
     expect(body.data[0]).not.toHaveProperty("plan");
-    expect(body.data[0]).not.toHaveProperty("turnId");
+    expect(body.data[0]).not.toHaveProperty("authorTurnId");
     expect(m.strategyFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { projectId: PROJECT_ID } }),
     );
@@ -231,7 +231,7 @@ describe("Marketing strategy routes", () => {
       async (args: { data: Partial<MarketingStrategy> }) => ({
         ...version(NEW_ID),
         authorSokoBotId: null,
-        turnId: null,
+        authorTurnId: null,
         ...args.data,
       }),
     );

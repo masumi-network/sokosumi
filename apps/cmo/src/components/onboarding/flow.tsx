@@ -117,8 +117,8 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
     const answered = questions.filter((question) => question.answer).length;
     return answered > 0 && answered < questions.length ? "check" : "strategy";
   }
-  // Core reads it from a connection or the person's skip, so a reload after
-  // the Accounts step resumes on the plan.
+  // Core reads it from a connection, and CMO's cookie from the person's skip,
+  // so a reload after the Accounts step resumes on the plan.
   return overview.onboardingStep === "accounts" && needsAccounts(overview)
     ? "connect"
     : "pricing";

@@ -16,7 +16,6 @@ import {
   getCmoOverview,
   getContactLists,
   getSubscriptionCatalog,
-  patchUsersByIdPreferences,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   postContactLists,
@@ -33,16 +32,28 @@ import {
 } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
+import {
+  readSkippedSteps,
+  SKIPPED_STEPS_MAX_AGE,
+  type SkippedStep,
+  skippedStepsCookie,
+  withSkippedSteps,
+} from "../lib/skipped-steps";
 
 async function requireCore() {
   const core = await coreForCurrentUser();
   if (!core) throw new Error("Not signed in to Sokosumi");
   return core;
+}
+
+async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
+  const cookie = (await cookies()).get(skippedStepsCookie(projectId));
+  return readSkippedSteps(cookie?.value);
 }
 
 /** The Cuso the person works with, or null before they hire him. */
@@ -51,7 +62,27 @@ export async function loadOverview(): Promise<CmoOverview | null> {
   const { data, response } = await getCmoOverview(core);
   if (response?.status === 404) return null;
   if (!data) throw new Error("Could not load CMO");
-  return data.data;
+  return withSkippedSteps(data.data, await skippedSteps(data.data.projectId));
+}
+
+/** Remembers a skipped hiring step in CMO's cookie for this Cuso. */
+async function skipStep(step: SkippedStep): Promise<CmoOverview> {
+  const overview = await requireOverview();
+  const skipped = [
+    ...new Set([...(await skippedSteps(overview.projectId)), step]),
+  ];
+  (await cookies()).set(
+    skippedStepsCookie(overview.projectId),
+    skipped.join(","),
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: SKIPPED_STEPS_MAX_AGE,
+    },
+  );
+  return withSkippedSteps(overview, skipped);
 }
 
 async function requireOverview(): Promise<CmoOverview> {
@@ -350,17 +381,10 @@ export async function chooseMockPlan(
 
 /**
  * The founder moved on from the Accounts step. A connection already counts;
- * skipping is the person's preference, so a reload resumes on the plan.
+ * skipping is kept in CMO's cookie, so a reload resumes on the plan.
  */
 export async function finishAccounts(): Promise<CmoOverview> {
-  const core = await requireCore();
-  const { error } = await patchUsersByIdPreferences({
-    ...core,
-    path: { id: "me" },
-    body: { cmoAccountsSkipped: true },
-  });
-  if (error) throw new Error(errorText(error, "Could not continue"));
-  return requireOverview();
+  return skipStep("accounts");
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
@@ -416,17 +440,11 @@ export async function completeOnboarding(): Promise<void> {
 }
 
 /**
- * The founder chose Subscribe later on the plan step: stored as their
- * preference, so CMO opens on the chat. Cuso makes nothing until a plan.
+ * The founder chose Subscribe later on the plan step: kept in CMO's cookie,
+ * so CMO opens on the chat. Cuso makes nothing until a plan.
  */
 export async function subscribeLater(): Promise<void> {
-  const core = await requireCore();
-  const { error } = await patchUsersByIdPreferences({
-    ...core,
-    path: { id: "me" },
-    body: { cmoSubscribeLater: true },
-  });
-  if (error) throw new Error(errorText(error, "Could not continue"));
+  await skipStep("plan");
   revalidatePath("/");
 }
 

@@ -1,4 +1,4 @@
-import type { CmoBrandBrain, CmoStrategy } from "@sokosumi/soko-bot";
+import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
 
 // A plain function, not a spy: a spy reports the rejection the code handles.
@@ -26,7 +26,9 @@ const entry = (id: string, channel: string, format: string) => ({
   status: "idea" as const,
 });
 
-const plan = (patch: Partial<CmoStrategy> = {}): CmoStrategy =>
+const plan = (
+  patch: Partial<MarketingStrategyPlan> = {},
+): MarketingStrategyPlan =>
   ({
     month: "2026-11",
     summary: "Show teams how custom AI CoWorkers fit their work.",
@@ -88,7 +90,7 @@ const plan = (patch: Partial<CmoStrategy> = {}): CmoStrategy =>
     changes: [],
     openQuestions: [],
     ...patch,
-  }) as CmoStrategy;
+  }) as MarketingStrategyPlan;
 
 describe("cmoPlanProblems", () => {
   it("passes a plan that keeps the skill's hard rules", () => {
@@ -174,7 +176,7 @@ describe("cmoPlanDrift", () => {
     summary: "utxo AG builds custom AI CoWorkers.",
     products: ["Custom AI CoWorkers", "Lead research CoWorker"],
     reveal: { positioning: "Custom AI CoWorkers for business processes" },
-  } as unknown as CmoBrandBrain;
+  } as unknown as BrandBrain;
 
   it("flags a plan the evaluator says sells a side product", async () => {
     jev.answer = async () => ({

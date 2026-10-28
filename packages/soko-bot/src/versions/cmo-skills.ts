@@ -1,5 +1,6 @@
 import { CMO_CHANNELS } from "@sokosumi/utils";
-import { CMO_BRAND_SECTION_KEYS, CMO_BRAND_SECTIONS } from "../cmo.js";
+import { CMO_BRAND_SECTIONS } from "../cmo.js";
+import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import type { SokoBotSkill } from "./skills.js";
 
 /** How Cuso writes everything the owner reads: plans, Brand Brain, posts. */

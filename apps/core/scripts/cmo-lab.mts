@@ -14,7 +14,7 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import type { SokoBotTurnStatus } from "@sokosumi/database";
-import type { CmoStrategy } from "@sokosumi/soko-bot";
+import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import { findCusoForUser } from "@/services/cmo-cuso.service";
@@ -114,11 +114,7 @@ async function run(email: string, brand: Brand) {
   // Read again: his website and business name are the Project's new ones.
   const cuso = await findCusoForUser(user.id);
   if (!cuso) throw new Error(`${email} works with no Cuso`);
-  // Hiring progress is read from the data; only skipping accounts is stored.
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { cmoAccountsSkipped: false, cmoSubscribeLater: false },
-  });
+  // Hiring progress is read from the data; CMO's screen choices live in its cookie.
   await prisma.marketingStrategy.deleteMany({
     where: { projectId: cuso.projectId },
   });
@@ -157,7 +153,9 @@ function judge(
   saved: { brandBrain: unknown; strategy: unknown },
 ): { pass: boolean; findings: string[]; summary?: string; offer?: string } {
   const brain = parseBrandBrain(saved.brandBrain);
-  const strategy = parseMarketingPlan(saved.strategy) as CmoStrategy | null;
+  const strategy = parseMarketingPlan(
+    saved.strategy,
+  ) as MarketingStrategyPlan | null;
   const findings: string[] = [];
   if (!brain) findings.push("no Brand Brain");
   else if (!new RegExp(brand.brain ?? brand.main, "i").test(brain.summary))

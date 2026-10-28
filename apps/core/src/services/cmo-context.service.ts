@@ -1,7 +1,7 @@
 import {
-  type CmoStrategy,
   type CmoSystemSchedule,
   cmoRoutineSkipReason,
+  type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
@@ -25,10 +25,10 @@ import {
 } from "@/services/marketing-strategy.service";
 
 function calendarWindow(
-  strategy: CmoStrategy,
+  strategy: MarketingStrategyPlan,
   now: Date,
   days: number,
-): CmoStrategy["calendar"] {
+): MarketingStrategyPlan["calendar"] {
   const { from, to } = calendarBounds(now, days);
   return strategy.calendar.filter(
     (entry) => entry.date >= from && entry.date <= to,

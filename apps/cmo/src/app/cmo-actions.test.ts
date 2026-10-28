@@ -8,12 +8,21 @@ const getContactLists = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
 const revalidatePath = vi.fn();
+const cookieJar = new Map<string, string>();
+const setCookie = vi.fn((name: string, value: string) => {
+  cookieJar.set(name, value);
+});
 
 vi.mock("next/cache", () => ({ revalidatePath }));
 
 vi.mock("next/headers", () => ({
   headers: async () =>
     new Headers({ host: "app.cmo.xyz", "x-forwarded-proto": "https" }),
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
+    set: setCookie,
+  }),
 }));
 
 vi.mock("../lib/core", () => ({
@@ -33,8 +42,15 @@ vi.mock("@sokosumi/core-client", () => ({
   postContactListsByIdImport,
 }));
 
-const { addMailingList, connectChannel, finalizeChannel, onboard } =
-  await import("./cmo-actions");
+const {
+  addMailingList,
+  connectChannel,
+  finalizeChannel,
+  finishAccounts,
+  loadOverview,
+  onboard,
+  subscribeLater,
+} = await import("./cmo-actions");
 
 const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
 
@@ -46,6 +62,7 @@ function form(websiteUrl: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  cookieJar.clear();
   startCmoOnboarding.mockResolvedValue({ data: {}, error: undefined });
 });
 
@@ -205,5 +222,44 @@ describe("addMailingList", () => {
       overview: null,
       error: "No email addresses found in that text",
     });
+  });
+});
+
+describe("skipped hiring steps", () => {
+  beforeEach(() => {
+    getCmoOverview.mockResolvedValue({
+      data: { data: { projectId: "project-1", onboardingStep: "accounts" } },
+      response: { status: 200 },
+    });
+  });
+
+  it("resumes on Core's step without CMO's cookie", async () => {
+    expect((await loadOverview())?.onboardingStep).toBe("accounts");
+  });
+
+  it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
+    cookieJar.set("cmo-skipped-project-1", "accounts");
+    expect((await loadOverview())?.onboardingStep).toBe("plan");
+    // Another Cuso's choices do not count.
+    cookieJar.clear();
+    cookieJar.set("cmo-skipped-project-2", "accounts,plan");
+    expect((await loadOverview())?.onboardingStep).toBe("accounts");
+  });
+
+  it("remembers Continue on the accounts step in an httpOnly cookie", async () => {
+    expect((await finishAccounts()).onboardingStep).toBe("plan");
+    expect(setCookie).toHaveBeenCalledWith(
+      "cmo-skipped-project-1",
+      "accounts",
+      expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
+    );
+  });
+
+  it("remembers Subscribe later beside the skipped accounts", async () => {
+    cookieJar.set("cmo-skipped-project-1", "accounts");
+    await subscribeLater();
+    expect(cookieJar.get("cmo-skipped-project-1")).toBe("accounts,plan");
+    expect((await loadOverview())?.onboardingStep).toBe("done");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 });

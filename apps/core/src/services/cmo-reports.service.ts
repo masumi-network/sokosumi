@@ -99,7 +99,7 @@ export async function reportCmoUpdate(
     update.kind === "weekly" || update.kind === "monthly"
       ? await Promise.all([
           db.marketingStrategy.findFirst({
-            where: { projectId, turnId: input.turnId },
+            where: { projectId, authorTurnId: input.turnId },
             select: { id: true },
           }),
           approvedMarketingStrategy(projectId, db),

@@ -33,4 +33,7 @@ CREATE INDEX "social_comment_socialPostId_idx" ON "social_comment"("socialPostId
 CREATE UNIQUE INDEX "social_comment_provider_externalCommentId_key" ON "social_comment"("provider", "externalCommentId");
 
 -- AddForeignKey
+ALTER TABLE "social_comment" ADD CONSTRAINT "social_comment_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "social_comment" ADD CONSTRAINT "social_comment_socialPostId_fkey" FOREIGN KEY ("socialPostId") REFERENCES "social_post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

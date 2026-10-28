@@ -1,4 +1,4 @@
-import type { CmoStrategy } from "@sokosumi/soko-bot";
+import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import { head } from "@vercel/blob";
 
 import type { FileActor } from "@/lib/files/actor";
@@ -20,7 +20,7 @@ export interface CmoCalendarMedia {
  * reads from; only files the owner may open, and only images and videos.
  */
 export async function cmoCalendarMedia(input: {
-  strategy: CmoStrategy | null;
+  strategy: MarketingStrategyPlan | null;
   workspaceId: string;
   organizationId: string | null;
   userId: string;

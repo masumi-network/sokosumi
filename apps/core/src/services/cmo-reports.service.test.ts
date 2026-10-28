@@ -266,7 +266,7 @@ describe("weekly change and revert", () => {
     const before = seedStrategy(strategy, {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
-    const review = seedStrategy(revised, { turnId: "turn-1" });
+    const review = seedStrategy(revised, { authorTurnId: "turn-1" });
     sokoBotFindUnique.mockResolvedValue(cuso());
     const record = await reportCmoUpdate({
       sokoBotId: "bot-1",
@@ -307,7 +307,7 @@ describe("weekly change and revert", () => {
       approvedAt: new Date("2026-10-01T09:00:00Z"),
       approvedByUserId: "user-2",
     });
-    const review = seedStrategy(revised, { turnId: "turn-1" });
+    const review = seedStrategy(revised, { authorTurnId: "turn-1" });
     cusoFind.mockResolvedValue(HIRE);
     messageFindFirst.mockResolvedValue(
       reportMessage({ previousVersionId: before.id, versionId: review.id }),

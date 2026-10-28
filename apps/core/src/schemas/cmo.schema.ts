@@ -1,8 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import {
-  cmoBrandBrainSchema,
+  brandBrainSchema,
   cmoReportUpdateInputSchema,
-  cmoStrategySchema,
+  marketingStrategyPlanSchema,
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -226,11 +226,11 @@ export const cmoOverviewSchema = z
     mockPlan: z.union([z.string(), z.null()]),
     mockPlanActivatedAt: z.union([dateTimeSchema, z.null()]),
     routines: z.array(cmoRoutineSchema),
-    brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
+    brandBrain: z.union([brandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
-    strategy: z.union([cmoStrategySchema, z.null()]),
+    strategy: z.union([marketingStrategyPlanSchema, z.null()]),
     media: z
       .array(
         z.object({

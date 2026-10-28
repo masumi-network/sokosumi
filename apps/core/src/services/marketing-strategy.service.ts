@@ -6,10 +6,10 @@ import {
 import {
   type CmoBrandAnswer,
   type CmoCalendarEntry,
-  type CmoSocialPostPlanning,
-  type CmoStrategy,
-  cmoSocialPostPlanningSchema,
-  cmoStrategySchema,
+  type MarketingStrategyPlan,
+  marketingStrategyPlanSchema,
+  type SocialPostPlanning,
+  socialPostPlanningSchema,
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
@@ -46,8 +46,10 @@ import {
  * an older version again.
  */
 
-export function parseMarketingPlan(value: unknown): CmoStrategy | null {
-  const parsed = cmoStrategySchema.safeParse(value);
+export function parseMarketingPlan(
+  value: unknown,
+): MarketingStrategyPlan | null {
+  const parsed = marketingStrategyPlanSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
@@ -62,7 +64,7 @@ export const MARKETING_STRATEGY_VERSION_SELECT = {
   updatedAt: true,
   authorSokoBotId: true,
   authorUserId: true,
-  turnId: true,
+  authorTurnId: true,
   approvedAt: true,
   approvedByUserId: true,
 } as const satisfies Prisma.MarketingStrategySelect;
@@ -119,7 +121,7 @@ export async function listMarketingStrategies(
 export function createMarketingStrategy(input: {
   projectId: string;
   userId: string;
-  plan: CmoStrategy;
+  plan: MarketingStrategyPlan;
 }): Promise<MarketingStrategy> {
   return prisma.marketingStrategy.create({
     data: {
@@ -303,8 +305,8 @@ function socialPostProvider(channel: string): SocialPostProvider | null {
 
 export function parseSocialPostPlanning(
   value: unknown,
-): CmoSocialPostPlanning | null {
-  const parsed = cmoSocialPostPlanningSchema.safeParse(value);
+): SocialPostPlanning | null {
+  const parsed = socialPostPlanningSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
@@ -399,7 +401,7 @@ export async function planMarketingStrategyPosts(
     const stored = parseSocialPostPlanning(post?.planning);
     const planning = {
       ...stored,
-      ...withoutUndefined(cmoSocialPostPlanningSchema.parse(entry)),
+      ...withoutUndefined(socialPostPlanningSchema.parse(entry)),
       id: stored?.id ?? entry.id,
     };
     if (!post || post.status === "CANCELED") {
@@ -529,9 +531,9 @@ export async function listMarketingStrategyPosts(
  * other entries.
  */
 export function withSocialPostCalendar(
-  plan: CmoStrategy,
+  plan: MarketingStrategyPlan,
   posts: MarketingStrategyPost[],
-): CmoStrategy {
+): MarketingStrategyPlan {
   if (posts.length === 0) return plan;
   const made = new Map<string, CmoCalendarEntry>();
   for (const post of posts) made.set(post.entryId ?? post.entry.id, post.entry);
@@ -557,7 +559,7 @@ export function withSocialPostCalendar(
 export async function readMarketingPlan(
   version: MarketingStrategy | null,
   db: Prisma.TransactionClient = prisma,
-): Promise<CmoStrategy | null> {
+): Promise<MarketingStrategyPlan | null> {
   const plan = parseMarketingPlan(version?.plan);
   if (!plan || !version?.approvedAt) return plan;
   return withSocialPostCalendar(

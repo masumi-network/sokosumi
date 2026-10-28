@@ -9019,10 +9019,11 @@ describe("CMO record saves", () => {
         // The approved version runs; this turn has written none yet.
         findFirst: vi
           .fn()
-          .mockImplementation(async (args: { where: { turnId?: string } }) =>
-            args.where.turnId
-              ? null
-              : { id: "strategy-1", plan, approvedAt: new Date() },
+          .mockImplementation(
+            async (args: { where: { authorTurnId?: string } }) =>
+              args.where.authorTurnId
+                ? null
+                : { id: "strategy-1", plan, approvedAt: new Date() },
           ),
         create: vi.fn().mockResolvedValue(created),
         update: vi.fn(),
@@ -9052,7 +9053,7 @@ describe("CMO record saves", () => {
     expect(tx.marketingStrategy.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         projectId: PROJECT,
-        turnId: SCOPE.turnId,
+        authorTurnId: SCOPE.turnId,
         authorSokoBotId: SCOPE.sokoBotId,
       }),
     });

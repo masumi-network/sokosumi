@@ -1,4 +1,4 @@
-import type { CmoBrandBrain, CmoStrategy } from "@sokosumi/soko-bot";
+import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
 
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
@@ -26,7 +26,7 @@ const MIX_TOLERANCE = 7;
  * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
  * can act on. Calendar rules wait until a calendar is saved.
  */
-export function cmoPlanProblems(strategy: CmoStrategy): string[] {
+export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
   const problems: string[] = [];
   const words = strategy.summary.trim().split(/\s+/).length;
   if (words > MAX_SUMMARY_WORDS)
@@ -158,7 +158,9 @@ function opening(draft: string): string {
  * open the same way, and none uses a banned line. Cuso rewrites what it
  * names; a handful at a time, so one save never floods him.
  */
-export function cmoDraftProblems(calendar: CmoStrategy["calendar"]): string[] {
+export function cmoDraftProblems(
+  calendar: MarketingStrategyPlan["calendar"],
+): string[] {
   const drafted = calendar.filter(
     (entry) => entry.draft && entry.status !== "skipped",
   );
@@ -185,7 +187,7 @@ export function cmoDraftProblems(calendar: CmoStrategy["calendar"]): string[] {
 const MAX_PHRASE_PIECES = 2;
 
 /** Five-word phrases that recur across more drafts than the skill allows. */
-function repeatedPhrases(drafted: CmoStrategy["calendar"]): string[] {
+function repeatedPhrases(drafted: MarketingStrategyPlan["calendar"]): string[] {
   const pieces = new Map<string, Set<string>>();
   for (const entry of drafted) {
     const words = (entry.draft ?? "")
@@ -219,8 +221,8 @@ function repeatedPhrases(drafted: CmoStrategy["calendar"]): string[] {
  * of the pieces is close to the plan's.
  */
 export function mixProblems(
-  mix: CmoStrategy["mix"],
-  pieces: CmoStrategy["calendar"],
+  mix: MarketingStrategyPlan["mix"],
+  pieces: MarketingStrategyPlan["calendar"],
 ): string[] {
   if (mix.length === 0 || pieces.length === 0) return [];
   const missing = pieces.filter((entry) => !entry.approach).length;
@@ -258,8 +260,8 @@ export function mixProblems(
  * finding, so the save never waits on it.
  */
 export async function cmoPlanDrift(input: {
-  strategy: CmoStrategy;
-  brain: CmoBrandBrain;
+  strategy: MarketingStrategyPlan;
+  brain: BrandBrain;
 }): Promise<{
   problem: string | null;
   verdict: CmoPlanOfferVerdict;
@@ -311,7 +313,7 @@ export async function cmoPlanDrift(input: {
  * the owner instead. A failed check holds the reply too: posting is public.
  */
 export async function cmoReplySafety(input: {
-  brain: CmoBrandBrain | null;
+  brain: BrandBrain | null;
   comment: string;
   reply: string;
 }): Promise<{ safe: boolean; costUsd: number }> {

@@ -16,7 +16,6 @@ import {
   type ChatResultReference,
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
-  type CmoStrategy,
   cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
@@ -29,6 +28,7 @@ import {
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotListTasksInputSchema as listTasksInputSchema,
+  type MarketingStrategyPlan,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
   parseCmoStrategySave,
   parseSokoBotMemory,
@@ -4933,7 +4933,7 @@ export class SokoBotRuntimeService {
     plan: {
       /** The version saved is the approved one (pieces of the running plan). */
       approved: boolean;
-      strategy: CmoStrategy | null;
+      strategy: MarketingStrategyPlan | null;
       planSent: boolean;
     },
   ): Promise<CmoPlanReview | null> {

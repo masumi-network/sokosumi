@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { cmoStrategySchema } from "@sokosumi/soko-bot";
+import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -34,7 +34,7 @@ export const marketingStrategyVersionSchema = z
 
 export const marketingStrategyRequestSchema = z
   .object({
-    plan: cmoStrategySchema.describe(
+    plan: marketingStrategyPlanSchema.describe(
       "The whole plan, with its calendar and any yes/no questions.",
     ),
   })
@@ -42,7 +42,7 @@ export const marketingStrategyRequestSchema = z
 
 export const marketingStrategySchema = marketingStrategyVersionSchema
   .extend({
-    plan: cmoStrategySchema.describe(
+    plan: marketingStrategyPlanSchema.describe(
       "The plan with its yes/no questions and their answers.",
     ),
   })

@@ -143,7 +143,10 @@ describe("requestCmoStrategy", () => {
 
     expect(strategyRows).toHaveLength(2);
     const added = strategyRows.find((row) => row.id !== running.id)!;
-    expect(added).toMatchObject({ authorUserId: "user-1", turnId: "turn-9" });
+    expect(added).toMatchObject({
+      authorUserId: "user-1",
+      authorTurnId: "turn-9",
+    });
     expect(plan(added).summary).toBe("Ads around the owner's budget.");
     expect(added.plan).toMatchObject({
       ads: { monthly: 500, currency: "EUR", setByOwner: true },
@@ -172,7 +175,7 @@ describe("saving versions", () => {
     expect(strategyRows).toHaveLength(2);
     const added = strategyRows.find((row) => row.id !== running.id)!;
     expect(added).toMatchObject({
-      turnId: "turn-1",
+      authorTurnId: "turn-1",
       authorSokoBotId: "bot-1",
       approvedAt: null,
     });
@@ -184,7 +187,7 @@ describe("saving versions", () => {
   it("starts a new version once the turn's own one was approved", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy, {
-      turnId: "turn-1",
+      authorTurnId: "turn-1",
       approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
 
@@ -377,7 +380,7 @@ describe("saving versions", () => {
       { userId: "user-1" },
       { ...strategy, calendar: [strategy.calendar[0]!] },
     );
-    expect(saved).toMatchObject({ authorUserId: "user-1", turnId: null });
+    expect(saved).toMatchObject({ authorUserId: "user-1", authorTurnId: null });
     expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(["a"]);
   });
 });

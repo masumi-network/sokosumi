@@ -86,7 +86,7 @@ function overview() {
         updatedAt: NOW,
         authorSokoBotId: "bot-1",
         authorUserId: null,
-        turnId: "turn-1",
+        authorTurnId: "turn-1",
         approvedAt: NOW,
         approvedByUserId: "user-1",
       },
@@ -160,7 +160,7 @@ describe("CMO routes", () => {
       approvedAt: NOW.toISOString(),
       approvedByUserId: "user-1",
     });
-    expect(body.data.strategyVersion.turnId).toBeUndefined();
+    expect(body.data.strategyVersion.authorTurnId).toBeUndefined();
     expect(body.data.strategyVersions).toHaveLength(1);
     // The version id stays in Core; the card only learns it can revert.
     expect(body.data.updates[0]).toMatchObject({ revertible: true });

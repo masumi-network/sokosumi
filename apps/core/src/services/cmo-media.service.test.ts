@@ -1,4 +1,4 @@
-import type { CmoStrategy } from "@sokosumi/soko-bot";
+import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
 
 const { liveResources, head } = vi.hoisted(() => ({
@@ -46,7 +46,7 @@ describe("cmoCalendarMedia", () => {
         piece("d", "f-gone"),
         piece("e"),
       ],
-    } as unknown as CmoStrategy;
+    } as unknown as MarketingStrategyPlan;
 
     await expect(cmoCalendarMedia({ strategy, ...scope })).resolves.toEqual([
       { entryId: "a", kind: "video", url: "https://blob/drive/v.mp4" },
@@ -62,7 +62,9 @@ describe("cmoCalendarMedia", () => {
 
   it("asks for nothing when no piece has media yet", async () => {
     liveResources.mockClear();
-    const strategy = { calendar: [piece("a")] } as unknown as CmoStrategy;
+    const strategy = {
+      calendar: [piece("a")],
+    } as unknown as MarketingStrategyPlan;
     await expect(cmoCalendarMedia({ strategy, ...scope })).resolves.toEqual([]);
     expect(liveResources).not.toHaveBeenCalled();
   });

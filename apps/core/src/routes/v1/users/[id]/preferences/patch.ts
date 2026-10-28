@@ -49,16 +49,6 @@ const requestBodySchema = z
         "Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.",
       example: false,
     }),
-    cmoAccountsSkipped: z.boolean().optional().openapi({
-      description:
-        "Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.",
-      example: true,
-    }),
-    cmoSubscribeLater: z.boolean().optional().openapi({
-      description:
-        "Whether the person chose Subscribe later on CMO's plan step, so CMO opens on the chat. Cuso makes and spends nothing until a plan is active.",
-      example: true,
-    }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
       // One write per cell, inside one transaction, so the body cannot ask for
@@ -77,8 +67,6 @@ const requestBodySchema = z
         data.pushOptIn !== undefined ||
         data.showRoomUnreadCount !== undefined ||
         data.tagDirectMessages !== undefined ||
-        data.cmoAccountsSkipped !== undefined ||
-        data.cmoSubscribeLater !== undefined ||
         (data.notificationPreferences !== undefined &&
           data.notificationPreferences.length > 0)
       );
@@ -90,8 +78,6 @@ const requestBodySchema = z
         "pushOptIn",
         "showRoomUnreadCount",
         "tagDirectMessages",
-        "cmoAccountsSkipped",
-        "cmoSubscribeLater",
         "notificationPreferences",
       ],
     },
@@ -160,12 +146,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       }),
       ...(body.tagDirectMessages !== undefined && {
         tagDirectMessages: body.tagDirectMessages,
-      }),
-      ...(body.cmoAccountsSkipped !== undefined && {
-        cmoAccountsSkipped: body.cmoAccountsSkipped,
-      }),
-      ...(body.cmoSubscribeLater !== undefined && {
-        cmoSubscribeLater: body.cmoSubscribeLater,
       }),
     };
 

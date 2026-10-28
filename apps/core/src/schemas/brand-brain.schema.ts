@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { cmoBrandBrainSchema } from "@sokosumi/soko-bot";
+import { brandBrainSchema as brandBrainShapeSchema } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -16,7 +16,7 @@ export const brandBrainProjectParamsSchema = z.object({
 export const brandBrainSchema = z
   .object({
     brandBrain: z
-      .union([cmoBrandBrainSchema, z.null()])
+      .union([brandBrainShapeSchema, z.null()])
       .describe("Null until its essentials are saved."),
     updatedAt: z
       .union([dateTimeSchema, z.null()])
@@ -29,5 +29,5 @@ export const brandBrainSchema = z
   .openapi("BrandBrain");
 
 export const brandBrainRequestSchema = z
-  .object({ brandBrain: cmoBrandBrainSchema })
+  .object({ brandBrain: brandBrainShapeSchema })
   .openapi("BrandBrainRequest");

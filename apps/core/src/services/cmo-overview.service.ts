@@ -1,6 +1,6 @@
 import {
-  type CmoBrandBrain,
-  type CmoStrategy,
+  type BrandBrain,
+  type MarketingStrategyPlan,
   SOKO_BOT_CMO_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
@@ -70,8 +70,9 @@ export interface CmoUpNextItem {
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
  * until a member confirms it, the Marketing strategy until a version is
- * approved, the accounts until the Project has a Social connection or the
- * person skipped them, the plan until the organization has a CMO plan.
+ * approved, the accounts until the Project has an active Social connection,
+ * the plan until the organization has an active CMO plan. CMO's own cookie
+ * may skip the last two (ADR 0062).
  */
 /** Hiring Cuso's steps, in order. */
 export const CMO_ONBOARDING_STEPS = [
@@ -87,17 +88,10 @@ export function cmoOnboardingStep(input: {
   brandBrainConfirmed: boolean;
   strategyApproved: boolean;
   connected: boolean;
-  accountsSkipped: boolean;
   subscribed: boolean;
-  /** The person chose to subscribe later; spending still needs a plan. */
-  subscribeLater: boolean;
 }): CmoOnboardingStep {
-  if (input.strategyApproved && (input.subscribed || input.subscribeLater)) {
-    return "done";
-  }
-  if (input.strategyApproved) {
-    return input.connected || input.accountsSkipped ? "plan" : "accounts";
-  }
+  if (input.strategyApproved && input.subscribed) return "done";
+  if (input.strategyApproved) return input.connected ? "plan" : "accounts";
   return input.brandBrainConfirmed ? "strategy" : "brandBrain";
 }
 
@@ -136,9 +130,9 @@ export interface CmoOverview {
   mockBilling: boolean;
   mockPlan: string | null;
   mockPlanActivatedAt: Date | null;
-  brandBrain: CmoBrandBrain | null;
+  brandBrain: BrandBrain | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
-  strategy: CmoStrategy | null;
+  strategy: MarketingStrategyPlan | null;
   /** Every version, newest first; the first is the one `strategy` shows. */
   strategyVersions: MarketingStrategyVersion[];
   botStatus: string;
@@ -173,7 +167,7 @@ export interface CmoOverview {
  * Strategy calendar only.
  */
 export function cmoUpNext(
-  strategy: Pick<CmoStrategy, "calendar"> | null,
+  strategy: Pick<MarketingStrategyPlan, "calendar"> | null,
   now: Date,
   connectedProviders: readonly string[],
   limit = 8,
@@ -210,7 +204,7 @@ export async function getCmoOverview(
   const cuso = await findCusoForUser(userId);
   if (!cuso) return null;
   const payer = await cmoPayer(cuso);
-  const [organization, project, bot, channels, viewer] = await Promise.all([
+  const [organization, project, bot, channels] = await Promise.all([
     payer.organizationId
       ? prisma.organization.findUnique({
           where: { id: payer.organizationId },
@@ -237,10 +231,6 @@ export async function getCmoOverview(
       },
     }),
     listCmoChannels(cuso.projectId),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { cmoAccountsSkipped: true, cmoSubscribeLater: true },
-    }),
   ]);
   const [adConnections, mailingListSize, measurement] = await Promise.all([
     prisma.projectAdConnection.findMany({
@@ -369,9 +359,7 @@ export async function getCmoOverview(
       brandBrainConfirmed: cuso.brandBrainConfirmedAt !== null,
       strategyApproved: approved !== null,
       connected: channels.some((channel) => channel.status === "ACTIVE"),
-      accountsSkipped: viewer?.cmoAccountsSkipped ?? false,
       subscribed: cmoPlan !== null,
-      subscribeLater: viewer?.cmoSubscribeLater ?? false,
     }),
     media,
     learning,

@@ -1,14 +1,17 @@
-import type { BrandBrain, Prisma } from "@sokosumi/database";
+import type {
+  BrandBrain as BrandBrainRecord,
+  Prisma,
+} from "@sokosumi/database";
 import {
+  type BrandBrain,
+  brandBrainSchema,
   CMO_BRAND_SECTION_KEYS,
   type CmoBrandAnswer,
-  type CmoBrandBrain,
   type CmoBrandFinding,
   type CmoBrandProfile,
   type CmoBrandQuestion,
   type CmoBrandSectionKey,
   type CmoSaveBrandBrainInput,
-  cmoBrandBrainSchema,
   cmoBrandProfileSchema,
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
@@ -22,8 +25,8 @@ import prisma from "@/lib/db/prisma";
  * membership; nothing here is CMO's.
  */
 
-export function parseBrandBrain(value: unknown): CmoBrandBrain | null {
-  const parsed = cmoBrandBrainSchema.safeParse(value);
+export function parseBrandBrain(value: unknown): BrandBrain | null {
+  const parsed = brandBrainSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
@@ -74,7 +77,7 @@ export async function saveBrandBrain(
   projectId: string,
   input: CmoSaveBrandBrainInput,
   db?: Prisma.TransactionClient,
-): Promise<BrandBrain> {
+): Promise<BrandBrainRecord> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
     const stored = storedBrandBrain(await lockBrandBrain(tx, projectId));
@@ -229,7 +232,7 @@ function storedBrandBrain(value: unknown): { profile: CmoBrandProfile } {
  * stored; a full profile no longer fits a context packet.
  */
 export function compactBrandBrain(
-  brain: CmoBrandBrain | null,
+  brain: BrandBrain | null,
 ): Record<string, unknown> | null {
   if (!brain) return null;
   const profile = Object.fromEntries(

@@ -4,7 +4,7 @@ import { internalServerError } from "@/helpers/error";
 import { parseMarketingPlan } from "@/services/marketing-strategy.service";
 
 export function mapMarketingStrategy({
-  turnId: _turnId,
+  authorTurnId: _authorTurnId,
   plan,
   ...version
 }: MarketingStrategy) {

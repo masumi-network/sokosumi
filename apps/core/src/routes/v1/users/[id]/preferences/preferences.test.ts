@@ -54,8 +54,6 @@ const PREFERENCES = {
   // Stored as "hide", so a reader who never chose is shown the count.
   hideRoomUnreadCount: false,
   tagDirectMessages: false,
-  cmoAccountsSkipped: false,
-  cmoSubscribeLater: false,
   notificationPreferences: [] as {
     category: string;
     channel: string;
@@ -198,8 +196,6 @@ describe("user preferences routes", () => {
         pushOptIn: true,
         hideRoomUnreadCount: true,
         tagDirectMessages: true,
-        cmoAccountsSkipped: true,
-        cmoSubscribeLater: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -228,8 +224,6 @@ describe("user preferences routes", () => {
         pushOptIn: true,
         hideRoomUnreadCount: true,
         tagDirectMessages: true,
-        cmoAccountsSkipped: true,
-        cmoSubscribeLater: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -308,46 +302,6 @@ describe("user preferences routes", () => {
     expect((await response.json()).data.tagDirectMessages).toBe(true);
     expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
       tagDirectMessages: true,
-    });
-  });
-
-  it("stores skipping CMO's accounts step, off until skipped", async () => {
-    const app = createPreferencesApp(SESSION_USER);
-    userFindUniqueMock.mockResolvedValue(PREFERENCES);
-    const read = await app.request("http://localhost/me/preferences");
-    expect((await read.json()).data.cmoAccountsSkipped).toBe(false);
-
-    userUpdateMock.mockResolvedValue({
-      ...PREFERENCES,
-      cmoAccountsSkipped: true,
-    });
-    const response = await app.request(
-      patchRequest("/me/preferences", { cmoAccountsSkipped: true }),
-    );
-    expect(response.status).toBe(200);
-    expect((await response.json()).data.cmoAccountsSkipped).toBe(true);
-    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
-      cmoAccountsSkipped: true,
-    });
-  });
-
-  it("stores choosing to subscribe to CMO later, off until chosen", async () => {
-    const app = createPreferencesApp(SESSION_USER);
-    userFindUniqueMock.mockResolvedValue(PREFERENCES);
-    const read = await app.request("http://localhost/me/preferences");
-    expect((await read.json()).data.cmoSubscribeLater).toBe(false);
-
-    userUpdateMock.mockResolvedValue({
-      ...PREFERENCES,
-      cmoSubscribeLater: true,
-    });
-    const response = await app.request(
-      patchRequest("/me/preferences", { cmoSubscribeLater: true }),
-    );
-    expect(response.status).toBe(200);
-    expect((await response.json()).data.cmoSubscribeLater).toBe(true);
-    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
-      cmoSubscribeLater: true,
     });
   });
 

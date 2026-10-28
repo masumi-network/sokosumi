@@ -11,19 +11,20 @@ model MarketingStrategy {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   /// The plan with its yes/no questions and their answers, validated by
-  /// `cmoStrategySchema` in `@sokosumi/soko-bot`. Its calendar is the plan
+  /// `marketingStrategyPlanSchema` in `@sokosumi/soko-bot`. Its calendar is the plan
   /// as written; once approved, its social entries are the Project's Social
   /// posts (`socialPosts`).
   plan Json
 
   /// Who wrote it: a bot's turn, or a member.
-  authorSokoBotId String?  @db.Uuid
-  authorSokoBot   SokoBot? @relation(fields: [authorSokoBotId], references: [id], onDelete: SetNull)
+  authorSokoBotId String?      @db.Uuid
+  authorSokoBot   SokoBot?     @relation(fields: [authorSokoBotId], references: [id], onDelete: SetNull)
   authorUserId    String?
-  authorUser      User?    @relation("MarketingStrategyAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorUser      User?        @relation("MarketingStrategyAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
   /// The bot turn that wrote it: that turn's later saves complete this
   /// version (a plan goes in two calls) until it is approved.
-  turnId          String?  @db.Uuid
+  authorTurnId    String?      @db.Uuid
+  authorTurn      SokoBotTurn? @relation(fields: [authorTurnId], references: [id], onDelete: SetNull)
 
   approvedAt       DateTime?
   approvedByUserId String?

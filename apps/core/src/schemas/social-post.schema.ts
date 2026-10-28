@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { cmoSocialPostPlanningSchema } from "@sokosumi/soko-bot";
+import { socialPostPlanningSchema } from "@sokosumi/soko-bot";
 import {
   isValidTimezone,
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -274,7 +274,7 @@ export const socialPostSchema = z
       description:
         "The Marketing strategy version whose calendar planned this post; null for a post planned by hand.",
     }),
-    planning: cmoSocialPostPlanningSchema.nullable().optional().openapi({
+    planning: socialPostPlanningSchema.nullable().optional().openapi({
       description:
         "What the plan intends with the post: its calendar entry's title, format, hook, brief, why, approach, pillar and campaign.",
     }),
