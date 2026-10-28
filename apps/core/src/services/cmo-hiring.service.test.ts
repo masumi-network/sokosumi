@@ -315,9 +315,9 @@ describe("startCmoOnboarding", () => {
       }),
     );
     // The hire keeps no copy of the Project's workspace, website or name.
-    expect(cmoCreate).toHaveBeenCalledWith({
-      data: { sokoBotId: "bot-1", projectId: "project-1" },
-      include: { project: { select: { workspaceId: true, websiteUrl: true } } },
+    expect(cmoCreate.mock.lastCall?.[0].data).toEqual({
+      sokoBotId: "bot-1",
+      projectId: "project-1",
     });
     // No goal is asked for, so Cuso's first turn names none.
     expect(startTurn.mock.lastCall?.[0].message).not.toMatch(/goal/i);

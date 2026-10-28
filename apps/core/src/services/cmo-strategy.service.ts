@@ -10,8 +10,8 @@ import {
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
+import { parseCmoBrandBrain } from "@/services/brand-brain.service";
 import { requireCmoCommitter } from "@/services/cmo-billing.service";
-import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 import {
   CmoConflictError,
   CmoNotFoundError,

@@ -1,4 +1,4 @@
-import { type CmoHire, type Prisma } from "@sokosumi/database";
+import type { BrandBrain, Prisma } from "@sokosumi/database";
 import {
   CMO_BRAND_SECTION_KEYS,
   type CmoBrandAnswer,
@@ -12,44 +12,71 @@ import {
   cmoBrandProfileSchema,
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
+import { conflict, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import {
-  CmoConflictError,
-  CmoNotFoundError,
-  cmoHireWhere,
-  getCmoHireForUser,
-} from "@/services/cmo-cuso.service";
+
+/**
+ * The Project's Brand Brain (ADR 0062): one per Project, read by every bot in
+ * it, edited and confirmed by any member of its Workspace. Callers check that
+ * membership; nothing here is CMO's.
+ */
 
 export function parseCmoBrandBrain(value: unknown): CmoBrandBrain | null {
   const parsed = cmoBrandBrainSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
+export const BRAND_BRAIN_SELECT = {
+  id: true,
+  body: true,
+  updatedAt: true,
+  confirmedAt: true,
+  confirmedBy: { select: { id: true, name: true } },
+} as const satisfies Prisma.BrandBrainSelect;
+
+export type StoredBrandBrain = Prisma.BrandBrainGetPayload<{
+  select: typeof BRAND_BRAIN_SELECT;
+}>;
+
+export async function getBrandBrain(
+  projectId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<StoredBrandBrain | null> {
+  return db.brandBrain.findUnique({
+    where: { projectId },
+    select: BRAND_BRAIN_SELECT,
+  });
+}
+
 /**
- * Merges a save into the stored Brand Brain: sent sections replace theirs,
- * sent essentials replace the essentials. Until the essentials exist the
- * record holds only sections and the owner does not see it yet.
+ * Locks the Project's Brand Brain writes, existing row or not: section saves
+ * run in parallel, and none may overwrite another.
  */
-export async function saveCmoBrandBrain(
-  where: { userId: string } | { sokoBotId: string },
+async function lockBrandBrain(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+): Promise<unknown> {
+  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  const row = await tx.brandBrain.findUnique({
+    where: { projectId },
+    select: { body: true },
+  });
+  return row?.body ?? null;
+}
+
+/**
+ * Merges a save into the Project's Brand Brain: sent sections replace theirs,
+ * sent essentials replace the essentials. Until the essentials exist the
+ * record holds only sections and nobody sees it yet.
+ */
+export async function saveBrandBrain(
+  projectId: string,
   input: CmoSaveBrandBrainInput,
   db?: Prisma.TransactionClient,
-): Promise<CmoHire> {
+): Promise<BrandBrain> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
-  const target = await cmoHireWhere(where);
   const write = async (tx: Prisma.TransactionClient) => {
-    const hire = await tx.cmoHire.findUnique({
-      where: target,
-      select: { id: true },
-    });
-    if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-    // Section saves run in parallel: lock the row so none overwrites another.
-    await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
-    const current = await tx.cmoHire.findUnique({
-      where: { id: hire.id },
-      select: { brandBrain: true },
-    });
-    const stored = storedBrandBrain(current?.brandBrain);
+    const stored = storedBrandBrain(await lockBrandBrain(tx, projectId));
     const incoming = { ...save.brandBrain?.profile, ...save.sections };
     // Cuso's packet carries no findings; a section he rewrites keeps them.
     const kept = Object.fromEntries(
@@ -77,21 +104,20 @@ export async function saveCmoBrandBrain(
           ),
         }
       : before;
-    const next = essentials ? { ...essentials, profile } : { profile };
-    return tx.cmoHire.update({
-      where: { id: hire.id },
-      data: {
-        brandBrain: next,
-        ...(essentials ? { brandBrainUpdatedAt: new Date() } : {}),
-      },
+    const body = essentials ? { ...essentials, profile } : { profile };
+    const updatedAt = essentials ? { updatedAt: new Date() } : {};
+    return tx.brandBrain.upsert({
+      where: { projectId },
+      create: { projectId, body, ...updatedAt },
+      update: { body, ...updatedAt },
     });
   };
   return db ? write(db) : prisma.$transaction(write);
 }
 
 /**
- * Questions saved again keep the owner's answers: Cuso asks, only the owner
- * answers, so an answer Cuso leaves out is the stored one.
+ * Questions saved again keep the members' answers: Cuso asks, only members
+ * answer, so an answer Cuso leaves out is the stored one.
  */
 function keepAnswers(
   incoming: CmoBrandQuestion[],
@@ -123,48 +149,42 @@ function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
     : null;
 }
 
-/** The owner approved the Brand Brain; his questions come next. */
-export async function approveCmoBrandBrain(userId: string): Promise<void> {
-  const hire = await getCmoHireForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (!parseCmoBrandBrain(hire.brandBrain)) {
-    throw new CmoConflictError("Cuso is still building the Brand Brain");
+/**
+ * A member checked the Brand Brain: records who and when, replacing an
+ * earlier confirmation, so bots know a person read it.
+ */
+export async function confirmBrandBrain(
+  projectId: string,
+  userId: string,
+): Promise<StoredBrandBrain> {
+  const current = await getBrandBrain(projectId);
+  if (!parseCmoBrandBrain(current?.body)) {
+    throw conflict("The Brand Brain is still being built");
   }
-  if (hire.brandBrainApprovedAt) return;
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { brandBrainApprovedAt: new Date() },
+  return prisma.brandBrain.update({
+    where: { projectId },
+    data: { confirmedAt: new Date(), confirmedByUserId: userId },
+    select: BRAND_BRAIN_SELECT,
   });
 }
 
 /**
- * The owner's answer to one of Cuso's questions. It is stored on the
- * question and lands in its section as a confirmed finding (replacing what
- * an earlier answer to the same question put there), so every later plan and
- * post reads it.
+ * A member's answer to one of the Brand Brain's yes/no questions. It is
+ * stored on the question and lands in its section as a confirmed finding
+ * (replacing what an earlier answer to the same question put there), so every
+ * later plan and post reads it.
  */
-export async function answerCmoBrandQuestion(
-  userId: string,
+export async function answerBrandBrainQuestion(
+  projectId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
-  const target = await cmoHireWhere({ userId });
   await prisma.$transaction(async (tx) => {
-    const hire = await tx.cmoHire.findUnique({
-      where: target,
-      select: { id: true },
-    });
-    if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-    await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
-    const current = await tx.cmoHire.findUnique({
-      where: { id: hire.id },
-      select: { brandBrain: true },
-    });
-    const brain = parseCmoBrandBrain(current?.brandBrain);
+    const brain = parseCmoBrandBrain(await lockBrandBrain(tx, projectId));
     const question = brain?.questions.find(
       (candidate) => candidate.id === input.questionId,
     );
     if (!brain || !question) {
-      throw new CmoNotFoundError("That question is not in the Brand Brain");
+      throw notFound("That question is not in the Brand Brain");
     }
     const answered: CmoBrandQuestion = {
       ...question,
@@ -188,10 +208,10 @@ export async function answerCmoBrandQuestion(
           ? { answer: finding.point, findings, openQuestions: [] }
           : undefined,
     };
-    await tx.cmoHire.update({
-      where: { id: hire.id },
+    await tx.brandBrain.update({
+      where: { projectId },
       data: {
-        brandBrain: {
+        body: {
           ...brain,
           profile,
           questions: brain.questions.map((candidate) =>
@@ -216,4 +236,39 @@ function storedBrandBrain(value: unknown): { profile: CmoBrandProfile } {
       : {};
   const profile = cmoBrandProfileSchema.safeParse(record.profile ?? {});
   return { ...record, profile: profile.success ? profile.data : {} };
+}
+
+/**
+ * The Brand Brain as a turn reads it: each section's headline, answer, what
+ * its findings mean and its open questions. The findings themselves stay
+ * stored; a full profile no longer fits a context packet.
+ */
+export function compactBrandBrain(
+  brain: CmoBrandBrain | null,
+): Record<string, unknown> | null {
+  if (!brain) return null;
+  const profile = Object.fromEntries(
+    Object.entries(brain.profile ?? {}).flatMap(([key, section]) =>
+      section
+        ? [
+            [
+              key,
+              {
+                headline: section.headline,
+                answer: section.answer,
+                soWhat: section.findings
+                  .map((finding) => finding.implication)
+                  .filter(Boolean)
+                  .slice(0, 2),
+                openQuestions: section.openQuestions,
+                findingsStored: section.findings.length,
+              },
+            ],
+          ]
+        : [],
+    ),
+  );
+  // An answered question already lives in its section as a finding.
+  const questions = brain.questions.filter((question) => !question.answer);
+  return { ...brain, profile, questions };
 }

@@ -11,6 +11,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
+  CMO_HIRE_OMIT,
   CMO_HIRE_PROJECT,
   type CmoHireView,
   cmoHireView,
@@ -499,7 +500,11 @@ export async function advanceCmoProduction(
 export function kickCmoProduction(hireId: string): void {
   waitUntil(
     prisma.cmoHire
-      .findUnique({ where: { id: hireId }, include: CMO_HIRE_PROJECT })
+      .findUnique({
+        where: { id: hireId },
+        omit: CMO_HIRE_OMIT,
+        include: CMO_HIRE_PROJECT,
+      })
       .then((hire) => (hire ? advanceCmoProduction(cmoHireView(hire)) : null))
       .catch((error: unknown) => {
         console.warn("CMO production could not start", {
@@ -537,6 +542,7 @@ export async function syncCmoProduction(
   const hires = (
     await prisma.cmoHire.findMany({
       where: { strategyApprovedAt: { not: null } },
+      omit: CMO_HIRE_OMIT,
       include: CMO_HIRE_PROJECT,
       orderBy: { updatedAt: "asc" },
     })

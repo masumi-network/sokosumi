@@ -487,6 +487,7 @@ model Project {
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
   cmoHire          CmoHire?
+  brandBrain       BrandBrain?
   newsletter       Newsletter?
   newsletterIssues NewsletterIssue[]
 
