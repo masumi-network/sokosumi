@@ -7064,12 +7064,24 @@ export type InitiateProjectSocialConnectionResponse = {
 export type InitiateProjectSocialConnectionRequest = {
     action: 'connect';
     provider: ProjectSocialProvider;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 } | {
     action: 'replace';
     socialConnectionId: string;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
@@ -9623,10 +9635,6 @@ export type CmoAdBudgetRequest = {
      * ISO 4217, such as EUR.
      */
     currency: string;
-};
-
-export type CmoChannelConnect = {
-    redirectUrl: string;
 };
 
 export type CmoMeasurementConnect = {
@@ -29049,6 +29057,142 @@ export type PostContactListsByIdMembersResponses = {
 };
 
 export type PostContactListsByIdMembersResponse = PostContactListsByIdMembersResponses[keyof PostContactListsByIdMembersResponses];
+
+export type PostContactListsByIdImportData = {
+    body?: {
+        text: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}/import';
+};
+
+export type PostContactListsByIdImportErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No addresses, too many, or a smart list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactListsByIdImportError = PostContactListsByIdImportErrors[keyof PostContactListsByIdImportErrors];
+
+export type PostContactListsByIdImportResponses = {
+    /**
+     * List
+     */
+    200: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactListsByIdImportResponse = PostContactListsByIdImportResponses[keyof PostContactListsByIdImportResponses];
 
 export type GetContactsData = {
     body?: never;
@@ -63605,277 +63749,6 @@ export type PauseCmoCalendarEntryResponses = {
 };
 
 export type PauseCmoCalendarEntryResponse = PauseCmoCalendarEntryResponses[keyof PauseCmoCalendarEntryResponses];
-
-export type ConnectCmoChannelData = {
-    body?: {
-        provider: ProjectSocialProvider;
-        callbackUrl: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/channels/connect';
-};
-
-export type ConnectCmoChannelErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unknown return address
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Connecting this network is not set up
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ConnectCmoChannelError = ConnectCmoChannelErrors[keyof ConnectCmoChannelErrors];
-
-export type ConnectCmoChannelResponses = {
-    /**
-     * Provider sign-in started
-     */
-    200: {
-        data: CmoChannelConnect;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ConnectCmoChannelResponse = ConnectCmoChannelResponses[keyof ConnectCmoChannelResponses];
-
-export type FinalizeCmoChannelData = {
-    body?: {
-        connectionId: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/channels/finalize';
-};
-
-export type FinalizeCmoChannelErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unknown or expired connection
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type FinalizeCmoChannelError = FinalizeCmoChannelErrors[keyof FinalizeCmoChannelErrors];
-
-export type FinalizeCmoChannelResponses = {
-    /**
-     * Account connected
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type FinalizeCmoChannelResponse = FinalizeCmoChannelResponses[keyof FinalizeCmoChannelResponses];
-
-export type ImportCmoMailingListData = {
-    body?: {
-        text: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/mailing-list';
-};
-
-export type ImportCmoMailingListErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * No email addresses found
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ImportCmoMailingListError = ImportCmoMailingListErrors[keyof ImportCmoMailingListErrors];
-
-export type ImportCmoMailingListResponses = {
-    /**
-     * Mailing list added
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ImportCmoMailingListResponse = ImportCmoMailingListResponses[keyof ImportCmoMailingListResponses];
 
 export type ConnectCmoMeasurementData = {
     body?: {

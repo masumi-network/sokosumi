@@ -9,6 +9,33 @@ export function isLocalDevHostname(hostname: string): boolean {
   return host === "localhost" || host.endsWith(".localhost");
 }
 
+/** Domains of first-party apps: Sokosumi and CMO.xyz, previews included. */
+const FIRST_PARTY_DOMAINS = ["sokosumi.com", "cmo.xyz"];
+
+/**
+ * A page of a first-party app, over https; local dev hosts in development.
+ * Where a provider may send a person back after connecting an account.
+ */
+export function isFirstPartyAppUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol === "https:") {
+    return FIRST_PARTY_DOMAINS.some(
+      (domain) => host === domain || host.endsWith(`.${domain}`),
+    );
+  }
+  return (
+    getEnv().NODE_ENV === "development" &&
+    url.protocol === "http:" &&
+    isLocalDevHostname(host)
+  );
+}
+
 /**
  * Echo value for `Access-Control-Allow-Origin` when the browser `Origin` is allowed,
  * or `null` to omit the header (disallowed).

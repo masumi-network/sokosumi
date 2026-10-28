@@ -14,6 +14,7 @@ import {
   type PersonalSokoBotAuthenticationContext,
   requireAdminAuthContext,
   requireInteractiveAdminAuthContext,
+  requireInteractiveUserAuthContext,
   requireOwnerUserContext,
   requirePersonalSokoBotAuthContext,
   requireUserContext,
@@ -811,6 +812,8 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_oauth",
       authenticationMethod: "oauth",
+      // A skipConsent client is first party (ADR 0046).
+      firstPartyClient: true,
     });
     // Better Auth stores the SHA-256 base64url digest of the unprefixed token.
     expect(oauthAccessTokenFindUniqueMock).toHaveBeenCalledWith(
@@ -1229,6 +1232,7 @@ describe("authMiddleware", () => {
         organizationId: null,
         role: "user",
         authenticationMethod: "oauth",
+        firstPartyClient: true,
       });
     });
 
@@ -1482,6 +1486,43 @@ describe("requireAdminAuthContext", () => {
         },
       }),
     ).toThrowError("User authentication required");
+  });
+});
+
+describe("requireInteractiveUserAuthContext", () => {
+  const user = {
+    actor: "user" as const,
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  };
+
+  it("allows a browser session and a first-party OAuth client", () => {
+    expect(
+      requireInteractiveUserAuthContext({
+        ...user,
+        authenticationMethod: "session",
+      }),
+    ).toMatchObject({ userId: "user_123" });
+    // CMO and the Apple app act for a person who is signed in right there.
+    expect(
+      requireInteractiveUserAuthContext({
+        ...user,
+        authenticationMethod: "oauth",
+        firstPartyClient: true,
+      }),
+    ).toMatchObject({ userId: "user_123" });
+  });
+
+  it.each([
+    { authenticationMethod: "oauth" as const },
+    { authenticationMethod: "api_key" as const },
+    { authenticationMethod: "api_key" as const, firstPartyClient: true },
+    {},
+  ])("rejects %o", (credential) => {
+    expect(() =>
+      requireInteractiveUserAuthContext({ ...user, ...credential }),
+    ).toThrowError("Interactive session required");
   });
 });
 

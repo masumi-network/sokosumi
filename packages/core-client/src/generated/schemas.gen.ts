@@ -24464,6 +24464,13 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 },
                 provider: {
                     $ref: '#/components/schemas/ProjectSocialProvider'
+                },
+                callbackUrl: {
+                    type: 'string',
+                    maxLength: 2048,
+                    format: 'uri',
+                    description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
+                    example: 'https://app.cmo.xyz/connect/callback'
                 }
             },
             required: [
@@ -24483,6 +24490,13 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 socialConnectionId: {
                     type: 'string',
                     format: 'uuid'
+                },
+                callbackUrl: {
+                    type: 'string',
+                    maxLength: 2048,
+                    format: 'uri',
+                    description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
+                    example: 'https://app.cmo.xyz/connect/callback'
                 }
             },
             required: [
@@ -24502,6 +24516,13 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 socialConnectionId: {
                     type: 'string',
                     format: 'uuid'
+                },
+                callbackUrl: {
+                    type: 'string',
+                    maxLength: 2048,
+                    format: 'uri',
+                    description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
+                    example: 'https://app.cmo.xyz/connect/callback'
                 }
             },
             required: [
@@ -35642,18 +35663,6 @@ export const CmoAdBudgetRequestSchema = {
     required: [
         'monthly',
         'currency'
-    ]
-} as const;
-
-export const CmoChannelConnectSchema = {
-    type: 'object',
-    properties: {
-        redirectUrl: {
-            type: 'string'
-        }
-    },
-    required: [
-        'redirectUrl'
     ]
 } as const;
 

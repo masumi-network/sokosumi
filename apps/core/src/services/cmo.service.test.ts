@@ -19,6 +19,7 @@ const {
   cmoCreate,
   createOrganizationWorkspace,
   organizationFindFirst,
+  cmoDeleteMany,
   getUserWorkspace,
   integrationFindMany,
   connectSokoBotIntegration,
@@ -45,6 +46,7 @@ const {
   cmoCreate: vi.fn(),
   createOrganizationWorkspace: vi.fn(),
   organizationFindFirst: vi.fn(),
+  cmoDeleteMany: vi.fn(),
   getUserWorkspace: vi.fn(),
 }));
 
@@ -57,6 +59,7 @@ vi.mock("@/lib/db/prisma", () => {
       findUnique: cmoFindUnique,
       update: cmoUpdate,
       create: cmoCreate,
+      deleteMany: cmoDeleteMany,
     },
     project: { create: projectCreate, delete: projectDelete },
     organization: { findFirst: organizationFindFirst },
@@ -137,7 +140,6 @@ import {
   finishCmoAccountsStep,
   fitCmoMarketingContext,
   hasActiveCmoSubscription,
-  isCmoAppUrl,
   keepCalendarWork,
   keepPlanAnswers,
   listCmoChannels,
@@ -148,6 +150,7 @@ import {
   parseCmoUpdates,
   pauseCmoCalendarEntry,
   reportCmoUpdate,
+  requestCmoStrategy,
   retryCmoOnboarding,
   revertCmoUpdate,
   saveCmoBrandBrain,
@@ -293,6 +296,71 @@ describe("approveCmoStrategy", () => {
   it("needs a strategy", async () => {
     cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategy: null });
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
+  });
+
+  it("waits while Cuso writes the strategy the owner asked for", async () => {
+    // Approving the old plan now would carry over to the new one unreviewed.
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      sokoBotId: "bot-1",
+      strategy,
+      strategyApprovedAt: null,
+    });
+    turnFindFirst.mockResolvedValue({
+      id: "turn-1",
+      status: "RUNNING",
+      eveSessionId: null,
+      createdAt: new Date(),
+      clientTurnId: "cmo:strategy:cmo-1:1",
+    });
+    await expect(approveCmoStrategy("user-1")).rejects.toThrow(
+      /still writing/i,
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestCmoStrategy", () => {
+  const brandBrain = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const hire = {
+    id: "cmo-1",
+    userId: "user-1",
+    workspaceId: "ws-1",
+    sokoBotId: "bot-1",
+    businessName: "Acme",
+    goals: "More sales",
+    brandBrain,
+    strategy,
+    strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+  };
+
+  it("keeps the approval when Cuso cannot start the new strategy", async () => {
+    cmoFindUnique.mockResolvedValue(hire);
+    startTurn.mockRejectedValue(new Error("Soko Bot is already working"));
+    await expect(requestCmoStrategy({ userId: "user-1" })).rejects.toThrow(
+      "already working",
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+
+  it("clears the approval once the strategy turn started", async () => {
+    cmoFindUnique.mockResolvedValue(hire);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    await expect(requestCmoStrategy({ userId: "user-1" })).resolves.toEqual({
+      turnId: "turn-9",
+    });
+    expect(cmoUpdate).toHaveBeenCalledWith({
+      where: { id: "cmo-1" },
+      data: { strategyApprovedAt: null },
+    });
   });
 });
 
@@ -586,6 +654,36 @@ describe("weekly change and revert", () => {
     ]);
   });
 
+  it("keeps entries the owner paused when reverting", async () => {
+    const update = {
+      id: "u-1",
+      at: "2026-10-05T09:03:00Z",
+      kind: "weekly" as const,
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: [],
+      previousStrategy: strategy,
+    };
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy: {
+        ...revised,
+        calendar: strategy.calendar.map((entry) =>
+          entry.id === "b" ? { ...entry, status: "skipped" as const } : entry,
+        ),
+      },
+      strategyUpdatedAt: new Date(),
+      strategyHistory: null,
+      updates: [update],
+    });
+    await revertCmoUpdate({ userId: "user-1", updateId: "u-1" });
+    const calendar = cmoUpdate.mock.calls[0]?.[0].data.strategy.calendar;
+    expect(
+      calendar.find((entry: { id: string }) => entry.id === "b").status,
+    ).toBe("skipped");
+  });
+
   it("does not offer a revert for a daily report", async () => {
     cmoFindUnique.mockResolvedValue({
       id: "cmo-1",
@@ -758,6 +856,36 @@ describe("pauseCmoCalendarEntry", () => {
     expect(
       saved.calendar.find((entry: { id: string }) => entry.id === "a").status,
     ).toBe("skipped");
+  });
+
+  it("refuses a post that is already going out, and keeps the entry", async () => {
+    const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      strategy: {
+        ...strategy,
+        calendar: strategy.calendar.map((entry) =>
+          entry.id === "a"
+            ? { ...entry, status: "scheduled" as const, socialPostId: postId }
+            : entry,
+        ),
+      },
+    });
+    postFindFirst.mockResolvedValue({ status: "PUBLISHING", revision: 3 });
+    cancelSocialPost.mockRejectedValue(
+      new Error("The post can no longer be canceled"),
+    );
+
+    await expect(
+      pauseCmoCalendarEntry({ userId: "user-1", entryId: "a" }),
+    ).rejects.toThrow("no longer be canceled");
+    expect(cancelSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId, revision: 3 }),
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -1264,6 +1392,37 @@ describe("startCmoOnboarding", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
+  it("hires again once the person's Cuso was deleted or archived", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "personal",
+      name: "Ana Example",
+    });
+
+    await startCmoOnboarding(input);
+
+    // Only a live Cuso counts as the person's hire.
+    expect(cmoFindUnique).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        sokoBot: { deletedAt: null, archivedAt: null },
+      },
+    });
+    // The dead hire gives way, so the unique userId does not block the new one.
+    expect(cmoDeleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        sokoBot: {
+          OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
+        },
+      },
+    });
+    expect(cmoDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      cmoCreate.mock.invocationCallOrder[0],
+    );
+    expect(cmoCreate).toHaveBeenCalled();
+  });
+
   it("returns the person's existing Cuso without hiring again", async () => {
     cmoFindUnique.mockResolvedValue({ id: "cmo-0", workspaceId: "ws-0" });
 
@@ -1272,20 +1431,6 @@ describe("startCmoOnboarding", () => {
     });
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();
-  });
-});
-
-describe("CMO return addresses", () => {
-  it("accepts CMO.xyz and its previews, nothing else", () => {
-    expect(isCmoAppUrl("https://app.cmo.xyz/connect/callback")).toBe(true);
-    expect(
-      isCmoAppUrl(
-        "https://sokosumi-cmo-git-x.preview.cmo.xyz/connect/callback",
-      ),
-    ).toBe(true);
-    expect(isCmoAppUrl("https://evil.example/cmo.xyz")).toBe(false);
-    expect(isCmoAppUrl("http://app.cmo.xyz/connect/callback")).toBe(false);
-    expect(isCmoAppUrl("https://cmo.xyz.evil.example/")).toBe(false);
   });
 });
 

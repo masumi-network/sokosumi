@@ -10,17 +10,19 @@ import {
   type CmoOverview,
   chooseCmoMockPlan,
   completeCmoOnboarding,
-  connectCmoChannel,
   connectCmoMeasurement,
-  finalizeCmoChannel,
   finalizeCmoMeasurement,
   finishCmoAccountsStep,
   getChatsRoomsByIdMessages,
   getCmoOverview,
+  getContactLists,
   getSubscriptionCatalog,
-  importCmoMailingList,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
+  postContactLists,
+  postContactListsByIdImport,
+  postProjectsByIdSocialConnectionsFinalize,
+  postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategy,
   retryCmoOnboarding,
   revertCmoUpdate,
@@ -321,22 +323,48 @@ export async function finishAccounts(): Promise<CmoOverview> {
   return data.data;
 }
 
+/** The contact list Cuso writes the newsletter for; Core counts it by this name. */
+const NEWSLETTER_LIST = "Newsletter";
+
+/** The workspace's Newsletter list, created the first time. */
+async function newsletterListId(
+  options: Awaited<ReturnType<typeof inCusoWorkspace>>,
+): Promise<string | null> {
+  const { data } = await getContactLists(options);
+  const existing = data?.data.find(
+    (list) =>
+      list.kind === "manual" &&
+      list.name.toLowerCase() === NEWSLETTER_LIST.toLowerCase(),
+  );
+  if (existing) return existing.id;
+  const { data: created } = await postContactLists({
+    ...options,
+    body: { name: NEWSLETTER_LIST, color: "blue" },
+  });
+  return created?.data.id ?? null;
+}
+
 /** Adds the founder's mailing list for the newsletter Cuso writes. */
 export async function addMailingList(
   text: string,
 ): Promise<{ overview: CmoOverview | null; error: string | null }> {
-  const core = await requireCore();
-  const { data, error } = await importCmoMailingList({
-    ...core,
+  const overview = await loadOverview();
+  if (!overview) return { overview: null, error: "Cuso is not hired yet" };
+  const options = await inCusoWorkspace(overview);
+  const listId = await newsletterListId(options);
+  if (!listId) return { overview: null, error: "Could not add the list" };
+  const { error } = await postContactListsByIdImport({
+    ...options,
+    path: { id: listId },
     body: { text },
   });
-  if (!data) {
+  if (error) {
     return {
       overview: null,
       error: errorText(error, "Could not add the list"),
     };
   }
-  return { overview: data.data, error: null };
+  return { overview: await loadOverview(), error: null };
 }
 
 /** The founder is done with onboarding: CMO opens on the chat. */
@@ -358,14 +386,42 @@ async function callbackUrl(path = "/connect/callback"): Promise<string> {
   return `${proto}://${host}${path}`;
 }
 
+/**
+ * Request options in Cuso's workspace for the standard routes, which find an
+ * organization's Project and contacts only with its slug header.
+ */
+async function inCusoWorkspace(
+  overview: Pick<CmoOverview, "organizationSlug">,
+) {
+  const core = await requireCore();
+  return {
+    ...core,
+    headers: {
+      ...core.headers,
+      ...(overview.organizationSlug
+        ? { "x-organization-slug": overview.organizationSlug }
+        : {}),
+    },
+  };
+}
+
+/** Request options for Cuso's Project on the standard Project routes. */
+async function cusoProject() {
+  const overview = await loadOverview();
+  if (!overview) throw new Error("Cuso is not hired yet");
+  return {
+    ...(await inCusoWorkspace(overview)),
+    path: { id: overview.projectId },
+  };
+}
+
 /** Starts connecting a network; the browser goes to the returned URL. */
 export async function connectChannel(
   provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
 ): Promise<{ url: string | null; error: string | null }> {
-  const core = await requireCore();
-  const { data, error } = await connectCmoChannel({
-    ...core,
-    body: { provider, callbackUrl: await callbackUrl() },
+  const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
+    ...(await cusoProject()),
+    body: { action: "connect", provider, callbackUrl: await callbackUrl() },
   });
   if (!data) {
     return { url: null, error: errorText(error, "Could not start connecting") };
@@ -375,9 +431,8 @@ export async function connectChannel(
 
 /** Finishes a connection after the provider sent the founder back. */
 export async function finalizeChannel(connectionId: string): Promise<boolean> {
-  const core = await requireCore();
-  const { error } = await finalizeCmoChannel({
-    ...core,
+  const { error } = await postProjectsByIdSocialConnectionsFinalize({
+    ...(await cusoProject()),
     body: { connectionId },
   });
   return !error;

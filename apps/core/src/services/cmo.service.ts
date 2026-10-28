@@ -31,13 +31,12 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
-import { isLocalDevHostname } from "@/config/cors-allow-origin";
+import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
 import {
   getEnv,
   getWebAppBaseUrl,
   isProductionEnvironment,
 } from "@/config/env";
-import type { ProjectSocialProvider } from "@/config/social-providers";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
@@ -53,11 +52,11 @@ import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
-import { cmoMailingListSize } from "@/services/cmo-mailing-list.service";
 import {
   type CmoCalendarMedia,
   cmoCalendarMedia,
 } from "@/services/cmo-media.service";
+import { contactListNameKey } from "@/services/contact-lists.service";
 
 /**
  * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
@@ -264,10 +263,13 @@ export function parseCmoStrategy(value: unknown): CmoStrategy | null {
   return parsed.success ? parsed.data : null;
 }
 
+/** The person's hire while Cuso is live; a deleted or archived Cuso hired no one. */
 export async function getCmoHireForUser(
   userId: string,
 ): Promise<CmoHire | null> {
-  return prisma.cmoHire.findUnique({ where: { userId } });
+  return prisma.cmoHire.findUnique({
+    where: { userId, sokoBot: { deletedAt: null, archivedAt: null } },
+  });
 }
 
 export async function getCmoHireForBot(
@@ -695,74 +697,6 @@ export async function cmoWork(
   };
 }
 
-/**
- * Pages of CMO.xyz itself: social connect may send the owner back there and
- * nowhere else. Local CMO runs on localhost in development.
- */
-export function isCmoAppUrl(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
-  }
-  const host = url.hostname.toLowerCase();
-  if (url.protocol === "https:") {
-    return host === "cmo.xyz" || host.endsWith(".cmo.xyz");
-  }
-  return (
-    getEnv().NODE_ENV === "development" &&
-    url.protocol === "http:" &&
-    isLocalDevHostname(host)
-  );
-}
-
-/**
- * Starts connecting one of the strategy's networks to Cuso's Project through
- * Sokosumi's Project social flow; the provider returns to CMO afterwards.
- */
-export async function connectCmoChannel(input: {
-  userId: string;
-  provider: ProjectSocialProvider;
-  callbackUrl: string;
-}): Promise<{ redirectUrl: string }> {
-  if (!isCmoAppUrl(input.callbackUrl)) {
-    throw new CmoConflictError("Unknown return address");
-  }
-  const hire = await getCmoHireForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const { initiateProjectSocialConnection } = await import(
-    "@/services/project-social-connections.service"
-  );
-  const { redirectUrl } = await initiateProjectSocialConnection({
-    projectId: hire.projectId,
-    workspaceId: hire.workspaceId,
-    userId: input.userId,
-    action: "connect",
-    provider: input.provider,
-    callbackUrl: input.callbackUrl,
-  });
-  return { redirectUrl };
-}
-
-/** Finishes a connection the provider just confirmed. */
-export async function finalizeCmoChannel(input: {
-  userId: string;
-  connectionId: string;
-}): Promise<void> {
-  const hire = await getCmoHireForUser(input.userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const { finalizeProjectSocialConnection } = await import(
-    "@/services/project-social-connections.service"
-  );
-  await finalizeProjectSocialConnection({
-    projectId: hire.projectId,
-    workspaceId: hire.workspaceId,
-    userId: input.userId,
-    connectionId: input.connectionId,
-  });
-}
-
 /** The founder connected or skipped the Accounts step; a reload resumes on the plan. */
 export async function finishCmoAccountsStep(userId: string): Promise<void> {
   const hire = await getCmoHireForUser(userId);
@@ -832,6 +766,16 @@ export async function startCmoOnboarding(input: {
 }): Promise<CmoHire> {
   const existing = await getCmoHireForUser(input.userId);
   if (existing) return existing;
+  // A hire whose Cuso was deleted or archived would block the new one on the
+  // unique userId; only a dead one goes, so a racing live hire stays.
+  await prisma.cmoHire.deleteMany({
+    where: {
+      userId: input.userId,
+      sokoBot: {
+        OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
+      },
+    },
+  });
 
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
@@ -1031,7 +975,7 @@ export async function connectCmoMeasurement(input: {
   if (!isCmoMeasurementSource(input.provider)) {
     throw new CmoNotFoundError("CMO does not measure with that source");
   }
-  if (!isCmoAppUrl(input.returnUrl)) {
+  if (!isFirstPartyAppUrl(input.returnUrl)) {
     throw new CmoConflictError("The return address must be CMO's own page");
   }
   const hire = await getCmoHireForUser(input.userId);
@@ -1125,15 +1069,11 @@ export async function requestCmoStrategy(input: {
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { strategyApprovedAt: null },
-  });
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
-  return startCmoTurn(hire, {
+  const started = await startCmoTurn(hire, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: (input.note
       ? [
@@ -1172,6 +1112,12 @@ export async function requestCmoStrategy(input: {
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
+  // Only now: a turn that cannot start leaves the approved plan running.
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: { strategyApprovedAt: null },
+  });
+  return started;
 }
 
 /**
@@ -1719,6 +1665,20 @@ export async function approveCmoStrategy(userId: string): Promise<CmoHire> {
   if (!parseCmoStrategy(hire.strategy)) {
     throw new CmoConflictError("There is no strategy to approve yet");
   }
+  // The approval would carry over to the plan Cuso is writing, unreviewed.
+  const writing = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: hire.sokoBotId,
+      clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
+    },
+    orderBy: { createdAt: "desc" },
+    select: TURN_ROW_SELECT,
+  });
+  if (writing && (await settledTurnStatus(writing, new Date())) === "running") {
+    throw new CmoConflictError(
+      "Cuso is still writing the new strategy; approve it when it is ready",
+    );
+  }
   const approved = await prisma.cmoHire.update({
     where: { id: hire.id },
     data: { strategyApprovedAt: hire.strategyApprovedAt ?? new Date() },
@@ -1806,7 +1766,8 @@ export async function pauseCmoCalendarEntry(input: {
       where: { id: entry.socialPostId, projectId: hire.projectId },
       select: { status: true, revision: true },
     });
-    if (post && (post.status === "DRAFT" || post.status === "SCHEDULED")) {
+    // A post already going out refuses (409) and the entry stays as it is.
+    if (post && post.status !== "CANCELED") {
       const { cancelSocialPost } = await import(
         "@/services/social-posts.service"
       );
@@ -1848,14 +1809,15 @@ export async function revertCmoUpdate(input: {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (target.revertedAt) return hire;
-  const posted = new Map(
+  // Entries handed to Social and entries the owner paused stay as they are.
+  const kept = new Map(
     (parseCmoStrategy(hire.strategy)?.calendar ?? [])
-      .filter((entry) => entry.socialPostId)
+      .filter((entry) => entry.socialPostId || entry.status === "skipped")
       .map((entry) => [entry.id, entry]),
   );
   const calendar = [
-    ...previous.calendar.map((entry) => posted.get(entry.id) ?? entry),
-    ...[...posted.values()].filter(
+    ...previous.calendar.map((entry) => kept.get(entry.id) ?? entry),
+    ...[...kept.values()].filter(
       (entry) => !previous.calendar.some((old) => old.id === entry.id),
     ),
   ].sort((left, right) => left.date.localeCompare(right.date));
@@ -2445,4 +2407,25 @@ export async function getCmoOverview(
       postGroups.map((group) => [group.status, group._count._all]),
     ),
   };
+}
+
+/**
+ * The contact list Cuso writes the newsletter for, in the CMO workspace. The
+ * CMO app fills it through the standard contact-list import.
+ */
+export const CMO_MAILING_LIST_NAME = "Newsletter";
+
+/** How many people are on the newsletter list. */
+async function cmoMailingListSize(
+  hire: Pick<CmoHire, "workspaceId">,
+): Promise<number> {
+  return prisma.contactListMember.count({
+    where: {
+      list: {
+        workspaceId: hire.workspaceId,
+        nameKey: contactListNameKey(CMO_MAILING_LIST_NAME),
+      },
+      contact: { mergedIntoId: null },
+    },
+  });
 }
