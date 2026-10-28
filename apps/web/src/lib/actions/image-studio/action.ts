@@ -8,7 +8,6 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
-import { revalidatePath } from "next/cache";
 import {
   type ActionResultDto,
   toActionResult,
@@ -106,7 +105,6 @@ export const startImageGeneration = withSession<
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,
     });
-    revalidatePath(`/projects/${input.projectId}/studio`);
     return { ok: true, job };
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
@@ -146,7 +144,6 @@ export const startVideoGeneration = withSession<
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,
     });
-    revalidatePath(`/projects/${input.projectId}/studio`);
     return { ok: true, job };
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
