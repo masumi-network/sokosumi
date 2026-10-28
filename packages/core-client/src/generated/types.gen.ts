@@ -9514,8 +9514,10 @@ export type CmoOverview = {
     work: CmoWork | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
-    accountsDoneAt: Date | null;
-    onboardedAt: Date | null;
+    /**
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan. CMO opens on the chat once done.
+     */
+    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'plan' | 'done';
     /**
      * CMO offers its own mock tiers instead of Sokosumi checkout.
      */
@@ -41068,6 +41070,10 @@ export type GetUsersByIdPreferencesResponses = {
              */
             tagDirectMessages?: boolean;
             /**
+             * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
+             */
+            cmoAccountsSkipped?: boolean;
+            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -41100,6 +41106,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.
          */
         tagDirectMessages?: boolean;
+        /**
+         * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
+         */
+        cmoAccountsSkipped?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -41208,6 +41218,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.
              */
             tagDirectMessages?: boolean;
+            /**
+             * Whether the person skipped connecting Social accounts while Hiring Cuso, so CMO does not send them back to that step.
+             */
+            cmoAccountsSkipped?: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
@@ -64195,94 +64209,6 @@ export type ChooseCmoMockPlanResponses = {
 
 export type ChooseCmoMockPlanResponse = ChooseCmoMockPlanResponses[keyof ChooseCmoMockPlanResponses];
 
-export type FinishCmoAccountsStepData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/cmo/onboarding/accounts-done';
-};
-
-export type FinishCmoAccountsStepErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The strategy is not approved yet
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type FinishCmoAccountsStepError = FinishCmoAccountsStepErrors[keyof FinishCmoAccountsStepErrors];
-
-export type FinishCmoAccountsStepResponses = {
-    /**
-     * Accounts step done
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type FinishCmoAccountsStepResponse = FinishCmoAccountsStepResponses[keyof FinishCmoAccountsStepResponses];
-
 export type CompleteCmoOnboardingData = {
     body?: never;
     path?: never;
@@ -64357,7 +64283,7 @@ export type CompleteCmoOnboardingError = CompleteCmoOnboardingErrors[keyof Compl
 
 export type CompleteCmoOnboardingResponses = {
     /**
-     * Onboarding complete
+     * Cuso started
      */
     200: {
         data: CmoOverview;

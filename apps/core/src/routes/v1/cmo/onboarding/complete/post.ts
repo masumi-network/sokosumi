@@ -14,9 +14,9 @@ const route = createRoute({
   operationId: "completeCmoOnboarding",
   tags: ["CMO"],
   description:
-    "The founder finished onboarding: CMO opens on the chat with Cuso from now on.",
+    "The founder starts Cuso from the plan step: his month is made now. CMO opens on the chat once a strategy version is approved and a CMO plan is active.",
   responses: {
-    200: jsonSuccessResponse(cmoOverviewSchema, "Onboarding complete"),
+    200: jsonSuccessResponse(cmoOverviewSchema, "Cuso started"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),

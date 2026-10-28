@@ -70,8 +70,36 @@ export type CmoStrategyVersion = Awaited<
   ReturnType<typeof listMarketingStrategies>
 >[number];
 
+/**
+ * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
+ * until a member confirms it, the Marketing strategy until a version is
+ * approved, the accounts until the Project has a Social connection or the
+ * person skipped them, the plan until the organization has a CMO plan.
+ */
+export type CmoOnboardingStep =
+  | "brandBrain"
+  | "strategy"
+  | "accounts"
+  | "plan"
+  | "done";
+
+export function cmoOnboardingStep(input: {
+  brandBrainConfirmed: boolean;
+  strategyApproved: boolean;
+  connected: boolean;
+  accountsSkipped: boolean;
+  subscribed: boolean;
+}): CmoOnboardingStep {
+  if (input.strategyApproved && input.subscribed) return "done";
+  if (input.strategyApproved) {
+    return input.connected || input.accountsSkipped ? "plan" : "accounts";
+  }
+  return input.brandBrainConfirmed ? "strategy" : "brandBrain";
+}
+
 export interface CmoOverview {
   hire: CmoHireView;
+  onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
   /** Cuso's Workspace's organization, when it is not a personal one. */
@@ -178,7 +206,7 @@ export async function getCmoOverview(
   const hire = await getCmoHireForUser(userId);
   if (!hire) return null;
   const payer = await cmoPayer(hire);
-  const [organization, project, bot, channels] = await Promise.all([
+  const [organization, project, bot, channels, viewer] = await Promise.all([
     payer.organizationId
       ? prisma.organization.findUnique({
           where: { id: payer.organizationId },
@@ -205,6 +233,10 @@ export async function getCmoOverview(
       },
     }),
     listCmoChannels(hire.projectId),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { cmoAccountsSkipped: true },
+    }),
   ]);
   const [adConnections, mailingListSize, measurement] = await Promise.all([
     prisma.projectAdConnection.findMany({
@@ -319,6 +351,13 @@ export async function getCmoOverview(
   });
   return {
     hire,
+    onboardingStep: cmoOnboardingStep({
+      brandBrainConfirmed: hire.brandBrainApprovedAt !== null,
+      strategyApproved: approved !== null,
+      connected: channels.some((channel) => channel.status === "ACTIVE"),
+      accountsSkipped: viewer?.cmoAccountsSkipped ?? false,
+      subscribed: cmoPlan !== null,
+    }),
     media,
     learning,
     work,

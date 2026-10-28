@@ -115,10 +115,11 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
     const answered = questions.filter((question) => question.answer).length;
     return answered > 0 && answered < questions.length ? "check" : "strategy";
   }
-  // Saved in Core, so a reload after the Accounts step resumes on the plan.
-  return overview.accountsDoneAt || !needsAccounts(overview)
-    ? "pricing"
-    : "connect";
+  // Core reads it from a connection or the person's skip, so a reload after
+  // the Accounts step resumes on the plan.
+  return overview.onboardingStep === "accounts" && needsAccounts(overview)
+    ? "connect"
+    : "pricing";
 }
 
 /** Steps the founder can open again once past them; research only leads to the Brand Brain. */

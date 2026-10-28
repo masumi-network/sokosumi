@@ -80,24 +80,6 @@ export function PricingStep({
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
-  // Once subscribed, the head's Start Cuso is the way on.
-  const later = (
-    <div className="ob-footer">
-      <button
-        type="button"
-        className="ob-button ob-button-lg ob-button-quiet"
-        disabled={starting}
-        onClick={() => startStarting(onStart)}
-      >
-        {starting ? "Starting…" : "Subscribe later"}
-      </button>
-      <p className="ob-note">
-        Cuso keeps your plan and checks in, but posts nothing until you
-        subscribe.
-      </p>
-    </div>
-  );
-
   return (
     <section className="ob-pricing">
       <StepHead
@@ -112,6 +94,7 @@ export function PricingStep({
               : "Pick a plan and I make your whole month today."
         }
         action={
+          // Once subscribed, the head's Start Cuso is the way on.
           subscribed ? (
             <button
               type="button"
@@ -234,8 +217,6 @@ export function PricingStep({
           Finish checkout on Sokosumi; this page updates when you're back.
         </p>
       ) : null}
-
-      {subscribed ? null : later}
     </section>
   );
 }

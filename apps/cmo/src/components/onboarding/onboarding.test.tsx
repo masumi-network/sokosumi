@@ -96,11 +96,10 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
       images: [],
     },
     projectLogo: null,
-    accountsDoneAt: null,
+    onboardingStep: "brandBrain",
     mockBilling: false,
     mockPlan: null,
     mockPlanActivatedAt: null,
-    onboardedAt: null,
     routines: [],
     subscriptionActive: false,
     viewerCanApprove: true,
@@ -177,9 +176,14 @@ describe("onboarding steps", () => {
       "strategy",
     );
     expect(onboardingStep(overview())).toBe("strategy");
-    expect(onboardingStep(overview(cmoStrategyVersion(new Date())))).toBe(
-      "connect",
-    );
+    expect(
+      onboardingStep(
+        overview({
+          ...cmoStrategyVersion(new Date()),
+          onboardingStep: "accounts",
+        }),
+      ),
+    ).toBe("connect");
   });
 
   it("asks each question with yes, no and not sure, and shows the answers", () => {
@@ -221,11 +225,12 @@ describe("onboarding steps", () => {
   });
 
   it("resumes on the plan after the Accounts step, even on a reload", () => {
+    // Core reads the step from a Social connection or the person's skip.
     expect(
       onboardingStep(
         overview({
           ...cmoStrategyVersion(new Date()),
-          accountsDoneAt: new Date(),
+          onboardingStep: "plan",
         }),
       ),
     ).toBe("pricing");
@@ -236,6 +241,7 @@ describe("onboarding steps", () => {
       onboardingStep(
         overview({
           ...cmoStrategyVersion(new Date()),
+          onboardingStep: "accounts",
           strategy: { ...strategy, channels: [] },
         }),
       ),
@@ -532,7 +538,8 @@ describe("pricing", () => {
     expect(html).toContain("€75");
     expect(html).toContain("750 credits every month");
     expect(html).toContain('href="http://web/billing?tab=subscription"');
-    expect(html).toContain("Subscribe later");
+    // Hiring finishes only with an active CMO plan (ADR 0062).
+    expect(html).not.toContain("Subscribe later");
     expect(html).not.toContain("Choose Growth");
   });
 
@@ -550,7 +557,6 @@ describe("pricing", () => {
     expect(html).toContain("Recommended");
     expect(html).toContain("Yearly");
     expect(html).not.toContain("http://web/billing");
-    expect(html).toContain("Subscribe later");
   });
 
   it("marks the active mock tier and lets the founder start", () => {

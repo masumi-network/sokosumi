@@ -144,7 +144,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       />
     );
   }
-  if (!overview.onboardedAt) {
+  if (overview.onboardingStep !== "done") {
     // The app's pages open once onboarding ends; until then it is the first run.
     if (view !== "chat") redirect("/");
     return (

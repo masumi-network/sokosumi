@@ -17,6 +17,7 @@ export const USER_PREFERENCES_SELECT = {
   pushOptIn: true,
   hideRoomUnreadCount: true,
   tagDirectMessages: true,
+  cmoAccountsSkipped: true,
   notificationPreferences: {
     select: { category: true, channel: true, enabled: true },
   },
@@ -28,6 +29,7 @@ interface UserPreferencesRow {
   pushOptIn: boolean;
   hideRoomUnreadCount: boolean;
   tagDirectMessages: boolean;
+  cmoAccountsSkipped: boolean;
   notificationPreferences: StoredNotificationPreference[];
 }
 
@@ -47,6 +49,7 @@ export function toUserPreferencesResponse(user: UserPreferencesRow) {
     // field keeps its name, so no client, the Apple app included, has to move.
     showRoomUnreadCount: !user.hideRoomUnreadCount,
     tagDirectMessages: user.tagDirectMessages,
+    cmoAccountsSkipped: user.cmoAccountsSkipped,
     notificationPreferences: resolveNotificationMatrix(
       user.notificationPreferences,
     ),

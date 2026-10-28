@@ -287,21 +287,11 @@ export async function cmoWork(
   };
 }
 
-/** The founder connected or skipped the Accounts step; a reload resumes on the plan. */
-export async function finishCmoAccountsStep(userId: string): Promise<void> {
-  const hire = await getCmoHireForUser(userId);
-  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (!(await approvedMarketingStrategy(hire.projectId))) {
-    throw new CmoConflictError("Approve the strategy first");
-  }
-  if (hire.accountsDoneAt) return;
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { accountsDoneAt: new Date() },
-  });
-}
-
-/** The founder finished onboarding: CMO opens on the chat from now on. */
+/**
+ * The founder starts Cuso from the plan step: the month is made now. CMO
+ * opens on the chat once the strategy is approved and a CMO plan is active,
+ * read from the data, so nothing is stored here.
+ */
 export async function completeCmoOnboarding(userId: string): Promise<void> {
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
@@ -309,11 +299,6 @@ export async function completeCmoOnboarding(userId: string): Promise<void> {
     throw new CmoConflictError("Approve the strategy first");
   }
   await startCmoProduction(hire.id);
-  if (hire.onboardedAt) return;
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { onboardedAt: new Date() },
-  });
 }
 
 /** Starts learning again after a failed or stuck first look. */

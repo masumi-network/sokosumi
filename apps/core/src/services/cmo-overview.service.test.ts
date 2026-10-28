@@ -61,7 +61,7 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { cmoUpNext } from "./cmo-overview.service";
+import { cmoOnboardingStep, cmoUpNext } from "./cmo-overview.service";
 
 beforeEach(resetCmoServiceMocks);
 
@@ -90,5 +90,57 @@ describe("cmoUpNext", () => {
 
   it("is empty until a channel Cuso can publish to is connected", () => {
     expect(cmoUpNext(plan, today, [])).toEqual([]);
+  });
+});
+
+describe("cmoOnboardingStep", () => {
+  const start = {
+    brandBrainConfirmed: false,
+    strategyApproved: false,
+    connected: false,
+    accountsSkipped: false,
+    subscribed: false,
+  };
+
+  it("resumes on the Brand Brain until a member confirms it", () => {
+    expect(cmoOnboardingStep(start)).toBe("brandBrain");
+  });
+
+  it("resumes on the strategy until a version is approved", () => {
+    expect(cmoOnboardingStep({ ...start, brandBrainConfirmed: true })).toBe(
+      "strategy",
+    );
+    // A plan paid for early still waits for an approved version.
+    expect(
+      cmoOnboardingStep({
+        ...start,
+        brandBrainConfirmed: true,
+        subscribed: true,
+      }),
+    ).toBe("strategy");
+  });
+
+  it("resumes on the accounts until one is connected or the person skipped", () => {
+    const approved = {
+      ...start,
+      brandBrainConfirmed: true,
+      strategyApproved: true,
+    };
+    expect(cmoOnboardingStep(approved)).toBe("accounts");
+    expect(cmoOnboardingStep({ ...approved, connected: true })).toBe("plan");
+    expect(cmoOnboardingStep({ ...approved, accountsSkipped: true })).toBe(
+      "plan",
+    );
+  });
+
+  it("is done once a version is approved and a CMO plan is active", () => {
+    expect(
+      cmoOnboardingStep({
+        ...start,
+        brandBrainConfirmed: true,
+        strategyApproved: true,
+        subscribed: true,
+      }),
+    ).toBe("done");
   });
 });

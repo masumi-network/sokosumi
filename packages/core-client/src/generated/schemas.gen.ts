@@ -35011,29 +35011,16 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
-        accountsDoneAt: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        onboardedAt: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                {
-                    type: 'null'
-                }
-            ]
+        onboardingStep: {
+            type: 'string',
+            enum: [
+                'brandBrain',
+                'strategy',
+                'accounts',
+                'plan',
+                'done'
+            ],
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan. CMO opens on the chat once done.'
         },
         mockBilling: {
             type: 'boolean',
@@ -38328,8 +38315,7 @@ export const CmoOverviewSchema = {
         'work',
         'brandVisual',
         'projectLogo',
-        'accountsDoneAt',
-        'onboardedAt',
+        'onboardingStep',
         'mockBilling',
         'mockPlan',
         'mockPlanActivatedAt',

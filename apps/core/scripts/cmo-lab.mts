@@ -120,10 +120,12 @@ async function run(email: string, brand: Brand) {
     where: { id: current.id },
     omit: CMO_HIRE_OMIT,
     include: CMO_HIRE_PROJECT,
-    data: {
-      brandVisual: Prisma.DbNull,
-      accountsDoneAt: null,
-    },
+    data: { brandVisual: Prisma.DbNull },
+  });
+  // Hiring progress is read from the data; only skipping accounts is stored.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { cmoAccountsSkipped: false },
   });
   await prisma.marketingStrategy.deleteMany({
     where: { projectId: hire.projectId },
