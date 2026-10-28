@@ -200,4 +200,72 @@ describe("SidebarEdgeHandle", () => {
     fireEvent.keyDown(handle(), { key: "ArrowLeft" });
     expect(userWidth()).toBe("208px");
   });
+  it("does not swallow the next click after a cancelled drag", () => {
+    renderHandle(true);
+
+    fireEvent.pointerDown(handle(), { clientX: 224, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 260, pointerId: 1 });
+    // A cancel is not followed by a click.
+    fireEvent.pointerCancel(handle(), { clientX: 260, pointerId: 1 });
+
+    fireEvent.click(handle());
+    expect(handle()).toHaveAttribute("aria-label", "show");
+  });
+
+  it("puts the stored width back at once when it reopens mid-slide", () => {
+    renderHandle(true);
+    drag(224, 260, 300);
+    fireEvent.pointerDown(handle(), { clientX: 300, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 200, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
+    fireEvent.pointerUp(handle(), { clientX: 100, pointerId: 1 });
+    fireEvent.click(handle());
+    expect(userWidth()).toBe("200px");
+
+    // The strip, pressed inside the slide-out window: no waiting on the timer.
+    fireEvent.click(handle());
+
+    expect(handle()).toHaveAttribute("aria-label", "hide");
+    expect(userWidth()).toBe("300px");
+  });
+
+  it("puts the stored width back when a press lands mid-slide", () => {
+    renderHandle(true);
+    drag(224, 260, 300);
+    fireEvent.pointerDown(handle(), { clientX: 300, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 200, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
+    fireEvent.pointerUp(handle(), { clientX: 100, pointerId: 1 });
+    fireEvent.click(handle());
+
+    fireEvent.pointerDown(handle(), { clientX: 4, button: 0, pointerId: 1 });
+
+    expect(userWidth()).toBe("300px");
+  });
+
+  it("leaves no timer behind when it unmounts mid-slide", () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = renderHandle(true);
+      drag(224, 260, 300);
+      fireEvent.pointerDown(handle(), {
+        clientX: 300,
+        button: 0,
+        pointerId: 1,
+      });
+      fireEvent.pointerMove(handle(), { clientX: 200, pointerId: 1 });
+      fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
+      unmount();
+      document.documentElement.style.setProperty(
+        SIDEBAR_USER_WIDTH_VAR,
+        "123px",
+      );
+
+      vi.advanceTimersByTime(500);
+
+      expect(userWidth()).toBe("123px");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

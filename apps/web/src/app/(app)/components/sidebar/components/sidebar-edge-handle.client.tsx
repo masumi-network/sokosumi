@@ -2,10 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import type { KeyboardEvent, PointerEvent } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
 import { SIDEBAR_HIDE_TRANSITION } from "@/components/ui/sidebar-classes";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clampSidebarWidth,
   parseSidebarWidthCookieHeader,
@@ -29,8 +30,6 @@ const SLIDE_OUT_MS = 250;
 interface Drag {
   startX: number;
   moved: boolean;
-  /** The width in force when the press began: what a collapse leaves behind. */
-  committed: number;
   /** A drag that began collapsed opens the sidebar once it passes the line. */
   opened: boolean;
   /** The sidebar snapped shut under this drag: the rest of it does nothing. */
@@ -45,6 +44,16 @@ function readWidth() {
 
 function applyWidth(px: number) {
   document.documentElement.style.setProperty(SIDEBAR_USER_WIDTH_VAR, `${px}px`);
+}
+
+/** Puts back the stored width, or the default when none was ever stored. */
+function applyStoredWidth() {
+  const stored = parseSidebarWidthCookieHeader(document.cookie);
+  if (stored === null) {
+    document.documentElement.style.removeProperty(SIDEBAR_USER_WIDTH_VAR);
+  } else {
+    applyWidth(stored);
+  }
 }
 
 function commitWidth(px: number) {
@@ -74,25 +83,55 @@ export function SidebarEdgeHandle() {
   // The click that ends a drag must not also toggle.
   const swallowClick = useRef(false);
 
+  const wrapper = () =>
+    ref.current?.closest<HTMLElement>('[data-slot="sidebar-wrapper"]');
+
+  /** Ends the wait for the slide-out and puts the stored width back now. */
+  function restoreNow() {
+    if (restoreTimer.current) clearTimeout(restoreTimer.current);
+    restoreTimer.current = null;
+    applyStoredWidth();
+  }
+
+  /** The narrowed width is for show: restore once the panel is out of sight. */
+  function restoreAfterSlideOut() {
+    if (restoreTimer.current) clearTimeout(restoreTimer.current);
+    restoreTimer.current = setTimeout(restoreNow, SLIDE_OUT_MS);
+  }
+
+  // Reopening inside the slide-out window (⌘B, the header toggle) must start
+  // from the stored width, not wait for the timer.
+  useEffect(() => {
+    if (open && restoreTimer.current) restoreNow();
+  }, [open]);
+
+  // Leaving mid-drag or mid-slide must not strand `data-resizing` on the
+  // wrapper or a timer that writes to a document nobody is dragging.
+  useMountEffect(() => {
+    const node = ref.current;
+    return () => {
+      if (restoreTimer.current) clearTimeout(restoreTimer.current);
+      node
+        ?.closest('[data-slot="sidebar-wrapper"]')
+        ?.removeAttribute("data-resizing");
+    };
+  });
+
   if (isMobile) {
     return null;
   }
 
-  const wrapper = () =>
-    ref.current?.closest<HTMLElement>('[data-slot="sidebar-wrapper"]');
-
   function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    // A drag grabbed mid-slide reads the width it left, not the one in flight.
-    if (restoreTimer.current) {
-      clearTimeout(restoreTimer.current);
-      restoreTimer.current = null;
-    }
+    // A press that lands mid-slide takes the stored width, not the narrowed
+    // one the timer was about to replace.
+    if (restoreTimer.current) restoreNow();
+    // A press that ended without a click (a cancel) must not eat this one.
+    swallowClick.current = false;
     drag.current = {
       startX: event.clientX,
       moved: false,
-      committed: readWidth(),
       opened: false,
       snapped: false,
     };
@@ -104,12 +143,7 @@ export function SidebarEdgeHandle() {
     // Easing back on, so the panel slides out instead of vanishing.
     wrapper()?.removeAttribute("data-resizing");
     setOpen(false);
-    // The narrowed width was only for show: reopening starts from the stored
-    // one, put back once the panel is out of sight.
-    restoreTimer.current = setTimeout(() => {
-      applyWidth(current.committed);
-      restoreTimer.current = null;
-    }, SLIDE_OUT_MS);
+    restoreAfterSlideOut();
   }
 
   function onPointerMove(event: PointerEvent<HTMLButtonElement>) {
@@ -148,14 +182,20 @@ export function SidebarEdgeHandle() {
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     if (!current.moved) return;
 
-    swallowClick.current = true;
+    // A cancel is not followed by a click.
+    swallowClick.current = !cancelled;
     ref.current?.removeAttribute("data-dragging");
     wrapper()?.removeAttribute("data-resizing");
     if (current.snapped) return;
 
     if (cancelled) {
-      applyWidth(current.committed);
-      if (current.opened) setOpen(false);
+      if (current.opened) {
+        // It opened under this drag: put it back as it was, sliding out.
+        setOpen(false);
+        restoreAfterSlideOut();
+      } else {
+        applyStoredWidth();
+      }
       return;
     }
     if (open || current.opened) {

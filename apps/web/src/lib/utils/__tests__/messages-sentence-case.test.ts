@@ -40,7 +40,6 @@ const PROPER_PHRASES = [
   "Acceptable Use",
   "Data Processing Agreement",
   // Other names.
-  "Model Context Protocol",
   "Mistral Medium",
   "Florian Haller",
   "Serviceplan Group",

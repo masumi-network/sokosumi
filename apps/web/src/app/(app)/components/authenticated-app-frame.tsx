@@ -133,15 +133,15 @@ export default async function AuthenticatedAppFrame({
                   activeOrganizationId={activeOrganizationId}
                 >
                   {/* Sidebar "New Task" opens the wizard in place, so the
-                        provider wraps sidebar and content. */}
+                    provider wraps sidebar and content. */}
                   <AuthenticatedRoomCache
                     currentUserId={session.user.id}
                     workspaceId={activeOrganizationId}
                   >
                     <NewTaskWizardProvider>
                       {/* The sidebar header and the phone's top bar each
-                            place a switcher trigger; this owns what is behind
-                            them, once. */}
+                          place a switcher trigger; this owns what is behind
+                          them, once. */}
                       <WorkspaceSwitcherProvider
                         sessionUser={session.user}
                         workspaces={workspaces}
@@ -160,7 +160,7 @@ export default async function AuthenticatedAppFrame({
                           />
                         </FeatureBadgesProvider>
                         {/* Right after the sidebar: it follows the sidebar's
-                            `data-state` as its peer. */}
+                          `data-state` as its peer. */}
                         <SidebarEdgeHandle />
                         <Suspense fallback={null}>
                           <AppShellOverlays />

@@ -3,6 +3,7 @@ import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
+
 import { AppHeaderFallback } from "./app-header-fallback";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import {

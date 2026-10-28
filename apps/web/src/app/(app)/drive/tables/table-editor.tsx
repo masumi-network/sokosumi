@@ -707,8 +707,8 @@ function TableWorkspace({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {/* The same labelled back affordance the project and task detail pages
-      use. It stays at every width: the app chrome's chevron and the breadcrumb
-      both go to `/drive`, which lands on Recents, so this link is the only
+      use. It stays at every width: the app chrome's chevron and the sidebar's
+      Files row both go to `/drive`, which lands on Recents, so this link is the only
       route back to the Tables tab — and `display: none` would have taken it
       out of the accessibility tree on phones too. */}
       <Link
