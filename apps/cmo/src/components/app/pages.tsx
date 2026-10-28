@@ -379,7 +379,7 @@ export function SettingsPage({
                 {routine.nextRunAt &&
                 !(
                   routine.key === "cmo-strategy-nudge" &&
-                  overview.strategyApprovedAt
+                  overview.strategyVersion?.approvedAt
                 ) ? (
                   <>
                     <br />

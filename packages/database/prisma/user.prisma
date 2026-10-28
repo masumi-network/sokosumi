@@ -126,6 +126,9 @@ model User {
   imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
   imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
 
+  authoredMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyAuthor")
+  approvedMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyApprover")
+
   // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
   /// Per-user Soko Bot identity and control-plane state.

@@ -47,11 +47,11 @@ export function buildThread(
   if (overview.brandBrain && brainAt) {
     items.push({ kind: "brandBrain", at: brainAt });
   }
-  const strategyAt = iso(overview.strategyUpdatedAt);
+  const strategyAt = iso(overview.strategyVersion?.updatedAt);
   if (overview.strategy && strategyAt) {
     items.push({ kind: "strategy", at: strategyAt });
   }
-  const approvedAt = iso(overview.strategyApprovedAt);
+  const approvedAt = iso(overview.strategyVersion?.approvedAt);
   if (approvedAt) {
     items.push({ kind: "subscribe", at: approvedAt });
     if (overview.channels.length === 0) {
@@ -73,12 +73,15 @@ export function cusoStatus(overview: CmoOverview): string {
   if (overview.learning === "failed") return "Stopped";
   if (overview.learning === "running") return "Learning";
   if (!overview.brandBrain) return "Needs your answers";
-  if (overview.billing.availableCredits <= 0 && overview.strategyApprovedAt) {
+  if (
+    overview.billing.availableCredits <= 0 &&
+    overview.strategyVersion?.approvedAt
+  ) {
     return "Paused";
   }
   if (overview.botStatus === "RUNNING") return "Working";
   if (!overview.strategy) return "Planning";
-  if (!overview.strategyApprovedAt) return "Waiting for approval";
+  if (!overview.strategyVersion?.approvedAt) return "Waiting for approval";
   if (!overview.subscriptionActive) return "Strategy approved";
   if (overview.channels.length === 0) return "Waiting for a channel";
   return "Running";

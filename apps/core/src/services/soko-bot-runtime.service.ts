@@ -2,7 +2,6 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   AgentJobStatus,
   Channel,
-  type CmoHire,
   FileSourceKind,
   FileSourceScope,
   jobInclude,
@@ -298,7 +297,7 @@ import {
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
-  parseCmoStrategy,
+  cmoTurnExecutesPlan,
   saveCmoStrategy,
 } from "@/services/cmo-strategy.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
@@ -321,6 +320,10 @@ import {
   type ImageJobSettings,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
+import {
+  approvedMarketingStrategy,
+  parseMarketingPlan,
+} from "@/services/marketing-strategy.service";
 import { getNewsletter } from "@/services/newsletter.service";
 import {
   generateNewsletterDraft,
@@ -2033,9 +2036,12 @@ export class SokoBotRuntimeService {
       return false;
     const hire = await prisma.cmoHire.findUnique({
       where: { sokoBotId: turn.sokoBotId },
-      select: { strategyApprovedAt: true },
+      select: { projectId: true },
     });
-    return hire?.strategyApprovedAt != null;
+    return (
+      hire !== null &&
+      (await approvedMarketingStrategy(hire.projectId)) !== null
+    );
   }
 
   /**
@@ -4921,19 +4927,26 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: ExecuteSokoBotToolInput,
     plan: {
-      hire: CmoHire;
+      /** The version saved is the approved one (pieces of the running plan). */
+      approved: boolean;
       strategy: CmoStrategy | null;
       planSent: boolean;
     },
   ): Promise<CmoPlanReview | null> {
-    const { hire, strategy } = plan;
-    if (!strategy || hire.strategyApprovedAt) return null;
+    const { strategy } = plan;
+    if (!strategy || plan.approved) return null;
     const saves = await prisma.sokoBotToolCall.count({
       where: { turnId: authorized.turn.id, capability: "save_strategy" },
     });
     if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
-    const brain = parseCmoBrandBrain(hire.brandBrain);
+    const hire = plan.planSent
+      ? await prisma.cmoHire.findUnique({
+          where: { sokoBotId: authorized.turn.sokoBotId },
+          select: { brandBrain: true },
+        })
+      : null;
+    const brain = parseCmoBrandBrain(hire?.brandBrain);
     let mainOffer: CmoPlanOfferVerdict = "skipped";
     if (plan.planSent && brain) {
       const drift = await cmoPlanDrift({ strategy, brain });
@@ -5029,25 +5042,30 @@ export class SokoBotRuntimeService {
         case "save_strategy": {
           const sent = parseCmoStrategySave(input.input);
           const pieces = cmoStrategySavePart(input.input) === "pieces";
+          // A rhythm or production run builds on the approved version.
+          const turn = await prisma.sokoBotTurn.findUnique({
+            where: { id: authorized.turn.id },
+            select: { source: true, clientTurnId: true },
+          });
+          const executing = turn ? cmoTurnExecutesPlan(turn) : false;
           const saved = await write((tx) =>
             saveCmoStrategy(
               where,
               sent,
-              { turnId: authorized.turn.id, pieces },
+              { turnId: authorized.turn.id, pieces, executing },
               tx,
             ),
           );
-          const stored = parseCmoStrategy(saved.strategy);
+          const stored = parseMarketingPlan(saved.plan);
           const calendar = stored?.calendar ?? [];
+          const approved = saved.approvedAt !== null;
           const review = await this.reviewCmoPlan(authorized, input, {
-            hire: saved,
+            approved,
             strategy: stored,
             planSent: sent.summary !== undefined,
           });
           // Once the plan runs, the drafts are checked against the copy rules.
-          const draftProblems = saved.strategyApprovedAt
-            ? cmoDraftProblems(calendar)
-            : [];
+          const draftProblems = approved ? cmoDraftProblems(calendar) : [];
           // Says which pieces still have no draft.
           const undrafted = calendar
             .filter((entry) => entry.status !== "skipped" && !entry.draft)
@@ -5057,8 +5075,9 @@ export class SokoBotRuntimeService {
             targetId: saved.id,
             result: {
               saved: "strategy",
-              approved: saved.strategyApprovedAt !== null,
-              updatedAt: saved.strategyUpdatedAt?.toISOString(),
+              versionId: saved.id,
+              approved,
+              updatedAt: saved.updatedAt.toISOString(),
               entries: calendar.length,
               drafted: calendar.filter((entry) => entry.draft).length,
               undrafted: undrafted.length,
@@ -5097,7 +5116,7 @@ export class SokoBotRuntimeService {
             result: {
               reported: record.kind,
               id: record.id,
-              revertible: record.previousStrategy !== undefined,
+              revertible: record.previousVersionId !== undefined,
             },
           };
         }

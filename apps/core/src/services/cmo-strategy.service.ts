@@ -1,5 +1,6 @@
-import { type CmoHire, type Prisma } from "@sokosumi/database";
+import { type MarketingStrategy, type Prisma } from "@sokosumi/database";
 import {
+  CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
   type CmoBrandBrain,
   type CmoPlanQuestion,
@@ -7,22 +8,26 @@ import {
   type CmoStrategySave,
   cmoStrategySchema,
 } from "@sokosumi/soko-bot";
-import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
-import { requireCmoCommitter } from "@/services/cmo-billing.service";
 import { parseCmoBrandBrain } from "@/services/cmo-brand-brain.service";
 import {
   CmoConflictError,
+  type CmoHireView,
   CmoNotFoundError,
   cmoHireWhere,
   getCmoHireForUser,
   STRATEGY_TURN_PREFIX,
-  settledTurnStatus,
   startCmoProduction,
   startCmoTurn,
-  TURN_ROW_SELECT,
 } from "@/services/cmo-cuso.service";
+import {
+  answerMarketingStrategyQuestion,
+  approvedMarketingStrategy,
+  approveMarketingStrategy,
+  newestMarketingStrategy,
+  parseMarketingPlan,
+} from "@/services/marketing-strategy.service";
 
 /**
  * No sandbox on the strategy turn: it plans from the Brand Brain it already
@@ -35,9 +40,35 @@ const CMO_STRATEGY_ROUTE: PresetRoute = {
   reason: "CMO strategy: plan the next four weeks.",
 };
 
-export function parseCmoStrategy(value: unknown): CmoStrategy | null {
-  const parsed = cmoStrategySchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+/**
+ * Cuso's rhythms and the month's production carry out the approved version;
+ * every other turn (a chat, a requested rewrite) works on the newest one.
+ */
+export function cmoTurnExecutesPlan(turn: {
+  source: string;
+  clientTurnId: string | null;
+}): boolean {
+  return (
+    turn.source === "SCHEDULE" ||
+    (turn.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX) ?? false)
+  );
+}
+
+/**
+ * The version a turn reads and builds on: while it executes, the approved
+ * one (executing rhythms and production never run without one, so only the
+ * approval reminder falls back to the waiting draft); otherwise the newest.
+ * Pieces and pauses fill in the executed version the same way.
+ */
+export async function cmoWorkingStrategy(
+  projectId: string,
+  executing: boolean,
+  db: Prisma.TransactionClient = prisma,
+): Promise<MarketingStrategy | null> {
+  return (
+    (executing ? await approvedMarketingStrategy(projectId, db) : null) ??
+    (await newestMarketingStrategy(projectId, db))
+  );
 }
 
 function tomorrow(now: Date = new Date()): string {
@@ -56,15 +87,19 @@ export async function setCmoAdBudget(input: {
 }): Promise<{ turnId: string }> {
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const strategy = parseCmoStrategy(hire.strategy);
+  const strategy = parseMarketingPlan(
+    (await newestMarketingStrategy(hire.projectId))?.plan,
+  );
   if (!strategy) {
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
+  // The owner's budget is a version of its own, which Cuso's rewrite builds on.
+  await prisma.marketingStrategy.create({
     data: {
-      strategy: {
+      projectId: hire.projectId,
+      authorUserId: input.userId,
+      plan: {
         ...strategy,
         ads: {
           expect: "Cuso is updating what this brings.",
@@ -86,7 +121,10 @@ export async function setCmoAdBudget(input: {
   });
 }
 
-/** Asks Cuso for a new one-month strategy; the owner approves it again. */
+/**
+ * Asks Cuso for a new one-month strategy: he writes a new version, which an
+ * owner or admin approves; the approved one keeps running until then.
+ */
 export async function requestCmoStrategy(input: {
   userId: string;
   note?: string;
@@ -101,7 +139,7 @@ export async function requestCmoStrategy(input: {
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
-  const started = await startCmoTurn(hire, input.userId, {
+  return startCmoTurn(hire, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: (input.note
       ? [
@@ -128,12 +166,6 @@ export async function requestCmoStrategy(input: {
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
-  // Only now: a turn that cannot start leaves the approved plan running.
-  await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { strategyApprovedAt: null },
-  });
-  return started;
 }
 
 /** The owner's answers, for the strategy request; none when nothing was answered. */
@@ -151,7 +183,6 @@ function ownerAnswers(brain: CmoBrandBrain): string[] {
   ];
 }
 
-const STRATEGY_HISTORY_LIMIT = 8;
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
 const CMO_CALENDAR_LIMIT = 120;
@@ -270,24 +301,12 @@ export function withoutDashes<T>(value: T): T {
   return value;
 }
 
-const strategyHistorySchema = z.array(
-  z.object({
-    savedAt: z.string(),
-    turnId: z.string().nullable(),
-    strategy: z.json(),
-  }),
-);
-type StrategyHistory = z.infer<typeof strategyHistorySchema>;
-
-export function parseHistory(value: unknown): StrategyHistory {
-  const parsed = strategyHistorySchema.safeParse(value);
-  return parsed.success ? parsed.data : [];
-}
-
 /**
- * Saves the strategy. The strategy it replaces goes into a short history so
- * a weekly change can be reverted. The owner's approval carries over: after
- * approving once, the owner expects Cuso to keep the plan current.
+ * Saves the strategy as a version of the Project's Marketing strategy. A
+ * turn's first save adds a version and its later saves complete it (a plan
+ * goes in two calls) until it is approved; no save changes another version.
+ * Pieces (drafts, media, Social post ids) fill in the version being carried
+ * out: until the calendar becomes Social posts, it lives in that version.
  */
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
@@ -297,15 +316,34 @@ export async function saveCmoStrategy(
     now?: Date;
     /** The calendar sent is only the pieces Cuso changed: merge them by id. */
     pieces?: boolean;
+    /** A rhythm or production turn: it builds on the approved version. */
+    executing?: boolean;
   } = {},
   db: Prisma.TransactionClient = prisma,
-): Promise<CmoHire> {
-  const current = await db.cmoHire.findUnique({
+): Promise<MarketingStrategy> {
+  const hire = await db.cmoHire.findUnique({
     where: await cmoHireWhere(where),
+    select: { projectId: true, sokoBotId: true },
   });
-  if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const own = options.turnId
+    ? await db.marketingStrategy.findFirst({
+        where: {
+          projectId: hire.projectId,
+          turnId: options.turnId,
+          approvedAt: null,
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : null;
+  const target = options.pieces
+    ? await cmoWorkingStrategy(hire.projectId, true, db)
+    : own;
+  const base =
+    target ??
+    (await cmoWorkingStrategy(hire.projectId, options.executing ?? false, db));
   // What a save leaves out stays as stored; the merged plan must be whole.
-  const before = parseCmoStrategy(current.strategy);
+  const before = parseMarketingPlan(base?.plan);
   const whole = cmoStrategySchema.parse({
     ...before,
     ...Object.fromEntries(
@@ -354,22 +392,20 @@ export async function saveCmoStrategy(
   const stored = options.turnId
     ? withoutDashes(withLineBreaks(merged))
     : merged;
-  const history = current.strategy
-    ? [
-        {
-          savedAt: (current.strategyUpdatedAt ?? new Date()).toISOString(),
-          turnId: options.turnId ?? null,
-          strategy: current.strategy,
-        },
-        ...parseHistory(current.strategyHistory),
-      ].slice(0, STRATEGY_HISTORY_LIMIT)
-    : parseHistory(current.strategyHistory);
-  return db.cmoHire.update({
-    where: { id: current.id },
+  if (target) {
+    return db.marketingStrategy.update({
+      where: { id: target.id },
+      data: { plan: stored },
+    });
+  }
+  return db.marketingStrategy.create({
     data: {
-      strategy: stored,
-      strategyUpdatedAt: new Date(),
-      strategyHistory: history,
+      projectId: hire.projectId,
+      plan: stored,
+      turnId: options.turnId ?? null,
+      ...("sokoBotId" in where
+        ? { authorSokoBotId: hire.sokoBotId }
+        : { authorUserId: where.userId }),
     },
   });
 }
@@ -421,42 +457,27 @@ export function keepPlanAnswers(
   });
 }
 
-/** The owner answers one of the plan's yes/no questions. */
+/** The newest version CMO shows, or "Cuso has not written it yet". */
+async function newestCmoStrategy(
+  hire: Pick<CmoHireView, "projectId">,
+): Promise<MarketingStrategy> {
+  const newest = await newestMarketingStrategy(hire.projectId);
+  if (!newest) throw new CmoConflictError("There is no strategy yet");
+  return newest;
+}
+
+/** The owner answers one of the newest version's yes/no questions. */
 export async function answerCmoPlanQuestion(
   userId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
-  const target = await cmoHireWhere({ userId });
-  await prisma.$transaction(async (tx) => {
-    const hire = await tx.cmoHire.findUnique({
-      where: target,
-      select: { id: true },
-    });
-    if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-    await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
-    const current = await tx.cmoHire.findUnique({
-      where: { id: hire.id },
-      select: { strategy: true },
-    });
-    const strategy = parseCmoStrategy(current?.strategy);
-    if (!strategy?.questions.some((q) => q.id === input.questionId)) {
-      throw new CmoNotFoundError("That question is not in the plan");
-    }
-    const note =
-      input.answer === "no" ? input.note?.trim() || undefined : undefined;
-    await tx.cmoHire.update({
-      where: { id: hire.id },
-      data: {
-        strategy: {
-          ...strategy,
-          questions: strategy.questions.map((question) =>
-            question.id === input.questionId
-              ? { ...question, answer: input.answer, note }
-              : question,
-          ),
-        },
-      },
-    });
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const newest = await newestCmoStrategy(hire);
+  await answerMarketingStrategyQuestion({
+    projectId: hire.projectId,
+    strategyId: newest.id,
+    ...input,
   });
 }
 
@@ -485,38 +506,30 @@ export async function applyCmoPlanAnswers(
 ): Promise<{ turnId: string }> {
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const newest = await newestCmoStrategy(hire);
   const note = cmoPlanAnswerNote(
-    parseCmoStrategy(hire.strategy)?.questions ?? [],
+    parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
   return requestCmoStrategy({ userId, note });
 }
 
-/** The owner's one approval: from now on Cuso executes the strategy. */
-export async function approveCmoStrategy(userId: string): Promise<CmoHire> {
+/**
+ * An owner or admin approves a version, the newest unless one is named
+ * (reverting approves an older one): from now on Cuso carries out that one.
+ */
+export async function approveCmoStrategy(
+  userId: string,
+  versionId?: string,
+): Promise<MarketingStrategy> {
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  await requireCmoCommitter(userId, hire);
-  if (!parseCmoStrategy(hire.strategy)) {
-    throw new CmoConflictError("There is no strategy to approve yet");
-  }
-  // The approval would carry over to the plan Cuso is writing, unreviewed.
-  const writing = await prisma.sokoBotTurn.findFirst({
-    where: {
-      sokoBotId: hire.sokoBotId,
-      clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
-    },
-    orderBy: { createdAt: "desc" },
-    select: TURN_ROW_SELECT,
-  });
-  if (writing && (await settledTurnStatus(writing, new Date())) === "running") {
-    throw new CmoConflictError(
-      "Cuso is still writing the new strategy; approve it when it is ready",
-    );
-  }
-  const approved = await prisma.cmoHire.update({
-    where: { id: hire.id },
-    data: { strategyApprovedAt: hire.strategyApprovedAt ?? new Date() },
+  const strategyId = versionId ?? (await newestCmoStrategy(hire)).id;
+  const approved = await approveMarketingStrategy({
+    projectId: hire.projectId,
+    workspaceId: hire.workspaceId,
+    userId,
+    strategyId,
   });
   // Already paying (a re-approved plan): the month is made right away.
   await startCmoProduction(hire.id);
@@ -533,7 +546,9 @@ export async function pauseCmoCalendarEntry(input: {
 }): Promise<void> {
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  const strategy = parseCmoStrategy(hire.strategy);
+  const strategy = parseMarketingPlan(
+    (await cmoWorkingStrategy(hire.projectId, true))?.plan,
+  );
   const entry = strategy?.calendar.find((item) => item.id === input.entryId);
   if (!strategy || !entry) {
     throw new CmoNotFoundError("No such calendar entry");
@@ -559,11 +574,7 @@ export async function pauseCmoCalendarEntry(input: {
   }
   await saveCmoStrategy(
     { userId: input.userId },
-    {
-      ...strategy,
-      calendar: strategy.calendar.map((item) =>
-        item.id === entry.id ? { ...item, status: "skipped" as const } : item,
-      ),
-    },
+    { calendar: [{ ...entry, status: "skipped" as const }] },
+    { pieces: true },
   );
 }

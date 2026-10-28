@@ -104,9 +104,15 @@ export async function onboard(
   return { ...result, errors: {} };
 }
 
-export async function approveStrategy(): Promise<CmoOverview> {
+/** Approves the newest strategy version, or the one named (going back to it). */
+export async function approveStrategy(
+  versionId?: string,
+): Promise<CmoOverview> {
   const core = await requireCore();
-  const { data } = await approveCmoStrategy(core);
+  const { data } = await approveCmoStrategy({
+    ...core,
+    body: versionId ? { versionId } : {},
+  });
   if (!data) throw new Error("Could not approve the strategy");
   return data.data;
 }

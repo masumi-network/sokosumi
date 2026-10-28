@@ -101,6 +101,8 @@ interface ProjectStatusJob {
 
 export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
+  /** Tells a CMO rhythm or production run (approved strategy) from other turns. */
+  clientTurnId?: string;
   classification: TurnClassification;
   referencedTaskIds?: readonly string[];
   /** A person typed this turn: it holds every tool, and the route is a guess. */
@@ -508,9 +510,17 @@ export class ContextPacketBuilder {
     const marketing =
       input.audience === "TEAMMATE"
         ? null
-        : await import("@/services/cmo-context.service")
-            .then(({ loadCmoMarketingContext }) =>
-              loadCmoMarketingContext(input.sokoBotId),
+        : await Promise.all([
+            import("@/services/cmo-context.service"),
+            import("@/services/cmo-strategy.service"),
+          ])
+            .then(([{ loadCmoMarketingContext }, { cmoTurnExecutesPlan }]) =>
+              loadCmoMarketingContext(input.sokoBotId, undefined, {
+                executing: cmoTurnExecutesPlan({
+                  source: input.source,
+                  clientTurnId: input.clientTurnId ?? null,
+                }),
+              }),
             )
             .catch(() => null);
     const referenceId = organizationId ?? input.userId;

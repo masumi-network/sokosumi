@@ -80,7 +80,7 @@ export interface CmoAppActions {
     messages: CusoMessage[];
   }>;
   sendMessage: (content: string) => Promise<void>;
-  approveStrategy: () => Promise<CmoOverview>;
+  approveStrategy: (versionId?: string) => Promise<CmoOverview>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
     monthly: number,
@@ -157,10 +157,10 @@ export function webOriginOf(overview: CmoOverview): string {
 
 /** Starter replies for the moment the owner is in. */
 function suggestions(overview: CmoOverview): string[] {
-  if (overview.strategy && !overview.strategyApprovedAt) {
+  if (overview.strategy && !overview.strategyVersion?.approvedAt) {
     return changeIdeas(overview).slice(0, 3);
   }
-  if (overview.strategyApprovedAt) {
+  if (overview.strategyVersion?.approvedAt) {
     return [
       "Announce our new product tomorrow",
       "What are you doing today?",
@@ -290,7 +290,7 @@ export function CmoApp({
   const today = new Date().toISOString().slice(0, 10);
   const status = cusoStatus(overview);
   const outOfCredits =
-    overview.strategyApprovedAt !== null &&
+    overview.strategyVersion?.approvedAt != null &&
     overview.billing.availableCredits <= 0;
   const upNextCount = overview.upNext.length;
   const host = siteHost(overview.websiteUrl);
@@ -362,8 +362,12 @@ export function CmoApp({
             </span>
           ) : null}
           {view === "strategy" && overview.strategy ? (
-            <span className={overview.strategyApprovedAt ? "tag ok" : "tag"}>
-              {overview.strategyApprovedAt ? "Approved" : "Draft"}
+            <span
+              className={
+                overview.strategyVersion?.approvedAt ? "tag ok" : "tag"
+              }
+            >
+              {overview.strategyVersion?.approvedAt ? "Approved" : "Draft"}
             </span>
           ) : null}
           <span className="sp" />
@@ -494,6 +498,9 @@ export function CmoApp({
                     const result = await actions.setAdBudget(monthly, currency);
                     if (result.overview) setOverview(result.overview);
                   }}
+                  onApprove={async (versionId) =>
+                    setOverview(await actions.approveStrategy(versionId))
+                  }
                 />
               ) : view === "results" ? (
                 <ResultsPage
@@ -634,13 +641,14 @@ function ThreadEntry({
               update={item.update}
               actions={actions}
               approved={
-                overview.strategyApprovedAt !== null &&
+                overview.strategyVersion?.approvedAt != null &&
                 new Date(item.update.at) >=
-                  new Date(overview.strategyApprovedAt)
+                  new Date(overview.strategyVersion?.approvedAt)
               }
               superseded={
-                overview.strategyApprovedAt !== null &&
-                new Date(item.update.at) < new Date(overview.strategyApprovedAt)
+                overview.strategyVersion?.approvedAt != null &&
+                new Date(item.update.at) <
+                  new Date(overview.strategyVersion?.approvedAt)
               }
             />
           </div>

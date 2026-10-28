@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { formatDay, planWeeks } from "../../lib/calendar";
 import { ChannelIcon } from "../channel-icon";
@@ -14,6 +14,59 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 
 /**
+ * Every version of the strategy, newest first. The approved one is what
+ * Cuso carries out; owners and admins go back to an earlier one by
+ * approving it again.
+ */
+export function StrategyVersions({
+  overview,
+  onApprove,
+}: {
+  overview: CmoOverview;
+  onApprove?: (versionId: string) => Promise<void>;
+}) {
+  const [pending, startTransition] = useTransition();
+  const versions = overview.strategyVersions;
+  if (versions.length < 2) return null;
+  return (
+    <section className="plan-week" aria-label="Versions">
+      <p className="plan-week-head">
+        <b>Versions</b>
+      </p>
+      <ul className="plan-items">
+        {versions.map((version, index) => (
+          <li key={version.id} className="plan-item">
+            <span className="plan-day num">
+              {formatDay(version.createdAt.toISOString().slice(0, 10), {
+                day: "numeric",
+                month: "short",
+              })}
+            </span>
+            <span className="plan-item-title">
+              {index === 0 ? "Newest" : `Version ${versions.length - index}`}
+            </span>
+            {version.approvedAt ? (
+              <span className="tag ok">Approved</span>
+            ) : index > 0 && overview.viewerCanApprove && onApprove ? (
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                disabled={pending}
+                onClick={() => startTransition(() => onApprove(version.id))}
+              >
+                Go back to this version
+              </button>
+            ) : (
+              <span className="tag">Draft</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
  * The plan fast-forwarded, then the four weeks piece by piece; every piece
  * opens with its full text.
  */
@@ -21,10 +74,13 @@ export function StrategyPage({
   overview,
   onAsk,
   onSetAds,
+  onApprove,
 }: {
   overview: CmoOverview;
   onAsk: (text: string) => Promise<void>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
+  /** Approves an earlier version again: Cuso goes back to that plan. */
+  onApprove?: (versionId: string) => Promise<void>;
 }) {
   const strategy = overview.strategy;
   const [open, setOpen] = useState<Entry | null>(null);
@@ -110,6 +166,8 @@ export function StrategyPage({
           </div>
         }
       />
+
+      <StrategyVersions overview={overview} onApprove={onApprove} />
 
       <AnimatePresence>
         {open ? (

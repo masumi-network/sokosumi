@@ -14,8 +14,13 @@ import { parseCmoUpdates } from "@/services/cmo-reports.service";
 import {
   CMO_VISIBLE_CALENDAR_DAYS,
   calendarBounds,
-  parseCmoStrategy,
+  cmoWorkingStrategy,
 } from "@/services/cmo-strategy.service";
+import {
+  approvedMarketingStrategy,
+  newestMarketingStrategy,
+  parseMarketingPlan,
+} from "@/services/marketing-strategy.service";
 
 function calendarWindow(
   strategy: CmoStrategy,
@@ -31,22 +36,30 @@ function calendarWindow(
 /**
  * What Cuso sees about the business on every turn: the Brand Brain, the
  * strategy, and the next 31 days of the calendar. Entries outside that
- * window stay in the saved plan. Null for any bot that is not a CMO bot.
+ * window stay in the saved plan. Rhythms and production (`executing`) see
+ * only the approved version; other turns see the newest. Null for any bot
+ * that is not a CMO bot.
  */
 export async function loadCmoMarketingContext(
   sokoBotId: string,
   now: Date = new Date(),
+  options: { executing?: boolean } = {},
 ): Promise<Record<string, unknown> | null> {
   const hire = await getCmoHireForBot(sokoBotId);
   if (!hire) return null;
-  const strategy = parseCmoStrategy(hire.strategy);
+  const version = await cmoWorkingStrategy(
+    hire.projectId,
+    options.executing ?? false,
+  );
+  const strategy = parseMarketingPlan(version?.plan);
   const context: MarketingContext = {
     business: {
       name: hire.businessName,
       websiteUrl: hire.websiteUrl,
       marketingProjectId: hire.projectId,
     },
-    strategyApproved: hire.strategyApprovedAt !== null,
+    /** Whether the strategy shown is the approved version Cuso carries out. */
+    strategyApproved: version?.approvedAt != null,
     subscriptionActive: await isCmoSubscribed(hire),
     connectedChannels: (await listCmoChannels(hire.projectId)).map(
       (channel) => ({
@@ -88,7 +101,7 @@ export async function loadCmoMarketingContext(
       : null,
     recentUpdates: parseCmoUpdates(hire.updates)
       .slice(0, 3)
-      .map(({ previousStrategy: _previous, ...update }) => update),
+      .map(({ previousVersionId: _previous, ...update }) => update),
   };
   return fitCmoMarketingContext(context, now);
 }
@@ -273,14 +286,21 @@ export async function buildCmoBeatPacket(
   if (!hire) return { packet: "", skip: true };
   // Nothing runs without a reason: no approved strategy, no Brand Brain,
   // or not the reminder's one slot. A skipped run costs no turn.
+  const [approved, newest] = await Promise.all([
+    approvedMarketingStrategy(hire.projectId),
+    newestMarketingStrategy(hire.projectId),
+  ]);
   const skipReason = cmoRoutineSkipReason(key, {
     brandBrain: parseCmoBrandBrain(hire.brandBrain) !== null,
-    strategySavedAt: hire.strategy ? hire.strategyUpdatedAt : null,
-    strategyApproved: hire.strategyApprovedAt !== null,
+    strategySavedAt: newest?.updatedAt ?? null,
+    strategyApproved: approved !== null,
     now,
   });
   if (skipReason) return { packet: "", skip: true };
-  const context = await loadCmoMarketingContext(sokoBotId, now);
+  // A rhythm carries out the approved version, never a draft.
+  const context = await loadCmoMarketingContext(sokoBotId, now, {
+    executing: true,
+  });
   if (!context) return { packet: "", skip: true };
   const posts = hire
     ? await prisma.socialPost.findMany({

@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 
 export const cmoOnboardingRequestSchema = z
   .object({
@@ -46,6 +47,18 @@ export const cmoBrandAnswerRequestSchema = z
       .describe("After a no: what is true instead, in the owner's words."),
   })
   .openapi("CmoBrandAnswerRequest");
+
+export const cmoStrategyApproveRequestSchema = z
+  .object({
+    versionId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe(
+        "The Marketing strategy version to approve; the newest when left out. An older one reverts to it.",
+      ),
+  })
+  .openapi("CmoStrategyApproveRequest");
 
 export const cmoMeasurementSchema = z
   .object({
@@ -253,8 +266,16 @@ export const cmoOverviewSchema = z
       .describe(
         "The image or video Cuso attached to each calendar piece, by entry id.",
       ),
-    strategyUpdatedAt: z.union([dateTimeSchema, z.null()]),
-    strategyApprovedAt: z.union([dateTimeSchema, z.null()]),
+    strategyVersion: z
+      .union([marketingStrategyVersionSchema, z.null()])
+      .describe(
+        "The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.",
+      ),
+    strategyVersions: z
+      .array(marketingStrategyVersionSchema)
+      .describe(
+        "Every version, newest first. At most one is approved; approving an older one reverts to it.",
+      ),
     updates: z.array(cmoUpdateSchema),
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),

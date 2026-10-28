@@ -32,6 +32,7 @@ import {
   startCmoTurn,
   TURN_ROW_SELECT,
 } from "@/services/cmo-cuso.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 const CUSO_NAME = "Cuso";
 
@@ -290,7 +291,7 @@ export async function cmoWork(
 export async function finishCmoAccountsStep(userId: string): Promise<void> {
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (!hire.strategyApprovedAt) {
+  if (!(await approvedMarketingStrategy(hire.projectId))) {
     throw new CmoConflictError("Approve the strategy first");
   }
   if (hire.accountsDoneAt) return;
@@ -304,7 +305,7 @@ export async function finishCmoAccountsStep(userId: string): Promise<void> {
 export async function completeCmoOnboarding(userId: string): Promise<void> {
   const hire = await getCmoHireForUser(userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (!hire.strategyApprovedAt) {
+  if (!(await approvedMarketingStrategy(hire.projectId))) {
     throw new CmoConflictError("Approve the strategy first");
   }
   await startCmoProduction(hire.id);

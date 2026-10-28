@@ -12,6 +12,7 @@ import {
   getCmoHireForUser,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /** The org's active plan that lets Cuso execute, or null. */
 export async function activeCmoPlan(
@@ -116,7 +117,7 @@ export async function cmoExecutionRefusal(input: {
   const hire = await getCmoHireForBot(input.sokoBotId);
   if (!hire) return null;
   const verdict = cmoMayExecute({
-    approved: hire.strategyApprovedAt !== null,
+    approved: (await approvedMarketingStrategy(hire.projectId)) !== null,
     subscribed: await isCmoSubscribed(hire),
   });
   return verdict.ok ? null : verdict.reason;

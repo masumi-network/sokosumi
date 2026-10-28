@@ -1042,7 +1042,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Measures last week with real numbers only and improves the strategy. Revertible.",
     prompt:
-      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week and how it performed. Use only numbers you actually have; when there are none, say so plainly and never estimate. Then improve the strategy yourself with save_strategy (the owner approved it and expects you to adjust it), and report with report_update kind weekly: results, and each change you made. The owner can revert your changes from the card. Then write one short sentence for the owner; the card carries the details.",
+      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week and how it performed. Use only numbers you actually have; when there are none, say so plainly and never estimate. Then improve the strategy with save_strategy: your changes become a new version, which the owner approves before it runs (the approved plan keeps running until then). Report with report_update kind weekly: results, and each change you made. The owner can go back from the card. Then write one short sentence for the owner; the card carries the details.",
   },
   {
     key: "cmo-monthly-strategy",
@@ -1052,7 +1052,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Writes next month's strategy from what worked and what changed, then keeps executing. Revertible.",
     prompt:
-      "Monthly strategy. Next month starts soon. Using the packet below (Brand Brain, the current strategy and calendar, the posts of the last weeks and their results), write next month's strategy with save_strategy: set month to next month, keep the calendar entries still due this month, and plan all of next month. Build on what worked, drop what did not, and reflect what changed in the business. Use only numbers you actually have. Keep the goals unless the owner changed them. Then report with report_update kind monthly: a headline, results (honest, no estimates), and in changes each difference from this month's strategy. The owner already approved working this way: keep executing; they can change it in chat or revert it from the card. Then write one short sentence for the owner.",
+      "Monthly strategy. Next month starts soon. Using the packet below (Brand Brain, the current strategy and calendar, the posts of the last weeks and their results), write next month's strategy with save_strategy: set month to next month, keep the calendar entries still due this month, and plan all of next month. Build on what worked, drop what did not, and reflect what changed in the business. Use only numbers you actually have. Keep the goals unless the owner changed them. Then report with report_update kind monthly: a headline, results (honest, no estimates), and in changes each difference from this month's strategy. Your plan becomes a new version: the owner approves it before it runs, and the approved plan keeps running until then. They can change it in chat or go back from the card. Then write one short sentence for the owner.",
   },
   {
     key: "cmo-brand-refresh",

@@ -14,6 +14,7 @@ import { buildThread, cusoStatus } from "../lib/thread";
 import { VIEW_PATHS, viewFromPath } from "../lib/views";
 import {
   cmoChatMessage,
+  cmoStrategyVersion,
   cmoOverview as overview,
   cmoStrategy as strategy,
 } from "../test-fixtures/cmo";
@@ -25,7 +26,7 @@ import {
 } from "./app/cards";
 import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
-import { StrategyPage } from "./app/strategy-page";
+import { StrategyPage, StrategyVersions } from "./app/strategy-page";
 import { Onboarding } from "./onboarding";
 
 const noop = {
@@ -120,7 +121,7 @@ describe("thread", () => {
     const before = buildThread(overview(), []).map((item) => item.kind);
     expect(before).not.toContain("subscribe");
     const after = buildThread(
-      overview({ strategyApprovedAt: new Date("2026-10-01T09:05:00Z") }),
+      overview(cmoStrategyVersion(new Date("2026-10-01T09:05:00Z"))),
       [],
     ).map((item) => item.kind);
     expect(after.slice(-2)).toEqual(["subscribe", "connect"]);
@@ -137,7 +138,7 @@ describe("thread", () => {
     expect(
       cusoStatus(
         overview({
-          strategyApprovedAt: new Date(),
+          ...cmoStrategyVersion(new Date()),
           billing: {
             plan: null,
             subscriptionStatus: null,
@@ -256,7 +257,7 @@ describe("cards", () => {
   it("shows an approved strategy without the button", () => {
     const html = renderToStaticMarkup(
       <StrategyCard
-        overview={overview({ strategyApprovedAt: new Date() })}
+        overview={overview(cmoStrategyVersion(new Date()))}
         actions={noop}
       />,
     );
@@ -361,6 +362,69 @@ describe("pages", () => {
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
     expect(html).toContain("Meta ads");
+  });
+});
+
+describe("strategy versions", () => {
+  const versions = (viewerCanApprove: boolean) => {
+    const { strategyVersion: draft } = cmoStrategyVersion(
+      null,
+      new Date("2026-10-08T09:00:00Z"),
+    );
+    const { strategyVersion: approved } = cmoStrategyVersion(
+      new Date("2026-10-02T09:00:00Z"),
+    );
+    return overview({
+      viewerCanApprove,
+      strategyVersion: draft,
+      strategyVersions: [draft!, { ...approved!, id: "strategy-0" }],
+    });
+  };
+
+  it("lists every version and lets an owner go back to an earlier one", () => {
+    const html = renderToStaticMarkup(
+      <StrategyVersions overview={versions(true)} onApprove={async () => {}} />,
+    );
+    expect(html).toContain("Newest");
+    expect(html).toContain("Version 1");
+    expect(html).toContain("Approved");
+    expect(html).not.toContain("Go back to this version");
+
+    const older = renderToStaticMarkup(
+      <StrategyVersions
+        overview={overview({
+          strategyVersions: [
+            cmoStrategyVersion(new Date()).strategyVersion!,
+            { ...cmoStrategyVersion(null).strategyVersion!, id: "strategy-0" },
+          ],
+        })}
+        onApprove={async () => {}}
+      />,
+    );
+    expect(older).toContain("Go back to this version");
+  });
+
+  it("shows a member who cannot approve the versions without the button", () => {
+    const html = renderToStaticMarkup(
+      <StrategyVersions
+        overview={overview({
+          viewerCanApprove: false,
+          strategyVersions: [
+            cmoStrategyVersion(new Date()).strategyVersion!,
+            { ...cmoStrategyVersion(null).strategyVersion!, id: "strategy-0" },
+          ],
+        })}
+        onApprove={async () => {}}
+      />,
+    );
+    expect(html).toContain("Draft");
+    expect(html).not.toContain("Go back to this version");
+  });
+
+  it("shows nothing while there is only one version", () => {
+    expect(
+      renderToStaticMarkup(<StrategyVersions overview={overview()} />),
+    ).toBe("");
   });
 });
 

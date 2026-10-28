@@ -15,7 +15,9 @@ import {
   projectCreate,
   projectDelete,
   resetCmoServiceMocks,
+  seedStrategy,
   startTurn,
+  strategy,
   turnFindFirst,
 } from "@/test-fixtures/cmo-service";
 
@@ -91,9 +93,10 @@ beforeEach(resetCmoServiceMocks);
 
 describe("finishCmoAccountsStep", () => {
   it("records the step once, so a reload resumes on the plan", async () => {
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     cmoFindUnique.mockResolvedValue({
       id: "cmo-1",
-      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+      projectId: "project-1",
       accountsDoneAt: null,
     });
     await finishCmoAccountsStep("user-1");
@@ -104,7 +107,7 @@ describe("finishCmoAccountsStep", () => {
     cmoUpdate.mockClear();
     cmoFindUnique.mockResolvedValue({
       id: "cmo-1",
-      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+      projectId: "project-1",
       accountsDoneAt: new Date("2026-10-02T09:00:00Z"),
     });
     await finishCmoAccountsStep("user-1");
@@ -112,7 +115,8 @@ describe("finishCmoAccountsStep", () => {
   });
 
   it("needs an approved strategy", async () => {
-    cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategyApprovedAt: null });
+    seedStrategy(strategy);
+    cmoFindUnique.mockResolvedValue({ id: "cmo-1", projectId: "project-1" });
     await expect(finishCmoAccountsStep("user-1")).rejects.toThrow(/approve/i);
   });
 });

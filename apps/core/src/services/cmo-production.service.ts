@@ -17,7 +17,10 @@ import {
   cmoRunnerUserId,
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
-import { parseCmoStrategy } from "@/services/cmo-strategy.service";
+import {
+  approvedMarketingStrategy,
+  parseMarketingPlan,
+} from "@/services/marketing-strategy.service";
 
 /**
  * After the owner approves the strategy and pays, Cuso makes the whole month
@@ -281,6 +284,7 @@ async function startProductionRun(
   message: string,
   attempt: number,
   month: string,
+  approvedAt: Date,
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: hire.sokoBotId },
@@ -302,7 +306,7 @@ async function startProductionRun(
     sokoBotId: hire.sokoBotId,
     // One id per approval and attempt: two callers racing start the same
     // run, and a plan approved again starts its own.
-    clientTurnId: `${CMO_PRODUCTION_TURN_PREFIX}${hire.id}:${month}:${hire.strategyApprovedAt?.getTime() ?? 0}:${attempt}`,
+    clientTurnId: `${CMO_PRODUCTION_TURN_PREFIX}${hire.id}:${month}:${approvedAt.getTime()}:${attempt}`,
     message,
     source: "EVENT",
     presetRoute: {
@@ -349,6 +353,8 @@ async function startProductionRun(
 interface ProductionRead {
   status: CmoProductionStatus;
   strategy: CmoStrategy | null;
+  /** When the version being made was approved: one run id per approval. */
+  approvedAt: Date | null;
   production: CmoProduction | null;
   pending: CmoCalendarEntry[];
 }
@@ -359,11 +365,15 @@ export async function readCmoProduction(
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
 ): Promise<ProductionRead> {
   const { connected, now } = context;
-  const strategy = parseCmoStrategy(hire.strategy);
-  if (!strategy)
+  // Only the approved version is made; a draft is never produced.
+  const approved = await approvedMarketingStrategy(hire.projectId);
+  const strategy = parseMarketingPlan(approved?.plan);
+  const approvedAt = approved?.approvedAt ?? null;
+  if (!strategy || !approvedAt)
     return {
       status: { state: "waiting", ready: 0, total: 0, finishedAt: null },
       strategy,
+      approvedAt,
       production: null,
       pending: [],
     };
@@ -375,10 +385,11 @@ export async function readCmoProduction(
   const read = (state: CmoProductionStatus["state"]) => ({
     status: status(state, pieces, ready, production),
     strategy,
+    approvedAt,
     production,
     pending,
   });
-  if (!hire.strategyApprovedAt || !context.subscribed) return read("waiting");
+  if (!context.subscribed) return read("waiting");
   if (pending.length === 0) return read("ready");
   const last = await lastRunStatus(production);
   if (last && RUN_ACTIVE.has(last)) return read("running");
@@ -441,6 +452,7 @@ export async function advanceCmoProduction(
   const {
     status: current,
     strategy,
+    approvedAt,
     production: stored,
     pending,
   } = await readCmoProduction(hire, {
@@ -448,7 +460,12 @@ export async function advanceCmoProduction(
     subscribed: await isCmoSubscribed(hire),
     now,
   });
-  if (!strategy || current.state === "waiting" || current.state === "stuck")
+  if (
+    !strategy ||
+    !approvedAt ||
+    current.state === "waiting" ||
+    current.state === "stuck"
+  )
     return current;
   const production: CmoProduction = stored ?? {
     month: strategy.month,
@@ -478,6 +495,7 @@ export async function advanceCmoProduction(
     }),
     attempt,
     production.month,
+    approvedAt,
   );
   const next = {
     ...production,
@@ -536,7 +554,11 @@ export async function syncCmoProduction(
 ): Promise<{ checked: number }> {
   const hires = (
     await prisma.cmoHire.findMany({
-      where: { strategyApprovedAt: { not: null } },
+      where: {
+        project: {
+          marketingStrategies: { some: { approvedAt: { not: null } } },
+        },
+      },
       include: CMO_HIRE_PROJECT,
       orderBy: { updatedAt: "asc" },
     })

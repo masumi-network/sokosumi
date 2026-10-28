@@ -2289,6 +2289,7 @@ export class SokoBotControlPlane {
       sharedScope: sokoBotSharedScopeOf(bot),
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
+      clientTurnId,
       classification: classification.classification,
       personAsked,
       capturedPreference,

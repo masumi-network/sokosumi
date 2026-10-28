@@ -4,6 +4,7 @@ import {
   connectionFindMany,
   postFindMany,
   resetCmoServiceMocks,
+  seedStrategy,
   strategy,
   subscriptionFindFirst,
 } from "@/test-fixtures/cmo-service";
@@ -85,7 +86,11 @@ describe("buildCmoBeatPacket", () => {
       websiteUrl: "https://acme.io",
       goals: "More leads",
       brandBrain: { summary: long },
-      strategy: {
+      mockPlan: null,
+      updates: [],
+    });
+    seedStrategy(
+      {
         ...strategy,
         calendar: Array.from({ length: 30 }, (_, index) => ({
           ...strategy.calendar[0],
@@ -93,11 +98,8 @@ describe("buildCmoBeatPacket", () => {
           title: long,
         })),
       },
-      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
-      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
-      mockPlan: null,
-      updates: [],
-    });
+      { approvedAt: new Date("2026-10-01T09:00:00Z") },
+    );
     subscriptionFindFirst.mockResolvedValue(null);
     connectionFindMany.mockResolvedValue([]);
     postFindMany.mockResolvedValue([]);
@@ -109,6 +111,39 @@ describe("buildCmoBeatPacket", () => {
     expect(skip).toBe(false);
     expect(packet).toContain("workspace.marketing");
     expect(packet.length).toBeLessThan(5_000);
+  });
+});
+
+describe("loadCmoMarketingContext", () => {
+  it("shows a rhythm the approved version and every other turn the newest draft", async () => {
+    const { loadCmoMarketingContext } = await import("./cmo-context.service");
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      websiteUrl: "https://acme.io",
+      brandBrain: null,
+      mockPlan: null,
+      updates: [],
+    });
+    connectionFindMany.mockResolvedValue([]);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    seedStrategy({ ...strategy, summary: "A draft waiting for approval." });
+    const now = new Date("2026-10-06T07:00:00Z");
+
+    const rhythm = await loadCmoMarketingContext("bot-1", now, {
+      executing: true,
+    });
+    const chat = await loadCmoMarketingContext("bot-1", now);
+
+    expect(rhythm).toMatchObject({
+      strategyApproved: true,
+      strategy: { summary: strategy.summary },
+    });
+    expect(chat).toMatchObject({
+      strategyApproved: false,
+      strategy: { summary: "A draft waiting for approval." },
+    });
   });
 });
 

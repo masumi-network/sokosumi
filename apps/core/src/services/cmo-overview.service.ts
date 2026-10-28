@@ -43,8 +43,13 @@ import {
   type CmoUpdateRecord,
   parseCmoUpdates,
 } from "@/services/cmo-reports.service";
-import { parseCmoStrategy } from "@/services/cmo-strategy.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
+import {
+  approvedMarketingStrategy,
+  listMarketingStrategies,
+  newestMarketingStrategy,
+  parseMarketingPlan,
+} from "@/services/marketing-strategy.service";
 
 export interface CmoUpNextItem {
   id: string;
@@ -53,6 +58,10 @@ export interface CmoUpNextItem {
   title: string;
   status: string;
 }
+
+export type CmoStrategyVersion = Awaited<
+  ReturnType<typeof listMarketingStrategies>
+>[number];
 
 export interface CmoOverview {
   hire: CmoHireView;
@@ -86,7 +95,10 @@ export interface CmoOverview {
   mockPlan: string | null;
   mockPlanActivatedAt: Date | null;
   brandBrain: CmoBrandBrain | null;
+  /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: CmoStrategy | null;
+  /** Every version, newest first; the first is the one `strategy` shows. */
+  strategyVersions: CmoStrategyVersion[];
   botStatus: string;
   updates: CmoUpdateRecord[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
@@ -195,7 +207,14 @@ export async function getCmoOverview(
   });
   // The chat is Cuso's shared room with every member (ADR 0061).
   if (!bot?.sharedRoomId || !project) return null;
-  const strategy = parseCmoStrategy(hire.strategy);
+  const [newest, approved, strategyVersions] = await Promise.all([
+    newestMarketingStrategy(hire.projectId),
+    approvedMarketingStrategy(hire.projectId),
+    listMarketingStrategies(hire.projectId),
+  ]);
+  const strategy = parseMarketingPlan(newest?.plan);
+  // Up next is what is carried out: the approved version's calendar.
+  const running = approved ? parseMarketingPlan(approved.plan) : strategy;
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
   const [credits, viewerCanApprove] = await Promise.all([
     buildCreditsPayload({
@@ -266,11 +285,12 @@ export async function getCmoOverview(
     mockPlanActivatedAt: mockPlan ? hire.mockPlanActivatedAt : null,
     brandBrain: parseCmoBrandBrain(hire.brandBrain),
     strategy,
+    strategyVersions,
     botStatus: bot.status,
     updates: parseCmoUpdates(hire.updates),
     channels,
     upNext: cmoUpNext(
-      strategy,
+      running,
       now,
       channels
         .filter((channel) => channel.status === "ACTIVE")

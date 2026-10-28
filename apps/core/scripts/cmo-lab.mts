@@ -24,10 +24,11 @@ import {
 } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
+import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import {
-  parseCmoStrategy,
-  requestCmoStrategy,
-} from "@/services/cmo-strategy.service";
+  newestMarketingStrategy,
+  parseMarketingPlan,
+} from "@/services/marketing-strategy.service";
 
 interface Brand {
   name: string;
@@ -113,12 +114,11 @@ async function run(email: string, brand: Brand) {
       brandVisual: Prisma.DbNull,
       brandBrain: Prisma.DbNull,
       brandBrainUpdatedAt: null,
-      strategy: Prisma.DbNull,
-      strategyUpdatedAt: null,
-      strategyApprovedAt: null,
-      strategyHistory: Prisma.DbNull,
       accountsDoneAt: null,
     },
+  });
+  await prisma.marketingStrategy.deleteMany({
+    where: { projectId: hire.projectId },
   });
   // A stopped lab run leaves its turns active, and they would block this one.
   await prisma.sokoBotTurn.updateMany({
@@ -144,7 +144,12 @@ async function run(email: string, brand: Brand) {
   const saved = await prisma.cmoHire.findUniqueOrThrow({
     where: { id: hire.id },
   });
-  return { research, plan, ...judge(brand, saved) };
+  const strategy = await newestMarketingStrategy(hire.projectId);
+  return {
+    research,
+    plan,
+    ...judge(brand, { brandBrain: saved.brandBrain, strategy: strategy?.plan }),
+  };
 }
 
 function judge(
@@ -152,7 +157,7 @@ function judge(
   saved: { brandBrain: unknown; strategy: unknown },
 ): { pass: boolean; findings: string[]; summary?: string; offer?: string } {
   const brain = parseCmoBrandBrain(saved.brandBrain);
-  const strategy = parseCmoStrategy(saved.strategy) as CmoStrategy | null;
+  const strategy = parseMarketingPlan(saved.strategy) as CmoStrategy | null;
   const findings: string[] = [];
   if (!brain) findings.push("no Brand Brain");
   else if (!new RegExp(brand.brain ?? brand.main, "i").test(brain.summary))

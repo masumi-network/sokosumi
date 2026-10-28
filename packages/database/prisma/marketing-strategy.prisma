@@ -1,0 +1,34 @@
+/// A Project's Marketing strategy, one row per version (ADR 0062). A write
+/// adds a version and never changes another; the Workspace's owners or
+/// admins approve one, and only the approved one is carried out. At most one
+/// version per Project is approved (`marketing_strategy_one_approved_key`).
+model MarketingStrategy {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The plan with its yes/no questions and their answers, validated by
+  /// `cmoStrategySchema` in `@sokosumi/soko-bot`. Its calendar stays inside
+  /// until the calendar becomes the Project's Social posts.
+  plan Json
+
+  /// Who wrote it: a bot's turn, or a member.
+  authorSokoBotId String?  @db.Uuid
+  authorSokoBot   SokoBot? @relation(fields: [authorSokoBotId], references: [id], onDelete: SetNull)
+  authorUserId    String?
+  authorUser      User?    @relation("MarketingStrategyAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  /// The bot turn that wrote it: that turn's later saves complete this
+  /// version (a plan goes in two calls) until it is approved.
+  turnId          String?  @db.Uuid
+
+  approvedAt       DateTime?
+  approvedByUserId String?
+  approvedByUser   User?     @relation("MarketingStrategyApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId], map: "marketing_strategy_one_approved_key", where: { approvedAt: { not: null } })
+  @@index([projectId, createdAt])
+  @@map("marketing_strategy")
+}

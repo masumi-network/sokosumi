@@ -11,6 +11,7 @@ const {
   botFindFirstMock,
   botFindUniqueMock,
   cmoHireFindUniqueMock,
+  marketingStrategyFindFirstMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
   chatRoomUserMemberFindFirstMock,
@@ -109,6 +110,7 @@ const {
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   cmoHireFindUniqueMock: vi.fn(),
+  marketingStrategyFindFirstMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
   chatRoomUserMemberFindFirstMock: vi.fn(),
@@ -364,6 +366,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     cmoHire: { findUnique: cmoHireFindUniqueMock },
+    marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -8127,12 +8130,16 @@ describe("Content Studio image tools", () => {
       ...ownerChat,
       turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
     };
-    cmoHireFindUniqueMock.mockResolvedValueOnce({ strategyApprovedAt: null });
+    cmoHireFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    // Only a draft version: nothing of it is carried out yet.
+    marketingStrategyFindFirstMock.mockResolvedValueOnce(null);
     await expect(generate(dailyRun, request, "call-c1")).rejects.toThrow(
       "only when a person asks in chat",
     );
-    cmoHireFindUniqueMock.mockResolvedValueOnce({
-      strategyApprovedAt: new Date(),
+    cmoHireFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    marketingStrategyFindFirstMock.mockResolvedValueOnce({
+      id: "strategy-1",
+      approvedAt: new Date(),
     });
     await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
     expect(images.create).toHaveBeenCalledTimes(1);
@@ -8931,6 +8938,78 @@ describe("CMO record saves", () => {
       service["saveCmoRecord"](owner as never, report),
     ).rejects.toThrow("no longer writable");
     expect(tx.cmoHire.update).not.toHaveBeenCalled();
+  });
+
+  it("saves Cuso's plan as a new Marketing strategy version of his Project", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000ab";
+    const plan = {
+      month: "2026-11",
+      summary: "Founder-led LinkedIn posts that show the product working.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [{ channel: "linkedin", cadence: "3 a week" }],
+      calendar: [],
+    };
+    const created = {
+      id: "strategy-2",
+      projectId: PROJECT,
+      plan,
+      approvedAt: null,
+      updatedAt: new Date("2026-11-01T09:00:00Z"),
+    };
+    const tx = {
+      cmoHire: {
+        findUnique: vi.fn().mockResolvedValue({
+          projectId: PROJECT,
+          sokoBotId: SCOPE.sokoBotId,
+        }),
+      },
+      marketingStrategy: {
+        // The approved version runs; this turn has written none yet.
+        findFirst: vi
+          .fn()
+          .mockImplementation(async (args: { where: { turnId?: string } }) =>
+            args.where.turnId
+              ? null
+              : { id: "strategy-1", plan, approvedAt: new Date() },
+          ),
+        create: vi.fn().mockResolvedValue(created),
+        update: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValueOnce({
+      source: "CHAT",
+      clientTurnId: "chat-1",
+    });
+    toolCallCountMock.mockResolvedValueOnce(1);
+    cmoHireFindUniqueMock.mockResolvedValueOnce({ brandBrain: null });
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+
+    const result = await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_strategy",
+      toolCallId: "strategy",
+      input: { part: "plan", strategy: plan },
+    });
+
+    expect(tx.marketingStrategy.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: PROJECT,
+        turnId: SCOPE.turnId,
+        authorSokoBotId: SCOPE.sokoBotId,
+      }),
+    });
+    expect(tx.marketingStrategy.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      saved: "strategy",
+      versionId: "strategy-2",
+      approved: false,
+    });
   });
 
   it("checks the turn's authority inside the transaction that writes", async () => {

@@ -68,8 +68,6 @@ function overview() {
       brandBrainUpdatedAt: null,
       brandBrainApprovedAt: null,
       brandMedia: null,
-      strategyUpdatedAt: NOW,
-      strategyApprovedAt: NOW,
       accountsDoneAt: NOW,
       mockPlanActivatedAt: null,
       onboardedAt: NOW,
@@ -85,6 +83,19 @@ function overview() {
     mockPlanActivatedAt: null,
     brandBrain: null,
     strategy: null,
+    strategyVersions: [
+      {
+        id: "strategy-1",
+        projectId: "project-1",
+        createdAt: NOW,
+        updatedAt: NOW,
+        authorSokoBotId: "bot-1",
+        authorUserId: null,
+        turnId: "turn-1",
+        approvedAt: NOW,
+        approvedByUserId: "user-1",
+      },
+    ],
     media: [],
     botStatus: "IDLE",
     learning: "done",
@@ -102,7 +113,7 @@ function overview() {
         upNext: [],
         changes: ["More LinkedIn"],
         results: "No provider metrics yet.",
-        previousStrategy: { month: "2026-10" },
+        previousVersionId: "strategy-0",
       },
     ],
     channels: [],
@@ -148,18 +159,36 @@ describe("CMO routes", () => {
       method: "POST",
     });
     expect(response.status).toBe(200);
-    expect(approveMock).toHaveBeenCalledWith("user-1");
+    expect(approveMock).toHaveBeenCalledWith("user-1", undefined);
     const body = await response.json();
-    expect(body.data.strategyApprovedAt).toBe(NOW.toISOString());
-    // The stored snapshot never leaves Core; the card only learns it can revert.
+    expect(body.data.strategyVersion).toMatchObject({
+      id: "strategy-1",
+      approvedAt: NOW.toISOString(),
+      approvedByUserId: "user-1",
+    });
+    expect(body.data.strategyVersion.turnId).toBeUndefined();
+    expect(body.data.strategyVersions).toHaveLength(1);
+    // The version id stays in Core; the card only learns it can revert.
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
-    expect(body.data.updates[0].previousStrategy).toBeUndefined();
+    expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,
       published: 0,
       failed: 1,
     });
+  });
+
+  it("approves a named version, which reverts to it", async () => {
+    approveMock.mockResolvedValue({});
+    const versionId = "0196a000-0000-7000-8000-000000000001";
+    const response = await createApp().request("/strategy/approve", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ versionId }),
+    });
+    expect(response.status).toBe(200);
+    expect(approveMock).toHaveBeenCalledWith("user-1", versionId);
   });
 
   it("answers 409 when there is nothing to approve", async () => {

@@ -490,6 +490,8 @@ model Project {
   newsletter       Newsletter?
   newsletterIssues NewsletterIssue[]
 
+  marketingStrategies MarketingStrategy[]
+
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
   adMarketProfile   ProjectAdMarketProfile?
@@ -2372,6 +2374,7 @@ model SokoBot {
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
   cmoHire               CmoHire?
+  marketingStrategies   MarketingStrategy[]
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")

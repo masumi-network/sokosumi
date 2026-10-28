@@ -5,6 +5,7 @@ import {
   memberFindUnique,
   mockBilling,
   resetCmoServiceMocks,
+  seedStrategy,
   strategy,
   subscriptionFindFirst,
 } from "@/test-fixtures/cmo-service";
@@ -79,13 +80,15 @@ import {
 beforeEach(resetCmoServiceMocks);
 
 describe("strategy approval → execution gate", () => {
-  const workspace = (approvedAt: Date | null) => ({
-    id: "cmo-1",
-    userId: "user-1",
-    workspaceId: "ws-1",
-    strategy,
-    strategyApprovedAt: approvedAt,
-  });
+  const workspace = (approvedAt: Date | null) => {
+    seedStrategy(strategy, { approvedAt });
+    return {
+      id: "cmo-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+    };
+  };
 
   it("asks the business organization's plan", async () => {
     cmoFindUnique.mockResolvedValue(workspace(new Date()));
@@ -148,10 +151,12 @@ describe("mock billing", () => {
     id: "cmo-1",
     userId: "user-1",
     workspaceId: "ws-1",
-    strategy,
-    strategyApprovedAt: new Date(),
+    projectId: "project-1",
     mockPlan: "growth",
   };
+  beforeEach(() => {
+    seedStrategy(strategy, { approvedAt: new Date() });
+  });
 
   it("lets a mock plan open execution while CMO_MOCK_BILLING is on", async () => {
     mockBilling.on = true;

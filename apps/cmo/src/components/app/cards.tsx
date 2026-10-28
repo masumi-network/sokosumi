@@ -206,7 +206,7 @@ export function StrategyCard({
   const [pending, startTransition] = useTransition();
   const strategy = overview.strategy;
   if (!strategy) return null;
-  const approved = overview.strategyApprovedAt !== null;
+  const approved = overview.strategyVersion?.approvedAt != null;
   return (
     <div className={approved ? "card" : "card highlight"}>
       <div className="ch">

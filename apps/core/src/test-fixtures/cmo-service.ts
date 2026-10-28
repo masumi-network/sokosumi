@@ -1,3 +1,4 @@
+import type { MarketingStrategy } from "@sokosumi/database";
 import { vi } from "vitest";
 
 /**
@@ -51,6 +52,96 @@ export const withProject = (hire: unknown) =>
       }
     : hire;
 
+/**
+ * The Project's Marketing strategy versions, as rows in memory: tests seed
+ * them with `seedStrategy` and read what the services wrote back.
+ */
+export const strategyRows: MarketingStrategy[] = [];
+let strategyClock = 0;
+
+type StrategyWhere = Record<string, unknown>;
+
+function matchesStrategy(row: MarketingStrategy, where: StrategyWhere = {}) {
+  return Object.entries(where).every(([key, value]) => {
+    const actual = row[key as keyof MarketingStrategy];
+    if (value && typeof value === "object" && "not" in value) {
+      return actual !== (value as { not: unknown }).not;
+    }
+    return actual === value;
+  });
+}
+
+function newestStrategiesFirst(rows: MarketingStrategy[]) {
+  return [...rows].sort(
+    (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+  );
+}
+
+export function seedStrategy(
+  plan: unknown,
+  fields: Partial<MarketingStrategy> = {},
+): MarketingStrategy {
+  strategyClock += 1;
+  const at = new Date(Date.UTC(2026, 9, 1, 9, strategyClock));
+  const row: MarketingStrategy = {
+    id: `strategy-${strategyClock}`,
+    projectId: "project-1",
+    createdAt: at,
+    updatedAt: at,
+    plan: plan as MarketingStrategy["plan"],
+    authorSokoBotId: "bot-1",
+    authorUserId: null,
+    turnId: null,
+    approvedAt: null,
+    approvedByUserId: null,
+    ...fields,
+  };
+  strategyRows.push(row);
+  return row;
+}
+
+const marketingStrategy = {
+  findFirst: vi.fn(
+    async (args: { where?: StrategyWhere } = {}) =>
+      newestStrategiesFirst(strategyRows).find((row) =>
+        matchesStrategy(row, args.where),
+      ) ?? null,
+  ),
+  findMany: vi.fn(async (args: { where?: StrategyWhere } = {}) =>
+    newestStrategiesFirst(strategyRows).filter((row) =>
+      matchesStrategy(row, args.where),
+    ),
+  ),
+  create: vi.fn(
+    async (args: { data: Partial<MarketingStrategy> & { plan: unknown } }) =>
+      seedStrategy(args.data.plan, args.data),
+  ),
+  update: vi.fn(
+    async (args: {
+      where: { id: string };
+      data: Partial<MarketingStrategy>;
+    }) => {
+      const row = strategyRows.find((item) => item.id === args.where.id);
+      if (!row) throw new Error(`No strategy ${args.where.id}`);
+      Object.assign(row, args.data, { updatedAt: new Date() });
+      return row;
+    },
+  ),
+  updateMany: vi.fn(
+    async (args: {
+      where?: StrategyWhere;
+      data: Partial<MarketingStrategy>;
+    }) => {
+      const rows = strategyRows.filter((row) =>
+        matchesStrategy(row, args.where),
+      );
+      for (const row of rows) Object.assign(row, args.data);
+      return { count: rows.length };
+    },
+  ),
+  deleteMany: vi.fn(async () => ({ count: 0 })),
+};
+
 const client = {
   // Runs the callback against this same mock, as one transaction would.
   $transaction: (callback: (tx: unknown) => unknown) => callback(client),
@@ -71,10 +162,23 @@ const client = {
   user: {
     findUnique: async () => ({ preferredOrganizationId: "org-1" }),
   },
-  member: { findUnique: memberFindUnique, findMany: memberFindMany },
+  member: {
+    findUnique: memberFindUnique,
+    // An organization role read by workspace answers like one by organization.
+    findFirst: memberFindUnique,
+    findMany: memberFindMany,
+  },
   sokoBot: { findUnique: sokoBotFindUnique },
   chatRoom: { delete: chatRoomDelete },
-  project: { create: projectCreate, delete: projectDelete },
+  project: {
+    create: projectCreate,
+    delete: projectDelete,
+    // Cuso's Project lives in the business's organization (ADR 0060).
+    findFirst: async () => ({
+      workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
+    }),
+  },
+  marketingStrategy,
   organization: { findFirst: organizationFindFirst },
   subscription: { findFirst: subscriptionFindFirst },
   workspace: { findUnique: workspaceFindUnique },
@@ -165,6 +269,7 @@ export const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 
 export function resetCmoServiceMocks(): void {
   vi.clearAllMocks();
+  strategyRows.length = 0;
   mockBilling.on = false;
   mockBilling.production = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));

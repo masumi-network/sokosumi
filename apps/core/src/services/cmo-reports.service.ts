@@ -10,17 +10,17 @@ import {
   CmoNotFoundError,
   getCmoHireForUser,
 } from "@/services/cmo-cuso.service";
-import {
-  parseCmoStrategy,
-  parseHistory,
-  saveCmoStrategy,
-} from "@/services/cmo-strategy.service";
+import { approveCmoStrategy } from "@/services/cmo-strategy.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
   id: z.string(),
   at: z.string(),
-  /** Weekly and monthly: the strategy before this turn's changes, for revert. */
-  previousStrategy: z.json().optional(),
+  /**
+   * Weekly and monthly: the Marketing strategy version approved before this
+   * turn wrote a new one; reverting approves it again.
+   */
+  previousVersionId: z.string().optional(),
   revertedAt: z.string().optional(),
 });
 export type CmoUpdateRecord = z.infer<typeof cmoUpdateRecordSchema>;
@@ -33,9 +33,9 @@ export function parseCmoUpdates(value: unknown): CmoUpdateRecord[] {
 }
 
 /**
- * Stores Cuso's report as a chat card. A weekly report keeps the strategy as
- * it was before the first save of the same turn, so the owner can revert the
- * whole review in one step.
+ * Stores Cuso's report as a chat card. A weekly or monthly report that wrote
+ * a new strategy version keeps the version approved before it, so the owner
+ * can revert the whole review in one step.
  */
 export async function reportCmoUpdate(
   input: {
@@ -50,16 +50,22 @@ export async function reportCmoUpdate(
   });
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const update = cmoReportUpdateInputSchema.parse(input.update);
-  const savedThisTurn = parseHistory(hire.strategyHistory).filter(
-    (entry) => entry.turnId === input.turnId,
-  );
+  const [wroteThisTurn, approved] =
+    update.kind === "weekly" || update.kind === "monthly"
+      ? await Promise.all([
+          db.marketingStrategy.findFirst({
+            where: { projectId: hire.projectId, turnId: input.turnId },
+            select: { id: true },
+          }),
+          approvedMarketingStrategy(hire.projectId, db),
+        ])
+      : [null, null];
   const record: CmoUpdateRecord = {
     ...update,
     id: randomBytes(8).toString("hex"),
     at: new Date().toISOString(),
-    ...((update.kind === "weekly" || update.kind === "monthly") &&
-    savedThisTurn.length > 0
-      ? { previousStrategy: savedThisTurn[savedThisTurn.length - 1]?.strategy }
+    ...(wroteThisTurn && approved && approved.id !== wroteThisTurn.id
+      ? { previousVersionId: approved.id }
       : {}),
   };
   await db.cmoHire.update({
@@ -75,9 +81,8 @@ export async function reportCmoUpdate(
 }
 
 /**
- * Puts back the strategy a weekly review or monthly strategy replaced.
- * Entries already handed to Social stay as they are now, so Pause can still
- * cancel their posts.
+ * Puts back the strategy a weekly review or monthly strategy replaced, by
+ * approving the version that ran before it again.
  */
 export async function revertCmoUpdate(input: {
   userId: string;
@@ -87,24 +92,11 @@ export async function revertCmoUpdate(input: {
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const updates = parseCmoUpdates(hire.updates);
   const target = updates.find((update) => update.id === input.updateId);
-  const previous = parseCmoStrategy(target?.previousStrategy);
-  if (!target || !previous) {
+  if (!target?.previousVersionId) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (target.revertedAt) return hire;
-  // Entries handed to Social and entries the owner paused stay as they are.
-  const kept = new Map(
-    (parseCmoStrategy(hire.strategy)?.calendar ?? [])
-      .filter((entry) => entry.socialPostId || entry.status === "skipped")
-      .map((entry) => [entry.id, entry]),
-  );
-  const calendar = [
-    ...previous.calendar.map((entry) => kept.get(entry.id) ?? entry),
-    ...[...kept.values()].filter(
-      (entry) => !previous.calendar.some((old) => old.id === entry.id),
-    ),
-  ].sort((left, right) => left.date.localeCompare(right.date));
-  await saveCmoStrategy({ userId: input.userId }, { ...previous, calendar });
+  await approveCmoStrategy(input.userId, target.previousVersionId);
   return prisma.cmoHire.update({
     where: { id: hire.id },
     data: {

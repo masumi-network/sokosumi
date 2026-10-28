@@ -109,7 +109,7 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
     if (work?.kind === "strategy" && work.status !== "done") return "planning";
     return overview.brandBrainApprovedAt ? "questions" : "brain";
   }
-  if (!overview.strategyApprovedAt) {
+  if (!overview.strategyVersion?.approvedAt) {
     // Part way through the plan's questions, a reload resumes on them.
     const questions = overview.strategy.questions ?? [];
     const answered = questions.filter((question) => question.answer).length;
@@ -126,7 +126,7 @@ function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
   if (step === "brain" || step === "strategy") return true;
   if (step === "check") return (overview.strategy?.questions ?? []).length > 0;
   if (step === "questions") return overview.brandBrainApprovedAt !== null;
-  if (step === "results") return overview.strategyApprovedAt !== null;
+  if (step === "results") return overview.strategyVersion?.approvedAt != null;
   return step === "connect" && needsAccounts(overview);
 }
 

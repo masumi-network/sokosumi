@@ -50,12 +50,12 @@ function mapOverview(overview: CmoOverview) {
     brandMedia: parseCmoBrandMedia(hire.brandMedia),
     strategy: overview.strategy,
     media: overview.media,
-    strategyUpdatedAt: hire.strategyUpdatedAt,
-    strategyApprovedAt: hire.strategyApprovedAt,
+    strategyVersion: overview.strategyVersions[0] ?? null,
+    strategyVersions: overview.strategyVersions,
     updates: overview.updates.map(
-      ({ previousStrategy, revertedAt, ...update }) => ({
+      ({ previousVersionId, revertedAt, ...update }) => ({
         ...update,
-        revertible: previousStrategy !== undefined && !revertedAt,
+        revertible: previousVersionId !== undefined && !revertedAt,
         revertedAt: revertedAt ?? null,
       }),
     ),

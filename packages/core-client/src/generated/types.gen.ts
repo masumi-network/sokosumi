@@ -6407,6 +6407,245 @@ export type ProjectContextMd = ProjectContextMdMetadata & {
     content: string;
 };
 
+export type MarketingStrategyVersion = {
+    id: string;
+    projectId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    authorSokoBotId: string | null;
+    authorUserId: string | null;
+    /**
+     * When an owner or admin approved this version; at most one version per Project is approved, and only it is carried out.
+     */
+    approvedAt: Date | null;
+    approvedByUserId: string | null;
+};
+
+export type MarketingStrategy = MarketingStrategyVersion & {
+    /**
+     * The plan with its yes/no questions and their answers.
+     */
+    plan: {
+        month: string;
+        summary: string;
+        why?: string;
+        goals: Array<string>;
+        audience?: string;
+        contentLanguage?: string;
+        positioning?: string;
+        pillars: Array<string>;
+        channels: Array<{
+            channel: string;
+            cadence: string;
+            why?: string;
+        }>;
+        idea?: {
+            who: string;
+            position: string;
+            attract: string;
+            offer: string;
+            sentence: string;
+        };
+        alternatives?: Array<{
+            sentence: string;
+            why: string;
+        }>;
+        ladder?: {
+            entry?: {
+                what: string;
+                why?: string;
+            };
+            core: {
+                what: string;
+                why?: string;
+            };
+            next?: {
+                what: string;
+                why?: string;
+            };
+        };
+        pace?: {
+            level: 'steady' | 'active' | 'all_in';
+            why: string;
+            perWeek: number;
+        };
+        ads?: {
+            monthly: number;
+            currency: string;
+            expect: string;
+            without: string;
+            setByOwner?: boolean;
+        };
+        beforeAfter?: Array<{
+            channel: string;
+            before: string;
+            after: string;
+        }>;
+        improvements?: Array<{
+            area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            idea: string;
+            why: string;
+            url?: string;
+        }>;
+        start?: {
+            working?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            gaps?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            resources?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+        };
+        objective?: {
+            outcome?: string;
+            metric?: string;
+            baseline?: string;
+            baselineBasis?: 'fact' | 'assumption';
+            target?: string;
+            why?: string;
+        };
+        barrier?: {
+            kind: 'awareness' | 'understanding' | 'trust';
+            text: string;
+        };
+        mix?: Array<{
+            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            share: number;
+            why: string;
+        }>;
+        focus?: {
+            segment: string;
+            problem: string;
+            trigger?: string;
+            objections?: Array<string>;
+            where?: Array<string>;
+        };
+        offer?: {
+            what: string;
+            why: string;
+            proof?: Array<string>;
+            action: string;
+        };
+        campaigns?: Array<{
+            id: string;
+            name: string;
+            message: string;
+            audience?: string;
+            offer?: string;
+            channels?: Array<string>;
+            assets?: Array<string>;
+            start: string;
+            end: string;
+            budget?: string;
+            metric: string;
+        }>;
+        funnel?: Array<{
+            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+            name: string;
+            goal: string;
+            channels?: Array<string>;
+            metric: string;
+            target?: string;
+            owner?: 'cuso' | 'you' | 'shared';
+            plays?: Array<{
+                channel: string;
+                what: string;
+                cadence?: string;
+            }>;
+            measure?: {
+                value?: string;
+                basis: 'measured' | 'estimated' | 'unknown';
+                source?: string;
+            };
+        }>;
+        proposals?: Array<{
+            channel: string;
+            why: string;
+            what: string;
+            perMonth: number;
+        }>;
+        journey?: Array<{
+            step: string;
+            fix?: string;
+        }>;
+        weeks?: Array<{
+            focus: string;
+            tasks?: Array<{
+                task: string;
+                owner: 'cuso' | 'you';
+                due?: string;
+                approval?: boolean;
+            }>;
+        }>;
+        budget?: {
+            total: string;
+            basis?: 'fact' | 'assumption';
+            lines?: Array<{
+                item: string;
+                amount: string;
+            }>;
+        };
+        measurement?: {
+            primary: string;
+            supporting?: Array<string>;
+            tracking?: Array<string>;
+            rules?: Array<{
+                when: string;
+                then: string;
+            }>;
+        };
+        openQuestions?: Array<string>;
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+        calendar: Array<{
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        }>;
+        previews?: Array<{
+            kind: 'post' | 'ad' | 'seo' | 'newsletter';
+            channel: string;
+            title: string;
+            body: string;
+        }>;
+        changes?: Array<string>;
+    };
+};
+
+export type CmoBrandAnswerRequest = {
+    questionId: string;
+    answer: 'yes' | 'no' | 'unsure';
+    /**
+     * After a no: what is true instead, in the owner's words.
+     */
+    note?: string;
+};
+
 export type ProjectDesignMdWrite = {
     content: string;
     extractionId?: string | null;
@@ -9156,8 +9395,14 @@ export type CmoOverview = {
         url: string;
         slides?: Array<string>;
     }>;
-    strategyUpdatedAt: Date | null;
-    strategyApprovedAt: Date | null;
+    /**
+     * The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.
+     */
+    strategyVersion: MarketingStrategyVersion | null;
+    /**
+     * Every version, newest first. At most one is approved; approving an older one reverts to it.
+     */
+    strategyVersions: Array<MarketingStrategyVersion>;
     updates: Array<CmoUpdate>;
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
@@ -9628,17 +9873,15 @@ export type CmoBrandBrainRequest = {
     };
 };
 
-export type CmoBrandAnswerRequest = {
-    questionId: string;
-    answer: 'yes' | 'no' | 'unsure';
-    /**
-     * After a no: what is true instead, in the owner's words.
-     */
+export type CmoStrategyRequest = {
     note?: string;
 };
 
-export type CmoStrategyRequest = {
-    note?: string;
+export type CmoStrategyApproveRequest = {
+    /**
+     * The Marketing strategy version to approve; the newest when left out. An older one reverts to it.
+     */
+    versionId?: string;
 };
 
 export type CmoAdBudgetRequest = {
@@ -48127,6 +48370,440 @@ export type GetProjectsByIdContextMdResponses = {
 
 export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
 
+export type ListProjectMarketingStrategiesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies';
+};
+
+export type ListProjectMarketingStrategiesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListProjectMarketingStrategiesError = ListProjectMarketingStrategiesErrors[keyof ListProjectMarketingStrategiesErrors];
+
+export type ListProjectMarketingStrategiesResponses = {
+    /**
+     * Marketing strategy versions
+     */
+    200: {
+        data: Array<MarketingStrategyVersion>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListProjectMarketingStrategiesResponse = ListProjectMarketingStrategiesResponses[keyof ListProjectMarketingStrategiesResponses];
+
+export type GetProjectMarketingStrategyData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies/{strategyId}';
+};
+
+export type GetProjectMarketingStrategyErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectMarketingStrategyError = GetProjectMarketingStrategyErrors[keyof GetProjectMarketingStrategyErrors];
+
+export type GetProjectMarketingStrategyResponses = {
+    /**
+     * Marketing strategy version
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectMarketingStrategyResponse = GetProjectMarketingStrategyResponses[keyof GetProjectMarketingStrategyResponses];
+
+export type ApproveProjectMarketingStrategyData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies/{strategyId}/approve';
+};
+
+export type ApproveProjectMarketingStrategyErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A new version is being written
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApproveProjectMarketingStrategyError = ApproveProjectMarketingStrategyErrors[keyof ApproveProjectMarketingStrategyErrors];
+
+export type ApproveProjectMarketingStrategyResponses = {
+    /**
+     * Marketing strategy version approved
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApproveProjectMarketingStrategyResponse = ApproveProjectMarketingStrategyResponses[keyof ApproveProjectMarketingStrategyResponses];
+
+export type AnswerProjectMarketingStrategyQuestionData = {
+    body: CmoBrandAnswerRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies/{strategyId}/answers';
+};
+
+export type AnswerProjectMarketingStrategyQuestionErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerProjectMarketingStrategyQuestionError = AnswerProjectMarketingStrategyQuestionErrors[keyof AnswerProjectMarketingStrategyQuestionErrors];
+
+export type AnswerProjectMarketingStrategyQuestionResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerProjectMarketingStrategyQuestionResponse = AnswerProjectMarketingStrategyQuestionResponses[keyof AnswerProjectMarketingStrategyQuestionResponses];
+
 export type DeleteProjectsByIdDesignMdData = {
     body?: never;
     headers?: {
@@ -63328,7 +64005,7 @@ export type RequestCmoStrategyResponses = {
 export type RequestCmoStrategyResponse = RequestCmoStrategyResponses[keyof RequestCmoStrategyResponses];
 
 export type ApproveCmoStrategyData = {
-    body?: never;
+    body?: CmoStrategyApproveRequest;
     path?: never;
     query?: never;
     url: '/cmo/strategy/approve';
@@ -63366,7 +64043,7 @@ export type ApproveCmoStrategyErrors = {
         };
     };
     /**
-     * Cuso is not hired yet
+     * Cuso is not hired yet, or no such version
      */
     404: {
         error: string;
@@ -63381,7 +64058,7 @@ export type ApproveCmoStrategyErrors = {
         };
     };
     /**
-     * There is no strategy to approve yet
+     * There is no strategy to approve yet, or Cuso is writing a new version
      */
     409: {
         error: string;

@@ -1,0 +1,303 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import type { MarketingStrategy } from "@sokosumi/database";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { errorHandler } from "@/helpers/error-handler";
+import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace";
+
+import mountAnswer from "./[strategyId]/answers/post";
+import mountApprove from "./[strategyId]/approve/post";
+import mountGet from "./[strategyId]/get";
+import mountList from "./get";
+
+const m = vi.hoisted(() => ({
+  projectFindFirst: vi.fn(),
+  strategyFindMany: vi.fn(),
+  strategyFindFirst: vi.fn(),
+  strategyUpdate: vi.fn(),
+  strategyUpdateMany: vi.fn(),
+  memberFindFirst: vi.fn(),
+  turnFindFirst: vi.fn(),
+  eventFindFirst: vi.fn(),
+  executeRaw: vi.fn(async () => 1),
+}));
+
+vi.mock("@/lib/db/prisma", () => {
+  const client: Record<string, unknown> = {
+    project: { findFirst: m.projectFindFirst },
+    marketingStrategy: {
+      findMany: m.strategyFindMany,
+      findFirst: m.strategyFindFirst,
+      update: m.strategyUpdate,
+      updateMany: m.strategyUpdateMany,
+    },
+    member: { findFirst: m.memberFindFirst },
+    sokoBotTurn: { findFirst: m.turnFindFirst },
+    sokoBotRuntimeEvent: { findFirst: m.eventFindFirst },
+    $executeRaw: m.executeRaw,
+  };
+  client.$transaction = (callback: (tx: unknown) => unknown) =>
+    callback(client);
+  return { default: client };
+});
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { expireTurn: vi.fn(async () => true) },
+}));
+
+const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
+const OLD_ID = "33333333-3333-4333-8333-333333333333";
+const NEW_ID = "44444444-4444-4444-8444-444444444444";
+const AT = new Date("2026-10-28T10:00:00Z");
+const AUTH: AuthenticationContext = {
+  actor: "user",
+  userId: "user_1",
+  organizationId: "organization_1",
+  role: "user",
+  authenticationMethod: "session",
+};
+const WORKSPACE: WorkspaceContext = {
+  workspaceId: WORKSPACE_ID,
+  userId: null,
+  organizationId: "organization_1",
+};
+const PLAN = {
+  month: "2026-11",
+  summary: "Founder-led LinkedIn posts that show the product working.",
+  goals: ["More demo requests"],
+  pillars: ["Product stories"],
+  channels: [{ channel: "linkedin", cadence: "3 a week" }],
+  calendar: [],
+  questions: [
+    {
+      id: "q1",
+      question: "Do most buyers find you on LinkedIn?",
+      statement: "Buyers find the business on LinkedIn.",
+    },
+  ],
+};
+
+function version(
+  id: string,
+  approvedAt: Date | null = null,
+  plan: unknown = PLAN,
+): MarketingStrategy {
+  return {
+    id,
+    projectId: PROJECT_ID,
+    createdAt: AT,
+    updatedAt: AT,
+    plan: plan as MarketingStrategy["plan"],
+    authorSokoBotId: "55555555-5555-4555-8555-555555555555",
+    authorUserId: null,
+    turnId: "66666666-6666-4666-8666-666666666666",
+    approvedAt,
+    approvedByUserId: approvedAt ? "user_0" : null,
+  };
+}
+
+function createApp(workspace: WorkspaceContext = WORKSPACE) {
+  const app = new OpenAPIHono<EnvVariables>({
+    defaultHook: defaultValidationHook,
+  });
+  app.use("*", async (c, next) => {
+    c.set("requestId", "marketing_strategy_test");
+    c.set("isAuthenticated", true);
+    c.set("authContext", AUTH);
+    c.set("workspaceContext", workspace);
+    await next();
+  });
+  mountList(app);
+  mountGet(app);
+  mountApprove(app);
+  mountAnswer(app);
+  app.onError(errorHandler);
+  return app;
+}
+
+const BASE = `http://localhost/${PROJECT_ID}/marketing-strategies`;
+const post = (path: string, body?: unknown) =>
+  createApp().request(`${BASE}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  m.projectFindFirst.mockImplementation(async (args: { select?: object }) =>
+    args.select && "workspace" in args.select
+      ? {
+          workspace: {
+            id: WORKSPACE_ID,
+            userId: null,
+            organizationId: "organization_1",
+          },
+        }
+      : { id: PROJECT_ID },
+  );
+  m.memberFindFirst.mockResolvedValue({ role: "admin" });
+  m.turnFindFirst.mockResolvedValue(null);
+  m.strategyUpdate.mockImplementation(
+    async (args: { where: { id: string }; data: object }) => ({
+      ...version(args.where.id),
+      ...args.data,
+    }),
+  );
+});
+
+describe("Marketing strategy routes", () => {
+  it("lists every version newest first, without plans", async () => {
+    const { plan: _plan, ...listed } = version(NEW_ID);
+    m.strategyFindMany.mockResolvedValue([listed]);
+
+    const response = await createApp().request(BASE);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown[] };
+    expect(body.data).toEqual([
+      expect.objectContaining({ id: NEW_ID, approvedAt: null }),
+    ]);
+    expect(body.data[0]).not.toHaveProperty("plan");
+    expect(body.data[0]).not.toHaveProperty("turnId");
+    expect(m.strategyFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { projectId: PROJECT_ID } }),
+    );
+  });
+
+  it("is not found for a Project outside the member's Workspace", async () => {
+    m.projectFindFirst.mockResolvedValue(null);
+
+    const response = await createApp().request(BASE);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("reads one version with its plan", async () => {
+    m.strategyFindFirst.mockResolvedValue(version(OLD_ID, AT));
+
+    const response = await createApp().request(`${BASE}/${OLD_ID}`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { plan: { summary: string }; approvedByUserId: string };
+    };
+    expect(body.data.plan.summary).toBe(PLAN.summary);
+    expect(body.data.approvedByUserId).toBe("user_0");
+  });
+
+  it("approves a version for an admin and withdraws the other approval", async () => {
+    m.strategyFindFirst.mockResolvedValue(version(NEW_ID));
+
+    const response = await post(`${NEW_ID}/approve`);
+
+    expect(response.status).toBe(200);
+    expect(m.strategyUpdateMany).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID, approvedAt: { not: null } },
+      data: { approvedAt: null, approvedByUserId: null },
+    });
+    expect(m.strategyUpdate).toHaveBeenCalledWith({
+      where: { id: NEW_ID },
+      data: { approvedAt: expect.any(Date), approvedByUserId: "user_1" },
+    });
+  });
+
+  it("reverts by approving an older version", async () => {
+    m.strategyFindFirst.mockResolvedValue(version(OLD_ID));
+
+    const response = await post(`${OLD_ID}/approve`);
+
+    expect(response.status).toBe(200);
+    expect(m.strategyUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: OLD_ID } }),
+    );
+  });
+
+  it("refuses a member who is neither owner nor admin", async () => {
+    m.memberFindFirst.mockResolvedValue({ role: "member" });
+
+    const response = await post(`${NEW_ID}/approve`);
+
+    expect(response.status).toBe(403);
+    expect(m.strategyUpdate).not.toHaveBeenCalled();
+  });
+
+  it("lets a personal Workspace's owner approve", async () => {
+    m.projectFindFirst.mockImplementation(async (args: { select?: object }) =>
+      args.select && "workspace" in args.select
+        ? {
+            workspace: {
+              id: WORKSPACE_ID,
+              userId: "user_1",
+              organizationId: null,
+            },
+          }
+        : { id: PROJECT_ID },
+    );
+    m.strategyFindFirst.mockResolvedValue(version(NEW_ID));
+
+    const response = await createApp({
+      workspaceId: WORKSPACE_ID,
+      userId: "user_1",
+      organizationId: null,
+    }).request(`${BASE}/${NEW_ID}/approve`, { method: "POST" });
+
+    expect(response.status).toBe(200);
+    expect(m.memberFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("refuses with 409 while Cuso writes a new version", async () => {
+    m.turnFindFirst.mockResolvedValue({
+      id: "turn-1",
+      status: "RUNNING",
+      eveSessionId: null,
+      createdAt: new Date(),
+      clientTurnId: "cmo:strategy:hire-1:1",
+    });
+
+    const response = await post(`${OLD_ID}/approve`);
+
+    expect(response.status).toBe(409);
+    expect(m.strategyUpdate).not.toHaveBeenCalled();
+  });
+
+  it("answers a question on its own version only", async () => {
+    m.strategyFindFirst.mockResolvedValue(version(OLD_ID));
+
+    const response = await post(`${OLD_ID}/answers`, {
+      questionId: "q1",
+      answer: "no",
+      note: "  Most come from referrals.  ",
+    });
+
+    expect(response.status).toBe(200);
+    expect(m.strategyUpdate).toHaveBeenCalledWith({
+      where: { id: OLD_ID },
+      data: {
+        plan: expect.objectContaining({
+          questions: [
+            expect.objectContaining({
+              id: "q1",
+              answer: "no",
+              note: "Most come from referrals.",
+            }),
+          ],
+        }),
+      },
+    });
+  });
+
+  it("is not found for a question the version does not have", async () => {
+    m.strategyFindFirst.mockResolvedValue(version(OLD_ID));
+
+    const response = await post(`${OLD_ID}/answers`, {
+      questionId: "nope",
+      answer: "yes",
+    });
+
+    expect(response.status).toBe(404);
+    expect(m.strategyUpdate).not.toHaveBeenCalled();
+  });
+});

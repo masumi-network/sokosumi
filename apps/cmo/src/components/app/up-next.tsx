@@ -101,7 +101,7 @@ export function UpNext({
           <div className="empty">
             <span className="shape" aria-hidden="true" />
             <span>
-              {!overview.strategyApprovedAt
+              {!overview.strategyVersion?.approvedAt
                 ? "Cuso starts working once you approve the strategy."
                 : overview.channels.length === 0
                   ? "Nothing queued. Cuso is waiting for a connected channel."

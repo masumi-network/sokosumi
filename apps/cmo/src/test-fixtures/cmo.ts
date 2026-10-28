@@ -1,5 +1,23 @@
 import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
 
+/** The overview's one Marketing strategy version, approved at `approvedAt` or a draft. */
+export function cmoStrategyVersion(
+  approvedAt: Date | null,
+  updatedAt: Date = new Date("2026-10-01T09:02:00Z"),
+): Pick<CmoOverview, "strategyVersion" | "strategyVersions"> {
+  const version = {
+    id: "strategy-1",
+    projectId: "project-1",
+    createdAt: updatedAt,
+    updatedAt,
+    authorSokoBotId: "bot-1",
+    authorUserId: null,
+    approvedAt,
+    approvedByUserId: approvedAt ? "user-1" : null,
+  };
+  return { strategyVersion: version, strategyVersions: [version] };
+}
+
 /** Whole, typed CMO API values for tests; pass a patch for what a test is about. */
 export const cmoStrategy: NonNullable<CmoOverview["strategy"]> = {
   month: "2026-10",
@@ -69,8 +87,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrainUpdatedAt: new Date("2026-10-01T09:01:00Z"),
     strategy: cmoStrategy,
     media: [],
-    strategyUpdatedAt: new Date("2026-10-01T09:02:00Z"),
-    strategyApprovedAt: null,
+    ...cmoStrategyVersion(null, new Date("2026-10-01T09:02:00Z")),
     updates: [],
     channels: [],
     upNext: [],

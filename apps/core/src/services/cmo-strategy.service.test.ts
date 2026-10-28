@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cancelSocialPost,
   cmoFindUnique,
-  cmoUpdate,
   memberFindUnique,
   postFindFirst,
   resetCmoServiceMocks,
   revised,
+  seedStrategy,
   startTurn,
   strategy,
+  strategyRows,
   turnFindFirst,
 } from "@/test-fixtures/cmo-service";
 
@@ -72,7 +73,6 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { CmoForbiddenError } from "@/services/cmo-cuso.service";
 import {
   approveCmoStrategy,
   cmoPlanAnswerNote,
@@ -87,56 +87,86 @@ import {
 
 beforeEach(resetCmoServiceMocks);
 
+const HIRE = {
+  id: "cmo-1",
+  sokoBotId: "bot-1",
+  workspaceId: "ws-1",
+  projectId: "project-1",
+};
+const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
+const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
+
 describe("approveCmoStrategy", () => {
-  it("approves once and keeps the first approval time", async () => {
-    const first = new Date("2026-10-01T09:00:00Z");
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      strategy,
-      strategyApprovedAt: first,
-    });
+  it("approves the newest version and records who approved it", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const newest = seedStrategy(revised);
+
     await approveCmoStrategy("user-1");
-    expect(cmoUpdate.mock.calls[0]?.[0].data.strategyApprovedAt).toBe(first);
+
+    expect(approvedRows()).toEqual([
+      expect.objectContaining({
+        id: newest.id,
+        approvedAt: expect.any(Date),
+        approvedByUserId: "user-1",
+      }),
+    ]);
+  });
+
+  it("reverts by approving an older version, which withdraws the newer approval", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    const older = seedStrategy(strategy);
+    seedStrategy(revised, {
+      approvedAt: new Date("2026-10-02T09:00:00Z"),
+      approvedByUserId: "user-1",
+    });
+
+    await approveCmoStrategy("user-2", older.id);
+
+    expect(approvedRows()).toEqual([
+      expect.objectContaining({ id: older.id, approvedByUserId: "user-2" }),
+    ]);
+    expect(plan(approvedRows()[0]!).summary).toBe(strategy.summary);
+  });
+
+  it("keeps the first approval time when the same version is approved again", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    const first = new Date("2026-10-01T09:00:00Z");
+    seedStrategy(strategy, { approvedAt: first, approvedByUserId: "user-1" });
+
+    await approveCmoStrategy("user-2");
+
+    expect(approvedRows()).toEqual([
+      expect.objectContaining({
+        approvedAt: first,
+        approvedByUserId: "user-1",
+      }),
+    ]);
   });
 
   it("needs a strategy", async () => {
-    cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategy: null });
+    cmoFindUnique.mockResolvedValue(HIRE);
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
   });
 
   it("leaves approving to the organization's owners and admins", async () => {
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      workspaceId: "ws-1",
-      strategy,
-      strategyApprovedAt: null,
-    });
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
     memberFindUnique.mockResolvedValue({ role: "member" });
-    await expect(approveCmoStrategy("user-2")).rejects.toBeInstanceOf(
-      CmoForbiddenError,
-    );
-    expect(memberFindUnique).toHaveBeenCalledWith({
-      where: {
-        userId_organizationId: { userId: "user-2", organizationId: "org-1" },
-      },
-      select: { role: true },
+    await expect(approveCmoStrategy("user-2")).rejects.toMatchObject({
+      status: 403,
     });
-    expect(cmoUpdate).not.toHaveBeenCalled();
+    expect(approvedRows()).toEqual([]);
 
     memberFindUnique.mockResolvedValue({ role: "admin" });
     turnFindFirst.mockResolvedValue(null);
     await approveCmoStrategy("user-2");
-    expect(cmoUpdate).toHaveBeenCalled();
+    expect(approvedRows()).toHaveLength(1);
   });
 
   it("waits while Cuso writes the strategy the owner asked for", async () => {
-    // Approving the old plan now would carry over to the new one unreviewed.
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      sokoBotId: "bot-1",
-      strategy,
-      strategyApprovedAt: null,
-    });
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
     turnFindFirst.mockResolvedValue({
       id: "turn-1",
       status: "RUNNING",
@@ -144,10 +174,10 @@ describe("approveCmoStrategy", () => {
       createdAt: new Date(),
       clientTurnId: "cmo:strategy:cmo-1:1",
     });
-    await expect(approveCmoStrategy("user-1")).rejects.toThrow(
-      /still writing/i,
-    );
-    expect(cmoUpdate).not.toHaveBeenCalled();
+    await expect(approveCmoStrategy("user-1")).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(approvedRows()).toEqual([]);
   });
 });
 
@@ -162,41 +192,106 @@ describe("requestCmoStrategy", () => {
     profile: {},
   };
   const hire = {
-    id: "cmo-1",
+    ...HIRE,
     userId: "user-1",
-    workspaceId: "ws-1",
-    sokoBotId: "bot-1",
     businessName: "Acme",
     goals: "More sales",
     brandBrain,
-    strategy,
-    strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
   };
 
-  it("keeps the approval when Cuso cannot start the new strategy", async () => {
+  it("leaves the approved version running while Cuso writes a new one", async () => {
     cmoFindUnique.mockResolvedValue(hire);
-    startTurn.mockRejectedValue(new Error("Soko Bot is already working"));
-    await expect(requestCmoStrategy({ userId: "user-1" })).rejects.toThrow(
-      "already working",
-    );
-    expect(cmoUpdate).not.toHaveBeenCalled();
-  });
-
-  it("clears the approval once the strategy turn started", async () => {
-    cmoFindUnique.mockResolvedValue(hire);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
+
     await expect(requestCmoStrategy({ userId: "user-1" })).resolves.toEqual({
       turnId: "turn-9",
     });
-    expect(cmoUpdate).toHaveBeenCalledWith({
-      where: { id: "cmo-1" },
-      data: { strategyApprovedAt: null },
-    });
+
+    expect(approvedRows()).toHaveLength(1);
+    expect(strategyRows).toHaveLength(1);
   });
 });
 
-describe("weekly change and revert", () => {
+describe("saving versions", () => {
+  it("adds a version per turn and completes it with the turn's later saves", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "A sharper headline." },
+      { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
+    );
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
+    );
+
+    expect(strategyRows).toHaveLength(2);
+    const added = strategyRows.find((row) => row.id !== running.id)!;
+    expect(added).toMatchObject({
+      turnId: "turn-1",
+      authorSokoBotId: "bot-1",
+      approvedAt: null,
+    });
+    expect(plan(added).summary).toBe("A sharper headline.");
+    // The approved version is never rewritten by a new plan.
+    expect(plan(running)).toEqual(strategy);
+  });
+
+  it("starts a new version once the turn's own one was approved", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy, {
+      turnId: "turn-1",
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, revised, {
+      turnId: "turn-1",
+    });
+
+    expect(strategyRows).toHaveLength(2);
+    expect(plan(strategyRows[0]!)).toEqual(strategy);
+  });
+
+  it("fills pieces into the approved version, not a newer draft", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    const draft = seedStrategy(revised);
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [{ ...strategy.calendar[0]!, draft: "Written." }] },
+      { turnId: "turn-2", pieces: true },
+    );
+
+    expect(strategyRows).toHaveLength(2);
+    expect(plan(running).calendar[0]).toMatchObject({ draft: "Written." });
+    expect(plan(draft)).toEqual(revised);
+  });
+
+  it("builds a rhythm's version on the approved one, not a newer draft", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    seedStrategy({ ...revised, goals: ["Draft goal"] });
+
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "Weekly change." },
+      { turnId: "turn-3", executing: true },
+    );
+
+    expect(plan(saved).goals).toEqual(strategy.goals);
+  });
+
   it("keeps calendar entries outside the 31 days a turn can see", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
     const far = {
       id: "d",
       date: "2026-12-01",
@@ -205,20 +300,14 @@ describe("weekly change and revert", () => {
       format: "post",
       status: "idea" as const,
     };
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      strategy: { ...strategy, calendar: [...strategy.calendar, far] },
-      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
-      strategyHistory: null,
-    });
-    await saveCmoStrategy(
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
       { sokoBotId: "bot-1" },
       { ...strategy, calendar: [strategy.calendar[0]!] },
       { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
     );
-    const saved = cmoUpdate.mock.calls[0]?.[0].data.strategy;
     // Oct 2 and Dec 1 were outside the window. Oct 8 was inside it and omitted.
-    expect(saved.calendar.map((entry: { id: string }) => entry.id)).toEqual([
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual([
       "b",
       "a",
       "d",
@@ -226,100 +315,62 @@ describe("weekly change and revert", () => {
   });
 
   it("keeps what a save leaves out, so a plan can arrive in short calls", async () => {
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      strategy,
-      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
-      strategyHistory: null,
-    });
-    await saveCmoStrategy(
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const saved = await saveCmoStrategy(
       { sokoBotId: "bot-1" },
       { summary: "A sharper headline." },
       { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
     );
-    const saved = cmoUpdate.mock.calls[0]?.[0].data.strategy;
-    expect(saved.summary).toBe("A sharper headline.");
-    expect(saved.goals).toEqual(strategy.goals);
-    expect(saved.calendar.map((entry: { id: string }) => entry.id)).toEqual(
+    expect(plan(saved).summary).toBe("A sharper headline.");
+    expect(plan(saved).goals).toEqual(strategy.goals);
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(
       strategy.calendar.map((entry) => entry.id),
     );
   });
 
   it("keeps saved previews when a weekly drafting save sends none", async () => {
+    cmoFindUnique.mockResolvedValue(HIRE);
     const preview = {
       kind: "post" as const,
       channel: "linkedin",
       title: "Sample",
       body: "A sample post.",
     };
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      strategy: { ...strategy, previews: [preview] },
-      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
-      strategyHistory: null,
-    });
-    await saveCmoStrategy({ sokoBotId: "bot-1" }, strategy, {
+    seedStrategy({ ...strategy, previews: [preview] });
+    const saved = await saveCmoStrategy({ sokoBotId: "bot-1" }, strategy, {
       turnId: "turn-1",
     });
-    expect(cmoUpdate.mock.calls[0]?.[0].data.strategy.previews).toEqual([
-      preview,
-    ]);
+    expect(plan(saved).previews).toEqual([preview]);
   });
 
   it("lets an owner save replace the calendar, including hidden days", async () => {
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      strategy,
-      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
-      strategyHistory: null,
-    });
-    await saveCmoStrategy(
+    cmoFindUnique.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const saved = await saveCmoStrategy(
       { userId: "user-1" },
       { ...strategy, calendar: [strategy.calendar[0]!] },
     );
-    expect(
-      cmoUpdate.mock.calls[0]?.[0].data.strategy.calendar.map(
-        (entry: { id: string }) => entry.id,
-      ),
-    ).toEqual(["a"]);
-  });
-
-  it("keeps the replaced strategy with the turn that replaced it", async () => {
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      strategy,
-      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
-      strategyHistory: null,
-    });
-    await saveCmoStrategy({ sokoBotId: "bot-1" }, revised, {
-      turnId: "turn-1",
-    });
-    const history = cmoUpdate.mock.calls[0]?.[0].data.strategyHistory;
-    expect(history).toEqual([
-      expect.objectContaining({ turnId: "turn-1", strategy }),
-    ]);
+    expect(saved).toMatchObject({ authorUserId: "user-1", turnId: null });
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(["a"]);
   });
 });
 
 describe("pauseCmoCalendarEntry", () => {
-  it("cancels the scheduled post and takes the entry out of the plan", async () => {
-    const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
-    const linked = {
-      ...strategy,
-      calendar: strategy.calendar.map((entry) =>
-        entry.id === "a"
-          ? { ...entry, status: "scheduled" as const, socialPostId: postId }
-          : entry,
-      ),
-    };
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      userId: "user-1",
-      workspaceId: "ws-1",
-      projectId: "project-1",
-      strategy: linked,
-      strategyUpdatedAt: new Date(),
-      strategyHistory: [],
+  const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
+  const linked = {
+    ...strategy,
+    calendar: strategy.calendar.map((entry) =>
+      entry.id === "a"
+        ? { ...entry, status: "scheduled" as const, socialPostId: postId }
+        : entry,
+    ),
+  };
+
+  it("cancels the scheduled post and takes the entry out of the running plan", async () => {
+    cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
+    const running = seedStrategy(linked, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
     postFindFirst.mockResolvedValue({ status: "SCHEDULED", revision: 2 });
     cancelSocialPost.mockResolvedValue({});
@@ -329,27 +380,16 @@ describe("pauseCmoCalendarEntry", () => {
     expect(cancelSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId, revision: 2, projectId: "project-1" }),
     );
-    const saved = cmoUpdate.mock.calls.at(-1)?.[0].data.strategy;
+    expect(strategyRows).toHaveLength(1);
     expect(
-      saved.calendar.find((entry: { id: string }) => entry.id === "a").status,
+      plan(running).calendar.find((entry) => entry.id === "a")?.status,
     ).toBe("skipped");
   });
 
   it("refuses a post that is already going out, and keeps the entry", async () => {
-    const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
-    cmoFindUnique.mockResolvedValue({
-      id: "cmo-1",
-      userId: "user-1",
-      workspaceId: "ws-1",
-      projectId: "project-1",
-      strategy: {
-        ...strategy,
-        calendar: strategy.calendar.map((entry) =>
-          entry.id === "a"
-            ? { ...entry, status: "scheduled" as const, socialPostId: postId }
-            : entry,
-        ),
-      },
+    cmoFindUnique.mockResolvedValue({ ...HIRE, userId: "user-1" });
+    const running = seedStrategy(linked, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
     });
     postFindFirst.mockResolvedValue({ status: "PUBLISHING", revision: 3 });
     cancelSocialPost.mockRejectedValue(
@@ -362,7 +402,7 @@ describe("pauseCmoCalendarEntry", () => {
     expect(cancelSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId, revision: 3 }),
     );
-    expect(cmoUpdate).not.toHaveBeenCalled();
+    expect(plan(running)).toEqual(linked);
   });
 });
 

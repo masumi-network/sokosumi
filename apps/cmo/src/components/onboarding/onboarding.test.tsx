@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
+import { cmoStrategyVersion } from "../../test-fixtures/cmo";
 import { showcaseEntries } from "../showcases";
 import { CheckStep } from "./check-step";
 import { strategySocialChannels } from "./connect-step";
@@ -107,8 +108,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrainUpdatedAt: new Date("2026-10-05T09:01:00Z"),
     strategy,
     media: [],
-    strategyUpdatedAt: new Date("2026-10-05T09:02:00Z"),
-    strategyApprovedAt: null,
+    ...cmoStrategyVersion(null, new Date("2026-10-05T09:02:00Z")),
     updates: [],
     channels: [],
     upNext: [],
@@ -177,7 +177,7 @@ describe("onboarding steps", () => {
       "strategy",
     );
     expect(onboardingStep(overview())).toBe("strategy");
-    expect(onboardingStep(overview({ strategyApprovedAt: new Date() }))).toBe(
+    expect(onboardingStep(overview(cmoStrategyVersion(new Date())))).toBe(
       "connect",
     );
   });
@@ -224,7 +224,7 @@ describe("onboarding steps", () => {
     expect(
       onboardingStep(
         overview({
-          strategyApprovedAt: new Date(),
+          ...cmoStrategyVersion(new Date()),
           accountsDoneAt: new Date(),
         }),
       ),
@@ -235,7 +235,7 @@ describe("onboarding steps", () => {
     expect(
       onboardingStep(
         overview({
-          strategyApprovedAt: new Date(),
+          ...cmoStrategyVersion(new Date()),
           strategy: { ...strategy, channels: [] },
         }),
       ),
@@ -365,7 +365,7 @@ describe("strategy", () => {
   it("leads back to the current step when opened again after approval", () => {
     const html = renderToStaticMarkup(
       <StrategyStep
-        overview={overview({ strategyApprovedAt: new Date() })}
+        overview={overview(cmoStrategyVersion(new Date()))}
         onChange={async () => null}
         onSetAds={async () => null}
         onApprove={async () => {}}
@@ -448,7 +448,7 @@ describe("plan check", () => {
 
 describe("results", () => {
   it("shows the number, Cuso's rhythm and when he changes course", () => {
-    const base = overview({ strategyApprovedAt: new Date() });
+    const base = overview(cmoStrategyVersion(new Date()));
     const html = renderToStaticMarkup(
       <ResultsStep
         overview={{

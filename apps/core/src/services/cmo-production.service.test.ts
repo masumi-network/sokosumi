@@ -12,7 +12,9 @@ const {
   cmoRunnerUserId,
   hireFindMany,
   scheduleUpdateMany,
+  approvedStrategy,
 } = vi.hoisted(() => ({
+  approvedStrategy: vi.fn(),
   cmoRunnerUserId: vi.fn(),
   hireFindMany: vi.fn(),
   scheduleUpdateMany: vi.fn(),
@@ -46,8 +48,9 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   listCmoChannels,
 }));
 vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
-vi.mock("@/services/cmo-strategy.service", () => ({
-  parseCmoStrategy: (value: unknown) => value ?? null,
+vi.mock("@/services/marketing-strategy.service", () => ({
+  approvedMarketingStrategy: approvedStrategy,
+  parseMarketingPlan: (value: unknown) => value ?? null,
 }));
 
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
@@ -95,15 +98,19 @@ function strategy(calendar: CmoCalendarEntry[]): CmoStrategy {
   } as unknown as CmoStrategy;
 }
 
+/** A hire whose Project's approved Marketing strategy holds this calendar. */
 function hire(calendar: CmoCalendarEntry[], production?: unknown) {
+  approvedStrategy.mockResolvedValue({
+    id: "strategy-1",
+    plan: strategy(calendar),
+    approvedAt: new Date("2026-11-01T09:00:00Z"),
+  });
   return {
     id: "cmo-1",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
     projectId: "project-1",
     businessName: "Acme",
-    strategy: strategy(calendar),
-    strategyApprovedAt: new Date("2026-11-01T09:00:00Z"),
     production: production ?? null,
   } as never;
 }
@@ -266,6 +273,14 @@ describe("advanceCmoProduction", () => {
   it("waits until the plan is approved and paid for", async () => {
     isCmoSubscribed.mockResolvedValue(false);
     const result = await advanceCmoProduction(hire([entry({})]), NOW);
+    expect(result.state).toBe("waiting");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("never makes a draft: no approved version, no run", async () => {
+    const draftOnly = hire([entry({})]);
+    approvedStrategy.mockResolvedValue(null);
+    const result = await advanceCmoProduction(draftOnly, NOW);
     expect(result.state).toBe("waiting");
     expect(startTurn).not.toHaveBeenCalled();
   });
