@@ -23,6 +23,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
+import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
@@ -39,7 +40,6 @@ import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
-import { AdAccountsSection } from "../ad-accounts-section";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { AvatarPicker } from "../avatar-picker.client";
 import {

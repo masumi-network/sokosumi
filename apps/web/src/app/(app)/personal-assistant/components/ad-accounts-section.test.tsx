@@ -4,8 +4,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
+import messages from "@/messages/en.json";
 
-import messages from "../../../../../messages/en.json";
 import { AdAccountsSection } from "./ad-accounts-section";
 
 function row(
