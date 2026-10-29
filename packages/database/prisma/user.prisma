@@ -121,6 +121,7 @@ model User {
   badgeCampaignsCreated            BadgeCampaign[]               @relation("BadgeCampaignCreatedBy")
   badgeCampaignsSeen               BadgeCampaignSeen[]
   projectStars                     ProjectStar[]
+  projectHides                     ProjectHide[]
   confirmedBrandBrains             BrandBrain[]                  @relation("BrandBrainConfirmedBy")
 
   imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")

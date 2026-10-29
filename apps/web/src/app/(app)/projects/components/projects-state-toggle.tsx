@@ -10,13 +10,15 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 export interface ProjectsStateToggleLabels {
   label: string;
   open: string;
+  hidden: string;
   closed: string;
 }
 
 /**
  * Drives the `state` search param, which the server page forwards to Core,
  * for the same reason `ProjectsFilter` drives `q`: the list pages with
- * "Load more", so only Core can split Open from Closed across every page.
+ * "Load more", so only Core can split Open, Hidden and Closed across every
+ * page.
  */
 export function ProjectsStateToggle({
   labels,
@@ -37,8 +39,6 @@ export function ProjectsStateToggle({
     <ToggleGroup
       aria-label={labels.label}
       type="single"
-      variant="outline"
-      size="lg"
       value={state}
       onValueChange={(value) => {
         // Clicking the selected view again would clear it; keep it.
@@ -48,7 +48,7 @@ export function ProjectsStateToggle({
       className="shrink-0"
     >
       {PROJECTS_LIST_STATES.map((option) => (
-        <ToggleGroupItem key={option} value={option} className="px-3">
+        <ToggleGroupItem key={option} value={option}>
           {labels[option]}
         </ToggleGroupItem>
       ))}

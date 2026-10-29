@@ -2258,8 +2258,9 @@
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
-        "pin": "Fijar proyecto",
-        "unpin": "Desfijar proyecto",
+        "pin": "Fijar",
+        "unpin": "Desfijar",
+        "pinned": "Fijado",
         "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
@@ -2300,6 +2301,10 @@
           "title": "No hay proyectos cerrados",
           "description": "Un proyecto que cierras pasa aquí y conserva su historial."
         },
+        "emptyHidden": {
+          "title": "No hay proyectos ocultos",
+          "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
+        },
         "onlyClosed": {
           "title": "Todos los proyectos están cerrados",
           "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
@@ -2308,9 +2313,18 @@
         "state": {
           "label": "Mostrar proyectos",
           "open": "Abiertos",
+          "hidden": "Ocultos",
           "closed": "Cerrados"
         },
-        "closed": "Cerrado"
+        "closed": "Cerrado",
+        "hide": {
+          "hide": "Ocultar",
+          "show": "Mostrar",
+          "hidden": "Proyecto oculto",
+          "undo": "Deshacer",
+          "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
+          "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        }
       },
       "column": {
         "needsYou": {
@@ -2784,6 +2798,7 @@
           },
           "performance": {
             "lastDays": "Últimos {days} días",
+            "rangeLabel": "Periodo",
             "moreFilters": "Más filtros",
             "activeFilters": "{count} activos",
             "posts": "Publicaciones",
@@ -3059,7 +3074,7 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
-          "close": "Cerrar proyecto",
+          "close": "Cerrar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
@@ -8977,6 +8992,7 @@
       "today": "Hoy",
       "weekNumber": "Semana {week}",
       "view": {
+        "label": "Vista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"

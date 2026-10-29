@@ -38,10 +38,11 @@ export function ProjectsLoadingView() {
         className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
       >
         <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
-        {/* The Open / Closed control: two segments, no copy (locale flash). */}
+        {/* The Open / Hidden / Closed control: three segments, no copy
+            (locale flash). */}
         <Skeleton
           data-testid="projects-loading-state"
-          className="h-10 w-36 shrink-0 rounded-md"
+          className="h-10 w-52 shrink-0 rounded-md"
         />
         <Skeleton
           data-testid="projects-loading-create"

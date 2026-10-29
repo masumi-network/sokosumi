@@ -489,6 +489,36 @@ describe("GET /notifications?needsAction=true", () => {
     });
   });
 
+  // ADR 0036: Needs you ignores Hidden projects. The mocked client has no
+  // projectHide, so any read of a Hide here would throw.
+  it("keeps a request waiting from a Hidden project", async () => {
+    answerNotificationLookups([
+      {
+        id: "n_task_in_hidden_project",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+
+    const response = await createApp().request(
+      "http://localhost/?needsAction=true",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["task_waiting"] }, status: "INPUT_REQUIRED" },
+      select: { id: true },
+    });
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: ["n_task_in_hidden_project"] },
+        }),
+      }),
+    );
+  });
+
   it("asks no record anything when nothing ever asked the reader", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?needsAction=true");

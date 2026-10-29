@@ -126,15 +126,9 @@ export function SokoBotFleetTable({
             reload(search, next);
           }}
           aria-label={t("kindLabel")}
-          variant="outline"
-          size="sm"
         >
           {FLEET_KINDS.map((option) => (
-            <ToggleGroupItem
-              key={option}
-              value={option}
-              className="min-w-fit px-3"
-            >
+            <ToggleGroupItem key={option} value={option}>
               {t(`kind.${option}`)}
             </ToggleGroupItem>
           ))}

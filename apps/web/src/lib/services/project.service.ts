@@ -16,6 +16,8 @@ import type {
   ProjectCloseRequest,
   ProjectCloseStatus,
   ProjectContextMd,
+  ProjectHide,
+  ProjectHideResult,
   ProjectListItem,
   ProjectSocialConnection,
   ProjectStar,
@@ -38,7 +40,10 @@ interface ListProjectsParams {
   limit?: number;
   /** Case-insensitive project-name filter, applied by Core before paging. */
   query?: string;
-  /** Open (closing and close-failed included) or Closed; omitted lists both. */
+  /**
+   * Open (closing and close-failed included, the reader's Hidden projects
+   * not), Hidden, or Closed; omitted lists every project.
+   */
   state?: NonNullable<GetProjectsData["query"]>["state"];
   /** Lead with the reader's Pins, by `starredAt` ascending. */
   pinnedFirst?: boolean;
@@ -179,6 +184,33 @@ export const projectService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to unpin project");
+    }
+
+    return result.data;
+  }
+
+  /** Whether the reader has Hidden this project (ADR 0036). */
+  async function isProjectHidden(projectId: string): Promise<boolean> {
+    const result = await coreClient.getProjectHide(projectId);
+    return result.data?.hiddenAt != null;
+  }
+
+  /** Hides the project for the reader, unpinning it; `unpinned` says whether it was. */
+  async function hideProject(projectId: string): Promise<ProjectHideResult> {
+    const result = await coreClient.hideProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to hide project");
+    }
+
+    return result.data;
+  }
+
+  async function showProject(projectId: string): Promise<ProjectHide> {
+    const result = await coreClient.showProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to show project");
     }
 
     return result.data;
@@ -648,6 +680,9 @@ export const projectService = (() => {
     pinProject,
     unpinProject,
     listPinnedProjects,
+    isProjectHidden,
+    hideProject,
+    showProject,
     listRecentActivity,
     patchProject,
     removeProjectDesignMd,
