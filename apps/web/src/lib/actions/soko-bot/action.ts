@@ -5,6 +5,8 @@ import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
   SokoBotAvatar,
+  type SokoBotAvatarDraftResult,
+  type SokoBotAvatarStudio,
   type SokoBotDeletionResult,
   type SokoBotLabRun,
   type SokoBotLabTaskEvent,
@@ -50,6 +52,28 @@ const createSokoBotSchema = z.object({
 const avatarListSchema = z.object({
   take: z.number().int().min(1).max(6).default(6),
   excludeIds: z.array(z.string().uuid()).max(60).default([]),
+});
+
+const avatarChangeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("creature"),
+    creature: z.string().min(1).max(40),
+  }),
+  z.object({
+    kind: z.literal("accessory"),
+    accessory: z.string().min(1).max(40),
+    enabled: z.boolean(),
+  }),
+  z.object({ kind: z.literal("shuffle") }),
+  z.object({
+    kind: z.literal("typed"),
+    text: z.string().trim().min(1).max(300),
+  }),
+]);
+
+const avatarDraftSchema = z.object({
+  change: avatarChangeSchema,
+  draftId: z.string().uuid().optional(),
 });
 
 const startTurnSchema = z.object({
@@ -357,6 +381,51 @@ export const topUpSokoBotAvatarsAction = withSession<
       parsed.data.excludeIds,
     );
     return toActionResult(ok(avatars));
+  } catch (error) {
+    return toActionResult(err(mapAvatarTopUpError(error)));
+  }
+});
+
+interface AvatarDraftParams extends BotScopedParams {
+  input: unknown;
+}
+
+/** One change to the look of the caller's bot (or shared bot `botId`), as a draft. */
+export const createSokoBotAvatarDraftAction = withSession<
+  AvatarDraftParams,
+  ActionResultDto<SokoBotAvatarDraftResult, ActionError>
+>(async ({ input, botId }) => {
+  const parsed = avatarDraftSchema.safeParse(input);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const result = await sokoBotService.createAvatarDraft(
+      parsed.data.change,
+      parsed.data.draftId,
+      parsedBot.data,
+    );
+    return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapAvatarTopUpError(error)));
+  }
+});
+
+export const keepSokoBotAvatarDraftAction = withSession<
+  BotScopedParams & { draftId: unknown },
+  ActionResultDto<SokoBotAvatarStudio, ActionError>
+>(async ({ draftId, botId }) => {
+  const parsed = z.string().uuid().safeParse(draftId);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const studio = await sokoBotService.keepAvatarDraft(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
+    return toActionResult(ok(studio));
   } catch (error) {
     return toActionResult(err(mapAvatarTopUpError(error)));
   }

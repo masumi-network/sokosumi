@@ -11,6 +11,9 @@ import type {
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
+  SokoBotAvatarChange,
+  SokoBotAvatarDraftResult,
+  SokoBotAvatarStudio,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
@@ -308,6 +311,34 @@ export const sokoBotService = {
   /** Posts the bot's first message in its direct room (once). */
   async introduce(roomId: string): Promise<{ messageId: string }> {
     const response = await coreClient.introduceMySokoBot({ roomId });
+    return response.data;
+  },
+
+  /** The look, newest draft and render progress of the caller's bot, or of shared bot `botId`. */
+  async getAvatarStudio(botId?: string): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.getSokoBotAvatarStudio(botId);
+    return response.data;
+  },
+
+  /** One change to the look, as a draft. A refusal is a draft-less answer with a note. */
+  async createAvatarDraft(
+    change: SokoBotAvatarChange,
+    draftId?: string,
+    botId?: string,
+  ): Promise<SokoBotAvatarDraftResult> {
+    const response = await coreClient.createSokoBotAvatarDraft(
+      { change, draftId },
+      botId,
+    );
+    return response.data;
+  },
+
+  /** Makes the draft the bot's avatar; its states render in the background. */
+  async keepAvatarDraft(
+    draftId: string,
+    botId?: string,
+  ): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.keepSokoBotAvatarDraft(draftId, botId);
     return response.data;
   },
 

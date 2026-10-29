@@ -8,6 +8,10 @@ export function sokoBotConsoleRoute(botId?: string | null): string {
     ? `${SOKO_BOTS_ROUTE}/${encodeURIComponent(botId)}`
     : SOKO_BOT_ROUTE;
 }
+/** The avatar studio of the caller's own bot, or of the shared bot `botId`. */
+export function sokoBotAvatarStudioRoute(botId?: string | null): string {
+  return `${sokoBotConsoleRoute(botId)}/avatar`;
+}
 export const ADMIN_SOKO_BOTS_ROUTE = "/admin/soko-bots";
 export const ADMIN_SOKO_BOT_VERSIONS_ROUTE = `${ADMIN_SOKO_BOTS_ROUTE}/versions`;
 

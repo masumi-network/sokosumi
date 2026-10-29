@@ -1,5 +1,7 @@
 import type {
   SokoBot,
+  SokoBotAvatarState,
+  SokoBotAvatarView,
   SokoBotDelegation,
   SokoBotEvent,
   SokoBotPendingDecision,
@@ -149,6 +151,10 @@ export interface ChatBot {
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
+  /** What the face is doing, derived in Core. */
+  avatarState: SokoBotAvatarState;
+  /** Stills and loops of a crafted avatar; null without an image. */
+  avatar: SokoBotAvatarView | null;
   versionId: string | null;
   followWholeBoard: boolean;
   mailAutoRead: boolean;
@@ -301,6 +307,8 @@ function toChatBot(bot: SokoBot): ChatBot {
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
+    avatarState: bot.avatarState ?? "idle",
+    avatar: bot.avatar ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
     mailAutoRead: bot.mailAutoRead ?? false,

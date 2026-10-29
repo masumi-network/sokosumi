@@ -1,5 +1,12 @@
 import {
+  type CreateSokoBotAvatarDraftRequest,
   claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
+  createMySokoBotAvatarDraft as coreCreateMySokoBotAvatarDraft,
+  createSokoBotAvatarDraft as coreCreateSokoBotAvatarDraft,
+  getMySokoBotAvatarStudio as coreGetMySokoBotAvatarStudio,
+  getSokoBotAvatarStudio as coreGetSokoBotAvatarStudio,
+  keepMySokoBotAvatarDraft as coreKeepMySokoBotAvatarDraft,
+  keepSokoBotAvatarDraft as coreKeepSokoBotAvatarDraft,
   listSokoBotAvatars as coreListSokoBotAvatars,
   topUpSokoBotAvatars as coreTopUpSokoBotAvatars,
 } from "@sokosumi/core-client";
@@ -36,5 +43,60 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
     );
   }
 
-  return { listSokoBotAvatars, topUpSokoBotAvatars, claimMySokoBotAvatar };
+  /** The avatar studio of the caller's own bot, or of the shared bot `sokoBotId`. */
+  async function getSokoBotAvatarStudio(sokoBotId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreGetSokoBotAvatarStudio({
+              client,
+              path: { sokoBotId },
+              cache: "no-store",
+            })
+          : coreGetMySokoBotAvatarStudio({ client, cache: "no-store" }),
+      "Failed to fetch the avatar studio",
+    );
+  }
+
+  async function createSokoBotAvatarDraft(
+    body: CreateSokoBotAvatarDraftRequest,
+    sokoBotId?: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreCreateSokoBotAvatarDraft({
+              client,
+              body,
+              path: { sokoBotId },
+            })
+          : coreCreateMySokoBotAvatarDraft({ client, body }),
+      "Failed to draft a Soko Bot avatar",
+    );
+  }
+
+  async function keepSokoBotAvatarDraft(draftId: string, sokoBotId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreKeepSokoBotAvatarDraft({
+              client,
+              path: { sokoBotId, draftId },
+            })
+          : coreKeepMySokoBotAvatarDraft({ client, path: { draftId } }),
+      "Failed to keep the Soko Bot avatar",
+    );
+  }
+
+  return {
+    listSokoBotAvatars,
+    topUpSokoBotAvatars,
+    claimMySokoBotAvatar,
+    getSokoBotAvatarStudio,
+    createSokoBotAvatarDraft,
+    keepSokoBotAvatarDraft,
+  };
 }
