@@ -183,4 +183,40 @@ describe("ProjectsPage", () => {
       );
     },
   );
+
+  it("asks Core for one Closed project only when the Open view is empty", async () => {
+    projectServiceMock.listProjects
+      .mockResolvedValueOnce({ projects: [], pagination: null })
+      .mockResolvedValueOnce({ projects: [buildProject()], pagination: null });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(projectServiceMock.listProjects).toHaveBeenLastCalledWith({
+      limit: 1,
+      state: "closed",
+    });
+    expect(projectsViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hasClosedProjects: true }),
+    );
+  });
+
+  it("skips the Closed probe when the Open view has projects or a filter", async () => {
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [],
+      pagination: null,
+    });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(
+      await ProjectsPageContent({ searchParams: Promise.resolve({ q: "x" }) }),
+    );
+
+    expect(projectServiceMock.listProjects).toHaveBeenCalledOnce();
+    expect(projectsViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hasClosedProjects: false }),
+    );
+  });
 });

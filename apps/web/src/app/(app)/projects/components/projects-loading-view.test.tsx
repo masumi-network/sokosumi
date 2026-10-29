@@ -7,9 +7,9 @@ import {
 } from "@/app/projects/components/projects-loading-view";
 import {
   PROJECTS_BROWSE_LIST_CLASS,
+  PROJECTS_CARD_CLASS,
   PROJECTS_CARD_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_CARD_CLASS,
 } from "@/app/projects/constants";
 
 describe("ProjectsPageSkeleton", () => {
@@ -104,7 +104,7 @@ describe("ProjectsLoadingView", () => {
       const itemTokens = item.className.split(/\s+/);
       for (const token of [
         ...PROJECTS_CARD_LAYOUT_CLASS.split(/\s+/),
-        ...PROJECTS_LIST_ROW_CARD_CLASS.split(/\s+/),
+        ...PROJECTS_CARD_CLASS.split(/\s+/),
       ]) {
         expect(itemTokens).toContain(token);
       }

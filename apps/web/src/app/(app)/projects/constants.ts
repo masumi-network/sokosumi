@@ -76,15 +76,11 @@ export const PROJECTS_BROWSE_LIST_CLASS =
 export const PROJECTS_CARD_LAYOUT_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_136px]";
 
-/** Row geometry for Drive lists (72px intrinsic). */
-export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
-  "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
-
 /**
  * Bordered card shared by live `ProjectListItem` and the Instant skeleton,
  * as the task list draws its rows.
  */
-export const PROJECTS_LIST_ROW_CARD_CLASS =
+export const PROJECTS_CARD_CLASS =
   "bg-background border-border rounded-lg border";
 
 /**

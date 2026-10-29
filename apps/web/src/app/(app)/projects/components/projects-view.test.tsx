@@ -1,7 +1,7 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { loadMoreProjects } from "@/app/projects/actions";
+import { loadMoreProjects, pinProjectAction } from "@/app/projects/actions";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
@@ -11,6 +11,12 @@ import {
 vi.mock("nuqs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("nuqs")>()),
   useQueryState: () => ["", vi.fn()],
+}));
+
+const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock }),
 }));
 
 vi.mock("use-debounce", () => ({
@@ -24,6 +30,8 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/app/projects/actions", () => ({
   loadMoreProjects: vi.fn(),
+  pinProjectAction: vi.fn(),
+  unpinProjectAction: vi.fn(),
 }));
 
 vi.mock("@/app/projects/components/create-project-modal", () => ({
@@ -48,6 +56,11 @@ const labels = {
   emptyClosed: {
     title: "No closed projects",
     description: "A project you close moves here",
+  },
+  onlyClosed: {
+    title: "All projects are closed",
+    description: "Closed projects keep their history in the Closed view.",
+    action: "Show closed projects",
   },
   loadMore: "Load more",
   loadMoreError: "Could not load more",
@@ -161,7 +174,9 @@ describe("ProjectsView create control", () => {
   it("still offers create from the empty state when there is nothing to filter", () => {
     renderView({ projects: [], nextCursor: null, query: "" });
 
-    expect(screen.queryByTestId("projects-browse")).not.toBeInTheDocument();
+    expect(screen.getByTestId("projects-browse")).toContainElement(
+      screen.getByTestId("projects-empty"),
+    );
     expect(screen.getAllByRole("button", { name: "New project" })).toHaveLength(
       1,
     );
@@ -273,5 +288,48 @@ describe("ProjectsView empty states", () => {
     renderView({ projects: [] });
 
     expect(screen.getByText("No projects yet")).toBeInTheDocument();
+  });
+
+  it("says every project is closed, and links there, when only Closed has any", () => {
+    renderView({ projects: [], hasClosedProjects: true });
+
+    expect(screen.getByText("All projects are closed")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show closed projects" }),
+    ).toHaveAttribute("href", "/projects?state=closed");
+  });
+
+  it("draws empty, closed-empty and no-match states in the grid's own panel", () => {
+    for (const props of [
+      { projects: [] },
+      { projects: [], state: "closed" as const },
+      { projects: [], query: "zzz" },
+    ]) {
+      const { unmount } = renderView(props);
+      const panel = screen.getByTestId("projects-browse");
+      expect(panel).toHaveClass(
+        "bg-card-background",
+        "rounded-xl",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      );
+      expect(panel.firstElementChild).toHaveClass("flex-1");
+      unmount();
+    }
+  });
+});
+
+describe("ProjectsView Pin re-sort", () => {
+  it("refetches the server-ordered page once a Pin lands", async () => {
+    vi.mocked(pinProjectAction).mockResolvedValue(
+      undefined as unknown as Awaited<ReturnType<typeof pinProjectAction>>,
+    );
+    refreshMock.mockClear();
+    renderView();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
+
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(pinProjectAction).toHaveBeenCalledWith({ projectId: "project-1" });
   });
 });

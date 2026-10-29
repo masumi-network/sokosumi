@@ -18,7 +18,8 @@ export interface ProjectActivityRow {
 }
 
 /** `open` covers closing and close-failed projects: only `closedAt` is terminal. */
-export type ProjectListState = "open" | "closed";
+export const PROJECT_LIST_STATES = ["open", "closed"] as const;
+export type ProjectListState = (typeof PROJECT_LIST_STATES)[number];
 
 export function encodeProjectActivityCursor(
   workspaceId: string,
@@ -78,18 +79,25 @@ function projectStateClause(state?: ProjectListState) {
   return PrismaRaw.empty;
 }
 
+/**
+ * The ranked page query's `WHERE`, shared with the count so `pagination.total`
+ * cannot drift from the pages: the name search and the open/closed split.
+ */
+function projectListFilterClause(search?: string, state?: ProjectListState) {
+  return PrismaRaw.sql`${search ? projectNameSearchClause(search) : PrismaRaw.empty}
+      ${projectStateClause(state)}`;
+}
+
 /** Same predicate as the ranked page query, so pagination.total cannot drift. */
-export function projectNameCountQuery(
+export function projectCountQuery(
   workspaceId: string,
-  search: string,
-  state?: ProjectListState,
+  { search, state }: { search?: string; state?: ProjectListState } = {},
 ) {
   return PrismaRaw.sql`
     SELECT COUNT(*)::bigint AS count
     FROM project p
     WHERE p."workspaceId" = ${workspaceId}::uuid
-      ${projectNameSearchClause(search)}
-      ${projectStateClause(state)}
+      ${projectListFilterClause(search, state)}
   `;
 }
 
@@ -148,8 +156,7 @@ export function projectActivityPageQuery({
           : PrismaRaw.empty
       }
       WHERE p."workspaceId" = ${workspaceId}::uuid
-      ${search ? projectNameSearchClause(search) : PrismaRaw.empty}
-      ${projectStateClause(state)}
+      ${projectListFilterClause(search, state)}
       GROUP BY p.id, p."createdAt"
     )
     SELECT r.id, r."lastActivityAt", r."starredAt" FROM ranked r

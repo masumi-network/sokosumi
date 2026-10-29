@@ -1,9 +1,10 @@
 "use client";
 
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useQueryState } from "nuqs";
 import { useTransition } from "react";
 
 import { PROJECTS_LIST_STATES } from "@/app/projects/constants";
+import { projectsSearchParams } from "@/app/projects/projects-query";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export interface ProjectsStateToggleLabels {
@@ -25,7 +26,7 @@ export function ProjectsStateToggle({
   const [, startTransition] = useTransition();
   const [state, setState] = useQueryState(
     "state",
-    parseAsStringLiteral(PROJECTS_LIST_STATES).withDefault("open").withOptions({
+    projectsSearchParams.state.withOptions({
       shallow: false,
       clearOnDefault: true,
       startTransition,

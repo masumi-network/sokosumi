@@ -10,9 +10,10 @@ import {
 } from "@/helpers/pagination";
 import {
   encodeProjectActivityCursor,
+  PROJECT_LIST_STATES,
   type ProjectActivityRow,
   projectActivityPageQuery,
-  projectNameCountQuery,
+  projectCountQuery,
 } from "@/helpers/project-activity";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -54,7 +55,7 @@ const query = cursorPaginationQuerySchema
           "Case-insensitive substring match on the project name, applied across the whole workspace before pagination",
       }),
     state: z
-      .enum(["open", "closed"])
+      .enum(PROJECT_LIST_STATES)
       .optional()
       .openapi({
         param: { name: "state", in: "query" },
@@ -140,20 +141,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
       // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
       // would inflate the total relative to the escaped ranked query.
-      search
-        ? prisma
-            .$queryRaw<Array<{ count: bigint }>>(
-              projectNameCountQuery(workspaceId, search, state),
-            )
-            .then((result) => Number(result[0]?.count ?? 0n))
-        : prisma.project.count({
-            where: {
-              workspaceId,
-              ...(state && {
-                closedAt: state === "closed" ? { not: null } : null,
-              }),
-            },
-          }),
+      // Raw for every page, not only a search: the open/closed predicate
+      // then lives once, in the clause the ranked query shares.
+      prisma
+        .$queryRaw<Array<{ count: bigint }>>(
+          projectCountQuery(workspaceId, { search, state }),
+        )
+        .then((result) => Number(result[0]?.count ?? 0n)),
       // Bounded by the page, and served by the (userId, projectId) unique
       // index, so this never grows with how much the reader has Pinned.
       readerUserId

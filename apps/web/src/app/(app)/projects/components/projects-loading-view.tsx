@@ -3,9 +3,9 @@ import {
   PROJECTS_BROWSE_CARD_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LIST_CLASS,
+  PROJECTS_CARD_CLASS,
   PROJECTS_CARD_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_CARD_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,9 +69,7 @@ export function ProjectsLoadingView() {
  */
 function ProjectListItemSkeleton() {
   return (
-    <article
-      className={cn(PROJECTS_CARD_LAYOUT_CLASS, PROJECTS_LIST_ROW_CARD_CLASS)}
-    >
+    <article className={cn(PROJECTS_CARD_LAYOUT_CLASS, PROJECTS_CARD_CLASS)}>
       <div className="flex min-w-0 flex-col gap-3 p-4">
         <div className="flex min-w-0 items-center gap-3">
           <Skeleton className="size-8 shrink-0 rounded-lg" />

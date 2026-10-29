@@ -297,13 +297,20 @@ describe("ProjectListItem in the Closed view", () => {
     );
   });
 
-  it("keeps a closing project Open, with its Pin and activity", () => {
+  // A project mid-close and one whose close failed look the same on the list
+  // item: `closingAt` is set and `closedAt` is not, because only a finished
+  // close writes `closedAt`. Both stay Open.
+  it.each([
+    ["closing", new Date("2026-09-10T08:00:00.000Z")],
+    ["close-failed", new Date("2026-08-01T08:00:00.000Z")],
+  ])("keeps a %s project Open, with its Pin and activity", (_, closingAt) => {
     render(
       <ProjectListItem
         project={{
           ...project,
           starredAt: new Date("2026-09-01T10:00:00.000Z"),
-          closingAt: new Date("2026-09-10T08:00:00.000Z"),
+          closingAt,
+          closedAt: null,
         }}
         labels={labels}
       />,

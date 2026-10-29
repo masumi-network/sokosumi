@@ -21,17 +21,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  projectCountMock,
-  projectFindManyMock,
-  projectStarFindManyMock,
-  queryRawMock,
-} = vi.hoisted(() => ({
-  projectCountMock: vi.fn(),
-  projectFindManyMock: vi.fn(),
-  projectStarFindManyMock: vi.fn(),
-  queryRawMock: vi.fn(),
-}));
+const { projectFindManyMock, projectStarFindManyMock, queryRawMock } =
+  vi.hoisted(() => ({
+    projectFindManyMock: vi.fn(),
+    projectStarFindManyMock: vi.fn(),
+    queryRawMock: vi.fn(),
+  }));
 
 // The binding and grant lookups have their own tests; stubbing them lets a
 // bound coworker reach the handler, which is where the Pin gate lives.
@@ -65,7 +60,6 @@ vi.mock("@/lib/db/prisma", () => ({
     $queryRaw: queryRawMock,
     project: {
       findMany: projectFindManyMock,
-      count: projectCountMock,
     },
     projectStar: {
       findMany: projectStarFindManyMock,
@@ -135,22 +129,31 @@ function createProjectRow(overrides: Partial<typeof PROJECT_ROW> = {}) {
   return { ...PROJECT_ROW, ...overrides };
 }
 
+let rankedRows: unknown[] = [];
+let total = 0;
+function mockRanked(rows: unknown[]) {
+  rankedRows = rows;
+}
+
 describe("GET /projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectFindManyMock.mockResolvedValue([]);
-    projectCountMock.mockResolvedValue(0);
     projectStarFindManyMock.mockResolvedValue([]);
-    queryRawMock.mockResolvedValue([]);
+    rankedRows = [];
+    total = 0;
+    // The ranked page and the total are both raw SQL; tell them apart by the
+    // count's own select.
+    queryRawMock.mockImplementation(async (sql: { sql: string }) =>
+      sql.sql.includes("COUNT(*)") ? [{ count: BigInt(total) }] : rankedRows,
+    );
   });
 
   it("never resolves a Pin for a coworker acting on a user's behalf", async () => {
     const sample = createProjectRow({ _count: { tasks: 0, jobs: 0 } });
     projectFindManyMock.mockResolvedValue([sample]);
-    queryRawMock.mockResolvedValue([
-      { id: sample.id, lastActivityAt: sample.updatedAt },
-    ]);
-    projectCountMock.mockResolvedValue(1);
+    mockRanked([{ id: sample.id, lastActivityAt: sample.updatedAt }]);
+    total = 1;
     // The row IS Pinned by the bound user. The gate, not an empty table, is
     // what has to keep it out of the response.
     projectStarFindManyMock.mockResolvedValue([
@@ -180,10 +183,8 @@ describe("GET /projects", () => {
     const sample = createProjectRow({ _count: { tasks: 0, jobs: 0 } });
     const starredAt = new Date("2026-09-20T10:00:00.000Z");
     projectFindManyMock.mockResolvedValue([sample]);
-    queryRawMock.mockResolvedValue([
-      { id: sample.id, lastActivityAt: sample.updatedAt },
-    ]);
-    projectCountMock.mockResolvedValue(1);
+    mockRanked([{ id: sample.id, lastActivityAt: sample.updatedAt }]);
+    total = 1;
     projectStarFindManyMock.mockResolvedValue([
       { projectId: sample.id, starredAt },
     ]);
@@ -206,10 +207,8 @@ describe("GET /projects", () => {
   it("leaves starredAt null for a project this reader has not Pinned", async () => {
     const sample = createProjectRow({ _count: { tasks: 0, jobs: 0 } });
     projectFindManyMock.mockResolvedValue([sample]);
-    queryRawMock.mockResolvedValue([
-      { id: sample.id, lastActivityAt: sample.updatedAt },
-    ]);
-    projectCountMock.mockResolvedValue(1);
+    mockRanked([{ id: sample.id, lastActivityAt: sample.updatedAt }]);
+    total = 1;
 
     const res = await createApp().request("http://localhost/");
 
@@ -224,10 +223,8 @@ describe("GET /projects", () => {
       _count: { tasks: 2, jobs: 1 },
     });
     projectFindManyMock.mockResolvedValue([sample]);
-    queryRawMock.mockResolvedValue([
-      { id: sample.id, lastActivityAt: sample.updatedAt },
-    ]);
-    projectCountMock.mockResolvedValue(1);
+    mockRanked([{ id: sample.id, lastActivityAt: sample.updatedAt }]);
+    total = 1;
 
     const app = createApp();
     const res = await app.request("http://localhost/");
@@ -269,18 +266,13 @@ describe("GET /projects", () => {
         humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
       ),
     });
-    expect(projectCountMock).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
-    });
   });
 
   it("filters the ranked query and the total by the q parameter", async () => {
     const project = createProjectRow({ name: "Autumn Launch" });
     projectFindManyMock.mockResolvedValue([project]);
-    queryRawMock.mockResolvedValue([
-      { id: project.id, lastActivityAt: project.updatedAt },
-    ]);
-    projectCountMock.mockResolvedValue(1);
+    mockRanked([{ id: project.id, lastActivityAt: project.updatedAt }]);
+    total = 1;
 
     const res = await createApp().request("http://localhost/?q=autumn");
 
@@ -291,7 +283,6 @@ describe("GET /projects", () => {
     expect(queryRawMock.mock.calls[1][0].values).toEqual(
       expect.arrayContaining(["%autumn%"]),
     );
-    expect(projectCountMock).not.toHaveBeenCalled();
   });
 
   it("escapes ILIKE wildcards so a search stays a literal substring", async () => {
@@ -302,30 +293,37 @@ describe("GET /projects", () => {
     for (const [sql] of queryRawMock.mock.calls) {
       expect(sql.values).toEqual(expect.arrayContaining(["%50\\%\\_off%"]));
     }
-    expect(projectCountMock).not.toHaveBeenCalled();
   });
 
-  it("leaves the query unfiltered when q is absent", async () => {
+  it("leaves the query unfiltered when q and state are absent", async () => {
     const res = await createApp().request("http://localhost/");
 
     expect(res.status).toBe(200);
-    expect(projectCountMock).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
-    });
+    for (const [sql] of queryRawMock.mock.calls) {
+      expect(sql.sql).not.toContain("ILIKE");
+      expect(sql.sql).not.toContain('"closedAt"');
+    }
   });
 
+  // Tripwire on the one predicate the ranked page and the total share: a
+  // closing or close-failed project has `closingAt` and no `closedAt`, so it
+  // stays Open only while the split reads `closedAt` alone.
   it.each([
-    ["open", null],
-    ["closed", { not: null }],
+    ["open", 'p."closedAt" IS NULL'],
+    ["closed", 'p."closedAt" IS NOT NULL'],
   ] as const)(
-    "filters the total to %s projects by closedAt alone",
-    async (state, closedAt) => {
+    "splits the page and the total to %s projects by closedAt alone",
+    async (state, predicate) => {
+      total = 3;
       const res = await createApp().request(`http://localhost/?state=${state}`);
 
       expect(res.status).toBe(200);
-      expect(projectCountMock).toHaveBeenCalledWith({
-        where: { workspaceId: WORKSPACE_CONTEXT.workspaceId, closedAt },
-      });
+      expect((await res.json()).meta.pagination.total).toBe(3);
+      expect(queryRawMock.mock.calls).toHaveLength(2);
+      for (const [sql] of queryRawMock.mock.calls) {
+        expect(sql.sql).toContain(predicate);
+        expect(sql.sql).not.toContain("closingAt");
+      }
     },
   );
 
@@ -341,9 +339,13 @@ describe("GET /projects", () => {
     await createApp().request("http://localhost/");
 
     // Tripwire: the reader's userId is already bound for task visibility, so
-    // the Pin join is what tells the two queries apart.
+    // the Pin join is what tells the two queries apart. Calls 0 and 2 are the
+    // ranked pages; 1 and 3 are the totals.
     expect(queryRawMock.mock.calls[0][0].sql).toContain("project_star");
-    expect(queryRawMock.mock.calls[1][0].sql).not.toContain("project_star");
+    expect(queryRawMock.mock.calls[0][0].sql).toContain(
+      '"starredAt" ASC NULLS LAST',
+    );
+    expect(queryRawMock.mock.calls[2][0].sql).not.toContain("project_star");
   });
 
   it("never orders by a bound user's Pins for a coworker", async () => {
@@ -365,7 +367,7 @@ describe("GET /projects", () => {
       lastActivityAt: new Date("2026-04-01"),
       starredAt,
     }));
-    queryRawMock.mockResolvedValue(ranked);
+    mockRanked(ranked);
 
     const res = await createApp().request(
       "http://localhost/?pinnedFirst=true&limit=1",
@@ -377,12 +379,64 @@ describe("GET /projects", () => {
     );
   });
 
+  it("keeps Core's Pins-first rank, not the hydration order", async () => {
+    const [pinned, recent] = ["pinned", "recent"].map((name, n) =>
+      createProjectRow({
+        id: `00000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`,
+        name,
+      }),
+    );
+    const starredAt = new Date("2026-09-01T10:00:00.000Z");
+    // findMany returns its own order; the page must follow the ranked rows.
+    projectFindManyMock.mockResolvedValue([recent, pinned]);
+    projectStarFindManyMock.mockResolvedValue([
+      { projectId: pinned.id, starredAt },
+    ]);
+    mockRanked([
+      { id: pinned.id, lastActivityAt: new Date("2026-01-01"), starredAt },
+      {
+        id: recent.id,
+        lastActivityAt: new Date("2026-09-20"),
+        starredAt: null,
+      },
+    ]);
+
+    const res = await createApp().request(
+      "http://localhost/?pinnedFirst=true&state=open",
+    );
+
+    const body = await res.json();
+    expect(body.data.map((row: { name: string }) => row.name)).toEqual([
+      "pinned",
+      "recent",
+    ]);
+    expect(body.data[0].starredAt).toBe(starredAt.toISOString());
+  });
+
+  it("resumes a Pins-first page from the Pin its cursor carries", async () => {
+    const starredAt = new Date("2026-09-01T10:00:00.000Z");
+    const cursor = encodeProjectActivityCursor(WORKSPACE_CONTEXT.workspaceId, {
+      id: "11111111-1111-4111-8111-111111111111",
+      lastActivityAt: new Date("2026-04-01T10:00:00.000Z"),
+      starredAt,
+    });
+
+    const res = await createApp().request(
+      `http://localhost/?pinnedFirst=true&cursor=${encodeURIComponent(cursor)}`,
+    );
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock.mock.calls[0][0].values).toContain(
+      starredAt.toISOString(),
+    );
+  });
+
   it("returns each project's lastActivityAt from its ranked row", async () => {
     const project = createProjectRow();
     const lastActivityAt = new Date("2026-04-09T08:30:00.000Z");
     projectFindManyMock.mockResolvedValue([project]);
-    queryRawMock.mockResolvedValue([{ id: project.id, lastActivityAt }]);
-    projectCountMock.mockResolvedValue(1);
+    mockRanked([{ id: project.id, lastActivityAt }]);
+    total = 1;
 
     const res = await createApp().request("http://localhost/");
 
@@ -403,10 +457,10 @@ describe("GET /projects", () => {
         }),
     );
     projectFindManyMock.mockResolvedValue([...rows].reverse());
-    queryRawMock.mockResolvedValue(
+    mockRanked(
       rows.map(({ id, createdAt }) => ({ id, lastActivityAt: createdAt })),
     );
-    projectCountMock.mockResolvedValue(50);
+    total = 50;
 
     const app = createApp();
     const res = await app.request("http://localhost/");
@@ -435,7 +489,7 @@ describe("GET /projects", () => {
       lastActivityAt: new Date("2026-04-01T10:00:00.000Z"),
     });
     projectFindManyMock.mockResolvedValue([]);
-    projectCountMock.mockResolvedValue(0);
+    total = 0;
 
     const app = createApp();
     const res = await app.request(
@@ -443,7 +497,7 @@ describe("GET /projects", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(queryRawMock).toHaveBeenCalledOnce();
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
     expect(queryRawMock.mock.calls[0][0].values).toEqual(
       expect.arrayContaining([cursorId, 11, WORKSPACE_CONTEXT.workspaceId]),
     );
@@ -478,7 +532,7 @@ describe("GET /projects", () => {
       id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
       lastActivityAt: new Date("2026-04-01"),
     }));
-    queryRawMock.mockResolvedValue(ranked);
+    mockRanked(ranked);
     projectFindManyMock.mockResolvedValue([]);
     const res = await createApp().request("http://localhost/?limit=1");
     expect(res.status).toBe(200);

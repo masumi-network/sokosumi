@@ -93,10 +93,8 @@ describe("projects list CLS layout pairing", () => {
 
     expect(loading).toMatch(/PROJECTS_LIST_CARD_MIN_H_CLASS/);
     expect(view).toMatch(/PROJECTS_LIST_CARD_MIN_H_CLASS/);
-    // Empty + loaded list both reference the constant (two call sites).
-    expect(
-      view.match(/PROJECTS_LIST_CARD_MIN_H_CLASS/g)?.length,
-    ).toBeGreaterThanOrEqual(2);
+    // Empty states and the grid share one panel, so one call site holds the
+    // height for every empty view; projects-view.test.tsx checks the DOM.
     expect(PROJECTS_LIST_CARD_MIN_H_CLASS).toBe("min-h-[320px]");
   });
 
@@ -112,8 +110,8 @@ describe("projects list CLS layout pairing", () => {
     expect(item).toMatch(/PROJECTS_CARD_LAYOUT_CLASS/);
     expect(loading).not.toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
     expect(item).not.toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
-    expect(loading).toMatch(/PROJECTS_LIST_ROW_CARD_CLASS/);
-    expect(item).toMatch(/PROJECTS_LIST_ROW_CARD_CLASS/);
+    expect(loading).toMatch(/PROJECTS_CARD_CLASS/);
+    expect(item).toMatch(/PROJECTS_CARD_CLASS/);
     expect(PROJECTS_CARD_LAYOUT_CLASS).toBe(
       "[content-visibility:auto] [contain-intrinsic-size:auto_136px]",
     );

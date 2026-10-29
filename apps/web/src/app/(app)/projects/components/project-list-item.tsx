@@ -7,8 +7,8 @@ import {
   ProjectResourceCountPills,
 } from "@/app/projects/components/project-resource-count-pills";
 import {
+  PROJECTS_CARD_CLASS,
   PROJECTS_CARD_LAYOUT_CLASS,
-  PROJECTS_LIST_ROW_CARD_CLASS,
 } from "@/app/projects/constants";
 import { TimeAgo } from "@/components/time-ago";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +28,15 @@ interface ProjectListItemLabels {
 interface ProjectListItemProps {
   project: ProjectListItemType;
   labels: ProjectListItemLabels;
+  /** Runs once a Pin or Unpin has landed at Core. */
+  onPinnedChange?: () => void;
 }
 
-export function ProjectListItem({ project, labels }: ProjectListItemProps) {
+export function ProjectListItem({
+  project,
+  labels,
+  onPinnedChange,
+}: ProjectListItemProps) {
   const briefing = stripMarkdownToText(project.briefing);
   // Core floors lastActivityAt at createdAt (GREATEST(p."createdAt", …)), so
   // an equal pair means nothing has happened in the project yet. Calling that
@@ -53,7 +59,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
     <article
       className={cn(
         PROJECTS_CARD_LAYOUT_CLASS,
-        PROJECTS_LIST_ROW_CARD_CLASS,
+        PROJECTS_CARD_CLASS,
         "group/card hover:bg-card-background-hover relative flex flex-col transition-[background-color]",
         // The link stops short of the Pin button, so its own outline would cut
         // a line through the card. The ring goes around the whole card instead.
@@ -116,6 +122,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
           isPinned={project.starredAt != null}
           isClosed={project.closingAt != null}
           revealOnHover
+          onPinnedChange={onPinnedChange}
           className="absolute end-2 top-2"
           labels={{
             pin: labels.pin,
