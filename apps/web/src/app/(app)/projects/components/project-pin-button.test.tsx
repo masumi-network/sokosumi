@@ -103,14 +103,15 @@ describe("ProjectPinButton", () => {
   it("marks a Pinned project apart by more than one step of grey", () => {
     // On the preview the two states were near-identical at 16px: a filled
     // lucide Pin barely differs from an outlined one, and muted-to-foreground
-    // is a small step. Hue, fill and ground now move together.
+    // is a small step. Hue and fill move together; the tinted ground is gone
+    // because it read as a different control beside the ghost "More" button.
     const { unmount } = render(
       <ProjectPinButton projectId="p1" isPinned labels={labels} />,
     );
     const pinnedClasses =
       screen.getByRole("button").className.split(/\s+/) ?? [];
     expect(pinnedClasses).toContain("text-foreground");
-    expect(pinnedClasses).toContain("bg-primary-quinary");
+    expect(pinnedClasses).not.toContain("bg-primary-quinary");
     expect(
       screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
     ).toContain("fill-current");

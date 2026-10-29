@@ -197,7 +197,6 @@ import {
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
 import {
-  canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
@@ -1224,12 +1223,8 @@ function RoomView({
   if (rosterOpen && !showRoomRosterControl) {
     setRosterOpen(false);
   }
-  const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
-    kind: selectedRoom?.kind,
-    discoverability: selectedRoom?.discoverability,
-    myAccess: selectedRoom?.myAccess,
-    hasActiveOrganization: Boolean(activeOrganization),
-  });
+  // Message on a person works from any workspace; Core decides who is reachable.
+  const canOpenHumanDirect = true;
   // Name/topic/visibility and archive: organization owner/admin only. Everyone
   // else manages membership from the members panel instead.
   const canManageSelectedRoomSettings =

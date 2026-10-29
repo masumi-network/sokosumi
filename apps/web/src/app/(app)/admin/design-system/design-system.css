@@ -7,7 +7,7 @@
    real shadcn components rendered under it pick the new values up through the
    `@theme inline` bridge, and nothing outside the preview changes.
 
-   The raw `--ds-*` values (palette, neutrals, alpha tones, positive) are not
+   The raw `--ds-*` values (palette, neutrals, alpha tones, proposed values) are not
    here: `tokens.ts` holds each one once and the wrapper writes them as inline
    custom properties. This file only maps roles onto them.
 
@@ -117,6 +117,12 @@
   --disabled-foreground: var(--ds-neutral-600);
   --accent: var(--ds-neutral-800);
   --accent-foreground: var(--ds-neutral-50);
+
+  /* Dark Iris at rest (see tokens.ts); hover lifts to Iris Flower. */
+  --primary: var(--ds-dark-iris);
+  --primary-solid: var(--ds-dark-iris);
+  --primary-solid-hover: var(--ds-iris-flower);
+  --primary-hover: var(--ds-iris-flower);
 
   --destructive-hover: var(--ds-neutral-200);
 

@@ -15,9 +15,11 @@ export const EMPTY_CHAT_COMPOSE_ROSTER: ChatComposeRoster = {
   hasOrganization: false,
   canCreateExternal: false,
   members: [],
+  people: [],
   coworkers: [],
   sokoBots: [],
   membersLoadFailed: false,
+  peopleLoadFailed: false,
 };
 
 export function useChatComposeRoster() {

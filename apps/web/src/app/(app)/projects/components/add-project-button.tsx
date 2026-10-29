@@ -18,7 +18,6 @@ export function AddProjectButton({ label, className }: AddProjectButtonProps) {
   return (
     <Button
       type="button"
-      size="sm"
       className={cn("gap-1.5", className)}
       onClick={handleOpen}
     >

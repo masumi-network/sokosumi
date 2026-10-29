@@ -265,6 +265,9 @@ export default async function DesignSystemPage() {
                     />
                   ))}
                 </div>
+                <p className="text-muted-foreground text-sm">
+                  {t("Color.darkPrimaryRule")}
+                </p>
               </div>
             </div>
 

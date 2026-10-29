@@ -62,7 +62,7 @@ export function CreateDirectDialog() {
           ]
         : []),
       ...buildDirectDraftTargets(
-        roster.members,
+        roster.people,
         roster.coworkers,
         roster.sokoBots,
         roster.currentUserId,
@@ -124,13 +124,6 @@ export function CreateDirectDialog() {
       return true;
     }
     if (hasSelectedSokoBot && target.kind === "coworker") {
-      return true;
-    }
-    if (
-      target.kind === "human" &&
-      hasSelectedHumans &&
-      !roster.hasOrganization
-    ) {
       return true;
     }
     return false;
@@ -210,11 +203,6 @@ export function CreateDirectDialog() {
       }
     });
   }
-
-  const extraHumanDisabledReason =
-    hasSelectedHumans && !hasSelectedSelf && !roster.hasOrganization
-      ? t("Draft.organizationRequiredForGroup")
-      : crossKindDisabledReason;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -324,10 +312,12 @@ export function CreateDirectDialog() {
               </div>
             ) : (
               <>
-                {roster.membersLoadFailed ? (
+                {roster.peopleLoadFailed ? (
                   <MembersRosterLoadFailed
                     className="mx-1 mt-1 px-3 py-4"
                     onRetry={loadRoster}
+                    title={t("Empty.rosterLoadFailedTitle")}
+                    description={t("Empty.peopleLoadFailedDescription")}
                   />
                 ) : null}
                 {candidateTargets.length > 0 ? (
@@ -336,10 +326,10 @@ export function CreateDirectDialog() {
                       targets={candidateTargets}
                       onSelect={addTarget}
                       isTargetDisabled={isTargetDisabled}
-                      disabledReason={extraHumanDisabledReason}
+                      disabledReason={crossKindDisabledReason}
                     />
                   </div>
-                ) : roster.membersLoadFailed ? null : (
+                ) : roster.peopleLoadFailed ? null : (
                   <p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-sm">
                     {t("Draft.noResults")}
                   </p>

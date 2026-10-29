@@ -13,6 +13,7 @@ import type {
   Newsletter,
   NewsletterIssue,
   NewsletterIssueRevisionRequest,
+  NewsletterSendingDomainState,
   PatchNewsletterIssueRequest,
   PatchNewsletterSubscriberRequest,
   PutNewsletterRequest,
@@ -269,6 +270,39 @@ export const newsletterService = {
       projectId,
       input,
     );
+    return response.data;
+  },
+
+  async getSendingDomain(): Promise<NewsletterSendingDomainState> {
+    const response = await coreClient.getNewsletterSendingDomain();
+    return response.data;
+  },
+
+  async saveSendingDomain(fromAddress: string) {
+    const response = await coreClient.putNewsletterSendingDomain({
+      fromAddress,
+    });
+    return response.data;
+  },
+
+  async removeSendingDomain() {
+    await coreClient.deleteNewsletterSendingDomain();
+  },
+
+  async checkSendingDomain() {
+    const response = await coreClient.postNewsletterSendingDomainCheck();
+    return response.data;
+  },
+
+  async connectSendingDomainWithCloudflare(apiToken: string) {
+    const response =
+      await coreClient.postNewsletterSendingDomainCloudflare(apiToken);
+    return response.data;
+  },
+
+  async getSendingDomainConnect(projectId?: string) {
+    const response =
+      await coreClient.getNewsletterSendingDomainDomainConnect(projectId);
     return response.data;
   },
 

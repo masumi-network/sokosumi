@@ -25,6 +25,74 @@ export interface StudioAssetDriveFile {
   size: number;
 }
 
+/** The pathname a studio file named `name` has in the owner's Content Studio folder. */
+function studioDrivePathname(input: {
+  organizationId: string | null;
+  userId: string;
+  name: string;
+}): string {
+  return input.organizationId
+    ? buildOrganizationDriveFilePathnameWithFolder(
+        input.organizationId,
+        IMAGE_STUDIO_DRIVE_FOLDER,
+        input.name,
+      )
+    : buildUserDriveFilePathnameWithFolder(
+        input.userId,
+        IMAGE_STUDIO_DRIVE_FOLDER,
+        input.name,
+      );
+}
+
+/**
+ * Writes `bytes` as a Content Studio file in the owner's Drive, replacing a
+ * file of the same name. Null when the file could not be activated.
+ */
+export async function writeStudioDriveFile(input: {
+  workspaceId: string;
+  organizationId: string | null;
+  userId: string;
+  name: string;
+  bytes: Uint8Array;
+  contentType: string;
+}): Promise<(StudioAssetDriveFile & { url: string }) | null> {
+  const { name, bytes, contentType } = input;
+  const pathname = studioDrivePathname(input);
+  const key = {
+    workspaceId: input.workspaceId,
+    scope: input.organizationId ? ("organization" as const) : ("user" as const),
+    ownerId: input.organizationId ?? input.userId,
+    pathname,
+  };
+  await reserveDriveUploadResource({
+    key,
+    displayName: name,
+    mimeType: contentType,
+    sizeBytes: bytes.byteLength,
+  });
+  const blob = await put(pathname, Buffer.from(bytes), {
+    access: "public",
+    contentType,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  const activated = await activateDriveUploadResource({
+    key,
+    sizeBytes: bytes.byteLength,
+    mimeType: contentType,
+  });
+  if (!activated) return null;
+  nudgeFileIndexing();
+  return {
+    id: activated.resourceId,
+    name,
+    pathname,
+    mimeType: contentType,
+    size: bytes.byteLength,
+    url: blob.url,
+  };
+}
+
 /**
  * A ready studio image, copied once into the owner's Drive.
  *
@@ -54,28 +122,11 @@ export async function ensureStudioAssetDriveFile(input: {
   const prompt = input.prompt ?? asset.prompt;
   const jobId = input.jobId ?? asset.jobId;
   const name = studioAssetFileName(prompt, jobId, asset.contentType);
-  const pathname = input.organizationId
-    ? buildOrganizationDriveFilePathnameWithFolder(
-        input.organizationId,
-        IMAGE_STUDIO_DRIVE_FOLDER,
-        name,
-      )
-    : buildUserDriveFilePathnameWithFolder(
-        input.userId,
-        IMAGE_STUDIO_DRIVE_FOLDER,
-        name,
-      );
-  const key = {
-    workspaceId: input.workspaceId,
-    scope: input.organizationId ? ("organization" as const) : ("user" as const),
-    ownerId: input.organizationId ?? input.userId,
-    pathname,
-  };
-
+  const pathname = studioDrivePathname({ ...input, name });
   const live = await prisma.fileResource.findUnique({
     where: {
       workspaceId_sourceKind_sourceScope_sourceId: {
-        workspaceId: key.workspaceId,
+        workspaceId: input.workspaceId,
         sourceKind: FileSourceKind.DRIVE_UPLOAD,
         sourceScope: input.organizationId
           ? FileSourceScope.ORGANIZATION
@@ -101,31 +152,10 @@ export async function ensureStudioAssetDriveFile(input: {
     };
   }
 
-  const bytes = await readAssetBytes(asset.blobPathname);
-  await reserveDriveUploadResource({
-    key,
-    displayName: name,
-    mimeType: asset.contentType,
-    sizeBytes: bytes.byteLength,
-  });
-  await put(pathname, Buffer.from(bytes), {
-    access: "public",
-    contentType: asset.contentType,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-  const activated = await activateDriveUploadResource({
-    key,
-    sizeBytes: bytes.byteLength,
-    mimeType: asset.contentType,
-  });
-  if (!activated) return null;
-  nudgeFileIndexing();
-  return {
-    id: activated.resourceId,
+  return writeStudioDriveFile({
+    ...input,
     name,
-    pathname,
-    mimeType: asset.contentType,
-    size: bytes.byteLength,
-  };
+    bytes: await readAssetBytes(asset.blobPathname),
+    contentType: asset.contentType,
+  });
 }
