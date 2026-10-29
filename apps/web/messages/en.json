@@ -196,7 +196,7 @@
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or join organization",
       "userAvatarAlt": "User avatar",
-      "invitePeople": "Invite people",
+      "inviteMembers": "Invite members",
       "organizationSettings": "Settings",
       "membersAndSettings": "Members & settings",
       "memberCount": "{count, plural, =1 {1 member} other {# members}}"

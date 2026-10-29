@@ -13,7 +13,6 @@ import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 
 const mocks = vi.hoisted(() => ({
   showCreateOrganizationModal: vi.fn(),
-  showInviteMembersModal: vi.fn(),
   handleSelectWorkspace: vi.fn(),
   isPending: false,
 }));
@@ -23,19 +22,21 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/hooks/use-modal", () => ({
-  default: (Modal: { name: string }) => ({
+  default: () => ({
     Component: null,
-    showModal:
-      Modal.name === "OrganizationBulkInviteModal"
-        ? mocks.showInviteMembersModal
-        : mocks.showCreateOrganizationModal,
+    showModal: mocks.showCreateOrganizationModal,
   }),
 }));
 
 vi.mock("@/components/organizations/organization-bulk-invite/modal", () => ({
-  default: function OrganizationBulkInviteModal() {
-    return null;
-  },
+  default: ({
+    open,
+    organizationId,
+  }: {
+    open: boolean;
+    organizationId: string;
+  }) =>
+    open ? <div role="dialog" aria-label={`invite ${organizationId}`} /> : null,
 }));
 
 vi.mock("@/lib/actions/workspace-gate/action", () => ({
@@ -240,9 +241,9 @@ describe("WorkspaceSwitcherMenu", () => {
       screen.getByRole("menuitem", { name: "organizationSettings" }),
     ).toHaveAttribute("href", "/organization");
 
-    await user.click(screen.getByRole("menuitem", { name: "invitePeople" }));
+    await user.click(screen.getByRole("menuitem", { name: "inviteMembers" }));
 
-    expect(mocks.showInviteMembersModal).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog", { name: "invite org-a" })).toBeVisible();
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
@@ -258,7 +259,9 @@ describe("WorkspaceSwitcherMenu", () => {
     expect(
       screen.getByRole("menuitem", { name: "membersAndSettings" }),
     ).toHaveAttribute("href", "/organization");
-    expect(screen.queryByRole("menuitem", { name: "invitePeople" })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "inviteMembers" }),
+    ).toBeNull();
   });
 
   it("shows no organization header in the personal workspace", async () => {
@@ -270,7 +273,9 @@ describe("WorkspaceSwitcherMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Test User/i }));
 
-    expect(screen.queryByRole("menuitem", { name: "invitePeople" })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "inviteMembers" }),
+    ).toBeNull();
     expect(
       screen.queryByRole("menuitem", { name: "organizationSettings" }),
     ).toBeNull();

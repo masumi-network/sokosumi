@@ -1,6 +1,5 @@
 "use client";
 
-import { MemberRole } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { Check, Plus, Settings, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -17,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { cn } from "@/lib/utils";
 import {
   useWorkspaceSwitcherState,
@@ -101,9 +101,9 @@ interface ActiveOrganizationHeaderProps {
 }
 
 /**
- * The organization you are in and what you can do there, above the list so a
- * long list never pushes it out of view. Owners and admins invite; everyone
- * reaches the member list and settings.
+ * The organization you are in and what you can do there, pinned above the
+ * list so scrolling a long list never takes it out of view. Owners and admins
+ * invite; everyone reaches the member list and settings.
  */
 function ActiveOrganizationHeader({
   sessionUser,
@@ -114,10 +114,11 @@ function ActiveOrganizationHeader({
   const t = useTranslations("Components.OrganizationSwitcher");
   const tRole = useTranslations("Components.Organizations.Role");
   const canInvite =
-    workspace.role === MemberRole.OWNER || workspace.role === MemberRole.ADMIN;
+    workspace.role !== null && isOrganizationOwnerOrAdmin(workspace.role);
 
   return (
-    <>
+    // Covers the content's own padding too, so rows scroll under it unseen.
+    <div className="bg-popover sticky top-0 z-10 -mx-1 -mt-1 px-1 pt-1">
       <div className="flex flex-col gap-3 p-2 pb-3">
         <div className="flex items-center gap-2.5">
           <WorkspaceAvatar
@@ -152,15 +153,16 @@ function ActiveOrganizationHeader({
               onSelect={onInvite}
             >
               <UserPlus className="text-current" />
-              {t("invitePeople")}
+              {t("inviteMembers")}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
             asChild
             className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "flex-1",
+              buttonVariants({ variant: "secondary", size: "sm" }),
+              "focus:bg-quaternary focus:text-foreground flex-1",
             )}
+            disabled={disabled}
           >
             <Link href="/organization">
               <Settings className="text-current" />
@@ -170,7 +172,7 @@ function ActiveOrganizationHeader({
         </div>
       </div>
       <DropdownMenuSeparator />
-    </>
+    </div>
   );
 }
 

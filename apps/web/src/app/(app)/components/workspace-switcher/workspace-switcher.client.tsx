@@ -132,6 +132,7 @@ export function WorkspaceSwitcherProvider({
   const [workspaceChoice, setWorkspaceChoice] =
     useState<WorkspaceChoice>("personal");
   const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
+  const [isInviteMembersOpen, setIsInviteMembersOpen] = useState(false);
 
   const clientActiveOrganizationId =
     clientSession?.session.activeOrganizationId;
@@ -197,14 +198,9 @@ export function WorkspaceSwitcherProvider({
           (workspace) => workspace.id === activeOrganizationId,
         ) ?? null);
 
-  const { Component: InviteMembersModal, showModal: showInviteMembersModal } =
-    useModal(OrganizationBulkInviteModal, {
-      organizationId: activeOrganizationId ?? "",
-    });
-
   function openInviteMembers() {
     setOpenPlacement(null);
-    showInviteMembersModal();
+    setIsInviteMembersOpen(true);
   }
 
   function setMenuOpen(placement: WorkspaceSwitcherPlacement, open: boolean) {
@@ -300,7 +296,13 @@ export function WorkspaceSwitcherProvider({
     <WorkspaceSwitcherContext value={state}>
       {children}
       {CreateOrganizationModal}
-      {activeOrganizationId ? InviteMembersModal : null}
+      {activeOrganizationId ? (
+        <OrganizationBulkInviteModal
+          open={isInviteMembersOpen}
+          onOpenChange={setIsInviteMembersOpen}
+          organizationId={activeOrganizationId}
+        />
+      ) : null}
       <Dialog open={isChoiceDialogOpen} onOpenChange={setIsChoiceDialogOpen}>
         <DialogContent>
           <DialogHeader>

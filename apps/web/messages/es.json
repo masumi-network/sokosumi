@@ -196,7 +196,7 @@
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createWorkspace": "Crear espacio de trabajo",
       "userAvatarAlt": "Avatar del usuario",
-      "invitePeople": "Invitar personas",
+      "inviteMembers": "Invitar miembros",
       "organizationSettings": "Ajustes",
       "membersAndSettings": "Miembros y ajustes",
       "memberCount": "{count, plural, =1 {1 miembro} other {# miembros}}"
