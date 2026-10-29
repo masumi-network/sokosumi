@@ -3366,7 +3366,7 @@
             "notice": "Drafted by Soko Bot — review before submitting for approval"
           },
           "emptyTitle": "No issues yet",
-          "emptyDescription": "Choose a template to start your first newsletter issue.",
+          "emptyDescription": "Start blank or choose a template for your first newsletter issue.",
           "subject": "Subject",
           "previewText": "Preview text",
           "status": "Status",
@@ -3383,7 +3383,7 @@
             "FAILED": "Failed",
             "CANCELED": "Canceled"
           },
-          "createError": "Failed to create issue. Try choosing the template again.",
+          "createError": "Failed to create issue. Try again.",
           "saveError": "Failed to save issue. Keep your changes and try again.",
           "conflict": "This issue changed or is no longer editable. Copy your changes, reload the page, and try again.",
           "invalid": "Check the highlighted fields and try again.",
@@ -3422,8 +3422,8 @@
             "content": "Check this block. Use HTTPS URLs and keep text within the field limits."
           },
           "Templates": {
-            "title": "Choose a template",
-            "description": "Start with a layout, then edit every block.",
+            "title": "Start an issue",
+            "description": "Write from scratch or use a template you can edit.",
             "subject": "Untitled issue",
             "heading": "This week’s highlights",
             "text": "Share the latest news, a useful idea, or an update with your subscribers.",
@@ -3442,7 +3442,10 @@
             "BUTTONS": {
               "title": "Buttons",
               "description": "A heading, text, a button, divider, and closing text."
-            }
+            },
+            "blank": "Start blank",
+            "blankDescription": "Bring your own copy and add only the blocks you need.",
+            "templateHeading": "Or start with a template"
           },
           "Preview": {
             "title": "Preview",
@@ -3531,7 +3534,12 @@
             "failedHelp": "Delivery failed. Review the error and sender settings before planning another issue. Some attempts may be unconfirmed, so sending again could reach people twice.",
             "reviewSettings": "Review sending settings",
             "sending": "Sending is in progress. Domain warm-up may spread delivery over time. Check back for the outcome."
-          }
+          },
+          "details": "Issue details",
+          "saving": "Saving issue…",
+          "undo": "Undo removal",
+          "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",
+          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another."
         },
         "publicArchive": "Public archive",
         "SignupForm": {

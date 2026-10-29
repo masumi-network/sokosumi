@@ -3366,7 +3366,7 @@
             "notice": "Von Soko Bot entworfen — vor dem Einreichen zur Freigabe prüfen"
           },
           "emptyTitle": "Noch keine Ausgaben",
-          "emptyDescription": "Wähle eine Vorlage für deine erste Newsletter-Ausgabe.",
+          "emptyDescription": "Beginne mit einer leeren Ausgabe oder wähle eine Vorlage für deinen ersten Newsletter.",
           "subject": "Betreff",
           "previewText": "Vorschautext",
           "status": "Status",
@@ -3383,7 +3383,7 @@
             "FAILED": "Fehlgeschlagen",
             "CANCELED": "Abgebrochen"
           },
-          "createError": "Ausgabe konnte nicht erstellt werden. Wähle die Vorlage erneut.",
+          "createError": "Ausgabe konnte nicht erstellt werden. Versuche es erneut.",
           "saveError": "Ausgabe konnte nicht gespeichert werden. Behalte deine Änderungen und versuche es erneut.",
           "conflict": "Diese Ausgabe wurde geändert oder kann nicht mehr bearbeitet werden. Kopiere deine Änderungen, lade die Seite neu und versuche es erneut.",
           "invalid": "Prüfe die markierten Felder und versuche es erneut.",
@@ -3422,8 +3422,8 @@
             "content": "Prüfe diesen Block. Verwende HTTPS-URLs und halte die Zeichenbegrenzungen ein."
           },
           "Templates": {
-            "title": "Vorlage auswählen",
-            "description": "Beginne mit einem Layout und bearbeite anschließend jeden Block.",
+            "title": "Ausgabe beginnen",
+            "description": "Beginne mit einer leeren Ausgabe oder einer anpassbaren Vorlage.",
             "subject": "Unbenannte Ausgabe",
             "heading": "Die Höhepunkte dieser Woche",
             "text": "Teile Neuigkeiten, eine nützliche Idee oder ein Update mit deinen Abonnenten.",
@@ -3442,7 +3442,10 @@
             "BUTTONS": {
               "title": "Schaltflächen",
               "description": "Eine Überschrift, Text, eine Schaltfläche, eine Trennlinie und ein Abschlusstext."
-            }
+            },
+            "blank": "Leer beginnen",
+            "blankDescription": "Verwende deine eigenen Texte und füge nur die benötigten Blöcke hinzu.",
+            "templateHeading": "Oder mit einer Vorlage beginnen"
           },
           "Preview": {
             "title": "Vorschau",
@@ -3531,7 +3534,12 @@
             "failedHelp": "Der Versand ist fehlgeschlagen. Prüfe den Fehler und die Absendereinstellungen, bevor du eine weitere Ausgabe planst. Einige Versandversuche sind möglicherweise unbestätigt. Ein erneuter Versand könnte Personen doppelt erreichen.",
             "reviewSettings": "Versandeinstellungen prüfen",
             "sending": "Der Versand läuft. Die Aufwärmphase der Domain kann den Versand zeitlich verteilen. Schau später nach dem Ergebnis."
-          }
+          },
+          "details": "Details der Ausgabe",
+          "saving": "Ausgabe wird gespeichert…",
+          "undo": "Entfernen rückgängig machen",
+          "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen."
         },
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {

@@ -1,5 +1,6 @@
 import type { NewsletterIssue } from "@sokosumi/core-client";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -73,6 +74,103 @@ beforeEach(() => {
 });
 
 describe("newsletter issue editor", () => {
+  it("keeps campaign readiness before the writing surface", () => {
+    renderEditor();
+    const readiness = screen.getByRole("region", { name: "Before sending" });
+    const details = screen.getByRole("region", { name: "Issue details" });
+    expect(within(details).getByLabelText("Subject")).toBeInTheDocument();
+    expect(
+      within(readiness).getByText("3 active subscribers"),
+    ).toBeInTheDocument();
+    expect(
+      readiness.compareDocumentPosition(details) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Submit for approval" }),
+    ).toBeEnabled();
+  });
+
+  it("restores edited blocks in reverse removal order, even after saving", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.type(screen.getByLabelText("Text"), " with new writing");
+    await user.click(screen.getByRole("button", { name: "Remove block 2" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Undo removal" }),
+      ).toHaveFocus(),
+    );
+    await user.click(screen.getByRole("button", { name: "Remove block 2" }));
+    expect(screen.getByText("2 blocks removed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(screen.getByText("All changes saved")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("2 blocks removed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo removal" }));
+    expect(screen.getByText("1 block removed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo removal" }));
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(within(items[1]).getByLabelText("Text")).toHaveValue(
+      "Our latest update with new writing",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Undo removal" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          revision: 3,
+          values: expect.objectContaining({
+            content: [
+              NEWSLETTER_ISSUE.content[0],
+              { type: "text", text: "Our latest update with new writing" },
+              NEWSLETTER_ISSUE.content[2],
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("keeps Undo and writing disabled while saving", async () => {
+    const deferred = Promise.withResolvers<{
+      ok: true;
+      value: NewsletterIssue;
+    }>();
+    mocks.save.mockReturnValue(deferred.promise);
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole("button", { name: "Remove block 3" }));
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    expect(
+      screen.getByText(en.App.Projects.Newsletter.Issues.saving),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo removal" })).toBeDisabled();
+    expect(screen.getByLabelText("Subject")).toBeDisabled();
+    await act(async () =>
+      deferred.resolve({
+        ok: true,
+        value: {
+          ...NEWSLETTER_ISSUE,
+          content: NEWSLETTER_ISSUE.content.slice(0, 2),
+          revision: 3,
+        },
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Undo removal" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Undo removal" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Move block 3 up" }),
+      ).toHaveFocus(),
+    );
+  });
+
   it("offers AI drafting in an empty editor and shows the review notice", () => {
     renderEditor({ ...NEWSLETTER_ISSUE, content: [] }, "en", true);
     expect(

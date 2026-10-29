@@ -212,6 +212,48 @@ describe("newsletter issues list", () => {
     },
   );
 
+  it.each(["en", "de", "es"] as const)(
+    "starts blank with the TEXT contract in %s",
+    async (locale) => {
+      const user = userEvent.setup();
+      const copy = { en, de, es }[locale].App.Projects.Newsletter.Issues;
+      renderIssues([], { ...PAGINATION, total: 0 }, locale);
+      await user.click(screen.getByRole("button", { name: copy.newIssue }));
+      await user.click(
+        screen.getByRole("button", { name: copy.Templates.blank }),
+      );
+      expect(mocks.create).toHaveBeenCalledWith({
+        projectId: NEWSLETTER_PROJECT_ID,
+        values: {
+          template: NewsletterTemplate.TEXT,
+          subject: copy.Templates.subject,
+          content: [],
+        },
+      });
+      expect(mocks.push).toHaveBeenCalledWith(
+        `/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+    },
+  );
+
+  it("keeps a failed blank issue creation open for retry", async () => {
+    const user = userEvent.setup();
+    mocks.create.mockRejectedValueOnce(new Error("Network"));
+    renderIssues();
+    await user.click(screen.getByRole("button", { name: COPY.newIssue }));
+    await user.click(
+      screen.getByRole("button", { name: COPY.Templates.blank }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      COPY.createError,
+    );
+    expect(mocks.push).not.toHaveBeenCalled();
+    await user.click(
+      screen.getByRole("button", { name: COPY.Templates.blank }),
+    );
+    expect(mocks.push).toHaveBeenCalled();
+  });
+
   it("keeps template selection open when creation fails", async () => {
     const user = userEvent.setup();
     mocks.create.mockResolvedValue({
