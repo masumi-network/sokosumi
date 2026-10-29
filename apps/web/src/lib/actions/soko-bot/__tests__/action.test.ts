@@ -22,6 +22,7 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         createSchedule: vi.fn(),
         topUpAvatars: vi.fn(),
         createAvatarDraft: vi.fn(),
+        discardAvatarDrafts: vi.fn(),
         createScoped: vi.fn(),
         archive: vi.fn(),
         reactivate: vi.fn(),
@@ -71,12 +72,15 @@ import {
   createSokoBotAction,
   createSokoBotAvatarDraftAction,
   createSokoBotScheduleAction,
+  discardSokoBotAvatarDraftsAction,
   reactivateSokoBotAction,
   resetSokoBotMemoryAction,
   resolveSokoBotDecisionAction,
   startSokoBotTurnAction,
   topUpSokoBotAvatarsAction,
 } from "../action";
+
+const BOT_ID = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
 
 describe("soko-bot actions", () => {
   beforeEach(() => {
@@ -113,6 +117,39 @@ describe("soko-bot actions", () => {
     if (!result.ok) {
       expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
     }
+  });
+
+  it("discardSokoBotAvatarDraftsAction hands back the studio with the kept look", async () => {
+    const studio = { draft: null };
+    serviceMock.discardAvatarDrafts.mockResolvedValue(studio);
+
+    const result = await discardSokoBotAvatarDraftsAction({ botId: BOT_ID });
+
+    expect(serviceMock.discardAvatarDrafts).toHaveBeenCalledWith(BOT_ID);
+    expect(result).toEqual({ ok: true, value: studio });
+  });
+
+  it("discardSokoBotAvatarDraftsAction targets the caller's own bot without an id", async () => {
+    serviceMock.discardAvatarDrafts.mockResolvedValue({ draft: null });
+
+    await discardSokoBotAvatarDraftsAction({});
+
+    expect(serviceMock.discardAvatarDrafts).toHaveBeenCalledWith(undefined);
+  });
+
+  it("discardSokoBotAvatarDraftsAction rejects a bot id that is not a uuid", async () => {
+    const result = await discardSokoBotAvatarDraftsAction({ botId: "nope" });
+
+    expect(result.ok).toBe(false);
+    expect(serviceMock.discardAvatarDrafts).not.toHaveBeenCalled();
+  });
+
+  it("discardSokoBotAvatarDraftsAction maps a Core failure to an action error", async () => {
+    serviceMock.discardAvatarDrafts.mockRejectedValue(new Error("down"));
+
+    const result = await discardSokoBotAvatarDraftsAction({ botId: BOT_ID });
+
+    expect(result).toMatchObject({ ok: false, error: { message: "down" } });
   });
 
   it("createSokoBotAvatarDraftAction says drawing is off, not to try again", async () => {

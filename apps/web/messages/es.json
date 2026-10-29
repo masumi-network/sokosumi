@@ -9024,9 +9024,11 @@
           },
           "keep": "Conservar este aspecto",
           "shuffle": "Al azar",
+          "cancel": "Cancelar",
           "saved": "Guardado.",
           "error": "No se pudo cambiar el aspecto. Inténtalo de nuevo.",
           "keepError": "No se pudo conservar este aspecto. Inténtalo de nuevo.",
+          "cancelError": "No se pudo volver a tu aspecto actual. Inténtalo de nuevo.",
           "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde.",
           "unavailable": "Ahora mismo no se puede cambiar el aspecto."
         }

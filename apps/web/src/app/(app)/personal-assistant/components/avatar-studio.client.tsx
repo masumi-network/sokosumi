@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   createSokoBotAvatarDraftAction,
+  discardSokoBotAvatarDraftsAction,
   keepSokoBotAvatarDraftAction,
 } from "@/lib/actions/soko-bot/action";
 import { avatarSources, isCraftedAvatar } from "@/lib/soko-bot/avatar";
@@ -118,7 +119,8 @@ export function AvatarStudio({
   });
   const [isDrafting, startDrafting] = useTransition();
   const [isKeeping, startKeeping] = useTransition();
-  const busy = isDrafting || isKeeping;
+  const [isCancelling, startCancelling] = useTransition();
+  const busy = isDrafting || isKeeping || isCancelling;
   // Picking a state plays it once, then it rests on its still.
   const playing = usePlayOnce(`${pick.state}:${pick.n}`, false);
 
@@ -207,6 +209,25 @@ export function AvatarStudio({
       setDraft(null);
       setNote("");
       setSaved(true);
+      setPick({ state: SokoBotAvatarState.IDLE, n: 0 });
+      router.refresh();
+    });
+  }
+
+  /** Drops every open draft and goes back to the kept look. */
+  function handleCancel() {
+    startCancelling(async () => {
+      const result = await discardSokoBotAvatarDraftsAction({
+        botId: botId ?? undefined,
+      });
+      if (!result.ok) {
+        toastFailure(result.error.code, t("cancelError"));
+        return;
+      }
+      setStudio(result.value);
+      setDraft(null);
+      setNote("");
+      setSaved(false);
       setPick({ state: SokoBotAvatarState.IDLE, n: 0 });
       router.refresh();
     });
@@ -437,6 +458,16 @@ export function AvatarStudio({
                 >
                   {t("shuffle")}
                 </Button>
+                {draft ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={handleCancel}
+                  >
+                    {t("cancel")}
+                  </Button>
+                ) : null}
                 <p role="status" className="text-muted-foreground ml-2 text-sm">
                   {saved ? t("saved") : ""}
                 </p>

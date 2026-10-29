@@ -3,6 +3,8 @@ import {
   claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
   createMySokoBotAvatarDraft as coreCreateMySokoBotAvatarDraft,
   createSokoBotAvatarDraft as coreCreateSokoBotAvatarDraft,
+  discardMySokoBotAvatarDrafts as coreDiscardMySokoBotAvatarDrafts,
+  discardSokoBotAvatarDrafts as coreDiscardSokoBotAvatarDrafts,
   getMySokoBotAvatarStudio as coreGetMySokoBotAvatarStudio,
   getSokoBotAvatarStudio as coreGetSokoBotAvatarStudio,
   keepMySokoBotAvatarDraft as coreKeepMySokoBotAvatarDraft,
@@ -91,6 +93,18 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
     );
   }
 
+  /** Clears every open draft, so the bot's kept look is all that is left. */
+  async function discardSokoBotAvatarDrafts(sokoBotId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreDiscardSokoBotAvatarDrafts({ client, path: { sokoBotId } })
+          : coreDiscardMySokoBotAvatarDrafts({ client }),
+      "Failed to discard the Soko Bot avatar drafts",
+    );
+  }
+
   return {
     listSokoBotAvatars,
     topUpSokoBotAvatars,
@@ -98,5 +112,6 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
     getSokoBotAvatarStudio,
     createSokoBotAvatarDraft,
     keepSokoBotAvatarDraft,
+    discardSokoBotAvatarDrafts,
   };
 }

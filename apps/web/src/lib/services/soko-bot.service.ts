@@ -342,6 +342,12 @@ export const sokoBotService = {
     return response.data;
   },
 
+  /** Drops every open draft; the studio comes back showing the kept look. */
+  async discardAvatarDrafts(botId?: string): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.discardSokoBotAvatarDrafts(botId);
+    return response.data;
+  },
+
   async claimAvatar(avatarId: string): Promise<SokoBot> {
     const response = await coreClient.claimMySokoBotAvatar({ avatarId });
     return response.data;

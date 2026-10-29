@@ -9024,9 +9024,11 @@
           },
           "keep": "Keep this look",
           "shuffle": "Shuffle",
+          "cancel": "Cancel",
           "saved": "Saved.",
           "error": "Could not change the look. Try again.",
           "keepError": "Could not keep this look. Try again.",
+          "cancelError": "Could not go back to your current look. Try again.",
           "rateLimited": "You have made a lot of new looks. Try again later.",
           "unavailable": "Changing the look is not available right now."
         }

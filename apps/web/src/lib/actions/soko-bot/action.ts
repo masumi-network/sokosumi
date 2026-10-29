@@ -446,6 +446,21 @@ export const keepSokoBotAvatarDraftAction = withSession<
   }
 });
 
+/** Throws every open draft away; the answer is the studio with the kept look. */
+export const discardSokoBotAvatarDraftsAction = withSession<
+  BotScopedParams,
+  ActionResultDto<SokoBotAvatarStudio, ActionError>
+>(async ({ botId }) => {
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedBot.success) return toActionResult(err(invalidInput()));
+  try {
+    const studio = await sokoBotService.discardAvatarDrafts(parsedBot.data);
+    return toActionResult(ok(studio));
+  } catch (error) {
+    return toActionResult(err(mapAvatarError(error)));
+  }
+});
+
 interface ClaimAvatarParams extends AuthenticatedRequest {
   avatarId: unknown;
 }

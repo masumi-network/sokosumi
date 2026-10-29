@@ -5,14 +5,14 @@ import type {
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createMock, keepMock, refreshMock, toastErrorMock } = vi.hoisted(
-  () => ({
+const { createMock, keepMock, discardMock, refreshMock, toastErrorMock } =
+  vi.hoisted(() => ({
     createMock: vi.fn(),
     keepMock: vi.fn(),
+    discardMock: vi.fn(),
     refreshMock: vi.fn(),
     toastErrorMock: vi.fn(),
-  }),
-);
+  }));
 
 vi.mock("motion/react", () => ({ useReducedMotion: () => false }));
 
@@ -32,6 +32,7 @@ vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
 vi.mock("@/lib/actions/soko-bot/action", () => ({
   createSokoBotAvatarDraftAction: createMock,
   keepSokoBotAvatarDraftAction: keepMock,
+  discardSokoBotAvatarDraftsAction: discardMock,
 }));
 
 import { AvatarStudio } from "./avatar-studio.client";
@@ -327,6 +328,81 @@ describe("AvatarStudio", () => {
       vi.advanceTimersByTime(4_000);
     });
     expect(look()).toHaveAttribute("src", "https://blob/working.png");
+  });
+
+  describe("Cancel", () => {
+    beforeEach(() => {
+      createMock.mockResolvedValue({
+        ok: true,
+        value: { draft: draft("frog"), note: "" },
+      });
+    });
+
+    it("is not offered while there is no draft", () => {
+      renderStudio();
+      expect(screen.queryByRole("button", { name: "cancel" })).toBeNull();
+    });
+
+    it("is offered next to Keep once a draft exists", async () => {
+      renderStudio();
+      await click(screen.getByRole("button", { name: "Frog" }));
+      expect(screen.getByRole("button", { name: "cancel" })).toBeEnabled();
+    });
+
+    it("drops the drafts and brings the kept look back", async () => {
+      discardMock.mockResolvedValue({ ok: true, value: studio });
+      renderStudio(studio, BOT_ID);
+      await click(screen.getByRole("button", { name: "Frog" }));
+      expect(look()).toHaveAttribute("src", "https://blob/draft-frog.png");
+
+      await click(screen.getByRole("button", { name: "cancel" }));
+
+      expect(discardMock).toHaveBeenCalledWith({ botId: BOT_ID });
+      expect(look()).toHaveAttribute("src", "https://blob/idle.png");
+      expect(screen.getByRole("button", { name: "keep" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "cancel" })).toBeNull();
+      expect(refreshMock).toHaveBeenCalled();
+    });
+
+    it("asks for the caller's own bot without a bot id", async () => {
+      discardMock.mockResolvedValue({ ok: true, value: studio });
+      renderStudio();
+      await click(screen.getByRole("button", { name: "Frog" }));
+
+      await click(screen.getByRole("button", { name: "cancel" }));
+
+      expect(discardMock).toHaveBeenCalledWith({ botId: undefined });
+    });
+
+    it("clears the rewriter note", async () => {
+      createMock.mockResolvedValue({
+        ok: true,
+        value: { draft: draft("frog"), note: "Left out the logo." },
+      });
+      discardMock.mockResolvedValue({ ok: true, value: studio });
+      renderStudio();
+      await click(screen.getByRole("button", { name: "Frog" }));
+      expect(screen.getByText("Left out the logo.")).toBeInTheDocument();
+
+      await click(screen.getByRole("button", { name: "cancel" }));
+
+      expect(screen.queryByText("Left out the logo.")).toBeNull();
+    });
+
+    it("tells the person when it fails and keeps the draft", async () => {
+      discardMock.mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL", message: "boom" },
+      });
+      renderStudio();
+      await click(screen.getByRole("button", { name: "Frog" }));
+
+      await click(screen.getByRole("button", { name: "cancel" }));
+
+      expect(toastErrorMock).toHaveBeenCalledWith("cancelError");
+      expect(look()).toHaveAttribute("src", "https://blob/draft-frog.png");
+      expect(screen.getByRole("button", { name: "keep" })).toBeEnabled();
+    });
   });
 
   it("keeps a draft, says so, and refreshes the app", async () => {
