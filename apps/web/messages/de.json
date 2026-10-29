@@ -4369,6 +4369,8 @@
           "newTask": "Neue Aufgabe",
           "search": "Suche",
           "home": "Startseite",
+          "projects": "Projekte",
+          "overview": "Übersicht",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -9193,6 +9195,7 @@
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
+      "clearProject": "Projekt abwählen",
       "close": "Schließen",
       "label": "Projekt",
       "allProjects": "Alle Projekte",

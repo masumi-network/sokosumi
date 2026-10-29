@@ -4369,6 +4369,8 @@
           "newTask": "New task",
           "search": "Search",
           "home": "Home",
+          "projects": "Projects",
+          "overview": "Overview",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
           "taskManager": "Tasks",
@@ -9193,6 +9195,7 @@
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
+      "clearProject": "Clear project",
       "close": "Close",
       "label": "Project",
       "allProjects": "All projects",
