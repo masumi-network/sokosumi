@@ -4360,6 +4360,8 @@
           "newTask": "Nueva tarea",
           "search": "Buscar",
           "home": "Inicio",
+          "projects": "Proyectos",
+          "overview": "Resumen",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
@@ -9221,6 +9223,7 @@
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
+      "clearProject": "Quitar proyecto",
       "close": "Cerrar",
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
