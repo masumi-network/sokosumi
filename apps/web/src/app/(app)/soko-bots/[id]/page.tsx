@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { loadBotAdAccounts } from "@/lib/soko-bot/load-bot-ad-accounts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBot.Metadata");
@@ -74,11 +75,15 @@ export default async function SharedSokoBotPage({
   const focusTurnId = typeof query.turn === "string" ? query.turn : null;
   const integrationOutcome =
     typeof query.integration === "string" ? query.integration : null;
-  const [stats, usage, integrations, catalog] = await Promise.all([
+  const [stats, usage, integrations, catalog, adAccounts] = await Promise.all([
     sokoBotService.getStats(id).catch(() => null),
     sokoBotService.getMyUsage(id).catch(() => null),
     sokoBotService.listIntegrations(id).catch(() => null),
     sokoBotService.searchIntegrationCatalog("").catch(() => []),
+    // A workspace bot has no Project, so it reads like the personal bot.
+    loadBotAdAccounts({ projectId: summary.projectId ?? null }).catch(
+      () => null,
+    ),
   ]);
 
   return (
@@ -99,6 +104,12 @@ export default async function SharedSokoBotPage({
       botId={id}
       canManage={state.bot.viewerCanManage}
       sharedRoomId={summary.sharedRoomId}
+      ads={
+        adAccounts && {
+          accounts: adAccounts,
+          projectId: summary.projectId ?? null,
+        }
+      }
       adminHref={null}
     />
   );
