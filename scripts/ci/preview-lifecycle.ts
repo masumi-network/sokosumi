@@ -15,9 +15,12 @@ import {
   vercelRequest,
 } from "./preview-resources.ts";
 import {
+  deleteForkPreviewBranch,
   deployTargets,
+  forkPreviewBranch,
   githubJson,
   isMainModule,
+  previewRef,
   readActionsContext,
 } from "./vercel-deploy.mjs";
 
@@ -133,8 +136,15 @@ export async function cleanupClosedPreview(options: LifecycleOptions) {
   if (pull.state !== "closed" || pull.base.repo.id !== options.repoId) {
     return { kind: "skip" };
   }
+  // First: the Vercel env marker that rediscovers this PR outlives a failure here.
+  if (pull.head.repo?.id !== options.repoId) {
+    await deleteForkPreviewBranch({
+      ...options,
+      branch: forkPreviewBranch(options.pullNumber),
+    });
+  }
   return cleanupPreviewResources(
-    { ...options, ref: pull.head.ref },
+    { ...options, ref: previewRef(pull) },
     deployTargets(["mainnet", "preprod"]),
   );
 }

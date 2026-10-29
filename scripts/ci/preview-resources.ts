@@ -100,7 +100,8 @@ export function previewNeonConfigs(
   );
 }
 
-// Error responses can echo submitted environment values. Never log their bodies.
+// Error responses can echo submitted environment values. Never log their bodies;
+// only Vercel's error code and message reach the thrown error.
 export async function vercelRequest(
   options: Pick<PreviewOptions, "fetchImpl" | "vercelToken" | "teamId">,
   pathname: string,
@@ -117,10 +118,15 @@ export async function vercelRequest(
     },
   });
   if (response.status === 404 && init.method === "DELETE") return null;
-  if (!response.ok)
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined);
+    const reason = [payload?.error?.code, payload?.error?.message]
+      .filter((part) => typeof part === "string" && part)
+      .join(": ");
     throw new Error(
-      `Vercel ${init.method ?? "GET"} ${url.pathname} failed (${response.status})`,
+      `Vercel ${init.method ?? "GET"} ${url.pathname} failed (${response.status})${reason ? `: ${reason}` : ""}`,
     );
+  }
   return response.status === 204 ? null : response.json();
 }
 

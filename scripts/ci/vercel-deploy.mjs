@@ -362,14 +362,91 @@ function failedDeployments(targets, deployments) {
 }
 
 /**
- * The ref a preview deploys from and scopes its Core env vars to. A fork's
+ * The branch a preview deploys from and scopes its Core env vars to. A fork's
  * branch does not exist in this repository, and its name can equal one of
- * ours (even `main`), so forks use the PR's own head ref here.
+ * ours (even `main`). Vercel scopes env vars only to branches of the
+ * connected repository (`refs/pull/<n>/head` is refused with a 400), so a
+ * fork deploys from a branch of ours that `/deploy` points at the approved
+ * SHA (see pointForkPreviewBranch).
  */
 export function previewRef(pullRequest) {
   return isSameRepoPullRequest(pullRequest)
     ? pullRequest.head.ref
-    : `refs/pull/${pullRequest.number}/head`;
+    : forkPreviewBranch(pullRequest.number);
+}
+
+/** Reserved for the preview workflow: never push a branch under `preview-fork/`. */
+export function forkPreviewBranch(pullNumber) {
+  return `preview-fork/pr-${pullNumber}`;
+}
+
+/**
+ * Create or force-move this repository's fork preview branch to `sha`, the
+ * head commit the commenter approved. No workflow runs on that ref: GitHub
+ * starts no run for a ref written with GITHUB_TOKEN. Vercel builds only
+ * `main` on its own (`git.deploymentEnabled`); a fork that flips that only
+ * builds this same approved commit.
+ */
+export async function pointForkPreviewBranch({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  branch,
+  sha,
+}) {
+  const refs = `https://api.github.com/repos/${repoOwner}/${repoName}/git/refs`;
+  const headers = {
+    ...githubHeaders(githubToken),
+    "Content-Type": "application/json",
+  };
+  const created = await fetchImpl(refs, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+  });
+  if (created.ok) {
+    return;
+  }
+  // 422: the branch exists from an earlier `/deploy`. Move it, also after a
+  // force-push to the fork.
+  if (created.status !== 422) {
+    const payload = await created.json().catch(() => undefined);
+    throw new Error(`GitHub ${created.status}: ${JSON.stringify(payload)}`);
+  }
+  const moved = await githubJson(
+    fetchImpl,
+    githubToken,
+    `${refs}/heads/${branch}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha, force: true }),
+    },
+  );
+  if (moved?.object?.sha !== sha) {
+    throw new Error(`GitHub did not move ${branch} to the approved commit`);
+  }
+}
+
+/** Delete the fork preview branch. A missing branch counts as deleted. */
+export async function deleteForkPreviewBranch({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  branch,
+}) {
+  const response = await fetchImpl(
+    `https://api.github.com/repos/${repoOwner}/${repoName}/git/refs/heads/${branch}`,
+    { method: "DELETE", headers: githubHeaders(githubToken) },
+  );
+  // GitHub answers 422 "Reference does not exist" for a deleted branch.
+  if (response.ok || response.status === 404 || response.status === 422) {
+    return;
+  }
+  const payload = await response.json().catch(() => undefined);
+  throw new Error(`GitHub ${response.status}: ${JSON.stringify(payload)}`);
 }
 
 export function previewGitSource(pullRequest, repoId) {
@@ -635,6 +712,17 @@ export async function runPreviewDeployComment(options) {
       if (!isTruncatedFileList(files) && !hasPreviewRelevantChanges(files)) {
         await comment(noPreviewChangesMessage());
         return { kind: "skip" };
+      }
+      // Before the env vars: Vercel refuses a gitBranch that does not exist.
+      if (!isSameRepoPullRequest(pullRequest)) {
+        await (options.pointBranch ?? pointForkPreviewBranch)({
+          fetchImpl,
+          githubToken,
+          repoOwner,
+          repoName,
+          branch: previewRef(pullRequest),
+          sha: pullRequest.head.sha,
+        });
       }
       await (options.prepareResources ?? preparePreviewResources)(
         {

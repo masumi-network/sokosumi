@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 
 import {
   createGitDeployment,
+  deleteForkPreviewBranch,
   deployTargets,
   GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
@@ -15,6 +16,7 @@ import {
   listPullRequestFiles,
   noPreviewChangesMessage,
   parseDeployComment,
+  pointForkPreviewBranch,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
@@ -415,6 +417,7 @@ describe("runPreviewDeployComment", () => {
     const reactions = [];
     const created = [];
     const prepared = [];
+    const steps = [];
     const result = runPreviewDeployComment({
       commentBody,
       isPullRequest: true,
@@ -429,7 +432,11 @@ describe("runPreviewDeployComment", () => {
         base: { repo: { id: 1 } },
       }),
       listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      pointBranch: async ({ branch, sha }) => {
+        steps.push({ branch, sha });
+      },
       prepareResources: async (options) => {
+        steps.push("prepare");
         prepared.push(options);
       },
       createDeployment: async (input) => {
@@ -444,7 +451,7 @@ describe("runPreviewDeployComment", () => {
         reactions.push(content);
       },
     });
-    return { result, posted, reactions, created, prepared };
+    return { result, posted, reactions, created, prepared, steps };
   }
 
   it("asks a fork pull request for the head SHA before touching anything", async () => {
@@ -471,19 +478,31 @@ describe("runPreviewDeployComment", () => {
     assert.deepEqual(run.created, []);
   });
 
-  it("deploys exactly the approved fork commit from the PR's head ref", async () => {
+  it("deploys exactly the approved fork commit from our fork preview branch", async () => {
     const run = commentDeploy(`/deploy preprod ${FORK_SHA}`);
     assert.equal((await run.result).kind, "deploy");
     assert.deepEqual(run.posted, []);
     assert.deepEqual(run.reactions, ["eyes", "rocket"]);
+    // Vercel refuses env vars for a branch that does not exist yet.
+    assert.deepEqual(run.steps, [
+      { branch: "preview-fork/pr-12", sha: FORK_SHA },
+      "prepare",
+    ]);
     assert.equal(run.created.length, 2);
     for (const input of run.created) {
       assert.equal(input.repoId, 1);
       assert.equal(input.sha, FORK_SHA);
-      assert.equal(input.ref, "refs/pull/12/head");
+      assert.equal(input.ref, "preview-fork/pr-12");
     }
-    // Core env vars are scoped to the PR ref, never the fork's `main`.
-    assert.equal(run.prepared[0].ref, "refs/pull/12/head");
+    // Core env vars are scoped to that branch, never the fork's `main`.
+    assert.equal(run.prepared[0].ref, "preview-fork/pr-12");
+  });
+
+  it("never writes a branch for a same-repo pull request", async () => {
+    const run = commentDeploy("/deploy preprod", { headRepo: { id: 1 } });
+    assert.equal((await run.result).kind, "deploy");
+    assert.deepEqual(run.steps, ["prepare"]);
+    assert.equal(run.created[0].ref, "main");
   });
 
   it("treats a pull request whose head repo was deleted as a fork", async () => {
@@ -674,6 +693,76 @@ describe("runPreviewDeployComment", () => {
       /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
     assert.deepEqual(reactions, ["eyes"]);
+  });
+});
+
+describe("fork preview branch", () => {
+  function github(responses) {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({
+        url: String(url),
+        method: init.method,
+        body: init.body ? JSON.parse(init.body) : undefined,
+      });
+      const [status, body] = responses.shift();
+      return new Response(body === undefined ? null : JSON.stringify(body), {
+        status,
+      });
+    };
+    const options = {
+      fetchImpl,
+      githubToken: "token",
+      repoOwner: "owner",
+      repoName: "repo",
+      branch: "preview-fork/pr-12",
+    };
+    return { calls, options };
+  }
+  const refs = "https://api.github.com/repos/owner/repo/git/refs";
+
+  it("creates the branch at the approved commit", async () => {
+    const { calls, options } = github([[201, {}]]);
+    await pointForkPreviewBranch({ ...options, sha: FORK_SHA });
+    assert.deepEqual(calls, [
+      {
+        url: refs,
+        method: "POST",
+        body: { ref: "refs/heads/preview-fork/pr-12", sha: FORK_SHA },
+      },
+    ]);
+  });
+
+  it("force-moves an existing branch to the approved commit", async () => {
+    const { calls, options } = github([
+      [422, { message: "Reference already exists" }],
+      [200, { object: { sha: FORK_SHA } }],
+    ]);
+    await pointForkPreviewBranch({ ...options, sha: FORK_SHA });
+    assert.deepEqual(calls[1], {
+      url: `${refs}/heads/preview-fork/pr-12`,
+      method: "PATCH",
+      body: { sha: FORK_SHA, force: true },
+    });
+  });
+
+  it("throws when GitHub refuses the branch", async () => {
+    const { options } = github([[403, { message: "Resource not accessible" }]]);
+    await assert.rejects(
+      pointForkPreviewBranch({ ...options, sha: FORK_SHA }),
+      /GitHub 403: .*Resource not accessible/,
+    );
+  });
+
+  it("deletes the branch and treats a missing one as deleted", async () => {
+    for (const status of [204, 404, 422]) {
+      const { calls, options } = github([[status]]);
+      await deleteForkPreviewBranch(options);
+      assert.equal(calls[0].method, "DELETE");
+      assert.equal(calls[0].url, `${refs}/heads/preview-fork/pr-12`);
+    }
+    const { options } = github([[403, { message: "nope" }]]);
+    await assert.rejects(deleteForkPreviewBranch(options), /GitHub 403/);
   });
 });
 

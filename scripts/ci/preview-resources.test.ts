@@ -7,7 +7,7 @@ import {
   renewOpenPreview,
   resolvePreviewPullNumber,
 } from "./preview-lifecycle.ts";
-import { preparePreviewResources } from "./preview-resources.ts";
+import { preparePreviewResources, vercelRequest } from "./preview-resources.ts";
 import { deployTargets, runPreviewDeployComment } from "./vercel-deploy.mjs";
 
 interface Branch {
@@ -403,6 +403,8 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
     .map((call) => call.url.pathname);
   assert.ok(removed.includes("/v13/deployments/dpl-ours"));
   assert.ok(removed.some((path) => path.endsWith("/branches/br-preview")));
+  // A same-repo PR's branch is the author's, never ours to delete.
+  assert.ok(!removed.some((path) => path.includes("/git/refs")));
   assert.ok(
     !removed.some((path) =>
       /dpl-production|dpl-other|env-prod|br-production|br-legacy/.test(path),
@@ -419,19 +421,22 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
 test("closed fork PRs are cleaned up and listed by the daily inventory", async () => {
   const { options, calls, branches, pull } = setup();
   await preparePreviewResources(
-    { ...options, ref: "refs/pull/7/head" },
+    { ...options, ref: "preview-fork/pr-7" },
     deployTargets(["preprod"]),
   );
   pull.head.repo.id = 100;
   pull.state = "closed";
   assert.deepEqual(await previewCleanupInventory(options), [7]);
   await cleanupClosedPreview(options);
-  assert.ok(
-    calls.some(
-      (call) =>
-        call.method === "DELETE" && call.url.pathname.endsWith("/br-preview"),
-    ),
+  const deleted = calls
+    .filter((call) => call.method === "DELETE")
+    .map((call) => call.url.pathname);
+  // The git branch goes first; the env marker rediscovers the PR if it fails.
+  assert.equal(
+    deleted[0],
+    "/repos/owner/repo/git/refs/heads/preview-fork/pr-7",
   );
+  assert.ok(deleted.some((path) => path.endsWith("/br-preview")));
   assert.deepEqual(
     branches.map((branch) => branch.id),
     ["br-production"],
@@ -733,5 +738,27 @@ test("resolvePreviewPullNumber fails when no PR can be resolved", async () => {
       },
     }),
     /A valid PR number is required/,
+  );
+});
+
+test("Vercel errors carry Vercel's code and message, never the rest of the body", async () => {
+  const fetchImpl: typeof fetch = async () =>
+    Response.json(
+      {
+        error: { code: "bad_request", message: "Branch not found" },
+        value: "postgres://secret",
+      },
+      { status: 400 },
+    );
+  await assert.rejects(
+    vercelRequest(
+      { fetchImpl, vercelToken: "vercel-key", teamId: "team-test" },
+      "/v10/projects/prj/env",
+      { method: "POST" },
+    ),
+    (error: Error) =>
+      error.message ===
+        "Vercel POST /v10/projects/prj/env failed (400): bad_request: Branch not found" &&
+      !error.message.includes("secret"),
   );
 });
