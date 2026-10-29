@@ -15,10 +15,14 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(searchRef.current),
 }));
 
-// Core's answer for the scoped project, without a fetch.
+// Core's answer for the scoped project, without a fetch. "gone" is a project
+// Core does not know, as after a delete.
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useSelectedScopeProject: (projectId: string | null) =>
-    projectId ? { id: projectId, name: "Acme", logo: null } : null,
+    projectId && projectId !== "gone"
+      ? { id: projectId, name: "Acme", logo: null }
+      : null,
+  useIsUnknownScopeProject: (projectId: string | null) => projectId === "gone",
 }));
 
 vi.mock("next-intl", () => ({
@@ -510,6 +514,17 @@ describe("MenuItems project scope", () => {
     expect(
       slot?.querySelector('[data-testid="project-avatar"]'),
     ).toHaveTextContent("A");
+  });
+
+  it("keeps Projects when Core does not know the scoped project", () => {
+    searchRef.current = "projectId=gone";
+    renderMenu(true, false);
+
+    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
+    expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
   });
 
   it.each([

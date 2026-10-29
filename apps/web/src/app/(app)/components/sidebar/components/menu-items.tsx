@@ -25,7 +25,10 @@ import {
   useState,
 } from "react";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
+import {
+  useIsUnknownScopeProject,
+  useSelectedScopeProject,
+} from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { Collapsible } from "@/components/ui/collapsible";
@@ -61,8 +64,8 @@ interface MenuItemConfig {
   href: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  /** Drawn in the row's slot instead of `Icon`, as a project's avatar. */
-  mark?: ReactNode;
+  /** An avatar drawn in the slot instead of `Icon`, sized like it. */
+  tile?: ReactNode;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
 }
@@ -112,6 +115,9 @@ function ScopedMenuItems({
 }) {
   const { projectId, hrefFor } = useProjectScope();
   const selectedProject = useSelectedScopeProject(projectId);
+  // A deleted or foreign project has no page to open.
+  const isUnknownProject = useIsUnknownScopeProject(projectId);
+  const hasProjectPage = projectId !== null && !isUnknownProject;
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const { isMobile } = useSidebar();
@@ -120,7 +126,7 @@ function ScopedMenuItems({
   const allDestinations: NavDestination[] = [
     // One row for the scope: the Projects list, or the selected project's
     // own page. The nav never shows both.
-    projectId === null
+    !hasProjectPage
       ? {
           key: "projects",
           href: "/projects",
@@ -134,13 +140,10 @@ function ScopedMenuItems({
           label: t("overview"),
           // The glyph holds the slot until the project's name and logo load.
           Icon: FolderKanban,
-          mark: selectedProject ? (
+          tile: selectedProject ? (
             <ProjectAvatar
               name={selectedProject.name}
               logo={selectedProject.logo}
-              // The ring keeps the tile's edge on the current row, whose
-              // fill is the same grey as the initial's tile.
-              className="ring-sidebar-border size-4 rounded ring-1 md:size-3.5 [&_[data-slot=avatar-fallback]]:rounded [&_[data-slot=avatar-fallback]]:text-2xs"
             />
           ) : undefined,
           group: "work",
@@ -249,7 +252,7 @@ function ScopedMenuItems({
     href,
     label,
     Icon,
-    mark,
+    tile,
     feature,
   }: MenuItemConfig) {
     const isActive = isPathActive(pathname, href);
@@ -268,8 +271,8 @@ function ScopedMenuItems({
                   : SIDEBAR_ROW_LINK_CLASS,
               )}
             >
-              <SidebarRowSlot aria-hidden>
-                {mark ?? <Icon aria-hidden />}
+              <SidebarRowSlot aria-hidden tile={tile !== undefined}>
+                {tile ?? <Icon aria-hidden />}
               </SidebarRowSlot>
               <span
                 className={cn(
