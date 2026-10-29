@@ -2,9 +2,14 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { cloneElement, isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pathnameRef, relativeTime } = vi.hoisted(() => ({
+const { pathnameRef, relativeTime, reduceMotion } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   relativeTime: vi.fn(() => "2h ago"),
+  reduceMotion: { current: false },
+}));
+
+vi.mock("motion/react", () => ({
+  useReducedMotion: () => reduceMotion.current,
 }));
 
 // Values show up in the text, so a test can tell "Active {time}" got its time.
@@ -194,48 +199,46 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     expect(row(/fallbackName/)).toBeInTheDocument();
   });
 
-  it("says a running bot is working now, with a pulsing ring", () => {
-    renderNav({ bot: { ...bot, status: SokoBotStatus.RUNNING } });
-    expect(row()).toHaveAccessibleName(/workingNow/);
-    expect(screen.getByTestId("soko-bot-pulse")).toBeInTheDocument();
-  });
-
-  it("holds the pulse still under reduced motion", () => {
-    renderNav({ bot: { ...bot, status: SokoBotStatus.RUNNING } });
-    const tokens = screen.getByTestId("soko-bot-pulse").className.split(/\s+/);
-    // Animated only with motion allowed; no unconditional animation.
-    expect(tokens).toContain("motion-safe:animate-ping");
-    expect(tokens).not.toContain("animate-ping");
+  // The pill sweep is the only persistent busy signal: the row never pulses.
+  it("does not pulse a working bot's face", () => {
+    const { container } = renderNav({
+      bot: { ...bot, status: SokoBotStatus.RUNNING, avatarState: "working" },
+    });
+    expect(container.querySelector('[class*="animate-ping"]')).toBeNull();
   });
 
   it.each([
-    // "Paused" is the status badge's own word, so it is the badge's string.
-    [SokoBotStatus.PAUSED, /PAUSED/],
-    [SokoBotStatus.ERROR, /needsAttention/],
-    [SokoBotStatus.IDLE, /ready/],
-  ])("gives a %s bot its status line and no pulse", (status, line) => {
-    renderNav({ bot: { ...bot, status } });
-    expect(row()).toHaveAccessibleName(line);
-    expect(screen.queryByTestId("soko-bot-pulse")).toBeNull();
-  });
+    ["thinking", /label\.thinking/, "status-working"],
+    ["working", /label\.working/, "status-working"],
+    ["done", /label\.done/, "semantic-success"],
+    ["needs_you", /label\.needs_you/, "semantic-warning"],
+    ["offline", /label\.offline/, "muted-foreground"],
+    ["idle", /ready/, "muted-foreground"],
+  ] as const)(
+    "says a %s bot's state in its line and paints the dot and line to match",
+    (avatarState, line, hue) => {
+      const { container } = renderNav({ bot: { ...bot, avatarState } });
 
-  // The tones the Soko Bot status badge paints, so a bot reads the same in
-  // the sidebar as on its console: paused waits on someone (warning), not
-  // muted, and an idle bot is at rest, not a success.
-  it.each([
-    [SokoBotStatus.RUNNING, "status-working"],
-    [SokoBotStatus.PAUSED, "semantic-warning"],
-    [SokoBotStatus.ERROR, "semantic-destructive"],
-    [SokoBotStatus.IDLE, "muted-foreground"],
-  ])("paints a %s bot's dot and line in the badge's tone", (status, hue) => {
-    const { container } = renderNav({ bot: { ...bot, status } });
+      expect(row()).toHaveAccessibleName(line);
+      expect(
+        container.querySelector('[data-slot="soko-bot-status-dot"]'),
+      ).toHaveClass(`bg-${hue}`);
+      expect(
+        container.querySelector('[data-slot="soko-bot-status-line"]')
+          ?.className,
+      ).toMatch(new RegExp(`\\btext-${hue}(-label)?\\b`));
+    },
+  );
 
+  it("keeps a failed idle bot's error in the row", () => {
+    const { container } = renderNav({
+      bot: { ...bot, status: SokoBotStatus.ERROR },
+    });
+
+    expect(row()).toHaveAccessibleName(/needsAttention/);
     expect(
       container.querySelector('[data-slot="soko-bot-status-dot"]'),
-    ).toHaveClass(`bg-${hue}`);
-    expect(
-      container.querySelector('[data-slot="soko-bot-status-line"]')?.className,
-    ).toMatch(new RegExp(`\\btext-${hue}(-label)?\\b`));
+    ).toHaveClass("bg-semantic-destructive");
   });
 
   it("says when an idle bot was last active, in the reader's locale", () => {
@@ -327,11 +330,7 @@ const craftedBot: SidebarSokoBotLive = {
 };
 
 function reducedMotion(matches: boolean) {
-  vi.stubGlobal("matchMedia", () => ({
-    matches,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
+  reduceMotion.current = matches;
 }
 
 function rowFace(container: HTMLElement) {
@@ -347,7 +346,7 @@ describe("PersonalAssistantNav crafted avatar", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-    vi.unstubAllGlobals();
+    reduceMotion.current = false;
   });
 
   it("crops a crafted avatar to the creature's face", () => {
@@ -449,7 +448,11 @@ describe("PersonalAssistantNav crafted avatar", () => {
         "src",
         "https://blob/working-320.webp",
       );
-      expect(screen.getByText("label.working")).toBeInTheDocument();
+      expect(
+        screen.getByText("label.working", {
+          selector: '[data-slot="avatar-state-pill"]',
+        }),
+      ).toBeInTheDocument();
       expect(screen.getByText("line.working")).toBeInTheDocument();
     });
 

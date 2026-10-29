@@ -1,3 +1,4 @@
+import { SokoBotAvatarState } from "@sokosumi/core-client";
 import { cache, Suspense } from "react";
 
 import { defaultOrbSeed } from "@/lib/aurora-orb";
@@ -27,7 +28,7 @@ const loadYourBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
       name: member.bot.name,
       status: member.bot.status,
       lastActivityAt: member.bot.lastActivityAt,
-      avatarState: member.bot.avatarState ?? "idle",
+      avatarState: member.bot.avatarState ?? SokoBotAvatarState.IDLE,
       avatar: member.bot.avatar ?? null,
     };
   } catch {
