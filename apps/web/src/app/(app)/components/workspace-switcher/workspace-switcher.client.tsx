@@ -1,12 +1,13 @@
 "use client";
 
-import type { UserWorkspace } from "@sokosumi/core-client";
+import type { MemberRole, UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { createContext, type ReactNode, use, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
+import OrganizationBulkInviteModal from "@/components/organizations/organization-bulk-invite/modal";
 import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,10 @@ export interface WorkspaceItem {
   id: string | null;
   name: string;
   organization?: OrganizationLogoSource;
+  /** The person's role in the organization; null for the personal workspace. */
+  role: MemberRole | null;
+  /** Null for the personal workspace. */
+  memberCount: number | null;
 }
 
 interface WorkspaceSwitcherState {
@@ -52,6 +57,8 @@ interface WorkspaceSwitcherState {
   setMenuOpen: (placement: WorkspaceSwitcherPlacement, open: boolean) => void;
   selectWorkspace: (workspaceId: string | null) => void;
   openCreateWorkspace: () => void;
+  /** Opens the invite dialog for the active organization. */
+  openInviteMembers: () => void;
 }
 
 const WorkspaceSwitcherContext = createContext<WorkspaceSwitcherState | null>(
@@ -145,6 +152,8 @@ export function WorkspaceSwitcherProvider({
       hasPersonalWorkspace
         ? {
             id: null,
+            role: null,
+            memberCount: null,
             name:
               sessionUser.name ??
               sessionUser.email ??
@@ -162,16 +171,19 @@ export function WorkspaceSwitcherProvider({
   const organizationWorkspaces = useMemo(
     () =>
       getOrderedWorkspaces(
-        workspaces.flatMap(({ organizationId, name, logo, websiteUrl }) =>
-          organizationId
-            ? [
-                {
-                  id: organizationId,
-                  name,
-                  organization: { name, logo, websiteUrl },
-                },
-              ]
-            : [],
+        workspaces.flatMap(
+          ({ organizationId, name, logo, websiteUrl, role, memberCount }) =>
+            organizationId
+              ? [
+                  {
+                    id: organizationId,
+                    name,
+                    organization: { name, logo, websiteUrl },
+                    role,
+                    memberCount,
+                  },
+                ]
+              : [],
         ),
         activeOrganizationId,
       ),
@@ -184,6 +196,16 @@ export function WorkspaceSwitcherProvider({
       : (organizationWorkspaces.find(
           (workspace) => workspace.id === activeOrganizationId,
         ) ?? null);
+
+  const { Component: InviteMembersModal, showModal: showInviteMembersModal } =
+    useModal(OrganizationBulkInviteModal, {
+      organizationId: activeOrganizationId ?? "",
+    });
+
+  function openInviteMembers() {
+    setOpenPlacement(null);
+    showInviteMembersModal();
+  }
 
   function setMenuOpen(placement: WorkspaceSwitcherPlacement, open: boolean) {
     setOpenPlacement((current) =>
@@ -271,12 +293,14 @@ export function WorkspaceSwitcherProvider({
     setMenuOpen,
     selectWorkspace,
     openCreateWorkspace,
+    openInviteMembers,
   };
 
   return (
     <WorkspaceSwitcherContext value={state}>
       {children}
       {CreateOrganizationModal}
+      {activeOrganizationId ? InviteMembersModal : null}
       <Dialog open={isChoiceDialogOpen} onOpenChange={setIsChoiceDialogOpen}>
         <DialogContent>
           <DialogHeader>

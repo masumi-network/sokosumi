@@ -19401,6 +19401,27 @@ export const UserWorkspaceSchema = {
             description: 'Organization website from its metadata, or null for none and for a personal workspace',
             example: 'https://acme.com'
         },
+        role: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberRole'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'member',
+            description: 'The person\'s role in the organization, or null for a personal workspace'
+        },
+        memberCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'How many people are members of the organization, or null for a personal workspace',
+            example: 14
+        },
         enabledSocialProviders: {
             type: 'array',
             items: {
@@ -19422,6 +19443,8 @@ export const UserWorkspaceSchema = {
         'slug',
         'logo',
         'websiteUrl',
+        'role',
+        'memberCount',
         'enabledSocialProviders',
         'preferred'
     ]

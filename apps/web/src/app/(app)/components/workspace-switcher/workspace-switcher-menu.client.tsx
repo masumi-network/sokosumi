@@ -1,10 +1,13 @@
 "use client";
 
+import { MemberRole } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Settings, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
 import { Avatar } from "@/components/ui/avatar";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +93,87 @@ function WorkspaceMenuItem({
   );
 }
 
+interface ActiveOrganizationHeaderProps {
+  sessionUser: SessionUser;
+  workspace: WorkspaceItem;
+  disabled: boolean;
+  onInvite: () => void;
+}
+
+/**
+ * The organization you are in and what you can do there, above the list so a
+ * long list never pushes it out of view. Owners and admins invite; everyone
+ * reaches the member list and settings.
+ */
+function ActiveOrganizationHeader({
+  sessionUser,
+  workspace,
+  disabled,
+  onInvite,
+}: ActiveOrganizationHeaderProps) {
+  const t = useTranslations("Components.OrganizationSwitcher");
+  const tRole = useTranslations("Components.Organizations.Role");
+  const canInvite =
+    workspace.role === MemberRole.OWNER || workspace.role === MemberRole.ADMIN;
+
+  return (
+    <>
+      <div className="flex flex-col gap-3 p-2 pb-3">
+        <div className="flex items-center gap-2.5">
+          <WorkspaceAvatar
+            sessionUser={sessionUser}
+            organization={workspace.organization ?? null}
+            className="size-9 md:size-9"
+            logoSize={20}
+            decorative
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{workspace.name}</p>
+            <p className="text-muted-foreground text-xs">
+              {[
+                workspace.role ? tRole(workspace.role) : null,
+                workspace.memberCount !== null
+                  ? t("memberCount", { count: workspace.memberCount })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {canInvite ? (
+            <DropdownMenuItem
+              className={cn(
+                buttonVariants({ variant: "primary", size: "sm" }),
+                "focus:bg-primary-solid-hover focus:text-primary-solid-foreground flex-1",
+              )}
+              disabled={disabled}
+              onSelect={onInvite}
+            >
+              <UserPlus className="text-current" />
+              {t("invitePeople")}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem
+            asChild
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "flex-1",
+            )}
+          >
+            <Link href="/organization">
+              <Settings className="text-current" />
+              {canInvite ? t("organizationSettings") : t("membersAndSettings")}
+            </Link>
+          </DropdownMenuItem>
+        </div>
+      </div>
+      <DropdownMenuSeparator />
+    </>
+  );
+}
+
 interface WorkspaceSwitcherMenuProps {
   placement: WorkspaceSwitcherPlacement;
 }
@@ -117,6 +201,7 @@ export default function WorkspaceSwitcherMenu({
     setMenuOpen,
     selectWorkspace,
     openCreateWorkspace,
+    openInviteMembers,
   } = useWorkspaceSwitcherState();
 
   return (
@@ -171,6 +256,14 @@ export default function WorkspaceSwitcherMenu({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align={MENU_ALIGN[placement]}>
+          {activeWorkspace && activeOrganizationId !== null ? (
+            <ActiveOrganizationHeader
+              sessionUser={sessionUser}
+              workspace={activeWorkspace}
+              disabled={isBusy}
+              onInvite={openInviteMembers}
+            />
+          ) : null}
           {personalWorkspace ? (
             <WorkspaceMenuItem
               sessionUser={sessionUser}

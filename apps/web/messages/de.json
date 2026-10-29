@@ -195,7 +195,11 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createWorkspace": "Workspace erstellen",
-      "userAvatarAlt": "Nutzer-Avatar"
+      "userAvatarAlt": "Nutzer-Avatar",
+      "invitePeople": "Personen einladen",
+      "organizationSettings": "Einstellungen",
+      "membersAndSettings": "Mitglieder & Einstellungen",
+      "memberCount": "{count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Mitglieder gesammelt einladen",
-        "description": "Füge E-Mail-Adressen ein, um mehrere Mitglieder gleichzeitig einzuladen.",
+        "title": "Mitglieder einladen",
+        "description": "Füge eine oder mehrere E-Mail-Adressen ein.",
         "label": "E-Mail-Adressen",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Trenne E-Mail-Adressen mit Kommas, Semikolons oder Zeilenumbrüchen.",

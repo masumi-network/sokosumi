@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 
+import { memberRoleNullableSchema } from "./domain-enums.schema";
 import { projectSocialProviderSchema } from "./project-social-connection.schema";
 
 const USER_WORKSPACE_KINDS = ["personal", "organization"] as const;
@@ -38,6 +39,15 @@ export const userWorkspaceSchema = z
       description:
         "Organization website from its metadata, or null for none and for a personal workspace",
       example: "https://acme.com",
+    }),
+    role: memberRoleNullableSchema.openapi({
+      description:
+        "The person's role in the organization, or null for a personal workspace",
+    }),
+    memberCount: z.number().int().positive().nullable().openapi({
+      description:
+        "How many people are members of the organization, or null for a personal workspace",
+      example: 14,
     }),
     enabledSocialProviders: z.array(projectSocialProviderSchema).openapi({
       description:
