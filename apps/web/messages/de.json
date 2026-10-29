@@ -954,6 +954,26 @@
         "ACCEPTED": "Freigegeben und ausgeführt.",
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
+      },
+      "AvatarState": {
+        "alt": "{name}, {state}",
+        "label": {
+          "idle": "Bereit",
+          "thinking": "Denkt nach",
+          "working": "Arbeitet",
+          "done": "Fertig",
+          "needs_you": "Braucht dich",
+          "offline": "Offline"
+        },
+        "line": {
+          "idle": "Bereit, wenn du es bist",
+          "thinking": "Überlegt sich den nächsten Schritt",
+          "working": "Arbeitet an einer Anfrage",
+          "done": "Hat die letzte Anfrage erledigt",
+          "needs_you": "Eine Entscheidung wartet auf dich",
+          "offline": "Nimmt gerade keine Anfragen an"
+        },
+        "lastActive": "Zuletzt aktiv {time}"
       }
     },
     "Mermaid": {
@@ -8901,7 +8921,6 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
-        "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
@@ -8964,7 +8983,39 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "loadError": "Bilder konnten nicht geladen werden.",
-        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
+        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
+        "edit": "Bild bearbeiten",
+        "Studio": {
+          "metadata": "Bild-Studio",
+          "back": "Zurück zu {name}",
+          "title": "Wie soll {name} aussehen?",
+          "description": "Ändere das Tier oder füge ein Accessoire hinzu. Der Schreibtisch bleibt: Dort arbeitet dein Bot.",
+          "draftAlt": "Neuer Look für {name}, noch nicht gespeichert",
+          "making": "Dein neuer Look entsteht · etwa 10 s",
+          "sizes": "Profil oben · Bild in Chat und Aufgaben",
+          "states": "Zustände",
+          "statesPlay": "Wähle einen Zustand, um ihn einmal abzuspielen",
+          "statesDraft": "Bewegt sich, sobald du ihn behältst",
+          "statesProgress": "Die Animationen entstehen · {ready} von {total} fertig",
+          "creature": "Tier",
+          "accessory": "Accessoire",
+          "describe": "Oder beschreibe eine Änderung",
+          "placeholder": "Gib ihm einen kleinen Zauberhut",
+          "apply": "Anwenden",
+          "ideas": {
+            "wizard": "Ein kleiner Zauberhut",
+            "coffee": "Kaffee auf dem Schreibtisch",
+            "snow": "Lass es schneien",
+            "sleepy": "Lass es müde aussehen",
+            "beach": "Ab an den Strand"
+          },
+          "keep": "Diesen Look behalten",
+          "shuffle": "Zufällig",
+          "saved": "Gespeichert.",
+          "error": "Der Look konnte nicht geändert werden. Versuch es erneut.",
+          "keepError": "Der Look konnte nicht gespeichert werden. Versuch es erneut.",
+          "rateLimited": "Du hast sehr viele neue Looks erstellt. Versuch es später noch einmal."
+        }
       },
       "Skills": {
         "builtIn": "Enthalten",
