@@ -50,9 +50,14 @@ export const VERCEL_PROJECTS = {
   },
 };
 
+// Full SHA only: a short prefix can be brute-forced by a fork pushing a
+// colliding commit between the approval and the deploy.
+const FULL_SHA = /^[0-9a-f]{40}$/;
+
 /**
- * Parse `<command> <mainnet|preprod> [mainnet|preprod]` or `<command> all`
- * from the first line of a PR comment.
+ * Parse `<command> <mainnet|preprod> [mainnet|preprod] [sha]` or
+ * `<command> all [sha]` from the first line of a PR comment. `sha` is the
+ * full head commit the commenter approves, or null.
  */
 export function parseNetworkCommand(body, command) {
   const firstLine = String(body ?? "")
@@ -65,13 +70,15 @@ export function parseNetworkCommand(body, command) {
   }
 
   const rest = tokens.slice(1).map((token) => token.toLowerCase());
-  if (rest.length === 0) {
+  const shas = [...new Set(rest.filter((token) => FULL_SHA.test(token)))];
+  const unique = [...new Set(rest.filter((token) => !FULL_SHA.test(token)))];
+  if (unique.length === 0 || shas.length > 1) {
     return { kind: "usage" };
   }
+  const sha = shas[0] ?? null;
 
-  const unique = [...new Set(rest)];
   if (unique.length === 1 && unique[0] === "all") {
-    return { kind: "run", networks: [...NETWORKS] };
+    return { kind: "run", networks: [...NETWORKS], sha };
   }
 
   if (unique.some((token) => !NETWORKS.includes(token))) {
@@ -81,13 +88,14 @@ export function parseNetworkCommand(body, command) {
   return {
     kind: "run",
     networks: NETWORKS.filter((network) => unique.includes(network)),
+    sha,
   };
 }
 
 export function parseDeployComment(body) {
   const parsed = parseNetworkCommand(body, "/deploy");
   return parsed.kind === "run"
-    ? { kind: "deploy", networks: parsed.networks }
+    ? { kind: "deploy", networks: parsed.networks, sha: parsed.sha }
     : parsed;
 }
 
@@ -105,6 +113,8 @@ export function usageMessage() {
     "`/deploy all`",
     "",
     "Deploys web + core for the named network(s), plus CMO on mainnet, at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "",
+    "On a pull request from a fork, add the full 40-character head commit SHA you reviewed (for example `/deploy preprod <sha>`). The preview builds that commit with preview secrets, so review the whole diff at that commit first. Commits pushed later never deploy on their own.",
     "",
     "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
   ].join("\n");
@@ -351,10 +361,21 @@ function failedDeployments(targets, deployments) {
   });
 }
 
+/**
+ * The ref a preview deploys from and scopes its Core env vars to. A fork's
+ * branch does not exist in this repository, and its name can equal one of
+ * ours (even `main`), so forks use the PR's own head ref here.
+ */
+export function previewRef(pullRequest) {
+  return isSameRepoPullRequest(pullRequest)
+    ? pullRequest.head.ref
+    : `refs/pull/${pullRequest.number}/head`;
+}
+
 export function previewGitSource(pullRequest, repoId) {
   return {
     repoId: repoId ?? pullRequest.base.repo.id,
-    ref: pullRequest.head.ref,
+    ref: previewRef(pullRequest),
     sha: pullRequest.head.sha,
     meta: previewMetadata({
       repoId: repoId ?? pullRequest.base.repo.id,
@@ -436,9 +457,13 @@ export async function settlePreviewDeployments(options) {
 
 /**
  * Shared flow for PR comment commands: parse `command.name`, require write
- * access and a same-repository PR, react with eyes, then call `command.run`.
+ * access and a same-repository PR (or, with `command.allowFork`, a fork PR at
+ * a named head SHA), react with eyes, then call `command.run`.
  * `run` reacts with rocket itself on success. A thrown error becomes a
  * `<subject> failed: …` reply.
+ *
+ * The fork PR's comment must name its full head SHA: the commenter approves
+ * that reviewed commit, and a push after the review no longer matches.
  */
 export async function runPullRequestCommand(options, command) {
   const {
@@ -528,7 +553,8 @@ export async function runPullRequestCommand(options, command) {
     throw new Error(`Pull request ${issueNumber} was not found`);
   }
 
-  if (!isSameRepoPullRequest(pullRequest)) {
+  const fork = !isSameRepoPullRequest(pullRequest);
+  if (fork && !command.allowFork) {
     await comment(
       `${command.subject} is only available for branches in this repository, not forks.`,
     );
@@ -538,6 +564,23 @@ export async function runPullRequestCommand(options, command) {
   if (pullRequest.state !== "open") {
     await comment("Preview commands require an open pull request.");
     return { kind: "closed" };
+  }
+
+  // Neither reply names the head SHA: pasting it would approve commits
+  // pushed after the commenter's review.
+  if (fork && !parsed.sha) {
+    await comment(
+      `This pull request comes from a fork, and its preview builds with preview secrets. Review the code, then comment \`${command.name} ${parsed.networks.join(" ")} <sha>\` with the full 40-character SHA of the head commit you reviewed.`,
+    );
+    return { kind: "sha-required" };
+  }
+
+  // Also checked on same-repo PRs that name one: the SHA is an approval.
+  if (parsed.sha && parsed.sha !== pullRequest.head.sha) {
+    await comment(
+      `\`${parsed.sha}\` is not this pull request's head commit. Review the commits pushed since, then comment again with the SHA of the head commit you reviewed.`,
+    );
+    return { kind: "sha-mismatch" };
   }
 
   try {
@@ -575,6 +618,7 @@ export async function runPreviewDeployComment(options) {
     subject: "Preview deploy",
     action: "trigger preview deployments",
     usage: usageMessage(),
+    allowFork: true,
     run: async ({ networks, pullRequest, comment, react }) => {
       const files = await (listFiles
         ? listFiles()
@@ -597,7 +641,7 @@ export async function runPreviewDeployComment(options) {
           ...options,
           repoId: repoId ?? pullRequest.base.repo.id,
           pullNumber: pullRequest.number,
-          ref: pullRequest.head.ref,
+          ref: previewRef(pullRequest),
           vercelToken,
           teamId,
         },
