@@ -1,3 +1,5 @@
+import { HTTPException } from "hono/http-exception";
+
 import { LIMITS } from "@/config/constants";
 import { notFound, serviceUnavailable, tooManyRequests } from "@/helpers/error";
 import { buildAvatarView } from "@/helpers/soko-bot-avatar-state";
@@ -99,14 +101,28 @@ export async function createAvatarDraft(input: {
     });
   }
   const base = await loadBase(style, input.sokoBotId, input.draftId);
-  const plan = await planChange(style, base.look, input.change);
-  if (plan.kind === "unchanged") return { draft: null, note: plan.note };
-
   // A shuffle starts over from the house scene whatever the bot looks like now.
   const fromHouse = input.change.kind === "shuffle" || !base.imageUrl;
-  const reference = fromHouse
-    ? await loadHouseScene(style)
-    : await downloadAvatarAsset(base.imageUrl as string);
+  let plan: Awaited<ReturnType<typeof planChange>>;
+  let reference: Buffer;
+  try {
+    plan = await planChange(style, base.look, input.change);
+    if (plan.kind === "unchanged") return { draft: null, note: plan.note };
+    reference = fromHouse
+      ? await loadHouseScene(style)
+      : await downloadAvatarAsset(base.imageUrl as string);
+  } catch (error) {
+    // A bad request is the caller's; anything else is the rewriter or the
+    // blob store being down, and nothing has been spent yet.
+    if (error instanceof HTTPException) throw error;
+    console.warn("Soko Bot avatar draft could not be planned", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    throw serviceUnavailable("The look could not be drawn. Try again.", {
+      kind: "avatar_draw_failed",
+      reportToSentry: false,
+    });
+  }
 
   // Count and insert as one step, so a burst cannot all pass the same count.
   const now = new Date();

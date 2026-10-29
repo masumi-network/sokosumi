@@ -232,12 +232,25 @@ const renders = new Table(
     loopUrl: null,
     loopLargeUrl: null,
   }),
-  (row) => ({
-    ...row,
-    avatar: avatars.rows.find((one) => one.id === row.avatarId),
-  }),
+  (row) => {
+    const avatar = avatars.rows.find((one) => one.id === row.avatarId);
+    return {
+      ...row,
+      avatar: avatar && {
+        ...avatar,
+        claimedBySokoBot: avatar.claimedBySokoBotId
+          ? {
+              deletedAt: deletedBots.has(avatar.claimedBySokoBotId as string)
+                ? new Date()
+                : null,
+            }
+          : null,
+      },
+    };
+  },
 );
 const bots: Row = { id: "bot-1", avatarImageUrl: null };
+const deletedBots = new Set<string>();
 Object.assign(db, {
   sokoBotAvatar: avatars,
   sokoBotAvatarRender: renders,
@@ -390,6 +403,7 @@ function resetWorld() {
   renders.reset();
   blobFiles.clear();
   bots.avatarImageUrl = null;
+  deletedBots.clear();
   operations = [];
   getEnvMock.mockReturnValue({
     AI_GATEWAY_API_KEY: "gw-test",
@@ -586,6 +600,36 @@ describe("drafting", () => {
       draft: null,
       note: "I can't draw that. How about a tiny sailor hat?",
     });
+    expect(providerMock.editImage).not.toHaveBeenCalled();
+    expect(avatars.rows).toHaveLength(0);
+  });
+
+  it("says why when the rewriter refuses without a note", async () => {
+    providerMock.rewrite.mockResolvedValue({ edit: "", note: "" });
+
+    const result = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "typed", text: "a famous logo" },
+    });
+
+    expect(result.draft).toBeNull();
+    expect(result.note).not.toBe("");
+  });
+
+  it("answers 503, having spent nothing, when the rewriter is down", async () => {
+    providerMock.rewrite.mockRejectedValue(new Error("gateway down"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "typed", text: "a wizard hat" },
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+
+    warn.mockRestore();
     expect(providerMock.editImage).not.toHaveBeenCalled();
     expect(avatars.rows).toHaveLength(0);
   });
@@ -900,6 +944,17 @@ describe("reconciling renders", () => {
     await keptLook({ kind: "creature", creature: "otter" });
     providerMock.editImage.mockClear();
     avatars.rows[0]!.claimedBySokoBotId = null;
+
+    await reconcileAvatarRenders();
+
+    expect(providerMock.editImage).not.toHaveBeenCalled();
+    expect(providerMock.startVideo).not.toHaveBeenCalled();
+  });
+
+  it("does not spend on a bot that has been deleted", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+    deletedBots.add(BOT);
 
     await reconcileAvatarRenders();
 

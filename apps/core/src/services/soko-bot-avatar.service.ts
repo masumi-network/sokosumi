@@ -429,14 +429,21 @@ export async function topUpAvailableAvatars(
 }
 
 /**
- * Delete drafts and replaced looks past their expiry, unless a bot holds them.
- * Renders go with them (cascade).
+ * Delete drafts and replaced looks past their expiry, and private looks whose
+ * bot was deleted (no expiry left once a bot claimed them), unless a bot holds
+ * them. Renders go with them (cascade).
  */
 export async function sweepExpiredDrafts(
   now: Date = new Date(),
 ): Promise<number> {
   const { count } = await prisma.sokoBotAvatar.deleteMany({
-    where: { draftExpiresAt: { lt: now }, claimedBySokoBotId: null },
+    where: {
+      claimedBySokoBotId: null,
+      OR: [
+        { draftExpiresAt: { lt: now } },
+        { draftForSokoBotId: { not: null }, draftExpiresAt: null },
+      ],
+    },
   });
   return count;
 }

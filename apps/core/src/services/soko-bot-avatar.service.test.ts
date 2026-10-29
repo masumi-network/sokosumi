@@ -580,7 +580,14 @@ describe("Soko Bot avatar pool", () => {
     await expect(sweepExpiredDrafts(now)).resolves.toBe(3);
 
     expect(avatarDeleteManyMock).toHaveBeenCalledWith({
-      where: { draftExpiresAt: { lt: now }, claimedBySokoBotId: null },
+      where: {
+        claimedBySokoBotId: null,
+        OR: [
+          { draftExpiresAt: { lt: now } },
+          // A kept look whose bot is gone has no expiry left to wait for.
+          { draftForSokoBotId: { not: null }, draftExpiresAt: null },
+        ],
+      },
     });
   });
 
@@ -590,7 +597,7 @@ describe("Soko Bot avatar pool", () => {
     await stockAvatarPool();
 
     const sweeps = avatarDeleteManyMock.mock.calls.filter(
-      (call) => call[0]?.where?.draftExpiresAt,
+      (call) => call[0]?.where?.OR,
     );
     expect(sweeps).toHaveLength(1);
   });

@@ -145,7 +145,14 @@ export async function planChange(
         request: change.text,
       });
       const edit = rewritten.edit.trim();
-      if (!edit) return { kind: "unchanged", note: rewritten.note.trim() };
+      if (!edit) {
+        return {
+          kind: "unchanged",
+          note:
+            rewritten.note.trim() ||
+            "That does not fit the avatar rules, so nothing changed.",
+        };
+      }
       return {
         kind: "edit",
         note: rewritten.note.trim(),

@@ -321,7 +321,11 @@ export async function reconcileAvatarRenders(
   const rows = await prisma.sokoBotAvatarRender.findMany({
     where: {
       status: { in: [...LIVE_STATUSES] },
-      avatar: { claimedBySokoBotId: { not: null } },
+      // A look a live bot holds. A deleted bot keeps its claim as a tombstone.
+      avatar: {
+        claimedBySokoBotId: { not: null },
+        claimedBySokoBot: { deletedAt: null },
+      },
       ...leaseFree(now),
     },
     orderBy: { createdAt: "asc" },
