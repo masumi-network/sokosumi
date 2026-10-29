@@ -71,6 +71,7 @@ import {
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
+import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
@@ -96,6 +97,11 @@ import { head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
+import {
+  ComposioApiError,
+  ComposioConfigError,
+} from "@/clients/composio.client";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { socialProviderWorkspaceForProject } from "@/config/social-providers";
@@ -118,6 +124,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
@@ -140,6 +147,9 @@ import {
   type SokoBotTurnReader,
   sokoBotSharedScopeOf,
 } from "@/helpers/task-visibility";
+
+import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
+import { fitDisplayImage } from "@/lib/ads/display-image-fit";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { FileActor } from "@/lib/files/actor";
@@ -255,6 +265,10 @@ import {
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
 import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
+import {
+  googleCampaignEditSpecSchema,
+  googleCampaignSpecSchema,
+} from "@/schemas/project-ad-account.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
@@ -273,7 +287,10 @@ import {
   searchFiles,
 } from "@/services/file-search.service";
 import { getJob } from "@/services/image-studio-assets.service";
-import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
+import {
+  ensureStudioAssetDriveFile,
+  writeStudioDriveFile,
+} from "@/services/image-studio-drive.service";
 import {
   createImageJob,
   createVideoJob,
@@ -287,6 +304,21 @@ import {
   isNewsletterDraftAvailable,
 } from "@/services/newsletter-draft.service";
 import { createNewsletterIssue } from "@/services/newsletter-issues.service";
+import {
+  createProjectAdCampaign,
+  deleteProjectAdCampaign,
+  editProjectAdCampaign,
+  getProjectAdCampaignDetails,
+  listProjectAdAccounts,
+  listProjectAdCampaigns,
+  listProjectAdLanguages,
+  searchProjectAdLocations,
+  updateProjectAdCampaign,
+} from "@/services/project-ad-accounts.service";
+import {
+  getProjectAdMarketProfile,
+  listProjectAdMarketKeywords,
+} from "@/services/project-ad-market.service";
 import {
   listProjectSocialConnections,
   requireScopedProject,
@@ -314,6 +346,7 @@ import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
+  adToolkitRefusal,
   createInboxDraft,
   fetchCalendarEvents,
   fetchInboxAttachment,
@@ -576,6 +609,77 @@ export class SokoBotRuntimeValidationError extends Error {}
 export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
+
+/**
+ * Runs an ads service call. 4xx refusals happen before the provider write, or
+ * as an atomic Google batch with nothing left behind, so the model may fix and
+ * retry (REJECTED). 5xx and Composio failures leave the outcome unknown and
+ * are never retried. Display image uploads that already wrote assets rethrow as
+ * ComposioToolError so they take the unknown path too.
+ */
+async function callAds<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    // 4xx: the service or Google refused the request (atomic create / one
+    // change per update), so the model may fix it and retry. 5xx: outcome
+    // unknown — never retry an ads write after an unclear failure.
+    if (error instanceof HTTPException) {
+      if (error.status >= 400 && error.status < 500)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw new SokoBotRuntimeValidationError(
+        "The ads provider could not complete the request.",
+      );
+    }
+    if (error instanceof ComposioConfigError)
+      throw new SokoBotRefusedUnsentError(
+        "Ads are not configured on this environment.",
+      );
+    if (error instanceof ComposioApiError || error instanceof ComposioToolError)
+      throw new SokoBotRuntimeValidationError(
+        "The ads provider could not complete the request.",
+      );
+    throw error;
+  }
+}
+
+/** The campaign's page on the Ads page. */
+function adCampaignLink(
+  projectId: string,
+  accountId: string,
+  campaignId: string,
+): string {
+  return `/ads/campaigns/${encodeURIComponent(campaignId)}?${new URLSearchParams({ projectId, accountId })}`;
+}
+
+/** The Project's ad account, or a refusal the model can fix with list_ad_accounts. */
+async function findAdAccount(
+  projectId: string,
+  accountId: string,
+  workspaceId: string,
+) {
+  const account = (
+    await callAds(() => listProjectAdAccounts({ projectId, workspaceId }))
+  ).find((candidate) => candidate.id === accountId);
+  if (!account)
+    throw new SokoBotRefusedUnsentError(
+      "Ad account not found in this Project; use an id from list_ad_accounts",
+    );
+  return account;
+}
+
+/** Core's Google rules, worded for the model: the first few issues. */
+function parseAdSpec<S extends z.ZodType>(schema: S, value: unknown) {
+  const spec = schema.safeParse(value);
+  if (!spec.success)
+    throw new SokoBotRefusedUnsentError(
+      spec.error.issues
+        .slice(0, 3)
+        .map(({ path, message }) => `${path.join(".")}: ${message}`)
+        .join("; "),
+    );
+  return spec.data;
+}
 
 /**
  * The member a tool runs as. A shared Soko Bot acting on its own acts for
@@ -2300,6 +2404,82 @@ export class SokoBotRuntimeService {
           size: file.sizeBytes ?? 0,
           mimeType,
           kind,
+        };
+      }),
+    );
+  }
+
+  /**
+   * A Display campaign's images given as `{ fileId, role }` become the Drive
+   * references the ads service stores. Google takes JPEG, PNG and GIF only
+   * and refuses a ratio more than 1% off the role's, so an image that does
+   * not fit is centre-cropped to it into a new image in Content Studio.
+   */
+  private async resolveAdImages(
+    authorized: AuthorizedSokoBotRuntime,
+    images: readonly { fileId: string; role: GoogleDisplayImageRole }[],
+  ) {
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: images.map(({ fileId }) => fileId),
+    });
+    return Promise.all(
+      images.map(async ({ fileId, role }) => {
+        const file = files.find((candidate) => candidate.id === fileId);
+        if (!file || file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
+          throw new SokoBotRefusedUnsentError(
+            `File ${fileId} is not in the owner's Files; use an id from list_files, get_image or upload_file`,
+          );
+        const mimeType = file.mimeType ?? "";
+        if (
+          !GOOGLE_DISPLAY_IMAGE_MIME_TYPES.some((m) => m === mimeType) &&
+          mimeType !== "image/webp"
+        )
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}" is not a JPEG, PNG, GIF or WebP image`,
+          );
+        const bytes = await downloadBlob(file.sourceId);
+        if (!bytes)
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}" could not be read; try again`,
+          );
+        const fit = await fitDisplayImage(bytes, mimeType, role);
+        if (fit.kind === "refused")
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}": ${fit.reason}`,
+          );
+        if (fit.kind === "unchanged")
+          return {
+            pathname: file.sourceId,
+            fileUrl: (await head(file.sourceId)).url,
+            name: file.displayName,
+            size: file.sizeBytes ?? 0,
+            mimeType: fit.mimeType,
+            role,
+          };
+        const cropped = await writeStudioDriveFile({
+          workspaceId: drive.key.workspaceId,
+          organizationId:
+            drive.key.scope === "organization" ? drive.key.ownerId : null,
+          userId: drive.actor.userId,
+          // The source id's random tail keeps two sources with one name apart.
+          name: `${file.displayName.replace(/\.[^.]*$/, "")}-${role.toLowerCase()}-${fileId.slice(-8)}.jpg`,
+          bytes: fit.bytes,
+          contentType: "image/jpeg",
+        });
+        if (!cropped)
+          throw new SokoBotRefusedUnsentError(
+            `"${file.displayName}" could not be saved after cropping; try again`,
+          );
+        return {
+          pathname: cropped.pathname,
+          fileUrl: cropped.url,
+          name: cropped.name,
+          size: cropped.size,
+          mimeType: "image/jpeg" as const,
+          role,
         };
       }),
     );
@@ -4843,6 +5023,19 @@ export class SokoBotRuntimeService {
         ) {
           await this.requireSocialAccess(authorized);
         }
+        const adWrite = (
+          [
+            "create_ad_campaign",
+            "update_ad_campaign",
+            "edit_ad_campaign",
+            "delete_ad_campaign",
+          ] as const
+        ).find((capability) => capability === input.capability);
+        if (adWrite)
+          await this.requireAdsAccess(
+            authorized,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS[adWrite].parse(input.input).projectId,
+          );
         if (input.capability === "refresh_social_post_statistics") {
           const params =
             SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_post_statistics.parse(
@@ -4884,6 +5077,11 @@ export class SokoBotRuntimeService {
         }
         if (
           input.capability === "list_project_social_accounts" ||
+          input.capability === "list_ad_accounts" ||
+          input.capability === "list_ad_campaigns" ||
+          input.capability === "find_ad_targeting" ||
+          input.capability === "get_market_keywords" ||
+          input.capability === "get_ad_campaign" ||
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
           input.capability === "list_social_account_statistics" ||
@@ -5252,15 +5450,14 @@ export class SokoBotRuntimeService {
   private async requireSocialAccess(
     authorized: AuthorizedSokoBotRuntime,
     tx: Prisma.TransactionClient = prisma,
+    ownerMessage = "Project social tools are only available for the owner",
   ) {
     if (
       authorized.turn.chainDepth > 0 ||
       authorized.askedByKind === "ASSISTANT" ||
       authorized.askedByKind === "TEAMMATE"
     ) {
-      throw new SokoBotRuntimeAuthorizationError(
-        "Project social tools are only available for the owner",
-      );
+      throw new SokoBotRuntimeAuthorizationError(ownerMessage);
     }
     const userId = actingMemberOf(authorized);
     const owner = await tx.user.findUnique({
@@ -5280,6 +5477,301 @@ export class SokoBotRuntimeService {
     await requireAssignedOrganizationSeat(userId, workspace.organizationId, tx);
 
     return workspace;
+  }
+
+  /**
+   * Ads share the social gate and its beta: an owner chat turn, then the Ads
+   * page's membership check. A Project bot also stays in its own Project, like
+   * the studio tools; that refusal comes before anything is read or sent.
+   * Schedules and other non-chat turns cannot spend or change campaigns.
+   */
+  private async requireAdsAccess(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    if (authorized.turn.source !== "CHAT") {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Ads tools are only available when a person asks in chat.",
+      );
+    }
+    const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
+      projectId,
+    ]);
+    if (refusal) throw new SokoBotRefusedUnsentError(refusal);
+    const workspace = await this.requireSocialAccess(
+      authorized,
+      prisma,
+      "Project ads tools are only available for the owner",
+    );
+    await requireSocialBetaAccess(actingMemberOf(authorized), prisma);
+    return workspace;
+  }
+
+  /**
+   * Ads reach the provider only through the Project's ad account and the
+   * services behind the Ads page, never a Composio connection of the bot's
+   * own. A service refusal or provider failure becomes a message the model
+   * can read.
+   */
+  private async executeAdsTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { workspaceId } = authorized.turn;
+    switch (input.capability) {
+      case "list_ad_accounts": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_accounts.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const accounts = await callAds(() =>
+          listProjectAdAccounts({ ...params, workspaceId }),
+        );
+        return {
+          accounts: accounts.map(
+            ({ id, provider, externalAccountId, name, currency }) => ({
+              id,
+              provider,
+              externalAccountId,
+              name,
+              currency,
+            }),
+          ),
+          ...(accounts.length === 0
+            ? {
+                note: "No ad account is connected to this Project. A person connects one on the Ads page; you never connect Google Ads or Meta Ads yourself.",
+              }
+            : {}),
+        };
+      }
+      case "list_ad_campaigns": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId } = params;
+        const [accounts, result] = await callAds(() =>
+          Promise.all([
+            listProjectAdAccounts({ projectId, workspaceId }),
+            listProjectAdCampaigns({ ...params, workspaceId }),
+          ]),
+        );
+        // Only Google campaigns have a details page.
+        const google =
+          accounts.find((account) => account.id === accountId)?.provider ===
+          "google_ads";
+        return {
+          ...result,
+          campaigns: result.campaigns.map((campaign) =>
+            google
+              ? {
+                  ...campaign,
+                  link: adCampaignLink(projectId, accountId, campaign.id),
+                }
+              : campaign,
+          ),
+        };
+      }
+      case "find_ad_targeting": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_ad_targeting.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, locationQuery } = params;
+        const scope = { projectId, accountId, workspaceId };
+        const languages = await callAds(() => listProjectAdLanguages(scope));
+        if (locationQuery === undefined) return languages;
+        const locations = await callAds(() =>
+          searchProjectAdLocations({ ...scope, q: locationQuery }),
+        );
+        return { ...languages, ...locations };
+      }
+      case "get_market_keywords": {
+        const { projectId } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.get_market_keywords.parse(input.input);
+        await this.requireAdsAccess(authorized, projectId);
+        const scope = { projectId, workspaceId };
+        const profile = await callAds(() => getProjectAdMarketProfile(scope));
+        if (!profile)
+          return {
+            keywords: [],
+            note: "No Market profile is set for this Project. A person sets one on the Ads page's Market tab.",
+          };
+        const { keywords, fetchedAt } = await callAds(() =>
+          listProjectAdMarketKeywords(scope),
+        );
+        const { countryCode, languageCode, locationId } = profile;
+        return {
+          market: {
+            countryCode,
+            languageCode,
+            locationId,
+            seedKeywords: profile.keywords,
+          },
+          keywords: keywords.map(
+            ({
+              keyword,
+              searchVolume,
+              competition,
+              cpc,
+              lowTopOfPageBid,
+              highTopOfPageBid,
+            }) => ({
+              keyword,
+              searchVolume,
+              competition,
+              cpc,
+              lowTopOfPageBid,
+              highTopOfPageBid,
+            }),
+          ),
+          currency: "USD",
+          fetchedAt: fetchedAt.toISOString(),
+        };
+      }
+      case "create_ad_campaign": {
+        const { projectId, accountId, name, dailyBudget, google } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign.parse(input.input);
+        const workspace = await this.requireAdsAccess(authorized, projectId);
+        const account = await findAdAccount(projectId, accountId, workspaceId);
+        if (account.provider !== "google_ads")
+          throw new SokoBotRefusedUnsentError(
+            "Meta campaigns can be created on the Ads page",
+          );
+        const spec = parseAdSpec(
+          googleCampaignSpecSchema,
+          google.type === "DISPLAY"
+            ? {
+                ...google,
+                images: await this.resolveAdImages(authorized, google.images),
+              }
+            : google,
+        );
+        const { id } = await callAds(() =>
+          createProjectAdCampaign({
+            projectId,
+            accountId,
+            workspaceId,
+            userId: actingMemberOf(authorized),
+            organizationId: workspace.organizationId,
+            name,
+            dailyBudget,
+            google: spec,
+          }),
+        );
+        return {
+          campaignId: id,
+          status: "PAUSED" as const,
+          link: adCampaignLink(projectId, accountId, id),
+          note: "Created paused. Resume it with update_ad_campaign only when the owner asks.",
+        };
+      }
+      case "get_ad_campaign": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, campaignId } = params;
+        const details = await callAds(() =>
+          getProjectAdCampaignDetails({ ...params, workspaceId }),
+        );
+        return {
+          ...details,
+          link: adCampaignLink(projectId, accountId, campaignId),
+        };
+      }
+      case "update_ad_campaign": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_ad_campaign.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, campaignId, status, dailyBudget } =
+          params;
+        const account = await findAdAccount(projectId, accountId, workspaceId);
+        await callAds(() =>
+          updateProjectAdCampaign({ ...params, workspaceId }),
+        );
+        return {
+          campaignId,
+          updated: true as const,
+          ...(status !== undefined ? { status } : {}),
+          ...(dailyBudget !== undefined ? { dailyBudget } : {}),
+          // Only Google campaigns have a details page.
+          ...(account.provider === "google_ads"
+            ? { link: adCampaignLink(projectId, accountId, campaignId) }
+            : {}),
+        };
+      }
+      case "delete_ad_campaign": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_ad_campaign.parse(
+          input.input,
+        );
+        await this.requireAdsAccess(authorized, params.projectId);
+        const { projectId, accountId, campaignId } = params;
+        await findAdAccount(projectId, accountId, workspaceId);
+        // The service's lookups and 404s come before its one provider write.
+        await callAds(() =>
+          deleteProjectAdCampaign({
+            projectId,
+            workspaceId,
+            accountId,
+            campaignId,
+          }),
+        );
+        return { campaignId, deleted: true as const };
+      }
+      case "edit_ad_campaign": {
+        const { projectId, accountId, campaignId, name, dailyBudget, google } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign.parse(input.input);
+        const workspace = await this.requireAdsAccess(authorized, projectId);
+        const account = await findAdAccount(projectId, accountId, workspaceId);
+        if (account.provider !== "google_ads")
+          throw new SokoBotRefusedUnsentError(
+            "Meta campaigns are edited on the Ads page",
+          );
+        // New images (`fileId`) are resolved and cropped; kept ones (`assetId`)
+        // stay as the details gave them, each in its place.
+        let newIndex = 0;
+        const added =
+          google.type === "DISPLAY"
+            ? await this.resolveAdImages(
+                authorized,
+                google.images.filter((image) => "fileId" in image),
+              )
+            : [];
+        const spec = parseAdSpec(
+          googleCampaignEditSpecSchema,
+          google.type === "DISPLAY"
+            ? {
+                ...google,
+                images: google.images.map((image) =>
+                  "fileId" in image ? added[newIndex++] : image,
+                ),
+              }
+            : google,
+        );
+        await callAds(() =>
+          editProjectAdCampaign({
+            projectId,
+            accountId,
+            campaignId,
+            workspaceId,
+            userId: actingMemberOf(authorized),
+            organizationId: workspace.organizationId,
+            name,
+            dailyBudget,
+            google: spec,
+          }),
+        );
+        return {
+          campaignId,
+          edited: true as const,
+          link: adCampaignLink(projectId, accountId, campaignId),
+        };
+      }
+      default:
+        throw new SokoBotRuntimeValidationError("Not an ads tool");
+    }
   }
 
   private async executeSocialTool(
@@ -5668,6 +6160,16 @@ export class SokoBotRuntimeService {
       case "cancel_social_post":
       case "publish_social_post":
         return this.executeSocialTool(input, authorized);
+      case "list_ad_accounts":
+      case "list_ad_campaigns":
+      case "find_ad_targeting":
+      case "get_market_keywords":
+      case "create_ad_campaign":
+      case "get_ad_campaign":
+      case "update_ad_campaign":
+      case "edit_ad_campaign":
+      case "delete_ad_campaign":
+        return this.executeAdsTool(input, authorized);
       case "start_background_run":
       case "list_background_runs":
       case "stop_background_run": {
@@ -6275,9 +6777,14 @@ export class SokoBotRuntimeService {
           sokoBotReadFileInputSchema.parse(input.input),
         );
       case "list_integrations":
+        // A bot's own ad connection is unusable: ads go through the Project's
+        // ad account. The owner still sees it in Settings to disconnect it.
         return listSokoBotIntegrationsForBot(authorized.turn.sokoBotId).then(
           (result) =>
-            result.integrations.filter((i) => i.status !== "DISCONNECTED"),
+            result.integrations.filter(
+              (i) =>
+                i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
+            ),
         );
       case "search_inbox": {
         const parsed = sokoBotSearchInboxInputSchema.parse(input.input);
@@ -6390,6 +6897,8 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(
           input.input,
         );
+        const refusal = adToolkitRefusal(parsed.provider);
+        if (refusal) throw new SokoBotRuntimeValidationError(refusal);
         const [integration] = await activeIntegrationsForBot(
           authorized.turn.sokoBotId,
           "generic",
@@ -6409,6 +6918,9 @@ export class SokoBotRuntimeService {
       }
       case "run_integration_tool": {
         const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
+        // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
+        const refusal = adToolkitRefusal(parsed.provider, parsed.tool);
+        if (refusal) throw new SokoBotRefusedUnsentError(refusal);
         const [integration] = await activeIntegrationsForBot(
           authorized.turn.sokoBotId,
           "generic",

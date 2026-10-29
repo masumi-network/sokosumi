@@ -19,6 +19,7 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getComposio } from "@/clients/composio.client";
+import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
@@ -135,7 +136,11 @@ export async function searchSokoBotIntegrationCatalog(
     catalogCache = {
       at: Date.now(),
       entries: toolkits
-        .filter((toolkit) => toolkit.slug.toLowerCase() !== "composio")
+        .filter(
+          (toolkit) =>
+            toolkit.slug.toLowerCase() !== "composio" &&
+            !adProviderForToolkit(toolkit.slug),
+        )
         .map((toolkit) => ({
           provider: toolkit.slug.toLowerCase(),
           name: toolkit.name,
@@ -279,11 +284,30 @@ export interface SokoBotIntegrationTool {
   inputSchema: unknown;
 }
 
+/**
+ * Why a bot may not use this toolkit (or tool) directly: ads go through the
+ * Project's ad account, never a connection of the bot's own. Null when allowed.
+ */
+export function adToolkitRefusal(
+  providerId: string,
+  tool?: string,
+): string | null {
+  // A tool slug is `{TOOLKIT}_{ACTION}`, so its prefix names the toolkit.
+  const provider =
+    adProviderForToolkit(providerId) ??
+    (tool ? adProviderForToolkit(tool.trim().split("_")[0]) : undefined);
+  return provider
+    ? `${provider.name} is used through the Project's ad account: start with list_ad_accounts and use the ad tools`
+    : null;
+}
+
 /** Tool descriptors of one toolkit, optionally narrowed by intent words. */
 export async function listIntegrationTools(
   integration: ActiveIntegration,
   options: { query?: string; limit: number },
 ): Promise<SokoBotIntegrationTool[]> {
+  const refusal = adToolkitRefusal(integration.provider.id);
+  if (refusal) throw new SokoBotIntegrationError(refusal);
   const composio = requireComposio();
   const tools = await withComposio("list tools", () =>
     composio.tools.getRawComposioTools({
@@ -300,12 +324,14 @@ export async function listIntegrationTools(
   }));
 }
 
-/** Runs one toolkit tool as the connected account; mailboxes are refused. */
+/** Runs one toolkit tool as the connected account; mailboxes and ad toolkits are refused. */
 export async function runIntegrationTool(
   integration: ActiveIntegration,
   tool: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  const refusal = adToolkitRefusal(integration.provider.id, tool);
+  if (refusal) throw new SokoBotIntegrationError(refusal);
   if (isSokoBotEmailProvider(integration.provider.id)) {
     throw new SokoBotIntegrationError(
       "Mailboxes are read through search_inbox and read_email only",
