@@ -16,10 +16,11 @@ import { cn } from "@/lib/utils";
  * and narrows only at the pane edge. `100cqw` is the whole room pane
  * (`@container` on `ROOM_SHELL_MAIN_CLASSNAME`), so `(100cqw-56rem)/2` is the
  * closed-state centring margin; `100%-56rem` is the room left beside the panel.
+ * 56rem is `--container-4xl`, the same token `max-w-4xl` reads.
  * `w-auto` lets the stretched flex item take what is left after that margin.
  */
 export const ROOM_CONTENT_COLUMN_CLASSNAME =
-  "w-auto max-w-4xl ms-[max(0px,min((100cqw-56rem)/2,100%-56rem))]";
+  "w-auto max-w-4xl ms-[max(0px,min((100cqw-var(--container-4xl))/2,100%-var(--container-4xl)))]";
 
 /**
  * Outer padding for room message list content (skeleton + live).

@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode, Ref } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";

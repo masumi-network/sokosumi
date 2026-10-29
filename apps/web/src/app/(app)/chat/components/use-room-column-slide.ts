@@ -2,8 +2,9 @@ import { useRef } from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
-const SLIDE_MS = 260;
-const SLIDE_EASING = "cubic-bezier(0.2, 0, 0, 1)";
+/** The enter pairing dialogs use (`duration-200 ease-out-strong`). */
+const SLIDE_MS = 200;
+const SLIDE_EASING_TOKEN = "--ease-out-strong";
 
 /**
  * Slides the room's content column when a side panel docks or closes, instead
@@ -24,40 +25,51 @@ export function useRoomColumnSlide() {
     const main = mainRef.current;
     const section = sectionRef.current;
     if (!main || !section) return;
-    const columns = [listRef, composerRef].flatMap((ref) =>
-      ref.current ? [ref.current] : [],
-    );
+    // Read on every resize: `wrapColumn` (the file drop zone) can remount the
+    // column body, so the nodes from mount may be gone.
+    const columns = () => [listRef.current, composerRef.current];
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const easing =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue(SLIDE_EASING_TOKEN)
+        .trim() || "ease-out";
     const slides = new WeakMap<HTMLElement, Animation>();
     let mainWidth = main.clientWidth;
-    // Layout positions (offsetLeft ignores the slide's own transform).
-    let lefts = columns.map((column) => column.offsetLeft);
+    // offsetLeft is the layout position: it ignores the slide's own transform.
+    let layoutLefts = columns().map((column) => column?.offsetLeft);
 
     // Runs after layout and before paint, so the first painted frame is
     // already the column at its old place.
     const observer = new ResizeObserver(() => {
       const nextWidth = main.clientWidth;
-      const nextLefts = columns.map((column) => column.offsetLeft);
+      const nodes = columns();
+      const nextLefts = nodes.map((column) => column?.offsetLeft);
       if (nextWidth === mainWidth && !reducedMotion.matches) {
-        columns.forEach((column, index) => {
+        nodes.forEach((column, index) => {
+          const from = layoutLefts[index];
+          const to = nextLefts[index];
+          // A height-only resize leaves the column where it is: let a running
+          // slide finish rather than restart it.
+          if (!column || from === undefined || to === undefined || from === to)
+            return;
           // Start from where it is painted, so a toggle mid-slide does not jump.
-          const shown =
-            lefts[index] +
-            new DOMMatrix(getComputedStyle(column).transform).m41;
+          const paintedLeft =
+            from + new DOMMatrix(getComputedStyle(column).transform).m41;
           slides.get(column)?.cancel();
-          const dx = shown - nextLefts[index];
-          if (dx === 0) return;
           slides.set(
             column,
             column.animate(
-              [{ transform: `translateX(${dx}px)` }, { transform: "none" }],
-              { duration: SLIDE_MS, easing: SLIDE_EASING },
+              [
+                { transform: `translateX(${paintedLeft - to}px)` },
+                { transform: "none" },
+              ],
+              { duration: SLIDE_MS, easing },
             ),
           );
         });
       }
       mainWidth = nextWidth;
-      lefts = nextLefts;
+      layoutLefts = nextLefts;
     });
     observer.observe(main);
     observer.observe(section);

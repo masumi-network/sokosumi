@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startChatRowFixtureServer } from "@/app/chat/components/__tests__/chat-row-fixture-server";
 
 const PAGE_MODULE =
-  "/src/app/(app)/chat/components/__tests__/room-column-page.tsx";
+  "/src/app/(app)/chat/components/__tests__/use-room-column-slide-page.tsx";
 
 let server: ViteDevServer;
 
@@ -63,8 +63,8 @@ describe.each([
     );
     await page.addScriptTag({
       type: "module",
-      content: `const { renderRoomColumnPage } = await import(${JSON.stringify(PAGE_MODULE)});
-        renderRoomColumnPage();`,
+      content: `const { renderRoomColumnSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
+        renderRoomColumnSlidePage();`,
     });
     await page.waitForFunction(() => document.querySelector("main") !== null);
     return { page, errors };
@@ -72,8 +72,7 @@ describe.each([
 
   /** Where the column rule puts the column: centred when closed, else
    * kept or moved left only as far as the panel needs. */
-  function expected(pane: number, panel: number, rem: number) {
-    const column = 56 * rem;
+  function expected(pane: number, panel: number, column: number) {
     const centred = Math.max(0, (pane - column) / 2);
     const left = Math.max(0, Math.min(centred, pane - panel - column));
     return { centred, left, width: Math.min(column, pane - panel - left) };
@@ -94,10 +93,10 @@ describe.each([
     async (pane, panel) => {
       const { page, errors } = await openRoom(pane);
       const closed = await page.evaluate(() => window.columns());
-      const want = expected(pane, panel, closed.rem);
+      const want = expected(pane, panel, closed.maxWidth);
       for (const column of [closed.list, closed.composer]) {
         expectPx(column.left, want.centred);
-        expectPx(column.width, 56 * closed.rem);
+        expectPx(column.width, closed.maxWidth);
       }
 
       await page.evaluate((width) => window.setPanel(width), panel);
@@ -106,10 +105,11 @@ describe.each([
         expectPx(column.left, want.left);
         expectPx(column.width, want.width);
       }
+      // Transcript and composer slide together, from where they were.
       const moved = closed.composer.left - open.composer.left;
-      expect(open.composer.slideFrom).toBe(
-        moved === 0 ? null : `translateX(${moved}px)`,
-      );
+      const slide = moved === 0 ? null : `translateX(${moved}px)`;
+      expect(open.composer.slideFrom).toBe(slide);
+      expect(open.list.slideFrom).toBe(slide);
 
       await page.evaluate(() => window.setPanel(null));
       const reopened = await page.evaluate(() => window.columns());
@@ -124,7 +124,7 @@ describe.each([
     const { page } = await openRoom(1504, true);
     await page.evaluate(() => window.setPanel(420));
     const open = await page.evaluate(() => window.columns());
-    expectPx(open.composer.left, expected(1504, 420, open.rem).left);
+    expectPx(open.composer.left, expected(1504, 420, open.maxWidth).left);
     expect(open.composer.slideFrom).toBeNull();
     await page.close();
   }, 60_000);
@@ -140,8 +140,24 @@ describe.each([
       () => new Promise((resolve) => requestAnimationFrame(resolve)),
     );
     const resized = await page.evaluate(() => window.columns());
-    expectPx(resized.composer.left, expected(1400, 420, resized.rem).left);
+    expectPx(resized.composer.left, expected(1400, 420, resized.maxWidth).left);
     expect(resized.composer.slideFrom).toBeNull();
+    await page.close();
+  }, 60_000);
+
+  it("still slides after the column body remounts", async () => {
+    const { page, errors } = await openRoom(1504);
+    const before = await page.evaluateHandle(() => window.composerNode());
+    await page.evaluate(() => window.setOverlay(true));
+    expect(
+      await page.evaluate((node) => node === window.composerNode(), before),
+    ).toBe(false);
+
+    await page.evaluate(() => window.setPanel(420));
+    const open = await page.evaluate(() => window.columns());
+    expect(open.composer.slideFrom).not.toBeNull();
+    expect(open.list.slideFrom).toBe(open.composer.slideFrom);
+    expect(errors).toEqual([]);
     await page.close();
   }, 60_000);
 });
