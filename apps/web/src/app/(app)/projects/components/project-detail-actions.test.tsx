@@ -112,6 +112,39 @@ describe("ProjectDetailActions", () => {
     });
   });
 
+  it("says so when the Hide fails, and offers no Undo", async () => {
+    const user = userEvent.setup();
+    hideProjectActionMock.mockRejectedValue(new Error("down"));
+    render(<ProjectDetailActions projectId="project-1" labels={LABELS} />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Hide project" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Could not hide"),
+    );
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves Edit out when given no Edit label, as a project card does", async () => {
+    const user = userEvent.setup();
+    const { edit: _edit, ...cardLabels } = LABELS;
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={cardLabels}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["Hide project", "Close project"]);
+  });
+
   it("offers Show, not Hide, for a project the reader has Hidden", async () => {
     const user = userEvent.setup();
     showProjectActionMock.mockResolvedValue({});

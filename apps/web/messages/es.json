@@ -2252,8 +2252,9 @@
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
-        "pin": "Fijar proyecto",
-        "unpin": "Desfijar proyecto",
+        "pin": "Fijar",
+        "unpin": "Desfijar",
+        "pinned": "Fijado",
         "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
@@ -2311,8 +2312,8 @@
         },
         "closed": "Cerrado",
         "hide": {
-          "hide": "Ocultar proyecto",
-          "show": "Mostrar proyecto",
+          "hide": "Ocultar",
+          "show": "Mostrar",
           "hidden": "Proyecto oculto",
           "undo": "Deshacer",
           "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
@@ -3066,7 +3067,7 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
-          "close": "Cerrar proyecto",
+          "close": "Cerrar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },

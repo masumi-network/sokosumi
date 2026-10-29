@@ -8,6 +8,7 @@ import {
   hideProjectAction,
   pinProjectAction,
   showProjectAction,
+  unpinProjectAction,
 } from "@/app/projects/actions";
 import { PINNED_PROJECTS_QUERY_KEY } from "@/hooks/use-pinned-projects";
 
@@ -22,15 +23,18 @@ export interface ProjectHideLabels {
 }
 
 /**
- * Hide and Show for the project card menu and the project header menu. A
- * Hide unpins (ADR 0036), so its Undo shows the project and Pins it again
- * when Core says the Hide removed a Pin.
+ * Pin, Hide and Show for the project menu on cards and in the header. A Hide
+ * unpins (ADR 0036), so its Undo shows the project and Pins it again when
+ * Core says the Hide removed a Pin.
  */
-export function useProjectHide({
+export function useProjectMenuActions({
   labels,
+  pinError,
   onChange,
 }: {
   labels: ProjectHideLabels;
+  /** Toast when a Pin or Unpin fails. */
+  pinError?: string;
   /** Runs once a Hide, Show or Undo has landed, e.g. to refetch the page. */
   onChange?: () => void;
 }) {
@@ -40,7 +44,7 @@ export function useProjectHide({
   const [isPending, startTransition] = useTransition();
 
   async function refresh() {
-    // The Pin list and the switcher's list both drop a Hidden project.
+    // The Pin list and the switcher's list both follow a Pin and a Hide.
     await Promise.all([
       queryClient?.invalidateQueries({ queryKey: [PINNED_PROJECTS_QUERY_KEY] }),
       queryClient?.invalidateQueries({ queryKey: [SCOPE_PAGE_QUERY_KEY] }),
@@ -91,5 +95,20 @@ export function useProjectHide({
     });
   }
 
-  return { hide, show, isPending };
+  function setPinned(projectId: string, pinned: boolean) {
+    startTransition(async () => {
+      try {
+        await (pinned
+          ? pinProjectAction({ projectId })
+          : unpinProjectAction({ projectId }));
+      } catch {
+        // Both calls are idempotent at Core, so trying again is safe.
+        if (pinError) toast.error(pinError);
+        return;
+      }
+      await refresh();
+    });
+  }
+
+  return { hide, show, setPinned, isPending };
 }

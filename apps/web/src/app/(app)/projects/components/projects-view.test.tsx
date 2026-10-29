@@ -74,18 +74,30 @@ const labels = {
   counts: { tasks: "Tasks", jobs: "Jobs" },
   lastActivity: "Last activity",
   created: "Created",
-  pin: "Pin project",
-  unpin: "Unpin project",
-  pinError: "Could not change the Pin.",
+  pinned: "Pinned",
   closed: "Closed",
-  moreActions: "More actions",
-  hide: {
-    hide: "Hide project",
-    show: "Show project",
-    hidden: "Project hidden",
-    undo: "Undo",
-    hideError: "Could not hide",
-    showError: "Could not show",
+  actions: {
+    moreActions: "More actions",
+    close: "Close",
+    pin: { pin: "Pin", unpin: "Unpin", error: "Could not change the Pin." },
+    hide: {
+      hide: "Hide",
+      show: "Show",
+      hidden: "Project hidden",
+      undo: "Undo",
+      hideError: "Could not hide",
+      showError: "Could not show",
+    },
+    closeDialog: {
+      title: "Close project?",
+      description: "Scheduled work will be resolved before closing.",
+      reasonLabel: "Reason (optional)",
+      reasonPlaceholder: "Why is this project closing?",
+      confirm: "Close project",
+      cancel: "Keep project open",
+      success: "Project close started",
+      error: "Unable to close project",
+    },
   },
   emptyHidden: {
     title: "No hidden projects",
@@ -352,15 +364,15 @@ describe("ProjectsView empty states", () => {
 });
 
 describe("ProjectsView Hidden view", () => {
-  it("draws its cards without a Pin, each offering Show", async () => {
+  it("draws its cards without a Pin item, each offering Show", async () => {
     const user = userEvent.setup();
     renderView({ state: "hidden" });
 
-    expect(screen.queryByTestId("project-pin-button")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More actions" }));
     expect(
-      screen.getByRole("menuitem", { name: "Show project" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("menuitem", { name: "Pin" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Show" })).toBeInTheDocument();
   });
 
   it("refetches the page once a Show lands, so the card leaves the view", async () => {
@@ -373,7 +385,7 @@ describe("ProjectsView Hidden view", () => {
     renderView({ state: "hidden" });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Show project" }));
+    await user.click(screen.getByRole("menuitem", { name: "Show" }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
   });
@@ -385,9 +397,11 @@ describe("ProjectsView Pin re-sort", () => {
       undefined as unknown as Awaited<ReturnType<typeof pinProjectAction>>,
     );
     refreshMock.mockClear();
+    const user = userEvent.setup();
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Pin" }));
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
     expect(pinProjectAction).toHaveBeenCalledWith({ projectId: "project-1" });

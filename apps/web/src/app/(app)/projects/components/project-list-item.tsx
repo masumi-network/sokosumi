@@ -1,8 +1,11 @@
 import { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
+import { Pin } from "lucide-react";
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
-import { ProjectCardMenu } from "@/app/projects/components/project-card-menu";
-import { ProjectPinButton } from "@/app/projects/components/project-pin-button";
+import {
+  ProjectDetailActions,
+  type ProjectDetailActionsLabels,
+} from "@/app/projects/components/project-detail-actions";
 import {
   type ProjectResourceCountPillLabels,
   ProjectResourceCountPills,
@@ -16,18 +19,15 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
-import type { ProjectHideLabels } from "./use-project-hide";
-
 interface ProjectListItemLabels {
   counts: ProjectResourceCountPillLabels;
   lastActivity: string;
   created: string;
-  pin: string;
-  unpin: string;
-  pinError: string;
+  /** Read out beside a Pinned card's name; the mark itself is an icon. */
+  pinned: string;
   closed: string;
-  moreActions: string;
-  hide: ProjectHideLabels;
+  /** The project menu without Edit: a card opens the project to edit it. */
+  actions: Omit<ProjectDetailActionsLabels, "edit">;
 }
 
 interface ProjectListItemProps {
@@ -35,18 +35,12 @@ interface ProjectListItemProps {
   labels: ProjectListItemLabels;
   /** The card sits in the Hidden view: no Pin, and its menu offers Show. */
   hidden?: boolean;
-  /** Runs once a Pin or Unpin has landed at Core. */
-  onPinnedChange?: () => void;
-  /** Runs once a Hide, Show or its Undo has landed at Core. */
-  onHiddenChange?: () => void;
 }
 
 export function ProjectListItem({
   project,
   labels,
   hidden = false,
-  onPinnedChange,
-  onHiddenChange,
 }: ProjectListItemProps) {
   const briefing = stripMarkdownToText(project.briefing);
   // Core floors lastActivityAt at createdAt (GREATEST(p."createdAt", …)), so
@@ -60,21 +54,19 @@ export function ProjectListItem({
     new Date(project.createdAt).getTime();
   // Only a finished close counts: closing and close-failed projects stay Open.
   const closedAt = project.closedAt;
-  // A Hidden card has no Pin: hiding unpinned it, and Pinning would show it.
-  const showPin = !closedAt && !hidden;
+  // A Closed card shows no Pin: the Closed view never sorts by one. A Hidden
+  // project has none, since hiding unpinned it.
+  const isPinned = !closedAt && project.starredAt != null;
 
   return (
-    // The Pin button and the menu cannot live inside the link — a button
-    // nested in an anchor is invalid and the click would navigate instead —
-    // so the card holds the link and the buttons side by side: the link fills
-    // the card, the buttons sit over its top-right corner and keep their own
-    // hit areas.
+    // The card holds the link and the menu side by side: the link fills the
+    // card, the menu sits over its top-right corner.
     <article
       className={cn(
         PROJECTS_CARD_LAYOUT_CLASS,
         PROJECTS_CARD_CLASS,
         "group/card hover:bg-card-background-hover relative flex flex-col transition-[background-color]",
-        // The link stops short of the Pin button, so its own outline would cut
+        // The link stops short of the menu button, so its own outline would cut
         // a line through the card. The ring goes around the whole card instead.
         // Forced colors drop box-shadow and the card's paint containment clips
         // the link's outline, so a transparent outline on the card carries
@@ -90,17 +82,22 @@ export function ProjectListItem({
           "press content-in",
         )}
       >
-        {/* Clear of the Pin and menu buttons in the top-right corner. */}
-        <div
-          className={cn(
-            "flex min-w-0 items-center gap-3",
-            showPin ? "pe-18" : "pe-8",
-          )}
-        >
+        {/* Clear of the menu button in the top-right corner. The Pin mark
+            follows the name, so a Pinned card reads as one at a glance. */}
+        <div className="flex min-w-0 items-center gap-3 pe-8">
           <ProjectAvatar name={project.name} logo={project.logo} />
           <span className="text-foreground line-clamp-1 min-w-0 text-sm font-medium">
             {project.name}
           </span>
+          {isPinned ? (
+            <span
+              data-testid="project-pinned-mark"
+              className="text-primary -ms-1.5 shrink-0"
+            >
+              <Pin aria-hidden className="size-3.5 fill-current" />
+              <span className="sr-only">{labels.pinned}</span>
+            </span>
+          ) : null}
         </div>
 
         {briefing ? (
@@ -132,33 +129,29 @@ export function ProjectListItem({
         </div>
       </Link>
 
-      {/* A Closed card has no Pin or menu: the Closed view never sorts by a
-          Pin, a Closed project lists there Hidden or not, and the project
-          header still offers Unpin and Show for what a close left. */}
+      {/* A Closed card has no menu: a Closed project lists there Hidden or
+          not, and the project header still offers Unpin and Show for what a
+          close left. The menu cannot live inside the link (a button in an
+          anchor is invalid and the click would navigate), so it sits over the
+          card's top-right corner with its own hit area. */}
       {closedAt ? null : (
-        // gap-3 keeps the two 44px hit areas from overlapping.
-        <div className="absolute end-2 top-2 flex items-center gap-3">
-          {showPin ? (
-            <ProjectPinButton
-              projectId={project.id}
-              isPinned={project.starredAt != null}
-              isClosed={project.closingAt != null}
-              revealOnHover
-              onPinnedChange={onPinnedChange}
-              labels={{
-                pin: labels.pin,
-                unpin: labels.unpin,
-                error: labels.pinError,
-              }}
-            />
-          ) : null}
-          <ProjectCardMenu
-            projectId={project.id}
-            hidden={hidden}
-            onHiddenChange={onHiddenChange}
-            labels={{ ...labels.hide, moreActions: labels.moreActions }}
-          />
-        </div>
+        <ProjectDetailActions
+          projectId={project.id}
+          projectRevision={project.projectRevision}
+          isClosingOrClosed={project.closingAt != null}
+          isHidden={hidden}
+          isPinned={isPinned}
+          labels={labels.actions}
+          triggerClassName={cn(
+            "text-muted-foreground hover:text-foreground absolute end-2 top-2 size-8 rounded-full md:size-8",
+            // 44px hit area: the card behind is a link, so a near miss on a
+            // phone would open the project.
+            "before:absolute before:-inset-1.5 before:content-['']",
+            // Revealed on hover or focus where a pointer can hover; touch
+            // keeps it visible.
+            "pointer-fine:opacity-0 pointer-fine:group-hover/card:opacity-100 pointer-fine:group-focus-within/card:opacity-100 data-[state=open]:opacity-100",
+          )}
+        />
       )}
     </article>
   );

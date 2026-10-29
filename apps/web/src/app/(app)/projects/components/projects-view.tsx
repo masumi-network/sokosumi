@@ -2,7 +2,6 @@
 
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -26,13 +25,13 @@ import {
   CreateProjectModalProvider,
   useCreateProjectModal,
 } from "./create-project-modal";
+import type { ProjectDetailActionsLabels } from "./project-detail-actions";
 import { ProjectListItem } from "./project-list-item";
 import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
 import {
   ProjectsStateToggle,
   type ProjectsStateToggleLabels,
 } from "./projects-state-toggle";
-import type { ProjectHideLabels } from "./use-project-hide";
 
 export interface ProjectsViewLabels {
   newProject: string;
@@ -62,12 +61,13 @@ export interface ProjectsViewLabels {
   };
   lastActivity: string;
   created: string;
-  pin: string;
-  unpin: string;
-  pinError: string;
+  pinned: string;
   closed: string;
-  moreActions: string;
-  hide: ProjectHideLabels;
+  /**
+   * Each card's menu: Pin or Unpin, Hide or Show, and Close. Its writes
+   * refresh the page, so a new Pin re-sorts the Open view.
+   */
+  actions: Omit<ProjectDetailActionsLabels, "edit">;
   state: ProjectsStateToggleLabels;
   filter: ProjectsFilterLabels;
   noMatches: string;
@@ -123,7 +123,6 @@ export function ProjectsView({
   labels,
   column,
 }: ProjectsViewProps) {
-  const router = useRouter();
   const listKey = browseListKey(query, state, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
@@ -208,21 +207,13 @@ export function ProjectsView({
                       key={project.id}
                       project={project}
                       hidden={state === "hidden"}
-                      // Pins lead the Open view, so a new Pin moves its card:
-                      // refetch the server-ordered page once the write lands.
-                      onPinnedChange={() => router.refresh()}
-                      // A Hide or Show moves the card to another view.
-                      onHiddenChange={() => router.refresh()}
                       labels={{
                         counts: labels.counts,
                         lastActivity: labels.lastActivity,
                         created: labels.created,
-                        pin: labels.pin,
-                        unpin: labels.unpin,
-                        pinError: labels.pinError,
+                        pinned: labels.pinned,
                         closed: labels.closed,
-                        moreActions: labels.moreActions,
-                        hide: labels.hide,
+                        actions: labels.actions,
                       }}
                     />
                   ))}

@@ -2252,8 +2252,9 @@
         },
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
-        "pin": "Projekt anheften",
+        "pin": "Anheften",
         "unpin": "Anheften aufheben",
+        "pinned": "Angeheftet",
         "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
@@ -2311,8 +2312,8 @@
         },
         "closed": "Geschlossen",
         "hide": {
-          "hide": "Projekt ausblenden",
-          "show": "Projekt einblenden",
+          "hide": "Ausblenden",
+          "show": "Einblenden",
           "hidden": "Projekt ausgeblendet",
           "undo": "Rückgängig",
           "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
@@ -3066,7 +3067,7 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
-          "close": "Projekt schließen",
+          "close": "Schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },

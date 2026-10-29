@@ -1,6 +1,14 @@
 "use client";
 
-import { CircleStop, Eye, EyeOff, MoreHorizontal, Pencil } from "lucide-react";
+import {
+  CircleStop,
+  Eye,
+  EyeOff,
+  MoreHorizontal,
+  Pencil,
+  Pin,
+  PinOff,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -26,13 +34,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { closeProject } from "@/lib/actions/project/action";
+import { cn } from "@/lib/utils";
 
-import { type ProjectHideLabels, useProjectHide } from "./use-project-hide";
+import {
+  type ProjectHideLabels,
+  useProjectMenuActions,
+} from "./use-project-menu-actions";
 
-interface ProjectDetailActionsLabels {
+export interface ProjectDetailActionsLabels {
   moreActions: string;
-  edit: string;
+  /** Omitted on a project card, which opens the project to edit it. */
+  edit?: string;
   close: string;
+  /** Only on a project card; the header has its own Pin button. */
+  pin?: { pin: string; unpin: string; error: string };
   hide: ProjectHideLabels;
   closeDialog: {
     title: string;
@@ -53,22 +68,41 @@ interface ProjectDetailActionsProps {
   isClosingOrClosed?: boolean;
   /** The reader's own Hide; Hidden or not, the project stays reachable here. */
   isHidden?: boolean;
+  /** The reader's own Pin, for the Pin or Unpin item. */
+  isPinned?: boolean;
   labels: ProjectDetailActionsLabels;
+  /** Restyles the "More actions" button, as the project card does. */
+  triggerClassName?: string;
 }
 
+/**
+ * The project's menu: Edit (header only), Pin or Unpin (card only), Hide or
+ * Show, and Close behind a confirmation. Shared by the project header and the
+ * Projects list card.
+ */
 export function ProjectDetailActions({
   projectId,
   projectRevision,
   isClosingOrClosed = false,
   isHidden = false,
+  isPinned = false,
   labels,
+  triggerClassName,
 }: ProjectDetailActionsProps) {
   const router = useRouter();
-  // The header reads the Hide on the server, so a refresh redraws the item.
-  const projectHide = useProjectHide({
+  // Both callers read the Pin and Hide on the server, so a refresh redraws
+  // the menu and re-sorts or moves a card on the Projects list.
+  const projectActions = useProjectMenuActions({
     labels: labels.hide,
+    pinError: labels.pin?.error,
     onChange: () => router.refresh(),
   });
+  // Hiding unpins, so a Hidden project offers no Pin; a closing one keeps
+  // only Unpin, as the header's Pin button does.
+  const pinItem =
+    labels.pin && !isHidden && (isPinned || !isClosingOrClosed)
+      ? labels.pin
+      : null;
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const closeAttemptRef = useRef<{
     operationId: string;
@@ -131,31 +165,46 @@ export function ProjectDetailActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-10 md:size-8"
+            className={cn("size-10 md:size-8", triggerClassName)}
             aria-label={labels.moreActions}
           >
             <MoreHorizontal className="size-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href={`/projects/${projectId}/edit`}>
-              <Pencil className="size-4" aria-hidden />
-              {labels.edit}
-            </Link>
-          </DropdownMenuItem>
+          {labels.edit ? (
+            <DropdownMenuItem asChild>
+              <Link href={`/projects/${projectId}/edit`}>
+                <Pencil className="size-4" aria-hidden />
+                {labels.edit}
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {pinItem ? (
+            <DropdownMenuItem
+              disabled={projectActions.isPending}
+              onSelect={() => projectActions.setPinned(projectId, !isPinned)}
+            >
+              {isPinned ? (
+                <PinOff className="size-4" aria-hidden />
+              ) : (
+                <Pin className="size-4" aria-hidden />
+              )}
+              {isPinned ? pinItem.unpin : pinItem.pin}
+            </DropdownMenuItem>
+          ) : null}
           {isHidden ? (
             <DropdownMenuItem
-              disabled={projectHide.isPending}
-              onSelect={() => projectHide.show(projectId)}
+              disabled={projectActions.isPending}
+              onSelect={() => projectActions.show(projectId)}
             >
               <Eye className="size-4" aria-hidden />
               {labels.hide.show}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem
-              disabled={projectHide.isPending}
-              onSelect={() => projectHide.hide(projectId)}
+              disabled={projectActions.isPending}
+              onSelect={() => projectActions.hide(projectId)}
             >
               <EyeOff className="size-4" aria-hidden />
               {labels.hide.hide}

@@ -2252,8 +2252,9 @@
         },
         "lastActivity": "Last activity",
         "created": "Created",
-        "pin": "Pin project",
-        "unpin": "Unpin project",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "pinned": "Pinned",
         "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
@@ -2311,8 +2312,8 @@
         },
         "closed": "Closed",
         "hide": {
-          "hide": "Hide project",
-          "show": "Show project",
+          "hide": "Hide",
+          "show": "Show",
           "hidden": "Project hidden",
           "undo": "Undo",
           "hideError": "Could not hide the project. Try again.",
@@ -3066,7 +3067,7 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
-          "close": "Close project",
+          "close": "Close",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
