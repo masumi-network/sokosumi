@@ -31,7 +31,12 @@ const ASSET_TIMEOUT_MS = 60_000;
 /** Typed changes kept on a look; older ones are dropped, they are only a record. */
 const MAX_TYPED_CHANGES = 10;
 
-/** One image edit, planned. `note` is the rewriter's sentence for the owner. */
+/** A short, bounded reason for logs and `lastError`. */
+export function errorText(error: unknown): string {
+  return (error instanceof Error ? error.message : "unknown").slice(0, 300);
+}
+
+/** One image edit, planned. `note` is the rewriter's sentence for the person editing. */
 export type AvatarPlan =
   | { kind: "edit"; look: AvatarLook; prompt: string; note: string }
   | { kind: "unchanged"; note: string };
@@ -214,29 +219,15 @@ export async function storeAvatarAsset(
   const token = getEnv().BLOB_READ_WRITE_TOKEN;
   if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-  const blob = await put(
-    buildSokoBotAvatarBlobPathname(key, hash, "webp"),
-    buffer,
-    {
-      access: "public",
-      contentType: "image/webp",
-      token,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      // Bounded: an unbounded upload is the one step with no time limit, and a
-      // hung one would outlive the lease or reservation that covers it.
-      abortSignal: AbortSignal.timeout(ASSET_TIMEOUT_MS),
-    },
-  );
-  return blob.url;
-}
-
-export async function downloadAvatarAsset(url: string): Promise<Buffer> {
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(ASSET_TIMEOUT_MS),
+  const blob = await put(buildSokoBotAvatarBlobPathname(key, hash), buffer, {
+    access: "public",
+    contentType: "image/webp",
+    token,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    // Bounded: an unbounded upload is the one step with no time limit, and a
+    // hung one would outlive the lease or reservation that covers it.
+    abortSignal: AbortSignal.timeout(ASSET_TIMEOUT_MS),
   });
-  if (!response.ok) {
-    throw new Error(`avatar download failed (${response.status})`);
-  }
-  return Buffer.from(await response.arrayBuffer());
+  return blob.url;
 }

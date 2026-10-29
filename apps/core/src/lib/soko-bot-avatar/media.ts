@@ -15,9 +15,10 @@ const MAX_GAIN = 1.3;
 const FFMPEG_TIMEOUT_MS = 90_000;
 
 function run(args: string[], input?: Buffer): Promise<Buffer> {
-  if (!ffmpegPath) return Promise.reject(new Error("ffmpeg is not available"));
+  const binary = ffmpegPath;
+  if (!binary) return Promise.reject(new Error("ffmpeg is not available"));
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpegPath as string, ["-v", "error", "-y", ...args], {
+    const child = spawn(binary, ["-v", "error", "-y", ...args], {
       stdio: ["pipe", "pipe", "pipe"],
       timeout: FFMPEG_TIMEOUT_MS,
     });
@@ -187,4 +188,17 @@ export async function encodeLoops(
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+const DOWNLOAD_TIMEOUT_MS = 60_000;
+
+/** Bytes of a hosted avatar asset (a still or a finished video). */
+export async function downloadAvatarAsset(url: string): Promise<Buffer> {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`avatar download failed (${response.status})`);
+  }
+  return Buffer.from(await response.arrayBuffer());
 }

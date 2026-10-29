@@ -1,3 +1,8 @@
+import type {
+  SokoBotAvatarState,
+  SokoBotStatus,
+  SokoBotTurnStatus,
+} from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -33,11 +38,14 @@ describe("deriveAvatarState", () => {
     ["STARTING", "thinking"],
     ["RUNNING", "working"],
     ["CANCEL_REQUESTED", "working"],
-  ])("shows a %s turn as %s", (status, expected) => {
-    expect(
-      deriveAvatarState(input({ latestTurn: { status, completedAt: null } })),
-    ).toBe(expected);
-  });
+  ] as [SokoBotTurnStatus, string][])(
+    "shows a %s turn as %s",
+    (status, expected) => {
+      expect(
+        deriveAvatarState(input({ latestTurn: { status, completedAt: null } })),
+      ).toBe(expected);
+    },
+  );
 
   it("shows done for ten minutes after a turn completes, then idle", () => {
     const done = (minutes: number) =>
@@ -52,7 +60,7 @@ describe("deriveAvatarState", () => {
     expect(done(10.1)).toBe("idle");
   });
 
-  it.each(["FAILED", "CANCELLED"])(
+  it.each<SokoBotTurnStatus>(["FAILED", "CANCELLED"])(
     "leaves a %s turn idle: the error UI says the rest",
     (status) => {
       expect(
@@ -84,8 +92,8 @@ describe("deriveAvatarState", () => {
     ).toBe("needs_you");
   });
 
-  it.each([
-    ["a paused bot", { status: "PAUSED" }],
+  it.each<[string, Partial<AvatarStateInput>]>([
+    ["a paused bot", { status: "PAUSED" satisfies SokoBotStatus }],
     ["an archived bot", { archivedAt: minutesAgo(5) }],
     ["an admin-paused bot", { adminPausedAt: minutesAgo(5) }],
     ["Soko Bots switched off", { availabilityDisabled: true }],
@@ -103,25 +111,31 @@ describe("deriveAvatarState", () => {
 });
 
 describe("buildAvatarView", () => {
+  const state = (name: SokoBotAvatarState) => name;
   const crafted = {
     styleId: "crafted-desk",
     styleVersion: 1,
     imageUrl: "https://blob.test/idle.webp",
     renders: [
       {
-        state: "IDLE",
+        state: state("IDLE"),
         stillUrl: "https://blob.test/idle.webp",
         loopUrl: "https://blob.test/idle-320.webp",
         loopLargeUrl: "https://blob.test/idle-560.webp",
       },
       {
-        state: "THINKING",
+        state: state("THINKING"),
         stillUrl: "https://blob.test/thinking.webp",
         loopUrl: null,
         loopLargeUrl: null,
       },
       // A state whose still is not drawn yet has nothing to show.
-      { state: "WORKING", stillUrl: null, loopUrl: null, loopLargeUrl: null },
+      {
+        state: state("WORKING"),
+        stillUrl: null,
+        loopUrl: null,
+        loopLargeUrl: null,
+      },
     ],
   };
 

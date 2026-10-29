@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
 
+import { dateTimeSchema } from "@/helpers/datetime";
+import { AVATAR_STATES, mapAvatarStates } from "@/lib/soko-bot-avatar/style";
+
 export const sokoBotAvatarSchema = z
   .object({
     id: z.string().uuid(),
@@ -37,7 +40,7 @@ export const claimSokoBotAvatarRequestSchema = z
 
 /** What a bot's face is doing. One rule, derived in Core, shown by every client. */
 export const sokoBotAvatarStateSchema = z
-  .enum(["idle", "thinking", "working", "done", "needs_you", "offline"])
+  .enum(AVATAR_STATES)
   .openapi("SokoBotAvatarState");
 
 export const sokoBotAvatarStateAssetsSchema = z
@@ -62,14 +65,7 @@ export const sokoBotAvatarViewSchema = z
     styleVersion: z.number().int(),
     /** The idle still. */
     stillUrl: z.string(),
-    states: z.object({
-      idle: stateAssetsOrNull,
-      thinking: stateAssetsOrNull,
-      working: stateAssetsOrNull,
-      done: stateAssetsOrNull,
-      needs_you: stateAssetsOrNull,
-      offline: stateAssetsOrNull,
-    }),
+    states: z.object(mapAvatarStates(() => stateAssetsOrNull)),
   })
   .openapi("SokoBotAvatarView");
 
@@ -121,7 +117,7 @@ export const sokoBotAvatarDraftSchema = z
     id: z.string().uuid(),
     imageUrl: z.string(),
     look: sokoBotAvatarLookSchema,
-    expiresAt: z.string().datetime(),
+    expiresAt: dateTimeSchema,
   })
   .openapi("SokoBotAvatarDraft");
 
@@ -129,7 +125,7 @@ export const sokoBotAvatarDraftResultSchema = z
   .object({
     /** Null when nothing changed: the rewriter refused, or the look already had it. */
     draft: z.union([sokoBotAvatarDraftSchema, z.null()]),
-    /** A short sentence for the owner about what was applied or left out. */
+    /** A short sentence for the person editing about what was applied or left out. */
     note: z.string(),
   })
   .openapi("SokoBotAvatarDraftResult");

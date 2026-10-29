@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
 import {
   APICallError,
   createGateway,
@@ -9,10 +10,11 @@ import {
 } from "ai";
 
 import { getEnv } from "@/config/env";
+import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
 
 /**
  * Everything the avatar pipeline buys, behind one small seam: an image edit,
- * a rewrite of the owner's words, and a looping video. All three go through AI
+ * a rewrite of the requester's words, and a looping video. All three go through AI
  * Gateway with `AI_GATEWAY_API_KEY`. Tests replace this module.
  */
 export const AVATAR_IMAGE_MODEL = "google/gemini-3.1-flash-image-preview";
@@ -38,7 +40,10 @@ export type VideoPoll =
 
 /**
  * The video submit may have been accepted without us hearing about it (a
- * timeout, a dropped connection). The caller must not submit again.
+ * timeout, a dropped connection). The caller waits before it submits again,
+ * and then with the same idempotency key. That relies on the Gateway honouring
+ * the key by returning the first job, which is not verified: until it is, a
+ * late resubmit may be billed a second time.
  */
 export class VideoSubmissionUncertainError extends Error {}
 
@@ -50,13 +55,16 @@ export interface AvatarProvider {
     reference: Buffer;
   }): Promise<Buffer>;
   rewrite(input: { rules: string; request: string }): Promise<RewrittenChange>;
-  /** Starts a 4 s, 1:1 loop with `imageUrl` as first and last frame. */
+  /**
+   * Starts a 4 s, 1:1 loop with `imageUrl` as first and last frame. Returns the
+   * Gateway's opaque operation, ready to store in a Json column.
+   */
   startVideo(input: {
     prompt: string;
     imageUrl: string;
     idempotencyKey: string;
-  }): Promise<unknown>;
-  pollVideo(operation: unknown): Promise<VideoPoll>;
+  }): Promise<Prisma.InputJsonValue>;
+  pollVideo(operation: Prisma.JsonValue): Promise<VideoPoll>;
 }
 
 const rewriteSchema = z.object({ edit: z.string(), note: z.string() });
@@ -104,7 +112,7 @@ function createGatewayProvider(): AvatarProvider {
       const result = await generateText({
         model: gateway().languageModel(AVATAR_REWRITER_MODEL),
         system: rules,
-        // The owner's words are data for the rewriter, never instructions to it.
+        // The requester's words are data for the rewriter, never instructions to it.
         prompt: request,
         output: Output.object({ schema: rewriteSchema }),
         maxRetries: 1,
@@ -127,11 +135,15 @@ function createGatewayProvider(): AvatarProvider {
             { image: imageUrl, frameType: "first_frame" },
             { image: imageUrl, frameType: "last_frame" },
           ],
-          // The same key on a repeat call returns the same job.
+          // Meant to make a repeat call return the same job (see
+          // {@link VideoSubmissionUncertainError}).
           headers: { "idempotency-key": idempotencyKey },
           maxRetries: 0,
           abortSignal: AbortSignal.timeout(VIDEO_REQUEST_TIMEOUT_MS),
         });
+        if (started.operation === null) {
+          throw new Error("The Gateway returned no video operation");
+        }
         return started.operation;
       } catch (error) {
         // A rejection with a status means the Gateway answered and refused.
@@ -149,7 +161,7 @@ function createGatewayProvider(): AvatarProvider {
       const status = await experimental_getVideoStatus(
         gateway().videoModel(AVATAR_VIDEO_MODEL),
         {
-          operation: operation as never,
+          operation,
           abortSignal: AbortSignal.timeout(VIDEO_REQUEST_TIMEOUT_MS),
         },
       );
@@ -168,15 +180,9 @@ function createGatewayProvider(): AvatarProvider {
           video: Buffer.from(video.data, "base64"),
         };
       }
-      const response = await fetch(video.url, {
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (!response.ok) {
-        throw new Error(`video download failed (${response.status})`);
-      }
       return {
         status: "completed",
-        video: Buffer.from(await response.arrayBuffer()),
+        video: await downloadAvatarAsset(video.url),
       };
     },
   };

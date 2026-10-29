@@ -2,8 +2,15 @@ import { createRoute } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
 import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ok } from "@/helpers/response";
+import {
+  createAvatarDraftBody,
+  createAvatarDraftResponses,
+  getAvatarStudioResponses,
+  keepAvatarDraftResponses,
+  respondWithAvatarDraft,
+  respondWithAvatarStudio,
+  respondWithKeptAvatar,
+} from "@/helpers/soko-bot-avatar-studio-api";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -17,69 +24,16 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import {
-  createSokoBotAvatarDraftRequestSchema,
-  keepSokoBotAvatarDraftParamsSchema,
-  sokoBotAvatarDraftResultSchema,
-  sokoBotAvatarStudioSchema,
-} from "@/schemas/soko-bot-avatar.schema";
-import {
-  createAvatarDraft,
-  getAvatarStudio,
-  keepAvatarDraft,
-} from "@/services/soko-bot-avatar-studio.service";
+import { keepSokoBotAvatarDraftParamsSchema } from "@/schemas/soko-bot-avatar.schema";
 import { sokoBotIdParams, sokoBotIdSelector } from "./bot-selector.js";
 
 /**
  * The avatar studio for the caller's own Soko Bot (`/me/avatar`) and for a
- * shared bot by id. Changing a look needs the right to manage the bot: its
- * owner for a personal bot, an organization OWNER or ADMIN for a shared one.
- * Everyone else sees the avatar on the bot itself and cannot edit it.
+ * shared bot by id. Changing a look needs the right to manage the bot: the
+ * person whose bot it is, for a personal bot, or an organization OWNER or ADMIN
+ * for a shared one. Everyone else sees the avatar on the bot itself and cannot
+ * edit it.
  */
-
-const bodyOf = {
-  required: true,
-  content: {
-    "application/json": { schema: createSokoBotAvatarDraftRequestSchema },
-  },
-};
-
-const studioResponses = {
-  200: jsonSuccessResponse(
-    sokoBotAvatarStudioSchema,
-    "The bot's look, its newest draft and render progress",
-  ),
-  401: jsonErrorResponse("Unauthorized"),
-  403: jsonErrorResponse("Forbidden"),
-  404: jsonErrorResponse("Not Found"),
-};
-
-const createResponses = {
-  200: jsonSuccessResponse(
-    sokoBotAvatarDraftResultSchema,
-    "The new draft, or the rewriter's note when nothing changed",
-  ),
-  401: jsonErrorResponse("Unauthorized"),
-  403: jsonErrorResponse("Forbidden"),
-  404: jsonErrorResponse("Not Found"),
-  409: jsonErrorResponse("Conflict"),
-  422: jsonErrorResponse("Unprocessable Entity"),
-  429: jsonErrorResponse("Too Many Requests"),
-  503: jsonErrorResponse("Service Unavailable"),
-};
-
-const keepResponses = {
-  200: jsonSuccessResponse(
-    sokoBotAvatarStudioSchema,
-    "The bot with its new look; its states render in the background",
-  ),
-  401: jsonErrorResponse("Unauthorized"),
-  403: jsonErrorResponse("Forbidden"),
-  404: jsonErrorResponse("Not Found"),
-  409: jsonErrorResponse("Conflict"),
-  422: jsonErrorResponse("Unprocessable Entity"),
-  429: jsonErrorResponse("Too Many Requests"),
-};
 
 const tags = ["Soko Bots"];
 
@@ -89,7 +43,7 @@ const getMeRoute = withOrganizationSlugHeaderParameter(
     path: "/me/avatar",
     operationId: "getMySokoBotAvatarStudio",
     tags,
-    responses: studioResponses,
+    responses: getAvatarStudioResponses,
   }),
 );
 const createMeRoute = withOrganizationSlugHeaderParameter(
@@ -98,8 +52,8 @@ const createMeRoute = withOrganizationSlugHeaderParameter(
     path: "/me/avatar/drafts",
     operationId: "createMySokoBotAvatarDraft",
     tags,
-    request: { body: bodyOf },
-    responses: createResponses,
+    request: { body: createAvatarDraftBody },
+    responses: createAvatarDraftResponses,
   }),
 );
 const keepMeRoute = withOrganizationSlugHeaderParameter(
@@ -109,7 +63,7 @@ const keepMeRoute = withOrganizationSlugHeaderParameter(
     operationId: "keepMySokoBotAvatarDraft",
     tags,
     request: { params: keepSokoBotAvatarDraftParamsSchema },
-    responses: keepResponses,
+    responses: keepAvatarDraftResponses,
   }),
 );
 const getByIdRoute = withOrganizationSlugHeaderParameter(
@@ -119,7 +73,7 @@ const getByIdRoute = withOrganizationSlugHeaderParameter(
     operationId: "getSokoBotAvatarStudio",
     tags,
     request: { params: sokoBotIdParams },
-    responses: studioResponses,
+    responses: getAvatarStudioResponses,
   }),
 );
 const createByIdRoute = withOrganizationSlugHeaderParameter(
@@ -128,8 +82,8 @@ const createByIdRoute = withOrganizationSlugHeaderParameter(
     path: "/{sokoBotId}/avatar/drafts",
     operationId: "createSokoBotAvatarDraft",
     tags,
-    request: { params: sokoBotIdParams, body: bodyOf },
-    responses: createResponses,
+    request: { params: sokoBotIdParams, body: createAvatarDraftBody },
+    responses: createAvatarDraftResponses,
   }),
 );
 const keepByIdRoute = withOrganizationSlugHeaderParameter(
@@ -141,7 +95,7 @@ const keepByIdRoute = withOrganizationSlugHeaderParameter(
     request: {
       params: sokoBotIdParams.merge(keepSokoBotAvatarDraftParamsSchema),
     },
-    responses: keepResponses,
+    responses: keepAvatarDraftResponses,
   }),
 );
 
@@ -162,32 +116,25 @@ async function managedBot(c: Context<EnvVariables>, selector: SokoBotSelector) {
 export function mountSokoBotAvatarStudioMeRoutes(app: OpenAPIHonoWithAuth) {
   app.openapi(getMeRoute, async (c) => {
     const { sokoBotId } = await managedBot(c, ME_SOKO_BOT);
-    return ok(
-      c,
-      sokoBotAvatarStudioSchema.parse(await getAvatarStudio(sokoBotId)),
-    );
+    return await respondWithAvatarStudio(c, sokoBotId);
   });
   app.openapi(createMeRoute, async (c) => {
     const { userId, sokoBotId } = await managedBot(c, ME_SOKO_BOT);
     const { change, draftId } = c.req.valid("json");
-    return ok(
-      c,
-      sokoBotAvatarDraftResultSchema.parse(
-        await createAvatarDraft({ sokoBotId, userId, change, draftId }),
-      ),
-    );
+    return await respondWithAvatarDraft(c, {
+      sokoBotId,
+      userId,
+      change,
+      draftId,
+    });
   });
   app.openapi(keepMeRoute, async (c) => {
     const { userId, sokoBotId } = await managedBot(c, ME_SOKO_BOT);
-    await keepAvatarDraft({
+    return await respondWithKeptAvatar(c, {
       sokoBotId,
       userId,
       draftId: c.req.valid("param").draftId,
     });
-    return ok(
-      c,
-      sokoBotAvatarStudioSchema.parse(await getAvatarStudio(sokoBotId)),
-    );
   });
 }
 
@@ -198,10 +145,7 @@ export function mountSokoBotAvatarStudioByIdRoutes(app: OpenAPIHonoWithAuth) {
       c,
       sokoBotIdSelector(c.req.valid("param")),
     );
-    return ok(
-      c,
-      sokoBotAvatarStudioSchema.parse(await getAvatarStudio(sokoBotId)),
-    );
+    return await respondWithAvatarStudio(c, sokoBotId);
   });
   app.openapi(createByIdRoute, async (c) => {
     const { userId, sokoBotId } = await managedBot(
@@ -209,26 +153,22 @@ export function mountSokoBotAvatarStudioByIdRoutes(app: OpenAPIHonoWithAuth) {
       sokoBotIdSelector(c.req.valid("param")),
     );
     const { change, draftId } = c.req.valid("json");
-    return ok(
-      c,
-      sokoBotAvatarDraftResultSchema.parse(
-        await createAvatarDraft({ sokoBotId, userId, change, draftId }),
-      ),
-    );
+    return await respondWithAvatarDraft(c, {
+      sokoBotId,
+      userId,
+      change,
+      draftId,
+    });
   });
   app.openapi(keepByIdRoute, async (c) => {
     const { userId, sokoBotId } = await managedBot(
       c,
       sokoBotIdSelector(c.req.valid("param")),
     );
-    await keepAvatarDraft({
+    return await respondWithKeptAvatar(c, {
       sokoBotId,
       userId,
       draftId: c.req.valid("param").draftId,
     });
-    return ok(
-      c,
-      sokoBotAvatarStudioSchema.parse(await getAvatarStudio(sokoBotId)),
-    );
   });
 }

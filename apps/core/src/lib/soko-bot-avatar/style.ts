@@ -16,6 +16,23 @@ export const AVATAR_STATES = [
 
 export type AvatarState = (typeof AVATAR_STATES)[number];
 
+/**
+ * One value per state. Spelled out so the compiler fails here when a state is
+ * added to {@link AVATAR_STATES}, instead of a cast hiding a missing key.
+ */
+export function mapAvatarStates<T>(
+  make: (state: AvatarState) => T,
+): Record<AvatarState, T> {
+  return {
+    idle: make("idle"),
+    thinking: make("thinking"),
+    working: make("working"),
+    done: make("done"),
+    needs_you: make("needs_you"),
+    offline: make("offline"),
+  };
+}
+
 /** A creature the look can be swapped to. The colour is named to stop drift. */
 export interface AvatarCreature {
   id: string;
@@ -30,6 +47,11 @@ export interface AvatarAccessory {
   phrase: string;
 }
 
+/**
+ * A style is a set of prompts and assets. Creature and accessory are the axes
+ * of a look, which is what the studio API offers; a style whose look has no
+ * creature (or no accessories) lists one creature and no accessories.
+ */
 export interface SokoBotAvatarStyle {
   id: string;
   version: number;
@@ -64,25 +86,25 @@ export interface SokoBotAvatarStyle {
   backgroundTarget: (state: AvatarState) => number;
 }
 
-const HOUSE_PROMPT = `You edit one image of a Soko Bot avatar: a tiny handmade clay creature at work at its little wooden desk, standing on a very light neutral gray background. The attached image is the bot's current look. Apply the owner's change to the creature or its little scene, and return the edited image.
+const HOUSE_PROMPT = `You edit one image of a Soko Bot avatar: a tiny handmade clay creature at work at its little wooden desk, standing on a very light neutral gray background. The attached image is the bot's current look. Apply the requester's change to the creature or its little scene, and return the edited image.
 
-House rules. They win over the owner's request:
+House rules. They win over the requester's request:
 - No dome, no base, no frame, no room: the creature and its desk stand directly on a flat, evenly lit, very light neutral gray background (#F5F5F5, no warm or beige tint, no vignette) with a soft contact shadow.
 - The small flower pot is always matte clay in Iris Flower pink (#FF51FF), the brand accent. Keep it.
 - Keep the camera angle, the soft daylight and the framing: the creature and its desk fill most of the square, with the creature's face near the centre, slightly above the middle.
-- Keep the same creature: same species, face, proportions and colours, unless the owner asks for a different creature.
+- Keep the same creature: same species, face, proportions and colours, unless the requester asks for a different creature.
 - Anything new is made of the same soft matte clay or miniature craft materials, at the same scale, on or around the desk.
 - One creature only.
 - No text, letters, numbers, logos or brands. No real people, celebrities or copyrighted characters. Nothing scary, violent or adult.
 - If part of the request breaks a rule, apply only the parts that fit and leave the rest unchanged.`;
 
-const REWRITER_RULES = `You do not edit the image. You rewrite the owner's request into one short edit instruction for the image model that follows every house rule.
+const REWRITER_RULES = `You do not edit the image. You rewrite the requester's request into one short edit instruction for the image model that follows every house rule.
 - Keep what fits. Turn scenery into a miniature around the desk (a beach becomes a patch of sand, a few shells and a tiny wave by the desk).
 - Drop anything a rule forbids (logos, text, real people, adding a dome, frame or room). For logos and text, a plain shape is fine.
 - Real people, brands and copyrighted characters: never offer a look-alike, a costume or a "closest" version. Do not combine a known character's signature features (for example a black dome helmet with a breathing mask and black cape, or yellow fur with red cheeks and a lightning-bolt tail). Treat a request that describes a known character's signature look without naming it exactly as if it named the character. Leave the image unchanged and suggest an unrelated original idea in the note.
 - A change of creature is fine: any real or mythical animal, as one original clay creature.
 - If nothing fits, set "edit" to "".
-Answer with JSON only: {"edit": "...", "note": "one short sentence to the owner about anything you changed, or empty"}`;
+Answer with JSON only: {"edit": "...", "note": "one short sentence to the requester about anything you changed, or empty"}`;
 
 export const CRAFTED_DESK_STYLE: SokoBotAvatarStyle = {
   id: "crafted-desk",

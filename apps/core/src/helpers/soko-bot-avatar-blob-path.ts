@@ -4,9 +4,8 @@ export const SOKO_BOT_AVATAR_LEGACY_BLOB_DIR = "soko-bot-avatars";
 export function buildSokoBotAvatarBlobPathname(
   key: string,
   sha256Hex: string,
-  extension: "png" | "webp" = "png",
 ): string {
-  return `${SOKO_BOT_AVATAR_BLOB_DIR}/${key}-${sha256Hex.slice(0, 12)}.${extension}`;
+  return `${SOKO_BOT_AVATAR_BLOB_DIR}/${key}-${sha256Hex.slice(0, 12)}.webp`;
 }
 
 export function rewriteLegacySokoBotAvatarBlobPath(

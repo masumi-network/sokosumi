@@ -14,6 +14,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { SokoBotAvatarStyle } from "@/lib/soko-bot-avatar/style";
 
 /**
  * Seam 1: the avatar pipeline end to end. The Gateway adapter is faked, and so
@@ -22,7 +23,8 @@ import {
  * proven on a tiny generated still and clip.
  */
 
-const { providerMock, blobFiles, getEnvMock } = vi.hoisted(() => ({
+const { providerMock, blobFiles, getEnvMock, swapScene } = vi.hoisted(() => ({
+  swapScene: { buffer: Buffer.alloc(0) as Buffer },
   providerMock: {
     editImage: vi.fn(),
     rewrite: vi.fn(),
@@ -45,6 +47,18 @@ vi.mock("@/lib/soko-bot-avatar/provider", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot-avatar/provider")>()),
   avatarProvider: () => providerMock,
 }));
+// The swap style brings its own tiny scene; every other style reads its bundled file.
+vi.mock("@/lib/soko-bot-avatar/draw", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/soko-bot-avatar/draw")>();
+  return {
+    ...actual,
+    loadHouseScene: (style: SokoBotAvatarStyle) =>
+      style.id === "swap-test"
+        ? Promise.resolve(swapScene.buffer)
+        : actual.loadHouseScene(style),
+  };
+});
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: async () => ({
     disabled: false,
@@ -216,6 +230,7 @@ const avatars = new Table(() => ({
   draftExpiresAt: null,
   keptAt: null,
   keptByUserId: null,
+  fromPool: false,
   styleId: "mascot",
   styleVersion: 1,
 }));
@@ -266,11 +281,12 @@ import {
   AVATAR_STATES,
   AVATAR_STYLES,
   CRAFTED_DESK_STYLE,
-  type SokoBotAvatarStyle,
 } from "@/lib/soko-bot-avatar/style";
+import { sweepExpiredDrafts } from "@/services/soko-bot-avatar.service";
 import {
   MAX_RENDER_ATTEMPTS,
   reconcileAvatarRenders,
+  UNCERTAIN_WAIT_MS,
 } from "@/services/soko-bot-avatar-render.service";
 import {
   createAvatarDraft,
@@ -358,6 +374,20 @@ beforeAll(() => {
     "color=c=0xEBEBEB:s=128x128:d=1",
     "-vf",
     "drawbox=x=40:y=40:w=48:h=48:color=0x884422:t=fill",
+    "-frames:v",
+    "1",
+    "-c:v",
+    "png",
+    "-f",
+    "image2pipe",
+    "pipe:1",
+  ]);
+  // The swap style's own scene: a different size and colour from the house one.
+  swapScene.buffer = ffmpeg([
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=0xCCDDEE:s=96x96:d=1",
     "-frames:v",
     "1",
     "-c:v",
@@ -649,6 +679,112 @@ describe("drafting", () => {
     expect(draft?.look.typed).toEqual([]);
   });
 
+  describe("shuffle", () => {
+    function poolLook(overrides: Record<string, unknown> = {}) {
+      return avatars.create({
+        data: {
+          subject: "frog",
+          background: "crafted-desk:none",
+          seed: Math.floor(Math.random() * 1e6),
+          model: "m",
+          imageUrl: "https://blob.test/pool-look.webp",
+          styleId: "crafted-desk",
+          styleVersion: 1,
+          fromPool: true,
+          look: { creature: "frog", accessories: [], typed: [] },
+          ...overrides,
+        },
+      });
+    }
+
+    it("takes an unclaimed pool look as the draft, and spends nothing", async () => {
+      const pooled = await poolLook();
+
+      const { draft } = await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "shuffle" },
+      });
+
+      expect(draft).toMatchObject({
+        id: pooled.id,
+        imageUrl: "https://blob.test/pool-look.webp",
+        look: { creature: "frog" },
+      });
+      expect(providerMock.editImage).not.toHaveBeenCalled();
+      expect(providerMock.rewrite).not.toHaveBeenCalled();
+      expect(pooled).toMatchObject({
+        draftForSokoBotId: BOT,
+        draftExpiresAt: expect.any(Date),
+        claimedBySokoBotId: null,
+      });
+    });
+
+    it("never takes a legacy mascot or another bot's draft from the pool", async () => {
+      await poolLook({ styleId: "mascot" });
+      await poolLook({ draftForSokoBotId: "bot-2" });
+
+      const { draft } = await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "shuffle" },
+      });
+
+      // Nothing eligible, so it drew a fresh look.
+      expect(providerMock.editImage).toHaveBeenCalledTimes(1);
+      expect(draft?.id).not.toBeUndefined();
+    });
+
+    it("sends a never-kept pool look back to the pool when the draft expires, and deletes a drawn one", async () => {
+      const pooled = await poolLook();
+      await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "shuffle" },
+      });
+      const drawn = await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "creature", creature: "frog" },
+      });
+      for (const row of avatars.rows) {
+        row.draftExpiresAt = new Date(Date.now() - 1_000);
+      }
+
+      await sweepExpiredDrafts();
+
+      expect(avatars.rows.map((row) => row.id)).toEqual([pooled.id]);
+      expect(pooled).toMatchObject({
+        draftForSokoBotId: null,
+        draftExpiresAt: null,
+      });
+      expect(avatars.rows.some((row) => row.id === drawn.draft?.id)).toBe(
+        false,
+      );
+    });
+
+    it("keeping a pool look releases the bot's other pool draft instead of deleting it", async () => {
+      const other = await poolLook({
+        draftForSokoBotId: BOT,
+        draftExpiresAt: new Date(Date.now() + 60_000),
+      });
+      const kept = await poolLook({
+        draftForSokoBotId: BOT,
+        draftExpiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await keepAvatarDraft({
+        sokoBotId: BOT,
+        draftId: kept.id as string,
+        userId: USER,
+      });
+
+      expect(avatars.rows).toContain(other);
+      expect(other).toMatchObject({ draftForSokoBotId: null });
+      expect(kept).toMatchObject({ claimedBySokoBotId: BOT });
+    });
+  });
+
   it("stops at the hourly draft cap before spending", async () => {
     for (let i = 0; i < LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR; i += 1) {
       await avatars.create({
@@ -725,6 +861,32 @@ describe("keeping a look", () => {
       keptByUserId: USER,
       keptAt: expect.any(Date),
     });
+  });
+
+  it("retires the look a bot replaces: renders gone, a tombstone for the cap, never claimable again", async () => {
+    const first = await keptLook({ kind: "creature", creature: "frog" });
+    const second = await keptLook({ kind: "creature", creature: "otter" });
+
+    const firstRow = avatars.rows.find((row) => row.id === first.id)!;
+    expect(firstRow).toMatchObject({
+      claimedBySokoBotId: null,
+      keptByUserId: USER,
+      draftForSokoBotId: BOT,
+      draftExpiresAt: expect.any(Date),
+    });
+    // Only the new look has renders.
+    expect(new Set(renders.rows.map((row) => row.avatarId))).toEqual(
+      new Set([second.id]),
+    );
+    expect(renders.rows).toHaveLength(6);
+    // No free undo.
+    await expect(
+      keepAvatarDraft({ sokoBotId: BOT, draftId: first.id, userId: USER }),
+    ).rejects.toMatchObject({ status: 404 });
+    // And the tombstone still counts toward the daily cap until it is swept.
+    expect(
+      avatars.rows.filter((row) => row.keptByUserId === USER),
+    ).toHaveLength(2);
   });
 
   it("will not keep a draft that belongs to another bot", async () => {
@@ -867,50 +1029,140 @@ describe("reconciling renders", () => {
     expect(bots.avatarImageUrl).not.toBeNull();
   }, 120_000);
 
-  it("never pays twice for a video whose submission is uncertain", async () => {
-    await keptLook({ kind: "creature", creature: "otter" });
-    providerMock.startVideo.mockImplementation(
-      async (input: { prompt: string }) => {
-        if (input.prompt.includes("reads, its eyes move")) {
-          throw new VideoSubmissionUncertainError("socket hang up");
-        }
-        return { job: "ok" };
-      },
-    );
+  describe("a video whose submission is uncertain", () => {
+    const WORKING_PROMPT = "reads, its eyes move";
 
-    await reconcileUntilSettled();
-    await reconcileAvatarRenders();
-    await reconcileAvatarRenders();
+    function workingRow() {
+      return renders.rows.find((row) => row.state === "WORKING")!;
+    }
 
-    const working = renders.rows.find((row) => row.state === "WORKING")!;
-    expect(working.status).toBe("SUBMISSION_UNCERTAIN");
-    // Its still survives; only the loop is missing.
-    expect(working.stillUrl).toBeTruthy();
-    const attempts = providerMock.startVideo.mock.calls.filter((call) =>
-      call[0].prompt.includes("reads, its eyes move"),
-    );
-    expect(attempts).toHaveLength(1);
-  }, 120_000);
+    function workingSubmits() {
+      return providerMock.startVideo.mock.calls.filter((call) =>
+        call[0].prompt.includes(WORKING_PROMPT),
+      );
+    }
 
-  it("calls a submit whose lease ran out uncertain, and does not resubmit it", async () => {
-    await keptLook({ kind: "creature", creature: "otter" });
-    const row = renders.rows.find((one) => one.state === "IDLE")!;
-    // A worker died after claiming the submit and before hearing back.
-    Object.assign(row, {
-      status: "VIDEO_SUBMITTING",
-      leaseUntil: new Date(Date.now() - 1_000),
+    async function keepWithUncertainWorking() {
+      await keptLook({ kind: "creature", creature: "otter" });
+      providerMock.startVideo.mockImplementation(
+        async (input: { prompt: string }) => {
+          if (input.prompt.includes(WORKING_PROMPT)) {
+            throw new VideoSubmissionUncertainError("socket hang up");
+          }
+          return { job: "ok" };
+        },
+      );
+    }
+
+    it("is left alone while it may still be running, with its still intact", async () => {
+      await keepWithUncertainWorking();
+
+      await reconcileUntilSettled();
+      await reconcileAvatarRenders();
+      await reconcileAvatarRenders();
+
+      expect(workingRow().status).toBe("SUBMISSION_UNCERTAIN");
+      expect(workingRow().stillUrl).toBeTruthy();
+      expect(workingSubmits()).toHaveLength(1);
+      // Not eligible again for half an hour.
+      expect(
+        (workingRow().leaseUntil as Date).getTime() - Date.now(),
+      ).toBeGreaterThan(UNCERTAIN_WAIT_MS - 60_000);
     });
-    providerMock.editImage.mockImplementation(async () => {
-      throw new Error("stills are not under test");
+
+    it("is submitted again after the wait, with the same key, and counts as an attempt", async () => {
+      await keepWithUncertainWorking();
+      await reconcileUntilSettled();
+      const attemptsBefore = workingRow().attempts as number;
+      providerMock.startVideo.mockImplementation(async () => ({ job: "ok" }));
+      workingRow().leaseUntil = new Date(Date.now() - 1_000);
+
+      await reconcileAvatarRenders();
+
+      expect(workingSubmits()).toHaveLength(2);
+      const [first, second] = workingSubmits().map(
+        (call) => call[0].idempotencyKey,
+      );
+      expect(first).toBe(second);
+      expect(first).toContain(workingRow().avatarId);
+      expect(workingRow().attempts).toBe(attemptsBefore + 1);
+      expect(workingRow().status).toBe("VIDEO_SUBMITTED");
     });
-    vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await reconcileAvatarRenders();
-    await reconcileAvatarRenders();
+    it("still ends in FAILED after the attempt budget, never submitting more than that", async () => {
+      await keepWithUncertainWorking();
+      await reconcileUntilSettled();
 
-    expect(row.status).toBe("SUBMISSION_UNCERTAIN");
-    expect(providerMock.startVideo).not.toHaveBeenCalled();
+      for (let i = 0; i < MAX_RENDER_ATTEMPTS + 2; i += 1) {
+        workingRow().leaseUntil = new Date(Date.now() - 1_000);
+        await reconcileAvatarRenders();
+      }
+
+      expect(workingRow().status).toBe("FAILED");
+      expect(workingSubmits()).toHaveLength(MAX_RENDER_ATTEMPTS);
+    });
+
+    it("is what a submit whose lease ran out becomes, not a resubmit", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      const row = renders.rows.find((one) => one.state === "IDLE")!;
+      // A worker died after claiming the submit and before hearing back.
+      Object.assign(row, {
+        status: "VIDEO_SUBMITTING",
+        leaseUntil: new Date(Date.now() - 1_000),
+      });
+      providerMock.editImage.mockImplementation(async () => {
+        throw new Error("stills are not under test");
+      });
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await reconcileAvatarRenders();
+      await reconcileAvatarRenders();
+
+      expect(row.status).toBe("SUBMISSION_UNCERTAIN");
+      expect((row.leaseUntil as Date).getTime() - Date.now()).toBeGreaterThan(
+        UNCERTAIN_WAIT_MS - 60_000,
+      );
+      expect(providerMock.startVideo).not.toHaveBeenCalled();
+    });
   });
+
+  it("does not reclaim a slow step's row while its worker is still on it", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+    // The first tick's three workers are slow; whatever a later tick draws is not.
+    const release: (() => void)[] = [];
+    providerMock.editImage.mockImplementation(() =>
+      release.length < 3
+        ? new Promise<Buffer>((resolve) => {
+            release.push(() => resolve(fixturePng));
+          })
+        : Promise.resolve(fixturePng),
+    );
+    // Only the clock moves; ffmpeg and timers stay real.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const slow = reconcileAvatarRenders();
+      await vi.waitFor(() =>
+        expect(providerMock.editImage).toHaveBeenCalledTimes(3),
+      );
+
+      // Seven minutes into the slowest legitimate step, a second tick starts.
+      vi.setSystemTime(Date.now() + 7 * 60_000);
+      await reconcileAvatarRenders();
+
+      // The rows being worked were not reclaimed: no state was drawn twice,
+      // and the second tick only drew the two states nobody had started.
+      const prompts = providerMock.editImage.mock.calls.map(
+        (call) => call[0].prompt,
+      );
+      expect(prompts).toHaveLength(5);
+      expect(new Set(prompts).size).toBe(5);
+      for (const resolve of release.splice(0)) resolve();
+      await slow;
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 60_000);
 
   it("lets a lease stop a second cron from working the same row", async () => {
     await keptLook({ kind: "creature", creature: "otter" });
@@ -984,7 +1236,7 @@ describe("the style is data", () => {
   const swapStyle: SokoBotAvatarStyle = {
     id: "swap-test",
     version: 7,
-    houseScene: CRAFTED_DESK_STYLE.houseScene,
+    houseScene: "swap-scene.png",
     houseCreatureId: "widget",
     housePrompt: "SWAP HOUSE PROMPT: a gadget on a shelf.",
     rewriterRules: "SWAP REWRITER RULES",
@@ -1038,6 +1290,10 @@ describe("the style is data", () => {
     });
     await reconcileUntilSettled();
 
+    // The draft was edited from the swap style's own scene.
+    expect(providerMock.editImage.mock.calls[0]?.[0].reference).toEqual(
+      swapScene.buffer,
+    );
     // A full state set, in the new style.
     expect(renders.rows).toHaveLength(AVATAR_STATES.length);
     expect(renders.rows.map((row) => row.status)).toEqual(

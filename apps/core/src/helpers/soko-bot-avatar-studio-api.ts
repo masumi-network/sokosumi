@@ -1,0 +1,94 @@
+import type { Context } from "hono";
+
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import type { EnvVariables } from "@/lib/hono";
+import {
+  createSokoBotAvatarDraftRequestSchema,
+  sokoBotAvatarDraftResultSchema,
+  sokoBotAvatarStudioSchema,
+} from "@/schemas/soko-bot-avatar.schema";
+import {
+  createAvatarDraft,
+  getAvatarStudio,
+  keepAvatarDraft,
+} from "@/services/soko-bot-avatar-studio.service";
+
+/**
+ * What the avatar studio looks like on the wire, shared by the member routes
+ * (own bot, shared bot) and the staff routes. Who may call is decided by each
+ * route before it gets here.
+ */
+
+export const createAvatarDraftBody = {
+  required: true,
+  content: {
+    "application/json": { schema: createSokoBotAvatarDraftRequestSchema },
+  },
+};
+
+export const getAvatarStudioResponses = {
+  200: jsonSuccessResponse(
+    sokoBotAvatarStudioSchema,
+    "The bot's look, its newest draft and render progress",
+  ),
+  401: jsonErrorResponse("Unauthorized"),
+  403: jsonErrorResponse("Forbidden"),
+  404: jsonErrorResponse("Not Found"),
+};
+
+export const createAvatarDraftResponses = {
+  200: jsonSuccessResponse(
+    sokoBotAvatarDraftResultSchema,
+    "The new draft, or the rewriter's note when nothing changed",
+  ),
+  401: jsonErrorResponse("Unauthorized"),
+  403: jsonErrorResponse("Forbidden"),
+  404: jsonErrorResponse("Not Found"),
+  409: jsonErrorResponse("Conflict"),
+  422: jsonErrorResponse("Unprocessable Entity"),
+  429: jsonErrorResponse("Too Many Requests"),
+  503: jsonErrorResponse("Service Unavailable"),
+};
+
+export const keepAvatarDraftResponses = {
+  200: jsonSuccessResponse(
+    sokoBotAvatarStudioSchema,
+    "The bot with its new look; its states render in the background",
+  ),
+  401: jsonErrorResponse("Unauthorized"),
+  403: jsonErrorResponse("Forbidden"),
+  404: jsonErrorResponse("Not Found"),
+  409: jsonErrorResponse("Conflict"),
+  422: jsonErrorResponse("Unprocessable Entity"),
+  429: jsonErrorResponse("Too Many Requests"),
+};
+
+export async function respondWithAvatarStudio(
+  c: Context<EnvVariables>,
+  sokoBotId: string,
+) {
+  return ok(
+    c,
+    sokoBotAvatarStudioSchema.parse(await getAvatarStudio(sokoBotId)),
+  );
+}
+
+export async function respondWithAvatarDraft(
+  c: Context<EnvVariables>,
+  input: Parameters<typeof createAvatarDraft>[0],
+) {
+  return ok(
+    c,
+    sokoBotAvatarDraftResultSchema.parse(await createAvatarDraft(input)),
+  );
+}
+
+/** Keeps the draft, then answers with the studio as the keep left it. */
+export async function respondWithKeptAvatar(
+  c: Context<EnvVariables>,
+  input: Parameters<typeof keepAvatarDraft>[0],
+) {
+  await keepAvatarDraft(input);
+  return await respondWithAvatarStudio(c, input.sokoBotId);
+}

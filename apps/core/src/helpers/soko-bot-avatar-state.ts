@@ -1,18 +1,41 @@
-import type { Prisma, SokoBotAvatarState } from "@sokosumi/database";
+import type {
+  Prisma,
+  SokoBotAvatarState,
+  SokoBotStatus,
+  SokoBotTurnStatus,
+} from "@sokosumi/database";
 
 import {
-  AVATAR_STATES,
   type AvatarState,
   LEGACY_AVATAR_STYLE_ID,
+  mapAvatarStates,
 } from "@/lib/soko-bot-avatar/style";
 
 /** The wire states are lowercase, the enum is not. */
+const DB_STATE_OF = {
+  idle: "IDLE",
+  thinking: "THINKING",
+  working: "WORKING",
+  done: "DONE",
+  needs_you: "NEEDS_YOU",
+  offline: "OFFLINE",
+} as const satisfies Record<AvatarState, SokoBotAvatarState>;
+
+const STATE_OF_DB: Record<SokoBotAvatarState, AvatarState> = {
+  IDLE: "idle",
+  THINKING: "thinking",
+  WORKING: "working",
+  DONE: "done",
+  NEEDS_YOU: "needs_you",
+  OFFLINE: "offline",
+};
+
 export function toDbAvatarState(state: AvatarState): SokoBotAvatarState {
-  return state.toUpperCase() as SokoBotAvatarState;
+  return DB_STATE_OF[state];
 }
 
 export function fromDbAvatarState(state: SokoBotAvatarState): AvatarState {
-  return state.toLowerCase() as AvatarState;
+  return STATE_OF_DB[state];
 }
 
 /** How long "done" shows after a turn completes. */
@@ -50,11 +73,14 @@ export const avatarStateRelations = () =>
   }) satisfies Prisma.SokoBotSelect;
 
 export interface AvatarStateInput {
-  status: string;
+  status: SokoBotStatus;
   archivedAt: Date | null;
   adminPausedAt: Date | null;
   /** The latest foreground turn. */
-  latestTurn: { status: string; completedAt: Date | null } | null;
+  latestTurn: {
+    status: SokoBotTurnStatus;
+    completedAt: Date | null;
+  } | null;
   hasOpenDecision: boolean;
   /** Soko Bots switched off for everyone. Routes behind the kill-switch gate never see it. */
   availabilityDisabled?: boolean;
@@ -99,7 +125,7 @@ interface AvatarRowForView {
   styleVersion: number;
   imageUrl: string;
   renders: {
-    state: string;
+    state: SokoBotAvatarState;
     stillUrl: string | null;
     loopUrl: string | null;
     loopLargeUrl: string | null;
@@ -128,9 +154,7 @@ export function buildAvatarView(
   avatar: AvatarRowForView | null,
   avatarImageUrl: string | null,
 ): AvatarView | null {
-  const states = Object.fromEntries(
-    AVATAR_STATES.map((state) => [state, null]),
-  ) as AvatarView["states"];
+  const states = mapAvatarStates<AvatarStateAssets | null>(() => null);
   if (!avatar) {
     return avatarImageUrl
       ? {
@@ -142,7 +166,7 @@ export function buildAvatarView(
       : null;
   }
   for (const render of avatar.renders) {
-    const state = fromDbAvatarState(render.state as SokoBotAvatarState);
+    const state = fromDbAvatarState(render.state);
     if (render.stillUrl) {
       states[state] = {
         stillUrl: render.stillUrl,
@@ -165,7 +189,7 @@ export function avatarFields(
   bot: Omit<AvatarStateInput, "latestTurn" | "hasOpenDecision"> & {
     avatarImageUrl: string | null;
     avatar: AvatarRowForView | null;
-    turns: { status: string; completedAt: Date | null }[];
+    turns: { status: SokoBotTurnStatus; completedAt: Date | null }[];
     pendingDecisions: unknown[];
   },
 ): { avatarState: AvatarState; avatar: AvatarView | null } {

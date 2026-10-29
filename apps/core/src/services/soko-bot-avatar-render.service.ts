@@ -6,11 +6,11 @@ import { fromDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
   creatureOf,
-  downloadAvatarAsset,
   drawStill,
+  errorText,
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
-import { encodeLoops } from "@/lib/soko-bot-avatar/media";
+import { downloadAvatarAsset, encodeLoops } from "@/lib/soko-bot-avatar/media";
 import {
   avatarProvider,
   VideoSubmissionUncertainError,
@@ -36,17 +36,28 @@ import { getSokoBotAvailability } from "@/services/soko-bot-availability.service
  * 1. **A paid call is claimed first.** The right to make it is a lease taken in
  *    one conditional UPDATE that also counts the attempt. A second worker loses
  *    that UPDATE and leaves the row alone.
- * 2. **A video whose submit outcome is unknown is never submitted again.** A
- *    row stuck in VIDEO_SUBMITTING, or whose submit call died without an
- *    answer, becomes SUBMISSION_UNCERTAIN. The still stays; the loop is not
- *    retried, because the first request may still be running and billed.
+ * 2. **A video whose submit outcome is unknown waits before it is submitted
+ *    again, and then with the same idempotency key.** A row stuck in
+ *    VIDEO_SUBMITTING, or whose submit call died without an answer, becomes
+ *    SUBMISSION_UNCERTAIN, because the first request may still be running and
+ *    billed. After {@link UNCERTAIN_WAIT_MS} it is submitted again, which counts
+ *    as an attempt, so it still ends in FAILED after
+ *    {@link MAX_RENDER_ATTEMPTS}. The key is one per row (avatar and state), so
+ *    a Gateway that honours it returns the first job instead of a second one.
  *
  * Video generation takes minutes, so submitting and collecting are separate
  * steps on separate ticks. Nothing here waits on the provider.
  */
 
-/** A lease covers one still (up to two minutes) or one collect (download, encode, upload). */
-const LEASE_MS = 4 * 60 * 1000;
+/**
+ * A lease outlives the slowest step, or a second tick would reclaim a row that
+ * is still being worked. Worst case for a still: download 60 s, image edit
+ * 120 s, two ffmpeg runs of 90 s, upload 60 s, about 7 minutes. A collect
+ * (poll 30 s, download 60 s, three ffmpeg runs, two uploads) is about the same.
+ */
+const LEASE_MS = 10 * 60 * 1000;
+/** How long a submit of unknown outcome is left alone before it is submitted again. */
+export const UNCERTAIN_WAIT_MS = 30 * 60 * 1000;
 /** Paid attempts per step before the render gives up and the still alone shows. */
 export const MAX_RENDER_ATTEMPTS = 3;
 /** A video that has not finished by now never will. */
@@ -55,7 +66,12 @@ const RUN_BATCH = 9;
 /** More than about four large uploads at once make the Gateway reset connections. */
 const CONCURRENCY = 3;
 
-const LIVE_STATUSES = ["PENDING", "STILL_READY", "VIDEO_SUBMITTED"] as const;
+const LIVE_STATUSES = [
+  "PENDING",
+  "STILL_READY",
+  "SUBMISSION_UNCERTAIN",
+  "VIDEO_SUBMITTED",
+] as const;
 
 type RenderRow = Prisma.SokoBotAvatarRenderGetPayload<{
   include: {
@@ -74,10 +90,6 @@ export interface RenderRunResult {
 
 function leaseFree(now: Date): Prisma.SokoBotAvatarRenderWhereInput {
   return { OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] };
-}
-
-function errorText(error: unknown): string {
-  return (error instanceof Error ? error.message : "unknown").slice(0, 300);
 }
 
 /** The creature a state prompt names, read from the avatar's stored look. */
@@ -166,7 +178,11 @@ async function submitLoop(
   // Claim before the paid call, and say what the lease is for: a row found in
   // VIDEO_SUBMITTING with its lease run out is an unknown outcome.
   const claim = await prisma.sokoBotAvatarRender.updateMany({
-    where: { id: row.id, status: "STILL_READY", ...leaseFree(new Date()) },
+    where: {
+      id: row.id,
+      status: { in: ["STILL_READY", "SUBMISSION_UNCERTAIN"] },
+      ...leaseFree(new Date()),
+    },
     data: {
       status: "VIDEO_SUBMITTING",
       leaseUntil: new Date(Date.now() + LEASE_MS),
@@ -179,14 +195,15 @@ async function submitLoop(
     const operation = await avatarProvider().startVideo({
       prompt: loopPrompt(style, state, creatureFor(style, row.avatar.look)),
       imageUrl: row.stillUrl,
-      // The same key for the same attempt: a repeat of this request is the same job.
-      idempotencyKey: `soko-bot-avatar-render:${row.id}:${attempts}`,
+      // One key for the row, whatever the attempt: a repeat of an uncertain
+      // submit is meant to be the same job.
+      idempotencyKey: `soko-bot-avatar-render:${row.avatarId}:${state}`,
     });
     await prisma.sokoBotAvatarRender.updateMany({
       where: { id: row.id, status: "VIDEO_SUBMITTING" },
       data: {
         status: "VIDEO_SUBMITTED",
-        providerOperation: operation as Prisma.InputJsonValue,
+        providerOperation: operation,
         submittedAt: new Date(),
         leaseUntil: null,
         lastError: null,
@@ -199,11 +216,12 @@ async function submitLoop(
         where: { id: row.id, status: "VIDEO_SUBMITTING" },
         data: {
           status: "SUBMISSION_UNCERTAIN",
-          leaseUntil: null,
+          // Not eligible again until the wait is over.
+          leaseUntil: new Date(Date.now() + UNCERTAIN_WAIT_MS),
           lastError: errorText(error),
         },
       });
-      return "failed";
+      return "skipped";
     }
     // The Gateway answered and refused, so nothing was billed.
     return (await settleFailure(row, error, "STILL_READY", attempts)) ===
@@ -308,15 +326,14 @@ export async function reconcileAvatarRenders(
 
   const now = new Date();
   // A submit whose lease ran out without an answer: the request may be running.
-  const uncertain = await prisma.sokoBotAvatarRender.updateMany({
+  await prisma.sokoBotAvatarRender.updateMany({
     where: { status: "VIDEO_SUBMITTING", leaseUntil: { lt: now } },
     data: {
       status: "SUBMISSION_UNCERTAIN",
-      leaseUntil: null,
+      leaseUntil: new Date(now.getTime() + UNCERTAIN_WAIT_MS),
       lastError: "The submit outcome is unknown",
     },
   });
-  result.failed += uncertain.count;
 
   const rows = await prisma.sokoBotAvatarRender.findMany({
     where: {
@@ -368,7 +385,10 @@ export async function reconcileAvatarRenders(
             const outcome = await drawStateStill(row, style);
             if (outcome === "failed") result.failed += 1;
             else result.stills += 1;
-          } else if (row.status === "STILL_READY") {
+          } else if (
+            row.status === "STILL_READY" ||
+            row.status === "SUBMISSION_UNCERTAIN"
+          ) {
             const outcome = await submitLoop(row, style);
             if (outcome === "submitted") result.submitted += 1;
             if (outcome === "failed") result.failed += 1;

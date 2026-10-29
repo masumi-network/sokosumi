@@ -19,6 +19,7 @@ import {
 } from "@/lib/db/transaction";
 import {
   drawStill,
+  errorText,
   loadHouseScene,
   planShuffle,
   storeAvatarAsset,
@@ -110,7 +111,7 @@ async function reserveDraws(
         where: {
           requestedByUserId,
           // Studio drafts have their own allowance.
-          draftForSokoBotId: null,
+          fromPool: true,
           createdAt: { gte: new Date(Date.now() - GENERATION_WINDOW_MS) },
         },
       });
@@ -135,6 +136,7 @@ async function reserveDraws(
           styleId: style.id,
           styleVersion: style.version,
           look: plan.look,
+          fromPool: true,
           requestedByUserId,
           // Filled in once the image exists. `reservedAt` keeps the row out of
           // every read until then, so nobody sees or claims a blank avatar.
@@ -197,7 +199,7 @@ async function releaseReservations(
     // backstop: these rows carry `reservedAt` and age out on their own.
     console.warn("Soko Bot avatar reservations could not be released", {
       count: reservations.length,
-      error: error instanceof Error ? error.message : "unknown",
+      error: errorText(error),
     });
   }
 }
@@ -254,7 +256,7 @@ export async function generateAvatars(
   } catch (error) {
     console.error("Soko Bot avatar generation failed; skipping this run", {
       attempted: reservations.length,
-      error: error instanceof Error ? error.message : "unknown",
+      error: errorText(error),
     });
     // The probe may have been billed, so its row stays and counts. The rest
     // were never attempted, so hand their draws and their allowance back.
@@ -271,7 +273,7 @@ export async function generateAvatars(
       continue;
     }
     console.warn("Soko Bot avatar generation failed", {
-      error: result.reason instanceof Error ? result.reason.message : "unknown",
+      error: errorText(result.reason),
     });
   }
   return generated;
@@ -353,9 +355,16 @@ function avatarGenerationCapped() {
   );
 }
 
-function unclaimedAvatarFilter(excludeIds?: string[]) {
+function unclaimedAvatarFilter(
+  excludeIds?: string[],
+  style: SokoBotAvatarStyle = CURRENT_AVATAR_STYLE,
+) {
   return {
     claimedBySokoBotId: null,
+    // Only looks in the current style are offered. Legacy mascots stay where
+    // they are, for the bots that hold them, and are never handed to new ones.
+    styleId: style.id,
+    styleVersion: style.version,
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
@@ -429,13 +438,25 @@ export async function topUpAvailableAvatars(
 }
 
 /**
- * Delete drafts and replaced looks past their expiry, and private looks whose
- * bot was deleted (no expiry left once a bot claimed them), unless a bot holds
- * them. Renders go with them (cascade).
+ * Clean up private looks past their expiry, unless a bot holds them.
+ *
+ * - A pool look that was taken as a draft and never kept goes back to the pool.
+ * - Everything else is deleted, renders with it: studio drafts, the tombstones
+ *   of replaced looks, and private looks whose bot was deleted (no expiry left
+ *   once a bot claimed them).
  */
 export async function sweepExpiredDrafts(
   now: Date = new Date(),
 ): Promise<number> {
+  const returned = await prisma.sokoBotAvatar.updateMany({
+    where: {
+      claimedBySokoBotId: null,
+      fromPool: true,
+      keptAt: null,
+      draftExpiresAt: { lt: now },
+    },
+    data: { draftForSokoBotId: null, draftExpiresAt: null },
+  });
   const { count } = await prisma.sokoBotAvatar.deleteMany({
     where: {
       claimedBySokoBotId: null,
@@ -445,7 +466,35 @@ export async function sweepExpiredDrafts(
       ],
     },
   });
-  return count;
+  return returned.count + count;
+}
+
+/**
+ * Hand an unclaimed pool look to a bot as its draft, so Shuffle costs nothing
+ * while the pool has looks. Null when the pool has none in this style.
+ */
+export async function takePoolLookAsDraft(
+  sokoBotId: string,
+  expiresAt: Date,
+  style: SokoBotAvatarStyle,
+) {
+  const candidates = await prisma.sokoBotAvatar.findMany({
+    where: unclaimedAvatarFilter(undefined, style),
+    orderBy: { createdAt: "desc" },
+    take: 12,
+    select: { id: true, imageUrl: true, look: true },
+  });
+  // A random pick, tried in turn: another bot may take the same look first.
+  while (candidates.length > 0) {
+    const [pick] = candidates.splice(crypto.randomInt(candidates.length), 1);
+    if (!pick) break;
+    const taken = await prisma.sokoBotAvatar.updateMany({
+      where: { id: pick.id, ...unclaimedAvatarFilter(undefined, style) },
+      data: { draftForSokoBotId: sokoBotId, draftExpiresAt: expiresAt },
+    });
+    if (taken.count === 1) return pick;
+  }
+  return null;
 }
 
 async function assertKeepAllowance(
@@ -466,22 +515,31 @@ async function assertKeepAllowance(
   }
 }
 
+export interface ClaimOptions {
+  /** Run inside a caller's transaction (bot create); otherwise a serializable one. */
+  tx?: Prisma.TransactionClient;
+  /** Whose keep this is, recorded for the daily keep cap. Staff pass nothing. */
+  keptBy?: string;
+  /** Refuse past the daily cap. Bot creation records the keep but never refuses. */
+  enforceKeepCap?: boolean;
+}
+
 /**
  * Give an avatar to a bot, releasing whatever it held before. The unique index
  * on `claimedBySokoBotId` guarantees one avatar per bot; the updateMany guard
  * guarantees one bot per avatar.
  *
- * Claiming a crafted look is keeping it: it counts against `by`'s daily keep
- * cap (staff pass `null`), the bot's other drafts go, and one render row per
- * state is created for the cron to work through. A look the bot held that was
- * kept before is not released to the pool: it stays private to the bot until
- * it expires.
+ * Claiming a crafted look is keeping it: the keep is recorded against
+ * `keptBy`'s daily cap, the bot's other drafts go, and one render row per state
+ * is created for the cron to work through. A kept look the bot replaces is
+ * retired: its renders are deleted and the row stays as a tombstone for the cap
+ * window (the cap reads it), never claimable again. A look that was never kept
+ * (a pool pick) goes back to the pool.
  */
 export async function claimAvatar(
   sokoBotId: string,
   avatarId: string,
-  outerTx?: Prisma.TransactionClient,
-  by: { userId: string } | null = null,
+  options: ClaimOptions = {},
 ): Promise<string> {
   const run = async (tx: Prisma.TransactionClient) => {
     const avatar = await tx.sokoBotAvatar.findUnique({
@@ -513,28 +571,44 @@ export async function claimAvatar(
     ) {
       throw notFound("Avatar not found");
     }
+    // A kept look nobody holds is retired: a replaced look does not come back.
+    if (avatar.keptAt && !avatar.claimedBySokoBotId) {
+      throw notFound("Avatar not found");
+    }
     if (avatar.claimedBySokoBotId && avatar.claimedBySokoBotId !== sokoBotId) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }
     const crafted = findAvatarStyle(avatar.styleId) !== null;
     const firstKeep = crafted && !avatar.keptAt;
-    if (firstKeep && by) await assertKeepAllowance(tx, by.userId);
+    if (firstKeep && options.keptBy && options.enforceKeepCap) {
+      await assertKeepAllowance(tx, options.keptBy);
+    }
 
-    // The look it held before: private to the bot if it was kept (the daily
-    // cap reads it), back in the pool if it never was.
-    await tx.sokoBotAvatar.updateMany({
+    // The look it held before. A kept one is retired to a tombstone (renders
+    // gone, row kept for the cap window); one that was never kept is released.
+    const retired = await tx.sokoBotAvatar.findMany({
       where: {
         claimedBySokoBotId: sokoBotId,
         id: { not: avatarId },
         keptAt: { not: null },
       },
-      data: {
-        claimedBySokoBotId: null,
-        claimedAt: null,
-        draftForSokoBotId: sokoBotId,
-        draftExpiresAt: new Date(now.getTime() + KEEP_WINDOW_MS),
-      },
+      select: { id: true },
     });
+    if (retired.length > 0) {
+      const ids = retired.map((one) => one.id);
+      await tx.sokoBotAvatarRender.deleteMany({
+        where: { avatarId: { in: ids } },
+      });
+      await tx.sokoBotAvatar.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          claimedBySokoBotId: null,
+          claimedAt: null,
+          draftForSokoBotId: sokoBotId,
+          draftExpiresAt: new Date(now.getTime() + KEEP_WINDOW_MS),
+        },
+      });
+    }
     await tx.sokoBotAvatar.updateMany({
       where: {
         claimedBySokoBotId: sokoBotId,
@@ -552,7 +626,9 @@ export async function claimAvatar(
         claimedBySokoBotId: sokoBotId,
         claimedAt: now,
         ...(crafted ? { draftExpiresAt: null } : {}),
-        ...(firstKeep ? { keptAt: now, keptByUserId: by?.userId ?? null } : {}),
+        ...(firstKeep
+          ? { keptAt: now, keptByUserId: options.keptBy ?? null }
+          : {}),
       },
     });
     if (claimed.count === 0) {
@@ -574,19 +650,25 @@ export async function claimAvatar(
         })),
         skipDuplicates: true,
       });
+      // The bot's other drafts: a pool look goes back, one drawn for the bot is deleted.
+      const others = {
+        draftForSokoBotId: sokoBotId,
+        claimedBySokoBotId: null,
+        keptAt: null,
+        id: { not: avatarId },
+      };
+      await tx.sokoBotAvatar.updateMany({
+        where: { ...others, fromPool: true },
+        data: { draftForSokoBotId: null, draftExpiresAt: null },
+      });
       await tx.sokoBotAvatar.deleteMany({
-        where: {
-          draftForSokoBotId: sokoBotId,
-          claimedBySokoBotId: null,
-          keptAt: null,
-          id: { not: avatarId },
-        },
+        where: { ...others, fromPool: false },
       });
     }
     return avatar.imageUrl;
   };
-  return outerTx
-    ? run(outerTx)
+  return options.tx
+    ? run(options.tx)
     : serializableTransaction(
         run,
         "Another avatar change is running. Try again.",

@@ -27,6 +27,9 @@ const claimAvatarRoute = createRoute({
     200: jsonSuccessResponse(sokoBotSchema, "Bot with the new avatar"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    // Claiming runs in a Serializable transaction, so a concurrent change can
+    // lose the race and be worth retrying verbatim.
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
     429: jsonErrorResponse("Too Many Requests"),
   },
@@ -38,8 +41,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const bot = await getSokoBotState(auth.userId, workspace.workspaceId);
     if (!bot) throw notFound("Create a Soko Bot first");
-    await claimAvatar(bot.id, c.req.valid("json").avatarId, undefined, {
-      userId: auth.userId,
+    await claimAvatar(bot.id, c.req.valid("json").avatarId, {
+      keptBy: auth.userId,
+      enforceKeepCap: true,
     });
     const refreshed = await getSokoBotState(auth.userId, workspace.workspaceId);
     return ok(c, sokoBotSchema.parse(mapBot(refreshed)));

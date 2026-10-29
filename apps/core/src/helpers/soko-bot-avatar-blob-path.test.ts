@@ -12,11 +12,11 @@ const HASH12 = "abcdef012345";
 const KEY = "owl-1";
 
 describe("soko-bot avatar blob path", () => {
-  it("encodes the new pool pathname as soko-bots/avatars/{key}-{hash12}.png", () => {
+  it("encodes the new pool pathname as soko-bots/avatars/{key}-{hash12}.webp", () => {
     expect(SOKO_BOT_AVATAR_BLOB_DIR).toBe("soko-bots/avatars");
     expect(SOKO_BOT_AVATAR_LEGACY_BLOB_DIR).toBe("soko-bot-avatars");
     expect(buildSokoBotAvatarBlobPathname(KEY, SHA256_HEX)).toBe(
-      `soko-bots/avatars/${KEY}-${HASH12}.png`,
+      `soko-bots/avatars/${KEY}-${HASH12}.webp`,
     );
   });
 

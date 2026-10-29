@@ -7,12 +7,13 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type AvatarChange,
-  downloadAvatarAsset,
   drawStill,
+  errorText,
   loadHouseScene,
   planChange,
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
+import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
 import { AVATAR_IMAGE_MODEL } from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarLook,
@@ -26,6 +27,7 @@ import {
   canDraw,
   claimAvatar,
   randomAvatarSeed,
+  takePoolLookAsDraft,
 } from "@/services/soko-bot-avatar.service";
 
 /**
@@ -41,7 +43,7 @@ export interface AvatarDraft {
   id: string;
   imageUrl: string;
   look: AvatarLook;
-  expiresAt: string;
+  expiresAt: Date;
 }
 
 function parseLook(value: unknown, style: SokoBotAvatarStyle): AvatarLook {
@@ -69,13 +71,11 @@ async function loadBase(
     select: { id: true, imageUrl: true, look: true },
   });
   if (draftId && !row) throw notFound("Draft not found");
-  if (!row) {
-    return { look: freshLook(style), imageUrl: null, parentAvatarId: null };
-  }
+  // No look of its own yet: edit the house scene.
+  if (!row) return { look: freshLook(style), image: null };
   return {
     look: parseLook(row.look, style),
-    imageUrl: row.imageUrl,
-    parentAvatarId: row.id,
+    image: { url: row.imageUrl, avatarId: row.id },
   };
 }
 
@@ -100,23 +100,44 @@ export async function createAvatarDraft(input: {
       reportToSentry: false,
     });
   }
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + DRAFT_TTL_MS);
+
+  // Shuffle takes a look the pool already drew, which costs nothing, and only
+  // draws a fresh one when the pool has none.
+  if (input.change.kind === "shuffle") {
+    const pooled = await takePoolLookAsDraft(input.sokoBotId, expiresAt, style);
+    if (pooled) {
+      return {
+        draft: {
+          id: pooled.id,
+          imageUrl: pooled.imageUrl,
+          look: parseLook(pooled.look, style),
+          expiresAt,
+        },
+        note: "",
+      };
+    }
+  }
+
   const base = await loadBase(style, input.sokoBotId, input.draftId);
   // A shuffle starts over from the house scene whatever the bot looks like now.
-  const fromHouse = input.change.kind === "shuffle" || !base.imageUrl;
+  const source =
+    input.change.kind === "shuffle" || !base.image ? null : base.image;
   let plan: Awaited<ReturnType<typeof planChange>>;
   let reference: Buffer;
   try {
     plan = await planChange(style, base.look, input.change);
     if (plan.kind === "unchanged") return { draft: null, note: plan.note };
-    reference = fromHouse
-      ? await loadHouseScene(style)
-      : await downloadAvatarAsset(base.imageUrl as string);
+    reference = source
+      ? await downloadAvatarAsset(source.url)
+      : await loadHouseScene(style);
   } catch (error) {
     // A bad request is the caller's; anything else is the rewriter or the
     // blob store being down, and nothing has been spent yet.
     if (error instanceof HTTPException) throw error;
     console.warn("Soko Bot avatar draft could not be planned", {
-      error: error instanceof Error ? error.message : "unknown",
+      error: errorText(error),
     });
     throw serviceUnavailable("The look could not be drawn. Try again.", {
       kind: "avatar_draw_failed",
@@ -125,13 +146,13 @@ export async function createAvatarDraft(input: {
   }
 
   // Count and insert as one step, so a burst cannot all pass the same count.
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + DRAFT_TTL_MS);
   const reservation = await serializableTransaction(async (tx) => {
     const recent = await tx.sokoBotAvatar.count({
       where: {
         requestedByUserId: input.userId,
+        // Drafts drawn for a bot; a pool look taken as a draft cost nothing.
         draftForSokoBotId: { not: null },
+        fromPool: false,
         createdAt: { gte: new Date(now.getTime() - DRAFT_WINDOW_MS) },
       },
     });
@@ -148,7 +169,7 @@ export async function createAvatarDraft(input: {
         styleId: style.id,
         styleVersion: style.version,
         look: plan.look,
-        parentAvatarId: fromHouse ? null : base.parentAvatarId,
+        parentAvatarId: source?.avatarId ?? null,
         draftForSokoBotId: input.sokoBotId,
         draftExpiresAt: expiresAt,
         requestedByUserId: input.userId,
@@ -176,19 +197,17 @@ export async function createAvatarDraft(input: {
         id: reservation.id,
         imageUrl,
         look: plan.look,
-        expiresAt: expiresAt.toISOString(),
+        expiresAt,
       },
       note: plan.note,
     };
   } catch (error) {
     // Nothing usable was made, so give the slot back. A stuck row would hold
-    // the owner's hourly allowance for nothing.
+    // the person's hourly allowance for nothing.
     await prisma.sokoBotAvatar
       .deleteMany({ where: { id: reservation.id } })
       .catch(() => undefined);
-    console.warn("Soko Bot avatar draft failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    console.warn("Soko Bot avatar draft failed", { error: errorText(error) });
     throw serviceUnavailable("The look could not be drawn. Try again.", {
       kind: "avatar_draw_failed",
       reportToSentry: false,
@@ -214,12 +233,10 @@ export async function keepAvatarDraft(input: {
     select: { id: true },
   });
   if (!draft) throw notFound("Draft not found");
-  await claimAvatar(
-    input.sokoBotId,
-    input.draftId,
-    undefined,
-    input.userId ? { userId: input.userId } : null,
-  );
+  await claimAvatar(input.sokoBotId, input.draftId, {
+    keptBy: input.userId ?? undefined,
+    enforceKeepCap: true,
+  });
 }
 
 /** The bot's look, its newest draft, and how far its renders have got. */
@@ -275,7 +292,7 @@ export async function getAvatarStudio(
             id: draft.id,
             imageUrl: draft.imageUrl,
             look: parseLook(draft.look, style),
-            expiresAt: draft.draftExpiresAt.toISOString(),
+            expiresAt: draft.draftExpiresAt,
           }
         : null,
     progress: {
