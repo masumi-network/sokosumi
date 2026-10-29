@@ -16,7 +16,6 @@ export function useUnAuthenticatedErrorHandler(
 } {
   const router = useRouter();
 
-  // Derive the authentication status directly from the error
   // Use error.name instead of instanceof due to serialization issues across server-client boundary
   //
   // The name only survives in development. A production build masks a server
@@ -29,9 +28,7 @@ export function useUnAuthenticatedErrorHandler(
     error.digest === UNAUTHENTICATED_ERROR_DIGEST;
 
   useEffect(() => {
-    // Redirect to login if the error is UnAuthenticatedError
     if (isUnAuthenticatedError) {
-      // Use the URL from the error if available, otherwise fall back to current URL
       const redirectUrl =
         (error as UnAuthenticatedError).redirectUrl ??
         window.location.pathname + window.location.search;
