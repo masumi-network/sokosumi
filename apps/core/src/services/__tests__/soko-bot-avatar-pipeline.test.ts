@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { Prisma } from "@sokosumi/database";
 import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 import {
@@ -120,7 +121,10 @@ function apply(row: Row, data: Row): void {
       value && typeof value === "object" && "increment" in (value as Row);
     row[key] = increment
       ? (row[key] as number) + ((value as Row).increment as number)
-      : value;
+      : // Prisma's marker for SQL NULL in a Json column.
+        value === Prisma.DbNull
+        ? null
+        : value;
   }
 }
 
@@ -1133,6 +1137,15 @@ describe("reconciling renders", () => {
       expect(workingRow().status).toBe("VIDEO_SUBMITTED");
     });
 
+    it("keeps its key on the row while the submit is unanswered, and drops it on a new job", async () => {
+      await keepWithUncertainWorking();
+      await reconcileUntilSettled();
+
+      expect(workingRow().providerOperation).toEqual({
+        submissionKey: workingSubmits()[0]?.[0].idempotencyKey,
+      });
+    });
+
     it("still ends in FAILED after the attempt budget, never submitting more than that", async () => {
       await keepWithUncertainWorking();
       await reconcileUntilSettled();
@@ -1167,6 +1180,125 @@ describe("reconciling renders", () => {
         UNCERTAIN_WAIT_MS - 60_000,
       );
       expect(providerMock.startVideo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("the idempotency key of a video submit", () => {
+    const keysOf = (state: string) =>
+      providerMock.startVideo.mock.calls
+        .filter((call) => call[0].prompt.includes(state))
+        .map((call) => call[0].idempotencyKey as string);
+    const WORKING = "reads, its eyes move";
+    const workingRow = () =>
+      renders.rows.find((row) => row.state === "WORKING")!;
+
+    it("is new for each submit after a definite failure: a refusal", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      let refused = false;
+      providerMock.startVideo.mockImplementation(
+        async (input: { prompt: string }) => {
+          if (input.prompt.includes(WORKING) && !refused) {
+            refused = true;
+            throw new Error("the parameter resolution is not valid");
+          }
+          return { job: "ok" };
+        },
+      );
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await reconcileUntilSettled();
+
+      const [first, second] = keysOf(WORKING);
+      expect(keysOf(WORKING)).toHaveLength(2);
+      expect(second).not.toBe(first);
+      expect(workingRow().status).toBe("READY");
+    });
+
+    it("is new for each submit after the job itself failed", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      let failed = false;
+      providerMock.pollVideo.mockImplementation(async (op: { job: string }) => {
+        if (op.job === "bad" && !failed) {
+          failed = true;
+          return { status: "failed", reason: "invalid parameter" };
+        }
+        return { status: "completed", video: fixtureClip };
+      });
+      providerMock.startVideo.mockImplementation(
+        async (input: { prompt: string }) => ({
+          job: input.prompt.includes(WORKING) ? "bad" : "ok",
+        }),
+      );
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await reconcileUntilSettled();
+
+      const [first, second] = keysOf(WORKING);
+      expect(keysOf(WORKING)).toHaveLength(2);
+      expect(second).not.toBe(first);
+      expect(workingRow().status).toBe("READY");
+    });
+
+    it("is the same after an uncertain submit, so a repeat is the same job", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      let uncertain = false;
+      providerMock.startVideo.mockImplementation(
+        async (input: { prompt: string }) => {
+          if (input.prompt.includes(WORKING) && !uncertain) {
+            uncertain = true;
+            throw new VideoSubmissionUncertainError("socket hang up");
+          }
+          return { job: "ok" };
+        },
+      );
+      await reconcileUntilSettled();
+      workingRow().leaseUntil = new Date(Date.now() - 1_000);
+      await reconcileAvatarRenders();
+
+      const [first, second] = keysOf(WORKING);
+      expect(keysOf(WORKING)).toHaveLength(2);
+      expect(second).toBe(first);
+    });
+
+    it("clears from the row on a definite failure", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      providerMock.startVideo.mockRejectedValue(new Error("refused"));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await reconcileAvatarRenders();
+      await reconcileAvatarRenders();
+
+      expect(workingRow().providerOperation).toBeNull();
+    });
+
+    it("hands the poll the Gateway's operation, whole, not the wrapper around it", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+
+      await reconcileUntilSettled();
+
+      for (const [operation] of providerMock.pollVideo.mock.calls) {
+        expect(operation).toEqual({ job: expect.stringMatching(/^op-/) });
+      }
+      expect(workingRow().providerOperation).toEqual({
+        submissionKey: expect.stringContaining(":working:"),
+        operation: { job: expect.stringMatching(/^op-/) },
+      });
+    });
+
+    it("still polls a row stored before the key travelled with it", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      await reconcileAvatarRenders();
+      Object.assign(workingRow(), {
+        status: "VIDEO_SUBMITTED",
+        providerOperation: { job: "bare" },
+        submittedAt: new Date(),
+        leaseUntil: null,
+      });
+      providerMock.pollVideo.mockClear();
+
+      await reconcileAvatarRenders();
+
+      expect(providerMock.pollVideo).toHaveBeenCalledWith({ job: "bare" });
     });
   });
 

@@ -1,4 +1,6 @@
-import type { Prisma } from "@sokosumi/database";
+import { randomUUID } from "node:crypto";
+
+import { Prisma } from "@sokosumi/database";
 
 import pLimit from "p-limit";
 
@@ -120,6 +122,8 @@ async function settleFailure(
       status: exhausted ? "FAILED" : retryStatus,
       leaseUntil: null,
       lastError: errorText(error),
+      // A definite outcome: the next submit is a new job under a new key.
+      providerOperation: Prisma.DbNull,
     },
   });
   console.warn("Soko Bot avatar render step failed", {
@@ -129,6 +133,25 @@ async function settleFailure(
     error: errorText(error),
   });
   return exhausted ? "failed" : "retry";
+}
+
+/**
+ * What a row keeps in `providerOperation`: the idempotency key of the submit it
+ * is making, and once the Gateway answers, its operation beside it.
+ *
+ * The key is stable only across an *uncertain* submit, so that a repeat is the
+ * same job. After a definite outcome (refused, or the job failed) it is cleared
+ * and the next attempt mints a new one: with the old key the Gateway would hand
+ * back the job that already failed.
+ */
+function storedSubmission(
+  value: Prisma.JsonValue,
+): { submissionKey: string; operation: Prisma.JsonValue } | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { submissionKey, operation } = value;
+  return typeof submissionKey === "string"
+    ? { submissionKey, operation: operation ?? null }
+    : null;
 }
 
 async function drawStateStill(
@@ -178,6 +201,12 @@ async function submitLoop(
 ): Promise<"submitted" | "failed" | "skipped"> {
   const state = fromDbAvatarState(row.state);
   if (!row.stillUrl) return "skipped";
+  // An uncertain submit repeats under its own key; anything else is a new job.
+  const submissionKey =
+    (row.status === "SUBMISSION_UNCERTAIN"
+      ? storedSubmission(row.providerOperation)?.submissionKey
+      : undefined) ??
+    `soko-bot-avatar-render:${row.avatarId}:${state}:${randomUUID()}`;
   // Claim before the paid call, and say what the lease is for: a row found in
   // VIDEO_SUBMITTING with its lease run out is an unknown outcome.
   const claim = await prisma.sokoBotAvatarRender.updateMany({
@@ -190,6 +219,8 @@ async function submitLoop(
       status: "VIDEO_SUBMITTING",
       leaseUntil: new Date(Date.now() + LEASE_MS),
       attempts: { increment: 1 },
+      // Stored with the claim, so a submit that dies unanswered keeps its key.
+      providerOperation: { submissionKey },
     },
   });
   if (claim.count === 0) return "skipped";
@@ -198,15 +229,13 @@ async function submitLoop(
     const operation = await avatarProvider().startVideo({
       prompt: loopPrompt(style, state, creatureFor(style, row.avatar.look)),
       imageUrl: row.stillUrl,
-      // One key for the row, whatever the attempt: a repeat of an uncertain
-      // submit is meant to be the same job.
-      idempotencyKey: `soko-bot-avatar-render:${row.avatarId}:${state}`,
+      idempotencyKey: submissionKey,
     });
     await prisma.sokoBotAvatarRender.updateMany({
       where: { id: row.id, status: "VIDEO_SUBMITTING" },
       data: {
         status: "VIDEO_SUBMITTED",
-        providerOperation: operation,
+        providerOperation: { submissionKey, operation },
         submittedAt: new Date(),
         leaseUntil: null,
         lastError: null,
@@ -259,7 +288,11 @@ async function collectLoop(
   });
   if (claim.count === 0) return "pending";
   try {
-    const polled = await avatarProvider().pollVideo(row.providerOperation);
+    const stored = storedSubmission(row.providerOperation);
+    const polled = await avatarProvider().pollVideo(
+      // Rows stored before the key travelled with the operation hold it bare.
+      stored ? stored.operation : row.providerOperation,
+    );
     if (polled.status === "pending") {
       await prisma.sokoBotAvatarRender.updateMany({
         where: { id: row.id },
