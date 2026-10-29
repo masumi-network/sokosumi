@@ -12,7 +12,6 @@ import { conflict, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   newsletterPublicUrl,
-  newsletterSenderOptions,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
 import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
@@ -20,6 +19,7 @@ import {
   newsletterBrandSchema,
   newsletterTemplateSchema,
 } from "@/schemas/newsletter.schema";
+import { resolveNewsletterSender } from "@/services/newsletter-sending-domain.service";
 
 const LEASE_MS = 5 * 60_000;
 interface SendNewsletterIssueOptions {
@@ -44,7 +44,7 @@ export async function sendNewsletterIssue(
     include: { newsletter: true },
   });
   if (!issue) throw notFound("Newsletter issue not found");
-  const sender = newsletterSenderOptions(issue.newsletter);
+  const sender = await resolveNewsletterSender(issue.newsletter);
   const now = new Date();
   const recovering =
     issue.status === "SENDING" &&

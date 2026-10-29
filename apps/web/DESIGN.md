@@ -351,7 +351,7 @@ Borders first (guide 5.5). No glow, no blur. Shadows stop at `shadow-lg`.
 ## Components
 
 shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `data-slot`.
-Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
+Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar); others are
 prop/state-driven.
 
 - **Button** — 8 variants: `primary` (bg-primary), `default` (bordered, _default_),
@@ -374,6 +374,15 @@ prop/state-driven.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:border-ring`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-secondary text-secondary-foreground text-xs` (neutral, never Iris).
+- **Segmented controls** (ToggleGroup) — switch the view of the same content; Tabs move
+  between panels and keep their own look. One look for every segmented control: a
+  `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3` options in
+  `text-muted-foreground` (`hover:text-foreground`); the selected option is a
+  `bg-background text-foreground shadow-sm` pill inset in the track, `Highlight` under forced
+  colours. The classes live in `components/ui/segmented-control-classes.ts` and ToggleGroup
+  wears them by default, with no variants or sizes. Callers pass layout only (width, wrap,
+  overflow, `size-10 px-0 md:size-8` for an icon-only option), never a fill, border, radius, shadow, text
+  colour or `data-[state=on]:` class; `src-walk-guards.test.ts` holds that.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
   **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill);
   **company rail + detail** (pick a company on the left, its coworkers and "Ready-to-run
@@ -439,7 +448,7 @@ prop/state-driven.
 ## Accessibility
 
 - **Focus rings — three conventions, by surface.**
-  - **Form primitives** (Input, Select, Checkbox, Switch, Tabs, Textarea, Toggle, Badge):
+  - **Form primitives** (Input, Select, Checkbox, Switch, Tabs, Textarea, ToggleGroup, Badge):
     the field marks focus with its border, `outline-none focus-visible:border-ring`
     (+ `aria-invalid:border-destructive`). No ring.
   - **Buttons:** `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2

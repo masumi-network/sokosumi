@@ -22,7 +22,7 @@ vi.mock("@/lib/schedules/timezones", () => ({
 import { TimeZoneSync } from "@/i18n/time-zone-sync";
 
 function clearTimeZoneCookie() {
-  document.cookie = `${TIME_ZONE_COOKIE_NAME}=; path=/; max-age=0`;
+  document.cookie = `${TIME_ZONE_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 describe("TimeZoneSync", () => {

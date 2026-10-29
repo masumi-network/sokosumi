@@ -28,10 +28,8 @@ export function AdsRangeToggle({ range }: { range: RangeParam }) {
         const next = RANGE_PARAMS.find((candidate) => candidate === value);
         if (next) void setQuery({ range: next });
       }}
-      size="sm"
       type="single"
       value={range}
-      variant="outline"
     >
       {RANGE_PARAMS.map((candidate) => (
         <ToggleGroupItem key={candidate} value={candidate}>

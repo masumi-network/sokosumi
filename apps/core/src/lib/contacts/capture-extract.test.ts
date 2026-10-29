@@ -238,6 +238,29 @@ describe("Outlook mail", () => {
       "bulk_header",
     ]);
   });
+
+  function htmlBody(content: string) {
+    return parseMail({
+      id: "html",
+      sentDateTime: "2026-10-20T13:05:00Z",
+      body: { contentType: "html", content },
+    })?.body;
+  }
+
+  it("strips nested tags that reassemble after one pass", () => {
+    const body = htmlBody(
+      "<p>Hi</p><scr<script>ipt>x</script><sty<style>y</style>le>z</style><scr<style></style>ipt",
+    );
+    expect(body).not.toMatch(/<\s*(script|style)/i);
+    expect(body).not.toContain("<");
+    expect(body).toContain("Hi");
+  });
+
+  it("decodes entities once", () => {
+    expect(htmlBody("<p>a &amp;lt; b &lt; c &amp;quot;</p>")).toBe(
+      "a &lt; b < c &quot;\n",
+    );
+  });
 });
 
 describe("signatures", () => {

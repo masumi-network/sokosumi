@@ -23,6 +23,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
+import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
@@ -37,6 +38,7 @@ import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
+import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { AvatarPicker } from "../avatar-picker.client";
@@ -149,6 +151,11 @@ export interface SokoBotConsoleProps {
   canManage: boolean;
   /** A shared bot's room, which every member shares; null for one's own. */
   sharedRoomId: string | null;
+  /**
+   * Project ad accounts the bot uses, and a shared bot's Project for the
+   * empty state's link; null without the Social beta.
+   */
+  ads: { accounts: BotAdAccount[]; projectId: string | null } | null;
 }
 
 /**
@@ -173,9 +180,13 @@ export function SokoBotConsole({
   botId,
   canManage,
   sharedRoomId,
+  ads,
 }: SokoBotConsoleProps) {
   const consoleRoute = sokoBotConsoleRoute(botId);
   const t = useTranslations("App.SokoBot");
+  const adsBlock = ads ? (
+    <AdAccountsSection accounts={ads.accounts} botProjectId={ads.projectId} />
+  ) : null;
   // Status is the default view; everything an owner rarely touches sits behind
   // Advanced so the page opens on what the assistant is actually doing.
   // shallow: false so flipping Advanced re-runs the server component, which is
@@ -351,6 +362,14 @@ export function SokoBotConsole({
                       />
                     </HolderSection>
                   ) : null}
+                  {adsBlock ? (
+                    <HolderSection
+                      title={t("Ads.title")}
+                      description={t("Ads.description")}
+                    >
+                      {adsBlock}
+                    </HolderSection>
+                  ) : null}
                   {usage ? (
                     <HolderSection
                       title={t("Console.Usage.title")}
@@ -449,6 +468,14 @@ export function SokoBotConsole({
                           initial={integrations}
                           catalog={catalog}
                         />
+                      </Section>
+                    ) : null}
+                    {adsBlock ? (
+                      <Section
+                        title={t("Ads.title")}
+                        description={t("Ads.description")}
+                      >
+                        {adsBlock}
                       </Section>
                     ) : null}
                   </>

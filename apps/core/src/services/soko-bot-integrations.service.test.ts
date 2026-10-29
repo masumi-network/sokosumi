@@ -77,6 +77,8 @@ import {
   listIntegrationTools,
   modifyInboxMessages,
   revokeSokoBotIntegrationAccounts,
+  runIntegrationTool,
+  searchSokoBotIntegrationCatalog,
 } from "./soko-bot-integrations.service";
 
 const input = {
@@ -976,5 +978,62 @@ describe("Composio 401/5xx vs not-found", () => {
     await expect(
       listIntegrationTools(githubIntegration, { limit: 10 }),
     ).rejects.toMatchObject({ kind: "NOT_FOUND" });
+  });
+});
+
+describe("ad toolkits stay off the Soko Bot", () => {
+  const googleAdsIntegration = {
+    ...githubIntegration,
+    provider: {
+      ...githubIntegration.provider,
+      id: "googleads",
+      name: "Google Ads",
+    },
+  };
+  const refusal =
+    /Google Ads is used through the Project's ad account: start with list_ad_accounts/;
+
+  it("leaves ad toolkits out of the catalog", async () => {
+    mocks.toolkitGet.mockResolvedValue([
+      { slug: "GOOGLEADS", name: "Google Ads" },
+      { slug: "metaads", name: "Meta Ads" },
+      { slug: "github", name: "GitHub" },
+    ]);
+    const entries = await searchSokoBotIntegrationCatalog("");
+    expect(entries.map((entry) => entry.provider)).toEqual(["github"]);
+  });
+
+  it("refuses to list an ad toolkit's tools", async () => {
+    await expect(
+      listIntegrationTools(googleAdsIntegration, { limit: 10 }),
+    ).rejects.toThrow(refusal);
+    expect(mocks.getRawComposioTools).not.toHaveBeenCalled();
+  });
+
+  it("refuses to run a tool of an ad toolkit", async () => {
+    await expect(
+      runIntegrationTool(googleAdsIntegration, "GOOGLEADS_SEARCH", {}),
+    ).rejects.toThrow(refusal);
+  });
+
+  it("refuses a GOOGLEADS_ or METAADS_ tool whatever the integration", async () => {
+    await expect(
+      runIntegrationTool(githubIntegration, "googleads_search", {}),
+    ).rejects.toThrow(refusal);
+    await expect(
+      runIntegrationTool(githubIntegration, "METAADS_CREATE_CAMPAIGN", {}),
+    ).rejects.toThrow(/Meta Ads is used through the Project's ad account/);
+  });
+
+  it("still runs other toolkits' tools", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ successful: true, data: { ok: true } }),
+      ),
+    );
+    await expect(
+      runIntegrationTool(githubIntegration, "GITHUB_LIST_REPOS", {}),
+    ).resolves.toEqual({ ok: true });
   });
 });

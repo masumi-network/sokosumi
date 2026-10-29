@@ -213,6 +213,61 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
 
+  it("redirects a personal Soko Bot 1:1 when an organization is active", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_A,
+      name: "Org A",
+      slug: "org-a",
+    });
+    getRoomMock.mockResolvedValue({
+      ...room({ organizationId: null, kind: "direct" }),
+      sokoBotMembers: [
+        {
+          id: "bot_1",
+          name: "Soko",
+          image: null,
+        } as ChatRoom["sokoBotMembers"][number],
+      ],
+    });
+
+    await expect(
+      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
+    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
+  });
+
+  it("opens a hosted External channel from another organization's workspace", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_B,
+      name: "Org B",
+      slug: "org-b",
+    });
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: ORG_A, discoverability: "external" }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
+  });
+
+  it("opens a hosted External channel in the personal workspace", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: ORG_A, discoverability: "external" }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
+  });
+
   it("redirects when room is missing", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,
@@ -280,7 +335,11 @@ describe("ChatRoomPage org deep-link guard", () => {
       slug: "org-b",
     });
     getRoomMock.mockResolvedValue(
-      room({ organizationId: ORG_A, myAccess: "guest" }),
+      room({
+        organizationId: ORG_A,
+        discoverability: "external",
+        myAccess: "guest",
+      }),
     );
 
     const element = (await ChatRoomPageContent({
@@ -297,7 +356,11 @@ describe("ChatRoomPage org deep-link guard", () => {
   it("renders guest channel progressive shell in personal workspace", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     getRoomMock.mockResolvedValue(
-      room({ organizationId: ORG_A, myAccess: "guest" }),
+      room({
+        organizationId: ORG_A,
+        discoverability: "external",
+        myAccess: "guest",
+      }),
     );
 
     const element = (await ChatRoomPageContent({
@@ -501,7 +564,11 @@ describe("ChatRoomPage channel settings role", () => {
   it("does not read a membership in the personal workspace", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     getRoomMock.mockResolvedValue(
-      room({ organizationId: ORG_A, myAccess: "guest" }),
+      room({
+        organizationId: ORG_A,
+        discoverability: "external",
+        myAccess: "guest",
+      }),
     );
 
     const element = (await ChatRoomPageContent({

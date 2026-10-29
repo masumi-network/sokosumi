@@ -56,8 +56,10 @@ export const ALPHA_TONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95].map(
 
 /**
  * Values outside the palette, both Proposed. The positive mark is the one
- * status colour: warning is Golden Yellow and the X is Neutral 950. Dark Iris
- * is the dark primary at rest, mirroring `globals.css`.
+ * status color: warning is Golden Yellow and the X is Neutral 950. Dark Iris
+ * is the dark-theme primary at rest: Iris Flower measures 7.3:1 on Neutral
+ * 950 against 2.7:1 on white, so it reads far louder in dark. Dark Iris keeps
+ * Neutral 950 text at 5:1.
  */
 const PROPOSED_VALUES = {
   "--ds-positive": "#00D43B",

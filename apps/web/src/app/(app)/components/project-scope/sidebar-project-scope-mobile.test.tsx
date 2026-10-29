@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,6 +57,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 }));
 
 import { HeaderProjectScope } from "./header-project-scope";
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 import { SidebarProjectScope as SidebarTop } from "./sidebar-project-scope";
 import { SidebarScopeMobileChip } from "./sidebar-project-scope-mobile";
 import { openScopeCreate, openScopeSheet } from "./sidebar-project-scope-state";
@@ -232,6 +233,38 @@ describe("sidebar project scope scope name", () => {
 });
 
 describe("sidebar project scope chip", () => {
+  it("clears the picked project back to All projects with the chip's ×", async () => {
+    const user = userEvent.setup();
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    const clear = screen.getByTestId("project-scope-chip-clear");
+    expect(clear).toHaveAccessibleName("clearProject");
+    await user.click(clear);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/tasks");
+    expect(chip()).toHaveFocus();
+  });
+
+  it("shows no × on the chip in the workspace view", () => {
+    renderHarness();
+
+    expect(screen.queryByTestId("project-scope-chip-clear")).toBeNull();
+  });
+
+  it("badges a Closed project on the chip", async () => {
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() =>
+      expect(chip()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(
+      within(chip()).getByTestId("project-scope-closed-badge"),
+    ).toHaveTextContent("closed");
+  });
+
   it("hides the chip on a chat room but keeps its dialog reachable", async () => {
     const user = userEvent.setup();
     mocks.pathname = "/chat/rooms/r-1";
