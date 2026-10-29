@@ -45,10 +45,6 @@ export const organizationSeatSummarySchema = z
   })
   .openapi("OrganizationSeatSummary");
 
-export type OrganizationSeatSummaryApi = z.infer<
-  typeof organizationSeatSummarySchema
->;
-
 export const organizationSeatAssignmentSchema = z
   .object({
     memberId: z.string().openapi({
