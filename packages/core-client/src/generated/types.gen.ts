@@ -5393,6 +5393,57 @@ export type NewsletterAvailability = {
     enabled: boolean;
 };
 
+export type NewsletterSendingDomainState = {
+    /**
+     * Null until a workspace owner or admin adds one.
+     */
+    sendingDomain: NewsletterSendingDomain | null;
+    canManage: boolean;
+    fallbackAvailable: boolean;
+};
+
+export type NewsletterSendingDomain = {
+    id: string;
+    domain: string;
+    fromAddress: string;
+    status: NewsletterSendingDomainStatus;
+    dnsRecords: Array<NewsletterDnsRecord>;
+    lastCheckedAt: Date | null;
+    failureReason: string | null;
+    createdAt: Date;
+};
+
+export const NewsletterSendingDomainStatus = {
+    PENDING: 'PENDING',
+    VERIFIED: 'VERIFIED',
+    FAILED: 'FAILED'
+} as const;
+
+export type NewsletterSendingDomainStatus = typeof NewsletterSendingDomainStatus[keyof typeof NewsletterSendingDomainStatus];
+
+export type NewsletterDnsRecord = {
+    record: string;
+    type: string;
+    name: string;
+    value: string;
+    ttl: string;
+    priority: number | null;
+    status: string;
+};
+
+export type PutNewsletterSendingDomainRequest = {
+    fromAddress: string;
+};
+
+export type ConnectNewsletterSendingDomainCloudflareRequest = {
+    apiToken: string;
+};
+
+export type NewsletterSendingDomainConnect = {
+    providerName: string;
+    applyUrl: string;
+} | null;
+
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -5580,6 +5631,14 @@ export type UserWorkspace = {
      * Organization website from its metadata, or null for none and for a personal workspace
      */
     websiteUrl: string | null;
+    /**
+     * The person's role in the organization, or null for a personal workspace or a role this API does not know
+     */
+    role: MemberRole | null;
+    /**
+     * How many people are members of the organization, or null for a personal workspace
+     */
+    memberCount: number | null;
     /**
      * Social providers enabled for projects owned by this workspace
      */
@@ -6228,7 +6287,7 @@ export type ProjectListItem = Project & {
      */
     lastActivityAt: Date;
     /**
-     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.
+     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.
      */
     starredAt: Date | null;
 };
@@ -6351,6 +6410,88 @@ export type ProjectJobStatusCount = {
     count: number;
     status: SokosumiJobStatus;
 };
+
+export type ProjectActivityItem = ({
+    kind: 'task';
+} & ProjectTaskActivity) | ({
+    kind: 'job';
+} & ProjectJobActivity) | ({
+    kind: 'project';
+} & ProjectLifecycleActivity);
+
+export type ProjectTaskActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'task';
+    taskId: string;
+    title: string;
+    /**
+     * The status the event set. Null for an event that only added a comment.
+     */
+    status: TaskEventStatus | null;
+};
+
+export type ProjectJobActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'job';
+    jobId: string;
+    agentId: string;
+    /**
+     * The job's name, else its agent's display name. Null when neither resolves.
+     */
+    title: string | null;
+    status: AgentJobStatus;
+};
+
+export const AgentJobStatus = {
+    INITIATED: 'INITIATED',
+    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+    AWAITING_INPUT: 'AWAITING_INPUT',
+    RUNNING: 'RUNNING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED'
+} as const;
+
+export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
+
+export type ProjectLifecycleActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'project';
+    event: ProjectEventKind;
+};
+
+export const ProjectEventKind = {
+    CLOSE_REQUESTED: 'CLOSE_REQUESTED',
+    BATCH_FAILED: 'BATCH_FAILED',
+    RETRY_REQUESTED: 'RETRY_REQUESTED',
+    SERIES_RESOLVED: 'SERIES_RESOLVED',
+    CLOSE_FINALIZED: 'CLOSE_FINALIZED'
+} as const;
+
+export type ProjectEventKind = typeof ProjectEventKind[keyof typeof ProjectEventKind];
 
 export type StarredProject = Project & {
     /**
@@ -6853,6 +6994,19 @@ export type PatchNewsletterSubscriberRequest = {
 export type ProjectStar = {
     projectId: string;
     starredAt: Date | null;
+};
+
+export type ProjectHide = {
+    projectId: string;
+    hiddenAt: Date | null;
+};
+
+export type ProjectHideResult = ProjectHide & {
+    hiddenAt?: Date;
+    /**
+     * True when the project was Pinned and hiding it removed the Pin.
+     */
+    unpinned: boolean;
 };
 
 export type ProjectSocialConnection = {
@@ -8159,7 +8313,7 @@ export type Job = {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: AgentJobStatus;
+        status: AgentJobStatus & unknown;
         inputSchema?: string | null;
         input?: {
             id: string;
@@ -8173,17 +8327,6 @@ export type Job = {
     }>;
     share: JobShare | null;
 };
-
-export const AgentJobStatus = {
-    INITIATED: 'INITIATED',
-    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
-    AWAITING_INPUT: 'AWAITING_INPUT',
-    RUNNING: 'RUNNING',
-    COMPLETED: 'COMPLETED',
-    FAILED: 'FAILED'
-} as const;
-
-export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
 
 export type File = {
     id: string;
@@ -38035,6 +38178,558 @@ export type GetNewsletterAvailabilityResponses = {
 
 export type GetNewsletterAvailabilityResponse = GetNewsletterAvailabilityResponses[keyof GetNewsletterAvailabilityResponses];
 
+export type DeleteNewsletterSendingDomainData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/newsletter/sending-domain';
+};
+
+export type DeleteNewsletterSendingDomainErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Resend could not remove the domain
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteNewsletterSendingDomainError = DeleteNewsletterSendingDomainErrors[keyof DeleteNewsletterSendingDomainErrors];
+
+export type DeleteNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain removed
+     */
+    204: void;
+};
+
+export type DeleteNewsletterSendingDomainResponse = DeleteNewsletterSendingDomainResponses[keyof DeleteNewsletterSendingDomainResponses];
+
+export type GetNewsletterSendingDomainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/newsletter/sending-domain';
+};
+
+export type GetNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNewsletterSendingDomainError = GetNewsletterSendingDomainErrors[keyof GetNewsletterSendingDomainErrors];
+
+export type GetNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain
+     */
+    200: {
+        data: NewsletterSendingDomainState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNewsletterSendingDomainResponse = GetNewsletterSendingDomainResponses[keyof GetNewsletterSendingDomainResponses];
+
+export type PutNewsletterSendingDomainData = {
+    body: PutNewsletterSendingDomainRequest;
+    path?: never;
+    query?: never;
+    url: '/newsletter/sending-domain';
+};
+
+export type PutNewsletterSendingDomainErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutNewsletterSendingDomainError = PutNewsletterSendingDomainErrors[keyof PutNewsletterSendingDomainErrors];
+
+export type PutNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain saved
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutNewsletterSendingDomainResponse = PutNewsletterSendingDomainResponses[keyof PutNewsletterSendingDomainResponses];
+
+export type PostNewsletterSendingDomainCheckData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/newsletter/sending-domain/check';
+};
+
+export type PostNewsletterSendingDomainCheckErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostNewsletterSendingDomainCheckError = PostNewsletterSendingDomainCheckErrors[keyof PostNewsletterSendingDomainCheckErrors];
+
+export type PostNewsletterSendingDomainCheckResponses = {
+    /**
+     * Newsletter sending domain checked
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostNewsletterSendingDomainCheckResponse = PostNewsletterSendingDomainCheckResponses[keyof PostNewsletterSendingDomainCheckResponses];
+
+export type PostNewsletterSendingDomainCloudflareData = {
+    body: ConnectNewsletterSendingDomainCloudflareRequest;
+    path?: never;
+    query?: never;
+    url: '/newsletter/sending-domain/cloudflare';
+};
+
+export type PostNewsletterSendingDomainCloudflareErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cloudflare request failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostNewsletterSendingDomainCloudflareError = PostNewsletterSendingDomainCloudflareErrors[keyof PostNewsletterSendingDomainCloudflareErrors];
+
+export type PostNewsletterSendingDomainCloudflareResponses = {
+    /**
+     * DNS records created in Cloudflare
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostNewsletterSendingDomainCloudflareResponse = PostNewsletterSendingDomainCloudflareResponses[keyof PostNewsletterSendingDomainCloudflareResponses];
+
+export type GetNewsletterSendingDomainDomainConnectData = {
+    body?: never;
+    path?: never;
+    query?: {
+        projectId?: string;
+    };
+    url: '/newsletter/sending-domain/domain-connect';
+};
+
+export type GetNewsletterSendingDomainDomainConnectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNewsletterSendingDomainDomainConnectError = GetNewsletterSendingDomainDomainConnectErrors[keyof GetNewsletterSendingDomainDomainConnectErrors];
+
+export type GetNewsletterSendingDomainDomainConnectResponses = {
+    /**
+     * Domain Connect apply URL, or null
+     */
+    200: {
+        data: NewsletterSendingDomainConnect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNewsletterSendingDomainDomainConnectResponse = GetNewsletterSendingDomainDomainConnectResponses[keyof GetNewsletterSendingDomainDomainConnectResponses];
+
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;
@@ -46001,6 +46696,14 @@ export type GetProjectsData = {
          * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
          */
         q?: string;
+        /**
+         * open: projects without closedAt, including closing and close-failed ones, minus the acting user's Hidden projects. hidden: the acting user's Hidden projects without closedAt (ADR 0036). closed: projects with closedAt, Hidden or not. Omitted: every project. Non-user actors have no Hidden projects.
+         */
+        state?: 'open' | 'hidden' | 'closed';
+        /**
+         * true: the acting user's Pinned projects lead, by starredAt ascending, before the rest in activity order. Ignored for non-user actors, whose rows are never Pinned.
+         */
+        pinnedFirst?: 'true' | 'false';
     };
     url: '/projects';
 };
@@ -46271,6 +46974,132 @@ export type GetProjectsStatsResponses = {
 };
 
 export type GetProjectsStatsResponse = GetProjectsStatsResponses[keyof GetProjectsStatsResponses];
+
+export type GetProjectsActivityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * How many rows to return, newest first
+         */
+        limit?: number;
+        /**
+         * Only this project's events. It may be Closed or one of the reader's Hidden projects: its history stays readable.
+         */
+        projectId?: string;
+    };
+    url: '/projects/activity';
+};
+
+export type GetProjectsActivityErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsActivityError = GetProjectsActivityErrors[keyof GetProjectsActivityErrors];
+
+export type GetProjectsActivityResponses = {
+    /**
+     * Recent activity across open projects
+     */
+    200: {
+        data: Array<ProjectActivityItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsActivityResponse = GetProjectsActivityResponses[keyof GetProjectsActivityResponses];
 
 export type GetProjectsStarredData = {
     body?: never;
@@ -50847,6 +51676,294 @@ export type PostProjectsByIdStarResponses = {
 };
 
 export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
+
+export type DeleteProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type DeleteProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdHideError = DeleteProjectsByIdHideErrors[keyof DeleteProjectsByIdHideErrors];
+
+export type DeleteProjectsByIdHideResponses = {
+    /**
+     * Project shown
+     */
+    200: {
+        data: ProjectHide;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdHideResponse = DeleteProjectsByIdHideResponses[keyof DeleteProjectsByIdHideResponses];
+
+export type GetProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type GetProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdHideError = GetProjectsByIdHideErrors[keyof GetProjectsByIdHideErrors];
+
+export type GetProjectsByIdHideResponses = {
+    /**
+     * The reader's Hide
+     */
+    200: {
+        data: ProjectHide;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdHideResponse = GetProjectsByIdHideResponses[keyof GetProjectsByIdHideResponses];
+
+export type PostProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type PostProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdHideError = PostProjectsByIdHideErrors[keyof PostProjectsByIdHideErrors];
+
+export type PostProjectsByIdHideResponses = {
+    /**
+     * Project hidden
+     */
+    200: {
+        data: ProjectHideResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdHideResponse = PostProjectsByIdHideResponses[keyof PostProjectsByIdHideResponses];
 
 export type GetProjectsByIdSocialConnectionsData = {
     body?: never;
@@ -59839,6 +60956,10 @@ export type GetNotificationsData = {
          * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
          */
         needsAction?: 'true' | 'false';
+        /**
+         * With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.
+         */
+        projectId?: string;
         /**
          * When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.
          */

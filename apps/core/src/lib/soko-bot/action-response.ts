@@ -58,6 +58,11 @@ export const ACTION_LABELS: Record<string, string> = {
   schedule_social_post: "Scheduled social post",
   cancel_social_post: "Canceled social post",
   publish_social_post: "Published social post",
+  create_ad_campaign: "Created paused ad campaign",
+  update_ad_campaign: "Updated ad campaign",
+  edit_ad_campaign: "Edited ad campaign",
+  // No link: the campaign is gone.
+  delete_ad_campaign: "Deleted ad campaign",
 };
 
 /** A comment that also changed the status says which change it was. */
@@ -106,6 +111,12 @@ function contactTarget(result: unknown): string {
     "contact" in named.data ? named.data.contact.name : named.data.name,
   );
 }
+
+const AD_CAMPAIGN_CAPABILITIES = new Set([
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+]);
 
 const SOCIAL_POST_CAPABILITIES = new Set([
   "create_social_post",
@@ -189,6 +200,12 @@ function actionTarget(
     return post.success
       ? `([Open post](/social?projectId=${encodeURIComponent(post.data.projectId)}&postId=${encodeURIComponent(id)}))`
       : "";
+  }
+  if (AD_CAMPAIGN_CAPABILITIES.has(call.capability)) {
+    const campaign = z
+      .object({ link: z.string().startsWith("/ads/campaigns/") })
+      .safeParse(call.result);
+    return campaign.success ? `([Open campaign](${campaign.data.link}))` : "";
   }
   if (
     call.capability === "generate_image" ||

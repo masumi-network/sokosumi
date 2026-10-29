@@ -18685,6 +18685,184 @@ export const NewsletterAvailabilitySchema = {
     ]
 } as const;
 
+export const NewsletterSendingDomainStateSchema = {
+    type: 'object',
+    properties: {
+        sendingDomain: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/NewsletterSendingDomain'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a workspace owner or admin adds one.'
+        },
+        canManage: {
+            type: 'boolean'
+        },
+        fallbackAvailable: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'sendingDomain',
+        'canManage',
+        'fallbackAvailable'
+    ]
+} as const;
+
+export const NewsletterSendingDomainSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        domain: {
+            type: 'string'
+        },
+        fromAddress: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
+        },
+        dnsRecords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/NewsletterDnsRecord'
+            }
+        },
+        lastCheckedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'domain',
+        'fromAddress',
+        'status',
+        'dnsRecords',
+        'lastCheckedAt',
+        'failureReason',
+        'createdAt'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'VERIFIED',
+        'FAILED'
+    ]
+} as const;
+
+export const NewsletterDnsRecordSchema = {
+    type: 'object',
+    properties: {
+        record: {
+            type: 'string'
+        },
+        type: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        value: {
+            type: 'string'
+        },
+        ttl: {
+            type: 'string'
+        },
+        priority: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'record',
+        'type',
+        'name',
+        'value',
+        'ttl',
+        'priority',
+        'status'
+    ]
+} as const;
+
+export const PutNewsletterSendingDomainRequestSchema = {
+    type: 'object',
+    properties: {
+        fromAddress: {
+            type: 'string',
+            maxLength: 254,
+            format: 'email'
+        }
+    },
+    required: [
+        'fromAddress'
+    ]
+} as const;
+
+export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
+    type: 'object',
+    properties: {
+        apiToken: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 256
+        }
+    },
+    required: [
+        'apiToken'
+    ]
+} as const;
+
+export const NewsletterSendingDomainConnectSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        providerName: {
+            type: 'string'
+        },
+        applyUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'providerName',
+        'applyUrl'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -19223,6 +19401,27 @@ export const UserWorkspaceSchema = {
             description: 'Organization website from its metadata, or null for none and for a personal workspace',
             example: 'https://acme.com'
         },
+        role: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberRole'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'member',
+            description: 'The person\'s role in the organization, or null for a personal workspace or a role this API does not know'
+        },
+        memberCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'How many people are members of the organization, or null for a personal workspace',
+            example: 14
+        },
         enabledSocialProviders: {
             type: 'array',
             items: {
@@ -19244,6 +19443,8 @@ export const UserWorkspaceSchema = {
         'slug',
         'logo',
         'websiteUrl',
+        'role',
+        'memberCount',
         'enabledSocialProviders',
         'preferred'
     ]
@@ -21145,7 +21346,7 @@ export const ProjectListItemSchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z',
-                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.'
+                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.'
                 }
             },
             required: [
@@ -21588,6 +21789,196 @@ export const ProjectJobStatusCountSchema = {
     required: [
         'count',
         'status'
+    ]
+} as const;
+
+export const ProjectActivityItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/ProjectTaskActivity'
+        },
+        {
+            $ref: '#/components/schemas/ProjectJobActivity'
+        },
+        {
+            $ref: '#/components/schemas/ProjectLifecycleActivity'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            task: '#/components/schemas/ProjectTaskActivity',
+            job: '#/components/schemas/ProjectJobActivity',
+            project: '#/components/schemas/ProjectLifecycleActivity'
+        }
+    }
+} as const;
+
+export const ProjectTaskActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'ID of the event this row is about',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the event happened'
+        },
+        project: {
+            $ref: '#/components/schemas/ProjectSummary'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task'
+            ]
+        },
+        taskId: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            example: 'Draft the launch post'
+        },
+        status: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskEventStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The status the event set. Null for an event that only added a comment.'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'project',
+        'kind',
+        'taskId',
+        'title',
+        'status'
+    ]
+} as const;
+
+export const ProjectJobActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'ID of the event this row is about',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the event happened'
+        },
+        project: {
+            $ref: '#/components/schemas/ProjectSummary'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'job'
+            ]
+        },
+        jobId: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fq'
+        },
+        agentId: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        title: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The job\'s name, else its agent\'s display name. Null when neither resolves.',
+            example: 'Research Agent'
+        },
+        status: {
+            $ref: '#/components/schemas/AgentJobStatus'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'project',
+        'kind',
+        'jobId',
+        'agentId',
+        'title',
+        'status'
+    ]
+} as const;
+
+export const AgentJobStatusSchema = {
+    type: 'string',
+    enum: [
+        'INITIATED',
+        'AWAITING_PAYMENT',
+        'AWAITING_INPUT',
+        'RUNNING',
+        'COMPLETED',
+        'FAILED'
+    ]
+} as const;
+
+export const ProjectLifecycleActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'ID of the event this row is about',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the event happened'
+        },
+        project: {
+            $ref: '#/components/schemas/ProjectSummary'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'project'
+            ]
+        },
+        event: {
+            $ref: '#/components/schemas/ProjectEventKind'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'project',
+        'kind',
+        'event'
+    ]
+} as const;
+
+export const ProjectEventKindSchema = {
+    type: 'string',
+    enum: [
+        'CLOSE_REQUESTED',
+        'BATCH_FAILED',
+        'RETRY_REQUESTED',
+        'SERIES_RESOLVED',
+        'CLOSE_FINALIZED'
     ]
 } as const;
 
@@ -23489,6 +23880,54 @@ export const ProjectStarSchema = {
     required: [
         'projectId',
         'starredAt'
+    ]
+} as const;
+
+export const ProjectHideSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        hiddenAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'hiddenAt'
+    ]
+} as const;
+
+export const ProjectHideResultSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectHide'
+        },
+        {
+            type: 'object',
+            properties: {
+                hiddenAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                unpinned: {
+                    type: 'boolean',
+                    description: 'True when the project was Pinned and hiding it removed the Pin.'
+                }
+            },
+            required: [
+                'unpinned'
+            ]
+        }
     ]
 } as const;
 
@@ -28179,7 +28618,14 @@ export const JobSchema = {
                         example: '2021-01-01T00:00:00.000Z'
                     },
                     status: {
-                        $ref: '#/components/schemas/AgentJobStatus'
+                        allOf: [
+                            {
+                                $ref: '#/components/schemas/AgentJobStatus'
+                            },
+                            {
+                                example: 'COMPLETED'
+                            }
+                        ]
                     },
                     inputSchema: {
                         type: [
@@ -28287,19 +28733,6 @@ export const JobSchema = {
         'events',
         'share'
     ]
-} as const;
-
-export const AgentJobStatusSchema = {
-    type: 'string',
-    enum: [
-        'INITIATED',
-        'AWAITING_PAYMENT',
-        'AWAITING_INPUT',
-        'RUNNING',
-        'COMPLETED',
-        'FAILED'
-    ],
-    example: 'COMPLETED'
 } as const;
 
 export const FileSchema = {

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
+  getSendingDomain: vi.fn(),
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
 }));
@@ -32,6 +33,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   newsletterService: {
     isEnabled: mocks.enabled,
     getSettings: mocks.getSettings,
+    getSendingDomain: mocks.getSendingDomain,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -50,6 +52,11 @@ vi.mock("../newsletter-settings-form", () => ({
 import NewsletterSettingsPage, { generateMetadata } from "./page";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const SENDING_DOMAIN_STATE = {
+  sendingDomain: null,
+  canManage: true,
+  fallbackAvailable: true,
+};
 const PAGE = messages.App.Newsletter;
 const SETTINGS = messages.App.Projects.Newsletter;
 
@@ -67,6 +74,7 @@ beforeEach(() => {
     logo: "https://example.com/logo.png",
   });
   mocks.getSettings.mockResolvedValue(null);
+  mocks.getSendingDomain.mockResolvedValue(SENDING_DOMAIN_STATE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 
@@ -129,6 +137,12 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({ newsletter }),
       );
+      // The workspace's sending domain card rides along on every project.
+      const { sendingDomain } = mocks.form.mock.calls[0]![0];
+      expect(sendingDomain.props).toEqual({
+        state: SENDING_DOMAIN_STATE,
+        projectId: PROJECT_ID,
+      });
       const nav = screen.getByRole("navigation", {
         name: SETTINGS.navigation,
       });

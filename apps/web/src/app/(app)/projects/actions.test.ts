@@ -76,11 +76,17 @@ describe("loadMoreProjects", () => {
     });
 
     const { loadMoreProjects } = await import("./actions");
-    const result = await loadMoreProjects({ cursor: "project-0" });
+    const result = await loadMoreProjects({
+      cursor: "project-0",
+      state: "open",
+    });
 
+    // The Open view's later pages keep its Pins-first order.
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       cursor: "project-0",
       limit: 20,
+      state: "open",
+      pinnedFirst: true,
     });
     expect(result).toEqual({
       projects,
@@ -93,9 +99,9 @@ describe("loadMoreProjects", () => {
 
     const { loadMoreProjects } = await import("./actions");
 
-    await expect(loadMoreProjects({ cursor: "project-0" })).rejects.toThrow(
-      UnAuthenticatedError,
-    );
+    await expect(
+      loadMoreProjects({ cursor: "project-0", state: "open" }),
+    ).rejects.toThrow(UnAuthenticatedError);
     expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
   });
   it("accepts the current personal workspace with a bounded page", async () => {
@@ -107,13 +113,17 @@ describe("loadMoreProjects", () => {
       pagination: null,
     });
     const { loadMoreProjects } = await import("./actions");
-    await expect(loadMoreProjects({ cursor: null })).resolves.toEqual({
+    await expect(
+      loadMoreProjects({ cursor: null, state: "closed" }),
+    ).resolves.toEqual({
       projects: [],
       nextCursor: null,
     });
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       cursor: null,
       limit: 20,
+      state: "closed",
+      pinnedFirst: false,
     });
   });
 });

@@ -255,7 +255,8 @@ describe("GitHub OIDC remote cache wiring", () => {
 
     // A job skipped by `if:` gets no runner and still reports its check
     // name, which the ruleset accepts. `!= 'false'` runs the job when
-    // `changes` fails and leaves its outputs empty.
+    // `changes` fails and leaves its outputs empty. The draft guard keeps
+    // `!cancelled()` from starting legs after `changes` skips on a draft.
     for (const [jobId, output] of [
       ["build", "js"],
       ["biome", "js"],
@@ -273,7 +274,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       assert.match(
         header,
         new RegExp(
-          `\\n    if: \\$\\{\\{ !cancelled\\(\\) && needs\\.changes\\.outputs\\.${output} != 'false' \\}\\}\\n`,
+          `\\n    if: \\$\\{\\{ !cancelled\\(\\) && !github\\.event\\.pull_request\\.draft && needs\\.changes\\.outputs\\.${output} != 'false' \\}\\}\\n`,
         ),
         `job ${jobId} must gate at job level on outputs.${output}`,
       );

@@ -1,9 +1,15 @@
-import {
-  PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
-} from "@/app/projects/constants";
+import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
+
+/**
+ * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
+ * (72px intrinsic).
+ * Moved here from the projects constants once the Projects list became a card
+ * grid (`PROJECTS_CARD_LAYOUT_CLASS`): Drive lists are its only rows now.
+ */
+const DRIVE_LIST_ROW_LAYOUT_CLASS =
+  "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
 
 const DRIVE_ITEMS_GRID_CLASS =
   "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
@@ -81,7 +87,7 @@ export function driveItemArticleClass(viewMode: FilesViewMode): string {
     ? "group bg-background relative flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-card-background"
     : cn(
         "bg-background relative flex items-center gap-1 rounded-lg border border-border px-2 hover:bg-card-background-hover",
-        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+        DRIVE_LIST_ROW_LAYOUT_CLASS,
       );
 }
 

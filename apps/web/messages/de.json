@@ -195,7 +195,11 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createWorkspace": "Workspace erstellen",
-      "userAvatarAlt": "Nutzer-Avatar"
+      "userAvatarAlt": "Nutzer-Avatar",
+      "inviteMembers": "Mitglieder einladen",
+      "organizationSettings": "Einstellungen",
+      "membersAndSettings": "Mitglieder & Einstellungen",
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Mitglieder gesammelt einladen",
-        "description": "Füge E-Mail-Adressen ein, um mehrere Mitglieder gleichzeitig einzuladen.",
+        "title": "Mitglieder einladen",
+        "description": "Füge eine oder mehrere E-Mail-Adressen ein.",
         "label": "E-Mail-Adressen",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Trenne E-Mail-Adressen mit Kommas, Semikolons oder Zeilenumbrüchen.",
@@ -2252,8 +2256,9 @@
         },
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
-        "pin": "Projekt anheften",
+        "pin": "Anheften",
         "unpin": "Anheften aufheben",
+        "pinned": "Angeheftet",
         "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
@@ -2289,6 +2294,54 @@
             "dispute_pending": "Streitfall",
             "dispute_resolved": "Geklärt"
           }
+        },
+        "emptyClosed": {
+          "title": "Keine geschlossenen Projekte",
+          "description": "Ein Projekt, das du schließt, landet hier – mit seinem Verlauf."
+        },
+        "emptyHidden": {
+          "title": "Keine ausgeblendeten Projekte",
+          "description": "Blende ein Projekt, das nicht deins ist, über sein Menü aus. Es verschwindet aus Offen, dem Projektwechsler und den letzten Aktivitäten und wartet hier."
+        },
+        "onlyClosed": {
+          "title": "Alle Projekte sind geschlossen",
+          "description": "Geschlossene Projekte behalten ihren Verlauf in der Ansicht „Geschlossen“.",
+          "action": "Geschlossene Projekte anzeigen"
+        },
+        "state": {
+          "label": "Projekte anzeigen",
+          "open": "Offen",
+          "hidden": "Ausgeblendet",
+          "closed": "Geschlossen"
+        },
+        "closed": "Geschlossen",
+        "hide": {
+          "hide": "Ausblenden",
+          "show": "Einblenden",
+          "hidden": "Projekt ausgeblendet",
+          "undo": "Rückgängig",
+          "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
+          "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Wartet auf dich",
+          "empty": "Nichts wartet auf dich.",
+          "error": "Fehler beim Laden dessen, was auf dich wartet.",
+          "showAll": "Alle anzeigen"
+        },
+        "activity": {
+          "title": "Letzte Aktivität",
+          "empty": "Noch keine Aktivität in offenen Projekten.",
+          "emptyProject": "Noch keine Aktivität in diesem Projekt.",
+          "error": "Fehler beim Laden der letzten Aktivität.",
+          "showAll": "Alle anzeigen",
+          "untitledJob": "Job ohne Namen",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Aufgabe erstellt} COMMENT {Kommentar hinzugefügt} READY {Aufgabe bereit} QUEUED {Aufgabe geplant} RUNNING {Aufgabe läuft} INPUT_REQUIRED {Aufgabe braucht Eingabe} APPROVAL_REQUIRED {Aufgabe braucht Freigabe} AUTHENTICATION_REQUIRED {Aufgabe braucht Anmeldung} OUT_OF_CREDITS {Aufgabe pausiert: Credits nötig} COMPLETED {Aufgabe abgeschlossen} FAILED {Aufgabe fehlgeschlagen} CANCELED {Aufgabe abgebrochen} other {Aufgabe aktualisiert}}",
+          "job": "{status, select, INITIATED {Job gestartet} AWAITING_PAYMENT {Job wartet auf Zahlung} AWAITING_INPUT {Job braucht Eingabe} RUNNING {Job läuft} COMPLETED {Job abgeschlossen} FAILED {Job fehlgeschlagen} other {Job aktualisiert}}",
+          "project": "{event, select, CLOSE_REQUESTED {Schließen angefordert} BATCH_FAILED {Schließen fehlgeschlagen} RETRY_REQUESTED {Schließen erneut versucht} SERIES_RESOLVED {Geplante Arbeit gestoppt} CLOSE_FINALIZED {Projekt geschlossen} other {Projekt aktualisiert}}"
         }
       },
       "Briefing": {
@@ -2744,6 +2797,7 @@
           },
           "performance": {
             "lastDays": "Letzte {days} Tage",
+            "rangeLabel": "Zeitraum",
             "moreFilters": "Weitere Filter",
             "activeFilters": "{count} aktiv",
             "posts": "Beiträge",
@@ -2943,6 +2997,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Letztes Update",
+        "stats": {
+          "label": "Aufgabenzahlen",
+          "running": "Läuft",
+          "waiting": "Wartet",
+          "done": "Erledigt"
+        },
         "emptyBriefing": "Noch kein Briefing.",
         "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",
@@ -3019,7 +3079,7 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
-          "close": "Projekt schließen",
+          "close": "Schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
@@ -3433,7 +3493,7 @@
             "humanRequired": "Eine Person muss diese Ausgabe in einer angemeldeten Browsersitzung freigeben oder senden.",
             "invalidSchedule": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt sowie eine gültige Zeitzone.",
             "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
-            "noSender": "Der Newsletter-Versand ist nicht eingerichtet. Bitte einen Workspace-Administrator, die Einrichtung abzuschließen.",
+            "noSender": "Verbinde in den Newsletter-Einstellungen unter „Absenderdomain“ eine Domain, bevor du planst oder sendest.",
             "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
           },
           "viewOnWeb": "Im Web ansehen"
@@ -3529,6 +3589,95 @@
           "unset": "Standard",
           "welcome": "Begrüßungs-E-Mail",
           "noSubject": "Noch kein Betreff"
+        },
+        "SendingDomain": {
+          "title": "Absenderdomain",
+          "description": "Versende Newsletter von deiner eigenen Adresse, etwa news@news.deinemarke.de. Jedes Projekt in diesem Workspace nutzt sie.",
+          "managedByAdmins": "Nur Workspace-Inhaber oder -Admins können eine Absenderdomain verbinden.",
+          "fromAddress": "Absenderadresse",
+          "fromAddressPlaceholder": "news@news.deinemarke.de",
+          "fromAddressHint": "Nutze eine Subdomain wie news.deinemarke.de. So bleibt die Reputation deiner Newsletter getrennt von deinen alltäglichen E-Mails.",
+          "add": "Domain hinzufügen",
+          "added": "Domain hinzugefügt. Lege jetzt ihre DNS-Einträge an.",
+          "fallback": "Bis sie verifiziert ist, gehen Newsletter von der Adresse von Sokosumi als „dein Absendername via Sokosumi“ raus.",
+          "noFallback": "Newsletter können erst versendet werden, wenn diese Domain verifiziert ist.",
+          "status": {
+            "PENDING": "Ausstehend",
+            "VERIFIED": "Verifiziert",
+            "FAILED": "Fehlgeschlagen"
+          },
+          "lastChecked": "Zuletzt geprüft {time}",
+          "verifiedDescription": "Die Newsletter aller Projekte in diesem Workspace werden jetzt von dieser Adresse versendet.",
+          "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
+          "checked": "Geprüft. Deine DNS-Einträge sind noch nicht sichtbar. DNS-Änderungen können einige Stunden dauern.",
+          "checkNow": "Jetzt prüfen",
+          "connectTitle": "DNS-Einträge anlegen",
+          "dmarc": {
+            "title": "Keine DMARC-Richtlinie gefunden",
+            "description": "DMARC sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. Lege den vorgeschlagenen DMARC-Eintrag unten an. Er beginnt mit p=none: Das überwacht nur und blockiert nie E-Mails."
+          },
+          "oneClick": {
+            "title": "Einrichtung mit einem Klick",
+            "description": "Melde dich bei deinem DNS-Anbieter an und bestätige. Sokosumi legt die Einträge für dich an.",
+            "lookup": "DNS-Anbieter finden",
+            "found": "Deine Domain nutzt {provider}.",
+            "connect": "Mit {provider} verbinden",
+            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter noch nicht verfügbar. Nutze ein Cloudflare-Token oder lege die Einträge unten an."
+          },
+          "cloudflare": {
+            "title": "Cloudflare-API-Token",
+            "description": "Erstelle ein Token mit Zone · DNS · Bearbeiten für die Zone dieser Domain und füge es hier ein. Sokosumi nutzt es einmal, um die Einträge anzulegen, und speichert es nie.",
+            "submit": "Einträge in Cloudflare anlegen",
+            "success": "Einträge in Cloudflare angelegt. Die Prüfung kann ein paar Minuten dauern."
+          },
+          "records": {
+            "title": "DNS-Einträge",
+            "description": "Oder lege diese Einträge selbst bei deinem DNS-Anbieter an.",
+            "name": "Name",
+            "value": "Wert",
+            "priority": "Priorität",
+            "found": "Eintrag gefunden",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Belegt, dass die E-Mails von dir kommen."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Erlaubt Sokosumi, in deinem Namen zu senden."
+              },
+              "bounce": {
+                "label": "Return-Path (MX)",
+                "explanation": "Empfängt Bounces, damit Sokosumi unzustellbare Adressen nicht mehr anschreibt."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. p=none überwacht nur."
+              },
+              "other": {
+                "label": "Zusätzlicher Eintrag",
+                "explanation": "Vom E-Mail-Anbieter verlangt."
+              }
+            }
+          },
+          "remove": {
+            "action": "Domain entfernen",
+            "title": "Absenderdomain entfernen?",
+            "description": "Newsletter werden nicht mehr von {domain} versendet. Die DNS-Einträge bleiben bei deinem DNS-Anbieter, bis du sie löschst.",
+            "cancel": "Abbrechen",
+            "success": "Absenderdomain entfernt."
+          },
+          "errors": {
+            "generic": "Die Absenderdomain konnte nicht aktualisiert werden. Versuche es erneut.",
+            "invalidAddress": "Gib eine E-Mail-Adresse ein, etwa news@news.deinemarke.de.",
+            "forbidden": "Nur Workspace-Inhaber oder -Admins können die Absenderdomain ändern.",
+            "notFound": "Diese Absenderdomain wurde entfernt. Lade die Seite neu.",
+            "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderer Workspace nutzt.",
+            "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
+            "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
+            "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
+            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut."
+          }
         }
       }
     },
@@ -4354,6 +4503,8 @@
           "newTask": "Neue Aufgabe",
           "search": "Suche",
           "home": "Startseite",
+          "projects": "Projekte",
+          "overview": "Übersicht",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -8944,6 +9095,17 @@
       "Disabled": {
         "title": "Soko Bot ist vorübergehend nicht verfügbar",
         "description": "Ein Administrator hat Soko Bot vorerst abgeschaltet. Nichts von der Arbeit deines Assistenten geht verloren; er macht später dort weiter, wo er aufgehört hat."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Dein Assistent nutzt die Werbekonten des Projekts von der Ads-Seite.",
+        "open": "Öffnen",
+        "empty": "Noch keine Werbekonten verbunden.",
+        "connectOnAds": "Verbinde eines auf der Ads-Seite.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
@@ -9032,6 +9194,7 @@
       "today": "Heute",
       "weekNumber": "Kalenderwoche {week}",
       "view": {
+        "label": "Ansicht",
         "month": "Monat",
         "week": "Woche",
         "agenda": "Agenda"
@@ -9312,13 +9475,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
+      "clearProject": "Projekt abwählen",
       "close": "Schließen",
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
-      "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
       "pinned": "Angepinnt",
-      "recent": "Zuletzt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",
       "empty": "Keine Projekte gefunden.",
@@ -9326,7 +9488,7 @@
       "error": "Projekte konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "create": "Projekt erstellen",
-      "manage": "Projekte verwalten",
+      "closed": "Geschlossen",
       "current": "(aktuell)",
       "searching": "Projekte werden gesucht..."
     },
