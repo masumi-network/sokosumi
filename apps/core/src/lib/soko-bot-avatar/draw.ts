@@ -6,7 +6,11 @@ import { getEnv } from "@/config/env";
 import { unprocessableEntity } from "@/helpers/error";
 import { buildSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
 import { levelStill } from "@/lib/soko-bot-avatar/media";
-import { avatarProvider } from "@/lib/soko-bot-avatar/provider";
+import {
+  AVATAR_IMAGE_MODEL,
+  avatarProvider,
+  ImageTimeoutError,
+} from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarAccessory,
   type AvatarLook,
@@ -220,14 +224,32 @@ export async function drawStill(
     target: number;
     /** See `IMAGE_TIMEOUT_STUDIO_MS` and `IMAGE_TIMEOUT_RENDER_MS`. */
     timeoutMs: number;
+    /**
+     * One more try on another route, only when the first times out (not when it
+     * is refused or fails). For someone waiting; the cron retries by row.
+     */
+    fallback?: { model: string; timeoutMs: number };
   },
 ): Promise<Buffer> {
-  const edited = await avatarProvider().editImage({
-    system: style.housePrompt,
-    prompt: input.prompt,
-    reference: input.reference,
-    timeoutMs: input.timeoutMs,
-  });
+  const edit = (extra: { timeoutMs: number; model?: string }) =>
+    avatarProvider().editImage({
+      system: style.housePrompt,
+      prompt: input.prompt,
+      reference: input.reference,
+      ...extra,
+    });
+  const started = Date.now();
+  const edited = await edit({ timeoutMs: input.timeoutMs }).catch(
+    (error: unknown) => {
+      if (!(error instanceof ImageTimeoutError) || !input.fallback) throw error;
+      console.warn("Soko Bot avatar image fell back to a second route", {
+        kind: "avatar_image_fallback",
+        primaryModel: AVATAR_IMAGE_MODEL,
+        elapsedMs: Date.now() - started,
+      });
+      return edit(input.fallback);
+    },
+  );
   return await levelStill(edited, input.target);
 }
 

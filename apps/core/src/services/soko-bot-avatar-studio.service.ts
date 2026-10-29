@@ -17,7 +17,9 @@ import {
 } from "@/lib/soko-bot-avatar/draw";
 import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
 import {
+  AVATAR_IMAGE_FALLBACK_MODEL,
   AVATAR_IMAGE_MODEL,
+  IMAGE_TIMEOUT_STUDIO_FALLBACK_MS,
   IMAGE_TIMEOUT_STUDIO_MS,
   ImageTimeoutError,
 } from "@/lib/soko-bot-avatar/provider";
@@ -253,6 +255,11 @@ export async function createAvatarDraft(input: {
       reference,
       target: style.backgroundTarget("idle"),
       timeoutMs: IMAGE_TIMEOUT_STUDIO_MS,
+      // Both routes timing out is what answers `avatar_draw_timed_out`.
+      fallback: {
+        model: AVATAR_IMAGE_FALLBACK_MODEL,
+        timeoutMs: IMAGE_TIMEOUT_STUDIO_FALLBACK_MS,
+      },
     });
     const imageUrl = await storeAvatarAsset(image, `draft-${reservation.id}`);
     await prisma.sokoBotAvatar.update({

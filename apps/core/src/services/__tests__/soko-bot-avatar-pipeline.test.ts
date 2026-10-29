@@ -310,7 +310,10 @@ Object.assign(db, {
 import { LIMITS } from "@/config/constants";
 import { levelStill } from "@/lib/soko-bot-avatar/media";
 import {
+  AVATAR_IMAGE_FALLBACK_MODEL,
+  AVATAR_IMAGE_MODEL,
   IMAGE_TIMEOUT_RENDER_MS,
+  IMAGE_TIMEOUT_STUDIO_FALLBACK_MS,
   IMAGE_TIMEOUT_STUDIO_MS,
   ImageTimeoutError,
   VideoSubmissionUncertainError,
@@ -1703,7 +1706,7 @@ describe("one of a kind", () => {
   });
 
   describe("time limits", () => {
-    it("gives an interactive draft 45 s and the cron 120 s", async () => {
+    it("gives an interactive draft a short first try and the cron one patient one", async () => {
       const draft = await keptLook({ kind: "creature", creature: "otter" });
       expect(draft).toBeDefined();
       expect(providerMock.editImage.mock.calls[0]?.[0].timeoutMs).toBe(
@@ -1713,11 +1716,110 @@ describe("one of a kind", () => {
 
       await reconcileAvatarRenders();
 
-      expect(IMAGE_TIMEOUT_STUDIO_MS).toBe(45_000);
+      expect(IMAGE_TIMEOUT_STUDIO_MS).toBe(25_000);
       expect(IMAGE_TIMEOUT_RENDER_MS).toBe(120_000);
       expect(providerMock.editImage.mock.calls[0]?.[0].timeoutMs).toBe(
         IMAGE_TIMEOUT_RENDER_MS,
       );
+    });
+
+    it("does not fall back when the first route answers", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "creature", creature: "frog" },
+      });
+
+      expect(providerMock.editImage).toHaveBeenCalledTimes(1);
+      expect(providerMock.editImage.mock.calls[0]?.[0].model).toBeUndefined();
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("tries the other route once when the first stalls, and the draft succeeds", async () => {
+      providerMock.editImage.mockRejectedValueOnce(
+        new ImageTimeoutError("slow"),
+      );
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const { draft } = await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "creature", creature: "frog" },
+      });
+
+      expect(draft).not.toBeNull();
+      expect(providerMock.editImage).toHaveBeenCalledTimes(2);
+      const [first, second] = providerMock.editImage.mock.calls.map(
+        (call) => call[0],
+      );
+      expect(first).toMatchObject({ timeoutMs: IMAGE_TIMEOUT_STUDIO_MS });
+      expect(second).toMatchObject({
+        model: AVATAR_IMAGE_FALLBACK_MODEL,
+        timeoutMs: IMAGE_TIMEOUT_STUDIO_FALLBACK_MS,
+        prompt: first.prompt,
+        reference: first.reference,
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          kind: "avatar_image_fallback",
+          primaryModel: AVATAR_IMAGE_MODEL,
+          elapsedMs: expect.any(Number),
+        }),
+      );
+      expect(avatars.rows).toHaveLength(1);
+    });
+
+    it("answers 503 timed out only when both routes stall", async () => {
+      providerMock.editImage.mockRejectedValue(new ImageTimeoutError("slow"));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(
+        createAvatarDraft({
+          sokoBotId: BOT,
+          userId: USER,
+          change: { kind: "creature", creature: "frog" },
+        }),
+      ).rejects.toMatchObject({
+        status: 503,
+        cause: { kind: "avatar_draw_timed_out" },
+      });
+
+      expect(providerMock.editImage).toHaveBeenCalledTimes(2);
+      expect(avatars.rows).toHaveLength(0);
+    });
+
+    it("does not retry an error that is not a timeout", async () => {
+      providerMock.editImage.mockRejectedValue(new Error("content refused"));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(
+        createAvatarDraft({
+          sokoBotId: BOT,
+          userId: USER,
+          change: { kind: "creature", creature: "frog" },
+        }),
+      ).rejects.toMatchObject({ cause: { kind: "avatar_draw_failed" } });
+
+      expect(providerMock.editImage).toHaveBeenCalledTimes(1);
+    });
+
+    it("never falls back for a render: one patient try, then the row's own retry", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      providerMock.editImage.mockClear();
+      providerMock.editImage.mockRejectedValue(new ImageTimeoutError("slow"));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await reconcileAvatarRenders();
+
+      // Five states to draw, each tried once and none on another model.
+      expect(providerMock.editImage).toHaveBeenCalledTimes(5);
+      for (const [call] of providerMock.editImage.mock.calls) {
+        expect(call.model).toBeUndefined();
+        expect(call.timeoutMs).toBe(IMAGE_TIMEOUT_RENDER_MS);
+      }
     });
 
     it("answers a stalled draft with a distinct 503 and gives the slot back", async () => {

@@ -18,16 +18,20 @@ import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
  * Gateway with `AI_GATEWAY_API_KEY`. Tests replace this module.
  */
 export const AVATAR_IMAGE_MODEL = "google/gemini-3.1-flash-image-preview";
+/** The same model on another upstream (vertex, where the preview routes to google). */
+export const AVATAR_IMAGE_FALLBACK_MODEL = "google/gemini-3.1-flash-image";
 export const AVATAR_REWRITER_MODEL = "anthropic/claude-haiku-5.5";
 /** Honours a last frame, which the loop needs. Gateway's Wan does not. */
 export const AVATAR_VIDEO_MODEL = "bytedance/seedance-v1.5-pro";
 
 /**
  * How long one image edit may take. An edit usually answers in under ten
- * seconds, but the upstream stalls now and then for minutes. Someone waiting in
- * the studio would rather retry after 45 s; the cron has nobody waiting.
+ * seconds, but about one in five stalls upstream for minutes. Someone waiting
+ * in the studio gets a short first try and one try on the other route; the cron
+ * has nobody waiting, and its row's attempt counter is the retry.
  */
-export const IMAGE_TIMEOUT_STUDIO_MS = 45_000;
+export const IMAGE_TIMEOUT_STUDIO_MS = 25_000;
+export const IMAGE_TIMEOUT_STUDIO_FALLBACK_MS = 30_000;
 export const IMAGE_TIMEOUT_RENDER_MS = 120_000;
 const REWRITE_TIMEOUT_MS = 20_000;
 const VIDEO_REQUEST_TIMEOUT_MS = 30_000;
@@ -71,6 +75,8 @@ export interface AvatarProvider {
     reference: Buffer;
     /** Throws {@link ImageTimeoutError} when the edit takes longer. */
     timeoutMs: number;
+    /** Defaults to {@link AVATAR_IMAGE_MODEL}. */
+    model?: string;
   }): Promise<Buffer>;
   rewrite(input: { rules: string; request: string }): Promise<RewrittenChange>;
   /**
@@ -95,10 +101,10 @@ function gateway() {
 
 function createGatewayProvider(): AvatarProvider {
   return {
-    async editImage({ system, prompt, reference, timeoutMs }) {
+    async editImage({ system, prompt, reference, timeoutMs, model }) {
       const signal = AbortSignal.timeout(timeoutMs);
       const result = await generateText({
-        model: gateway().languageModel(AVATAR_IMAGE_MODEL),
+        model: gateway().languageModel(model ?? AVATAR_IMAGE_MODEL),
         system,
         messages: [
           {

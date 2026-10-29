@@ -30,6 +30,7 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 import {
+  AVATAR_IMAGE_FALLBACK_MODEL,
   AVATAR_IMAGE_MODEL,
   AVATAR_REWRITER_MODEL,
   AVATAR_VIDEO_MODEL,
@@ -143,6 +144,25 @@ describe("avatar provider", () => {
           timeoutMs: 20,
         }),
       ).rejects.toBeInstanceOf(ImageTimeoutError);
+    });
+
+    it("edits on the given model instead, which is how a stall gets a second route", async () => {
+      generateTextMock.mockResolvedValue({
+        files: [{ mediaType: "image/png", uint8Array: new Uint8Array([1]) }],
+      });
+
+      await avatarProvider().editImage({
+        system: "s",
+        prompt: "p",
+        reference: Buffer.from("x"),
+        timeoutMs: 30_000,
+        model: AVATAR_IMAGE_FALLBACK_MODEL,
+      });
+
+      expect(languageModelMock).toHaveBeenCalledWith(
+        AVATAR_IMAGE_FALLBACK_MODEL,
+      );
+      expect(AVATAR_IMAGE_FALLBACK_MODEL).not.toBe(AVATAR_IMAGE_MODEL);
     });
 
     it("passes the time limit on as the abort signal", async () => {
