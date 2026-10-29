@@ -96,7 +96,7 @@ describe("ProjectsPage", () => {
     projectServiceMock.listRecentActivity.mockResolvedValue([]);
   });
 
-  it("puts the Workspace column beside the Open view and loads both feeds", async () => {
+  it("puts the Workspace column beside the Open view with Recent activity only", async () => {
     projectServiceMock.listProjects.mockResolvedValue({
       projects: [buildProject()],
       pagination: null,
@@ -107,7 +107,8 @@ describe("ProjectsPage", () => {
     render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByTestId("workspace-column")).toBeInTheDocument();
-    expect(notificationServiceMock.listNeedsYou).toHaveBeenCalledWith(5);
+    // Needs you lives on Home.
+    expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
     expect(projectServiceMock.listRecentActivity).toHaveBeenCalledWith(5);
   });
 

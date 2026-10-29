@@ -28,7 +28,8 @@ export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
 }
 
 interface WorkspaceColumnProps {
-  needsYou: PanelFeed<NotificationItem>;
+  /** Left out on the Projects list: Needs you lives on Home there. */
+  needsYou?: PanelFeed<NotificationItem>;
   activity: PanelFeed<ProjectActivityItem>;
   projects: Record<string, ColumnProject>;
   /** The feeds hold one project's rows: Project Overview's right column. */
@@ -39,7 +40,8 @@ interface WorkspaceColumnProps {
  * The Workspace column beside the Open grid: Needs you, then Recent
  * activity. Each panel streams behind its own boundary, so a slow feed holds
  * up neither the grid nor the other panel. Project Overview shows the same
- * two panels with feeds scoped to its project.
+ * two panels with feeds scoped to its project. The Projects list shows Recent
+ * activity only; its Needs you sits on Home.
  */
 export function WorkspaceColumn({
   needsYou,
@@ -49,13 +51,15 @@ export function WorkspaceColumn({
 }: WorkspaceColumnProps) {
   return (
     <div data-testid="workspace-column" className="flex min-w-0 flex-col gap-5">
-      <Suspense
-        fallback={
-          <WorkspaceColumnPanelSkeleton testId="workspace-needs-you-loading" />
-        }
-      >
-        <NeedsYouPanel feed={needsYou} projects={projects} />
-      </Suspense>
+      {needsYou ? (
+        <Suspense
+          fallback={
+            <WorkspaceColumnPanelSkeleton testId="workspace-needs-you-loading" />
+          }
+        >
+          <NeedsYouPanel feed={needsYou} projects={projects} />
+        </Suspense>
+      ) : null}
       <Suspense
         fallback={
           <WorkspaceColumnPanelSkeleton testId="workspace-activity-loading" />
@@ -124,9 +128,12 @@ async function resolveRowProjects(
 export async function NeedsYouPanel({
   feed,
   projects,
+  quiet = false,
 }: {
-  feed: WorkspaceColumnProps["needsYou"];
+  feed: PanelFeed<NotificationItem>;
   projects: WorkspaceColumnProps["projects"];
+  /** Home's quiet list instead of the column's panel. */
+  quiet?: boolean;
 }) {
   const [notifications, t, timeLabel] = await Promise.all([
     feed,
@@ -148,6 +155,7 @@ export async function NeedsYouPanel({
         empty: notifications ? t("empty") : t("error"),
         showAll: t("showAll"),
       }}
+      quiet={quiet}
     />
   );
 }
