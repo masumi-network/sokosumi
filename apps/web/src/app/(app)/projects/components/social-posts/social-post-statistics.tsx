@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -653,25 +654,24 @@ export function SocialPostStatistics(
       ) : null}
       {query.isPending ? null : (
         <>
-          <div className="flex flex-wrap gap-2">
+          {/* Custom dates under More filters leave no preset selected. */}
+          <ToggleGroup
+            type="single"
+            aria-label={t("performance.rangeLabel")}
+            value={preset ?? ""}
+            onValueChange={(value) => {
+              // Clicking the selected preset again would clear it; keep it.
+              if (value === "7" || value === "30" || value === "90") {
+                handlePreset(value);
+              }
+            }}
+          >
             {(["7", "30", "90"] as const).map((days) => (
-              <Button
-                key={days}
-                size="sm"
-                type="button"
-                className={
-                  preset === days
-                    ? "h-11 md:h-8"
-                    : "text-foreground h-11 md:h-8"
-                }
-                variant={preset === days ? "default" : "outline"}
-                aria-pressed={preset === days}
-                onClick={() => handlePreset(days)}
-              >
+              <ToggleGroupItem key={days} value={days} className="h-11 md:h-8">
                 {t("performance.lastDays", { days: Number(days) })}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           <details className="group">
             <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
               {t("performance.moreFilters")}

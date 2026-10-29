@@ -19,7 +19,7 @@ import {
  * project it is working in.
  *
  * The list is the sidebar switcher's own list — same component, same search,
- * same Create and Manage rows — so choosing here and choosing in the sidebar
+ * same Create row — so choosing here and choosing in the sidebar
  * are the same act, and `select` writes the scope back into the URL the way
  * every other scoped page does. Building a second project list per page would
  * let them drift. The copy is the page's, so it is passed in.

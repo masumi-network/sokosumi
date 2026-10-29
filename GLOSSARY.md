@@ -342,14 +342,46 @@ _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboa
 The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish. CMO has its own gate, which sends a person with pending invitations to Sokosumi to resolve them.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
-### Project pins
+### Projects
+
+**Project scope**:
+The one project the reader is working in, or `All projects` (the workspace, including work without a project). Opening a project selects it: there is no way to view one project while scoped to another or to none.
+_Avoid_: Active project, current project filter, opening a project as something separate from selecting it
+
+**Project switcher**:
+The header control that shows and changes the Project scope: one searchable list with no group headings, Pinned projects first, then Recently visited projects, then the rest in activity order, and Create project at the end. An X beside it returns to `All projects`. Closed projects and the reader's Hidden projects never appear in it.
+_Avoid_: Flyout, project picker, project selector, Manage projects as a way into the list
+
+**Project Overview**:
+The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both. Its Overview tab opens with the project's Running, Waiting and Done task counts, the In progress, Input required and Done columns of the project's Tasks board, each a link to that board, and shows the Workspace column's two panels under the project's Properties, scoped to the project.
+_Avoid_: Project detail page, project settings, Manage project
+
+**Projects list**:
+Every project in the workspace as a grid of cards, one view at a time: Open (the default), Hidden, or Closed. A project that is both Closed and Hidden shows under Closed. Pinned projects come first, then the rest in activity order, the same order as the Project switcher.
+_Avoid_: Manage projects, project management page, All projects (that is the scope, not this page)
+
+**Workspace column**:
+The two panels beside the Projects list's Open view: Needs you (the Notification Center view's rows, newest first) and Recent activity. Only what the reader can act on or just changed; the recap of what happened while they were away stays on Home. Not shown in the Closed view. Project Overview shows the same two panels scoped to its project: Needs you lists only requests about the project's tasks and jobs, and Recent activity only the project's events, including when the project is Closed or Hidden, so its history stays readable.
+_Avoid_: Dashboard, team overview, sidebar (that is the app's nav), usage panel
+
+**Recent activity**:
+The newest task, job and project events across the workspace's open projects, minus the reader's Hidden projects, whoever caused them: the same events that set a project's last activity. Distinct from Notifications, which are only what was sent to the reader.
+_Avoid_: Activity feed (when meaning the Notification Center), history (the full searchable record), notifications
+
+**Closed project**:
+A project whose close has finished: its scheduled work is stopped, its history kept, and it cannot be reopened. Out of the Project switcher's list, and in the Projects list only under its Closed view; the Open view is the default. Opening one still makes it the Project scope, so its history stays readable, and the switcher then marks it Closed. A project that is closing, or whose close failed, is not yet Closed. Closed is the archive: there is no separate archived state.
+_Avoid_: Archived project, deleted project, inactive project
 
 **Pinned project**:
-The current user's personal pin of a project they can read. Not shared, and not capped — but the sidebar's Projects flyout is five rows in total, so pins claim those slots first and the rest are reached through `All projects`. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the projects list row or the project header, never from the flyout, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the flyout, so reopening restores it. Distinct from a Pinned room and a Pinned message.
+The current user's personal pin of a project they can read. Not shared, and not capped. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the Projects list row or the project header, never from the Project switcher, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the switcher for good. Distinct from a Pinned room and a Pinned message.
 _Avoid_: Starred project (API-only name), favorite, treating this as a Pinned room
 
+**Hidden project**:
+A project the current user has set aside as not theirs: personal like a pin, never shared, and the opposite of one, so hiding a Pinned project unpins it. It leaves the Project switcher's list, the Projects list's Open view and Recent activity, and appears only in the Hidden view, where Show project brings it back. Hiding never hides a request: Needs you still lists one from a Hidden project.
+_Avoid_: Archived project, muted project, unfollowed project, leaving a project (membership does not change)
+
 **Recently visited project**:
-A project this reader opened, newest first, tracked per device rather than on the server. Fills whatever flyout slots their Pinned projects leave, ahead of a backfill in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
+A project this reader opened, newest first, tracked per device rather than on the server. Follows the Pinned projects in the Project switcher's list, ahead of the rest in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
 _Avoid_: Recent project (says nothing about whose), active project, last activity
 
 ### Billing
@@ -405,7 +437,7 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it. A Direct with only humans is a Personal Direct and shows in every workspace; a Direct with any coworker or Soko Bot belongs to one workspace and shows only there.
 _Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Group name**:
@@ -425,19 +457,15 @@ A durable copy of one room message (author, snippet, first attachment) carried o
 _Avoid_: Reply (that is a thread), forward, Unfurl of an internal link, quoting into a room with readers outside the source room
 
 **Coworker 1:1**:
-A Direct with exactly one human member and exactly one coworker.
-_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape
-
-**Org Direct**:
-A Direct owned by an Organization. Human 1:1 is an Org Direct only when both people are Members of that Organization. Organization exit removes the leaving member from them.
-_Avoid_: Team DM, workspace DM
+A Direct with exactly one human member and exactly one coworker. It belongs to the workspace it was started in, which pays for the coworker's work, and shows only in that workspace; a Soko Bot 1:1 is scoped the same way.
+_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape, treating it as a Personal Direct
 
 **Personal Direct**:
-A Direct not owned by an Organization. Survives Organization exit. Human 1:1 from a shared External channel is a Personal Direct; coworker 1:1 may also be personal.
-_Avoid_: Account DM, global DM
+A Direct whose members are all human: Self Direct, human 1:1 or group. Owned by no Organization or workspace, so it shows in every workspace and survives Organization exit ([ADR-0059](docs/adr/0059-human-directs-belong-to-no-workspace.md)). A user may start one, 1:1 or group, with anyone they share an Organization or an External channel with, whichever workspace is active; a group may mix people from different Organizations. Once started it stays writable even when its members no longer share anything. There is one per participant set.
+_Avoid_: Org Direct (retired: every human Direct is personal), team DM, workspace DM, account DM, global DM
 
 **External** (sidebar):
-The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Guest rooms appear in every workspace. Human Directs list under Direct Messages, including Personal Directs with a Guest.
+The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Every External channel the reader is on appears in every workspace, whether their Organization hosts it or they are a Guest; browsing the host Organization's External channels to join one happens only in its workspace. Directs list under Direct Messages, including Personal Directs with a Guest.
 _Avoid_: External channel (that is the room), guest sidebar
 
 ### Chat membership
@@ -459,15 +487,15 @@ The event that the current user is no longer a member of a room — by remote re
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
 
 **Organization exit (chat)**:
-When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships; it does restore the Org Directs that still exist and were started with them (see Former member). Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
+When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (Channels, including External ones it hosts, and the Coworker 1:1s and Soko Bot 1:1s of its workspace). They do not keep host-org rooms as guests. Personal Directs and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships. Channels left with no human members are soft-archived. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
 
 **Former member** (Direct):
-A human a Direct was started for who is no longer in it, usually through Organization exit. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
+A human a Direct was started for who is no longer in it. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
 _Avoid_: Ex-member, removed user (when meaning the Direct's view of them), treating the remaining reader as the Direct's other party
 
 **Read-only Direct**:
-A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable. When a Former member rejoins the Organization they are put back in with their Room last-read set to that moment (Thread Look markers are kept), and the Direct is writable again.
+A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable.
 _Avoid_: Archived direct (archiving is a different, reversible action), locked chat
 
 ### Chat pins

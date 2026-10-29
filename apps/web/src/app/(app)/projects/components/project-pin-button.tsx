@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 interface ProjectPinButtonProps {
   projectId: string;
-  /** The reader's own Pin, from `starredAt` on the row. */
+  /** The reader's own Pin, from `starredAt` on the list item. */
   isPinned: boolean;
   /** Closing counts as closed here: both are on their way out of the list. */
   isClosed?: boolean;
@@ -19,13 +19,13 @@ interface ProjectPinButtonProps {
 }
 
 /**
- * Pins a project from the surface the reader browses on. Product UI says Pin;
- * the action underneath says star (ADR 0017).
+ * Pins a project from its own header. Product UI says Pin; the action
+ * underneath says star (ADR 0017).
  *
  * Always rendered rather than revealed on hover: a hover-only control does not
- * exist on a touch device, which is where half this list is read. Chat hides
- * the same action in a row menu, but that menu already carries five other
- * items — one here would hold nothing else (ADR-0036).
+ * exist on a touch device. On the Projects list the card menu carries Pin
+ * beside Hide and Close instead, and the card marks a Pin by its name
+ * (ADR-0036).
  */
 export function ProjectPinButton({
   projectId,
@@ -41,7 +41,7 @@ export function ProjectPinButton({
   const [isPending, startTransition] = useTransition();
   // Committed state, not `useOptimistic`. An optimistic value is discarded
   // when the transition ends and falls back to `isPinned` — which on the
-  // projects list comes from the server-rendered row's `starredAt` and is
+  // projects list comes from the server-rendered card's `starredAt` and is
   // never refreshed, so a Pin flipped blue and snapped straight back to grey.
   const [pinned, setPinned] = useState(isPinned);
   // Whatever the server last told us. When that changes — a navigation, a
@@ -98,21 +98,22 @@ export function ProjectPinButton({
       aria-pressed={pinned}
       data-testid="project-pin-button"
       className={cn(
-        // The row around this is a link, so the button sits beside it rather
+        // The card under this is a link, so the button sits beside it rather
         // than inside it — nesting would swallow the click and is invalid.
-        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors outline-hidden focus-visible:ring-2",
-        // The circle stays 32px, but the hit area grows to 44px: the row
+        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-[color,background-color,opacity] outline-hidden focus-visible:ring-2",
+        // The circle stays 32px, but the hit area grows to 44px: the card
         // behind this is a link, so a near miss on a phone navigates to the
         // project instead of doing nothing.
         "before:absolute before:-inset-1.5 before:content-['']",
         "disabled:pointer-events-none disabled:opacity-50",
-        // Pinned carries three signals at once — hue, fill and a tinted
-        // ground — because at 16px a filled pin is barely distinguishable
-        // from an outlined one, and one step of grey did not read at all.
-        // Solid ramp steps, not an opacity modifier: the colour-token rule is
-        // absolute, and this is the same pairing the task-created badge uses.
+        // Pinned carries two signals, tone and fill, because at 16px a filled
+        // pin is barely distinguishable from an outlined one, and one step of
+        // grey did not read at all. No tinted ground: beside the plain ghost
+        // "More" button a filled square read as a different kind of control.
+        // Both states hover like that ghost button.
+        "hover:bg-accent",
         pinned
-          ? "text-foreground bg-primary-quinary hover:bg-primary-quaternary"
+          ? "text-foreground"
           : "text-muted-foreground hover:text-foreground",
         className,
       )}
