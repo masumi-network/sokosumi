@@ -66,6 +66,14 @@ let fetched: Promise<string> | undefined;
 /** Local installs have ffmpeg-static's binary; a Vercel instance fetches it. */
 function ffmpegBinary(): Promise<string> {
   if (ffmpegPath && existsSync(ffmpegPath)) return Promise.resolve(ffmpegPath);
+  // The pinned build is linux-x64 only; anywhere else it cannot run.
+  if (process.platform !== "linux" || process.arch !== "x64") {
+    return Promise.reject(
+      new Error(
+        "ffmpeg-static has no binary here; run `pnpm install` without --ignore-scripts",
+      ),
+    );
+  }
   fetched ??= fetchFfmpeg(configuredFfmpegBuild()).catch((error: unknown) => {
     fetched = undefined;
     throw error;
