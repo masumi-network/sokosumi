@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { z } from "@hono/zod-openapi";
+import { HTTPException } from "hono/http-exception";
 
 import {
   projectComposioFetch,
@@ -825,6 +826,21 @@ async function executeWrite(
   }
 }
 
+/**
+ * After at least one Display image asset exists at Google, map an HTTP refusal
+ * to ComposioToolError so callAds marks the outcome UNKNOWN (never retry — the
+ * orphan assets stay). Search 422s stay HTTPException (atomic, nothing written).
+ */
+function reraiseAfterProviderWrite(error: unknown): never {
+  if (error instanceof HTTPException) {
+    throw new ComposioToolError({
+      message: error.message,
+      providerStatus: error.status,
+    });
+  }
+  throw error;
+}
+
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 20_000;
 // An image is up to 5 MB, base64-encoded and forwarded to Google.
 const IMAGE_UPLOAD_TIMEOUT_MS = 60_000;
@@ -944,7 +960,8 @@ async function uploadDisplayImage(
  * Display images come first: they are all downloaded (so a bad file fails
  * before anything is written), then uploaded as image assets, one call each.
  * Google cannot remove assets, so images uploaded before a failed tree stay
- * unused in the account; the failure is raised, not retried.
+ * unused in the account; those failures become ComposioToolError (UNKNOWN),
+ * never a retryable 422.
  */
 export async function createGoogleCampaign(
   input: AdsConnectedAccount & GoogleCampaignCreate & { customerId: string },
@@ -966,27 +983,37 @@ export async function createGoogleCampaign(
       toolSlugs: [BATCH_MUTATE],
     },
     async (execute) => {
-      let operations: Operation[];
       if (google.type === "DISPLAY") {
         const uploaded: UploadedDisplayImage[] = [];
         for (const download of downloads) {
-          uploaded.push(
-            await uploadDisplayImage(execute, customerId, download),
-          );
+          try {
+            uploaded.push(
+              await uploadDisplayImage(execute, customerId, download),
+            );
+          } catch (error) {
+            if (uploaded.length > 0) reraiseAfterProviderWrite(error);
+            throw error;
+          }
         }
-        operations = displayCampaignOperations(
-          customerId,
-          input,
-          google,
-          uploaded,
-        );
-      } else {
-        operations = searchCampaignOperations(customerId, input, google);
+        try {
+          return await executeWrite(execute, BATCH_MUTATE, {
+            customer_id: customerId,
+            partial_failure: false,
+            mutate_operations: displayCampaignOperations(
+              customerId,
+              input,
+              google,
+              uploaded,
+            ),
+          });
+        } catch (error) {
+          reraiseAfterProviderWrite(error);
+        }
       }
       return executeWrite(execute, BATCH_MUTATE, {
         customer_id: customerId,
         partial_failure: false,
-        mutate_operations: operations,
+        mutate_operations: searchCampaignOperations(customerId, input, google),
       });
     },
   );
@@ -2124,14 +2151,15 @@ const DISPLAY_IMAGE_FIELDS: [GoogleDisplayImageRole, string][] = [
  * The image assets of an edited Display ad, by slot (none for Search). New
  * Drive images are all downloaded first, so a bad file fails before anything
  * is written, then uploaded one call each; kept images are used as they are.
+ * `wroteAssets` is true once at least one new image reached Google.
  */
 async function uploadNewImages(
   execute: ExecuteAdsTool,
   customerId: string,
   google: GoogleCampaignEditSpec,
-): Promise<DisplayImageIds> {
+): Promise<{ ids: DisplayImageIds; wroteAssets: boolean }> {
   const ids: DisplayImageIds = { LANDSCAPE: [], SQUARE: [], LOGO: [] };
-  if (google.type === "SEARCH") return ids;
+  if (google.type === "SEARCH") return { ids, wroteAssets: false };
   const prepared: (
     | { role: GoogleDisplayImageRole; assetId: string }
     | { role: GoogleDisplayImageRole; download: DownloadedDisplayImage }
@@ -2143,17 +2171,26 @@ async function uploadNewImages(
         : { role: image.role, assetId: image.assetId },
     );
   }
+  let wroteAssets = false;
   for (const item of prepared) {
-    ids[item.role].push(
-      "download" in item
-        ? resourceId(
-            (await uploadDisplayImage(execute, customerId, item.download))
-              .resourceName,
-          )
-        : item.assetId,
-    );
+    if (!("download" in item)) {
+      ids[item.role].push(item.assetId);
+      continue;
+    }
+    try {
+      ids[item.role].push(
+        resourceId(
+          (await uploadDisplayImage(execute, customerId, item.download))
+            .resourceName,
+        ),
+      );
+      wroteAssets = true;
+    } catch (error) {
+      if (wroteAssets) reraiseAfterProviderWrite(error);
+      throw error;
+    }
   }
-  return ids;
+  return { ids, wroteAssets };
 }
 
 function displayAdChanges(
@@ -2372,7 +2409,8 @@ function editOperations(
  * Immutable criteria (locations, languages, keywords) are removed and created
  * again; sitelinks and callouts are unlinked and linked as new assets. New
  * Display images are uploaded first, and Google cannot remove assets, so
- * images uploaded before a failed update stay unused in the account.
+ * images uploaded before a failed update stay unused in the account; those
+ * failures become ComposioToolError (UNKNOWN), never a retryable 422.
  */
 export async function editGoogleCampaign(
   input: AdsConnectedAccount &
@@ -2392,23 +2430,33 @@ export async function editGoogleCampaign(
       const request = { name, dailyBudget, google };
       const rows = await readDetailRows(execute, customerId, campaignId, {});
       const target = refuseEdit(rows, request);
+      const { ids: imageIds, wroteAssets } = await uploadNewImages(
+        execute,
+        customerId,
+        google,
+      );
       const operations = editOperations(
         customerId,
         campaignId,
         target,
         request,
-        await uploadNewImages(execute, customerId, google),
+        imageIds,
       );
       if (operations.length === 0) return;
-      requireMutated(
-        await executeWrite(execute, BATCH_MUTATE, {
-          customer_id: customerId,
-          partial_failure: false,
-          mutate_operations: operations,
-        }),
-        "mutate_operation_responses",
-        "edit Google Ads campaign",
-      );
+      try {
+        requireMutated(
+          await executeWrite(execute, BATCH_MUTATE, {
+            customer_id: customerId,
+            partial_failure: false,
+            mutate_operations: operations,
+          }),
+          "mutate_operation_responses",
+          "edit Google Ads campaign",
+        );
+      } catch (error) {
+        if (wroteAssets) reraiseAfterProviderWrite(error);
+        throw error;
+      }
     },
   );
 }
