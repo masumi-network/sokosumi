@@ -416,6 +416,28 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
   assert.deepEqual(await previewCleanupInventory(options), [7]);
 });
 
+test("closed fork PRs are cleaned up and listed by the daily inventory", async () => {
+  const { options, calls, branches, pull } = setup();
+  await preparePreviewResources(
+    { ...options, ref: "refs/pull/7/head" },
+    deployTargets(["preprod"]),
+  );
+  pull.head.repo.id = 100;
+  pull.state = "closed";
+  assert.deepEqual(await previewCleanupInventory(options), [7]);
+  await cleanupClosedPreview(options);
+  assert.ok(
+    calls.some(
+      (call) =>
+        call.method === "DELETE" && call.url.pathname.endsWith("/br-preview"),
+    ),
+  );
+  assert.deepEqual(
+    branches.map((branch) => branch.id),
+    ["br-production"],
+  );
+});
+
 test("cleanup deletes owned credentials after the git branch is renamed", async () => {
   const { options, calls, envs, pull } = setup();
   pull.state = "closed";

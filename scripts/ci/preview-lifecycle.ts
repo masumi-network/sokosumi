@@ -128,11 +128,9 @@ export async function cleanupClosedPreview(options: LifecycleOptions) {
     `https://api.github.com/repos/${options.repoOwner}/${options.repoName}/pulls/${options.pullNumber}`,
   );
   if (!pull) throw new Error("Cannot verify PR ownership for preview cleanup");
-  if (
-    pull.state !== "closed" ||
-    pull.base.repo.id !== options.repoId ||
-    pull.head.repo?.id !== options.repoId
-  ) {
+  // Fork PRs count too: an approved `/deploy <network> <sha>` gives them a
+  // preview, and only the daily reconcile reaches them (see preview-deploy.yml).
+  if (pull.state !== "closed" || pull.base.repo.id !== options.repoId) {
     return { kind: "skip" };
   }
   return cleanupPreviewResources(
@@ -224,11 +222,8 @@ export async function previewCleanupInventory(
     );
     // A missing PR cannot authorize deletion, but must not block other PRs.
     if (!pull) continue;
-    if (
-      pull.state === "closed" &&
-      pull.base.repo.id === options.repoId &&
-      pull.head.repo?.id === options.repoId
-    )
+    // Fork PRs included: the close signal skips them, so this sweep cleans them.
+    if (pull.state === "closed" && pull.base.repo.id === options.repoId)
       closed.push(pullNumber);
     // GitHub limits a matrix to 256 jobs. Successfully deleted resources drop
     // out of tomorrow's inventory, so larger backlogs drain in daily batches.

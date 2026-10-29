@@ -25,6 +25,9 @@ import {
   VERCEL_TEAM_ID,
 } from "./vercel-deploy.mjs";
 
+const FORK_SHA = "a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0";
+const STALE_SHA = "b".repeat(40);
+
 const GIT_DEPLOYMENT_ENABLED = {
   "*": false,
   "**": false,
@@ -89,35 +92,66 @@ describe("parseDeployComment", () => {
     assert.deepEqual(parseDeployComment("/deploy mainnet"), {
       kind: "deploy",
       networks: ["mainnet"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy preprod"), {
       kind: "deploy",
       networks: ["preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy mainnet preprod"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy preprod mainnet"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/Deploy MAINNET"), {
       kind: "deploy",
       networks: ["mainnet"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy mainnet mainnet"), {
       kind: "deploy",
       networks: ["mainnet"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy all"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy ALL"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
+  });
+
+  it("reads one full head SHA and refuses short or competing SHAs", () => {
+    assert.deepEqual(parseDeployComment(`/deploy preprod ${FORK_SHA}`), {
+      kind: "deploy",
+      networks: ["preprod"],
+      sha: FORK_SHA,
+    });
+    assert.deepEqual(
+      parseDeployComment(`/deploy ${FORK_SHA.toUpperCase()} all`),
+      { kind: "deploy", networks: ["mainnet", "preprod"], sha: FORK_SHA },
+    );
+    // A short prefix is brute-forceable, so it is not an approval.
+    assert.deepEqual(parseDeployComment("/deploy preprod a1b2c3d"), {
+      kind: "usage",
+    });
+    assert.deepEqual(parseDeployComment(`/deploy ${FORK_SHA}`), {
+      kind: "usage",
+    });
+    assert.deepEqual(
+      parseDeployComment(`/deploy preprod ${FORK_SHA} ${STALE_SHA}`),
+      { kind: "usage" },
+    );
   });
 });
 
@@ -373,46 +407,98 @@ describe("runPreviewDeployComment", () => {
     assert.match(posted[0], /write access/i);
   });
 
-  it("refuses fork pull requests", async () => {
+  function commentDeploy(
+    commentBody,
+    { headRepo = { id: 2, fork: true } } = {},
+  ) {
     const posted = [];
-    const result = await runPreviewDeployComment({
-      commentBody: "/deploy mainnet",
+    const reactions = [];
+    const created = [];
+    const prepared = [];
+    const result = runPreviewDeployComment({
+      commentBody,
       isPullRequest: true,
       commentAuthor: "alice",
+      repoId: 1,
       readPermission: async () => "write",
       readPullRequest: async () => ({
         state: "open",
         number: 12,
-        head: { sha: "abc", ref: "feat", repo: { id: 2, fork: true } },
+        // A fork branch may share a name with one of ours.
+        head: { sha: FORK_SHA, ref: "main", repo: headRepo },
         base: { repo: { id: 1 } },
       }),
+      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      prepareResources: async (options) => {
+        prepared.push(options);
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.app}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
       postComment: async (body) => {
         posted.push(body);
       },
+      addReaction: async (content) => {
+        reactions.push(content);
+      },
     });
-    assert.equal(result.kind, "fork");
-    assert.match(posted[0], /fork/i);
+    return { result, posted, reactions, created, prepared };
+  }
+
+  it("asks a fork pull request for the head SHA before touching anything", async () => {
+    const run = commentDeploy("/deploy preprod");
+    assert.equal((await run.result).kind, "sha-required");
+    assert.equal(run.posted.length, 1);
+    assert.match(run.posted[0], /fork/i);
+    assert.ok(run.posted[0].includes("`/deploy preprod <sha>`"));
+    // Pasting the current head would approve commits nobody reviewed.
+    assert.ok(!run.posted[0].includes(FORK_SHA));
+    assert.deepEqual(run.reactions, []);
+    assert.deepEqual(run.prepared, []);
+    assert.deepEqual(run.created, []);
   });
 
-  it("refuses pull requests whose head repo is missing", async () => {
-    const posted = [];
-    const result = await runPreviewDeployComment({
-      commentBody: "/deploy mainnet",
-      isPullRequest: true,
-      commentAuthor: "alice",
-      readPermission: async () => "write",
-      readPullRequest: async () => ({
-        state: "open",
-        number: 12,
-        head: { sha: "abc", ref: "feat", repo: null },
-        base: { repo: { id: 1 } },
-      }),
-      postComment: async (body) => {
-        posted.push(body);
-      },
+  it("refuses a fork deploy whose SHA is not the current head", async () => {
+    const run = commentDeploy(`/deploy preprod ${STALE_SHA}`);
+    assert.equal((await run.result).kind, "sha-mismatch");
+    assert.ok(run.posted[0].includes(STALE_SHA));
+    // Pasting the current head would approve commits nobody reviewed.
+    assert.ok(!run.posted[0].includes(FORK_SHA));
+    assert.deepEqual(run.reactions, []);
+    assert.deepEqual(run.prepared, []);
+    assert.deepEqual(run.created, []);
+  });
+
+  it("deploys exactly the approved fork commit from the PR's head ref", async () => {
+    const run = commentDeploy(`/deploy preprod ${FORK_SHA}`);
+    assert.equal((await run.result).kind, "deploy");
+    assert.deepEqual(run.posted, []);
+    assert.deepEqual(run.reactions, ["eyes", "rocket"]);
+    assert.equal(run.created.length, 2);
+    for (const input of run.created) {
+      assert.equal(input.repoId, 1);
+      assert.equal(input.sha, FORK_SHA);
+      assert.equal(input.ref, "refs/pull/12/head");
+    }
+    // Core env vars are scoped to the PR ref, never the fork's `main`.
+    assert.equal(run.prepared[0].ref, "refs/pull/12/head");
+  });
+
+  it("treats a pull request whose head repo was deleted as a fork", async () => {
+    const run = commentDeploy("/deploy preprod", { headRepo: null });
+    assert.equal((await run.result).kind, "sha-required");
+    assert.deepEqual(run.created, []);
+  });
+
+  it("refuses a same-repo deploy that names a stale SHA", async () => {
+    const run = commentDeploy(`/deploy preprod ${STALE_SHA}`, {
+      headRepo: { id: 1 },
     });
-    assert.equal(result.kind, "fork");
-    assert.match(posted[0], /fork/i);
+    assert.equal((await run.result).kind, "sha-mismatch");
+    assert.equal(run.posted.length, 1);
+    assert.deepEqual(run.created, []);
   });
 
   it("creates web, core, and CMO previews for mainnet", async () => {
