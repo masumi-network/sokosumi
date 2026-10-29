@@ -27,6 +27,11 @@ export const chatRoomSokoBotParticipantSchema = z
       .nullable()
       .openapi({ example: "https://example.com/soko-bot.png" }),
     avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
+    avatarStyleId: z.string().nullable().optional().openapi({
+      description:
+        "The style of the bot's claimed avatar, null when it has none. Always sent; optional so clients written before it compile.",
+      example: "crafted-desk",
+    }),
     ownerUserId: z.string().nullable().openapi({
       description:
         "The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.",

@@ -15,6 +15,7 @@ function row(overrides: Partial<ChatRoomSokoBotRow> = {}): ChatRoomSokoBotRow {
     id: BOT_ID,
     name: "Zero",
     avatarImageUrl: null,
+    avatar: null,
     avatarSeed: null,
     userId: "user_ana",
     projectId: null,
@@ -34,6 +35,7 @@ describe("mapChatRoomSokoBotParticipant", () => {
       caption: "Ana's personal assistant",
       image: null,
       avatarSeed: "orb:user_ana",
+      avatarStyleId: null,
       ownerUserId: "user_ana",
       scope: "personal",
       sharedRoomId: null,
@@ -42,6 +44,14 @@ describe("mapChatRoomSokoBotParticipant", () => {
     expect(chatRoomSokoBotParticipantSchema.parse(participant)).toEqual(
       participant,
     );
+  });
+
+  it("names the style of a claimed avatar", () => {
+    expect(
+      mapChatRoomSokoBotParticipant(
+        row({ avatar: { styleId: "crafted-desk" } }),
+      ).avatarStyleId,
+    ).toBe("crafted-desk");
   });
 
   it.each([

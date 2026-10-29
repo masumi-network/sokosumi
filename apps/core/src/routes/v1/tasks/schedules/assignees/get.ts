@@ -57,6 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: true,
           avatarSeed: true,
           avatarImageUrl: true,
+          avatar: { select: { styleId: true } },
         },
       }),
     ]);
@@ -64,7 +65,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       taskScheduleAssigneesSchema.parse({
         coworkers: coworkers.map(mapCoworker),
-        sokoBot,
+        sokoBot: sokoBot && {
+          id: sokoBot.id,
+          name: sokoBot.name,
+          avatarSeed: sokoBot.avatarSeed,
+          avatarImageUrl: sokoBot.avatarImageUrl,
+          avatarStyleId: sokoBot.avatar?.styleId ?? null,
+        },
       }),
     );
   });

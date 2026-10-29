@@ -27,6 +27,15 @@ export const sokoBotSummarySchema = z
     avatarImageUrl: z.string().nullable().openapi({
       example: "https://blob.example/mascot.png",
     }),
+    /**
+     * The style of the bot's claimed avatar, null when it has none. Always
+     * sent; optional in the contract so clients written before it compile.
+     */
+    avatarStyleId: z
+      .string()
+      .nullable()
+      .optional()
+      .openapi({ example: "crafted-desk" }),
     owner: z.union([userSummarySchema, z.null()]),
   })
   .openapi("SokoBotSummary");
