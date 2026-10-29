@@ -7,8 +7,8 @@ import {
   PROJECTS_BROWSE_CARD_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LIST_CLASS,
+  PROJECTS_CARD_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
 
@@ -100,7 +100,7 @@ describe("projects list CLS layout pairing", () => {
     expect(PROJECTS_LIST_CARD_MIN_H_CLASS).toBe("min-h-[320px]");
   });
 
-  it("skeleton and live ProjectListItem use PROJECTS_LIST_ROW_LAYOUT_CLASS", () => {
+  it("skeleton and live ProjectListItem use PROJECTS_CARD_LAYOUT_CLASS", () => {
     const loading = stripComments(
       readApp("projects/components/projects-loading-view.tsx"),
     );
@@ -108,14 +108,14 @@ describe("projects list CLS layout pairing", () => {
       readApp("projects/components/project-list-item.tsx"),
     );
 
-    expect(loading).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
-    expect(item).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
+    expect(loading).toMatch(/PROJECTS_CARD_LAYOUT_CLASS/);
+    expect(item).toMatch(/PROJECTS_CARD_LAYOUT_CLASS/);
     expect(loading).not.toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
     expect(item).not.toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
     expect(loading).toMatch(/PROJECTS_LIST_ROW_CARD_CLASS/);
     expect(item).toMatch(/PROJECTS_LIST_ROW_CARD_CLASS/);
-    expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toBe(
-      "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    expect(PROJECTS_CARD_LAYOUT_CLASS).toBe(
+      "[content-visibility:auto] [contain-intrinsic-size:auto_136px]",
     );
   });
 
@@ -130,11 +130,13 @@ describe("projects list CLS layout pairing", () => {
     expect(loading).toMatch(/PROJECTS_BROWSE_CARD_CLASS/);
     expect(view).toMatch(/PROJECTS_BROWSE_CARD_CLASS/);
     expect(PROJECTS_BROWSE_CARD_CLASS).toBe(
-      "bg-card-background overflow-hidden rounded-xl p-2",
+      "bg-card-background @container overflow-hidden rounded-xl p-2",
     );
     expect(loading).toMatch(/PROJECTS_BROWSE_LIST_CLASS/);
     expect(view).toMatch(/PROJECTS_BROWSE_LIST_CLASS/);
-    expect(PROJECTS_BROWSE_LIST_CLASS).toBe("flex flex-col gap-2");
+    expect(PROJECTS_BROWSE_LIST_CLASS).toBe(
+      "grid grid-cols-1 gap-2 @xl:grid-cols-2 @4xl:grid-cols-3",
+    );
   });
 
   it("skeleton and live browse share PROJECTS_BROWSE_HEADER_ROW_CLASS", () => {

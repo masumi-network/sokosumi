@@ -2289,7 +2289,17 @@
             "dispute_pending": "Streitfall",
             "dispute_resolved": "Geklärt"
           }
-        }
+        },
+        "emptyClosed": {
+          "title": "Keine geschlossenen Projekte",
+          "description": "Ein Projekt, das du schließt, landet hier – mit seinem Verlauf."
+        },
+        "state": {
+          "label": "Projekte anzeigen",
+          "open": "Offen",
+          "closed": "Geschlossen"
+        },
+        "closed": "Geschlossen"
       },
       "Briefing": {
         "label": "Briefing",

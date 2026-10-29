@@ -314,6 +314,69 @@ describe("GET /projects", () => {
     });
   });
 
+  it.each([
+    ["open", null],
+    ["closed", { not: null }],
+  ] as const)(
+    "filters the total to %s projects by closedAt alone",
+    async (state, closedAt) => {
+      const res = await createApp().request(`http://localhost/?state=${state}`);
+
+      expect(res.status).toBe(200);
+      expect(projectCountMock).toHaveBeenCalledWith({
+        where: { workspaceId: WORKSPACE_CONTEXT.workspaceId, closedAt },
+      });
+    },
+  );
+
+  it("rejects an unknown state", async () => {
+    const res = await createApp().request("http://localhost/?state=archived");
+
+    expect(res.status).toBe(422);
+    expect(queryRawMock).not.toHaveBeenCalled();
+  });
+
+  it("leads with the reader's Pins only when asked", async () => {
+    await createApp().request("http://localhost/?pinnedFirst=true");
+    await createApp().request("http://localhost/");
+
+    // Tripwire: the reader's userId is already bound for task visibility, so
+    // the Pin join is what tells the two queries apart.
+    expect(queryRawMock.mock.calls[0][0].sql).toContain("project_star");
+    expect(queryRawMock.mock.calls[1][0].sql).not.toContain("project_star");
+  });
+
+  it("never orders by a bound user's Pins for a coworker", async () => {
+    const res = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_123", organizationId: null },
+    } as AuthenticationContext).request("http://localhost/?pinnedFirst=true");
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock.mock.calls[0][0].sql).not.toContain("project_star");
+  });
+
+  it("carries the Pin in the cursor of a Pins-first page", async () => {
+    const starredAt = new Date("2026-09-20T10:00:00.000Z");
+    const ranked = [1, 2].map((n) => ({
+      id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+      lastActivityAt: new Date("2026-04-01"),
+      starredAt,
+    }));
+    queryRawMock.mockResolvedValue(ranked);
+
+    const res = await createApp().request(
+      "http://localhost/?pinnedFirst=true&limit=1",
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).meta.pagination.nextCursor).toBe(
+      encodeProjectActivityCursor(WORKSPACE_CONTEXT.workspaceId, ranked[0]),
+    );
+  });
+
   it("returns each project's lastActivityAt from its ranked row", async () => {
     const project = createProjectRow();
     const lastActivityAt = new Date("2026-04-09T08:30:00.000Z");

@@ -15,6 +15,11 @@ interface ProjectPinButtonProps {
   /** Closing counts as closed here: both are on their way out of the list. */
   isClosed?: boolean;
   labels: { pin: string; unpin: string; error: string };
+  /**
+   * Hide an unpinned button until its `group/card` is hovered or focused.
+   * Only where the pointer can hover: a touch device keeps it visible.
+   */
+  revealOnHover?: boolean;
   className?: string;
 }
 
@@ -26,12 +31,16 @@ interface ProjectPinButtonProps {
  * exist on a touch device, which is where half this list is read. Chat hides
  * the same action in a row menu, but that menu already carries five other
  * items — one here would hold nothing else (ADR-0036).
+ * The Projects list card is the exception that `revealOnHover` serves: on a
+ * fine pointer an unpinned card shows its Pin on hover or focus, so a grid of
+ * cards does not repeat the same grey icon. Touch keeps it always visible.
  */
 export function ProjectPinButton({
   projectId,
   isPinned,
   isClosed = false,
   labels,
+  revealOnHover = false,
   className,
 }: ProjectPinButtonProps) {
   // Read through the context rather than `useQueryClient`, which throws when
@@ -100,7 +109,7 @@ export function ProjectPinButton({
       className={cn(
         // The row around this is a link, so the button sits beside it rather
         // than inside it — nesting would swallow the click and is invalid.
-        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors outline-hidden focus-visible:ring-2",
+        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-[color,background-color,opacity] outline-hidden focus-visible:ring-2",
         // The circle stays 32px, but the hit area grows to 44px: the row
         // behind this is a link, so a near miss on a phone navigates to the
         // project instead of doing nothing.
@@ -114,6 +123,9 @@ export function ProjectPinButton({
         pinned
           ? "text-primary bg-primary-quinary hover:bg-primary-quaternary"
           : "text-muted-foreground hover:text-foreground",
+        revealOnHover &&
+          !pinned &&
+          "pointer-fine:opacity-0 pointer-fine:group-hover/card:opacity-100 pointer-fine:group-focus-within/card:opacity-100",
         className,
       )}
     >

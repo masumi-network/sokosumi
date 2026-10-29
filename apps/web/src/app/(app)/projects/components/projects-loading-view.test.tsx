@@ -7,9 +7,9 @@ import {
 } from "@/app/projects/components/projects-loading-view";
 import {
   PROJECTS_BROWSE_LIST_CLASS,
+  PROJECTS_CARD_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_CARD_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 
 describe("ProjectsPageSkeleton", () => {
@@ -34,11 +34,14 @@ describe("ProjectsPageSkeleton", () => {
     expect(createSlot.tagName).not.toBe("BUTTON");
   });
 
-  it("reserves the create control above the list", () => {
+  it("reserves the Open / Closed and create controls above the list", () => {
     render(<ProjectsPageSkeleton />);
 
     const header = screen.getByTestId("projects-loading-toolbar");
 
+    expect(header).toContainElement(
+      screen.getByTestId("projects-loading-state"),
+    );
     expect(header).toContainElement(
       screen.getByTestId("projects-loading-create"),
     );
@@ -74,9 +77,10 @@ describe("ProjectsLoadingView", () => {
     expect(browse).not.toHaveClass("border");
     const header = screen.getByTestId("projects-loading-toolbar");
     expect(browse).not.toContainElement(header);
+    // Search fills what the two controls leave, as the live field does.
     expect(header.querySelector('[data-slot="skeleton"]')).toHaveClass(
       "h-10",
-      "md:w-64",
+      "flex-1",
     );
 
     const list = browse.lastElementChild;
@@ -84,24 +88,22 @@ describe("ProjectsLoadingView", () => {
       expect(list?.className).toContain(token);
     }
 
+    // Two full rows of the three-column grid.
     const items = browse.querySelectorAll("article");
-    expect(items.length).toBe(4);
+    expect(items.length).toBe(6);
 
     for (const item of items) {
-      const row = item.firstElementChild;
-      expect(row?.className).toContain("flex-row");
-      expect(row?.className).toContain("items-center");
-      expect(row?.className).toContain("gap-4");
-      expect(row?.className).not.toContain("-mx-2");
-      expect(row?.className).not.toContain("border-border");
-      expect(row?.className).not.toContain("bg-overlay");
-      expect(row?.className.split(/\s+/)).not.toContain("border");
-      // Avatar + name + briefing + one count pill + activity stamp; no
-      // overflow actions column.
-      expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
+      const card = item.firstElementChild;
+      expect(card?.className).toContain("flex-col");
+      expect(card?.className).toContain("p-4");
+      expect(card?.className).not.toContain("border-border");
+      expect(card?.className.split(/\s+/)).not.toContain("border");
+      // Avatar + name, two briefing lines, one count pill + activity stamp;
+      // no Pin, which is hidden until hover on most cards.
+      expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(6);
       const itemTokens = item.className.split(/\s+/);
       for (const token of [
-        ...PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/),
+        ...PROJECTS_CARD_LAYOUT_CLASS.split(/\s+/),
         ...PROJECTS_LIST_ROW_CARD_CLASS.split(/\s+/),
       ]) {
         expect(itemTokens).toContain(token);

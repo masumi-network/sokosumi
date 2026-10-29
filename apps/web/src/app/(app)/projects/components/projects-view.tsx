@@ -12,6 +12,7 @@ import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  type ProjectsListState,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,10 +25,18 @@ import {
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
 import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
+import {
+  ProjectsStateToggle,
+  type ProjectsStateToggleLabels,
+} from "./projects-state-toggle";
 
 export interface ProjectsViewLabels {
   newProject: string;
   empty: {
+    title: string;
+    description: string;
+  };
+  emptyClosed: {
     title: string;
     description: string;
   };
@@ -42,6 +51,8 @@ export interface ProjectsViewLabels {
   pin: string;
   unpin: string;
   pinError: string;
+  closed: string;
+  state: ProjectsStateToggleLabels;
   filter: ProjectsFilterLabels;
   noMatches: string;
 }
@@ -50,6 +61,7 @@ interface ProjectsViewProps {
   projects: ProjectListItemType[];
   nextCursor: string | null;
   query: string;
+  state: ProjectsListState;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -67,8 +79,12 @@ function ProjectsMobileCreateFabSlot() {
   );
 }
 
-function browseListKey(query: string, projects: ProjectListItemType[]) {
-  return `${query}|${projects
+function browseListKey(
+  query: string,
+  state: ProjectsListState,
+  projects: ProjectListItemType[],
+) {
+  return `${query}|${state}|${projects
     .map((project) => `${project.id}:${project.updatedAt}`)
     .join("|")}`;
 }
@@ -77,11 +93,12 @@ export function ProjectsView({
   projects,
   nextCursor,
   query,
+  state,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
-  const listKey = browseListKey(query, projects);
+  const listKey = browseListKey(query, state, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
   const [itemsKey, setItemsKey] = useState(listKey);
@@ -103,7 +120,7 @@ export function ProjectsView({
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects({ cursor, query });
+        const result = await loadMoreProjects({ cursor, query, state });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setCursor(result.nextCursor);
       } catch {
@@ -125,19 +142,22 @@ export function ProjectsView({
           className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
         >
           <ProjectsFilter labels={labels.filter} />
+          <ProjectsStateToggle labels={labels.state} />
           <AddProjectButton
             label={labels.newProject}
             className="hidden md:inline-flex"
           />
         </div>
         {hasNothingAtAll ? (
-          <ProjectsEmptyState labels={labels.empty} />
+          <ProjectsEmptyState
+            labels={state === "closed" ? labels.emptyClosed : labels.empty}
+          />
         ) : (
           <div
             data-testid="projects-browse"
             className={cn(
               PROJECTS_BROWSE_CARD_CLASS,
-              // Only while there are no rows: a short list sits in a card that
+              // Only while there are no cards: a short grid sits in a card that
               // ends with it, as Transactions does, not in a mostly empty well.
               !hasLoadedProjects && PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
@@ -155,6 +175,7 @@ export function ProjectsView({
                       pin: labels.pin,
                       unpin: labels.unpin,
                       pinError: labels.pinError,
+                      closed: labels.closed,
                     }}
                   />
                 ))}

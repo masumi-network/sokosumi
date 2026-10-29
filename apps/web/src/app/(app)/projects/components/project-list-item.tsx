@@ -7,10 +7,11 @@ import {
   ProjectResourceCountPills,
 } from "@/app/projects/components/project-resource-count-pills";
 import {
+  PROJECTS_CARD_LAYOUT_CLASS,
   PROJECTS_LIST_ROW_CARD_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 import { TimeAgo } from "@/components/time-ago";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
@@ -21,6 +22,7 @@ interface ProjectListItemLabels {
   pin: string;
   unpin: string;
   pinError: string;
+  closed: string;
 }
 
 interface ProjectListItemProps {
@@ -39,21 +41,24 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
   const isUntouched =
     new Date(project.lastActivityAt).getTime() ===
     new Date(project.createdAt).getTime();
+  // Only a finished close counts: closing and close-failed projects stay Open.
+  const closedAt = project.closedAt;
 
   return (
     // The Pin button cannot live inside the link — a button nested in an
     // anchor is invalid and the click would navigate instead of pinning — so
-    // the row becomes a flex pair: the link takes the space, the button sits
-    // beside it and keeps its own hit area.
+    // the card holds the link and the button side by side: the link fills
+    // the card, the button sits over its top-right corner and keeps its own
+    // hit area.
     <article
       className={cn(
-        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+        PROJECTS_CARD_LAYOUT_CLASS,
         PROJECTS_LIST_ROW_CARD_CLASS,
-        "hover:bg-card-background-hover flex flex-row items-center pr-2 transition-[background-color]",
+        "group/card hover:bg-card-background-hover relative flex flex-col transition-[background-color]",
         // The link stops short of the Pin button, so its own outline would cut
-        // a line through the card. The ring goes around the whole row instead.
-        // Forced colors drop box-shadow and the row's paint containment clips
-        // the link's outline, so a transparent outline on the row carries
+        // a line through the card. The ring goes around the whole card instead.
+        // Forced colors drop box-shadow and the card's paint containment clips
+        // the link's outline, so a transparent outline on the card carries
         // focus there; the system colour paints it.
         "has-[>a:focus-visible]:ring-ring has-[>a:focus-visible]:ring-2",
         "has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-transparent",
@@ -62,50 +67,63 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
       <Link
         href={`/projects/${project.id}`}
         className={cn(
-          "flex min-w-0 flex-1 flex-col items-stretch gap-2 rounded-lg px-4 py-3 outline-hidden sm:flex-row sm:items-center sm:gap-4",
+          "flex min-w-0 flex-1 flex-col gap-3 rounded-lg p-4 outline-hidden",
           "press content-in",
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* Clear of the Pin button in the top-right corner. */}
+        <div className="flex min-w-0 items-center gap-3 pe-8">
           <ProjectAvatar name={project.name} logo={project.logo} />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-foreground line-clamp-1 text-sm font-medium">
-              {project.name}
-            </span>
-            {briefing ? (
-              <p className="text-muted-foreground line-clamp-1 text-xs break-all">
-                {briefing}
-              </p>
-            ) : null}
-          </div>
+          <span className="text-foreground line-clamp-1 min-w-0 text-sm font-medium">
+            {project.name}
+          </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        {briefing ? (
+          <p className="text-muted-foreground line-clamp-2 text-sm wrap-anywhere">
+            {briefing}
+          </p>
+        ) : null}
+
+        <div className="mt-auto flex min-w-0 items-center justify-between gap-2">
           <ProjectResourceCountPills
             taskCount={project.taskCount}
             jobCount={project.jobCount}
             labels={labels.counts}
           />
-          <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
-            {isUntouched ? `${labels.created} ` : null}
-            <TimeAgo
-              date={project.lastActivityAt}
-              titlePrefix={isUntouched ? labels.created : labels.lastActivity}
-            />
-          </span>
+          {closedAt ? (
+            <span className="text-muted-foreground ms-auto flex shrink-0 items-center gap-2 text-xs whitespace-nowrap">
+              <Badge variant="secondary">{labels.closed}</Badge>
+              <TimeAgo date={closedAt} titlePrefix={labels.closed} />
+            </span>
+          ) : (
+            <span className="text-muted-foreground ms-auto shrink-0 text-xs whitespace-nowrap">
+              {isUntouched ? `${labels.created} ` : null}
+              <TimeAgo
+                date={project.lastActivityAt}
+                titlePrefix={isUntouched ? labels.created : labels.lastActivity}
+              />
+            </span>
+          )}
         </div>
       </Link>
 
-      <ProjectPinButton
-        projectId={project.id}
-        isPinned={project.starredAt != null}
-        isClosed={project.closingAt != null || project.closedAt != null}
-        labels={{
-          pin: labels.pin,
-          unpin: labels.unpin,
-          error: labels.pinError,
-        }}
-      />
+      {/* A Closed card has no Pin: the Closed view never sorts by one, and
+          the project header still offers Unpin for a Pin a close left. */}
+      {closedAt ? null : (
+        <ProjectPinButton
+          projectId={project.id}
+          isPinned={project.starredAt != null}
+          isClosed={project.closingAt != null}
+          revealOnHover
+          className="absolute end-2 top-2"
+          labels={{
+            pin: labels.pin,
+            unpin: labels.unpin,
+            error: labels.pinError,
+          }}
+        />
+      )}
     </article>
   );
 }

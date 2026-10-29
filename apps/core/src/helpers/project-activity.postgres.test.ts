@@ -33,6 +33,20 @@ function id(n: number) {
   return `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 }
 
+const SCHEMA_STATEMENTS = [
+  "CREATE TYPE \"TaskVisibility\" AS ENUM ('PUBLIC', 'PRIVATE')",
+  "CREATE TYPE \"TaskStatus\" AS ENUM ('DRAFT', 'READY')",
+  'CREATE TABLE project (id uuid PRIMARY KEY, "workspaceId" uuid, "createdAt" timestamp, "updatedAt" timestamp, "closedAt" timestamp)',
+  'CREATE TABLE task (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "archivedAt" timestamp, visibility "TaskVisibility", status "TaskStatus", "ownerId" text, "assigneeId" text)',
+  'CREATE TABLE "taskEvent" ("taskId" text, "createdAt" timestamp)',
+  'CREATE TABLE "Job" (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "taskId" text)',
+  'CREATE TABLE "jobEvent" ("jobId" text, "createdAt" timestamp)',
+  'CREATE TABLE task_file ("taskId" text, "updatedAt" timestamp, status text, origin text, "fileUrl" text)',
+  'CREATE TABLE project_event ("projectId" uuid, "createdAt" timestamp)',
+  'CREATE TABLE coworker (id text, "vendorId" uuid)',
+  'CREATE TABLE project_star ("userId" text, "projectId" uuid, "starredAt" timestamp)',
+];
+
 // Opt-in real Postgres proof. An isolated, transactional schema models only
 // columns consumed by the query; this is not an authenticated application test.
 describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
@@ -43,19 +57,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         const schema = `activity_test_${randomUUID().replaceAll("-", "")}`;
         await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
         await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
-        const statements = [
-          "CREATE TYPE \"TaskVisibility\" AS ENUM ('PUBLIC', 'PRIVATE')",
-          "CREATE TYPE \"TaskStatus\" AS ENUM ('DRAFT', 'READY')",
-          'CREATE TABLE project (id uuid PRIMARY KEY, "workspaceId" uuid, "createdAt" timestamp, "updatedAt" timestamp, "closedAt" timestamp)',
-          'CREATE TABLE task (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "archivedAt" timestamp, visibility "TaskVisibility", status "TaskStatus", "ownerId" text, "assigneeId" text)',
-          'CREATE TABLE "taskEvent" ("taskId" text, "createdAt" timestamp)',
-          'CREATE TABLE "Job" (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "taskId" text)',
-          'CREATE TABLE "jobEvent" ("jobId" text, "createdAt" timestamp)',
-          'CREATE TABLE task_file ("taskId" text, "updatedAt" timestamp, status text, origin text, "fileUrl" text)',
-          'CREATE TABLE project_event ("projectId" uuid, "createdAt" timestamp)',
-          'CREATE TABLE coworker (id text, "vendorId" uuid)',
-        ];
-        for (const statement of statements)
+        for (const statement of SCHEMA_STATEMENTS)
           await tx.$executeRawUnsafe(statement);
         for (let n = 1; n <= 26; n++) {
           await tx.$executeRaw`INSERT INTO project VALUES (${id(n)}::uuid, ${n === 26 ? otherWorkspace : workspaceId}::uuid, '2026-01-01', '2030-01-01', NULL)`;
@@ -178,6 +180,66 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         expect((await page(human)).slice(0, 3).map((p) => p.id)).toEqual(
           [10, 9, 8].map(id),
         );
+        await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+      },
+      { timeout: 20000 },
+    );
+  });
+
+  it("leads with the reader's Pins across pages and splits open from closed", async () => {
+    if (!db) throw new Error("Missing integration database");
+    await db.$transaction(
+      async (tx) => {
+        const schema = `activity_test_${randomUUID().replaceAll("-", "")}`;
+        await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+        for (const statement of SCHEMA_STATEMENTS)
+          await tx.$executeRawUnsafe(statement);
+        // Creation is the only activity, so a higher n is a later project.
+        for (let n = 1; n <= 6; n++) {
+          await tx.$executeRaw`INSERT INTO project VALUES (${id(n)}::uuid, ${workspaceId}::uuid, ${new Date(Date.UTC(2026, 0, n))}, '2030-01-01', ${n === 6 ? new Date("2026-02-01") : null})`;
+        }
+        // 2 was Pinned before 4; 6 is Pinned but closed; another reader Pinned 5.
+        await tx.$executeRaw`INSERT INTO project_star VALUES
+          ('reader', ${id(4)}::uuid, '2026-03-02'), ('reader', ${id(2)}::uuid, '2026-03-01'),
+          ('reader', ${id(6)}::uuid, '2026-03-03'), ('another', ${id(5)}::uuid, '2026-03-01')`;
+        const { sqlWhere: visibility } = await resolveProjectReaderAccess(
+          {
+            actor: "user",
+            userId: "reader",
+            organizationId: null,
+            role: "user",
+          },
+          workspaceId,
+        );
+        async function all(
+          state: "open" | "closed" | undefined,
+          pinnedFirstUserId: string | null,
+        ) {
+          const rows: ProjectActivityRow[] = [];
+          let cursor: string | undefined;
+          // One row per page, so every boundary — Pin to Pin, Pin to the
+          // rest, and within the rest — goes through the cursor.
+          for (;;) {
+            const [row] = await tx.$queryRaw<ProjectActivityRow[]>(
+              projectActivityPageQuery({
+                workspaceId,
+                cursor,
+                take: 1,
+                visibility,
+                state,
+                pinnedFirstUserId,
+              }),
+            );
+            if (!row) return rows.map((r) => r.id);
+            rows.push(row);
+            cursor = encodeProjectActivityCursor(workspaceId, row);
+          }
+        }
+
+        expect(await all("open", "reader")).toEqual([2, 4, 5, 3, 1].map(id));
+        expect(await all("closed", "reader")).toEqual([id(6)]);
+        expect(await all(undefined, null)).toEqual([6, 5, 4, 3, 2, 1].map(id));
         await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
       },
       { timeout: 20000 },
