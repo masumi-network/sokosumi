@@ -11,6 +11,7 @@ CREATE TYPE "SokoBotAvatarRenderStatus" AS ENUM ('PENDING', 'STILL_READY', 'VIDE
 -- AlterTable
 ALTER TABLE "soko_bot_avatar" ADD COLUMN     "draftExpiresAt" TIMESTAMP(3),
 ADD COLUMN     "draftForSokoBotId" UUID,
+ADD COLUMN     "fromPool" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "keptAt" TIMESTAMP(3),
 ADD COLUMN     "keptByUserId" TEXT,
 ADD COLUMN     "look" JSONB,

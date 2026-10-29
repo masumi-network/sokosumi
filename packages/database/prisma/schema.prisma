@@ -2487,15 +2487,20 @@ model SokoBotAvatar {
   /// may be swept first.
   parentAvatarId String? @db.Uuid
 
-  /// Set while the look is private to one bot: a draft, or a kept look the bot
-  /// has since replaced. Such a row is never part of the pool, and it is swept
-  /// once `draftExpiresAt` passes unless a bot has claimed it. Plain columns,
-  /// not a relation: the sweep owns their lifetime.
+  /// Set while the look is private to one bot: a draft, or the tombstone of a
+  /// kept look the bot has replaced. Such a row is never part of the pool, and
+  /// it is swept once `draftExpiresAt` passes unless a bot has claimed it.
+  /// Plain columns, not a relation: the sweep owns their lifetime.
   draftForSokoBotId String?   @db.Uuid
   draftExpiresAt    DateTime?
 
+  /// Drawn by the pool, not for one bot. A pool look taken as a draft goes back
+  /// to the pool when the draft expires; a look drawn for a bot is deleted.
+  fromPool Boolean @default(false)
+
   /// When and by whom the look was kept. Read by the per-user daily keep cap,
-  /// so it survives the bot replacing the look.
+  /// so the row stays (as a tombstone, without renders) for the cap window
+  /// after the bot replaces the look.
   keptAt       DateTime?
   keptByUserId String?
 
