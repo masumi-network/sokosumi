@@ -2306,6 +2306,25 @@
         },
         "closed": "Closed"
       },
+      "column": {
+        "needsYou": {
+          "title": "Needs you",
+          "empty": "Nothing waits on you.",
+          "error": "Failed to load what needs you.",
+          "showAll": "Show all"
+        },
+        "activity": {
+          "title": "Recent activity",
+          "empty": "No activity in open projects yet.",
+          "error": "Failed to load recent activity.",
+          "showAll": "Show all",
+          "untitledJob": "Untitled job",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Task created} COMMENT {Comment added} READY {Task ready} QUEUED {Task scheduled} RUNNING {Task running} INPUT_REQUIRED {Task needs input} APPROVAL_REQUIRED {Task needs approval} AUTHENTICATION_REQUIRED {Task needs sign-in} OUT_OF_CREDITS {Task paused for credits} COMPLETED {Task completed} FAILED {Task failed} CANCELED {Task canceled} other {Task updated}}",
+          "job": "{status, select, INITIATED {Job started} AWAITING_PAYMENT {Job awaiting payment} AWAITING_INPUT {Job needs input} RUNNING {Job running} COMPLETED {Job completed} FAILED {Job failed} other {Job updated}}",
+          "project": "{event, select, CLOSE_REQUESTED {Close requested} BATCH_FAILED {Close failed} RETRY_REQUESTED {Close retried} SERIES_RESOLVED {Scheduled work stopped} CLOSE_FINALIZED {Project closed} other {Project updated}}"
+        }
+      },
       "Briefing": {
         "label": "Briefing",
         "placeholder": "Describe the campaign or initiative…",
