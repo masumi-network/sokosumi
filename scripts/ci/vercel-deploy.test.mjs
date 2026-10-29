@@ -5,7 +5,9 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  changesVercelConfig,
   createGitDeployment,
+  deleteForkPreviewBranch,
   deployTargets,
   GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
@@ -15,6 +17,7 @@ import {
   listPullRequestFiles,
   noPreviewChangesMessage,
   parseDeployComment,
+  pointForkPreviewBranch,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
@@ -409,12 +412,17 @@ describe("runPreviewDeployComment", () => {
 
   function commentDeploy(
     commentBody,
-    { headRepo = { id: 2, fork: true } } = {},
+    {
+      headRepo = { id: 2, fork: true },
+      headRef = "main",
+      files = [{ filename: "apps/web/app/page.tsx" }],
+    } = {},
   ) {
     const posted = [];
     const reactions = [];
     const created = [];
     const prepared = [];
+    const steps = [];
     const result = runPreviewDeployComment({
       commentBody,
       isPullRequest: true,
@@ -425,11 +433,15 @@ describe("runPreviewDeployComment", () => {
         state: "open",
         number: 12,
         // A fork branch may share a name with one of ours.
-        head: { sha: FORK_SHA, ref: "main", repo: headRepo },
+        head: { sha: FORK_SHA, ref: headRef, repo: headRepo },
         base: { repo: { id: 1 } },
       }),
-      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      listFiles: async () => files,
+      pointBranch: async ({ branch, sha }) => {
+        steps.push({ branch, sha });
+      },
       prepareResources: async (options) => {
+        steps.push("prepare");
         prepared.push(options);
       },
       createDeployment: async (input) => {
@@ -444,7 +456,7 @@ describe("runPreviewDeployComment", () => {
         reactions.push(content);
       },
     });
-    return { result, posted, reactions, created, prepared };
+    return { result, posted, reactions, created, prepared, steps };
   }
 
   it("asks a fork pull request for the head SHA before touching anything", async () => {
@@ -471,19 +483,56 @@ describe("runPreviewDeployComment", () => {
     assert.deepEqual(run.created, []);
   });
 
-  it("deploys exactly the approved fork commit from the PR's head ref", async () => {
+  it("deploys exactly the approved fork commit from our fork preview branch", async () => {
     const run = commentDeploy(`/deploy preprod ${FORK_SHA}`);
     assert.equal((await run.result).kind, "deploy");
     assert.deepEqual(run.posted, []);
     assert.deepEqual(run.reactions, ["eyes", "rocket"]);
+    // Vercel refuses env vars for a branch that does not exist yet.
+    assert.deepEqual(run.steps, [
+      { branch: "preview-fork/pr-12", sha: FORK_SHA },
+      "prepare",
+    ]);
     assert.equal(run.created.length, 2);
     for (const input of run.created) {
       assert.equal(input.repoId, 1);
       assert.equal(input.sha, FORK_SHA);
-      assert.equal(input.ref, "refs/pull/12/head");
+      assert.equal(input.ref, "preview-fork/pr-12");
     }
-    // Core env vars are scoped to the PR ref, never the fork's `main`.
-    assert.equal(run.prepared[0].ref, "refs/pull/12/head");
+    // Core env vars are scoped to that branch, never the fork's `main`.
+    assert.equal(run.prepared[0].ref, "preview-fork/pr-12");
+  });
+
+  it("refuses a fork that changes Vercel config, or whose file list is capped", async () => {
+    for (const files of [
+      [{ filename: "apps/core/vercel.json" }],
+      Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, index) => ({
+        filename: `apps/web/file-${index}.ts`,
+      })),
+    ]) {
+      const run = commentDeploy(`/deploy preprod ${FORK_SHA}`, { files });
+      assert.equal((await run.result).kind, "fork-vercel-config");
+      assert.match(run.posted[0], /vercel\.json/);
+      assert.deepEqual(run.steps, []);
+      assert.deepEqual(run.created, []);
+    }
+  });
+
+  it("refuses a same-repo pull request from a reserved preview-fork branch", async () => {
+    const run = commentDeploy("/deploy preprod", {
+      headRepo: { id: 1 },
+      headRef: "preview-fork/pr-3",
+    });
+    assert.equal((await run.result).kind, "reserved-branch");
+    assert.deepEqual(run.steps, []);
+    assert.deepEqual(run.created, []);
+  });
+
+  it("never writes a branch for a same-repo pull request", async () => {
+    const run = commentDeploy("/deploy preprod", { headRepo: { id: 1 } });
+    assert.equal((await run.result).kind, "deploy");
+    assert.deepEqual(run.steps, ["prepare"]);
+    assert.equal(run.created[0].ref, "main");
   });
 
   it("treats a pull request whose head repo was deleted as a fork", async () => {
@@ -674,6 +723,87 @@ describe("runPreviewDeployComment", () => {
       /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
     assert.deepEqual(reactions, ["eyes"]);
+  });
+});
+
+describe("fork preview branch", () => {
+  function github(responses) {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({
+        url: String(url),
+        method: init.method,
+        body: init.body ? JSON.parse(init.body) : undefined,
+      });
+      const [status, body] = responses.shift();
+      return new Response(body === undefined ? null : JSON.stringify(body), {
+        status,
+      });
+    };
+    const options = {
+      fetchImpl,
+      githubToken: "token",
+      repoOwner: "owner",
+      repoName: "repo",
+      branch: "preview-fork/pr-12",
+    };
+    return { calls, options };
+  }
+  const refs = "https://api.github.com/repos/owner/repo/git/refs";
+
+  it("creates the branch at the approved commit", async () => {
+    const { calls, options } = github([[201, {}]]);
+    await pointForkPreviewBranch({ ...options, sha: FORK_SHA });
+    assert.deepEqual(calls, [
+      {
+        url: refs,
+        method: "POST",
+        body: { ref: "refs/heads/preview-fork/pr-12", sha: FORK_SHA },
+      },
+    ]);
+  });
+
+  it("force-moves an existing branch to the approved commit", async () => {
+    const { calls, options } = github([
+      [422, { message: "Reference already exists" }],
+      [200, { object: { sha: FORK_SHA } }],
+    ]);
+    await pointForkPreviewBranch({ ...options, sha: FORK_SHA });
+    assert.deepEqual(calls[1], {
+      url: `${refs}/heads/preview-fork/pr-12`,
+      method: "PATCH",
+      body: { sha: FORK_SHA, force: true },
+    });
+  });
+
+  it("throws when GitHub moves the branch to another commit", async () => {
+    const { options } = github([
+      [422, { message: "Reference already exists" }],
+      [200, { object: { sha: STALE_SHA } }],
+    ]);
+    await assert.rejects(
+      pointForkPreviewBranch({ ...options, sha: FORK_SHA }),
+      /did not move preview-fork\/pr-12/,
+    );
+  });
+
+  it("throws when GitHub refuses the branch", async () => {
+    const { options } = github([[403, { message: "Resource not accessible" }]]);
+    await assert.rejects(
+      pointForkPreviewBranch({ ...options, sha: FORK_SHA }),
+      /GitHub 403: .*Resource not accessible/,
+    );
+  });
+
+  it("deletes the branch and treats a missing one as deleted", async () => {
+    for (const status of [204, 404, 422]) {
+      const { calls, options } = github([[status]]);
+      await deleteForkPreviewBranch(options);
+      assert.equal(calls[0].method, "DELETE");
+      assert.equal(calls[0].url, `${refs}/heads/preview-fork/pr-12`);
+    }
+    const { options } = github([[403, { message: "nope" }]]);
+    await assert.rejects(deleteForkPreviewBranch(options), /GitHub 403/);
   });
 });
 
@@ -914,6 +1044,34 @@ describe("summarizeCliDeployResult", () => {
     assert.deepEqual(summarizeCliDeployResult({ kind: "ignore" }), {
       kind: "ignore",
     });
+  });
+});
+
+describe("changesVercelConfig", () => {
+  it("matches Vercel project config files only", () => {
+    for (const filename of [
+      "apps/core/vercel.json",
+      "vercel.json",
+      "apps/web/vercel.ts",
+      "now.json",
+    ]) {
+      assert.ok(changesVercelConfig([{ filename }]), filename);
+    }
+    assert.ok(
+      !changesVercelConfig([
+        { filename: "docs/vercel.md" },
+        { filename: "apps/web/vercel.json.bak" },
+        { filename: "scripts/ci/vercel-deploy.mjs" },
+      ]),
+    );
+    assert.ok(
+      changesVercelConfig([
+        {
+          filename: "apps/core/config.json",
+          previous_filename: "apps/core/vercel.json",
+        },
+      ]),
+    );
   });
 });
 
