@@ -1,11 +1,8 @@
-import type {
-  NotificationItem,
-  ProjectActivityItem,
-} from "@sokosumi/core-client";
+import type { NotificationItem } from "@sokosumi/core-client";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NeedsYouPanel, RecentActivityPanel } from "./workspace-column";
+import { NeedsYouPanel } from "./workspace-column";
 
 const { getProjectByIdMock, markReadMock, navigateMock, setViewMock } =
   vi.hoisted(() => ({
@@ -104,7 +101,9 @@ describe("NeedsYouPanel", () => {
           notification("n1", project.id),
           notification("n2"),
         ]),
-        projects: { [project.id]: { name: "Launch", logo: null } },
+        projects: Promise.resolve([
+          { id: project.id, name: "Launch", logo: null },
+        ]),
       }),
     );
 
@@ -149,8 +148,8 @@ describe("NeedsYouPanel", () => {
     render(
       await NeedsYouPanel({
         feed: Promise.resolve([notification("n1", project.id)]),
-        // The grid is filtered by `q`, so its page lacks this project.
-        projects: {},
+        // Home loaded only its first projects, so this one is missing.
+        projects: Promise.resolve([]),
       }),
     );
 
@@ -161,7 +160,12 @@ describe("NeedsYouPanel", () => {
   });
 
   it("says nothing waits when the view is empty", async () => {
-    render(await NeedsYouPanel({ feed: Promise.resolve([]), projects: {} }));
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([]),
+        projects: Promise.resolve([]),
+      }),
+    );
 
     expect(screen.getByTestId("workspace-needs-you-empty")).toHaveTextContent(
       "App.Projects.column.needsYou.empty",
@@ -170,93 +174,15 @@ describe("NeedsYouPanel", () => {
   });
 
   it("says the feed failed rather than that nothing waits", async () => {
-    render(await NeedsYouPanel({ feed: Promise.resolve(null), projects: {} }));
-
-    expect(screen.getByTestId("workspace-needs-you-empty")).toHaveTextContent(
-      "App.Projects.column.needsYou.error",
-    );
-  });
-});
-
-describe("RecentActivityPanel", () => {
-  it("lists task, job and project events with their project and a link to each", async () => {
-    const items: ProjectActivityItem[] = [
-      {
-        kind: "task",
-        id: "e1",
-        createdAt: HOURS_AGO,
-        project,
-        taskId: "task-1",
-        title: "Draft the post",
-        status: "COMPLETED",
-      },
-      {
-        kind: "job",
-        id: "e2",
-        createdAt: HOURS_AGO,
-        project,
-        jobId: "job-1",
-        agentId: "agent-1",
-        title: null,
-        status: "AWAITING_INPUT",
-      },
-      {
-        kind: "project",
-        id: "e3",
-        createdAt: HOURS_AGO,
-        project,
-        event: "CLOSE_REQUESTED",
-      },
-    ];
-
-    render(await RecentActivityPanel({ feed: Promise.resolve(items) }));
-
-    const rows = screen.getAllByTestId("workspace-activity-row");
-    expect(rows).toHaveLength(3);
-    const ns = "App.Projects.column.activity";
-    expect(rows[0]).toHaveTextContent("Draft the post");
-    expect(rows[0]).toHaveTextContent(
-      `${ns}.detail(Launch,${ns}.task(COMPLETED))`,
-    );
-    expect(within(rows[0]).getByRole("link")).toHaveAttribute(
-      "href",
-      "/tasks/task-1",
-    );
-    expect(rows[1]).toHaveTextContent(`${ns}.untitledJob`);
-    expect(within(rows[1]).getByRole("link")).toHaveAttribute(
-      "href",
-      "/agents/agent-1/jobs/job-1",
-    );
-    expect(rows[2]).toHaveTextContent(`${ns}.project(CLOSE_REQUESTED)`);
-    expect(within(rows[2]).getByRole("link")).toHaveAttribute(
-      "href",
-      `/projects/${project.id}`,
-    );
-    for (const row of rows) {
-      expect(within(row).getByTestId("project-avatar")).toBeInTheDocument();
-      expect(row).toHaveTextContent("2h ago");
-    }
-  });
-
-  it("calls a comment-only task event a comment", async () => {
     render(
-      await RecentActivityPanel({
-        feed: Promise.resolve([
-          {
-            kind: "task",
-            id: "e1",
-            createdAt: HOURS_AGO,
-            project,
-            taskId: "task-1",
-            title: "Draft the post",
-            status: null,
-          },
-        ]),
+      await NeedsYouPanel({
+        feed: Promise.resolve(null),
+        projects: Promise.resolve([]),
       }),
     );
 
-    expect(screen.getByTestId("workspace-activity-row")).toHaveTextContent(
-      "App.Projects.column.activity.task(COMMENT)",
+    expect(screen.getByTestId("workspace-needs-you-empty")).toHaveTextContent(
+      "App.Projects.column.needsYou.error",
     );
   });
 });

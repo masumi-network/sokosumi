@@ -66,7 +66,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/")).toBe("home");
     expect(resolveChatMobileActiveTabId("/tasks")).toBe("tasks");
     expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
-    expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
+    expect(resolveChatMobileActiveTabId("/projects")).toBe("home");
     expect(resolveChatMobileActiveTabId("/you")).toBe("you");
     expect(resolveChatMobileActiveTabId("/history")).toBe("home");
     expect(resolveChatMobileActiveTabId("/notifications")).toBe("home");
@@ -130,13 +130,12 @@ describe("ChatMobileBottomNav", () => {
       "/",
       "/tasks",
       "/chat",
-      "/projects",
       "/you",
     ]);
     expect(screen.getByRole("link", { name: "home" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "tasks" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "chats" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "projects" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
     expect(screen.getByRole("link", { name: "you" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "search" })).toBeNull();
     expect(screen.queryByRole("link", { name: "agents" })).toBeNull();
@@ -215,11 +214,11 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  it("sets aria-current on Projects for /projects", () => {
+  it("sets aria-current on Home for /projects, which Home links to", () => {
     mockPathname = "/projects";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -281,7 +280,7 @@ describe("ChatMobileBottomNav", () => {
     mockPathname = "/account";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
-    for (const name of ["home", "tasks", "chats", "projects", "you"]) {
+    for (const name of ["home", "tasks", "chats", "you"]) {
       expect(screen.getByRole("link", { name })).not.toHaveAttribute(
         "aria-current",
       );

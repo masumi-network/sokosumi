@@ -11,7 +11,6 @@ import type {
   InitiateProjectSocialConnectionResponse,
   JobSummary,
   Project,
-  ProjectActivityItem,
   ProjectCloseRecoveryRequest,
   ProjectCloseRequest,
   ProjectCloseStatus,
@@ -100,14 +99,6 @@ export const projectService = (() => {
     });
 
     return result.data.projects;
-  }
-
-  /** Recent activity: the newest event per task, job and project across open projects. */
-  async function listRecentActivity(
-    limit: number,
-  ): Promise<ProjectActivityItem[]> {
-    const result = await coreClient.getProjectsActivity({ limit });
-    return result.data;
   }
 
   async function getProjectById(projectId: string): Promise<Project | null> {
@@ -683,7 +674,6 @@ export const projectService = (() => {
     isProjectHidden,
     hideProject,
     showProject,
-    listRecentActivity,
     patchProject,
     removeProjectDesignMd,
     listSocialConnections,

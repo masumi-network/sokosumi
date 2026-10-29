@@ -45,8 +45,6 @@ interface SokoBotHomeComposerProps {
   suggestions: string[];
   /** What needs the reader, shown before the prompts. */
   attention: ReactNode;
-  /** What the team did in the last day, below the composer. */
-  children: ReactNode;
 }
 
 /**
@@ -61,7 +59,6 @@ export function SokoBotHomeComposer({
   header,
   suggestions,
   attention,
-  children,
 }: SokoBotHomeComposerProps) {
   const t = useTranslations("App.Chat.Landing.SokoBotHome");
   const tChannels = useTranslations("App.Channels");
@@ -126,10 +123,10 @@ export function SokoBotHomeComposer({
   }
 
   return (
-    <div className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
-      {/* The composer sits a little above the middle of the screen, as on a
-          chat entry page; the day's list starts below the fold's edge. */}
-      <div className="flex w-full max-w-3xl flex-col gap-8 pt-[14dvh] md:pt-[22dvh]">
+    <div className="flex w-full min-w-0 flex-col items-center">
+      {/* The composer opens near the top, as on a chat entry page; Home's
+          board (Needs you, Projects, the team's day) follows below it. */}
+      <div className="flex w-full max-w-3xl flex-col gap-6 pt-4 md:pt-8">
         {header}
         <div className="flex flex-col gap-4">
           <RoomComposer
@@ -164,7 +161,6 @@ export function SokoBotHomeComposer({
           </div>
         </div>
       </div>
-      <div className="w-full max-w-3xl pt-16 pb-10">{children}</div>
     </div>
   );
 }

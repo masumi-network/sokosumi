@@ -88,18 +88,9 @@ export const PROJECTS_CARD_LAYOUT_CLASS =
 export const PROJECTS_CARD_CLASS =
   "bg-background border-border rounded-lg border";
 
-/** Rows each Workspace column panel loads, and shows beside the grid (`xl`). */
+/** Rows each Workspace column panel loads, and shows beside the grid (`xl`).
+ * The column became Home's board; Needs you still loads this many. */
 export const WORKSPACE_COLUMN_ROWS = 5;
-
-/** Rows each panel shows while the column stacks above the grid (under `xl`). */
-export const WORKSPACE_COLUMN_STACKED_ROWS = 3;
-
-/**
- * Workspace column beside the Open grid: stacked above it under `xl`, a
- * 20rem column on its leading side from `xl`. Shared with the Instant shell.
- */
-export const PROJECTS_OPEN_LAYOUT_CLASS =
-  "flex flex-col gap-5 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

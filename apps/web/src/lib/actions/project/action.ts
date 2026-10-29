@@ -195,6 +195,8 @@ function normalizeOptionalWebsiteUrl(
 
 function revalidateProjectMutationRoutes(projectId: string) {
   revalidatePath("/projects");
+  // Home lists the projects too.
+  revalidatePath("/");
   revalidatePath(`/projects/${projectId}`);
 }
 
@@ -309,6 +311,8 @@ export const createProject = withSession<
     });
 
     revalidatePath("/projects");
+    // Home lists the projects too.
+    revalidatePath("/");
     return toActionResult(ok({ projectId: project.id, project }));
   } catch (error) {
     if (isIdentifierTaken(error)) return identifierTaken();

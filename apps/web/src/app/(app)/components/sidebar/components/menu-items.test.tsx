@@ -274,7 +274,6 @@ describe("MenuItems groups", () => {
     renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "projects",
       "home",
       "exploreAgents",
       "taskManager",
@@ -324,11 +323,12 @@ describe("MenuItems groups", () => {
 
   // The wordmark's link to `/` became this row when the Workspace switcher
   // took the sidebar header.
+  // With no project row (none known here), Home leads Work.
   it("puts Home under the scope's row, a plain link to the home page", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
-    expect(destinationsUnder("groups.work")[1]).toBe("home");
+    expect(destinationsUnder("groups.work")[0]).toBe("home");
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "href",
       "/",
@@ -340,7 +340,6 @@ describe("MenuItems groups", () => {
     renderMenu(true, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -480,25 +479,14 @@ describe("MenuItems project scope", () => {
     searchRef.current = "";
   });
 
-  it("leads Work with Projects, to the Projects list, with no project selected", () => {
+  // Home lists the projects and links to the full list, so the workspace
+  // scope has no row of its own.
+  it("leads Work with Home, and no Projects row, with no project selected", () => {
     renderMenu(true, false);
 
-    expect(destinationsUnder("groups.work")[0]).toBe("projects");
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
+    expect(destinationsUnder("groups.work")[0]).toBe("home");
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
-  });
-
-  it("marks Projects current on the Projects list", () => {
-    pathnameRef.current = "/projects";
-    renderMenu(true, false);
-
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
   });
 
   it("swaps Projects for Overview, with the project's avatar, once one is selected", () => {
@@ -516,14 +504,11 @@ describe("MenuItems project scope", () => {
     ).toHaveTextContent("A");
   });
 
-  it("keeps Projects when Core does not know the scoped project", () => {
+  it("shows no scope row when Core does not know the scoped project", () => {
     searchRef.current = "projectId=gone";
     renderMenu(true, false);
 
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
   });
 

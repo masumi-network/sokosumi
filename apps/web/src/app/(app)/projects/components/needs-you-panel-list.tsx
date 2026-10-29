@@ -72,12 +72,16 @@ export function NeedsYouPanelList({
       testId="workspace-needs-you"
       title={labels.title}
       empty={labels.empty}
-      action={{
-        kind: "link",
-        label: labels.showAll,
-        href: "/notifications",
-        onClick: () => notificationCenter?.setView("needs-action"),
-      }}
+      action={
+        // Nothing to show all of when the view is empty.
+        notifications.length > 0
+          ? {
+              label: labels.showAll,
+              href: "/notifications",
+              onClick: () => notificationCenter?.setView("needs-action"),
+            }
+          : undefined
+      }
       rows={notifications.map((notification) => {
         const project = projects[notification.id];
         const Icon = getNotificationIcon(notification);

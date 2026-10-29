@@ -567,6 +567,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
 
       revalidatePath("/tasks");
       revalidatePath("/projects");
+      // Home lists the projects too.
+      revalidatePath("/");
       return taskMutationSuccess({
         taskId: task.id,
         name: task.name,
@@ -643,6 +645,8 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       revalidateTaskMutationRoutes();
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
+        // Home lists the projects too.
+        revalidatePath("/");
       }
       return taskMutationSuccess({ taskId });
     } catch (error) {

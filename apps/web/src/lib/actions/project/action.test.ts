@@ -139,6 +139,7 @@ describe("project actions", () => {
       websiteUrl: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
     expect(result).toEqual(
       expect.objectContaining({
         ok: true,
@@ -310,6 +311,7 @@ describe("project actions", () => {
       briefing: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(result).toEqual({ ok: true, value: { projectId: "project-1" } });
   });
@@ -336,6 +338,7 @@ describe("project actions", () => {
     });
     for (const path of [
       "/projects",
+      "/",
       "/projects/project-1",
       "/calendar",
       "/tasks",
@@ -550,6 +553,7 @@ describe("project actions", () => {
     );
     expect(result).toEqual({ ok: true, value: connection });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/edit");
   });
@@ -579,6 +583,7 @@ describe("project actions", () => {
     );
     expect(result).toEqual({ ok: true, value: connection });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/edit");
   });

@@ -1,19 +1,13 @@
-import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 
-import { ActivityTrend } from "./activity-trend";
-import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
+import { resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
 interface ChatLandingProps {
   coworkers: Coworker[];
-  /** True only for an organization workspace, where other humans exist. */
-  isOrganizationWorkspace: boolean;
-  /** Null when Core could not be reached; chips still render as zeros. */
-  summary: TaskActivitySummary | null;
   /** Given name already resolved, or null for the nameless greeting. */
   userName: null | string;
 }
@@ -22,71 +16,46 @@ interface ChatLandingProps {
  * Desktop composition of the `/chat` welcome (`chat-landing.tsx`).
  *
  * Pair of {@link ChatLandingMobile} (`chat-landing.mobile.tsx`): same content
- * decisions from `landing-content`, larger strip and type. Owns `/chat` at
+ * decisions from `landing-content`, larger type. Owns `/chat` at
  * `md` and up.
  *
- * Middle column is top-aligned so Start chat stays put across coworker
- * selection. Stats stay `shrink-0` at the bottom of the viewport-tall column —
- * always mounted, including zero chips — so the first view keeps the row.
+ * The top of Home: Needs you, Projects and the team's day follow it, so it
+ * keeps to its content's height and uses the compact strip rather than
+ * filling the viewport. The last-24-hours counts head the team day panel.
  */
-export async function ChatLanding({
-  coworkers,
-  isOrganizationWorkspace,
-  summary,
-  userName,
-}: ChatLandingProps) {
+export async function ChatLanding({ coworkers, userName }: ChatLandingProps) {
   const t = await getTranslations("App.Chat.Landing");
   const featured = resolveFeaturedCoworker(coworkers);
-  const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
     // `-mx-4` cancels app-main `p-4` so the strip can use the full content
-    // pane. No middle-column `px-*` / `max-w-*`: pad pitch + stats + CTA only.
+    // pane. No middle-column `px-*` / `max-w-*`: pad pitch + CTA only.
     // Padding on an overflow-y ancestor clips edge faces.
-    <div className="-mx-4 flex h-full min-h-0 w-[calc(100%+2rem)] min-w-0 flex-1 flex-col items-stretch pt-10 lg:pt-16">
+    <div className="-mx-4 flex w-[calc(100%+2rem)] min-w-0 flex-col items-stretch justify-start pt-6 text-center lg:pt-10">
       <SokosumiIcon
         animated={false}
         className="text-foreground shrink-0 self-center"
-        height={48}
-        width={48}
+        height={40}
+        width={40}
       />
 
-      <div className="app-scrollbar flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-8 text-center lg:py-12">
-        <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance md:text-4xl tracking-tight">
-          {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
-        </h1>
+      <h1 className="text-foreground mt-6 shrink-0 px-4 text-2xl font-light text-balance md:text-3xl tracking-tight">
+        {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
+      </h1>
 
-        <p className="text-muted-foreground mt-4 shrink-0 px-4 text-base leading-[1.65] md:mt-6 md:text-lg md:whitespace-nowrap">
-          {t("intro")}
-        </p>
+      <p className="text-muted-foreground mt-3 shrink-0 px-4 text-base leading-[1.65] md:whitespace-nowrap">
+        {t("intro")}
+      </p>
 
-        {featured ? (
-          <OpenCoworkerRoomProvider>
-            <LandingCoworkerPicker
-              coworkers={coworkers}
-              initialSelectedId={featured.id}
-            />
-          </OpenCoworkerRoomProvider>
-        ) : null}
-      </div>
-
-      <div
-        className="flex w-full shrink-0 flex-col items-center gap-3 px-4 pb-4"
-        data-testid="landing-activity-stats"
-      >
-        <p className="text-muted-foreground text-sm">{t("stats.recent")}</p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {stats.map((stat) => (
-            <span
-              className="bg-card text-muted-foreground inline-flex items-center rounded-full border px-3 py-1.5 text-sm tabular-nums"
-              key={stat.label}
-            >
-              {stat.label}
-              <ActivityTrend trend={stat.trend} />
-            </span>
-          ))}
-        </div>
-      </div>
+      {featured ? (
+        <OpenCoworkerRoomProvider>
+          <LandingCoworkerPicker
+            coworkers={coworkers}
+            initialSelectedId={featured.id}
+            size="compact"
+          />
+        </OpenCoworkerRoomProvider>
+      ) : null}
     </div>
   );
 }
