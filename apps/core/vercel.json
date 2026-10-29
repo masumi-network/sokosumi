@@ -13,7 +13,7 @@
   "functions": {
     "dist/index.js": {
       "maxDuration": 300,
-      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**,node_modules/ffmpeg-static/ffmpeg,assets/soko-bot-avatar/*}"
+      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**,assets/soko-bot-avatar/*}"
     }
   },
   "relatedProjects": [

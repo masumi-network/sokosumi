@@ -2,7 +2,7 @@
 /**
  * Fail the build if the shared `includeFiles` glob has stopped covering
  * everything that depends on it: the PDF parser (the long story below), the
- * Soko Bot runner, and the avatar pipeline's ffmpeg binary and house scene.
+ * Soko Bot runner, and the avatar pipeline's house scene.
  *
  * The parser reaches the deployed function through exactly one mechanism:
  * the `includeFiles` glob in `apps/core/vercel.json`. Nothing traces it —
@@ -59,17 +59,14 @@ const SPECIFIERS = [
 
 /**
  * Files the same glob has to carry, checked by path rather than by
- * resolution: the runner is emitted by tsup, and the ffmpeg binary and the
- * avatar house scene are read at runtime by code `@vercel/nft` cannot trace.
+ * resolution: the runner is emitted by tsup, and the avatar house scene is
+ * read at runtime by code `@vercel/nft` cannot trace. ffmpeg is deliberately
+ * absent: the avatar loops fetch it into /tmp on first use (see media.ts).
  */
 const BUILD_OUTPUTS = [
   {
     file: "dist/soko-bot-runner.mjs",
     why: "Soko Bot turns run in a sandbox from this file",
-  },
-  {
-    file: "node_modules/ffmpeg-static/ffmpeg",
-    why: "avatar levels and loops run this binary",
   },
   {
     file: "assets/soko-bot-avatar/crafted-desk-house.jpg",

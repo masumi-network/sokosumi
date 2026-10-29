@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import ffmpegPath from "ffmpeg-static";
+import sharp from "sharp";
 import {
   afterAll,
   afterEach,
@@ -308,25 +309,17 @@ function ffmpeg(args: string[], input?: Buffer): Buffer {
   });
 }
 
-/** The colour of one pixel of a WebP, decoded with ffmpeg. */
-function pixel(webp: Buffer, x: number, y: number): number[] {
-  const rgb = ffmpeg(
-    [
-      "-i",
-      "pipe:0",
-      "-frames:v",
-      "1",
-      "-f",
-      "rawvideo",
-      "-pix_fmt",
-      "rgb24",
-      "pipe:1",
-    ],
-    webp,
-  );
-  const width = Math.sqrt(rgb.length / 3);
-  const at = (y * width + x) * 3;
-  return [rgb[at]!, rgb[at + 1]!, rgb[at + 2]!];
+/**
+ * The colour of one pixel of a WebP, decoded by libwebp as browsers do.
+ * ffmpeg's own decoder converts YUV differently and reads 1-2 levels off.
+ */
+async function pixel(webp: Buffer, x: number, y: number): Promise<number[]> {
+  const { data, info } = await sharp(webp)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const at = (y * info.width + x) * 3;
+  return [data[at]!, data[at + 1]!, data[at + 2]!];
 }
 
 /** The first frame of an animated WebP, rewrapped as a still ffmpeg can decode. */
@@ -512,7 +505,7 @@ describe("levels", () => {
     const leveled = await levelStill(fixturePng, 245);
 
     // WebP is lossy, so the flat background may move a level or two.
-    const [r, g, b] = pixel(leveled, 2, 2);
+    const [r, g, b] = await pixel(leveled, 2, 2);
     for (const channel of [r, g, b]) {
       expect(Math.abs(channel! - 245)).toBeLessThanOrEqual(2);
     }
@@ -527,9 +520,9 @@ describe("levels", () => {
     // 0xEB (235) toward 100 would need 0.43; the clamp stops at 0.85.
     const leveled = await levelStill(fixturePng, 100);
 
-    expect(Math.abs(pixel(leveled, 2, 2)[0]! - 235 * 0.85)).toBeLessThanOrEqual(
-      4,
-    );
+    expect(
+      Math.abs((await pixel(leveled, 2, 2))[0]! - 235 * 0.85),
+    ).toBeLessThanOrEqual(4);
   });
 });
 
@@ -562,7 +555,9 @@ describe("drafting", () => {
     const stored = blobFiles.get(draft!.imageUrl)!;
     expect(webpInfo(stored).width).toBe(640);
     // And it came back levelled to #F5F5F5.
-    expect(Math.abs(pixel(stored, 2, 2)[0]! - 245)).toBeLessThanOrEqual(1);
+    expect(Math.abs((await pixel(stored, 2, 2))[0]! - 245)).toBeLessThanOrEqual(
+      1,
+    );
     expect(bots.avatarImageUrl).toBeNull();
   });
 
@@ -969,18 +964,19 @@ describe("reconciling renders", () => {
       expect(loop.frames).toBeGreaterThan(5);
       // Loops are colour-corrected to the state's background.
       const target = row.state === "OFFLINE" ? 215 : 245;
-      const corner = pixel(
+      const [corner] = await pixel(
         firstFrame(blobFiles.get(row.loopUrl as string)!),
         3,
         3,
-      )[0]!;
-      expect(Math.abs(corner - target)).toBeLessThanOrEqual(3);
+      );
+      expect(Math.abs(corner! - target)).toBeLessThanOrEqual(3);
     }
     // The still of a dimmer state lands on its own, darker background.
     const offline = renders.rows.find((row) => row.state === "OFFLINE")!;
     expect(
       Math.abs(
-        pixel(blobFiles.get(offline.stillUrl as string)!, 2, 2)[0]! - 215,
+        (await pixel(blobFiles.get(offline.stillUrl as string)!, 2, 2))[0]! -
+          215,
       ),
     ).toBeLessThanOrEqual(1);
   }, 120_000);
@@ -1307,7 +1303,8 @@ describe("the style is data", () => {
     const thinking = renders.rows.find((row) => row.state === "THINKING")!;
     expect(
       Math.abs(
-        pixel(blobFiles.get(thinking.stillUrl as string)!, 2, 2)[0]! - 200,
+        (await pixel(blobFiles.get(thinking.stillUrl as string)!, 2, 2))[0]! -
+          200,
       ),
     ).toBeLessThanOrEqual(3);
 

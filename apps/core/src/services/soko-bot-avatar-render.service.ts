@@ -52,8 +52,9 @@ import { getSokoBotAvailability } from "@/services/soko-bot-availability.service
 /**
  * A lease outlives the slowest step, or a second tick would reclaim a row that
  * is still being worked. Worst case for a still: download 60 s, image edit
- * 120 s, two ffmpeg runs of 90 s, upload 60 s, about 7 minutes. A collect
- * (poll 30 s, download 60 s, three ffmpeg runs, two uploads) is about the same.
+ * 120 s, levels in-process, upload 60 s, about 4 minutes. A collect (poll
+ * 30 s, download 60 s, an instance's first ffmpeg fetch 60 s, three ffmpeg
+ * runs of 90 s with two in parallel, two uploads) is about 8 minutes.
  */
 const LEASE_MS = 10 * 60 * 1000;
 /** How long a submit of unknown outcome is left alone before it is submitted again. */
