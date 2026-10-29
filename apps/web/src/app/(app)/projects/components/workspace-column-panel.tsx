@@ -9,6 +9,13 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
+import { WORKSPACE_COLUMN_FOCUS_RING } from "./workspace-column-row";
+
+const ACTION_CLASS = cn(
+  WORKSPACE_COLUMN_FOCUS_RING,
+  "text-muted-foreground hover:text-foreground cursor-pointer rounded-sm text-xs font-medium transition-colors",
+);
+
 type WorkspaceColumnPanelAction =
   /** A link out, at every width: Needs you opens the Notification Center view. */
   | { kind: "link"; label: string; href: string; onClick?: () => void }
@@ -52,7 +59,7 @@ export function WorkspaceColumnPanel({
           <Link
             href={action.href}
             onClick={action.onClick}
-            className="text-muted-foreground hover:text-foreground rounded-sm text-xs font-medium transition-colors"
+            className={ACTION_CLASS}
           >
             {action.label}
           </Link>
@@ -61,7 +68,7 @@ export function WorkspaceColumnPanel({
           <button
             type="button"
             onClick={() => setIsExpanded(true)}
-            className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm text-xs font-medium transition-colors xl:hidden"
+            className={cn(ACTION_CLASS, "xl:hidden")}
           >
             {action.label}
           </button>

@@ -4,16 +4,16 @@ import type {
 } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { projectService } from "@/lib/services/project.service";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { formatNotificationTimeLabel } from "@/lib/utils/notification-time-label";
 
-import {
-  NeedsYouPanelList,
-  type NeedsYouProject,
-} from "./needs-you-panel-list";
-import { ProjectAvatar } from "./project-avatar";
+import { type ColumnProject, NeedsYouPanelList } from "./needs-you-panel-list";
 import { WorkspaceColumnPanel } from "./workspace-column-panel";
-import { WorkspaceColumnRow } from "./workspace-column-row";
+import {
+  WorkspaceColumnProjectAvatar,
+  WorkspaceColumnRow,
+} from "./workspace-column-row";
 import { WorkspaceColumnPanelSkeleton } from "./workspace-column-skeleton";
 
 /** Null when the feed failed: the panel says so instead of failing the page. */
@@ -22,7 +22,7 @@ type PanelFeed<T> = Promise<T[] | null>;
 interface WorkspaceColumnProps {
   needsYou: PanelFeed<NotificationItem>;
   activity: PanelFeed<ProjectActivityItem>;
-  projects: Record<string, NeedsYouProject>;
+  projects: Record<string, ColumnProject>;
 }
 
 /**
@@ -68,6 +68,47 @@ async function loadTimeLabel() {
     formatNotificationTimeLabel(timestamp, now, formatter, justNow);
 }
 
+function notificationProjectId(notification: NotificationItem): string | null {
+  const projectId = notification.metadata?.projectId;
+  return typeof projectId === "string" ? projectId : null;
+}
+
+/**
+ * Each row's project, by notification id. The grid's page answers most of
+ * them; a project it does not hold (a later page, or filtered out by `q`) is
+ * read on its own, so a row never loses its avatar to the grid's filter.
+ */
+async function resolveRowProjects(
+  rows: NotificationItem[],
+  gridProjects: Record<string, ColumnProject>,
+): Promise<Record<string, ColumnProject>> {
+  const missingIds = [
+    ...new Set(
+      rows.flatMap((row) => {
+        const projectId = notificationProjectId(row);
+        return projectId && !gridProjects[projectId] ? [projectId] : [];
+      }),
+    ),
+  ];
+  const fetched = await Promise.all(
+    missingIds.map((id) => projectService.getProjectById(id).catch(() => null)),
+  );
+  const byProjectId: Record<string, ColumnProject> = { ...gridProjects };
+  for (const project of fetched) {
+    if (project) {
+      byProjectId[project.id] = { name: project.name, logo: project.logo };
+    }
+  }
+
+  return Object.fromEntries(
+    rows.flatMap((row) => {
+      const projectId = notificationProjectId(row);
+      const project = projectId ? byProjectId[projectId] : undefined;
+      return project ? [[row.id, project]] : [];
+    }),
+  );
+}
+
 export async function NeedsYouPanel({
   feed,
   projects,
@@ -81,6 +122,7 @@ export async function NeedsYouPanel({
     loadTimeLabel(),
   ]);
   const rows = notifications ?? [];
+  const projectByNotificationId = await resolveRowProjects(rows, projects);
 
   return (
     <NeedsYouPanelList
@@ -88,7 +130,7 @@ export async function NeedsYouPanel({
       timeLabels={Object.fromEntries(
         rows.map((row) => [row.id, timeLabel(row.createdAt)]),
       )}
-      projects={projects}
+      projects={projectByNotificationId}
       labels={{
         title: t("title"),
         empty: notifications ? t("empty") : t("error"),
@@ -165,11 +207,9 @@ export async function RecentActivityPanel({
           node: (
             <WorkspaceColumnRow
               leading={
-                <ProjectAvatar
+                <WorkspaceColumnProjectAvatar
                   name={item.project.name}
                   logo={item.project.logo}
-                  className="size-4 rounded-sm"
-                  fallbackClassName="rounded-sm text-2xs"
                 />
               }
               title={title}

@@ -7,10 +7,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NeedsYouPanel, RecentActivityPanel } from "./workspace-column";
 
-const { markReadMock, navigateMock, setViewMock } = vi.hoisted(() => ({
-  markReadMock: vi.fn(),
-  navigateMock: vi.fn(),
-  setViewMock: vi.fn(),
+const { getProjectByIdMock, markReadMock, navigateMock, setViewMock } =
+  vi.hoisted(() => ({
+    getProjectByIdMock: vi.fn(),
+    markReadMock: vi.fn(),
+    navigateMock: vi.fn(),
+    setViewMock: vi.fn(),
+  }));
+
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: { getProjectById: getProjectByIdMock },
 }));
 
 // Echoes the key with its values, so a row's copy names what it chose.
@@ -112,6 +118,8 @@ describe("NeedsYouPanel", () => {
     expect(within(rows[0]).getByTestId("project-avatar")).toBeInTheDocument();
     expect(within(rows[1]).queryByTestId("project-avatar")).toBeNull();
     expect(rows[0]).toHaveTextContent("2h ago");
+    // The grid's page held the project, so nothing is read again.
+    expect(getProjectByIdMock).not.toHaveBeenCalled();
 
     fireEvent.click(within(rows[0]).getByRole("button"));
     expect(markReadMock).toHaveBeenCalledWith("n1");
@@ -129,6 +137,27 @@ describe("NeedsYouPanel", () => {
     expect(showAll).toHaveAttribute("href", "/notifications");
     fireEvent.click(showAll);
     expect(setViewMock).toHaveBeenCalledWith("needs-action");
+  });
+
+  it("reads a row's project the grid's page does not hold", async () => {
+    getProjectByIdMock.mockResolvedValue({
+      id: project.id,
+      name: "Launch",
+      logo: null,
+    });
+
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        // The grid is filtered by `q`, so its page lacks this project.
+        projects: {},
+      }),
+    );
+
+    expect(getProjectByIdMock).toHaveBeenCalledWith(project.id);
+    const row = screen.getByTestId("workspace-needs-you-row");
+    expect(row).toHaveTextContent("Launch");
+    expect(within(row).getByTestId("project-avatar")).toBeInTheDocument();
   });
 
   it("says nothing waits when the view is empty", async () => {

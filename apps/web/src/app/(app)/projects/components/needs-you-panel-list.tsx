@@ -11,11 +11,14 @@ import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 
-import { ProjectAvatar } from "./project-avatar";
 import { WorkspaceColumnPanel } from "./workspace-column-panel";
-import { WorkspaceColumnRow } from "./workspace-column-row";
+import {
+  WorkspaceColumnProjectAvatar,
+  WorkspaceColumnRow,
+} from "./workspace-column-row";
 
-export interface NeedsYouProject {
+/** An open project as a column row shows it, keyed by id. */
+export interface ColumnProject {
   name: string;
   logo: string | null;
 }
@@ -24,14 +27,9 @@ interface NeedsYouPanelListProps {
   notifications: NotificationItem[];
   /** Rendered on the server, so the label cannot differ at hydration. */
   timeLabels: Record<string, string>;
-  /** Open projects by id, for the avatar of a row about one. */
-  projects: Record<string, NeedsYouProject>;
+  /** The project a row is about, by notification id. */
+  projects: Record<string, ColumnProject>;
   labels: { title: string; empty: string; showAll: string };
-}
-
-function notificationProjectId(notification: NotificationItem): string | null {
-  const projectId = notification.metadata?.projectId;
-  return typeof projectId === "string" ? projectId : null;
 }
 
 /**
@@ -81,8 +79,7 @@ export function NeedsYouPanelList({
         onClick: () => notificationCenter?.setView("needs-action"),
       }}
       rows={notifications.map((notification) => {
-        const projectId = notificationProjectId(notification);
-        const project = projectId ? projects[projectId] : undefined;
+        const project = projects[notification.id];
         const Icon = getNotificationIcon(notification);
 
         return {
@@ -91,11 +88,9 @@ export function NeedsYouPanelList({
             <WorkspaceColumnRow
               leading={
                 project ? (
-                  <ProjectAvatar
+                  <WorkspaceColumnProjectAvatar
                     name={project.name}
                     logo={project.logo}
-                    className="size-4 rounded-sm"
-                    fallbackClassName="rounded-sm text-2xs"
                   />
                 ) : (
                   <Icon className="text-muted-foreground size-4" aria-hidden />

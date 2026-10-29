@@ -46379,7 +46379,7 @@ export type GetProjectsActivityData = {
 
 export type GetProjectsActivityErrors = {
     /**
-     * Bad Request
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
      */
     400: {
         error: string;
@@ -46412,6 +46412,21 @@ export type GetProjectsActivityErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

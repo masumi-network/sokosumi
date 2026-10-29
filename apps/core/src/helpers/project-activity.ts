@@ -186,6 +186,7 @@ export interface ProjectRecentActivityRow {
   projectId: string;
   entityId: string;
   title: string | null;
+  /** Task or job event status; a project row's event kind. */
   status: string | null;
   agentId: string | null;
 }
