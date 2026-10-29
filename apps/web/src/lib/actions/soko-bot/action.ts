@@ -35,6 +35,7 @@ import {
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOTS_ROUTE,
   sokoBotConsoleRoute,
@@ -124,6 +125,16 @@ function mapAvatarError(error: unknown): ActionError {
   if (error instanceof CoreApiRequestError && error.status === 429) {
     return {
       code: SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+      message: error.message,
+    };
+  }
+  // Drawing switched off is not a hiccup; "try again" would send people round in circles.
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === "avatar_drawing_unavailable"
+  ) {
+    return {
+      code: SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
       message: error.message,
     };
   }

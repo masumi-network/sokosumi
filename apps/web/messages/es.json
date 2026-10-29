@@ -9027,7 +9027,8 @@
           "saved": "Guardado.",
           "error": "No se pudo cambiar el aspecto. Inténtalo de nuevo.",
           "keepError": "No se pudo conservar este aspecto. Inténtalo de nuevo.",
-          "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde."
+          "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde.",
+          "unavailable": "Ahora mismo no se puede cambiar el aspecto."
         }
       },
       "Skills": {

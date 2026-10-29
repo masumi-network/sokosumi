@@ -48,3 +48,7 @@ export const SOKO_BOT_BUSY_ERROR_CODE = "SOKO_BOT_BUSY";
 /** Action error code when Core answers 429: the caller's hourly avatar generation allowance is spent. */
 export const SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE =
   "SOKO_BOT_AVATAR_RATE_LIMITED";
+
+/** Action error code when Core cannot draw avatars at all (no image provider configured). */
+export const SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE =
+  "SOKO_BOT_AVATAR_UNAVAILABLE";

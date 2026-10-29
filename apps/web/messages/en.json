@@ -9027,7 +9027,8 @@
           "saved": "Saved.",
           "error": "Could not change the look. Try again.",
           "keepError": "Could not keep this look. Try again.",
-          "rateLimited": "You have made a lot of new looks. Try again later."
+          "rateLimited": "You have made a lot of new looks. Try again later.",
+          "unavailable": "Changing the look is not available right now."
         }
       },
       "Skills": {

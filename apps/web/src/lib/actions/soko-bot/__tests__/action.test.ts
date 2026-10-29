@@ -6,9 +6,11 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
   () => {
     class MockCoreApiRequestError extends Error {
       status?: number;
-      constructor(message: string, status?: number) {
+      kind?: string;
+      constructor(message: string, status?: number, kind?: string) {
         super(message);
         this.status = status;
+        this.kind = kind;
       }
     }
     return {
@@ -19,6 +21,7 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         resolveDecision: vi.fn(),
         createSchedule: vi.fn(),
         topUpAvatars: vi.fn(),
+        createAvatarDraft: vi.fn(),
         createScoped: vi.fn(),
         archive: vi.fn(),
         reactivate: vi.fn(),
@@ -56,6 +59,7 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
   SOKO_BOTS_ROUTE,
@@ -65,6 +69,7 @@ import {
   archiveSokoBotAction,
   createScopedSokoBotAction,
   createSokoBotAction,
+  createSokoBotAvatarDraftAction,
   createSokoBotScheduleAction,
   reactivateSokoBotAction,
   resetSokoBotMemoryAction,
@@ -108,6 +113,38 @@ describe("soko-bot actions", () => {
     if (!result.ok) {
       expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
     }
+  });
+
+  it("createSokoBotAvatarDraftAction says drawing is off, not to try again", async () => {
+    serviceMock.createAvatarDraft.mockRejectedValue(
+      new MockCoreApiRequestError(
+        "Avatar drawing is not available right now.",
+        503,
+        "avatar_drawing_unavailable",
+      ),
+    );
+    const result = await createSokoBotAvatarDraftAction({
+      input: { change: { kind: "shuffle" } },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE);
+    }
+  });
+
+  it("createSokoBotAvatarDraftAction keeps a failed draw generic", async () => {
+    serviceMock.createAvatarDraft.mockRejectedValue(
+      new MockCoreApiRequestError(
+        "The look could not be drawn. Try again.",
+        503,
+        "avatar_draw_failed",
+      ),
+    );
+    const result = await createSokoBotAvatarDraftAction({
+      input: { change: { kind: "shuffle" } },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("INTERNAL_SERVER_ERROR");
   });
 
   it("topUpSokoBotAvatarsAction leaves other Core failures generic", async () => {

@@ -32,7 +32,10 @@ import {
 } from "@/lib/actions/soko-bot/action";
 import { avatarSources, isCraftedAvatar } from "@/lib/soko-bot/avatar";
 import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
-import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
+import {
+  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
+} from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 const STATES = Object.values(SokoBotAvatarState);
@@ -159,7 +162,9 @@ export function AvatarStudio({
     toast.error(
       code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
         ? t("rateLimited")
-        : fallback,
+        : code === SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE
+          ? t("unavailable")
+          : fallback,
     );
   }
 
@@ -293,62 +298,6 @@ export function AvatarStudio({
               </span>
             </div>
           ) : null}
-
-          <div className={HOLDER_CLASS}>
-            <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-4 p-4")}>
-              <div className="flex items-baseline gap-3">
-                <h2 className="text-sm font-semibold">{t("states")}</h2>
-                <p
-                  role="status"
-                  className="text-muted-foreground ml-auto text-xs"
-                >
-                  {statesHint}
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                {STATES.map((state) => {
-                  const still = studio.avatar?.states[state]?.stillUrl ?? null;
-                  const selected = !draft && pick.state === state;
-                  return (
-                    <button
-                      key={state}
-                      type="button"
-                      disabled={draft !== null || !still}
-                      aria-pressed={selected}
-                      onClick={() =>
-                        setPick((prev) => ({ state, n: prev.n + 1 }))
-                      }
-                      className="focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2 disabled:opacity-40"
-                    >
-                      <span
-                        className={cn(
-                          "bg-muted border-border block aspect-square w-full overflow-hidden rounded-lg border",
-                          selected &&
-                            "ring-foreground ring-offset-background ring-2 ring-offset-2",
-                        )}
-                      >
-                        {still ? (
-                          <img
-                            src={still}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                        ) : null}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-xs",
-                          selected ? "font-semibold" : "font-medium",
-                        )}
-                      >
-                        {stateLabel(state)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="flex min-w-0 flex-col gap-8">
@@ -491,6 +440,62 @@ export function AvatarStudio({
                 <p role="status" className="text-muted-foreground ml-2 text-sm">
                   {saved ? t("saved") : ""}
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={HOLDER_CLASS}>
+            <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-4 p-4")}>
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-sm font-semibold">{t("states")}</h2>
+                <p
+                  role="status"
+                  className="text-muted-foreground ml-auto text-xs"
+                >
+                  {statesHint}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                {STATES.map((state) => {
+                  const still = studio.avatar?.states[state]?.stillUrl ?? null;
+                  const selected = !draft && pick.state === state;
+                  return (
+                    <button
+                      key={state}
+                      type="button"
+                      disabled={draft !== null || !still}
+                      aria-pressed={selected}
+                      onClick={() =>
+                        setPick((prev) => ({ state, n: prev.n + 1 }))
+                      }
+                      className="focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2 disabled:opacity-40"
+                    >
+                      <span
+                        className={cn(
+                          "bg-muted border-border block aspect-square w-full overflow-hidden rounded-lg border",
+                          selected &&
+                            "ring-foreground ring-offset-background ring-2 ring-offset-2",
+                        )}
+                      >
+                        {still ? (
+                          <img
+                            src={still}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        ) : null}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          selected ? "font-semibold" : "font-medium",
+                        )}
+                      >
+                        {stateLabel(state)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

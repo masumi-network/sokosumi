@@ -270,6 +270,19 @@ describe("AvatarStudio", () => {
     expect(look()).toHaveAttribute("src", "https://blob/idle.png");
   });
 
+  it("says plainly when drawing is switched off", async () => {
+    createMock.mockResolvedValue({
+      ok: false,
+      error: { code: "SOKO_BOT_AVATAR_UNAVAILABLE", message: "off" },
+    });
+    renderStudio();
+
+    await click(screen.getByRole("button", { name: "shuffle" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith("unavailable");
+    expect(look()).toHaveAttribute("src", "https://blob/idle.png");
+  });
+
   it("reports another failure without changing the look", async () => {
     createMock.mockResolvedValue({
       ok: false,
