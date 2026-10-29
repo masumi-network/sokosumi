@@ -91,6 +91,7 @@ import mountDeleteProjectStar from "./[id]/star/delete.js";
 import mountPostProjectStar from "./[id]/star/post.js";
 import mountDeleteProjectTask from "./[id]/tasks/[taskId]/delete.js";
 import mountPostProjectTask from "./[id]/tasks/post.js";
+import mountGetProjectActivity from "./activity/get.js";
 import mountListProjects from "./get.js";
 import mountPostProject from "./post.js";
 import mountGetStarredProjects from "./starred/get.js";
@@ -104,6 +105,7 @@ const app = new OpenAPIHonoWithAuth({
 mountListProjects(app);
 mountPostProject(app);
 mountGetProjectStats(app);
+mountGetProjectActivity(app);
 mountGetStarredProjects(app);
 mountPostProjectJob(app);
 mountDeleteProjectJob(app);

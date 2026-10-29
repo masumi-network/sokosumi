@@ -21309,7 +21309,7 @@ export const ProjectListItemSchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z',
-                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.'
+                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.'
                 }
             },
             required: [
@@ -21752,6 +21752,196 @@ export const ProjectJobStatusCountSchema = {
     required: [
         'count',
         'status'
+    ]
+} as const;
+
+export const ProjectActivityItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/ProjectTaskActivity'
+        },
+        {
+            $ref: '#/components/schemas/ProjectJobActivity'
+        },
+        {
+            $ref: '#/components/schemas/ProjectLifecycleActivity'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            task: '#/components/schemas/ProjectTaskActivity',
+            job: '#/components/schemas/ProjectJobActivity',
+            project: '#/components/schemas/ProjectLifecycleActivity'
+        }
+    }
+} as const;
+
+export const ProjectTaskActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'ID of the event this row is about',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the event happened'
+        },
+        project: {
+            $ref: '#/components/schemas/ProjectSummary'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task'
+            ]
+        },
+        taskId: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            example: 'Draft the launch post'
+        },
+        status: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskEventStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The status the event set. Null for an event that only added a comment.'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'project',
+        'kind',
+        'taskId',
+        'title',
+        'status'
+    ]
+} as const;
+
+export const ProjectJobActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'ID of the event this row is about',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the event happened'
+        },
+        project: {
+            $ref: '#/components/schemas/ProjectSummary'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'job'
+            ]
+        },
+        jobId: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fq'
+        },
+        agentId: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        title: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The job\'s name, else its agent\'s display name. Null when neither resolves.',
+            example: 'Research Agent'
+        },
+        status: {
+            $ref: '#/components/schemas/AgentJobStatus'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'project',
+        'kind',
+        'jobId',
+        'agentId',
+        'title',
+        'status'
+    ]
+} as const;
+
+export const AgentJobStatusSchema = {
+    type: 'string',
+    enum: [
+        'INITIATED',
+        'AWAITING_PAYMENT',
+        'AWAITING_INPUT',
+        'RUNNING',
+        'COMPLETED',
+        'FAILED'
+    ]
+} as const;
+
+export const ProjectLifecycleActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'ID of the event this row is about',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the event happened'
+        },
+        project: {
+            $ref: '#/components/schemas/ProjectSummary'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'project'
+            ]
+        },
+        event: {
+            $ref: '#/components/schemas/ProjectEventKind'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'project',
+        'kind',
+        'event'
+    ]
+} as const;
+
+export const ProjectEventKindSchema = {
+    type: 'string',
+    enum: [
+        'CLOSE_REQUESTED',
+        'BATCH_FAILED',
+        'RETRY_REQUESTED',
+        'SERIES_RESOLVED',
+        'CLOSE_FINALIZED'
     ]
 } as const;
 
@@ -34722,7 +34912,14 @@ export const JobSchema = {
                         example: '2021-01-01T00:00:00.000Z'
                     },
                     status: {
-                        $ref: '#/components/schemas/AgentJobStatus'
+                        allOf: [
+                            {
+                                $ref: '#/components/schemas/AgentJobStatus'
+                            },
+                            {
+                                example: 'COMPLETED'
+                            }
+                        ]
                     },
                     inputSchema: {
                         type: [
@@ -34830,19 +35027,6 @@ export const JobSchema = {
         'events',
         'share'
     ]
-} as const;
-
-export const AgentJobStatusSchema = {
-    type: 'string',
-    enum: [
-        'INITIATED',
-        'AWAITING_PAYMENT',
-        'AWAITING_INPUT',
-        'RUNNING',
-        'COMPLETED',
-        'FAILED'
-    ],
-    example: 'COMPLETED'
 } as const;
 
 export const FileSchema = {

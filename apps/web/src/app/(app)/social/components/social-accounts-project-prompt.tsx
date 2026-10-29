@@ -43,8 +43,7 @@ export function SocialAccountsProjectPrompt({
   const { projectId, switchHref } = useProjectScope();
   const [open, setOpen] = useState(false);
 
-  function handleSelect(nextProjectId: string | null) {
-    if (!nextProjectId) return;
+  function handleSelect(nextProjectId: string) {
     // Scope switching resets page filters. Keep the tab that asked for a project.
     router.push(`${switchHref(nextProjectId)}&tab=${kind}`);
   }
@@ -89,7 +88,6 @@ export function SocialAccountsProjectPrompt({
         >
           <ProjectScopeMenu
             selectedProjectId={projectId}
-            includeWorkspace={false}
             onSelect={handleSelect}
             onCreate={openScopeCreate}
             onDone={() => setOpen(false)}

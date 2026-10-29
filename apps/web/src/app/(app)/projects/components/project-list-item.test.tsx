@@ -2,7 +2,7 @@ import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-clie
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
-import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
+import { PROJECTS_CARD_LAYOUT_CLASS } from "@/app/projects/constants";
 
 vi.mock("@/components/time-ago", () => ({
   TimeAgo: ({
@@ -28,6 +28,7 @@ const labels = {
   unpin: "Unpin project",
   pinError: "Could not change the Pin.",
   created: "Created",
+  closed: "Closed",
 };
 
 const project = {
@@ -77,40 +78,35 @@ describe("ProjectListItem", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("stacks metadata on narrow screens while preserving desktop row layout", () => {
+  it("stacks the name, the briefing and a footer down the card", () => {
     render(<ProjectListItem project={project} labels={labels} />);
 
     const link = screen.getByRole("link", { name: /Autumn Launch/ });
-    expect(link).toHaveClass(
-      "flex-col",
-      "items-stretch",
-      "sm:flex-row",
-      "sm:items-center",
-    );
-    expect(link.className).toContain("items-center");
-    expect(link.className).toContain("gap-4");
-    // The row is a --background card inside the --card-background list
+    expect(link).toHaveClass("flex-col", "flex-1");
+    // Two lines of briefing, not one: a card has the height a row did not.
+    expect(screen.getByText("Goals")).toHaveClass("line-clamp-2");
+    // The card is a --background card inside the --card-background list
     // card; its hover steps to --card-background-hover, as task rows do. Pinned
     // exactly: "hover:bg-card-background" is a substring of the correct
     // class, so a toContain on the shorter name passes either way.
     //
-    // The fill lives on the row, not the link: the Pin button sits outside
-    // the link, so a link-scoped fill would leave the row's right edge
-    // unlit while the pointer is over it.
+    // The fill lives on the card, not the link: the Pin button sits outside
+    // the link, so a link-scoped fill would leave its corner unlit while the
+    // pointer is over it.
     const row = link.closest("article");
     expect(row?.className.split(/\s+/)).toContain(
       "hover:bg-card-background-hover",
     );
-    // The row is its own bordered card, as in the task list. The link rounds
-    // too, so the forced-colors outline that `outline-hidden` keeps follows
-    // the card's left corners; the Pin button sits outside the link.
+    // The card is bordered, as task rows are. The link rounds too, so the
+    // forced-colors outline that `outline-hidden` keeps follows the card's
+    // corners; the Pin button sits outside the link.
     expect(row?.className.split(/\s+/)).toEqual(
       expect.arrayContaining(["bg-background", "border", "rounded-lg"]),
     );
     expect(link.className.split(/\s+/)).toContain("rounded-lg");
     expect(link.className.split(/\s+/)).not.toContain("border");
     // Keyboard focus rings the whole card. A ring on the link alone would
-    // stop at the Pin button and draw a line through the row.
+    // stop at the Pin button and draw a line through the card.
     expect(link.className.split(/\s+/)).toContain("outline-hidden");
     expect(row?.className.split(/\s+/)).toEqual(
       expect.arrayContaining([
@@ -122,7 +118,7 @@ describe("ProjectListItem", () => {
     );
 
     const article = link.closest("article");
-    for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
+    for (const token of PROJECTS_CARD_LAYOUT_CLASS.split(/\s+/)) {
       expect(article?.className).toContain(token);
     }
   });
@@ -208,15 +204,45 @@ describe("ProjectListItem", () => {
 });
 
 describe("ProjectListItem Pin button", () => {
-  it("sits beside the row link, never inside it", () => {
+  it("sits beside the card link, never inside it", () => {
     render(<ProjectListItem project={project} labels={labels} />);
 
     const button = screen.getByTestId("project-pin-button");
     // A button nested in an anchor is invalid HTML, and the click would
-    // navigate to the project instead of Pinning it. This is why the row is
-    // a flex pair rather than one big link.
+    // navigate to the project instead of Pinning it. This is why the card
+    // holds the link and the button side by side rather than being one link.
     expect(button.closest("a")).toBeNull();
     expect(button.closest("article")).not.toBeNull();
+    expect(button).toHaveClass("absolute", "top-2", "end-2");
+  });
+
+  it("waits for hover or focus while unpinned, where a pointer can hover", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    expect(screen.getByTestId("project-pin-button")).toHaveClass(
+      "pointer-fine:opacity-0",
+      "pointer-fine:group-hover/card:opacity-100",
+      "pointer-fine:group-focus-within/card:opacity-100",
+    );
+    expect(
+      screen.getByRole("link", { name: /Autumn Launch/ }).closest("article"),
+    ).toHaveClass("group/card");
+  });
+
+  it("stays shown while pinned", () => {
+    render(
+      <ProjectListItem
+        project={{
+          ...project,
+          starredAt: new Date("2026-09-01T10:00:00.000Z"),
+        }}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByTestId("project-pin-button").className).not.toContain(
+      "opacity-0",
+    );
   });
 
   it("reads its state from the row's own starredAt", () => {
@@ -237,5 +263,64 @@ describe("ProjectListItem Pin button", () => {
     render(<ProjectListItem project={project} labels={labels} />);
 
     expect(screen.getByRole("button", { name: "Pin project" })).toBeDefined();
+  });
+});
+
+describe("ProjectListItem in the Closed view", () => {
+  const closed = {
+    ...project,
+    starredAt: new Date("2026-09-01T10:00:00.000Z"),
+    closedAt: new Date("2026-09-10T08:00:00.000Z"),
+  };
+
+  it("has no Pin control, even when a Pin outlived the close", () => {
+    render(<ProjectListItem project={closed} labels={labels} />);
+
+    expect(screen.queryByTestId("project-pin-button")).not.toBeInTheDocument();
+  });
+
+  it("shows a Closed badge and the close date in place of last activity", () => {
+    render(<ProjectListItem project={closed} labels={labels} />);
+
+    expect(screen.getByText("Closed")).toHaveAttribute("data-slot", "badge");
+    const stamp = screen.getByTestId("time-ago");
+    expect(stamp).toHaveTextContent("ago:2026-09-10T08:00:00.000Z");
+    expect(stamp).toHaveAttribute("data-title-prefix", "Closed");
+  });
+
+  it("still opens the project", () => {
+    render(<ProjectListItem project={closed} labels={labels} />);
+
+    expect(screen.getByRole("link", { name: /Autumn Launch/ })).toHaveAttribute(
+      "href",
+      "/projects/project-1",
+    );
+  });
+
+  // A project mid-close and one whose close failed look the same on the list
+  // item: `closingAt` is set and `closedAt` is not, because only a finished
+  // close writes `closedAt`. Both stay Open.
+  it.each([
+    ["closing", new Date("2026-09-10T08:00:00.000Z")],
+    ["close-failed", new Date("2026-08-01T08:00:00.000Z")],
+  ])("keeps a %s project Open, with its Pin and activity", (_, closingAt) => {
+    render(
+      <ProjectListItem
+        project={{
+          ...project,
+          starredAt: new Date("2026-09-01T10:00:00.000Z"),
+          closingAt,
+          closedAt: null,
+        }}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.queryByText("Closed")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unpin project" })).toBeDefined();
+    expect(screen.getByTestId("time-ago")).toHaveAttribute(
+      "data-title-prefix",
+      "Last activity",
+    );
   });
 });

@@ -1,14 +1,22 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { loadMoreProjects, pinProjectAction } from "@/app/projects/actions";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 
-vi.mock("nuqs", () => ({
+vi.mock("nuqs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("nuqs")>()),
   useQueryState: () => ["", vi.fn()],
+}));
+
+const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock }),
 }));
 
 vi.mock("use-debounce", () => ({
@@ -22,6 +30,8 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/app/projects/actions", () => ({
   loadMoreProjects: vi.fn(),
+  pinProjectAction: vi.fn(),
+  unpinProjectAction: vi.fn(),
 }));
 
 vi.mock("@/app/projects/components/create-project-modal", () => ({
@@ -43,6 +53,15 @@ const labels = {
     description: "Create one to get started",
     action: "New project",
   },
+  emptyClosed: {
+    title: "No closed projects",
+    description: "A project you close moves here",
+  },
+  onlyClosed: {
+    title: "All projects are closed",
+    description: "Closed projects keep their history in the Closed view.",
+    action: "Show closed projects",
+  },
   loadMore: "Load more",
   loadMoreError: "Could not load more",
   counts: { tasks: "Tasks", jobs: "Jobs" },
@@ -51,6 +70,8 @@ const labels = {
   pin: "Pin project",
   unpin: "Unpin project",
   pinError: "Could not change the Pin.",
+  closed: "Closed",
+  state: { label: "Show projects", open: "Open", closed: "Closed" },
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   noMatches: "No projects match",
 };
@@ -88,6 +109,7 @@ function renderView(
       projects={[project]}
       nextCursor={null}
       query=""
+      state="open"
       initialCreateProjectOpen={false}
       createProjectModalResetKey="false"
       labels={labels}
@@ -152,7 +174,9 @@ describe("ProjectsView create control", () => {
   it("still offers create from the empty state when there is nothing to filter", () => {
     renderView({ projects: [], nextCursor: null, query: "" });
 
-    expect(screen.queryByTestId("projects-browse")).not.toBeInTheDocument();
+    expect(screen.getByTestId("projects-browse")).toContainElement(
+      screen.getByTestId("projects-empty"),
+    );
     expect(screen.getAllByRole("button", { name: "New project" })).toHaveLength(
       1,
     );
@@ -183,5 +207,129 @@ describe("ProjectsView browse card height", () => {
     expect(
       screen.getByTestId("projects-browse").className.split(/\s+/),
     ).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
+  });
+});
+
+describe("ProjectsView toolbar", () => {
+  it("holds search, the Open / Closed control and create in one row", () => {
+    renderView();
+
+    const header = screen.getByTestId("projects-toolbar");
+    const toggle = screen.getByRole("radiogroup", { name: "Show projects" });
+
+    expect(header).toContainElement(toggle);
+    expect(screen.getByRole("radio", { name: "Open" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Closed" })).toBeInTheDocument();
+    // Search takes the room the two controls leave.
+    expect(screen.getByLabelText("Filter projects").parentElement).toHaveClass(
+      "flex-1",
+    );
+  });
+
+  it("has no page title", () => {
+    renderView();
+
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+});
+
+describe("ProjectsView grid", () => {
+  it("lays the cards out in the shared responsive grid", () => {
+    renderView({
+      projects: [project, { ...project, id: "project-2", name: "Redesign" }],
+    });
+
+    const grid = screen.getByTestId("projects-browse").firstElementChild;
+    expect(grid).toHaveClass("grid", "grid-cols-1", "@xl:grid-cols-2");
+    expect(grid?.querySelectorAll("article")).toHaveLength(2);
+  });
+
+  it("keeps the order Core returns, so Pins stay first", () => {
+    renderView({
+      projects: [
+        { ...project, id: "pinned", name: "Pinned", starredAt: new Date() },
+        { ...project, id: "recent", name: "Recent", starredAt: null },
+      ],
+    });
+
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(
+      [expect.stringContaining("Pinned"), expect.stringContaining("Recent")],
+    );
+  });
+
+  it("loads later pages inside the current view", async () => {
+    vi.mocked(loadMoreProjects).mockResolvedValue({
+      projects: [],
+      nextCursor: null,
+    });
+    renderView({ nextCursor: "cursor-1", state: "closed" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+
+    await waitFor(() =>
+      expect(loadMoreProjects).toHaveBeenCalledWith({
+        cursor: "cursor-1",
+        query: "",
+        state: "closed",
+      }),
+    );
+  });
+});
+
+describe("ProjectsView empty states", () => {
+  it("says there are no closed projects in an empty Closed view", () => {
+    renderView({ projects: [], state: "closed" });
+
+    expect(screen.getByText("No closed projects")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+  });
+
+  it("keeps the first-project empty state for the Open view", () => {
+    renderView({ projects: [] });
+
+    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+  });
+
+  it("says every project is closed, and links there, when only Closed has any", () => {
+    renderView({ projects: [], hasClosedProjects: true });
+
+    expect(screen.getByText("All projects are closed")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show closed projects" }),
+    ).toHaveAttribute("href", "/projects?state=closed");
+  });
+
+  it("draws empty, closed-empty and no-match states in the grid's own panel", () => {
+    for (const props of [
+      { projects: [] },
+      { projects: [], state: "closed" as const },
+      { projects: [], query: "zzz" },
+    ]) {
+      const { unmount } = renderView(props);
+      const panel = screen.getByTestId("projects-browse");
+      expect(panel).toHaveClass(
+        "bg-card-background",
+        "rounded-xl",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      );
+      expect(panel.firstElementChild).toHaveClass("flex-1");
+      unmount();
+    }
+  });
+});
+
+describe("ProjectsView Pin re-sort", () => {
+  it("refetches the server-ordered page once a Pin lands", async () => {
+    vi.mocked(pinProjectAction).mockResolvedValue(
+      undefined as unknown as Awaited<ReturnType<typeof pinProjectAction>>,
+    );
+    refreshMock.mockClear();
+    renderView();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
+
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(pinProjectAction).toHaveBeenCalledWith({ projectId: "project-1" });
   });
 });

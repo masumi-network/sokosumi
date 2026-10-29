@@ -43,6 +43,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 }));
 
 import { HeaderProjectScope } from "./header-project-scope";
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 
 function renderScope() {
   const client = new QueryClient({
@@ -92,6 +93,27 @@ describe("header project scope", () => {
 
     await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
     expect(trigger()).toHaveTextContent("Acme");
+  });
+
+  it("badges a Closed project the menu does not list", async () => {
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() =>
+      expect(trigger()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(screen.getByTestId("project-scope-closed-badge")).toHaveTextContent(
+      "closed",
+    );
+  });
+
+  it("badges nothing for an open project", async () => {
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
+    expect(screen.queryByTestId("project-scope-closed-badge")).toBeNull();
   });
 
   it("shows no clear button when no project is picked", () => {

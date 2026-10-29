@@ -2295,6 +2295,40 @@
             "dispute_pending": "Dispute",
             "dispute_resolved": "Resolved"
           }
+        },
+        "emptyClosed": {
+          "title": "No closed projects",
+          "description": "A project you close moves here, with its history kept."
+        },
+        "onlyClosed": {
+          "title": "All projects are closed",
+          "description": "Closed projects keep their history in the Closed view.",
+          "action": "Show closed projects"
+        },
+        "state": {
+          "label": "Show projects",
+          "open": "Open",
+          "closed": "Closed"
+        },
+        "closed": "Closed"
+      },
+      "column": {
+        "needsYou": {
+          "title": "Needs you",
+          "empty": "Nothing waits on you.",
+          "error": "Failed to load what needs you.",
+          "showAll": "Show all"
+        },
+        "activity": {
+          "title": "Recent activity",
+          "empty": "No activity in open projects yet.",
+          "error": "Failed to load recent activity.",
+          "showAll": "Show all",
+          "untitledJob": "Untitled job",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Task created} COMMENT {Comment added} READY {Task ready} QUEUED {Task scheduled} RUNNING {Task running} INPUT_REQUIRED {Task needs input} APPROVAL_REQUIRED {Task needs approval} AUTHENTICATION_REQUIRED {Task needs sign-in} OUT_OF_CREDITS {Task paused for credits} COMPLETED {Task completed} FAILED {Task failed} CANCELED {Task canceled} other {Task updated}}",
+          "job": "{status, select, INITIATED {Job started} AWAITING_PAYMENT {Job awaiting payment} AWAITING_INPUT {Job needs input} RUNNING {Job running} COMPLETED {Job completed} FAILED {Job failed} other {Job updated}}",
+          "project": "{event, select, CLOSE_REQUESTED {Close requested} BATCH_FAILED {Close failed} RETRY_REQUESTED {Close retried} SERIES_RESOLVED {Scheduled work stopped} CLOSE_FINALIZED {Project closed} other {Project updated}}"
         }
       },
       "Briefing": {
@@ -9228,9 +9262,7 @@
       "label": "Project",
       "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
-      "recent": "Recent",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",
       "empty": "No projects found.",
@@ -9238,7 +9270,7 @@
       "error": "Projects could not load.",
       "retry": "Try again",
       "create": "Create project",
-      "manage": "Manage projects",
+      "closed": "Closed",
       "current": "(current)",
       "searching": "Searching projects..."
     },
