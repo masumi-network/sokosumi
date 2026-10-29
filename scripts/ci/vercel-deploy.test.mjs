@@ -9,6 +9,8 @@ import {
   createGitDeployment,
   deleteForkPreviewBranch,
   deployTargets,
+  FORK_PREVIEW_COMMENT_MARKER,
+  forkPreviewCommentBody,
   GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
   isPreviewRelevantPath,
@@ -19,10 +21,12 @@ import {
   parseDeployComment,
   pointForkPreviewBranch,
   pollDeploymentUntilSettled,
+  previewUrl,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
   settlePreviewDeployments,
   summarizeCliDeployResult,
+  upsertForkPreviewComment,
   usageMessage,
   VERCEL_PROJECTS,
   VERCEL_TEAM_ID,
@@ -423,10 +427,12 @@ describe("runPreviewDeployComment", () => {
     const created = [];
     const prepared = [];
     const steps = [];
+    const upserts = [];
     const result = runPreviewDeployComment({
       commentBody,
       isPullRequest: true,
       commentAuthor: "alice",
+      issueNumber: 12,
       repoId: 1,
       readPermission: async () => "write",
       readPullRequest: async () => ({
@@ -455,8 +461,11 @@ describe("runPreviewDeployComment", () => {
       addReaction: async (content) => {
         reactions.push(content);
       },
+      upsertPreviewComment: async (input) => {
+        upserts.push(input);
+      },
     });
-    return { result, posted, reactions, created, prepared, steps };
+    return { result, posted, reactions, created, prepared, steps, upserts };
   }
 
   it("asks a fork pull request for the head SHA before touching anything", async () => {
@@ -501,6 +510,14 @@ describe("runPreviewDeployComment", () => {
     }
     // Core env vars are scoped to that branch, never the fork's `main`.
     assert.equal(run.prepared[0].ref, "preview-fork/pr-12");
+    // Vercel never comments on the fork PR, so the workflow lists the URLs.
+    assert.equal(run.upserts.length, 1);
+    assert.equal(run.upserts[0].issueNumber, 12);
+    assert.equal(run.upserts[0].sha, FORK_SHA);
+    assert.deepEqual(
+      run.upserts[0].deployments.map(({ id }) => id),
+      ["dpl_web", "dpl_core"],
+    );
   });
 
   it("refuses a fork that changes Vercel config, or whose file list is capped", async () => {
@@ -533,6 +550,8 @@ describe("runPreviewDeployComment", () => {
     assert.equal((await run.result).kind, "deploy");
     assert.deepEqual(run.steps, ["prepare"]);
     assert.equal(run.created[0].ref, "main");
+    // Vercel comments on a same-repo PR itself.
+    assert.deepEqual(run.upserts, []);
   });
 
   it("treats a pull request whose head repo was deleted as a fork", async () => {
@@ -723,6 +742,159 @@ describe("runPreviewDeployComment", () => {
       /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
     assert.deepEqual(reactions, ["eyes"]);
+  });
+});
+
+describe("fork preview comment", () => {
+  const web = {
+    id: "dpl_web",
+    name: "sokosumi-app-mainnet",
+    url: "sokosumi-app-mainnet-ewf2cvdf2.preview.sokosumi.com",
+    alias: ["sokosumi-app-mainnet-git-preview-fork-pr-12.preview.sokosumi.com"],
+    readyState: "READY",
+  };
+  const preprod = {
+    id: "dpl_preprod",
+    name: "sokosumi-app-preprod",
+    url: "sokosumi-app-preprod-abc.preview.sokosumi.com",
+    alias: ["sokosumi-app-preprod-git-preview-fork-pr-12.preview.sokosumi.com"],
+    readyState: "READY",
+  };
+
+  it("prefers Vercel's branch alias over the deployment URL", () => {
+    assert.equal(
+      previewUrl({
+        url: "x-abc.vercel.app",
+        alias: ["custom.example.com", "x-git-preview-fork-pr-12.vercel.app"],
+      }),
+      "https://x-git-preview-fork-pr-12.vercel.app",
+    );
+    assert.equal(
+      previewUrl({ url: "x-abc.vercel.app" }),
+      "https://x-abc.vercel.app",
+    );
+  });
+
+  it("lists each project's alias, state, and approved commit", () => {
+    const body = forkPreviewCommentBody([web], FORK_SHA);
+    assert.ok(body.startsWith(FORK_PREVIEW_COMMENT_MARKER));
+    assert.ok(
+      body.includes(
+        `| \`sokosumi-app-mainnet\` | https://sokosumi-app-mainnet-git-preview-fork-pr-12.preview.sokosumi.com | READY | ${FORK_SHA} |`,
+      ),
+    );
+  });
+
+  it("replaces a redeployed project's row and keeps the others", () => {
+    const first = forkPreviewCommentBody([web, preprod], STALE_SHA);
+    const body = forkPreviewCommentBody([web], FORK_SHA, first);
+    const rows = body.split("\n").filter((line) => line.startsWith("| `"));
+    assert.deepEqual(rows, [
+      `| \`sokosumi-app-mainnet\` | https://${web.alias[0]} | READY | ${FORK_SHA} |`,
+      `| \`sokosumi-app-preprod\` | https://${preprod.alias[0]} | READY | ${STALE_SHA} |`,
+    ]);
+  });
+
+  function github(pages) {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({
+        url: String(url),
+        method: init.method ?? "GET",
+        body: init.body ? JSON.parse(init.body).body : undefined,
+      });
+      const body = init.method ? { id: 1 } : (pages.shift() ?? []);
+      return new Response(JSON.stringify(body), { status: 200 });
+    };
+    return { calls, fetchImpl };
+  }
+
+  const upsert = (fetchImpl, deployments = [web]) =>
+    upsertForkPreviewComment({
+      fetchImpl,
+      githubToken: "gh",
+      repoOwner: "masumi-network",
+      repoName: "sokosumi",
+      issueNumber: 12,
+      deployments,
+      sha: FORK_SHA,
+    });
+
+  it("posts a new comment when the bot has none", async () => {
+    // A commenter can paste the marker; only the bot's comment counts.
+    const { calls, fetchImpl } = github([
+      [
+        {
+          id: 5,
+          user: { login: "mallory" },
+          body: FORK_PREVIEW_COMMENT_MARKER,
+        },
+      ],
+    ]);
+    await upsert(fetchImpl);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].method, "POST");
+    assert.equal(
+      calls[1].url,
+      "https://api.github.com/repos/masumi-network/sokosumi/issues/12/comments",
+    );
+    assert.equal(calls[1].body, forkPreviewCommentBody([web], FORK_SHA));
+  });
+
+  it("edits the bot's earlier comment in place, on a later page too", async () => {
+    const earlier = forkPreviewCommentBody([preprod], STALE_SHA);
+    const { calls, fetchImpl } = github([
+      Array.from({ length: 100 }, (_, index) => ({
+        id: index,
+        user: { login: "alice" },
+        body: "LGTM",
+      })),
+      [{ id: 777, user: { login: "github-actions[bot]" }, body: earlier }],
+    ]);
+    await upsert(fetchImpl);
+    assert.deepEqual(
+      calls.map(({ method }) => method),
+      ["GET", "GET", "PATCH"],
+    );
+    assert.ok(calls[1].url.includes("page=2"));
+    assert.equal(
+      calls[2].url,
+      "https://api.github.com/repos/masumi-network/sokosumi/issues/comments/777",
+    );
+    assert.equal(
+      calls[2].body,
+      forkPreviewCommentBody([web], FORK_SHA, earlier),
+    );
+  });
+
+  it("keeps a fork deploy successful when the comment fails", async () => {
+    const run = runPreviewDeployComment({
+      commentBody: `/deploy preprod ${FORK_SHA}`,
+      isPullRequest: true,
+      issueNumber: 12,
+      repoId: 1,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        state: "open",
+        number: 12,
+        head: { sha: FORK_SHA, ref: "main", repo: { id: 2 } },
+        base: { repo: { id: 1 } },
+      }),
+      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      pointBranch: async () => {},
+      prepareResources: async () => {},
+      createDeployment: async ({ target }) => ({
+        id: `dpl_${target.app}`,
+        readyState: "READY",
+      }),
+      pollDeployment: async (deployment) => deployment,
+      postComment: async () => assert.fail("no failure reply"),
+      addReaction: async () => {},
+      upsertPreviewComment: async () => {
+        throw new Error("GitHub 403");
+      },
+    });
+    assert.equal((await run).kind, "deploy");
   });
 });
 
