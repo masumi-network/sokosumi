@@ -10,9 +10,10 @@ import {
 } from "@/helpers/pagination";
 import {
   encodeProjectActivityCursor,
+  PROJECT_LIST_STATES,
   type ProjectActivityRow,
   projectActivityPageQuery,
-  projectNameCountQuery,
+  projectCountQuery,
 } from "@/helpers/project-activity";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -53,6 +54,22 @@ const query = cursorPaginationQuerySchema
         description:
           "Case-insensitive substring match on the project name, applied across the whole workspace before pagination",
       }),
+    state: z
+      .enum(PROJECT_LIST_STATES)
+      .optional()
+      .openapi({
+        param: { name: "state", in: "query" },
+        description:
+          "open: projects without closedAt, including closing and close-failed ones. closed: projects with closedAt. Omitted: every project.",
+      }),
+    pinnedFirst: z
+      .enum(["true", "false"])
+      .optional()
+      .openapi({
+        param: { name: "pinnedFirst", in: "query" },
+        description:
+          "true: the acting user's Pinned projects lead, by starredAt ascending, before the rest in activity order. Ignored for non-user actors, whose rows are never Pinned.",
+      }),
   })
   .openapi("ProjectPaginationQuery");
 
@@ -61,7 +78,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), paginated globally",
+      "List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), optionally led by the reader's Pins and filtered to open or closed projects, paginated globally",
     tags: ["Projects"],
     request: {
       query,
@@ -87,6 +104,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take } = parseCursorPagination(queryParams);
 
     const search = queryParams.q;
+    const state = queryParams.state;
     const workspaceId = workspaceContext.workspaceId;
     const takePlusOne = take + 1;
     const { prismaWhere: visibility, sqlWhere: activityVisibility } =
@@ -98,6 +116,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceContext.workspaceId,
       visibility,
     );
+    // A Pin belongs to a person (ADR 0036), so only a user context resolves
+    // one. A coworker or vendor reading the same list sees every row unpinned
+    // rather than seeing the bound user's Pins as its own.
+    const readerUserId =
+      c.var.authContext.actor === "user" ? c.var.authContext.userId : null;
     const ranked = await prisma.$queryRaw<ProjectActivityRow[]>(
       projectActivityPageQuery({
         workspaceId,
@@ -105,14 +128,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         take: takePlusOne,
         visibility: activityVisibility,
         search,
+        state,
+        pinnedFirstUserId:
+          queryParams.pinnedFirst === "true" ? readerUserId : null,
       }),
     );
     const page = ranked.slice(0, take);
-    // A Pin belongs to a person (ADR 0036), so only a user context resolves
-    // one. A coworker or vendor reading the same list sees every row unpinned
-    // rather than seeing the bound user's Pins as its own.
-    const readerUserId =
-      c.var.authContext.actor === "user" ? c.var.authContext.userId : null;
     const [rows, count, stars] = await Promise.all([
       prisma.project.findMany({
         where: { workspaceId, id: { in: page.map((row) => row.id) } },
@@ -120,13 +141,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
       // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
       // would inflate the total relative to the escaped ranked query.
-      search
-        ? prisma
-            .$queryRaw<Array<{ count: bigint }>>(
-              projectNameCountQuery(workspaceId, search),
-            )
-            .then((result) => Number(result[0]?.count ?? 0n))
-        : prisma.project.count({ where: { workspaceId } }),
+      // Raw for every page, not only a search: the open/closed predicate
+      // then lives once, in the clause the ranked query shares.
+      prisma
+        .$queryRaw<Array<{ count: bigint }>>(
+          projectCountQuery(workspaceId, { search, state }),
+        )
+        .then((result) => Number(result[0]?.count ?? 0n)),
       // Bounded by the page, and served by the (userId, projectId) unique
       // index, so this never grows with how much the reader has Pinned.
       readerUserId
