@@ -168,6 +168,7 @@ model Workspace {
   tasks                    Task[]
   socialPosts              SocialPost[]
   newsletters              Newsletter[]
+  newsletterSendingDomain  NewsletterSendingDomain?
   newsletterIssues         NewsletterIssue[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]

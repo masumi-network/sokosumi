@@ -5,7 +5,10 @@ import { Suspense } from "react";
 
 import { ProjectsPageSkeleton } from "@/app/projects/components/projects-loading-view";
 import { ProjectsView } from "@/app/projects/components/projects-view";
-import { WorkspaceColumn } from "@/app/projects/components/workspace-column";
+import {
+  panelFeed,
+  WorkspaceColumn,
+} from "@/app/projects/components/workspace-column";
 import {
   PROJECTS_PAGE_LIMIT,
   PROJECTS_PAGE_SHELL_CLASS,
@@ -13,16 +16,7 @@ import {
   WORKSPACE_COLUMN_ROWS,
 } from "@/app/projects/constants";
 import { loadProjectsSearchParams } from "@/app/projects/projects-query";
-import { notificationService } from "@/lib/services/notification.service";
 import { projectService } from "@/lib/services/project.service";
-
-/** A panel's feed failing leaves that panel saying so, not the page erroring. */
-function panelFeed<T>(promise: Promise<T[]>): Promise<T[] | null> {
-  return promise.catch((error: unknown) => {
-    console.warn("Workspace column feed failed", { error });
-    return null;
-  });
-}
 
 interface ProjectsPageProps {
   searchParams: Promise<{
@@ -58,12 +52,10 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
   });
   const translationsPromise = getTranslations("App.Projects");
   // Started beside the grid's request, awaited inside their own boundaries.
+  // Needs you lives on Home, so the list's column is Recent activity alone.
   const column =
     state === "open"
       ? {
-          needsYou: panelFeed(
-            notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
-          ),
           activity: panelFeed(
             projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS),
           ),
@@ -97,7 +89,6 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         column={
           column ? (
             <WorkspaceColumn
-              needsYou={column.needsYou}
               activity={column.activity}
               projects={Object.fromEntries(
                 projectsPage.projects.map((project) => [

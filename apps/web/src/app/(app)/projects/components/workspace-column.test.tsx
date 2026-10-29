@@ -5,7 +5,11 @@ import type {
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NeedsYouPanel, RecentActivityPanel } from "./workspace-column";
+import {
+  NeedsYouPanel,
+  panelFeed,
+  RecentActivityPanel,
+} from "./workspace-column";
 
 const { getProjectByIdMock, markReadMock, navigateMock, setViewMock } =
   vi.hoisted(() => ({
@@ -176,6 +180,46 @@ describe("NeedsYouPanel", () => {
       "App.Projects.column.needsYou.error",
     );
   });
+
+  it("lists the rows quietly on Home, with no panel, and Show all beside the heading", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        projects: { [project.id]: { name: "Launch", logo: null } },
+        quiet: true,
+      }),
+    );
+
+    const section = screen.getByTestId("home-needs-you");
+    expect(screen.queryByTestId("workspace-needs-you")).toBeNull();
+    expect(
+      within(section).getByRole("heading", {
+        name: "App.Projects.column.needsYou.title",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId("home-needs-you-row")).toHaveLength(1);
+    expect(
+      within(section).getByRole("link", {
+        name: "App.Projects.column.needsYou.showAll",
+      }),
+    ).toHaveAttribute("href", "/notifications");
+  });
+
+  it("says in one line on Home that nothing waits, or that the feed failed", async () => {
+    for (const [feed, line] of [
+      [Promise.resolve([]), "App.Projects.column.needsYou.empty"],
+      [Promise.resolve(null), "App.Projects.column.needsYou.error"],
+    ] as const) {
+      const { unmount } = render(
+        await NeedsYouPanel({ feed, projects: {}, quiet: true }),
+      );
+      expect(screen.getByTestId("home-needs-you-empty")).toHaveTextContent(
+        line,
+      );
+      expect(screen.queryByRole("link")).toBeNull();
+      unmount();
+    }
+  });
 });
 
 describe("RecentActivityPanel", () => {
@@ -258,5 +302,49 @@ describe("RecentActivityPanel", () => {
     expect(screen.getByTestId("workspace-activity-row")).toHaveTextContent(
       "App.Projects.column.activity.task(COMMENT)",
     );
+  });
+
+  it("says the workspace's open projects are quiet when nothing happened", async () => {
+    render(await RecentActivityPanel({ feed: Promise.resolve([]) }));
+
+    expect(screen.getByTestId("workspace-activity-empty")).toHaveTextContent(
+      "App.Projects.column.activity.empty",
+    );
+  });
+
+  it("says this project is quiet when the feed is one project's", async () => {
+    render(
+      await RecentActivityPanel({
+        feed: Promise.resolve([]),
+        projectScoped: true,
+      }),
+    );
+
+    expect(screen.getByTestId("workspace-activity-empty")).toHaveTextContent(
+      "App.Projects.column.activity.emptyProject",
+    );
+  });
+
+  it("says the feed failed in a project's panel too", async () => {
+    render(
+      await RecentActivityPanel({
+        feed: Promise.resolve(null),
+        projectScoped: true,
+      }),
+    );
+
+    expect(screen.getByTestId("workspace-activity-empty")).toHaveTextContent(
+      "App.Projects.column.activity.error",
+    );
+  });
+});
+
+describe("panelFeed", () => {
+  it("turns a failed feed into null so the panel can say so", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(panelFeed(Promise.reject(new Error("down")))).resolves.toBe(
+      null,
+    );
+    await expect(panelFeed(Promise.resolve([1]))).resolves.toEqual([1]);
   });
 });
