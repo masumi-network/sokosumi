@@ -12,7 +12,12 @@ vi.mock("nuqs", async (importOriginal) => ({
   useQueryState: () => [stateRef.current, setStateMock],
 }));
 
-const labels = { label: "Show projects", open: "Open", closed: "Closed" };
+const labels = {
+  label: "Show projects",
+  open: "Open",
+  hidden: "Hidden",
+  closed: "Closed",
+};
 
 describe("ProjectsStateToggle", () => {
   beforeEach(() => {
@@ -25,6 +30,22 @@ describe("ProjectsStateToggle", () => {
 
     expect(screen.getByRole("radio", { name: "Open" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "Closed" })).not.toBeChecked();
+  });
+
+  it("offers Open, Hidden and Closed, in that order", () => {
+    render(<ProjectsStateToggle labels={labels} />);
+
+    expect(
+      screen.getAllByRole("radio").map((segment) => segment.textContent),
+    ).toEqual(["Open", "Hidden", "Closed"]);
+  });
+
+  it("writes the Hidden view to the URL", () => {
+    render(<ProjectsStateToggle labels={labels} />);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Hidden" }));
+
+    expect(setStateMock).toHaveBeenCalledWith("hidden");
   });
 
   it("writes the chosen view to the URL", () => {

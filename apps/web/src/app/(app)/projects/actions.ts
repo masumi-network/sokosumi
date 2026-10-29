@@ -16,7 +16,7 @@ interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
   /** Carries the active name filter so later pages stay inside it. */
   query?: string;
-  /** Carries the Open/Closed view; its cursor only makes sense inside it. */
+  /** Carries the Open/Hidden/Closed view; its cursor only makes sense inside it. */
   state: ProjectsListState;
 }
 
@@ -59,3 +59,18 @@ export const unpinProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.unpinProject>>
 >(async ({ projectId }) => projectService.unpinProject(projectId));
+
+/**
+ * A Hide is the reader's own and the opposite of a Pin: hiding unpins, and
+ * the result says whether it did so Undo can Pin again (ADR 0036). Both are
+ * idempotent at Core.
+ */
+export const hideProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.hideProject>>
+>(async ({ projectId }) => projectService.hideProject(projectId));
+
+export const showProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.showProject>>
+>(async ({ projectId }) => projectService.showProject(projectId));

@@ -9,17 +9,22 @@ export const PROJECTS_PAGE_LIMIT = 20;
 /**
  * The Projects list shows one state at a time, in `?state=`. Open is the
  * default and covers closing and close-failed projects; only a finished close
- * (`closedAt`) moves a project to Closed.
+ * (`closedAt`) moves a project to Closed. Hidden is the reader's own Hidden
+ * projects (ADR 0036); one both Closed and Hidden lists under Closed.
  */
 export const PROJECTS_LIST_STATES = [
   "open",
+  "hidden",
   "closed",
 ] as const satisfies ReadonlyArray<
   NonNullable<NonNullable<GetProjectsData["query"]>["state"]>
 >;
 export type ProjectsListState = (typeof PROJECTS_LIST_STATES)[number];
 
-/** Pinned projects lead the Open view; a Closed card has no Pin to sort by. */
+/**
+ * Pinned projects lead the Open view. A Closed card has no Pin to sort by,
+ * and a Hidden project has none: hiding unpins it.
+ */
 export function projectsListStateQuery(state: ProjectsListState) {
   return { state, pinnedFirst: state === "open" };
 }

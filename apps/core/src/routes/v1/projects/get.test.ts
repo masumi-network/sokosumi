@@ -327,6 +327,48 @@ describe("GET /projects", () => {
     },
   );
 
+  // ADR 0036: Open drops the reader's Hidden projects, Hidden lists only
+  // those, and Closed ignores Hides so a Closed and Hidden project lists there.
+  it.each([
+    ["open", "NOT EXISTS (SELECT 1 FROM project_hide h"],
+    ["hidden", 'p."closedAt" IS NULL AND EXISTS (SELECT 1 FROM project_hide h'],
+  ] as const)(
+    "splits the page and the total to %s by the reader's own Hides",
+    async (state, predicate) => {
+      const res = await createApp().request(`http://localhost/?state=${state}`);
+
+      expect(res.status).toBe(200);
+      expect(queryRawMock.mock.calls).toHaveLength(2);
+      for (const [sql] of queryRawMock.mock.calls) {
+        expect(sql.sql).toContain(predicate);
+        expect(sql.values).toContain("user_123");
+      }
+    },
+  );
+
+  it("lists a Closed project under Closed whether or not it is Hidden", async () => {
+    await createApp().request("http://localhost/?state=closed");
+
+    for (const [sql] of queryRawMock.mock.calls) {
+      expect(sql.sql).not.toContain("project_hide");
+    }
+  });
+
+  it("hides nothing from a coworker, whose context has no Hides", async () => {
+    const coworker = {
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_123", organizationId: null },
+    } as AuthenticationContext;
+
+    await createApp(coworker).request("http://localhost/?state=open");
+    await createApp(coworker).request("http://localhost/?state=hidden");
+
+    expect(queryRawMock.mock.calls[0][0].sql).not.toContain("project_hide");
+    expect(queryRawMock.mock.calls[2][0].sql).toContain("AND FALSE");
+  });
+
   it("rejects an unknown state", async () => {
     const res = await createApp().request("http://localhost/?state=archived");
 
