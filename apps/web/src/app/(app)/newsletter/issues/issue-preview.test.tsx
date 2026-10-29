@@ -1,6 +1,12 @@
 import type { CreateNewsletterIssueRequest } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -32,7 +38,7 @@ function previewView() {
 }
 
 describe("newsletter issue preview", () => {
-  it("renders Core HTML in the shared Social frame with an empty sandbox and device toggle", async () => {
+  it("renders Core HTML in the shared Social frame with a script-free sandbox and device toggle", async () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
@@ -45,7 +51,8 @@ describe("newsletter issue preview", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(previewView()());
     const frame = await screen.findByTitle("Newsletter email preview");
-    expect(frame).toHaveAttribute("sandbox", "");
+    expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
+    expect(frame.getAttribute("sandbox")).not.toContain("allow-scripts");
     expect(frame).toHaveAttribute(
       "srcdoc",
       "<h1>News</h1><script>bad()</script>",
@@ -71,12 +78,13 @@ describe("newsletter issue preview", () => {
   it("fits distinct device viewports into a narrow panel and responds to resizing", async () => {
     const user = userEvent.setup();
     const disconnect = vi.fn();
-    let resize = (_width: number) => {};
+    let resize: ((width: number) => void) | undefined;
     vi.stubGlobal(
       "ResizeObserver",
       class implements ResizeObserver {
         constructor(private callback: ResizeObserverCallback) {}
         observe(target: Element) {
+          if (resize) return;
           resize = (width) =>
             this.callback(
               [
@@ -109,13 +117,74 @@ describe("newsletter issue preview", () => {
     await user.click(screen.getByText("Mobile"));
     expect(frame).toHaveStyle({ width: "375px" });
     expect(frame.style.transform).toBe(`scale(${312 / 375})`);
-    await act(async () => resize(200));
+    await act(async () => resize?.(200));
     expect(frame).toHaveStyle({ width: "375px" });
     expect(frame.style.transform).toBe(`scale(${200 / 375})`);
-    await act(async () => resize(900));
+    await act(async () => resize?.(900));
     expect(frame.style.transform).toBe("scale(1)");
     unmount();
     expect(disconnect).toHaveBeenCalled();
+  });
+
+  it("sizes the frame to the full email height, scaled to the panel, and re-measures on reflow", async () => {
+    let panelWidth: ((width: number) => void) | undefined;
+    let reflow = () => {};
+    vi.stubGlobal(
+      "ResizeObserver",
+      class implements ResizeObserver {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          if (panelWidth) {
+            reflow = () => this.callback([], this);
+            return;
+          }
+          panelWidth = (width) =>
+            this.callback(
+              [
+                {
+                  target,
+                  contentRect: new DOMRect(0, 0, width, 0),
+                  contentBoxSize: [],
+                  borderBoxSize: [],
+                  devicePixelContentBoxSize: [],
+                },
+              ],
+              this,
+            );
+          panelWidth(360);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async () => Response.json({ html: "<p>Long</p>" })),
+    );
+    render(previewView()());
+    const frame = await screen.findByTitle("Newsletter email preview");
+    let emailHeight = 2400.4;
+    const documentElement = {
+      getBoundingClientRect: () => new DOMRect(0, 0, 720, emailHeight),
+    };
+    Object.defineProperty(frame, "contentDocument", {
+      value: { documentElement },
+    });
+    fireEvent.load(frame);
+    const scale = 360 / 720;
+    expect(frame).toHaveStyle({ width: "720px", height: "2401px" });
+    expect(frame.style.transform).toBe(`scale(${scale})`);
+    expect(frame.parentElement).toHaveStyle({
+      height: `${Math.round(2401 * scale) + 2}px`,
+    });
+    emailHeight = 3100;
+    await act(async () => reflow());
+    expect(frame).toHaveStyle({ height: "3100px" });
+    expect(frame.parentElement).toHaveStyle({
+      height: `${Math.round(3100 * scale) + 2}px`,
+    });
   });
 
   it("debounces typing for 600ms and submits only the latest content", async () => {
