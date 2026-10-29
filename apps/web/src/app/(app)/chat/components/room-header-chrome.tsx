@@ -29,6 +29,13 @@ import { UnreadThreadsPanel } from "./unread-threads-panel";
 const ROOM_TITLE_BUTTON_CLASS =
   "text-foreground press [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2";
 
+/**
+ * PROTOTYPE: the Direct icon in the same box and glyph size as
+ * ChannelDiscoverabilityIcon, so every room's title text starts at one x.
+ */
+const TITLE_ICON_SLOT_CLASS =
+  "text-muted-foreground inline-flex size-7 shrink-0 items-center justify-center md:size-5 [&_svg]:size-4.5 md:[&_svg]:size-3.5";
+
 function RoomParticipantStack({
   room,
   rosterOpen,
@@ -184,10 +191,14 @@ export function RoomHeaderChrome({
       (room.isSelfDirect
         ? "Only you"
         : room.isGroupDirect
-          ? `${memberCount} people`
+          ? `${memberCount} ${memberCount === 1 ? "person" : "people"}`
           : isDirectRoom
             ? "Direct message"
-            : `${memberCount} members`));
+            : `${memberCount} ${memberCount === 1 ? "member" : "members"}`));
+  // Channel and group-Direct titles are buttons, whose px-1.5 sets their icon
+  // 6px in. A 1:1 or self Direct has no button, so it takes the same inset
+  // here: every room's icon (and D's second line) starts at one x.
+  const insetPlainTitle = isDirectRoom && !room.isGroupDirect;
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -205,6 +216,7 @@ export function RoomHeaderChrome({
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2",
           stacked && "flex-col items-start justify-center gap-0 md:gap-0",
+          insetPlainTitle && "ps-1.5",
           // PROTOTYPE E: the reading column's left edge (its margin, with
           // 100% + 48px = the section behind the header's px-6), less the
           // 24px header inset, plus 14px so the title icon sits over the
@@ -228,7 +240,9 @@ export function RoomHeaderChrome({
                   currentUserId={currentUserId}
                 />
               ) : room.isGroupDirect ? null : (
-                <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+                <span className={TITLE_ICON_SLOT_CLASS}>
+                  <MessageCircle />
+                </span>
               )}
               {room.isGroupDirect ? (
                 <NameGroupDialog
@@ -242,13 +256,15 @@ export function RoomHeaderChrome({
                     title={t("GroupName.rename")}
                     data-testid="room-open-title"
                   >
-                    <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+                    <span className={TITLE_ICON_SLOT_CLASS}>
+                      <MessageCircle />
+                    </span>
                     <span className="min-w-0 truncate">{displayName}</span>
                   </button>
                 </NameGroupDialog>
               ) : (
                 <p
-                  className="text-foreground min-w-0 truncate text-sm"
+                  className="text-foreground min-w-0 truncate py-0.5 text-sm"
                   data-testid="room-open-title"
                 >
                   {displayName}
@@ -305,7 +321,12 @@ export function RoomHeaderChrome({
         </div>
         {subtitle !== null ? (
           <p
-            className="text-muted-foreground max-w-full truncate px-1.5 text-xs"
+            // Starts under the title text: icon slot (20px) plus the 8px gap,
+            // plus the title button's own px-1.5 where there is a button.
+            className={cn(
+              "text-muted-foreground max-w-full truncate pe-1.5 text-xs",
+              insetPlainTitle ? "ps-7" : "ps-8.5",
+            )}
             title={subtitle}
             data-testid="room-open-topic"
           >
