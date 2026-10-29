@@ -402,8 +402,9 @@ beforeAll(() => {
     "color=c=0x884422:s=30x30:d=1:r=15",
     "-filter_complex",
     "[0][1]overlay=x='t*60':y=50:eval=frame",
+    // H.264 in MP4, as Seedance returns it.
     "-c:v",
-    "mpeg4",
+    "libx264",
     "-pix_fmt",
     "yuv420p",
     clip,

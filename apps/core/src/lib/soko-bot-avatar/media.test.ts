@@ -12,7 +12,15 @@ import { gzipSync } from "node:zlib";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchFfmpeg } from "./media";
+const { getEnvMock } = vi.hoisted(() => ({ getEnvMock: vi.fn() }));
+
+vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+
+import {
+  configuredFfmpegBuild,
+  DEFAULT_FFMPEG_BUILD,
+  fetchFfmpeg,
+} from "./media";
 
 const binary = Buffer.from("#!/bin/sh\necho ffmpeg\n");
 const gz = gzipSync(binary);
@@ -59,5 +67,31 @@ describe("fetchFfmpeg", () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 503 });
 
     await expect(fetchFfmpeg(build, dir)).rejects.toThrow(/503/);
+  });
+});
+
+describe("configuredFfmpegBuild", () => {
+  it("defaults to the pinned release", () => {
+    getEnvMock.mockReturnValue({});
+
+    expect(configuredFfmpegBuild()).toEqual(DEFAULT_FFMPEG_BUILD);
+  });
+
+  it("uses the configured source and its hash", () => {
+    getEnvMock.mockReturnValue({
+      AVATAR_FFMPEG_URL: "https://blob.test/ffmpeg.gz",
+      AVATAR_FFMPEG_SHA256: "b".repeat(64),
+    });
+
+    expect(configuredFfmpegBuild()).toEqual({
+      url: "https://blob.test/ffmpeg.gz",
+      sha256: "b".repeat(64),
+    });
+  });
+
+  it("never pairs a configured URL with the pinned hash", () => {
+    getEnvMock.mockReturnValue({ AVATAR_FFMPEG_URL: "https://blob.test/f.gz" });
+
+    expect(configuredFfmpegBuild()).toEqual(DEFAULT_FFMPEG_BUILD);
   });
 });

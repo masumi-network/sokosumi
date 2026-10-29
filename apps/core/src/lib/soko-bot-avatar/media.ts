@@ -9,6 +9,8 @@ import { gunzipSync } from "node:zlib";
 import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 
+import { getEnv } from "@/config/env";
+
 /** Stills are stored at this size; the studio shows them at 560 px. */
 export const STILL_SIZE = 640;
 export const LOOP_SIZES = [320, 560] as const;
@@ -24,10 +26,16 @@ const DOWNLOAD_TIMEOUT_MS = 60_000;
  * the gzip. The deployed function does not ship it: 80 MB unzipped would
  * nearly double Core's bundle for a step that runs a few times a day.
  */
-const FFMPEG_LINUX_X64 = {
+export const DEFAULT_FFMPEG_BUILD = {
   url: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz",
   sha256: "bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa",
 };
+
+/** `AVATAR_FFMPEG_URL` and `AVATAR_FFMPEG_SHA256` (set together), else the pinned release. */
+export function configuredFfmpegBuild(): { url: string; sha256: string } {
+  const { AVATAR_FFMPEG_URL: url, AVATAR_FFMPEG_SHA256: sha256 } = getEnv();
+  return url && sha256 ? { url, sha256 } : DEFAULT_FFMPEG_BUILD;
+}
 
 /** Unpacks a pinned ffmpeg build into `dir` once and returns its path. */
 export async function fetchFfmpeg(
@@ -58,7 +66,7 @@ let fetched: Promise<string> | undefined;
 /** Local installs have ffmpeg-static's binary; a Vercel instance fetches it. */
 function ffmpegBinary(): Promise<string> {
   if (ffmpegPath && existsSync(ffmpegPath)) return Promise.resolve(ffmpegPath);
-  fetched ??= fetchFfmpeg(FFMPEG_LINUX_X64).catch((error: unknown) => {
+  fetched ??= fetchFfmpeg(configuredFfmpegBuild()).catch((error: unknown) => {
     fetched = undefined;
     throw error;
   });

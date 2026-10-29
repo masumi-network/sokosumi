@@ -379,3 +379,44 @@ describe("macOS minimum build", () => {
     expect(validateEnv().MACOS_MINIMUM_BUILD).toBe(8000);
   });
 });
+
+describe("avatar ffmpeg source", () => {
+  const HASH = "a".repeat(64);
+
+  afterEach(() => {
+    delete process.env.AVATAR_FFMPEG_URL;
+    delete process.env.AVATAR_FFMPEG_SHA256;
+  });
+
+  it("is optional: unset means the pinned release", () => {
+    expect(validateEnv().AVATAR_FFMPEG_URL).toBeUndefined();
+  });
+
+  it("takes a URL and its hash together", () => {
+    process.env.AVATAR_FFMPEG_URL = "https://blob.test/ffmpeg-linux-x64.gz";
+    process.env.AVATAR_FFMPEG_SHA256 = HASH;
+
+    expect(validateEnv()).toMatchObject({
+      AVATAR_FFMPEG_URL: "https://blob.test/ffmpeg-linux-x64.gz",
+      AVATAR_FFMPEG_SHA256: HASH,
+    });
+  });
+
+  it.each([
+    ["a URL without a hash", { AVATAR_FFMPEG_URL: "https://blob.test/f.gz" }],
+    ["a hash without a URL", { AVATAR_FFMPEG_SHA256: HASH }],
+  ])("refuses %s", (_name, values) => {
+    Object.assign(process.env, values);
+
+    expectInvalidEnvironment(
+      "AVATAR_FFMPEG_URL and AVATAR_FFMPEG_SHA256 must be set together",
+    );
+  });
+
+  it("refuses a hash that is not lowercase hex sha256", () => {
+    process.env.AVATAR_FFMPEG_URL = "https://blob.test/f.gz";
+    process.env.AVATAR_FFMPEG_SHA256 = "ABC";
+
+    expectInvalidEnvironment("Expected a lowercase hex sha256");
+  });
+});
