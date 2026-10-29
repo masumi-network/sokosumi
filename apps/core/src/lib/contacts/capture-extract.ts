@@ -193,16 +193,25 @@ function headerMap(raw: unknown): Map<string, string> {
 }
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<(br|\/p|\/div|\/tr|\/li)[^>]*>/gi, "\n")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&quot;/g, '"');
+  let text = html.replace(/<(br|\/p|\/div|\/tr|\/li)[^>]*>/gi, "\n");
+  let previous: string;
+  // Until stable, so a removal cannot join "<scr<script>ipt>" into a new tag.
+  do {
+    previous = text;
+    text = text
+      .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "")
+      .replace(/<[^>]+>/g, "");
+  } while (text !== previous);
+  return (
+    text
+      .replace(/&nbsp;/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      // Last, so "&amp;lt;" stays the literal text "&lt;".
+      .replace(/&amp;/g, "&")
+  );
 }
 
 /** One Gmail or Outlook message, from a Composio list or get response. */
