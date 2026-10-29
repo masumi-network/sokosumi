@@ -2494,6 +2494,13 @@ model SokoBotAvatar {
   draftForSokoBotId String?   @db.Uuid
   draftExpiresAt    DateTime?
 
+  /// The combination of creature, coat, scene details and accessory this look
+  /// is, so no two bots share a face. Set for pool and claimed looks only
+  /// (a draft gets it when a bot keeps it, a replaced look loses it), so the
+  /// unique below covers exactly what a bot can hold or be offered. Null for
+  /// legacy rows.
+  traitKey String?
+
   /// Drawn by the pool, not for one bot. A pool look taken as a draft goes back
   /// to the pool when the draft expires; a look drawn for a bot is deleted.
   fromPool Boolean @default(false)
@@ -2507,6 +2514,7 @@ model SokoBotAvatar {
   renders SokoBotAvatarRender[]
 
   @@unique([subject, background, seed])
+  @@unique([styleId, styleVersion, traitKey])
   @@index([claimedAt])
   @@index([requestedByUserId, createdAt])
   @@index([keptByUserId, keptAt])

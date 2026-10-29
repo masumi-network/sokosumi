@@ -80,6 +80,11 @@ export const sokoBotAvatarLookSchema = z
     accessories: z.array(z.string()),
     /** Typed changes applied so far, as the rewriter phrased them. */
     typed: z.array(z.string()),
+    /**
+     * What makes the look one of a kind: an option id per axis (the creature's
+     * coat and the scene details the style varies). Absent on older looks.
+     */
+    traits: z.record(z.string(), z.string()).optional(),
   })
   .openapi("SokoBotAvatarLook");
 

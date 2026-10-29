@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -126,12 +127,33 @@ function apply(row: Row, data: Row): void {
 let clock = 0;
 const tick = () => new Date(Date.now() + (clock += 1));
 
+/** The one unique index the pipeline leans on: (styleId, styleVersion, traitKey). */
+function sharesTraitKey(a: Row, b: Row): boolean {
+  return (
+    a.traitKey != null &&
+    a.traitKey === b.traitKey &&
+    a.styleId === b.styleId &&
+    a.styleVersion === b.styleVersion
+  );
+}
+
 class Table {
   rows: Row[] = [];
   constructor(
     private readonly defaults: () => Row,
     private readonly view: (row: Row) => Row = (row) => row,
+    private readonly clashes: (a: Row, b: Row) => boolean = () => false,
   ) {}
+  /** What Postgres does with a unique index: refuse, as Prisma's P2002. */
+  private assertUnique(candidate: Row) {
+    if (
+      this.rows.some((row) => row !== candidate && this.clashes(row, candidate))
+    ) {
+      throw Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+      });
+    }
+  }
   reset() {
     this.rows = [];
   }
@@ -146,6 +168,7 @@ class Table {
       ...this.defaults(),
       ...data,
     };
+    this.assertUnique(row);
     this.rows.push(row);
     return row;
   }
@@ -198,6 +221,7 @@ class Table {
   async updateMany({ where, data }: { where: Row; data: Row }) {
     const found = this.rows.filter((row) => matches(this.visible(row), where));
     for (const row of found) {
+      this.assertUnique({ ...row, ...data });
       apply(row, data);
       row.updatedAt = tick();
     }
@@ -220,21 +244,26 @@ vi.mock("@/lib/db/transaction", async () => ({
   serializableTransaction: async (run: (tx: unknown) => unknown) => run(db),
 }));
 
-const avatars = new Table(() => ({
-  claimedBySokoBotId: null,
-  claimedAt: null,
-  reservedAt: null,
-  requestedByUserId: null,
-  look: null,
-  parentAvatarId: null,
-  draftForSokoBotId: null,
-  draftExpiresAt: null,
-  keptAt: null,
-  keptByUserId: null,
-  fromPool: false,
-  styleId: "mascot",
-  styleVersion: 1,
-}));
+const avatars = new Table(
+  () => ({
+    traitKey: null,
+    claimedBySokoBotId: null,
+    claimedAt: null,
+    reservedAt: null,
+    requestedByUserId: null,
+    look: null,
+    parentAvatarId: null,
+    draftForSokoBotId: null,
+    draftExpiresAt: null,
+    keptAt: null,
+    keptByUserId: null,
+    fromPool: false,
+    styleId: "mascot",
+    styleVersion: 1,
+  }),
+  (row) => row,
+  sharesTraitKey,
+);
 // A render row sees its avatar, as `include`/relation filters do in Prisma.
 const renders = new Table(
   () => ({
@@ -282,8 +311,14 @@ import {
   AVATAR_STATES,
   AVATAR_STYLES,
   CRAFTED_DESK_STYLE,
+  lookFromSeed,
+  traitKeyOf,
 } from "@/lib/soko-bot-avatar/style";
-import { sweepExpiredDrafts } from "@/services/soko-bot-avatar.service";
+import {
+  claimAvatar,
+  generateAvatars,
+  sweepExpiredDrafts,
+} from "@/services/soko-bot-avatar.service";
 import {
   MAX_RENDER_ATTEMPTS,
   reconcileAvatarRenders,
@@ -1229,6 +1264,332 @@ describe("reconciling renders", () => {
   });
 });
 
+describe("one of a kind", () => {
+  const OTTER_KEY = "otter|chocolate|round-leaf|none|green-brown|none";
+
+  function poolRow(traitKey: string, overrides: Record<string, unknown> = {}) {
+    return avatars.create({
+      data: {
+        subject: "x",
+        background: traitKey,
+        seed: Math.floor(Math.random() * 1e9),
+        model: "m",
+        imageUrl: "https://blob.test/pool.webp",
+        styleId: "crafted-desk",
+        styleVersion: 1,
+        fromPool: true,
+        traitKey,
+        look: { creature: "otter", accessories: [], typed: [] },
+        ...overrides,
+      },
+    });
+  }
+
+  /** The look a seed makes, and its key. */
+  const keyOfSeed = (seed: number) =>
+    traitKeyOf(CRAFTED_DESK_STYLE, lookFromSeed(CRAFTED_DESK_STYLE, seed));
+
+  /** Seeds come out in this order, then repeat the last. */
+  function rollSeeds(...seeds: number[]) {
+    let next = 0;
+    return vi
+      .spyOn(crypto, "randomInt")
+      .mockImplementation(() => seeds[Math.min(next++, seeds.length - 1)]!);
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("draws a pool look from its seed, with its traits, key and prompt", async () => {
+    rollSeeds(4321);
+
+    await generateAvatars(1);
+
+    const row = avatars.rows[0]!;
+    const expected = lookFromSeed(CRAFTED_DESK_STYLE, 4321);
+    expect(row).toMatchObject({
+      seed: 4321,
+      look: expected,
+      traitKey: traitKeyOf(CRAFTED_DESK_STYLE, expected),
+    });
+    const prompt = providerMock.editImage.mock.calls[0]?.[0].prompt as string;
+    for (const [axisId, optionId] of Object.entries(expected.traits ?? {})) {
+      const axis = CRAFTED_DESK_STYLE.traits.find((one) => one.id === axisId);
+      const phrase =
+        axis?.options.find((one) => one.id === optionId)?.phrase ??
+        CRAFTED_DESK_STYLE.creatures
+          .find((one) => one.id === expected.creature)
+          ?.coats.find((one) => one.id === optionId)?.phrase;
+      expect(prompt).toContain(phrase);
+    }
+  });
+
+  it("skips a combination a pool or claimed look already has", async () => {
+    const taken = keyOfSeed(111)!;
+    await poolRow(taken);
+    // The first roll lands on the taken key; every later one is free.
+    rollSeeds(111, 222);
+
+    await generateAvatars(1);
+
+    expect(avatars.rows).toHaveLength(2);
+    expect(avatars.rows[1]).toMatchObject({
+      seed: 222,
+      traitKey: keyOfSeed(222),
+    });
+  });
+
+  it("gives two looks drawn together different keys", async () => {
+    // The second slot rolls the first one's combination before a new one.
+    rollSeeds(5, ...Array(11).fill(9), 5, 5, 9);
+
+    await generateAvatars(2);
+
+    const keys = avatars.rows.map((row) => row.traitKey);
+    expect(new Set(keys).size).toBe(2);
+  });
+
+  it("shuffles to a look nobody has, when it draws fresh", async () => {
+    await poolRow(keyOfSeed(77)!, {
+      fromPool: false,
+      claimedBySokoBotId: "bot-9",
+    });
+    rollSeeds(77, 88);
+
+    const { draft } = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "shuffle" },
+    });
+
+    expect(draft?.look).toEqual(lookFromSeed(CRAFTED_DESK_STYLE, 88));
+    // A draft is not among the looks the key protects until it is kept.
+    expect(avatars.rows.find((row) => row.id === draft?.id)).toMatchObject({
+      seed: 88,
+      traitKey: null,
+    });
+  });
+
+  it("keeps the person's creature and re-rolls only the desk item and books when another bot has the combination", async () => {
+    await poolRow(OTTER_KEY);
+
+    const { draft } = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "creature", creature: "otter" },
+    });
+
+    const look = draft?.look;
+    expect(look).toMatchObject({ creature: "otter", accessories: [] });
+    expect(look?.traits).toMatchObject({
+      coat: "chocolate",
+      plant: "round-leaf",
+    });
+    expect(
+      look?.traits?.deskItem !== "none" ||
+        look?.traits?.books !== "green-brown",
+    ).toBe(true);
+    expect(traitKeyOf(CRAFTED_DESK_STYLE, look!)).not.toBe(OTTER_KEY);
+    const prompt = providerMock.editImage.mock.calls[0]?.[0].prompt as string;
+    expect(prompt).toContain("Also change these details of the scene:");
+    expect(prompt).not.toContain("pink pot holds");
+  });
+
+  it("leaves the scene alone when the combination is free", async () => {
+    const { draft } = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "creature", creature: "otter" },
+    });
+
+    expect(draft?.look.traits).toEqual({
+      coat: "chocolate",
+      plant: "round-leaf",
+      deskItem: "none",
+      books: "green-brown",
+    });
+    expect(providerMock.editImage.mock.calls[0]?.[0].prompt).not.toContain(
+      "Also change",
+    );
+  });
+
+  it("carries the look's traits through a swap, an accessory and a typed change", async () => {
+    providerMock.rewrite.mockResolvedValue({
+      edit: "Add a tiny flag.",
+      note: "",
+    });
+    const first = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "shuffle" },
+    });
+    const traits = first.draft?.look.traits;
+    const second = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "typed", text: "a flag" },
+      draftId: first.draft?.id,
+    });
+    const third = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "accessory", accessory: "scarf", enabled: true },
+      draftId: second.draft?.id,
+    });
+
+    expect(second.draft?.look.traits).toEqual(traits);
+    expect(third.draft?.look.traits).toEqual(traits);
+  });
+
+  it("records the key on the row when a draft is kept, and frees it when the look is replaced", async () => {
+    const draft = await keptLook({ kind: "creature", creature: "otter" });
+    const row = avatars.rows.find((one) => one.id === draft.id)!;
+    expect(row.traitKey).toBe(OTTER_KEY);
+
+    await keptLook({ kind: "creature", creature: "frog" });
+
+    // The retired look no longer holds the combination.
+    expect(row.traitKey).toBeNull();
+    const again = await createAvatarDraft({
+      sokoBotId: "bot-2",
+      userId: "user-2",
+      change: { kind: "creature", creature: "otter" },
+    });
+    expect(again.draft?.look.traits?.deskItem).toBe("none");
+  });
+
+  it("answers 409 when two bots keep the same combination, and gives the loser nothing", async () => {
+    const mine = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "creature", creature: "otter" },
+    });
+    // Both were drafted while the combination was free.
+    const theirs = await createAvatarDraft({
+      sokoBotId: "bot-2",
+      userId: "user-2",
+      change: { kind: "creature", creature: "otter" },
+    });
+    await keepAvatarDraft({
+      sokoBotId: BOT,
+      draftId: mine.draft!.id,
+      userId: USER,
+    });
+    bots.avatarImageUrl = null;
+
+    await expect(
+      keepAvatarDraft({
+        sokoBotId: "bot-2",
+        draftId: theirs.draft!.id,
+        userId: "user-2",
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(bots.avatarImageUrl).toBeNull();
+    expect(renders.rows.every((row) => row.avatarId === mine.draft?.id)).toBe(
+      true,
+    );
+    expect(
+      avatars.rows.find((row) => row.id === theirs.draft?.id)
+        ?.claimedBySokoBotId,
+    ).toBeNull();
+  });
+
+  it("leaves legacy rows and looks without traits out of it", async () => {
+    // Two legacy mascots and two crafted looks drawn before traits existed.
+    for (const id of ["mascot-1", "mascot-2"]) {
+      const row = await avatars.create({
+        data: {
+          id,
+          subject: id,
+          background: "b",
+          seed: id === "mascot-1" ? 1 : 2,
+          model: "m",
+          imageUrl: `https://blob.test/${id}.png`,
+        },
+      });
+      await claimAvatar(`bot-${id}`, row.id as string);
+    }
+    for (const id of ["old-1", "old-2"]) {
+      await avatars.create({
+        data: {
+          id,
+          subject: "owl",
+          background: "b",
+          seed: id === "old-1" ? 3 : 4,
+          model: "m",
+          imageUrl: `https://blob.test/${id}.webp`,
+          styleId: "crafted-desk",
+          styleVersion: 1,
+          draftForSokoBotId: `bot-${id}`,
+          draftExpiresAt: new Date(Date.now() + 60_000),
+          look: { creature: "owl", accessories: [], typed: [] },
+        },
+      });
+      await keepAvatarDraft({
+        sokoBotId: `bot-${id}`,
+        draftId: id,
+        userId: USER,
+      });
+    }
+
+    expect(avatars.rows.map((row) => row.traitKey)).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(avatars.rows.map((row) => row.claimedBySokoBotId)).toEqual([
+      "bot-mascot-1",
+      "bot-mascot-2",
+      "bot-old-1",
+      "bot-old-2",
+    ]);
+  });
+
+  describe("when drawing cannot happen", () => {
+    it("says why in the log before it answers 503, with no gateway", async () => {
+      getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(
+        createAvatarDraft({
+          sokoBotId: BOT,
+          userId: USER,
+          change: { kind: "shuffle" },
+        }),
+      ).rejects.toMatchObject({ status: 503 });
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ kind: "avatar_drawing_unavailable" }),
+      );
+    });
+
+    it("says why in the log when a draw fails", async () => {
+      providerMock.editImage.mockRejectedValue(new Error("provider down"));
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(
+        createAvatarDraft({
+          sokoBotId: BOT,
+          userId: USER,
+          change: { kind: "creature", creature: "frog" },
+        }),
+      ).rejects.toMatchObject({ status: 503 });
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          kind: "avatar_draw_failed",
+          error: "provider down",
+        }),
+      );
+    });
+  });
+});
+
 describe("the style is data", () => {
   const swapStyle: SokoBotAvatarStyle = {
     id: "swap-test",
@@ -1238,11 +1599,39 @@ describe("the style is data", () => {
     housePrompt: "SWAP HOUSE PROMPT: a gadget on a shelf.",
     rewriterRules: "SWAP REWRITER RULES",
     creatures: [
-      { id: "widget", noun: "widget", description: "blue widget" },
-      { id: "gizmo", noun: "gizmo", description: "red gizmo" },
+      {
+        id: "widget",
+        noun: "widget",
+        coats: [
+          { id: "blue", phrase: "blue widget" },
+          { id: "teal", phrase: "teal widget" },
+        ],
+      },
+      {
+        id: "gizmo",
+        noun: "gizmo",
+        coats: [
+          { id: "red", phrase: "red gizmo" },
+          { id: "pink", phrase: "pink gizmo" },
+        ],
+      },
     ],
     accessories: [{ id: "bow", phrase: "a tiny bow" }],
+    traits: [
+      {
+        id: "shelf",
+        template: "SWAP shelf: {phrase}.",
+        rerollable: true,
+        options: [
+          { id: "bare", phrase: "bare" },
+          { id: "tidy", phrase: "tidy" },
+          { id: "messy", phrase: "messy" },
+        ],
+      },
+    ],
     prompts: {
+      freshLook: "SWAP fresh: a {to}.{worn} {traits}",
+      alsoChange: " SWAP also: {traits}",
       swapCreature: "SWAP: turn the {from} into a {to}.{worn}",
       wearing: " It carries {worn}.",
       addAccessory: "SWAP: add {accessory} to the {c}.",
@@ -1322,7 +1711,14 @@ describe("the style is data", () => {
     const forbidden = [
       clay.housePrompt.slice(0, 60),
       clay.rewriterRules.slice(0, 60),
-      ...clay.creatures.flatMap((one) => [one.noun, one.description]),
+      ...clay.creatures.flatMap((one) => [
+        one.noun,
+        ...one.coats.map((coat) => coat.phrase),
+      ]),
+      ...clay.traits.flatMap((axis) =>
+        axis.options.map((option) => option.phrase),
+      ),
+      "pink pot",
       ...clay.accessories.map((one) => one.phrase),
       "desk",
       "flower pot",

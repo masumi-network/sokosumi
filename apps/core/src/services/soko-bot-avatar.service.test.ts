@@ -304,6 +304,18 @@ describe("Soko Bot avatar pool", () => {
     expect(drawStillMock).not.toHaveBeenCalled();
   });
 
+  it("lets the cron retry when another run drew the same combination first", async () => {
+    avatarCountMock.mockResolvedValue(2);
+    serializableTransactionMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+
+    await expect(stockAvatarPool()).resolves.toEqual({
+      available: 2,
+      generated: 0,
+    });
+  });
+
   it.each([
     new Error("prisma is down"),
     new HTTPException(409, { message: "Unrelated conflict" }),

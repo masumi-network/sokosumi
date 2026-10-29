@@ -33,13 +33,38 @@ export function mapAvatarStates<T>(
   };
 }
 
+/** One choice on a trait axis, with the words a prompt uses for it. */
+export interface TraitOption {
+  id: string;
+  phrase: string;
+}
+
+/**
+ * The trait every creature has: its colouring. Each creature lists its own
+ * coats, and the coat at the same index is its counterpart on another creature.
+ */
+export const COAT_TRAIT = "coat";
+
+/**
+ * A detail of the scene a look varies on. Drawn from the row's seed, so the
+ * same seed is always the same scene.
+ */
+export interface TraitAxis {
+  id: string;
+  /** One sentence of a prompt; `{phrase}` is the chosen option. */
+  template: string;
+  /** Whether a clash with another bot's look may re-roll it (not the person's own choice). */
+  rerollable: boolean;
+  options: readonly TraitOption[];
+}
+
 /** A creature the look can be swapped to. The colour is named to stop drift. */
 export interface AvatarCreature {
   id: string;
   /** The word state prompts use for it ("the {c} looks up"). */
   noun: string;
-  /** How the creature is introduced when it is swapped in. */
-  description: string;
+  /** How the creature is introduced when it is swapped in, one per coat. */
+  coats: readonly TraitOption[];
 }
 
 export interface AvatarAccessory {
@@ -65,11 +90,17 @@ export interface SokoBotAvatarStyle {
   rewriterRules: string;
   creatures: readonly AvatarCreature[];
   accessories: readonly AvatarAccessory[];
+  /** Scene details besides the creature's coat. The first option of each is the house scene's. */
+  traits: readonly TraitAxis[];
   /**
-   * Templates. `{from}`, `{to}`, `{c}`, `{accessory}`, `{worn}` are filled by
-   * the pipeline.
+   * Templates. `{from}`, `{to}`, `{c}`, `{accessory}`, `{worn}`, `{traits}` are
+   * filled by the pipeline.
    */
   prompts: {
+    /** A fresh look: the house scene redrawn with new traits. */
+    freshLook: string;
+    /** Added to an edit that re-rolled scene details to keep the look unique. */
+    alsoChange: string;
     swapCreature: string;
     /** Added to a swap when the new creature wears accessories. */
     wearing: string;
@@ -114,22 +145,61 @@ export const CRAFTED_DESK_STYLE: SokoBotAvatarStyle = {
   housePrompt: HOUSE_PROMPT,
   rewriterRules: REWRITER_RULES,
   creatures: [
-    { id: "owl", noun: "owl", description: "tan owl with a cream face" },
-    { id: "frog", noun: "frog", description: "bright green frog" },
+    {
+      id: "owl",
+      noun: "owl",
+      coats: [
+        { id: "tan", phrase: "tan owl with a cream face" },
+        { id: "snowy", phrase: "snowy white owl with grey-tipped feathers" },
+        { id: "tawny", phrase: "tawny owl with dark barred feathers" },
+        { id: "grey", phrase: "soft grey owl with a white face" },
+      ],
+    },
+    {
+      id: "frog",
+      noun: "frog",
+      coats: [
+        { id: "bright", phrase: "bright green frog" },
+        { id: "olive", phrase: "olive green frog with darker spots" },
+        { id: "teal", phrase: "teal green frog with a pale yellow belly" },
+        { id: "lime", phrase: "lime yellow frog with brown speckles" },
+      ],
+    },
     {
       id: "hedgehog",
       noun: "hedgehog",
-      description: "brown hedgehog with chestnut quills",
+      coats: [
+        { id: "chestnut", phrase: "brown hedgehog with chestnut quills" },
+        { id: "silver", phrase: "grey hedgehog with silver-tipped quills" },
+        { id: "sandy", phrase: "cream hedgehog with sandy quills" },
+        {
+          id: "russet",
+          phrase: "dark brown hedgehog with russet-tipped quills",
+        },
+      ],
     },
     {
       id: "otter",
       noun: "otter",
-      description: "brown otter with chocolate fur",
+      coats: [
+        { id: "chocolate", phrase: "brown otter with chocolate fur" },
+        { id: "honey", phrase: "honey gold otter with a cream muzzle" },
+        { id: "slate", phrase: "dark grey-brown otter with a pale chest" },
+        { id: "ginger", phrase: "ginger otter with a white belly" },
+      ],
     },
     {
       id: "penguin",
       noun: "penguin",
-      description: "black and white penguin",
+      coats: [
+        { id: "classic", phrase: "black and white penguin" },
+        { id: "blue", phrase: "grey-blue penguin with a white belly" },
+        { id: "gold", phrase: "black penguin with a golden-yellow neck patch" },
+        {
+          id: "charcoal",
+          phrase: "penguin with a charcoal back and a cream belly",
+        },
+      ],
     },
   ],
   accessories: [
@@ -142,7 +212,47 @@ export const CRAFTED_DESK_STYLE: SokoBotAvatarStyle = {
       phrase: "a small brass magnifying glass, held up in one hand",
     },
   ],
+  traits: [
+    {
+      id: "plant",
+      template: "The pink pot holds {phrase}.",
+      rerollable: false,
+      options: [
+        { id: "round-leaf", phrase: "a small round-leaf plant" },
+        { id: "cactus", phrase: "a tiny green cactus" },
+        { id: "fern", phrase: "a small fern" },
+        { id: "succulent", phrase: "a little succulent rosette" },
+        { id: "lavender", phrase: "a sprig of lavender" },
+      ],
+    },
+    {
+      id: "deskItem",
+      template: "On the desk: {phrase}.",
+      rerollable: true,
+      options: [
+        { id: "none", phrase: "only the open book" },
+        { id: "mug", phrase: "the open book and a tiny steaming mug" },
+        { id: "lamp", phrase: "the open book and a small brass desk lamp" },
+        { id: "pencils", phrase: "the open book and a pencil cup" },
+        { id: "clock", phrase: "the open book and a little alarm clock" },
+      ],
+    },
+    {
+      id: "books",
+      template: "The stack of books beside the desk has {phrase} covers.",
+      rerollable: true,
+      options: [
+        { id: "green-brown", phrase: "green and brown" },
+        { id: "navy-mustard", phrase: "navy and mustard" },
+        { id: "red-cream", phrase: "red and cream" },
+        { id: "teal-plum", phrase: "teal and plum" },
+      ],
+    },
+  ],
   prompts: {
+    freshLook:
+      "Redraw this scene as a new variation of the same handmade clay miniature, with the same camera, framing, daylight and background. The creature is a {to}, made in the same soft clay style and size, doing the same thing: reading the open book with both hands resting on the desk.{worn} {traits} Keep the desk itself, the pot's pink, the framing and the background exactly the same.",
+    alsoChange: " Also change these details of the scene: {traits}",
     swapCreature:
       "Replace the {from} with a {to} made in the same soft clay style and size, doing the same thing: reading the open book with both hands resting on the desk.{worn} Keep the desk, the props, the framing and the background exactly the same.",
     wearing: " It wears {worn}.",
@@ -205,32 +315,193 @@ export type AvatarLook = {
   accessories: string[];
   /** Rewritten typed changes applied so far. */
   typed: string[];
+  /**
+   * The chosen option id per trait axis: the creature's coat and the style's
+   * scene details. Absent on looks drawn before traits existed.
+   */
+  traits?: Record<string, string>;
 };
 
+/** The look the house scene shows: its creature, the first option of every trait. */
 export function freshLook(style: SokoBotAvatarStyle): AvatarLook {
-  return { creature: style.houseCreatureId, accessories: [], typed: [] };
+  return {
+    creature: style.houseCreatureId,
+    accessories: [],
+    typed: [],
+    traits: Object.fromEntries([
+      [COAT_TRAIT, creatureOf(style, style.houseCreatureId).coats[0]?.id ?? ""],
+      ...style.traits.map((axis) => [axis.id, axis.options[0]?.id ?? ""]),
+    ]),
+  };
+}
+
+export function creatureOf(
+  style: SokoBotAvatarStyle,
+  id: string,
+): AvatarCreature {
+  return (
+    style.creatures.find((one) => one.id === id) ??
+    // A look drawn by an older version of this style may name a creature the
+    // style no longer offers; the house creature keeps prompts sensible.
+    style.creatures.find((one) => one.id === style.houseCreatureId)!
+  );
+}
+
+/** A small seeded PRNG (mulberry32): the same seed always rolls the same numbers. */
+export function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickFrom<T>(items: readonly T[], random: () => number): T {
+  return items[Math.floor(random() * items.length)]!;
+}
+
+/**
+ * A whole look from a seed: creature, coat, scene details and at most one
+ * accessory. The seed is stored on the row, so the look can be read back from it.
+ */
+export function lookFromSeed(
+  style: SokoBotAvatarStyle,
+  seed: number,
+): AvatarLook {
+  const random = seededRandom(seed);
+  const creature = pickFrom(style.creatures, random);
+  const traits: Record<string, string> = {
+    [COAT_TRAIT]: pickFrom(creature.coats, random).id,
+  };
+  for (const axis of style.traits) {
+    traits[axis.id] = pickFrom(axis.options, random).id;
+  }
+  // Nothing, or one of the accessories, with equal odds each.
+  const slot = Math.floor(random() * (style.accessories.length + 1));
+  const accessory = style.accessories[slot];
+  return {
+    creature: creature.id,
+    accessories: accessory ? [accessory.id] : [],
+    typed: [],
+    traits,
+  };
+}
+
+/**
+ * What identifies a look among others: creature, traits and accessories. Typed
+ * changes are not part of it. Null for a look without traits (a legacy one).
+ */
+export function traitKeyOf(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+): string | null {
+  const { traits } = look;
+  if (!traits) return null;
+  return [
+    look.creature,
+    traits[COAT_TRAIT] ?? "",
+    ...style.traits.map((axis) => traits[axis.id] ?? ""),
+    [...look.accessories].sort().join("+") || "none",
+  ].join("|");
+}
+
+/** The coat the same-index coat of another creature stands for. */
+export function coatAfterSwap(
+  style: SokoBotAvatarStyle,
+  from: AvatarLook,
+  toCreatureId: string,
+): string | undefined {
+  const index = creatureOf(style, from.creature).coats.findIndex(
+    (coat) => coat.id === from.traits?.[COAT_TRAIT],
+  );
+  const coats = creatureOf(style, toCreatureId).coats;
+  return coats[Math.max(0, Math.min(index, coats.length - 1))]?.id;
+}
+
+/** The phrase of a look's coat, falling back to the creature's first coat. */
+export function coatPhrase(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+): string {
+  const creature = creatureOf(style, look.creature);
+  return (
+    (
+      creature.coats.find((coat) => coat.id === look.traits?.[COAT_TRAIT]) ??
+      creature.coats[0]
+    )?.phrase ?? creature.noun
+  );
+}
+
+/** One sentence per scene-detail axis (or just `only` of them), from a look's traits. */
+export function traitSentences(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+  only?: readonly string[],
+): string {
+  return style.traits
+    .filter((axis) => !only || only.includes(axis.id))
+    .flatMap((axis) => {
+      const option = axis.options.find(
+        (one) => one.id === look.traits?.[axis.id],
+      );
+      return option ? [fill(axis.template, { phrase: option.phrase })] : [];
+    })
+    .join(" ");
 }
 
 function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? "");
 }
 
-/** The prompt for the one image edit that turns `look` into `next`. */
-export function creatureSwapPrompt(
+function wearing(
   style: SokoBotAvatarStyle,
-  from: AvatarCreature,
-  to: AvatarCreature,
   accessories: readonly AvatarAccessory[],
 ): string {
-  const worn = accessories.length
+  return accessories.length
     ? fill(style.prompts.wearing, {
         worn: accessories.map((one) => one.phrase).join(" and "),
       })
     : "";
+}
+
+/** The prompt that redraws the house scene as a fresh look. */
+export function freshLookPrompt(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+  accessories: readonly AvatarAccessory[],
+): string {
+  return fill(style.prompts.freshLook, {
+    to: coatPhrase(style, look),
+    worn: wearing(style, accessories),
+    traits: traitSentences(style, look),
+  });
+}
+
+/** What to append to an edit that re-rolled the scene details in `axes`. */
+export function alsoChangePrompt(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+  axes: readonly string[],
+): string {
+  return fill(style.prompts.alsoChange, {
+    traits: traitSentences(style, look, axes),
+  });
+}
+
+/** The prompt for the one image edit that swaps the creature, keeping the scene. */
+export function creatureSwapPrompt(
+  style: SokoBotAvatarStyle,
+  from: AvatarCreature,
+  to: string,
+  accessories: readonly AvatarAccessory[],
+): string {
   return fill(style.prompts.swapCreature, {
     from: from.noun,
-    to: to.description,
-    worn,
+    to,
+    worn: wearing(style, accessories),
   });
 }
 

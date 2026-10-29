@@ -7,10 +7,12 @@ import { HTTPException } from "hono/http-exception";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
+  conflict,
   notFound,
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { toDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
@@ -21,7 +23,8 @@ import {
   drawStill,
   errorText,
   loadHouseScene,
-  planShuffle,
+  planFresh,
+  randomSeed,
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
 import { AVATAR_IMAGE_MODEL } from "@/lib/soko-bot-avatar/provider";
@@ -31,12 +34,14 @@ import {
   CURRENT_AVATAR_STYLE,
   findAvatarStyle,
   type SokoBotAvatarStyle,
+  traitKeyOf,
 } from "@/lib/soko-bot-avatar/style";
+import { sokoBotAvatarLookSchema } from "@/schemas/soko-bot-avatar.schema";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 
 /**
  * Avatar pool and claim for Soko Bots. The pool holds fresh looks drawn in the
- * current style (the house scene with a random creature, maybe an accessory);
+ * current style (the house scene redrawn from a seed: a creature, its coat, scene details and maybe an accessory);
  * a bot claims exactly one, and claiming a crafted look gives it one render per
  * state (see `soko-bot-avatar-render.service`). The pool is topped up when it
  * runs low so onboarding always has choices. Legacy mascot rows are read and
@@ -59,12 +64,7 @@ interface AvatarReservation {
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
 export class AvatarGenerationCappedError extends Error {}
 
-/** A random positive int; with 31 bits a clash on the unique key is negligible. */
-export function randomAvatarSeed(): number {
-  return crypto.randomInt(1, 2 ** 31 - 1);
-}
-
-/** The unique-key columns of a look: creature, what it wears, a random seed. */
+/** The unique-key columns of a look: creature, what it wears, the seed it came from. */
 export function avatarRowKey(
   style: SokoBotAvatarStyle,
   look: AvatarLook,
@@ -81,6 +81,72 @@ export function avatarRowKey(
 export function canDraw(): boolean {
   const env = getEnv();
   return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
+}
+
+/** Rolls per fresh look before it gives up on finding an unused combination. */
+const FRESH_LOOK_ROLLS = 12;
+
+/** The trait keys among `keys` that a pool or claimed look already has. */
+export async function takenTraitKeys(
+  client: Prisma.TransactionClient | typeof prisma,
+  style: SokoBotAvatarStyle,
+  keys: readonly string[],
+): Promise<Set<string>> {
+  const rows = await client.sokoBotAvatar.findMany({
+    where: {
+      styleId: style.id,
+      styleVersion: style.version,
+      traitKey: { in: [...keys] },
+    },
+    select: { traitKey: true },
+  });
+  return new Set(rows.flatMap((row) => (row.traitKey ? [row.traitKey] : [])));
+}
+
+/**
+ * Up to `count` fresh looks, each from its own seed and none sharing a trait
+ * key with a pool or claimed look (or with each other). A seed that lands on a
+ * taken key is rolled again; with thousands of combinations that is rare, so a
+ * slot that finds nothing in a few rolls is simply left out.
+ */
+export async function pickFreshLooks(
+  client: Prisma.TransactionClient | typeof prisma,
+  style: SokoBotAvatarStyle,
+  count: number,
+) {
+  const chosen: { seed: number; look: AvatarLook; prompt: string }[] = [];
+  const used = new Set<string>();
+  for (let slot = 0; slot < count; slot += 1) {
+    const rolls = Array.from({ length: FRESH_LOOK_ROLLS }, () => {
+      const seed = randomSeed();
+      const plan = planFresh(style, seed);
+      return {
+        seed,
+        plan,
+        key: plan.kind === "edit" ? traitKeyOf(style, plan.look) : null,
+      };
+    });
+    const taken = await takenTraitKeys(
+      client,
+      style,
+      rolls.flatMap((roll) => (roll.key ? [roll.key] : [])),
+    );
+    const free = rolls.find(
+      (roll) =>
+        roll.plan.kind === "edit" &&
+        roll.key &&
+        !taken.has(roll.key) &&
+        !used.has(roll.key),
+    );
+    if (!free || free.plan.kind !== "edit" || !free.key) continue;
+    used.add(free.key);
+    chosen.push({
+      seed: free.seed,
+      look: free.plan.look,
+      prompt: free.plan.prompt,
+    });
+  }
+  return chosen;
 }
 
 /**
@@ -123,19 +189,18 @@ async function reserveDraws(
     }
 
     const reservations: AvatarReservation[] = [];
-    for (let i = 0; i < allowed; i += 1) {
-      const plan = planShuffle(style);
-      if (plan.kind !== "edit") continue;
-      const seed = randomAvatarSeed();
+    for (const fresh of await pickFreshLooks(tx, style, allowed)) {
+      const { seed, look, prompt } = fresh;
       // Sequential on purpose: Prisma does not support concurrent queries on
       // one interactive transaction client.
       const row = await tx.sokoBotAvatar.create({
         data: {
-          ...avatarRowKey(style, plan.look, seed),
+          ...avatarRowKey(style, look, seed),
           model: AVATAR_IMAGE_MODEL,
           styleId: style.id,
           styleVersion: style.version,
-          look: plan.look,
+          look,
+          traitKey: traitKeyOf(style, look),
           fromPool: true,
           requestedByUserId,
           // Filled in once the image exists. `reservedAt` keeps the row out of
@@ -145,13 +210,7 @@ async function reserveDraws(
         },
         select: { id: true },
       });
-      reservations.push({
-        id: row.id,
-        style,
-        look: plan.look,
-        prompt: plan.prompt,
-        seed,
-      });
+      reservations.push({ id: row.id, style, look, prompt, seed });
     }
     return reservations;
   }, "Another avatar top-up is running. Try again.");
@@ -221,6 +280,8 @@ function httpExceptionKind(cause: unknown): string | undefined {
  */
 function isRecoverableGenerationFailure(error: unknown): boolean {
   if (error instanceof AvatarGenerationCappedError) return true;
+  // Another run drew the same combination between our check and our write.
+  if (isPrismaUniqueViolation(error)) return true;
   return (
     error instanceof HTTPException &&
     error.status === 409 &&
@@ -515,6 +576,12 @@ async function assertKeepAllowance(
   }
 }
 
+function traitKeyForRow(styleId: string, look: unknown): string | null {
+  const style = findAvatarStyle(styleId);
+  const parsed = sokoBotAvatarLookSchema.safeParse(look);
+  return style && parsed.success ? traitKeyOf(style, parsed.data) : null;
+}
+
 export interface ClaimOptions {
   /** Run inside a caller's transaction (bot create); otherwise a serializable one. */
   tx?: Prisma.TransactionClient;
@@ -553,6 +620,8 @@ export async function claimAvatar(
         keptAt: true,
         draftForSokoBotId: true,
         draftExpiresAt: true,
+        look: true,
+        traitKey: true,
       },
     });
     if (!avatar) throw notFound("Avatar not found");
@@ -606,6 +675,8 @@ export async function claimAvatar(
           claimedAt: null,
           draftForSokoBotId: sokoBotId,
           draftExpiresAt: new Date(now.getTime() + KEEP_WINDOW_MS),
+          // The combination is free for the next bot to use.
+          traitKey: null,
         },
       });
     }
@@ -617,20 +688,36 @@ export async function claimAvatar(
       },
       data: { claimedBySokoBotId: null, claimedAt: null },
     });
-    const claimed = await tx.sokoBotAvatar.updateMany({
-      where: {
-        id: avatarId,
-        OR: [{ claimedBySokoBotId: null }, { claimedBySokoBotId: sokoBotId }],
-      },
-      data: {
-        claimedBySokoBotId: sokoBotId,
-        claimedAt: now,
-        ...(crafted ? { draftExpiresAt: null } : {}),
-        ...(firstKeep
-          ? { keptAt: now, keptByUserId: options.keptBy ?? null }
-          : {}),
-      },
-    });
+    // A draft takes its place among the claimed looks under its trait key.
+    const traitKey =
+      crafted && !avatar.traitKey
+        ? traitKeyForRow(avatar.styleId, avatar.look)
+        : null;
+    let claimed: { count: number };
+    try {
+      claimed = await tx.sokoBotAvatar.updateMany({
+        where: {
+          id: avatarId,
+          OR: [{ claimedBySokoBotId: null }, { claimedBySokoBotId: sokoBotId }],
+        },
+        data: {
+          claimedBySokoBotId: sokoBotId,
+          claimedAt: now,
+          ...(crafted ? { draftExpiresAt: null } : {}),
+          ...(traitKey ? { traitKey } : {}),
+          ...(firstKeep
+            ? { keptAt: now, keptByUserId: options.keptBy ?? null }
+            : {}),
+        },
+      });
+    } catch (error) {
+      // Another bot holds, or was just offered, this exact combination.
+      if (!isPrismaUniqueViolation(error)) throw error;
+      throw conflict(
+        "Another look just took this combination. Change something and try again.",
+        { kind: "avatar_look_taken" },
+      );
+    }
     if (claimed.count === 0) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }

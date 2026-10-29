@@ -9,13 +9,18 @@ import { levelStill } from "@/lib/soko-bot-avatar/media";
 import { avatarProvider } from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarAccessory,
-  type AvatarCreature,
   type AvatarLook,
   accessoryPrompt,
+  COAT_TRAIT,
+  coatAfterSwap,
+  coatPhrase,
+  creatureOf,
   creatureSwapPrompt,
-  freshLook,
+  freshLookPrompt,
+  lookFromSeed,
   removeAccessoryPrompt,
   type SokoBotAvatarStyle,
+  seededRandom,
 } from "@/lib/soko-bot-avatar/style";
 import type { sokoBotAvatarChangeSchema } from "@/schemas/soko-bot-avatar.schema";
 
@@ -36,24 +41,19 @@ export function errorText(error: unknown): string {
   return (error instanceof Error ? error.message : "unknown").slice(0, 300);
 }
 
+export { creatureOf };
+
 /** One image edit, planned. `note` is the rewriter's sentence for the person editing. */
 export type AvatarPlan =
   | { kind: "edit"; look: AvatarLook; prompt: string; note: string }
   | { kind: "unchanged"; note: string };
 
-export function creatureOf(
-  style: SokoBotAvatarStyle,
-  id: string,
-): AvatarCreature {
-  return (
-    style.creatures.find((one) => one.id === id) ??
-    // A look made by an older version of this style may name a creature the
-    // style no longer offers; the house creature keeps the prompt sensible.
-    style.creatures.find((one) => one.id === style.houseCreatureId)!
-  );
+/** A random seed for a fresh look; the look itself is read back from it. */
+export function randomSeed(): number {
+  return crypto.randomInt(1, 2 ** 31 - 1);
 }
 
-function accessoriesOf(
+export function accessoriesOf(
   style: SokoBotAvatarStyle,
   ids: readonly string[],
 ): AvatarAccessory[] {
@@ -63,34 +63,41 @@ function accessoriesOf(
   });
 }
 
-function pick<T>(items: readonly T[]): T {
-  return items[crypto.randomInt(items.length)]!;
-}
-
-/** A random look, planned as one edit of the house scene. */
-export function planShuffle(style: SokoBotAvatarStyle): AvatarPlan {
-  const house = freshLook(style);
-  const to = pick(style.creatures);
-  // The house creature on its own is the house scene: give it something to wear.
-  const accessory =
-    to.id === style.houseCreatureId || crypto.randomInt(2) === 0
-      ? pick(style.accessories)
-      : undefined;
-  const look: AvatarLook = {
-    ...house,
-    creature: to.id,
-    accessories: accessory ? [accessory.id] : [],
-  };
-  const from = creatureOf(style, house.creature);
+/** A look from `seed`, planned as one redraw of the house scene. */
+export function planFresh(style: SokoBotAvatarStyle, seed: number): AvatarPlan {
+  const look = lookFromSeed(style, seed);
   return {
     kind: "edit",
     look,
     note: "",
-    prompt:
-      to.id === from.id && accessory
-        ? accessoryPrompt(style, from, accessory)
-        : creatureSwapPrompt(style, from, to, accessory ? [accessory] : []),
+    prompt: freshLookPrompt(
+      style,
+      look,
+      accessoriesOf(style, look.accessories),
+    ),
   };
+}
+
+/**
+ * The look with its rerollable scene details drawn again, never the person's
+ * own choice (creature, coat, plant, accessory). Returns the axes that changed.
+ */
+export function rerollDetails(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+  seed: number,
+): { look: AvatarLook; axes: string[] } {
+  const random = seededRandom(seed);
+  const traits = { ...look.traits };
+  const axes: string[] = [];
+  for (const axis of style.traits.filter((one) => one.rerollable)) {
+    const option = axis.options[Math.floor(random() * axis.options.length)];
+    if (option && option.id !== traits[axis.id]) {
+      traits[axis.id] = option.id;
+      axes.push(axis.id);
+    }
+  }
+  return { look: { ...look, traits }, axes };
 }
 
 /**
@@ -105,20 +112,30 @@ export async function planChange(
   const current = creatureOf(style, base.creature);
   switch (change.kind) {
     case "shuffle":
-      return planShuffle(style);
+      return planFresh(style, randomSeed());
     case "creature": {
       const to = style.creatures.find((one) => one.id === change.creature);
       if (!to) throw unprocessableEntity("Unknown creature");
       if (to.id === base.creature) return { kind: "unchanged", note: "" };
+      const coat = coatAfterSwap(style, base, to.id);
+      const look: AvatarLook = {
+        ...base,
+        creature: to.id,
+        // The creature is new, so earlier typed changes no longer apply. Its
+        // coat is the one at the same place in its own list; the scene stays.
+        typed: [],
+        ...(base.traits && coat
+          ? { traits: { ...base.traits, [COAT_TRAIT]: coat } }
+          : {}),
+      };
       return {
         kind: "edit",
         note: "",
-        // The creature is new, so earlier typed changes no longer apply.
-        look: { ...base, creature: to.id, typed: [] },
+        look,
         prompt: creatureSwapPrompt(
           style,
           current,
-          to,
+          coatPhrase(style, look),
           accessoriesOf(style, base.accessories),
         ),
       };

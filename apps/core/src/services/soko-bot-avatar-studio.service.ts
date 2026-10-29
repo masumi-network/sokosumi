@@ -11,22 +11,27 @@ import {
   errorText,
   loadHouseScene,
   planChange,
+  randomSeed,
+  rerollDetails,
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
 import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
 import { AVATAR_IMAGE_MODEL } from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarLook,
+  alsoChangePrompt,
   CURRENT_AVATAR_STYLE,
   freshLook,
   type SokoBotAvatarStyle,
+  traitKeyOf,
 } from "@/lib/soko-bot-avatar/style";
 import { sokoBotAvatarLookSchema } from "@/schemas/soko-bot-avatar.schema";
 import {
   avatarRowKey,
   canDraw,
   claimAvatar,
-  randomAvatarSeed,
+  pickFreshLooks,
+  takenTraitKeys,
   takePoolLookAsDraft,
 } from "@/services/soko-bot-avatar.service";
 
@@ -36,6 +41,10 @@ import {
  * routes; this module trusts the bot id it is given.
  */
 
+const DRAWING_UNAVAILABLE = "avatar_drawing_unavailable";
+const DRAW_FAILED = "avatar_draw_failed";
+/** Rolls of the scene details to find a combination nobody has. */
+const REROLLS = 12;
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 const DRAFT_WINDOW_MS = 60 * 60 * 1000;
 
@@ -80,6 +89,39 @@ async function loadBase(
 }
 
 /**
+ * An edit of the creature or the accessory is the person's choice, so if its
+ * combination is already some other bot's, only the scene details change (the
+ * desk item and the books), until it is free. Gives up after a few rolls: the
+ * keep is the backstop and answers 409 on the rare clash.
+ */
+async function avoidTakenCombination<
+  T extends { kind: "edit"; look: AvatarLook; prompt: string },
+>(style: SokoBotAvatarStyle, plan: T): Promise<T> {
+  const key = traitKeyOf(style, plan.look);
+  if (!key || !(await takenTraitKeys(prisma, style, [key])).has(key)) {
+    return plan;
+  }
+  const rolls = Array.from({ length: REROLLS }, () =>
+    rerollDetails(style, plan.look, randomSeed()),
+  ).filter((roll) => roll.axes.length > 0);
+  const taken = await takenTraitKeys(
+    prisma,
+    style,
+    rolls.flatMap((roll) => traitKeyOf(style, roll.look) ?? []),
+  );
+  const free = rolls.find((roll) => {
+    const rolled = traitKeyOf(style, roll.look);
+    return rolled && !taken.has(rolled);
+  });
+  if (!free) return plan;
+  return {
+    ...plan,
+    look: free.look,
+    prompt: plan.prompt + alsoChangePrompt(style, free.look, free.axes),
+  };
+}
+
+/**
  * Draw one change as a draft. The draft is an unclaimed row tied to the bot
  * and swept after a day; nothing about the bot changes until it is kept.
  *
@@ -95,8 +137,12 @@ export async function createAvatarDraft(input: {
 }): Promise<{ draft: AvatarDraft | null; note: string }> {
   const style = input.style ?? CURRENT_AVATAR_STYLE;
   if (!canDraw()) {
+    console.warn("Soko Bot avatar drawing is not configured", {
+      kind: DRAWING_UNAVAILABLE,
+      needs: "AI_GATEWAY_API_KEY and BLOB_READ_WRITE_TOKEN",
+    });
     throw serviceUnavailable("Avatar drawing is not available right now.", {
-      kind: "avatar_drawing_unavailable",
+      kind: DRAWING_UNAVAILABLE,
       reportToSentry: false,
     });
   }
@@ -126,9 +172,23 @@ export async function createAvatarDraft(input: {
     input.change.kind === "shuffle" || !base.image ? null : base.image;
   let plan: Awaited<ReturnType<typeof planChange>>;
   let reference: Buffer;
+  let seed = randomSeed();
   try {
-    plan = await planChange(style, base.look, input.change);
+    // A fresh look is one nobody has; anything else keeps the look's own scene.
+    const [fresh] =
+      input.change.kind === "shuffle"
+        ? await pickFreshLooks(prisma, style, 1)
+        : [];
+    if (fresh) {
+      seed = fresh.seed;
+      plan = { kind: "edit", look: fresh.look, prompt: fresh.prompt, note: "" };
+    } else {
+      plan = await planChange(style, base.look, input.change);
+    }
     if (plan.kind === "unchanged") return { draft: null, note: plan.note };
+    if (input.change.kind === "creature" || input.change.kind === "accessory") {
+      plan = await avoidTakenCombination(style, plan);
+    }
     reference = source
       ? await downloadAvatarAsset(source.url)
       : await loadHouseScene(style);
@@ -137,10 +197,11 @@ export async function createAvatarDraft(input: {
     // blob store being down, and nothing has been spent yet.
     if (error instanceof HTTPException) throw error;
     console.warn("Soko Bot avatar draft could not be planned", {
+      kind: DRAW_FAILED,
       error: errorText(error),
     });
     throw serviceUnavailable("The look could not be drawn. Try again.", {
-      kind: "avatar_draw_failed",
+      kind: DRAW_FAILED,
       reportToSentry: false,
     });
   }
@@ -164,7 +225,7 @@ export async function createAvatarDraft(input: {
     }
     return await tx.sokoBotAvatar.create({
       data: {
-        ...avatarRowKey(style, plan.look, randomAvatarSeed()),
+        ...avatarRowKey(style, plan.look, seed),
         model: AVATAR_IMAGE_MODEL,
         styleId: style.id,
         styleVersion: style.version,
@@ -207,9 +268,12 @@ export async function createAvatarDraft(input: {
     await prisma.sokoBotAvatar
       .deleteMany({ where: { id: reservation.id } })
       .catch(() => undefined);
-    console.warn("Soko Bot avatar draft failed", { error: errorText(error) });
+    console.warn("Soko Bot avatar draft failed", {
+      kind: DRAW_FAILED,
+      error: errorText(error),
+    });
     throw serviceUnavailable("The look could not be drawn. Try again.", {
-      kind: "avatar_draw_failed",
+      kind: DRAW_FAILED,
       reportToSentry: false,
     });
   }
