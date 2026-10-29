@@ -3576,7 +3576,7 @@
         },
         "SendingDomain": {
           "title": "Dominio de envío",
-          "description": "Envía boletines desde tu propia dirección, como news@tumarca.com. Todos los proyectos de este espacio de trabajo la usan.",
+          "description": "Envía boletines desde tu propia dirección, como news@news.tumarca.com. Todos los proyectos de este espacio de trabajo la usan.",
           "managedByAdmins": "Solo la persona propietaria o un administrador del espacio de trabajo puede conectar un dominio de envío.",
           "fromAddress": "Dirección del remitente",
           "fromAddressPlaceholder": "news@news.tumarca.com",
@@ -3653,7 +3653,7 @@
           },
           "errors": {
             "generic": "No se pudo actualizar el dominio de envío. Inténtalo de nuevo.",
-            "invalidAddress": "Introduce una dirección de correo, como news@tumarca.com.",
+            "invalidAddress": "Introduce una dirección de correo, como news@news.tumarca.com.",
             "forbidden": "Solo la persona propietaria o un administrador del espacio de trabajo puede cambiar el dominio de envío.",
             "notFound": "Este dominio de envío se quitó. Recarga la página.",
             "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro espacio de trabajo.",

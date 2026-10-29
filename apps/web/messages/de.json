@@ -3576,7 +3576,7 @@
         },
         "SendingDomain": {
           "title": "Absenderdomain",
-          "description": "Versende Newsletter von deiner eigenen Adresse, etwa news@deinemarke.de. Jedes Projekt in diesem Workspace nutzt sie.",
+          "description": "Versende Newsletter von deiner eigenen Adresse, etwa news@news.deinemarke.de. Jedes Projekt in diesem Workspace nutzt sie.",
           "managedByAdmins": "Nur Workspace-Inhaber oder -Admins können eine Absenderdomain verbinden.",
           "fromAddress": "Absenderadresse",
           "fromAddressPlaceholder": "news@news.deinemarke.de",
@@ -3653,7 +3653,7 @@
           },
           "errors": {
             "generic": "Die Absenderdomain konnte nicht aktualisiert werden. Versuche es erneut.",
-            "invalidAddress": "Gib eine E-Mail-Adresse ein, etwa news@deinemarke.de.",
+            "invalidAddress": "Gib eine E-Mail-Adresse ein, etwa news@news.deinemarke.de.",
             "forbidden": "Nur Workspace-Inhaber oder -Admins können die Absenderdomain ändern.",
             "notFound": "Diese Absenderdomain wurde entfernt. Lade die Seite neu.",
             "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderer Workspace nutzt.",

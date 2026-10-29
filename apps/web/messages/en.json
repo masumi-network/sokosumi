@@ -3576,7 +3576,7 @@
         },
         "SendingDomain": {
           "title": "Sending domain",
-          "description": "Send newsletters from your own address, like news@yourbrand.com. Every project in this workspace uses it.",
+          "description": "Send newsletters from your own address, like news@news.yourbrand.com. Every project in this workspace uses it.",
           "managedByAdmins": "Only a workspace owner or admin can connect a sending domain.",
           "fromAddress": "From address",
           "fromAddressPlaceholder": "news@news.yourbrand.com",
@@ -3653,7 +3653,7 @@
           },
           "errors": {
             "generic": "Unable to update the sending domain. Try again.",
-            "invalidAddress": "Enter an email address, like news@yourbrand.com.",
+            "invalidAddress": "Enter an email address, like news@news.yourbrand.com.",
             "forbidden": "Only a workspace owner or admin can change the sending domain.",
             "notFound": "This sending domain was removed. Refresh the page.",
             "conflict": "This domain is already connected. Remove the current domain first, or use a domain no other workspace uses.",

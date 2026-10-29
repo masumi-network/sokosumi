@@ -53,6 +53,14 @@ import { newsletterDnsRecordsSchema } from "@/schemas/newsletter-sending-domain.
 /** A pending domain is re-read from Resend at most this often on its own. */
 const LAZY_REFRESH_MS = 60_000;
 const CLOUDFLARE_RECORD_TYPES = new Set(["TXT", "MX", "CNAME"]);
+/**
+ * Cloudflare's codes for a token it cannot use: malformed Authorization header
+ * (6003/6111, e.g. a Global API Key pasted as a token), invalid token (1000,
+ * 9109) and authentication error (10000). Some come back as HTTP 400.
+ */
+const CLOUDFLARE_TOKEN_REJECTED_CODES = new Set([
+  1000, 6003, 6111, 9109, 10000,
+]);
 
 function statusCodeOf(error: unknown): number | null {
   if (typeof error !== "object" || error === null) return null;
@@ -298,7 +306,11 @@ export async function connectNewsletterSendingDomainWithCloudflare(
     }
   } catch (error) {
     if (!(error instanceof CloudflareApiError)) throw error;
-    if (error.status === 401 || error.status === 403) {
+    if (
+      error.status === 401 ||
+      error.status === 403 ||
+      error.codes.some((code) => CLOUDFLARE_TOKEN_REJECTED_CODES.has(code))
+    ) {
       throw unprocessableEntity(
         "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain.",
       );

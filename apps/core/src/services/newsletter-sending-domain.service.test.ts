@@ -522,6 +522,14 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
       connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN),
     ).rejects.toMatchObject({ status: 422 });
 
+    // A Global API Key pasted as a token: HTTP 400, not 401/403.
+    m.listZones.mockRejectedValueOnce(
+      new CloudflareApiError(400, [6003, 6111]),
+    );
+    await expect(
+      connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN),
+    ).rejects.toMatchObject({ status: 422 });
+
     m.listZones.mockResolvedValue([{ id: "zone_1", name: "brand.example" }]);
     m.createDnsRecord.mockRejectedValue(new CloudflareApiError(500, []));
     await expect(
