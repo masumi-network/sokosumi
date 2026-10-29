@@ -74,6 +74,11 @@ interface ProjectWorkspaceShellProps {
   projectName: string;
   identifier?: string | null;
   websiteUrl?: string | null;
+  /**
+   * More of the right column, under Properties from `xl` up and after the
+   * tab's content below it: Overview's Needs you and Recent activity.
+   */
+  panels?: React.ReactNode;
 }
 
 /**
@@ -100,6 +105,7 @@ export function ProjectWorkspaceShell({
   projectName,
   identifier,
   websiteUrl,
+  panels,
 }: ProjectWorkspaceShellProps) {
   /**
    * What a project *is*, in three views.
@@ -149,7 +155,17 @@ export function ProjectWorkspaceShell({
           tabs block adds 16px in one column, so the Properties close their
           group before the tabs start. The 56px column gap keeps the header's
           actions clear of the rail. */}
-      <div className={cn(TASK_DETAIL_GRID_CLASS, "gap-y-4 xl:gap-x-14")}>
+      {/* From `xl` up, three rows: the name and the Properties share the
+          first, the tab block spans the other two, and the panels sit in the
+          last, under the Properties. The last row is `1fr` so a tall tab
+          block grows that row and never the second, which would push the
+          panels away from the Properties. */}
+      <div
+        className={cn(
+          TASK_DETAIL_GRID_CLASS,
+          "gap-y-4 xl:grid-rows-[auto_auto_1fr] xl:gap-x-14",
+        )}
+      >
         <ProjectDetailHeader
           actions={actions}
           projectLogo={projectLogo}
@@ -157,8 +173,12 @@ export function ProjectWorkspaceShell({
         />
 
         {/* Capped so a row's qualifier stays near its value while the rail
-            runs the full width of a single column. */}
-        <aside className={cn(TASK_DETAIL_SIDEBAR_CLASS, "max-w-sm")}>
+            runs the full width of a single column. From `xl` up the column
+            is narrower than the cap, so the rows end where the panels under
+            them do. */}
+        <aside
+          className={cn(TASK_DETAIL_SIDEBAR_CLASS, "max-w-sm xl:max-w-none")}
+        >
           <ProjectProperties
             createdAt={createdAt}
             identifier={identifier}
@@ -171,10 +191,18 @@ export function ProjectWorkspaceShell({
         {/* The tabs open the block they switch, so nothing (not the rail,
             which comes before this on a phone) sits between a tab and its
             content. */}
-        <div className="min-w-0 space-y-8 max-xl:mt-4">
+        <div className="min-w-0 space-y-8 max-xl:mt-4 xl:col-start-1 xl:row-span-2 xl:row-start-2">
           <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
           {children}
         </div>
+
+        {/* After the content in one column, so a phone reaches the tab's
+            content first; 32px from what comes before it either way. */}
+        {panels ? (
+          <div className="mt-4 min-w-0 xl:col-start-2 xl:row-start-3">
+            {panels}
+          </div>
+        ) : null}
       </div>
     </div>
   );

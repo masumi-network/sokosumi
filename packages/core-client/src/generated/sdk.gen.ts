@@ -3351,7 +3351,7 @@ export const getProjectsStats = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * The newest task, job and project events across the workspace's open projects, minus the reader's Hidden ones (ADR 0036), one row per task, job or project, newest first. Only events the reader can see; the same sources that set a project's lastActivityAt.
+ * The newest task, job and project events across the workspace's open projects, minus the reader's Hidden ones (ADR 0036), one row per task, job or project, newest first. Only events the reader can see; the same sources that set a project's lastActivityAt. With projectId, one project's events instead.
  */
 export const getProjectsActivity = <ThrowOnError extends boolean = false>(options?: Options<GetProjectsActivityData, ThrowOnError>): RequestResult<GetProjectsActivityResponses, GetProjectsActivityErrors, ThrowOnError> => (options?.client ?? client).get<GetProjectsActivityResponses, GetProjectsActivityErrors, ThrowOnError>({
     responseTransformer: getProjectsActivityResponseTransformer,

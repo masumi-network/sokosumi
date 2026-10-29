@@ -2330,6 +2330,7 @@
         "activity": {
           "title": "Actividad reciente",
           "empty": "Todavía no hay actividad en proyectos abiertos.",
+          "emptyProject": "Todavía no hay actividad en este proyecto.",
           "error": "No se pudo cargar la actividad reciente.",
           "showAll": "Ver todo",
           "untitledJob": "Trabajo sin nombre",
@@ -2992,6 +2993,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
+        "stats": {
+          "label": "Recuento de tareas",
+          "running": "En ejecución",
+          "waiting": "En espera",
+          "open": "Tareas abiertas"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",

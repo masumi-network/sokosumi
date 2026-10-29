@@ -69,6 +69,16 @@ const needsActionQuerySchema = z
     example: "true",
   });
 
+const projectIdQuerySchema = z
+  .uuid()
+  .optional()
+  .openapi({
+    param: { name: "projectId", in: "query" },
+    description:
+      "With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.",
+    example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+  });
+
 const mentionsQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -85,6 +95,7 @@ const query = z
     kind: notificationKindsQuerySchema,
     isRead: isReadQuerySchema,
     needsAction: needsActionQuerySchema,
+    projectId: projectIdQuerySchema,
     mentions: mentionsQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
@@ -146,11 +157,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    if (queryParams.projectId && !queryParams.needsAction) {
+      throw badRequest("projectId requires needsAction=true");
+    }
 
     const [where, needsActionIds] = await Promise.all([
       resolvedNotificationFeedWhere(userContext.userId, queryParams.kind),
       queryParams.needsAction
-        ? findNeedsActionNotificationIds(userContext.userId)
+        ? findNeedsActionNotificationIds(
+            userContext.userId,
+            queryParams.projectId,
+          )
         : undefined,
     ]);
 

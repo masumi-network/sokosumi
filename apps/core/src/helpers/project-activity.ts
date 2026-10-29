@@ -234,6 +234,7 @@ export interface ProjectRecentActivityRow {
  * projects, minus the reader's Hidden ones (ADR 0036), newest first: the same sources `projectActivityPageQuery` ranks
  * projects by, minus ready task outputs, which land with the task's own event.
  * One row per task or job, so a job that polls ten statuses is one row.
+ * With `projectId`, the same rows for that one project.
  *
  * shortcut: DISTINCT ON scans every visible task and job event in the
  * workspace, like the ranked projects page does; add an events-by-workspace
@@ -244,16 +245,24 @@ export function projectRecentActivityQuery({
   take,
   visibility,
   readerUserId,
+  projectId,
 }: {
   workspaceId: string;
   take: number;
   visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
   /** The reader whose Hidden projects drop out; null drops none. */
   readerUserId: string | null;
+  /**
+   * One project's events, whether open, Closed or Hidden: the reader opened
+   * it, so its history stays readable.
+   */
+  projectId?: string;
 }) {
-  const notHidden = readerUserId
-    ? PrismaRaw.sql`AND NOT EXISTS ${readerHideClause(readerUserId)}`
-    : PrismaRaw.empty;
+  const projectFilter = projectId
+    ? PrismaRaw.sql`AND p.id = ${projectId}::uuid`
+    : readerUserId
+      ? PrismaRaw.sql`AND p."closedAt" IS NULL AND NOT EXISTS ${readerHideClause(readerUserId)}`
+      : PrismaRaw.sql`AND p."closedAt" IS NULL`;
   return PrismaRaw.sql`
     SELECT * FROM (
       (SELECT DISTINCT ON (t.id) 'task' AS kind, e.id::text AS id, e."createdAt" AS at,
@@ -261,7 +270,7 @@ export function projectRecentActivityQuery({
         e.status::text AS status, NULL::text AS "agentId"
       FROM "taskEvent" e
       JOIN task t ON t.id = e."taskId"
-      JOIN project p ON p.id = t."projectId" AND p."closedAt" IS NULL ${notHidden}
+      JOIN project p ON p.id = t."projectId" ${projectFilter}
       WHERE t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL
         ${visibility.task}
       ORDER BY t.id, e."createdAt" DESC, e.id DESC)
@@ -270,7 +279,7 @@ export function projectRecentActivityQuery({
         j."projectId"::text, j.id, j.name, e.status::text, j."agentId"
       FROM "jobEvent" e
       JOIN "Job" j ON j.id = e."jobId"
-      JOIN project p ON p.id = j."projectId" AND p."closedAt" IS NULL ${notHidden}
+      JOIN project p ON p.id = j."projectId" ${projectFilter}
       LEFT JOIN task t ON t.id = j."taskId"
       WHERE j."workspaceId" = ${workspaceId}::uuid
         AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
@@ -280,7 +289,7 @@ export function projectRecentActivityQuery({
       (SELECT DISTINCT ON (p.id) 'project', e.id::text, e."createdAt",
         p.id::text, p.id::text, p.name, e.kind::text, NULL::text
       FROM project_event e
-      JOIN project p ON p.id = e."projectId" AND p."closedAt" IS NULL ${notHidden}
+      JOIN project p ON p.id = e."projectId" ${projectFilter}
       WHERE p."workspaceId" = ${workspaceId}::uuid
       ORDER BY p.id, e."createdAt" DESC, e.id DESC)
     ) a
