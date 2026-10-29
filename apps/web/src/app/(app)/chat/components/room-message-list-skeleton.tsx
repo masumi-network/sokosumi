@@ -3,12 +3,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
+ * Centred reading column for a room's transcript and composer slot. After the
+ * padding and avatar gutter, message text gets about 810px, a little more than
+ * ChatGPT's 768px column, so 14px Inter stays at or under about 120 characters
+ * per line. Rem, so the column grows with Dynamic Type and keeps that measure.
+ * The scroller stays full width so its scrollbar keeps to the pane edge.
+ * Applied by the room shell, not `RoomComposer`, so the thread panel and home
+ * composer keep their width.
+ */
+export const ROOM_CONTENT_COLUMN_CLASSNAME = "mx-auto w-full max-w-4xl";
+
+/**
  * Outer padding for room message list content (skeleton + live).
  * Instant loading and progressive shell must share this exactly.
  * The bottom padding is the last message's clearance above the composer box.
  */
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME = cn(
   CHAT_MESSAGE_LIST_CONTENT_CLASS,
+  ROOM_CONTENT_COLUMN_CLASSNAME,
   "px-5 pt-6 pb-2 md:pb-3",
 );
 
