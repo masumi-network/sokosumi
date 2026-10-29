@@ -137,7 +137,7 @@ afterEach(() => {
 });
 
 describe("ProjectScopeMenu", () => {
-  it("lists Pins, then recently visited, then the rest, as one list", async () => {
+  it("lists Pinned projects, then recently visited, then the rest, as one list", async () => {
     mocks.load.mockResolvedValue({
       projects: [
         project("active-1", "Active One"),

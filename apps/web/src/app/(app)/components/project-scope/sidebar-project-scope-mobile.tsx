@@ -1,22 +1,14 @@
 "use client";
 
-import { ChevronsUpDown, FolderKanban, Layers, X } from "lucide-react";
+import { ChevronsUpDown, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import {
-  returnFocusTo,
-  useProjectScopeSwitch,
-} from "@/app/components/project-scope/use-project-scope";
-import {
-  usePrefetchScopeProjects,
-  useSelectedScopeProject,
-} from "@/app/components/project-scope/use-scope-projects";
+import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
+import { usePrefetchScopeProjects } from "@/app/components/project-scope/use-scope-projects";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -30,6 +22,11 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
 import {
+  ScopeClosedBadge,
+  useClearScope,
+  useCurrentScope,
+} from "./project-scope-trigger";
+import {
   getScopeCreateOpener,
   openScopeCreate,
   resetScopeDialogs,
@@ -38,61 +35,6 @@ import {
   useScopeCreateOpen,
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
-
-/**
- * The current scope as a name and a mark. The sidebar's title shows the name
- * alone; the header chip shows both. The mark's glyph names no size: the
- * chip's box gives it one.
- */
-export function useCurrentScope() {
-  const t = useTranslations("App.ProjectScope");
-  const scope = useProjectScopeSwitch();
-  const selectedProject = useSelectedScopeProject(scope.projectId);
-  // A project still loading reads as "Project", never as the workspace.
-  const name =
-    scope.projectId === null
-      ? t("allProjects")
-      : (selectedProject?.name ?? t("label"));
-  // A Closed project never lists, but it can still be the scope.
-  const closed = scope.projectId !== null && selectedProject?.closed === true;
-
-  return {
-    ...scope,
-    name,
-    closed,
-    /** "Project: Acme", "Project: Acme, Closed", for accessible names. */
-    label: closed
-      ? `${t("label")}: ${name}, ${t("closed")}`
-      : `${t("label")}: ${name}`,
-    mark:
-      scope.projectId === null ? (
-        <Layers className="shrink-0" aria-hidden />
-      ) : selectedProject ? (
-        <ProjectAvatar
-          name={selectedProject.name}
-          logo={selectedProject.logo}
-          className="size-5 shrink-0"
-        />
-      ) : (
-        <FolderKanban className="shrink-0" aria-hidden />
-      ),
-  };
-}
-
-/** The small Closed badge a trigger shows beside a Closed project's name. */
-export function ScopeClosedBadge() {
-  const t = useTranslations("App.ProjectScope");
-  return (
-    <Badge
-      variant="secondary"
-      aria-hidden
-      data-testid="project-scope-closed-badge"
-      className="text-2xs px-1.5 py-0 leading-4"
-    >
-      {t("closed")}
-    </Badge>
-  );
-}
 
 /**
  * Below md: a compact scope chip in the header that opens a bottom sheet.
@@ -106,6 +48,7 @@ export function SidebarScopeMobileChip() {
   const createOpen = useScopeCreateOpen();
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const chipRef = useRef<HTMLButtonElement>(null);
+  const clearScope = useClearScope(chipRef);
 
   // The store outlives this chip, as when the reader leaves the app shell.
   useMountEffect(() => resetScopeDialogs);
@@ -184,11 +127,7 @@ export function SidebarScopeMobileChip() {
             aria-label={t("clearProject")}
             title={t("clearProject")}
             data-testid="project-scope-chip-clear"
-            onClick={() => {
-              select(null);
-              // This button unmounts with the scope; keep focus in the header.
-              chipRef.current?.focus();
-            }}
+            onClick={clearScope}
             className="text-muted-foreground hover:text-foreground size-11 shrink-0"
           >
             <X className="size-4" aria-hidden />

@@ -43,6 +43,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 }));
 
 import { HeaderProjectScope } from "./header-project-scope";
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 
 function renderScope() {
   const client = new QueryClient({
@@ -95,18 +96,7 @@ describe("header project scope", () => {
   });
 
   it("badges a Closed project the menu does not list", async () => {
-    mocks.fetch.mockImplementation(() =>
-      Promise.resolve(
-        Response.json({
-          project: {
-            id: "p-1",
-            name: "Acme",
-            logo: null,
-            closedAt: "2026-09-01T00:00:00.000Z",
-          },
-        }),
-      ),
-    );
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
     mocks.search = "projectId=p-1";
     renderScope();
 

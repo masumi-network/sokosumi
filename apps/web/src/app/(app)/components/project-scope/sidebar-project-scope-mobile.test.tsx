@@ -57,6 +57,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 }));
 
 import { HeaderProjectScope } from "./header-project-scope";
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 import { SidebarProjectScope as SidebarTop } from "./sidebar-project-scope";
 import { SidebarScopeMobileChip } from "./sidebar-project-scope-mobile";
 import { openScopeCreate, openScopeSheet } from "./sidebar-project-scope-state";
@@ -252,18 +253,7 @@ describe("sidebar project scope chip", () => {
   });
 
   it("badges a Closed project on the chip", async () => {
-    mocks.fetch.mockImplementation(() =>
-      Promise.resolve(
-        Response.json({
-          project: {
-            id: "p-1",
-            name: "Acme",
-            logo: null,
-            closedAt: "2026-09-01T00:00:00.000Z",
-          },
-        }),
-      ),
-    );
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
     mocks.search = "projectId=p-1";
     renderHarness();
 

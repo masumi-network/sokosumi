@@ -15,8 +15,9 @@ import { cn } from "@/lib/utils";
 
 import {
   ScopeClosedBadge,
+  useClearScope,
   useCurrentScope,
-} from "./sidebar-project-scope-mobile";
+} from "./project-scope-trigger";
 import { openScopeCreate } from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
@@ -34,6 +35,7 @@ export function HeaderProjectScope() {
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const clearScope = useClearScope(triggerRef);
 
   return (
     <>
@@ -87,11 +89,7 @@ export function HeaderProjectScope() {
           type="button"
           aria-label={t("clearProject")}
           title={t("clearProject")}
-          onClick={() => {
-            select(null);
-            // This button unmounts with the scope; keep focus in the header.
-            triggerRef.current?.focus();
-          }}
+          onClick={clearScope}
           className={cn(
             SIDEBAR_CONTROL_INTERACTION_CLASS,
             "text-muted-foreground hover:text-foreground press hit-area flex size-8 shrink-0 items-center justify-center rounded-full transition-[opacity,background-color,color]",

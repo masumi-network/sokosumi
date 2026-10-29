@@ -32,9 +32,6 @@ export interface SelectedScopeProject extends ScopeProject {
   closed: boolean;
 }
 
-/** Recently visited rows ahead of the activity order; every Pin leads. */
-const SCOPE_RECENT_CAP = 8;
-
 function isOpen(project: MaybeClosed): boolean {
   return project.closedAt == null;
 }
@@ -43,20 +40,8 @@ function toRow({ id, name, logo }: ScopeProject): ScopeProject {
   return { id, name, logo };
 }
 
-/** Pins, then recently visited, then the rest in the order given. */
-function pinnedFirst(
-  projects: ScopeProject[],
-  pinnedIds: string[],
-  visitedIds: readonly string[],
-): ScopeProject[] {
-  const { rows: lead } = orderSidebarProjects({
-    projects,
-    pinnedIds,
-    visitedIds,
-    cap: pinnedIds.length + SCOPE_RECENT_CAP,
-  });
-  const leadIds = new Set(lead.map((project) => project.id));
-  return [...lead, ...projects.filter((project) => !leadIds.has(project.id))];
+function toSelected(project: MaybeClosed): SelectedScopeProject {
+  return { ...toRow(project), closed: !isOpen(project) };
 }
 
 function useWorkspaceScope(): RecentProjectsScope | null {
@@ -212,17 +197,15 @@ export function useSelectedScopeProject(
   // Core's answer wins, and a failed refetch keeps the last one. A listed row
   // names the project while it loads.
   if (selected.data !== undefined) {
-    return selected.data
-      ? { ...toRow(selected.data), closed: !isOpen(selected.data) }
-      : null;
+    return selected.data ? toSelected(selected.data) : null;
   }
-  return listed ? { ...toRow(listed), closed: !isOpen(listed) } : null;
+  return listed ? toSelected(listed) : null;
 }
 
 /**
- * Everything a project switcher lists, as one list: Pinned, then recently
- * visited, then the workspace's projects in Core's activity order. A search asks Core, so it
- * reaches past the first page.
+ * Everything a project switcher lists, as one list: Pinned projects, then
+ * recently visited, then the workspace's projects in Core's activity order.
+ * A search asks Core, so it reaches past the first page.
  */
 export function useScopeProjects({
   search,
@@ -290,8 +273,17 @@ export function useScopeProjects({
   const selectedProject = useSelectedScopeProject(selectedProjectId, known);
 
   return {
-    /** The one list, or the matches for the search, in the same order. */
-    projects: pinnedFirst(matched, pinnedIds, visitedIds),
+    /**
+     * The one list, or the matches for the search, in the same order. No
+     * cap: the list scrolls, so every Pinned and recently visited project
+     * leads and the rest follow in Core's order.
+     */
+    rows: orderSidebarProjects({
+      projects: matched,
+      pinnedIds,
+      visitedIds,
+      cap: Number.POSITIVE_INFINITY,
+    }).rows,
     /** Rows that carry the pin mark. */
     pinnedIds: new Set(pinnedIds),
     selectedProject,

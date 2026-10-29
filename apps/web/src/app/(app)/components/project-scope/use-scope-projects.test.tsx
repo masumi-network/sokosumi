@@ -117,17 +117,17 @@ describe("useScopeProjects", () => {
       () => useScopeProjects({ search: "", selectedProjectId: null }),
       { wrapper: wrapper() },
     );
-    await waitFor(() => expect(result.current.projects).toHaveLength(1));
+    await waitFor(() => expect(result.current.rows).toHaveLength(1));
 
     mocks.organizationId.current = "org-b";
     rerender();
 
     // Workspace B is still loading: nothing from A may stay clickable.
-    expect(result.current.projects).toEqual([]);
+    expect(result.current.rows).toEqual([]);
     expect(result.current.isPending).toBe(true);
     resolveB({ projects: [project("b-1", "Beta")], nextCursor: null });
     await waitFor(() =>
-      expect(result.current.projects.map(({ id }) => id)).toEqual(["b-1"]),
+      expect(result.current.rows.map(({ id }) => id)).toEqual(["b-1"]),
     );
   });
 
@@ -147,13 +147,13 @@ describe("useScopeProjects", () => {
       ({ search }) => useScopeProjects({ search, selectedProjectId: null }),
       { wrapper: wrapper(), initialProps: { search: "" } },
     );
-    await waitFor(() => expect(result.current.projects).toHaveLength(2));
+    await waitFor(() => expect(result.current.rows).toHaveLength(2));
     expect(result.current.isSearchPending).toBe(false);
 
     rerender({ search: "far" });
     // The pause in typing has not ended; the loaded rows answer meanwhile.
     expect(result.current.isSearchPending).toBe(true);
-    expect(result.current.projects.map(({ id }) => id)).toEqual(["farm-1"]);
+    expect(result.current.rows.map(({ id }) => id)).toEqual(["farm-1"]);
 
     await waitFor(
       () =>
@@ -165,11 +165,11 @@ describe("useScopeProjects", () => {
     // Core is asked: the loaded matches stay until it answers.
     expect(result.current.isPending).toBe(false);
     expect(result.current.isSearchPending).toBe(true);
-    expect(result.current.projects.map(({ id }) => id)).toEqual(["farm-1"]);
+    expect(result.current.rows.map(({ id }) => id)).toEqual(["farm-1"]);
 
     resolveSearch({ projects: [project("far-1", "Far")], nextCursor: null });
     await waitFor(() => expect(result.current.isSearchPending).toBe(false));
-    expect(result.current.projects.map(({ id }) => id)).toEqual(["far-1"]);
+    expect(result.current.rows.map(({ id }) => id)).toEqual(["far-1"]);
   });
 
   it("reports a failed Pinned read, and Retry asks both reads again", async () => {
@@ -185,7 +185,7 @@ describe("useScopeProjects", () => {
 
     // The page answered; the Pinned read alone failed.
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.projects.map(({ id }) => id)).toEqual(["a-1"]);
+    expect(result.current.rows.map(({ id }) => id)).toEqual(["a-1"]);
     expect(mocks.load).toHaveBeenCalledTimes(1);
     expect(mocks.loadPinned).toHaveBeenCalledTimes(1);
 
@@ -196,16 +196,21 @@ describe("useScopeProjects", () => {
     expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
   });
 
-  it("lists Pins first, then recently visited, then Core's order", async () => {
+  it("lists Pinned projects first, then recently visited, then Core's order", async () => {
     mocks.load.mockResolvedValue({
       projects: [
         project("a-1", "Alpha"),
+        project("p-1", "Pinned One"),
         project("v-1", "Visited"),
-        project("p-1", "Pinned"),
+        project("p-2", "Pinned Two"),
       ],
       nextCursor: null,
     });
-    mocks.loadPinned.mockResolvedValue([project("p-1", "Pinned")]);
+    // Core lists Pins by starredAt ascending: p-2 was pinned first.
+    mocks.loadPinned.mockResolvedValue([
+      project("p-2", "Pinned Two"),
+      project("p-1", "Pinned One"),
+    ]);
     recordProjectVisit("v-1", { userId: "user-1", organizationId: "org-a" });
     const { result } = renderHook(
       () => useScopeProjects({ search: "", selectedProjectId: null }),
@@ -213,13 +218,34 @@ describe("useScopeProjects", () => {
     );
 
     await waitFor(() =>
-      expect(result.current.projects.map(({ id }) => id)).toEqual([
+      expect(result.current.rows.map(({ id }) => id)).toEqual([
+        "p-2",
         "p-1",
         "v-1",
         "a-1",
       ]),
     );
-    expect([...result.current.pinnedIds]).toEqual(["p-1"]);
+    expect([...result.current.pinnedIds]).toEqual(["p-2", "p-1"]);
+  });
+
+  it("leads with every recently visited project, with no cap", async () => {
+    const visited = Array.from({ length: 12 }, (_, i) =>
+      project(`v-${i}`, `Visited ${i}`),
+    );
+    mocks.load.mockResolvedValue({
+      projects: [project("a-1", "Alpha"), ...visited],
+      nextCursor: null,
+    });
+    for (const { id } of visited) {
+      recordProjectVisit(id, { userId: "user-1", organizationId: "org-a" });
+    }
+    const { result } = renderHook(
+      () => useScopeProjects({ search: "", selectedProjectId: null }),
+      { wrapper: wrapper() },
+    );
+
+    await waitFor(() => expect(result.current.rows).toHaveLength(13));
+    expect(result.current.rows.at(-1)?.id).toBe("a-1");
   });
 });
 

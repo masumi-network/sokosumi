@@ -44,9 +44,10 @@ interface ProjectScopeMenuProps {
 
 /**
  * The one project list every switcher shows: search, one list of projects
- * (Pins first, each with a pin, then recently visited, then the rest), then
- * Create. Search narrows that same list and asks Core, so the list filters
- * itself off. All projects is not a row: the trigger's × returns to it.
+ * (Pinned projects first, each with a pin, then recently visited, then the
+ * rest), then Create. Search narrows that same list and asks Core, so the
+ * list filters itself off. All projects is not a row: the trigger's ×
+ * returns to it.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
@@ -105,7 +106,7 @@ export function ProjectScopeMenu({
     );
   }
 
-  const rows = projects.projects;
+  const rows = projects.rows;
 
   // Not `CommandEmpty` for "empty": Create is always mounted, so
   // cmdk never counts the list as empty. The rows of a search Core has not
