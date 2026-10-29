@@ -4,7 +4,6 @@ import { LayoutGrid, List } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { cn } from "@/lib/utils";
 
 export interface ListGridViewSwitchProps {
   value: "list" | "grid";
@@ -33,16 +32,14 @@ export function ListGridViewSwitch({
           onChange(next);
         }
       }}
-      variant="outline"
-      size="sm"
-      className={cn("bg-background", className)}
+      className={className}
       aria-label={`${labels.list} / ${labels.grid}`}
       data-testid={testId}
     >
-      <ToggleGroupItem value="list" aria-label={labels.list} className="px-2.5">
+      <ToggleGroupItem value="list" aria-label={labels.list} className="px-2">
         <List className="size-4" aria-hidden />
       </ToggleGroupItem>
-      <ToggleGroupItem value="grid" aria-label={labels.grid} className="px-2.5">
+      <ToggleGroupItem value="grid" aria-label={labels.grid} className="px-2">
         <LayoutGrid className="size-4" aria-hidden />
       </ToggleGroupItem>
     </ToggleGroup>

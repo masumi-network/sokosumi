@@ -62,8 +62,7 @@ export function GroupedInputTabs({
     >
       <div className="app-scrollbar w-full overflow-x-auto">
         <TabsList
-          className="mb-2 w-max min-w-full justify-start border"
-          activeClassName="bg-primary"
+          className="mb-2 w-max min-w-full justify-start"
           aria-label="Input groups"
         >
           {groups.map((group, index) => {

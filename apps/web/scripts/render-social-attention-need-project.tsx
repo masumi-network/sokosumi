@@ -5,9 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SOCIAL_TABS } from "@/app/projects/components/social-posts/constants";
 import { Button } from "@/components/ui/button";
 import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-} from "@/components/ui/tabs";
+  SEGMENTED_CONTROL_CLASS_NAME,
+  SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+} from "@/components/ui/segmented-control-classes";
 import { cn } from "@/lib/utils";
 import en from "../messages/en.json";
 
@@ -24,15 +24,15 @@ function WorkspaceTabsShot() {
   return (
     <div className="w-[52rem] space-y-4" data-testid="attention-need-project">
       <div className="flex min-w-0 items-center gap-3">
-        <div className={cn(SEGMENTED_TABS_LIST_CLASS_NAME)}>
+        <div className={cn(SEGMENTED_CONTROL_CLASS_NAME)}>
           {tabs.map((tab) => (
             <span
               key={tab}
               className={cn(
-                SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                SEGMENTED_CONTROL_ITEM_CLASS_NAME,
                 "inline-flex items-center justify-center",
-                tab === active && "bg-background text-foreground shadow-sm",
               )}
+              data-state={tab === active ? "active" : "inactive"}
             >
               {sections(tab)}
             </span>

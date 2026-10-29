@@ -4,14 +4,7 @@ import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { type ReactNode, useEffect } from "react";
 
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ConnectionsTabValue = "connected-apps" | "mcp";
 
@@ -49,16 +42,11 @@ export function ConnectionsTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className={SEGMENTED_TABS_LIST_CLASS_NAME}>
-        <TabsTrigger
-          value="connected-apps"
-          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-        >
+      <TabsList>
+        <TabsTrigger value="connected-apps">
           {t("tabs.connectedApps")}
         </TabsTrigger>
-        <TabsTrigger value="mcp" className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}>
-          {t("tabs.mcp")}
-        </TabsTrigger>
+        <TabsTrigger value="mcp">{t("tabs.mcp")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="connected-apps">{connectedAppsContent}</TabsContent>

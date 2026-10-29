@@ -56,27 +56,12 @@ export function BillingTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className="bg-card-background flex w-full items-center gap-1 self-start rounded-lg p-1">
-        <TabsTrigger
-          value="subscription"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-        >
-          {tabLabels.subscription}
-        </TabsTrigger>
+      <TabsList>
+        <TabsTrigger value="subscription">{tabLabels.subscription}</TabsTrigger>
         {showCreditsTab ? (
-          <TabsTrigger
-            value="credits"
-            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-          >
-            {tabLabels.credits}
-          </TabsTrigger>
+          <TabsTrigger value="credits">{tabLabels.credits}</TabsTrigger>
         ) : null}
-        <TabsTrigger
-          value="coupon"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-        >
-          {tabLabels.coupon}
-        </TabsTrigger>
+        <TabsTrigger value="coupon">{tabLabels.coupon}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="subscription">{subscriptionContent}</TabsContent>

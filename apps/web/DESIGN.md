@@ -338,7 +338,7 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
 ## Components
 
 shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `data-slot`.
-Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
+Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar); others are
 prop/state-driven.
 
 - **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, _default_),
@@ -359,8 +359,17 @@ prop/state-driven.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
   `bg-overlay backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
-  Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
-  rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
+  Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tooltip
+  `bg-primary-solid text-primary-solid-foreground text-xs`.
+- **Segmented controls** — one look for every one: Tabs, MotionTabs, ToggleGroup, and Links
+  that act as one. A `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3`
+  options in `text-muted-foreground` (`hover:text-foreground`); the selected option is a
+  `bg-background text-foreground shadow-sm` pill inset in the track, `Highlight` under forced
+  colours. The classes live once in `components/ui/segmented-control-classes.ts` and the
+  primitives wear them by default, with no variants or sizes. Callers pass layout only
+  (width, wrap, overflow, `px-2` for an icon-only option), never a fill, border, radius,
+  shadow, text colour or selected-state class; `src-walk-guards.test.ts` holds that. Use
+  ToggleGroup to switch the view of the same content and Tabs to move between panels.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
   **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill);
   **company rail + detail** (pick a company on the left, its coworkers and "Ready-to-run

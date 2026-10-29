@@ -55,14 +55,7 @@ import {
 import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
@@ -856,19 +849,9 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
-            <TabsTrigger
-              value="tasks"
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-            >
-              {labels.tabs.tasks}
-            </TabsTrigger>
-            <TabsTrigger
-              value="calendar"
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-            >
-              {labels.tabs.calendar}
-            </TabsTrigger>
+          <TabsList className={cn("w-fit")}>
+            <TabsTrigger value="tasks">{labels.tabs.tasks}</TabsTrigger>
+            <TabsTrigger value="calendar">{labels.tabs.calendar}</TabsTrigger>
           </TabsList>
         </div>
 

@@ -1793,3 +1793,103 @@ describe("instant navigation routes", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// segmented controls
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Segmented controls: every one looks the same, and the look
+ * lives in `components/ui/segmented-control-classes.ts`, which `Tabs`,
+ * `MotionTabs` and `ToggleGroup` wear by default. A caller passes layout
+ * (width, wrap, overflow, padding for an icon-only item) and nothing that
+ * repaints the track or the pill: no fill, border, radius, shadow or text
+ * colour on the four primitives, and no selected-state class anywhere
+ * outside `components/ui`.
+ */
+const SEGMENTED_PRIMITIVE_TAG =
+  /<(?:TabsList|TabsTrigger|ToggleGroup|ToggleGroupItem)\b/g;
+const SEGMENTED_LOOK_CLASS =
+  /(?<![\w-])(?:[\w@\-[\]:]+:)?(?:bg-[\w-]+|border(?:-[\w-]+)?|rounded(?:-[\w-]+)?|shadow(?:-[\w-]+)?|text-(?!(?:2xs|xs|sm|base|lg|left|right|center|start|end|nowrap|wrap)\b)[\w-]+)(?![\w-])/;
+const SEGMENTED_SELECTED_CLASS = /data-\[state=(?:active|on)\]:/;
+
+/**
+ * The Notification Center's view strip is a row of underlined tabs on the
+ * list it narrows, not a segmented control (see its file comment).
+ */
+const SEGMENTED_LOOK_ALLOWLIST = new Set([
+  "components/notifications/notification-center-view-filter.tsx",
+]);
+
+function segmentedLookOverrides(relSrc: string, text: string): string[] {
+  const hits: string[] = [];
+  const consts = constStrings(text);
+  const lineOf = (at: number) => text.slice(0, at).split("\n").length;
+
+  for (const tag of text.matchAll(SEGMENTED_PRIMITIVE_TAG)) {
+    // The opening tag ends at the first `>` outside an expression.
+    let depth = 0;
+    let end = tag.index;
+    for (; end < text.length; end++) {
+      if (text[end] === "{") depth++;
+      else if (text[end] === "}") depth--;
+      else if (text[end] === ">" && depth === 0) break;
+    }
+    const opening = text.slice(tag.index, end);
+    const attr = opening.match(/className=([{"])/);
+    if (!attr || attr.index === undefined) continue;
+    const start = attr.index + "className=".length;
+    const raw =
+      attr[1] === "{"
+        ? balanced(opening, start, "{", "}")
+        : opening.slice(start, opening.indexOf('"', start + 1) + 1);
+    const look = expandConsts(raw, consts).match(SEGMENTED_LOOK_CLASS);
+    if (look) hits.push(`${relSrc}:${lineOf(tag.index)}: ${look[0]}`);
+  }
+
+  if (!relSrc.startsWith("components/ui/")) {
+    text.split("\n").forEach((line, index) => {
+      const selected = line.match(SEGMENTED_SELECTED_CLASS);
+      if (selected) hits.push(`${relSrc}:${index + 1}: ${selected[0]}`);
+    });
+  }
+  return hits;
+}
+
+describe("segmented controls", () => {
+  it("leaves the look to the shared segmented-control classes", () => {
+    const hits = SRC_FILES.filter(
+      (file) =>
+        file.ext === ".tsx" &&
+        !file.relSrc.includes(".test.") &&
+        !SEGMENTED_LOOK_ALLOWLIST.has(file.relSrc),
+    ).flatMap((file) => segmentedLookOverrides(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<TabsList className="bg-muted w-full">',
+      '<ToggleGroupItem value="a" className="data-[state=on]:bg-primary">',
+      '<ToggleGroup\n  type="single"\n  className={cn("rounded-md border", x)}\n>',
+      'const ITEM = "text-primary";\n<TabsTrigger value="a" className={ITEM}>',
+      'const ON = "data-[state=active]:font-semibold";',
+    ];
+    for (const fixture of fixtures) {
+      expect(segmentedLookOverrides("app/x.tsx", fixture), fixture).not.toEqual(
+        [],
+      );
+    }
+
+    const clean = [
+      '<TabsList className="w-fit max-w-full overflow-x-auto">',
+      '<ToggleGroupItem value="a" className="h-full p-2 max-sm:text-xs">',
+      '<ToggleGroup type="single" onValueChange={(v) => v && set(v)} className="grid grid-cols-2">',
+      '<Tabs className="bg-card-background">',
+    ];
+    for (const line of clean) {
+      expect(segmentedLookOverrides("app/x.tsx", line), line).toEqual([]);
+    }
+  });
+});

@@ -9,6 +9,10 @@ import {
   MotionHighlight,
   MotionHighlightItem,
 } from "@/components/ui/motion-highlight";
+import {
+  SEGMENTED_CONTROL_CLASS_NAME,
+  SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+} from "@/components/ui/segmented-control-classes";
 
 type TabsContextType<T extends string> = {
   activeValue: T;
@@ -133,14 +137,12 @@ function Tabs<T extends string = string>({
 
 type TabsListProps = React.ComponentProps<"div"> & {
   children: React.ReactNode;
-  activeClassName?: string;
   transition?: Transition;
 };
 
 function TabsList({
   children,
   className,
-  activeClassName,
   transition = {
     type: "spring",
     stiffness: 200,
@@ -153,17 +155,14 @@ function TabsList({
   return (
     <MotionHighlight
       controlledItems
-      className={cn("bg-background rounded-sm", activeClassName)}
+      className="bg-background rounded-md shadow-sm"
       value={activeValue}
       transition={transition}
     >
       <div
         role="tablist"
         data-slot="tabs-list"
-        className={cn(
-          "bg-muted text-muted-foreground inline-flex h-10 w-fit items-center justify-center rounded-lg p-[4px]",
-          className,
-        )}
+        className={cn(SEGMENTED_CONTROL_CLASS_NAME, className)}
         {...props}
       >
         {children}
@@ -292,7 +291,9 @@ function TabsTrigger({
         disabled={disabled}
         data-state={isActive ? "active" : "inactive"}
         className={cn(
-          "ring-offset-background focus-visible:ring-ring z-1 inline-flex size-full cursor-pointer items-center justify-center rounded-sm px-2 py-1 text-sm font-medium whitespace-nowrap transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-primary-foreground",
+          SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+          // The sliding highlight behind the trigger draws the selected pill.
+          "z-1 size-full data-[state=active]:bg-transparent data-[state=active]:shadow-none",
           className,
         )}
         {...props}

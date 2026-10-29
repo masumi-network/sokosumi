@@ -8915,6 +8915,7 @@
       "today": "Heute",
       "weekNumber": "Kalenderwoche {week}",
       "view": {
+        "label": "Ansicht",
         "month": "Monat",
         "week": "Woche",
         "agenda": "Agenda"

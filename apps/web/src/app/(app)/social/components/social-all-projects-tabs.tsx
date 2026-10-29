@@ -14,12 +14,7 @@ import {
   SOCIAL_TABS_ROW_CLASS_NAME,
   SocialTabTrigger,
 } from "@/app/projects/components/social-posts/social-tab-trigger";
-import {
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsContent,
-  TabsList,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
@@ -74,10 +69,7 @@ export function SocialAllProjectsTabs({
         <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
           <TabsList
             aria-label={t("title")}
-            className={cn(
-              SEGMENTED_TABS_LIST_CLASS_NAME,
-              SOCIAL_TABS_LIST_CLASS_NAME,
-            )}
+            className={cn(SOCIAL_TABS_LIST_CLASS_NAME)}
           >
             {SOCIAL_TABS.map((candidate) => (
               <SocialTabTrigger

@@ -10,10 +10,7 @@ import {
 } from "lucide-react";
 
 import { CornerCountBadge } from "@/components/common/corner-count-badge";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 import type { SocialTab } from "./constants";
@@ -64,7 +61,6 @@ export function SocialTabTrigger({
   return (
     <TabsTrigger
       className={cn(
-        SEGMENTED_TAB_TRIGGER_CLASS_NAME,
         "@max-[42rem]:min-h-11 @max-[42rem]:min-w-0 @max-[42rem]:px-0",
       )}
       data-testid={`social-posts-tab-${tab}`}

@@ -2,13 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,25 +39,10 @@ export function DriveViewTabs({
       }}
       className="w-full @2xl:w-auto"
     >
-      <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "@2xl:w-auto")}>
-        <TabsTrigger
-          value="recents"
-          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-        >
-          {t("recentsTab")}
-        </TabsTrigger>
-        <TabsTrigger
-          value="workspace"
-          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-        >
-          {t("workspaceTab")}
-        </TabsTrigger>
-        <TabsTrigger
-          value="tables"
-          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-        >
-          {t("tablesTab")}
-        </TabsTrigger>
+      <TabsList className={cn("@2xl:w-auto")}>
+        <TabsTrigger value="recents">{t("recentsTab")}</TabsTrigger>
+        <TabsTrigger value="workspace">{t("workspaceTab")}</TabsTrigger>
+        <TabsTrigger value="tables">{t("tablesTab")}</TabsTrigger>
       </TabsList>
     </Tabs>
   );

@@ -60,12 +60,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsContent,
-  TabsList,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
@@ -1377,10 +1372,7 @@ export function ProjectSocialPosts({
             >
               <TabsList
                 aria-label={t("title")}
-                className={cn(
-                  SEGMENTED_TABS_LIST_CLASS_NAME,
-                  SOCIAL_TABS_LIST_CLASS_NAME,
-                )}
+                className={cn(SOCIAL_TABS_LIST_CLASS_NAME)}
               >
                 {tabs.map((candidate) => {
                   const count =

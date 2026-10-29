@@ -8915,6 +8915,7 @@
       "today": "Hoy",
       "weekNumber": "Semana {week}",
       "view": {
+        "label": "Vista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"

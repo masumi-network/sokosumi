@@ -7,14 +7,7 @@ import { useQueryState } from "nuqs";
 import { ADS_TABS, adsSearchParams } from "@/app/ads/ads-query";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 import { AdsAccounts } from "./ads-accounts";
@@ -64,16 +57,11 @@ export function AdsTabs({
         <TabsList
           aria-label={t("tabsLabel")}
           className={cn(
-            SEGMENTED_TABS_LIST_CLASS_NAME,
             "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
           )}
         >
           {ADS_TABS.map((candidate) => (
-            <TabsTrigger
-              key={candidate}
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-              value={candidate}
-            >
+            <TabsTrigger key={candidate} value={candidate}>
               {t(`tabs.${candidate}`)}
             </TabsTrigger>
           ))}
