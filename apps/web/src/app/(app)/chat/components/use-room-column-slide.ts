@@ -18,6 +18,7 @@ const SLIDE_EASING_TOKEN = "--ease-out-strong";
 export function useRoomColumnSlide() {
   const mainRef = useRef<HTMLElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
 
@@ -27,7 +28,11 @@ export function useRoomColumnSlide() {
     if (!main || !section) return;
     // Read on every resize: `wrapColumn` (the file drop zone) can remount the
     // column body, so the nodes from mount may be gone.
-    const columns = () => [listRef.current, composerRef.current];
+    const columns = () => [
+      headerRef.current,
+      listRef.current,
+      composerRef.current,
+    ];
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const easing =
       getComputedStyle(document.documentElement)
@@ -76,5 +81,5 @@ export function useRoomColumnSlide() {
     return () => observer.disconnect();
   });
 
-  return { mainRef, sectionRef, listRef, composerRef };
+  return { mainRef, sectionRef, headerRef, listRef, composerRef };
 }

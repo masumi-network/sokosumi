@@ -16,6 +16,7 @@ import { EditChannelDialog } from "./edit-channel-dialog";
 import { NameGroupDialog } from "./name-group-dialog";
 import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import { PinnedMessagesHeaderButton } from "./pinned-messages-panel";
+import { useRoomHeaderVariant } from "./prototype-room-header-variants";
 import { getRoomParticipantPreviews } from "./room-helpers";
 import { ROOM_ROSTER_PANEL_ID } from "./room-roster-panel";
 import { RoomSearchPanel } from "./room-search-panel";
@@ -166,8 +167,14 @@ export function RoomHeaderChrome({
   readReceipts,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
+  const headerVariant = useRoomHeaderVariant();
   const trimmedTopic = room.topic?.trim() ?? "";
-  const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
+  const channelTopic =
+    !isDirectRoom && trimmedTopic && headerVariant !== "C"
+      ? trimmedTopic
+      : null;
+  // PROTOTYPE D: topic on its own line under the title.
+  const stacked = headerVariant === "D" && channelTopic !== null;
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -180,7 +187,12 @@ export function RoomHeaderChrome({
 
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2",
+          stacked && "flex-col items-start gap-0 md:gap-0",
+        )}
+      >
         {isDirectRoom ? (
           <>
             {room.isSelfDirect ? (
@@ -254,7 +266,10 @@ export function RoomHeaderChrome({
             )}
             {channelTopic ? (
               <p
-                className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
+                className={cn(
+                  "text-muted-foreground min-w-0 flex-1 truncate text-sm",
+                  stacked && "max-w-full flex-none px-1.5 text-xs",
+                )}
                 title={channelTopic}
                 data-testid="room-open-topic"
               >

@@ -4,6 +4,10 @@ import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
 import {
+  RoomHeaderPrototypeSwitcher,
+  useRoomHeaderVariant,
+} from "@/app/chat/components/prototype-room-header-variants";
+import {
   ROOM_CONTENT_COLUMN_CLASSNAME,
   ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
 } from "@/app/chat/components/room-message-list-skeleton";
@@ -80,12 +84,29 @@ export function RoomShellLayout({
   composer,
   mainEnd = null,
 }: RoomShellLayoutProps): React.ReactElement {
-  const { mainRef, sectionRef, listRef, composerRef } = useRoomColumnSlide();
+  const { mainRef, sectionRef, headerRef, listRef, composerRef } =
+    useRoomColumnSlide();
+  const headerVariant = useRoomHeaderVariant();
   const header =
     desktopHeader != null ? (
-      <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
-        {desktopHeader}
-      </header>
+      headerVariant === "A" ? (
+        <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
+          {desktopHeader}
+        </header>
+      ) : (
+        // PROTOTYPE: border stays full width, contents ride the reading column.
+        <header className="flex h-16 shrink-0 border-b">
+          <div
+            ref={headerRef}
+            className={cn(
+              ROOM_CONTENT_COLUMN_CLASSNAME,
+              "flex min-w-0 flex-1 items-center justify-between gap-4 px-3.5",
+            )}
+          >
+            {desktopHeader}
+          </div>
+        </header>
+      )
     ) : reserveDesktopHeader ? (
       <div className={ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME} aria-hidden />
     ) : null;
@@ -133,6 +154,7 @@ export function RoomShellLayout({
         </section>
         {mainEnd}
       </main>
+      {desktopHeader != null ? <RoomHeaderPrototypeSwitcher /> : null}
     </div>
   );
 }
