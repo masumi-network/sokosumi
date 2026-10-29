@@ -6988,6 +6988,19 @@ export type ProjectStar = {
     starredAt: Date | null;
 };
 
+export type ProjectHide = {
+    projectId: string;
+    hiddenAt: Date | null;
+};
+
+export type ProjectHideResult = ProjectHide & {
+    hiddenAt?: Date;
+    /**
+     * True when the project was Pinned and hiding it removed the Pin.
+     */
+    unpinned: boolean;
+};
+
 export type ProjectSocialConnection = {
     id: string;
     provider: ProjectSocialProvider;
@@ -46676,9 +46689,9 @@ export type GetProjectsData = {
          */
         q?: string;
         /**
-         * open: projects without closedAt, including closing and close-failed ones. closed: projects with closedAt. Omitted: every project.
+         * open: projects without closedAt, including closing and close-failed ones, minus the acting user's Hidden projects. hidden: the acting user's Hidden projects without closedAt (ADR 0036). closed: projects with closedAt, Hidden or not. Omitted: every project. Non-user actors have no Hidden projects.
          */
-        state?: 'open' | 'closed';
+        state?: 'open' | 'hidden' | 'closed';
         /**
          * true: the acting user's Pinned projects lead, by starredAt ascending, before the rest in activity order. Ignored for non-user actors, whose rows are never Pinned.
          */
@@ -51651,6 +51664,294 @@ export type PostProjectsByIdStarResponses = {
 };
 
 export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
+
+export type DeleteProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type DeleteProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdHideError = DeleteProjectsByIdHideErrors[keyof DeleteProjectsByIdHideErrors];
+
+export type DeleteProjectsByIdHideResponses = {
+    /**
+     * Project shown
+     */
+    200: {
+        data: ProjectHide;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdHideResponse = DeleteProjectsByIdHideResponses[keyof DeleteProjectsByIdHideResponses];
+
+export type GetProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type GetProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdHideError = GetProjectsByIdHideErrors[keyof GetProjectsByIdHideErrors];
+
+export type GetProjectsByIdHideResponses = {
+    /**
+     * The reader's Hide
+     */
+    200: {
+        data: ProjectHide;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdHideResponse = GetProjectsByIdHideResponses[keyof GetProjectsByIdHideResponses];
+
+export type PostProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type PostProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdHideError = PostProjectsByIdHideErrors[keyof PostProjectsByIdHideErrors];
+
+export type PostProjectsByIdHideResponses = {
+    /**
+     * Project hidden
+     */
+    200: {
+        data: ProjectHideResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdHideResponse = PostProjectsByIdHideResponses[keyof PostProjectsByIdHideResponses];
 
 export type GetProjectsByIdSocialConnectionsData = {
     body?: never;

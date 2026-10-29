@@ -257,6 +257,31 @@ export const projectStarSchema = z
   .openapi("ProjectStar");
 
 /**
+ * The reader's Hide on one project (ADR 0036): personal, never shared, and
+ * the opposite of a Pin. Null `hiddenAt` means the project is not Hidden.
+ */
+export const projectHideSchema = z
+  .object({
+    projectId: z
+      .string()
+      .uuid()
+      .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
+    hiddenAt: dateTimeSchema.nullable(),
+  })
+  .openapi("ProjectHide");
+
+/** After hiding: whether the Hide removed the reader's Pin, so Undo can restore it. */
+export const projectHideResultSchema = projectHideSchema
+  .extend({
+    hiddenAt: dateTimeSchema,
+    unpinned: z.boolean().openapi({
+      description:
+        "True when the project was Pinned and hiding it removed the Pin.",
+    }),
+  })
+  .openapi("ProjectHideResult");
+
+/**
  * A Pinned project as the starred list returns it: the project plus the
  * reader's own `starredAt`, so a client that merges the list into a map can
  * still recover the Pin order without leaning on JSON array position.

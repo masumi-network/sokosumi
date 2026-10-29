@@ -2252,8 +2252,9 @@
         },
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
-        "pin": "Projekt anheften",
+        "pin": "Anheften",
         "unpin": "Anheften aufheben",
+        "pinned": "Angeheftet",
         "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
@@ -2294,6 +2295,10 @@
           "title": "Keine geschlossenen Projekte",
           "description": "Ein Projekt, das du schließt, landet hier – mit seinem Verlauf."
         },
+        "emptyHidden": {
+          "title": "Keine ausgeblendeten Projekte",
+          "description": "Blende ein Projekt, das nicht deins ist, über sein Menü aus. Es verschwindet aus Offen, dem Projektwechsler und den letzten Aktivitäten und wartet hier."
+        },
         "onlyClosed": {
           "title": "Alle Projekte sind geschlossen",
           "description": "Geschlossene Projekte behalten ihren Verlauf in der Ansicht „Geschlossen“.",
@@ -2302,9 +2307,18 @@
         "state": {
           "label": "Projekte anzeigen",
           "open": "Offen",
+          "hidden": "Ausgeblendet",
           "closed": "Geschlossen"
         },
-        "closed": "Geschlossen"
+        "closed": "Geschlossen",
+        "hide": {
+          "hide": "Ausblenden",
+          "show": "Einblenden",
+          "hidden": "Projekt ausgeblendet",
+          "undo": "Rückgängig",
+          "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
+          "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        }
       },
       "column": {
         "needsYou": {
@@ -3054,7 +3068,7 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
-          "close": "Projekt schließen",
+          "close": "Schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },

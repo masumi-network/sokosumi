@@ -10,13 +10,15 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 export interface ProjectsStateToggleLabels {
   label: string;
   open: string;
+  hidden: string;
   closed: string;
 }
 
 /**
  * Drives the `state` search param, which the server page forwards to Core,
  * for the same reason `ProjectsFilter` drives `q`: the list pages with
- * "Load more", so only Core can split Open from Closed across every page.
+ * "Load more", so only Core can split Open, Hidden and Closed across every
+ * page.
  */
 export function ProjectsStateToggle({
   labels,

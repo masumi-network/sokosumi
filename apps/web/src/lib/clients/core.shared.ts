@@ -204,6 +204,7 @@ import {
   deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
   deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdHide as coreDeleteProjectsByIdHide,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdNewsletterIssuesByIssueId as coreDeleteProjectsByIdNewsletterIssuesByIssueId,
   deleteProjectsByIdNewsletterSubscribersBySubscriberId as coreDeleteProjectsByIdNewsletterSubscribersBySubscriberId,
@@ -303,6 +304,7 @@ import {
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdHide as coreGetProjectsByIdHide,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
@@ -454,6 +456,7 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdHide as corePostProjectsByIdHide,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
@@ -3042,6 +3045,43 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to unpin project",
+    );
+  }
+
+  async function getProjectHide(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdHide({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch project hide",
+    );
+  }
+
+  async function hideProject(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdHide({
+          client,
+          path: { id },
+        }),
+      "Failed to hide project",
+    );
+  }
+
+  async function showProject(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdHide({
+          client,
+          path: { id },
+        }),
+      "Failed to show project",
     );
   }
 
@@ -6692,6 +6732,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjects,
     pinProject,
     unpinProject,
+    getProjectHide,
+    hideProject,
+    showProject,
     getProjectsById,
     postProjectsByIdNewsletterIssuesDraftWithAi,
     getProjectsByIdCalendar,
