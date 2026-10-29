@@ -9180,6 +9180,7 @@
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
+      "clearProject": "Projekt abwählen",
       "close": "Schließen",
       "label": "Projekt",
       "allProjects": "Alle Projekte",

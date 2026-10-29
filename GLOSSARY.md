@@ -342,14 +342,34 @@ _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboa
 The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish. CMO has its own gate, which sends a person with pending invitations to Sokosumi to resolve them.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
-### Project pins
+### Projects
+
+**Project scope**:
+The one project the reader is working in, or `All projects` (the workspace, including work without a project). Opening a project selects it: there is no way to view one project while scoped to another or to none.
+_Avoid_: Active project, current project filter, opening a project as something separate from selecting it
+
+**Project switcher**:
+The header control that shows and changes the Project scope: one searchable list with no group headings, Pinned projects first, then Recently visited projects, then the rest in activity order, and Create project at the end. An X beside it returns to `All projects`. Closed projects never appear in it.
+_Avoid_: Flyout, project picker, project selector, Manage projects as a way into the list
+
+**Project Overview**:
+The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both.
+_Avoid_: Project detail page, project settings, Manage project
+
+**Projects list**:
+Every project in the workspace as a grid of cards, one view at a time: Open (the default) or Closed. Pinned projects come first, then the rest in activity order, the same order as the Project switcher.
+_Avoid_: Manage projects, project management page, All projects (that is the scope, not this page)
+
+**Closed project**:
+A project whose close has finished: its scheduled work is stopped, its history kept, and it cannot be reopened. Out of the Project switcher's list, and in the Projects list only under its Closed view; the Open view is the default. Opening one still makes it the Project scope, so its history stays readable, and the switcher then marks it Closed. A project that is closing, or whose close failed, is not yet Closed. Closed is the archive: there is no separate archived state.
+_Avoid_: Archived project, deleted project, inactive project
 
 **Pinned project**:
-The current user's personal pin of a project they can read. Not shared, and not capped — but the sidebar's Projects flyout is five rows in total, so pins claim those slots first and the rest are reached through `All projects`. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the projects list row or the project header, never from the flyout, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the flyout, so reopening restores it. Distinct from a Pinned room and a Pinned message.
+The current user's personal pin of a project they can read. Not shared, and not capped. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the Projects list row or the project header, never from the Project switcher, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the switcher for good. Distinct from a Pinned room and a Pinned message.
 _Avoid_: Starred project (API-only name), favorite, treating this as a Pinned room
 
 **Recently visited project**:
-A project this reader opened, newest first, tracked per device rather than on the server. Fills whatever flyout slots their Pinned projects leave, ahead of a backfill in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
+A project this reader opened, newest first, tracked per device rather than on the server. Follows the Pinned projects in the Project switcher's shortlist, ahead of the rest in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
 _Avoid_: Recent project (says nothing about whose), active project, last activity
 
 ### Billing
