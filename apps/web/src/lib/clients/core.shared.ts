@@ -52,6 +52,7 @@ import type {
   GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsActivityData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
   GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData,
@@ -285,6 +286,7 @@ import {
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
+  getProjectsActivity as coreGetProjectsActivity,
   getProjectsById as coreGetProjectsById,
   getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
   getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
@@ -2998,6 +3000,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch projects",
+    );
+  }
+
+  async function getProjectsActivity(query?: GetProjectsActivityData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsActivity({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch project activity",
     );
   }
 
@@ -6653,6 +6668,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
+    getProjectsActivity,
     getProjectsStats,
     getSharedResourceByToken,
     moveJobToWorkspace,

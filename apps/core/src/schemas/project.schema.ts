@@ -16,7 +16,10 @@ import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
 import {
+  agentJobStatusSchema,
+  projectEventKindSchema,
   sokosumiJobStatusSchema,
+  taskEventStatusSchema,
   taskStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { historyItemSchema } from "@/schemas/history.schema";
@@ -266,6 +269,58 @@ export const starredProjectSchema = projectSchema
     }),
   })
   .openapi("StarredProject");
+
+const projectActivityBaseSchema = z.object({
+  id: z.string().openapi({
+    description: "ID of the event this row is about",
+    example: "01960001-0001-7001-8001-000000000001",
+  }),
+  createdAt: dateTimeSchema.openapi({ description: "When the event happened" }),
+  project: projectSummarySchema,
+});
+
+const projectTaskActivitySchema = projectActivityBaseSchema
+  .extend({
+    kind: z.literal("task"),
+    taskId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+    title: z.string().openapi({ example: "Draft the launch post" }),
+    // Union-with-null, not `.nullable()`: on a named enum schema that drops
+    // the `| null` from the generated type (see `historyBaseItemSchema.owner`).
+    status: z.union([taskEventStatusSchema, z.null()]).openapi({
+      description:
+        "The status the event set. Null for an event that only added a comment.",
+    }),
+  })
+  .openapi("ProjectTaskActivity");
+
+const projectJobActivitySchema = projectActivityBaseSchema
+  .extend({
+    kind: z.literal("job"),
+    jobId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fq" }),
+    agentId: z.string().openapi({ example: "agent_123" }),
+    title: z.string().nullable().openapi({
+      description:
+        "The job's name, else its agent's display name. Null when neither resolves.",
+      example: "Research Agent",
+    }),
+    status: agentJobStatusSchema,
+  })
+  .openapi("ProjectJobActivity");
+
+const projectLifecycleActivitySchema = projectActivityBaseSchema
+  .extend({
+    kind: z.literal("project"),
+    event: projectEventKindSchema,
+  })
+  .openapi("ProjectLifecycleActivity");
+
+export const projectActivityItemSchema = z
+  .discriminatedUnion("kind", [
+    projectTaskActivitySchema,
+    projectJobActivitySchema,
+    projectLifecycleActivitySchema,
+  ])
+  .openapi("ProjectActivityItem");
 
 export const PROJECT_NEEDS_ATTENTION_LIMIT = 5 as const;
 
