@@ -2759,6 +2759,7 @@
           },
           "performance": {
             "lastDays": "Last {days} days",
+            "rangeLabel": "Time range",
             "moreFilters": "More filters",
             "activeFilters": "{count} active",
             "posts": "Posts",
