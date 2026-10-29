@@ -472,6 +472,100 @@ export async function deleteForkPreviewBranch({
   );
 }
 
+/** Opens the one bot comment that lists a fork PR's preview URLs. */
+export const FORK_PREVIEW_COMMENT_MARKER = "<!-- sokosumi-fork-preview -->";
+const ACTIONS_BOT_LOGIN = "github-actions[bot]";
+
+/** The branch alias Vercel assigned the deployment, else its own URL. */
+export function previewUrl(deployment) {
+  const aliases = deployment.alias ?? [];
+  const host =
+    aliases.find((alias) => alias.includes("-git-")) ??
+    aliases[0] ??
+    deployment.url;
+  return host ? `https://${host}` : null;
+}
+
+/**
+ * The fork preview comment: one row per Vercel project, the newest deploy
+ * replacing that project's row in `previous` (the comment's current body).
+ */
+export function forkPreviewCommentBody(deployments, sha, previous = "") {
+  const rows = new Map();
+  for (const line of previous.split("\n")) {
+    const name = line.match(/^\| `([^`|]+)` \|/)?.[1];
+    if (name) {
+      rows.set(name, line);
+    }
+  }
+  for (const deployment of deployments) {
+    rows.set(
+      deployment.name,
+      `| \`${deployment.name}\` | ${previewUrl(deployment) ?? "none"} | ${deployment.readyState} | ${sha} |`,
+    );
+  }
+  return [
+    FORK_PREVIEW_COMMENT_MARKER,
+    "**Fork preview**",
+    "",
+    "Vercel does not comment on pull requests from forks, so `/deploy` lists the previews here. Each row shows that project's latest deploy and the approved commit it built.",
+    "",
+    "| Project | Preview | State | Commit |",
+    "| --- | --- | --- | --- |",
+    ...[...rows.keys()].sort().map((name) => rows.get(name)),
+  ].join("\n");
+}
+
+/**
+ * Post the fork preview comment, or edit the one this workflow posted
+ * earlier. Only a comment by the Actions bot counts: anyone can paste the
+ * marker, and its rows would otherwise carry over.
+ */
+export async function upsertForkPreviewComment({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  issueNumber,
+  deployments,
+  sha,
+}) {
+  const repo = `https://api.github.com/repos/${repoOwner}/${repoName}`;
+  const perPage = 100;
+  let existing;
+  for (let page = 1; !existing; page += 1) {
+    const payload = await githubJson(
+      fetchImpl,
+      githubToken,
+      `${repo}/issues/${issueNumber}/comments?per_page=${perPage}&page=${page}`,
+    );
+    if (!Array.isArray(payload)) {
+      break;
+    }
+    existing = payload.find(
+      (comment) =>
+        comment.user?.login === ACTIONS_BOT_LOGIN &&
+        comment.body?.startsWith(FORK_PREVIEW_COMMENT_MARKER),
+    );
+    if (payload.length < perPage) {
+      break;
+    }
+  }
+  const body = forkPreviewCommentBody(deployments, sha, existing?.body);
+  await githubJson(
+    fetchImpl,
+    githubToken,
+    existing
+      ? `${repo}/issues/comments/${existing.id}`
+      : `${repo}/issues/${issueNumber}/comments`,
+    {
+      method: existing ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    },
+  );
+}
+
 export function previewGitSource(pullRequest, repoId) {
   return {
     repoId: repoId ?? pullRequest.base.repo.id,
@@ -783,6 +877,25 @@ export async function runPreviewDeployComment(options) {
         pollDeployment,
       });
       await react("rocket");
+      // Vercel comments only on PRs whose branch it built; a fork builds ours.
+      // The deploy is done, so a failed comment must not report it failed.
+      if (fork) {
+        try {
+          await (options.upsertPreviewComment ?? upsertForkPreviewComment)({
+            fetchImpl,
+            githubToken,
+            repoOwner,
+            repoName,
+            issueNumber,
+            deployments: result.deployments,
+            sha: pullRequest.head.sha,
+          });
+        } catch (error) {
+          console.warn(
+            `Fork preview comment failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
       return result;
     },
   });
