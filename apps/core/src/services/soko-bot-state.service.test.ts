@@ -1,16 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { botFindFirstMock, botFindManyMock, memberFindFirstMock, resolveMock } =
-  vi.hoisted(() => ({
-    botFindFirstMock: vi.fn(),
-    botFindManyMock: vi.fn(),
-    memberFindFirstMock: vi.fn(),
-    resolveMock: vi.fn(),
-  }));
+const {
+  botFindFirstMock,
+  botFindManyMock,
+  botFindUniqueMock,
+  memberFindFirstMock,
+  resolveMock,
+} = vi.hoisted(() => ({
+  botFindFirstMock: vi.fn(),
+  botFindManyMock: vi.fn(),
+  botFindUniqueMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
+  resolveMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    sokoBot: { findFirst: botFindFirstMock, findMany: botFindManyMock },
+    sokoBot: {
+      findFirst: botFindFirstMock,
+      findMany: botFindManyMock,
+      findUnique: botFindUniqueMock,
+    },
     member: { findFirst: memberFindFirstMock },
   },
 }));
@@ -26,6 +36,7 @@ import {
 } from "@/services/soko-bot-control-plane.service";
 import {
   getSokoBotActivity,
+  getSokoBotAvatarFields,
   getSokoBotState,
   listSharedSokoBots,
 } from "./soko-bot-state.service";
@@ -41,6 +52,13 @@ function botRow(userId: string | null) {
     workspaceId: WORKSPACE_ID,
     memoryHash: "stale",
     memoryRevisions: [],
+    status: "IDLE",
+    archivedAt: null,
+    adminPausedAt: null,
+    avatarImageUrl: null,
+    avatar: null,
+    turns: [],
+    pendingDecisions: [],
   };
 }
 
@@ -97,6 +115,119 @@ describe("getSokoBotState", () => {
     expect(state?.viewerCanManage).toBe(canManage);
   });
 
+  describe("avatar state", () => {
+    const craftedAvatar = {
+      styleId: "crafted-desk",
+      styleVersion: 1,
+      imageUrl: "https://blob.test/idle.webp",
+      renders: [
+        {
+          state: "IDLE",
+          stillUrl: "https://blob.test/idle.webp",
+          loopUrl: "https://blob.test/idle-320.webp",
+          loopLargeUrl: "https://blob.test/idle-560.webp",
+        },
+        {
+          state: "WORKING",
+          stillUrl: "https://blob.test/working.webp",
+          loopUrl: null,
+          loopLargeUrl: null,
+        },
+        { state: "DONE", stillUrl: null, loopUrl: null, loopLargeUrl: null },
+      ],
+    };
+
+    async function stateOf(overrides: Record<string, unknown>) {
+      botFindFirstMock.mockResolvedValue({ ...botRow(VIEWER), ...overrides });
+      return await getSokoBotState(VIEWER, WORKSPACE_ID);
+    }
+
+    it("loads what the state needs: the avatar, the latest foreground turn", async () => {
+      await stateOf({});
+
+      const include = botFindFirstMock.mock.calls[0]?.[0].include;
+      expect(include.turns).toMatchObject({
+        where: { parentTurnId: null },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      });
+      expect(include.avatar.select.renders).toBeDefined();
+    });
+
+    it.each([
+      ["a running turn", { turns: [{ status: "RUNNING" }] }, "working"],
+      ["a queued turn", { turns: [{ status: "QUEUED" }] }, "thinking"],
+      [
+        "an open decision during a run",
+        {
+          turns: [{ status: "RUNNING" }],
+          pendingDecisions: [{ id: "d1" }],
+        },
+        "needs_you",
+      ],
+      [
+        "a paused bot with an open decision",
+        { status: "PAUSED", pendingDecisions: [{ id: "d1" }] },
+        "offline",
+      ],
+      ["an archived bot", { archivedAt: new Date() }, "offline"],
+      ["nothing going on", {}, "idle"],
+    ])("derives %s as %s", async (_name, overrides, expected) => {
+      const state = await stateOf(overrides);
+
+      expect(state?.avatarState).toBe(expected);
+    });
+
+    it("shows done for a turn that completed a minute ago", async () => {
+      const state = await stateOf({
+        turns: [
+          { status: "COMPLETED", completedAt: new Date(Date.now() - 60_000) },
+        ],
+      });
+
+      expect(state?.avatarState).toBe("done");
+    });
+
+    it("describes a crafted avatar with only the renders that exist", async () => {
+      const state = await stateOf({
+        avatarImageUrl: "https://blob.test/idle.webp",
+        avatar: craftedAvatar,
+      });
+
+      expect(state?.avatar).toMatchObject({
+        styleId: "crafted-desk",
+        stillUrl: "https://blob.test/idle.webp",
+        states: {
+          idle: { loopUrl: "https://blob.test/idle-320.webp" },
+          working: {
+            stillUrl: "https://blob.test/working.webp",
+            loopUrl: null,
+          },
+          thinking: null,
+          done: null,
+          needs_you: null,
+          offline: null,
+        },
+      });
+      // The relation row itself does not leak into the response.
+      expect(state?.avatar).not.toHaveProperty("renders");
+      expect(state).not.toHaveProperty("turns");
+    });
+
+    it("falls back to the one image of a legacy mascot", async () => {
+      const state = await stateOf({
+        avatarImageUrl: "https://blob.test/mascot.png",
+      });
+
+      expect(state?.avatar).toMatchObject({
+        styleId: "mascot",
+        stillUrl: "https://blob.test/mascot.png",
+        states: { idle: null, working: null },
+      });
+      expect(state?.avatarImageUrl).toBe("https://blob.test/mascot.png");
+    });
+  });
+
   it("returns null without reading when the bot is out of reach", async () => {
     resolveMock.mockResolvedValue(null);
 
@@ -135,6 +266,24 @@ describe("listSharedSokoBots", () => {
     expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
+  it("derives each shared bot's avatar state from its own latest turn", async () => {
+    botFindManyMock.mockResolvedValue([
+      {
+        ...botRow(null),
+        projectId: "project_1",
+        turns: [{ status: "RUNNING", completedAt: null }],
+      },
+      { ...botRow(null), id: "bot_2", projectId: null, status: "PAUSED" },
+    ]);
+    memberFindFirstMock.mockResolvedValue({ role: "member" });
+
+    const bots = await listSharedSokoBots(VIEWER, WORKSPACE_ID);
+
+    expect(bots.map((bot) => bot.avatarState)).toEqual(["working", "offline"]);
+    expect(bots[0]).not.toHaveProperty("turns");
+    expect(bots[0]).not.toHaveProperty("adminPausedAt");
+  });
+
   it("maps the scope and reads the viewer's role once", async () => {
     botFindManyMock.mockResolvedValue([
       { ...botRow(null), projectId: "project_1" },
@@ -156,6 +305,32 @@ describe("listSharedSokoBots", () => {
     ]);
     expect(bots[0]).not.toHaveProperty("userId");
     expect(memberFindFirstMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("getSokoBotAvatarFields", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("derives the state for the admin detail, offline when Soko Bots are off", async () => {
+    botFindUniqueMock.mockResolvedValue({
+      ...botRow(null),
+      turns: [{ status: "RUNNING", completedAt: null }],
+    });
+
+    expect(await getSokoBotAvatarFields(BOT_ID)).toMatchObject({
+      avatarState: "working",
+    });
+    expect(await getSokoBotAvatarFields(BOT_ID, true)).toMatchObject({
+      avatarState: "offline",
+    });
+  });
+
+  it("adds nothing for a bot that is gone", async () => {
+    botFindUniqueMock.mockResolvedValue(null);
+
+    expect(await getSokoBotAvatarFields(BOT_ID)).toEqual({});
   });
 });
 

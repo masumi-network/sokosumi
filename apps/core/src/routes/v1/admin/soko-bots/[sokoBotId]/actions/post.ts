@@ -8,7 +8,9 @@ import {
   adminSokoBotActionRequestSchema,
   adminSokoBotDetailSchema,
 } from "@/schemas/soko-bot.schema";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import { getSokoBotAvatarFields } from "@/services/soko-bot-state.service";
 import { sokoBotUsageTotals } from "@/services/soko-bot-usage.service";
 import {
   botParams,
@@ -91,6 +93,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         c,
         adminSokoBotDetailSchema.parse({
           ...mapDetail(detail),
+          ...(await getSokoBotAvatarFields(
+            c.req.valid("param").sokoBotId,
+            (
+              await getSokoBotAvailability()
+            ).disabled,
+          )),
           usage: await sokoBotUsageTotals(c.req.valid("param").sokoBotId),
         }),
       );

@@ -1,4 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
+import {
+  avatarFields,
+  avatarStateRelations,
+} from "@/helpers/soko-bot-avatar-state";
 import { canManageSokoBot } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -100,12 +104,16 @@ export async function getSokoBotState(
         take: 10,
       },
       schedules: { orderBy: { createdAt: "desc" } },
+      avatar: avatarStateRelations().avatar,
+      turns: avatarStateRelations().turns,
     },
   });
   if (!bot) return null;
   const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
+  const { turns: _turns, avatar: avatarRow, ...rest } = bot;
   return {
-    ...bot,
+    ...rest,
+    ...avatarFields({ ...bot, avatar: avatarRow }),
     memoryHash: memoryRevisions[0]?.hash ?? bot.memoryHash,
     memoryRevisions,
     viewerCanManage: await canManageSokoBot(viewerUserId, bot),
@@ -142,6 +150,8 @@ export async function listSharedSokoBots(
       status: true,
       archivedAt: true,
       sharedRoomId: true,
+      adminPausedAt: true,
+      ...avatarStateRelations(),
     },
   });
   const first = bots[0];
@@ -149,10 +159,43 @@ export async function listSharedSokoBots(
   const viewerCanManage = first
     ? await canManageSokoBot(viewerUserId, first)
     : false;
-  return bots.map(({ userId: _userId, workspaceId: _workspaceId, ...bot }) => ({
-    ...bot,
-    scope:
-      bot.projectId === null ? ("workspace" as const) : ("project" as const),
-    viewerCanManage,
-  }));
+  return bots.map((bot) => {
+    const {
+      userId: _userId,
+      workspaceId: _workspaceId,
+      adminPausedAt: _adminPausedAt,
+      avatar: _avatar,
+      turns: _turns,
+      pendingDecisions: _pendingDecisions,
+      ...rest
+    } = bot;
+    return {
+      ...rest,
+      ...avatarFields(bot),
+      scope:
+        bot.projectId === null ? ("workspace" as const) : ("project" as const),
+      viewerCanManage,
+    };
+  });
+}
+
+/**
+ * `avatarState` and `avatar` for one bot by id, for responses that are built
+ * from another read (the admin detail, which is redacted after loading).
+ */
+export async function getSokoBotAvatarFields(
+  sokoBotId: string,
+  availabilityDisabled = false,
+) {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: {
+      status: true,
+      archivedAt: true,
+      adminPausedAt: true,
+      avatarImageUrl: true,
+      ...avatarStateRelations(),
+    },
+  });
+  return bot ? avatarFields({ ...bot, availabilityDisabled }) : {};
 }

@@ -2,21 +2,28 @@ import { createRoute } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  avatarFields,
+  avatarStateRelations,
+} from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { sokoBotTeamSchema } from "@/schemas/soko-bot.schema";
 
-const BOT_TEAM_SELECT = {
-  id: true,
-  name: true,
-  avatarImageUrl: true,
-  avatarSeed: true,
-  status: true,
-  lastActivityAt: true,
-  archivedAt: true,
-} as const;
+const botTeamSelect = () =>
+  ({
+    id: true,
+    name: true,
+    avatarImageUrl: true,
+    avatarSeed: true,
+    status: true,
+    lastActivityAt: true,
+    archivedAt: true,
+    adminPausedAt: true,
+    ...avatarStateRelations(),
+  }) as const;
 
 const teamRoute = createRoute({
   method: "get",
@@ -44,24 +51,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       sokoBots: {
         where: { workspaceId: workspace.workspaceId, archivedAt: null },
         take: 1,
-        select: BOT_TEAM_SELECT,
+        select: botTeamSelect(),
       },
     } as const;
-    const mapBotForTeam = (bot: {
-      id: string;
-      name: string | null;
-      avatarImageUrl: string | null;
-      avatarSeed: string | null;
-      status: string;
-      lastActivityAt: Date | null;
-      archivedAt: Date | null;
-    }) =>
+    const mapBotForTeam = (
+      bot: Parameters<typeof avatarFields>[0] & {
+        id: string;
+        name: string | null;
+        avatarSeed: string | null;
+        lastActivityAt: Date | null;
+      },
+    ) =>
       bot.archivedAt
         ? null
         : {
             id: bot.id,
             name: bot.name,
             avatarImageUrl: bot.avatarImageUrl,
+            ...avatarFields(bot),
             avatarSeed: bot.avatarSeed,
             status: bot.status,
             lastActivityAt: bot.lastActivityAt,
