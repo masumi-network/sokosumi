@@ -481,12 +481,26 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
  * box by hand is exactly how a room's mark drifted 2px off the nav icons'
  * line and the account face 4px off both.
  */
-function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
+function SidebarRowSlot({
+  className,
+  tile = false,
+  ...props
+}: React.ComponentProps<"span"> & {
+  /**
+   * The mark is an avatar drawn as a tile at the icon's size, as a project's
+   * is, rather than as a 20px face. These rules outrank the avatar's own size
+   * and rounding, unlike the icon's `:where()`. The ring keeps the tile's edge
+   * on the current row, whose fill is the same grey as an initial's tile.
+   */
+  tile?: boolean;
+}) {
   return (
     <span
       data-slot="sidebar-row-slot"
       className={cn(
         "inline-flex h-6 min-w-6 shrink-0 items-center justify-center [:where(&>svg)]:size-4 md:[:where(&>svg)]:size-3.5",
+        tile &&
+          "[&>[data-slot=avatar]]:ring-sidebar-border [&>[data-slot=avatar]]:size-4 [&>[data-slot=avatar]]:rounded [&>[data-slot=avatar]]:ring-1 md:[&>[data-slot=avatar]]:size-3.5 [&_[data-slot=avatar-fallback]]:rounded [&_[data-slot=avatar-fallback]]:text-2xs",
         className,
       )}
       {...props}

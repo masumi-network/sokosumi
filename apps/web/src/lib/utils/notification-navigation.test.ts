@@ -2,11 +2,15 @@ import type { NotificationItem } from "@sokosumi/core-client";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getWorkspaceOrganizationIdMock, getMyMembersWithOrganizationsMock } =
-  vi.hoisted(() => ({
-    getWorkspaceOrganizationIdMock: vi.fn(),
-    getMyMembersWithOrganizationsMock: vi.fn(),
-  }));
+const {
+  getWorkspaceOrganizationIdMock,
+  getMyMembersWithOrganizationsMock,
+  getChatRoomMock,
+} = vi.hoisted(() => ({
+  getWorkspaceOrganizationIdMock: vi.fn(),
+  getMyMembersWithOrganizationsMock: vi.fn(),
+  getChatRoomMock: vi.fn(),
+}));
 
 vi.mock("@/lib/utils/workspace-organization.client", () => ({
   getWorkspaceOrganizationId: getWorkspaceOrganizationIdMock,
@@ -15,6 +19,7 @@ vi.mock("@/lib/utils/workspace-organization.client", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getMyMembersWithOrganizations: getMyMembersWithOrganizationsMock,
+    getChatRoom: getChatRoomMock,
   },
 }));
 
@@ -175,6 +180,108 @@ describe("handleNotificationNavigation", () => {
       successMessage: "switched:Org One",
     });
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  describe("chat notifications", () => {
+    const chatNotification = createNotification({
+      kind: "CHAT",
+      referenceId: "room_1",
+      metadata: {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        messageId: "message_1",
+      },
+    });
+    const room = {
+      organizationId: "org_1",
+      kind: "channel",
+      discoverability: "public",
+      myAccess: "member",
+      coworkerMembers: [],
+      sokoBotMembers: [],
+    };
+
+    it.each([
+      [
+        "an External channel",
+        { ...room, discoverability: "external" },
+        "org_2",
+      ],
+      [
+        "a Personal Direct",
+        { ...room, organizationId: null, kind: "direct" },
+        null,
+      ],
+    ])(
+      "opens %s in the current workspace",
+      async (_label, chatRoom, activeOrgId) => {
+        getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
+        getChatRoomMock.mockResolvedValueOnce({ data: chatRoom });
+
+        await handleNotificationNavigation(
+          chatNotification,
+          activeOrgId,
+          router,
+          handleSelectWorkspace,
+          t,
+        );
+
+        expect(getChatRoomMock).toHaveBeenCalledWith("room_1");
+        expect(handleSelectWorkspace).not.toHaveBeenCalled();
+        expect(pushMock).toHaveBeenCalledWith(
+          "/chat/rooms/room_1?message=message_1",
+        );
+      },
+    );
+
+    it.each([
+      ["a Channel", room],
+      [
+        "an AI 1:1",
+        {
+          ...room,
+          kind: "direct",
+          discoverability: null,
+          coworkerMembers: [{ id: "coworker_1" }],
+        },
+      ],
+    ])("still switches to the workspace of %s", async (_label, chatRoom) => {
+      getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
+      getChatRoomMock.mockResolvedValueOnce({ data: chatRoom });
+
+      await handleNotificationNavigation(
+        chatNotification,
+        "org_2",
+        router,
+        handleSelectWorkspace,
+        t,
+      );
+
+      expect(handleSelectWorkspace).toHaveBeenCalledWith("org_1", {
+        shouldRedirectAgentJobsBasePath: false,
+        successMessage: "switched:Org One",
+      });
+      expect(pushMock).toHaveBeenCalledWith(
+        "/chat/rooms/room_1?message=message_1",
+      );
+    });
+
+    it("switches as before when the room cannot be read", async () => {
+      getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
+      getChatRoomMock.mockRejectedValueOnce(new Error("not found"));
+
+      await handleNotificationNavigation(
+        chatNotification,
+        "org_2",
+        router,
+        handleSelectWorkspace,
+        t,
+      );
+
+      expect(handleSelectWorkspace).toHaveBeenCalled();
+      expect(pushMock).toHaveBeenCalledWith(
+        "/chat/rooms/room_1?message=message_1",
+      );
+    });
   });
 
   it("deep-links pending vendor grant and switches workspace when needed", async () => {

@@ -38,17 +38,15 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
   ProjectScopeMenu: ({
-    includeWorkspace,
     onSelect,
     onDone,
     onCreate,
   }: {
-    includeWorkspace?: boolean;
-    onSelect: (projectId: string | null) => void;
+    onSelect: (projectId: string) => void;
     onDone?: () => void;
     onCreate: (opener: HTMLElement | null) => void;
   }) => (
-    <div data-include-workspace={String(includeWorkspace)}>
+    <div>
       <button
         onClick={() => {
           onSelect("project-picked");
@@ -301,10 +299,6 @@ describe("the workspace view", () => {
 
     expect(mocks.enqueue).not.toHaveBeenCalled();
     expect(screen.getByText("pickForGeneration")).toBeInTheDocument();
-    // A project is required here, so the workspace itself is not a choice.
-    expect(
-      screen.getByText("Picked project").closest("[data-include-workspace]"),
-    ).toHaveAttribute("data-include-workspace", "false");
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toHaveValue("a fox");

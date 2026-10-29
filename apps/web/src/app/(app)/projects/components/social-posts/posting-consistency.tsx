@@ -2,7 +2,7 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
   type ActivityDay,
@@ -84,34 +84,22 @@ export function PostingConsistency({
         <h2 id="posting-consistency" className="text-base font-semibold">
           {t("performance.consistency")}
         </h2>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            className={cn(
-              "h-11 md:h-8",
-              mode === "posts" ? undefined : "text-foreground",
-            )}
-            variant={mode === "posts" ? "default" : "outline"}
-            aria-pressed={mode === "posts"}
-            onClick={() => setMode("posts")}
-          >
+        <ToggleGroup
+          type="single"
+          aria-label={t("performance.consistency")}
+          value={mode}
+          onValueChange={(value) => {
+            // Clicking the selected mode again would clear it; keep it.
+            if (value === "posts" || value === "engagement") setMode(value);
+          }}
+        >
+          <ToggleGroupItem value="posts" className="h-11 md:h-8">
             {t("performance.showPosts")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            className={cn(
-              "h-11 md:h-8",
-              mode === "engagement" ? undefined : "text-foreground",
-            )}
-            variant={mode === "engagement" ? "default" : "outline"}
-            aria-pressed={mode === "engagement"}
-            onClick={() => setMode("engagement")}
-          >
+          </ToggleGroupItem>
+          <ToggleGroupItem value="engagement" className="h-11 md:h-8">
             {t("performance.showEngagement")}
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm">
