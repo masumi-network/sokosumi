@@ -15,7 +15,14 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -157,11 +164,23 @@ export function TaskSchedulesView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TabsList
           aria-label={t("stateFilter")}
-          className={cn("h-auto max-w-full w-fit flex-wrap")}
+          className={cn(
+            SEGMENTED_TABS_LIST_CLASS_NAME,
+            "h-auto max-w-full w-fit flex-wrap",
+          )}
         >
-          <TabsTrigger value={ALL_STATES}>{t("filterAll")}</TabsTrigger>
+          <TabsTrigger
+            className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+            value={ALL_STATES}
+          >
+            {t("filterAll")}
+          </TabsTrigger>
           {Object.values(TaskScheduleState).map((value) => (
-            <TabsTrigger key={value} value={value}>
+            <TabsTrigger
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              key={value}
+              value={value}
+            >
               {t(`state.${value}`)}
             </TabsTrigger>
           ))}

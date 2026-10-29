@@ -5,9 +5,9 @@ import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import {
-  SEGMENTED_CONTROL_CLASS_NAME,
-  SEGMENTED_CONTROL_ITEM_CLASS_NAME,
-} from "./segmented-control-classes"
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+} from "./tabs-classes"
 
 function Tabs({
   className,
@@ -29,7 +29,10 @@ function TabsList({
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn(SEGMENTED_CONTROL_CLASS_NAME, className)}
+      className={cn(
+        "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
+        className
+      )}
       {...props}
     />
   )
@@ -42,7 +45,10 @@ function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
-      className={cn(SEGMENTED_CONTROL_ITEM_CLASS_NAME, className)}
+      className={cn(
+        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring-halo focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-quinary text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,background-color,transform] duration-150 ease-out press focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
       {...props}
     />
   )
@@ -66,4 +72,6 @@ export {
   TabsList,
   TabsTrigger,
   TabsContent,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
 }

@@ -36,10 +36,10 @@ export function ListGridViewSwitch({
       aria-label={`${labels.list} / ${labels.grid}`}
       data-testid={testId}
     >
-      <ToggleGroupItem value="list" aria-label={labels.list} className="px-2">
+      <ToggleGroupItem value="list" aria-label={labels.list} className="size-10 px-0 md:size-8">
         <List className="size-4" aria-hidden />
       </ToggleGroupItem>
-      <ToggleGroupItem value="grid" aria-label={labels.grid} className="px-2">
+      <ToggleGroupItem value="grid" aria-label={labels.grid} className="size-10 px-0 md:size-8">
         <LayoutGrid className="size-4" aria-hidden />
       </ToggleGroupItem>
     </ToggleGroup>
