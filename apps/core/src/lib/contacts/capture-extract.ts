@@ -4,6 +4,7 @@
  * one interaction with the teammate who had it. Pure, so every extractor is
  * tested on recorded fixtures.
  */
+import { stripTags } from "@/lib/open-graph-html";
 import {
   type CaptureIdentity,
   type CaptureSkipReason,
@@ -195,15 +196,14 @@ function headerMap(raw: unknown): Map<string, string> {
 function stripHtml(html: string): string {
   let text = html.replace(/<(br|\/p|\/div|\/tr|\/li)[^>]*>/gi, "\n");
   let previous: string;
-  // Until stable, so a removal cannot join "<scr<script>ipt>" into a new tag.
+  // Until stable, so a removal cannot join "<scr<style></style>ipt>" into a new block.
   do {
     previous = text;
-    text = text
-      .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "")
-      .replace(/<[^>]+>/g, "");
+    text = text.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "");
   } while (text !== previous);
+  // stripTags never emits "<", so no tag survives; an unclosed "<" drops the rest.
   return (
-    text
+    stripTags(text)
       .replace(/&nbsp;/g, " ")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")

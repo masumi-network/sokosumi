@@ -249,7 +249,7 @@ describe("Outlook mail", () => {
 
   it("strips nested tags that reassemble after one pass", () => {
     const body = htmlBody(
-      "<p>Hi</p><scr<script>ipt>x</script><sty<style>y</style>le>z</style>",
+      "<p>Hi</p><scr<script>ipt>x</script><sty<style>y</style>le>z</style><scr<style></style>ipt",
     );
     expect(body).not.toMatch(/<\s*(script|style)/i);
     expect(body).not.toContain("<");
