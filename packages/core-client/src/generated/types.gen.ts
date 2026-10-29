@@ -595,6 +595,10 @@ export type ChatRoomSokoBotParticipant = {
     image: string | null;
     avatarSeed: string | null;
     /**
+     * The style of the bot's claimed avatar, null when it has none. Always sent; optional so clients written before it compile.
+     */
+    avatarStyleId?: string | null;
+    /**
      * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
     ownerUserId: string | null;
@@ -1776,6 +1780,7 @@ export type SokoBotSummary = {
     name: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
+    avatarStyleId?: string | null;
     owner: UserSummary | null;
 };
 
@@ -1914,6 +1919,7 @@ export type TaskEvent = {
         name: string | null;
         avatarSeed: string | null;
         avatarImageUrl: string | null;
+        avatarStyleId?: string | null;
         owner: UserSummary | null;
     } | null;
     transactionId?: string | null;
@@ -3391,6 +3397,7 @@ export type ChatResultAvailable = {
             kind: 'user' | 'coworker' | 'sokoBot';
             slug?: string;
             avatarSeed?: string | null;
+            avatarStyleId?: string | null;
         } | null;
         participants: Array<{
             id: string;
@@ -3399,6 +3406,7 @@ export type ChatResultAvailable = {
             kind: 'user' | 'coworker' | 'sokoBot';
             slug?: string;
             avatarSeed?: string | null;
+            avatarStyleId?: string | null;
         }>;
         commentsCount: number;
         tags: TaskTags;
@@ -3419,6 +3427,7 @@ export type ChatResultAvailable = {
         kind: 'user' | 'coworker' | 'sokoBot';
         slug?: string;
         avatarSeed?: string | null;
+        avatarStyleId?: string | null;
     } | null;
     agent?: {
         name: string;
@@ -9587,6 +9596,7 @@ export type TaskScheduleAssignees = {
         name: string | null;
         avatarSeed: string | null;
         avatarImageUrl: string | null;
+        avatarStyleId?: string | null;
     } | null;
 };
 

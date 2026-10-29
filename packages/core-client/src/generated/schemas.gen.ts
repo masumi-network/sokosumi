@@ -2406,6 +2406,14 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
+        avatarStyleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The style of the bot\'s claimed avatar, null when it has none. Always sent; optional so clients written before it compile.',
+            example: 'crafted-desk'
+        },
         ownerUserId: {
             type: [
                 'string',
@@ -7022,6 +7030,13 @@ export const SokoBotSummarySchema = {
             ],
             example: 'https://blob.example/mascot.png'
         },
+        avatarStyleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'crafted-desk'
+        },
         owner: {
             anyOf: [
                 {
@@ -7355,6 +7370,13 @@ export const TaskEventSchema = {
                         'null'
                     ],
                     example: 'https://blob.example/mascot.png'
+                },
+                avatarStyleId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'crafted-desk'
                 },
                 owner: {
                     anyOf: [
@@ -12215,6 +12237,14 @@ export const ChatResultAvailableSchema = {
                             ],
                             maxLength: 200,
                             default: null
+                        },
+                        avatarStyleId: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 200,
+                            default: null
                         }
                     },
                     required: [
@@ -12257,6 +12287,14 @@ export const ChatResultAvailableSchema = {
                                 maxLength: 200
                             },
                             avatarSeed: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                maxLength: 200,
+                                default: null
+                            },
+                            avatarStyleId: {
                                 type: [
                                     'string',
                                     'null'
@@ -12400,6 +12438,14 @@ export const ChatResultAvailableSchema = {
                     maxLength: 200
                 },
                 avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                },
+                avatarStyleId: {
                     type: [
                         'string',
                         'null'
@@ -33602,6 +33648,12 @@ export const TaskScheduleAssigneesSchema = {
                     ]
                 },
                 avatarImageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarStyleId: {
                     type: [
                         'string',
                         'null'
