@@ -6044,6 +6044,7 @@
             "textOnPrimary": "Texto sobre el principal",
             "scrim": "Oscurecimiento de capa"
           },
+          "darkPrimaryRule": "En modo oscuro, el color primario reposa en Dark Iris (#D141D1, propuesta). Iris Flower se ve tres veces más intenso sobre casi negro. Al pasar el cursor vuelve Iris Flower.",
           "status": "Estado",
           "Status": {
             "done": "Positivo",

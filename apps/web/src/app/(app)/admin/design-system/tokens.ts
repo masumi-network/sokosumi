@@ -55,11 +55,16 @@ export const ALPHA_TONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95].map(
 );
 
 /**
- * The positive mark is the one status value outside the palette (Proposed in
- * the guide). Warning is Golden Yellow and the X is Neutral 950, both mapped
- * in `design-system.css`.
+ * Values outside the palette, both Proposed. The positive mark is the one
+ * status color: warning is Golden Yellow and the X is Neutral 950, both mapped
+ * in `design-system.css`. Dark Iris is the dark-theme primary at rest: Iris
+ * Flower measures 7.3:1 on Neutral 950 against 2.7:1 on white, so it reads
+ * far louder in dark. Dark Iris keeps Neutral 950 text at 5:1.
  */
-const STATUS_VALUES = { "--ds-positive": "#00D43B" } as const;
+const PROPOSED_VALUES = {
+  "--ds-positive": "#00D43B",
+  "--ds-dark-iris": "#D141D1",
+} as const;
 
 /** Every `--ds-*` value, ready to spread into the preview wrapper's style. */
 export const DESIGN_SYSTEM_VARS: Record<`--ds-${string}`, string> = {
@@ -67,7 +72,7 @@ export const DESIGN_SYSTEM_VARS: Record<`--ds-${string}`, string> = {
     [...PALETTE, ...NEUTRALS].map((swatch) => [swatch.cssVar, swatch.hex]),
   ),
   ...Object.fromEntries(ALPHA_TONES.map((tone) => [tone.cssVar, tone.value])),
-  ...STATUS_VALUES,
+  ...PROPOSED_VALUES,
 };
 
 /** Section 5.2 of the guide: one role, a light step and a dark step. */
@@ -80,7 +85,7 @@ export const THEME_ROLES = [
   { key: "text", light: "--ds-neutral-900", dark: "--ds-neutral-50" },
   { key: "mutedText", light: "--ds-neutral-500", dark: "--ds-neutral-400" },
   { key: "disabledText", light: "--ds-neutral-400", dark: "--ds-neutral-600" },
-  { key: "primary", light: "--ds-iris-flower", dark: "--ds-iris-flower" },
+  { key: "primary", light: "--ds-iris-flower", dark: "--ds-dark-iris" },
   {
     key: "textOnPrimary",
     light: "--ds-neutral-950",
