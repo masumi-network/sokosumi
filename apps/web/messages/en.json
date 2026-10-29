@@ -9219,9 +9219,7 @@
       "label": "Project",
       "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
-      "recent": "Recent",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",
       "empty": "No projects found.",
@@ -9229,7 +9227,7 @@
       "error": "Projects could not load.",
       "retry": "Try again",
       "create": "Create project",
-      "manage": "Manage projects",
+      "closed": "Closed",
       "current": "(current)",
       "searching": "Searching projects..."
     },
