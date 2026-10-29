@@ -178,3 +178,68 @@ function projectActivityBoundaryClause(
     OR r."starredAt" > ${boundary.starredAt}::timestamp
     OR (r."starredAt" = ${boundary.starredAt}::timestamp AND ${afterActivity})`;
 }
+
+export interface ProjectRecentActivityRow {
+  kind: "task" | "job" | "project";
+  id: string;
+  at: Date;
+  projectId: string;
+  entityId: string;
+  title: string | null;
+  status: string | null;
+  agentId: string | null;
+}
+
+/**
+ * The newest event per task, job and project across the workspace's open
+ * projects, newest first: the same sources `projectActivityPageQuery` ranks
+ * projects by, minus ready task outputs, which land with the task's own event.
+ * One row per task or job, so a job that polls ten statuses is one row.
+ *
+ * shortcut: DISTINCT ON scans every visible task and job event in the
+ * workspace, like the ranked projects page does; add an events-by-workspace
+ * index if this shows up in query times.
+ */
+export function projectRecentActivityQuery({
+  workspaceId,
+  take,
+  visibility,
+}: {
+  workspaceId: string;
+  take: number;
+  visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
+}) {
+  return PrismaRaw.sql`
+    SELECT * FROM (
+      (SELECT DISTINCT ON (t.id) 'task' AS kind, e.id::text AS id, e."createdAt" AS at,
+        t."projectId"::text AS "projectId", t.id AS "entityId", t.name AS title,
+        e.status::text AS status, NULL::text AS "agentId"
+      FROM "taskEvent" e
+      JOIN task t ON t.id = e."taskId"
+      JOIN project p ON p.id = t."projectId" AND p."closedAt" IS NULL
+      WHERE t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL
+        ${visibility.task}
+      ORDER BY t.id, e."createdAt" DESC, e.id DESC)
+      UNION ALL
+      (SELECT DISTINCT ON (j.id) 'job', e.id::text, e."createdAt",
+        j."projectId"::text, j.id, j.name, e.status::text, j."agentId"
+      FROM "jobEvent" e
+      JOIN "Job" j ON j.id = e."jobId"
+      JOIN project p ON p.id = j."projectId" AND p."closedAt" IS NULL
+      LEFT JOIN task t ON t.id = j."taskId"
+      WHERE j."workspaceId" = ${workspaceId}::uuid
+        AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
+        ${visibility.job}
+      ORDER BY j.id, e."createdAt" DESC, e.id DESC)
+      UNION ALL
+      (SELECT DISTINCT ON (p.id) 'project', e.id::text, e."createdAt",
+        p.id::text, p.id::text, p.name, e.kind::text, NULL::text
+      FROM project_event e
+      JOIN project p ON p.id = e."projectId" AND p."closedAt" IS NULL
+      WHERE p."workspaceId" = ${workspaceId}::uuid
+      ORDER BY p.id, e."createdAt" DESC, e.id DESC)
+    ) a
+    ORDER BY a.at DESC, a.id DESC
+    LIMIT ${take}
+  `;
+}
