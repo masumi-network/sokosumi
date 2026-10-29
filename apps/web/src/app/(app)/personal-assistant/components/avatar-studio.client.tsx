@@ -5,6 +5,7 @@ import {
   SokoBotAvatarState,
   type SokoBotAvatarStudio,
 } from "@sokosumi/core-client";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -227,264 +228,270 @@ export function AvatarStudio({
         : t("statesPlay");
 
   return (
-    <div className="grid w-full gap-8 py-2 lg:grid-cols-[minmax(0,35rem)_minmax(0,1fr)] lg:gap-16">
-      <div className="flex min-w-0 flex-col gap-6">
-        <div
-          aria-busy={isDrafting}
-          className="bg-muted relative aspect-square w-full overflow-hidden rounded-2xl"
+    <div className="flex w-full flex-col gap-8 py-2">
+      <header className="flex flex-col gap-3">
+        <Link
+          href={consoleHref}
+          className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 self-start text-sm transition-colors"
         >
-          {shown ? (
-            <img
-              src={shown}
-              alt={
-                draft
-                  ? t("draftAlt", { name: botName })
-                  : alt(botName, pick.state)
-              }
-              className={cn(
-                "size-full object-cover transition-opacity duration-200",
-                isDrafting && "opacity-45",
-              )}
-            />
-          ) : null}
-          {isDrafting ? (
-            <div className="absolute inset-x-0 bottom-6 flex justify-center">
-              <span
-                role="status"
-                className="bg-background border-border relative overflow-hidden rounded-lg border px-3.5 py-2.5 text-sm"
-              >
-                {t("making")}
-                <ButtonLoadingBar label={t("making")} />
+          <ArrowLeft aria-hidden className="size-4" />
+          {t("back", { name: botName })}
+        </Link>
+        <h1 className="text-foreground text-3xl font-light tracking-tight">
+          {t("title", { name: botName })}
+        </h1>
+        <p className="text-muted-foreground max-w-xl text-sm text-pretty">
+          {t("description")}
+        </p>
+      </header>
+
+      <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,35rem)_minmax(0,1fr)] lg:gap-16">
+        <div className="flex min-w-0 flex-col gap-6">
+          <div
+            aria-busy={isDrafting}
+            className="bg-muted relative aspect-square w-full overflow-hidden rounded-2xl"
+          >
+            {shown ? (
+              <img
+                src={shown}
+                alt={
+                  draft
+                    ? t("draftAlt", { name: botName })
+                    : alt(botName, pick.state)
+                }
+                className={cn(
+                  "size-full object-cover transition-opacity duration-200",
+                  isDrafting && "opacity-45",
+                )}
+              />
+            ) : null}
+            {isDrafting ? (
+              <div className="absolute inset-x-0 bottom-6 flex justify-center">
+                <span
+                  role="status"
+                  className="bg-background border-border relative overflow-hidden rounded-lg border px-3.5 py-2.5 text-sm"
+                >
+                  {t("making")}
+                  <ButtonLoadingBar label={t("making")} />
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          {lookImage ? (
+            <div className="flex items-end gap-4">
+              {PREVIEW_SIZES.map((size) => (
+                <AvatarFace
+                  key={size}
+                  src={lookImage}
+                  crafted={crafted}
+                  className={size}
+                />
+              ))}
+              <span className="text-muted-foreground ml-auto text-xs">
+                {t("sizes")}
               </span>
             </div>
           ) : null}
-        </div>
 
-        {lookImage ? (
-          <div className="flex items-end gap-4">
-            {PREVIEW_SIZES.map((size) => (
-              <AvatarFace
-                key={size}
-                src={lookImage}
-                crafted={crafted}
-                className={size}
-              />
-            ))}
-            <span className="text-muted-foreground ml-auto text-xs">
-              {t("sizes")}
-            </span>
-          </div>
-        ) : null}
-
-        <div className={HOLDER_CLASS}>
-          <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-4 p-4")}>
-            <div className="flex items-baseline gap-3">
-              <h2 className="text-sm font-semibold">{t("states")}</h2>
-              <p
-                role="status"
-                className="text-muted-foreground ml-auto text-xs"
-              >
-                {statesHint}
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-              {STATES.map((state) => {
-                const still = studio.avatar?.states[state]?.stillUrl ?? null;
-                const selected = !draft && pick.state === state;
-                return (
-                  <button
-                    key={state}
-                    type="button"
-                    disabled={draft !== null || !still}
-                    aria-pressed={selected}
-                    onClick={() =>
-                      setPick((prev) => ({ state, n: prev.n + 1 }))
-                    }
-                    className="focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2 disabled:opacity-40"
-                  >
-                    <span
-                      className={cn(
-                        "bg-muted border-border block aspect-square w-full overflow-hidden rounded-lg border",
-                        selected &&
-                          "ring-foreground ring-offset-background ring-2 ring-offset-2",
-                      )}
-                    >
-                      {still ? (
-                        <img
-                          src={still}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      ) : null}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        selected ? "font-semibold" : "font-medium",
-                      )}
-                    >
-                      {stateLabel(state)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-8">
-        <div className="flex flex-col gap-3">
-          <Link
-            href={consoleHref}
-            className="text-muted-foreground hover:text-foreground w-fit text-xs underline-offset-4 hover:underline"
-          >
-            {t("back", { name: botName })}
-          </Link>
-          <h1 className="text-foreground text-3xl font-light tracking-tight">
-            {t("title", { name: botName })}
-          </h1>
-          <p className="text-muted-foreground max-w-xl text-sm text-pretty">
-            {t("description")}
-          </p>
-        </div>
-
-        <div className={HOLDER_CLASS}>
-          <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-6 p-5")}>
-            <fieldset className="flex flex-col gap-3">
-              <legend className="text-muted-foreground mb-3 text-xs font-medium">
-                {t("creature")}
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {studio.options.creatures.map(({ id }) => {
-                  const on = currentLook?.creature === id;
+          <div className={HOLDER_CLASS}>
+            <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-4 p-4")}>
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-sm font-semibold">{t("states")}</h2>
+                <p
+                  role="status"
+                  className="text-muted-foreground ml-auto text-xs"
+                >
+                  {statesHint}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                {STATES.map((state) => {
+                  const still = studio.avatar?.states[state]?.stillUrl ?? null;
+                  const selected = !draft && pick.state === state;
                   return (
-                    <Button
-                      key={id}
+                    <button
+                      key={state}
                       type="button"
-                      size="sm"
-                      variant={on ? "default" : "outline"}
-                      aria-pressed={on}
-                      disabled={busy}
-                      className={cn(on && "font-semibold")}
+                      disabled={draft !== null || !still}
+                      aria-pressed={selected}
                       onClick={() =>
-                        on || handleChange({ kind: "creature", creature: id })
+                        setPick((prev) => ({ state, n: prev.n + 1 }))
                       }
+                      className="focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2 disabled:opacity-40"
                     >
-                      {optionLabel("creatures", id)}
-                    </Button>
+                      <span
+                        className={cn(
+                          "bg-muted border-border block aspect-square w-full overflow-hidden rounded-lg border",
+                          selected &&
+                            "ring-foreground ring-offset-background ring-2 ring-offset-2",
+                        )}
+                      >
+                        {still ? (
+                          <img
+                            src={still}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        ) : null}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          selected ? "font-semibold" : "font-medium",
+                        )}
+                      >
+                        {stateLabel(state)}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-            </fieldset>
+            </div>
+          </div>
+        </div>
 
-            <fieldset className="flex flex-col gap-3">
-              <legend className="text-muted-foreground mb-3 text-xs font-medium">
-                {t("accessory")}
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {studio.options.accessories.map(({ id }) => {
-                  const on = currentLook?.accessories.includes(id) ?? false;
-                  return (
+        <div className="flex min-w-0 flex-col gap-8">
+          <div className={HOLDER_CLASS}>
+            <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-6 p-5")}>
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-muted-foreground mb-3 text-xs font-medium">
+                  {t("creature")}
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {studio.options.creatures.map(({ id }) => {
+                    const on = currentLook?.creature === id;
+                    return (
+                      <Button
+                        key={id}
+                        type="button"
+                        size="sm"
+                        variant={on ? "default" : "outline"}
+                        aria-pressed={on}
+                        disabled={busy}
+                        className={cn(on && "font-semibold")}
+                        onClick={() =>
+                          on || handleChange({ kind: "creature", creature: id })
+                        }
+                      >
+                        {optionLabel("creatures", id)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-muted-foreground mb-3 text-xs font-medium">
+                  {t("accessory")}
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {studio.options.accessories.map(({ id }) => {
+                    const on = currentLook?.accessories.includes(id) ?? false;
+                    return (
+                      <Button
+                        key={id}
+                        type="button"
+                        size="sm"
+                        variant={on ? "default" : "outline"}
+                        aria-pressed={on}
+                        disabled={busy}
+                        className={cn(on && "font-semibold")}
+                        onClick={() =>
+                          handleChange({
+                            kind: "accessory",
+                            accessory: id,
+                            enabled: !on,
+                          })
+                        }
+                      >
+                        {optionLabel("accessories", id)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <form
+                className="flex flex-col gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const text = typed.trim();
+                  if (text && !busy) handleChange({ kind: "typed", text });
+                }}
+              >
+                <label
+                  htmlFor="avatar-studio-ask"
+                  className="text-muted-foreground text-xs font-medium"
+                >
+                  {t("describe")}
+                </label>
+                <div className="flex max-w-xl gap-2">
+                  <Input
+                    id="avatar-studio-ask"
+                    value={typed}
+                    maxLength={300}
+                    placeholder={t("placeholder")}
+                    disabled={busy}
+                    onChange={(event) => setTyped(event.target.value)}
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={busy || !typed.trim()}
+                  >
+                    {t("apply")}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {IDEAS.map((idea) => (
                     <Button
-                      key={id}
+                      key={idea}
                       type="button"
                       size="sm"
-                      variant={on ? "default" : "outline"}
-                      aria-pressed={on}
+                      variant="outline"
                       disabled={busy}
-                      className={cn(on && "font-semibold")}
                       onClick={() =>
                         handleChange({
-                          kind: "accessory",
-                          accessory: id,
-                          enabled: !on,
+                          kind: "typed",
+                          text: t(`ideas.${idea}`),
                         })
                       }
                     >
-                      {optionLabel("accessories", id)}
+                      {t(`ideas.${idea}`)}
                     </Button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const text = typed.trim();
-                if (text && !busy) handleChange({ kind: "typed", text });
-              }}
-            >
-              <label
-                htmlFor="avatar-studio-ask"
-                className="text-muted-foreground text-xs font-medium"
-              >
-                {t("describe")}
-              </label>
-              <div className="flex max-w-xl gap-2">
-                <Input
-                  id="avatar-studio-ask"
-                  value={typed}
-                  maxLength={300}
-                  placeholder={t("placeholder")}
-                  disabled={busy}
-                  onChange={(event) => setTyped(event.target.value)}
-                />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={busy || !typed.trim()}
+                  ))}
+                </div>
+                <p
+                  role="status"
+                  className="text-muted-foreground min-h-5 max-w-xl text-sm"
                 >
-                  {t("apply")}
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {IDEAS.map((idea) => (
-                  <Button
-                    key={idea}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() =>
-                      handleChange({ kind: "typed", text: t(`ideas.${idea}`) })
-                    }
-                  >
-                    {t(`ideas.${idea}`)}
-                  </Button>
-                ))}
-              </div>
-              <p
-                role="status"
-                className="text-muted-foreground min-h-5 max-w-xl text-sm"
-              >
-                {note}
-              </p>
-            </form>
+                  {note}
+                </p>
+              </form>
 
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!draft || busy}
-                loading={isKeeping}
-                onClick={handleKeep}
-              >
-                {t("keep")}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() => handleChange({ kind: "shuffle" })}
-              >
-                {t("shuffle")}
-              </Button>
-              <p role="status" className="text-muted-foreground ml-2 text-sm">
-                {saved ? t("saved") : ""}
-              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={!draft || busy}
+                  loading={isKeeping}
+                  onClick={handleKeep}
+                >
+                  {t("keep")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => handleChange({ kind: "shuffle" })}
+                >
+                  {t("shuffle")}
+                </Button>
+                <p role="status" className="text-muted-foreground ml-2 text-sm">
+                  {saved ? t("saved") : ""}
+                </p>
+              </div>
             </div>
           </div>
         </div>
