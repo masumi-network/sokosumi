@@ -3446,6 +3446,138 @@ export const SokoBotScheduleSchema = {
     ]
 } as const;
 
+export const SokoBotAvatarStateSchema = {
+    type: 'string',
+    enum: [
+        'idle',
+        'thinking',
+        'working',
+        'done',
+        'needs_you',
+        'offline'
+    ]
+} as const;
+
+export const SokoBotAvatarViewSchema = {
+    type: 'object',
+    properties: {
+        styleId: {
+            type: 'string'
+        },
+        styleVersion: {
+            type: 'integer'
+        },
+        stillUrl: {
+            type: 'string'
+        },
+        states: {
+            type: 'object',
+            properties: {
+                idle: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                thinking: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                working: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                done: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                needs_you: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                offline: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                }
+            },
+            required: [
+                'idle',
+                'thinking',
+                'working',
+                'done',
+                'needs_you',
+                'offline'
+            ]
+        }
+    },
+    required: [
+        'styleId',
+        'styleVersion',
+        'stillUrl',
+        'states'
+    ]
+} as const;
+
+export const SokoBotAvatarStateAssetsSchema = {
+    type: 'object',
+    properties: {
+        stillUrl: {
+            type: 'string'
+        },
+        loopUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        loopLargeUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'stillUrl',
+        'loopUrl',
+        'loopLargeUrl'
+    ]
+} as const;
+
 export const AdminSokoBotTurnSchema = {
     allOf: [
         {
@@ -4544,6 +4676,19 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        avatarState: {
+            $ref: '#/components/schemas/SokoBotAvatarState'
+        },
+        avatar: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarView'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         versionId: {
             type: [
                 'string',
@@ -4654,6 +4799,279 @@ export const ClaimSokoBotAvatarRequestSchema = {
     },
     required: [
         'avatarId'
+    ]
+} as const;
+
+export const SokoBotAvatarStudioSchema = {
+    type: 'object',
+    properties: {
+        avatar: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarView'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        look: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarLook'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        draft: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarDraft'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        progress: {
+            type: 'object',
+            properties: {
+                ready: {
+                    type: 'integer'
+                },
+                failed: {
+                    type: 'integer'
+                },
+                total: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'ready',
+                'failed',
+                'total'
+            ]
+        },
+        options: {
+            type: 'object',
+            properties: {
+                creatures: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id'
+                        ]
+                    }
+                },
+                accessories: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'creatures',
+                'accessories'
+            ]
+        }
+    },
+    required: [
+        'avatar',
+        'look',
+        'draft',
+        'progress',
+        'options'
+    ]
+} as const;
+
+export const SokoBotAvatarLookSchema = {
+    type: 'object',
+    properties: {
+        creature: {
+            type: 'string'
+        },
+        accessories: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        typed: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'creature',
+        'accessories',
+        'typed'
+    ]
+} as const;
+
+export const SokoBotAvatarDraftSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        imageUrl: {
+            type: 'string'
+        },
+        look: {
+            $ref: '#/components/schemas/SokoBotAvatarLook'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'id',
+        'imageUrl',
+        'look',
+        'expiresAt'
+    ]
+} as const;
+
+export const SokoBotAvatarDraftResultSchema = {
+    type: 'object',
+    properties: {
+        draft: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarDraft'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        note: {
+            type: 'string'
+        }
+    },
+    required: [
+        'draft',
+        'note'
+    ]
+} as const;
+
+export const CreateSokoBotAvatarDraftRequestSchema = {
+    type: 'object',
+    properties: {
+        change: {
+            $ref: '#/components/schemas/SokoBotAvatarChange'
+        },
+        draftId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'change'
+    ]
+} as const;
+
+export const SokoBotAvatarChangeSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'creature'
+                    ]
+                },
+                creature: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                }
+            },
+            required: [
+                'kind',
+                'creature'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'accessory'
+                    ]
+                },
+                accessory: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                enabled: {
+                    type: 'boolean',
+                    default: true
+                }
+            },
+            required: [
+                'kind',
+                'accessory'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'shuffle'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'typed'
+                    ]
+                },
+                text: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'kind',
+                'text'
+            ]
+        }
     ]
 } as const;
 
@@ -30387,6 +30805,19 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
+                avatarState: {
+                    $ref: '#/components/schemas/SokoBotAvatarState'
+                },
+                avatar: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarView'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
                 versionId: {
                     type: [
                         'string',
@@ -30490,6 +30921,19 @@ export const SharedSokoBotSummarySchema = {
             type: [
                 'string',
                 'null'
+            ]
+        },
+        avatarState: {
+            $ref: '#/components/schemas/SokoBotAvatarState'
+        },
+        avatar: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarView'
+                },
+                {
+                    type: 'null'
+                }
             ]
         },
         status: {
@@ -31287,6 +31731,19 @@ export const SokoBotTeamSchema = {
                                 type: [
                                     'string',
                                     'null'
+                                ]
+                            },
+                            avatarState: {
+                                $ref: '#/components/schemas/SokoBotAvatarState'
+                            },
+                            avatar: {
+                                anyOf: [
+                                    {
+                                        $ref: '#/components/schemas/SokoBotAvatarView'
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
                                 ]
                             },
                             avatarSeed: {
