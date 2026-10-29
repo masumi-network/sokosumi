@@ -38,16 +38,28 @@ export function NewsletterIssuePreview({
   useMountEffect(() => () => contentObserver.current?.disconnect());
   function measureContent(iframe: HTMLIFrameElement) {
     contentObserver.current?.disconnect();
-    const root = iframe.contentDocument?.documentElement;
-    if (!root) return;
-    // Bounding height, not scrollHeight: scrollHeight never drops below the iframe viewport, so the preview could not shrink.
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+    const { body, documentElement } = doc;
+    // Collapse the iframe before reading scrollHeight: scrollHeight never drops below the viewport, and
+    // `height: 100%` emails report only the viewport, so a measure at full height could clip or never shrink.
     const update = () => {
-      const height = Math.ceil(root.getBoundingClientRect().height);
-      if (height > 0) setContentHeight(height);
+      const height = iframe.style.height;
+      iframe.style.height = "0px";
+      const next = Math.max(body.scrollHeight, documentElement.scrollHeight);
+      iframe.style.height = height;
+      if (next > 0) setContentHeight(next);
     };
     update();
-    contentObserver.current = new ResizeObserver(update);
-    contentObserver.current.observe(root);
+    // Re-measure on reflow (late images, device width change), coalesced to one measure per frame.
+    let frame = 0;
+    contentObserver.current = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    });
+    for (const target of [iframe, documentElement, body]) {
+      contentObserver.current.observe(target);
+    }
   }
   const viewportWidth = device === "mobile" ? 375 : 720;
   const scale =

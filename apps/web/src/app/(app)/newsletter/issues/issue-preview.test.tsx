@@ -126,7 +126,8 @@ describe("newsletter issue preview", () => {
     expect(disconnect).toHaveBeenCalled();
   });
 
-  it("sizes the frame to the full email height, scaled to the panel, and re-measures on reflow", async () => {
+  it("sizes the frame to the collapsed email scrollHeight, scaled to the panel, and re-measures on reflow", async () => {
+    const user = userEvent.setup();
     let panelWidth: ((width: number) => void) | undefined;
     let reflow = () => {};
     vi.stubGlobal(
@@ -165,25 +166,41 @@ describe("newsletter issue preview", () => {
     );
     render(previewView()());
     const frame = await screen.findByTitle("Newsletter email preview");
-    let emailHeight = 2400.4;
-    const documentElement = {
-      getBoundingClientRect: () => new DOMRect(0, 0, 720, emailHeight),
+    // Like a browser, scrollHeight never reports less than the iframe viewport.
+    let emailHeight = 2400;
+    const scrollHeight = {
+      get: () => Math.max(emailHeight, Number.parseInt(frame.style.height, 10)),
     };
     Object.defineProperty(frame, "contentDocument", {
-      value: { documentElement },
+      value: {
+        body: Object.defineProperty({}, "scrollHeight", scrollHeight),
+        documentElement: Object.defineProperty(
+          {},
+          "scrollHeight",
+          scrollHeight,
+        ),
+      },
     });
     fireEvent.load(frame);
-    const scale = 360 / 720;
-    expect(frame).toHaveStyle({ width: "720px", height: "2401px" });
-    expect(frame.style.transform).toBe(`scale(${scale})`);
+    const desktopScale = 360 / 720;
+    expect(frame).toHaveStyle({ width: "720px", height: "2400px" });
+    expect(frame.style.transform).toBe(`scale(${desktopScale})`);
     expect(frame.parentElement).toHaveStyle({
-      height: `${Math.round(2401 * scale) + 2}px`,
+      height: `${Math.round(2400 * desktopScale) + 2}px`,
     });
     emailHeight = 3100;
     await act(async () => reflow());
-    expect(frame).toHaveStyle({ height: "3100px" });
+    await waitFor(() => expect(frame).toHaveStyle({ height: "3100px" }));
     expect(frame.parentElement).toHaveStyle({
-      height: `${Math.round(3100 * scale) + 2}px`,
+      height: `${Math.round(3100 * desktopScale) + 2}px`,
+    });
+    await user.click(screen.getByText("Mobile"));
+    emailHeight = 900;
+    await act(async () => reflow());
+    await waitFor(() => expect(frame).toHaveStyle({ height: "900px" }));
+    expect(frame).toHaveStyle({ width: "375px" });
+    expect(frame.parentElement).toHaveStyle({
+      height: `${Math.round(900 * (360 / 375)) + 2}px`,
     });
   });
 
