@@ -13331,6 +13331,81 @@ export type SetAdminSokoBotAvatarResponses = {
 
 export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
 
+export type DiscardAdminSokoBotAvatarDraftsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar/drafts';
+};
+
+export type DiscardAdminSokoBotAvatarDraftsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DiscardAdminSokoBotAvatarDraftsError = DiscardAdminSokoBotAvatarDraftsErrors[keyof DiscardAdminSokoBotAvatarDraftsErrors];
+
+export type DiscardAdminSokoBotAvatarDraftsResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DiscardAdminSokoBotAvatarDraftsResponse = DiscardAdminSokoBotAvatarDraftsResponses[keyof DiscardAdminSokoBotAvatarDraftsResponses];
+
 export type CreateAdminSokoBotAvatarDraftData = {
     body: CreateSokoBotAvatarDraftRequest;
     path: {
@@ -13586,6 +13661,82 @@ export type KeepAdminSokoBotAvatarDraftResponses = {
 };
 
 export type KeepAdminSokoBotAvatarDraftResponse = KeepAdminSokoBotAvatarDraftResponses[keyof KeepAdminSokoBotAvatarDraftResponses];
+
+export type DiscardAdminSokoBotAvatarDraftData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+        draftId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar/drafts/{draftId}';
+};
+
+export type DiscardAdminSokoBotAvatarDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DiscardAdminSokoBotAvatarDraftError = DiscardAdminSokoBotAvatarDraftErrors[keyof DiscardAdminSokoBotAvatarDraftErrors];
+
+export type DiscardAdminSokoBotAvatarDraftResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DiscardAdminSokoBotAvatarDraftResponse = DiscardAdminSokoBotAvatarDraftResponses[keyof DiscardAdminSokoBotAvatarDraftResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -65651,6 +65802,85 @@ export type ClaimMySokoBotAvatarResponses = {
 
 export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
 
+export type DiscardMySokoBotAvatarDraftsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/avatar/drafts';
+};
+
+export type DiscardMySokoBotAvatarDraftsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DiscardMySokoBotAvatarDraftsError = DiscardMySokoBotAvatarDraftsErrors[keyof DiscardMySokoBotAvatarDraftsErrors];
+
+export type DiscardMySokoBotAvatarDraftsResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DiscardMySokoBotAvatarDraftsResponse = DiscardMySokoBotAvatarDraftsResponses[keyof DiscardMySokoBotAvatarDraftsResponses];
+
 export type CreateMySokoBotAvatarDraftData = {
     body: CreateSokoBotAvatarDraftRequest;
     headers?: {
@@ -65915,6 +66145,87 @@ export type KeepMySokoBotAvatarDraftResponses = {
 };
 
 export type KeepMySokoBotAvatarDraftResponse = KeepMySokoBotAvatarDraftResponses[keyof KeepMySokoBotAvatarDraftResponses];
+
+export type DiscardMySokoBotAvatarDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        draftId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/avatar/drafts/{draftId}';
+};
+
+export type DiscardMySokoBotAvatarDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DiscardMySokoBotAvatarDraftError = DiscardMySokoBotAvatarDraftErrors[keyof DiscardMySokoBotAvatarDraftErrors];
+
+export type DiscardMySokoBotAvatarDraftResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DiscardMySokoBotAvatarDraftResponse = DiscardMySokoBotAvatarDraftResponses[keyof DiscardMySokoBotAvatarDraftResponses];
 
 export type ListSokoBotVersionsData = {
     body?: never;
@@ -68443,6 +68754,87 @@ export type GetSokoBotAvatarStudioResponses = {
 
 export type GetSokoBotAvatarStudioResponse = GetSokoBotAvatarStudioResponses[keyof GetSokoBotAvatarStudioResponses];
 
+export type DiscardSokoBotAvatarDraftsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/avatar/drafts';
+};
+
+export type DiscardSokoBotAvatarDraftsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DiscardSokoBotAvatarDraftsError = DiscardSokoBotAvatarDraftsErrors[keyof DiscardSokoBotAvatarDraftsErrors];
+
+export type DiscardSokoBotAvatarDraftsResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DiscardSokoBotAvatarDraftsResponse = DiscardSokoBotAvatarDraftsResponses[keyof DiscardSokoBotAvatarDraftsResponses];
+
 export type CreateSokoBotAvatarDraftData = {
     body: CreateSokoBotAvatarDraftRequest;
     headers?: {
@@ -68710,6 +69102,88 @@ export type KeepSokoBotAvatarDraftResponses = {
 };
 
 export type KeepSokoBotAvatarDraftResponse = KeepSokoBotAvatarDraftResponses[keyof KeepSokoBotAvatarDraftResponses];
+
+export type DiscardSokoBotAvatarDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        sokoBotId: string;
+        draftId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/avatar/drafts/{draftId}';
+};
+
+export type DiscardSokoBotAvatarDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DiscardSokoBotAvatarDraftError = DiscardSokoBotAvatarDraftErrors[keyof DiscardSokoBotAvatarDraftErrors];
+
+export type DiscardSokoBotAvatarDraftResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DiscardSokoBotAvatarDraftResponse = DiscardSokoBotAvatarDraftResponses[keyof DiscardSokoBotAvatarDraftResponses];
 
 export type ListSokoBotIntegrationsData = {
     body?: never;
