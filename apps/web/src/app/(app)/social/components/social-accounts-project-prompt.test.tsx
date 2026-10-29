@@ -30,9 +30,8 @@ vi.mock("@/app/components/project-scope/use-project-scope", () => ({
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useScopeProjects: () => ({
-    pinned: [],
-    recent: [],
-    all: [{ id: "marketing", name: "Marketing", logo: null }],
+    projects: [{ id: "marketing", name: "Marketing", logo: null }],
+    pinnedIds: new Set(),
     isSearching: false,
     isPending: false,
     isSearchPending: false,

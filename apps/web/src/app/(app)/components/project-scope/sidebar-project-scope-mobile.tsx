@@ -16,6 +16,7 @@ import {
 } from "@/app/components/project-scope/use-scope-projects";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -52,12 +53,17 @@ export function useCurrentScope() {
     scope.projectId === null
       ? t("allProjects")
       : (selectedProject?.name ?? t("label"));
+  // A Closed project never lists, but it can still be the scope.
+  const closed = scope.projectId !== null && selectedProject?.closed === true;
 
   return {
     ...scope,
     name,
-    /** "Project: Acme", "Project: All projects", for accessible names. */
-    label: `${t("label")}: ${name}`,
+    closed,
+    /** "Project: Acme", "Project: Acme, Closed", for accessible names. */
+    label: closed
+      ? `${t("label")}: ${name}, ${t("closed")}`
+      : `${t("label")}: ${name}`,
     mark:
       scope.projectId === null ? (
         <Layers className="shrink-0" aria-hidden />
@@ -73,6 +79,21 @@ export function useCurrentScope() {
   };
 }
 
+/** The small Closed badge a trigger shows beside a Closed project's name. */
+export function ScopeClosedBadge() {
+  const t = useTranslations("App.ProjectScope");
+  return (
+    <Badge
+      variant="secondary"
+      aria-hidden
+      data-testid="project-scope-closed-badge"
+      className="text-2xs px-1.5 py-0 leading-4"
+    >
+      {t("closed")}
+    </Badge>
+  );
+}
+
 /** Below md: a compact scope chip in the header that opens a bottom sheet. */
 export function SidebarScopeMobileChip() {
   const prefetch = usePrefetchScopeProjects();
@@ -80,7 +101,7 @@ export function SidebarScopeMobileChip() {
   const pathname = usePathname();
   const open = useScopeSheetOpen();
   const createOpen = useScopeCreateOpen();
-  const { projectId, name, label, mark, select } = useCurrentScope();
+  const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const chipRef = useRef<HTMLButtonElement>(null);
 
   // The store outlives this chip, as when the reader leaves the app shell.
@@ -114,6 +135,7 @@ export function SidebarScopeMobileChip() {
                 {mark}
               </span>
               <span className="min-w-0 truncate">{name}</span>
+              {closed ? <ScopeClosedBadge /> : null}
               <ChevronsUpDown
                 className="text-muted-foreground size-3.5 shrink-0"
                 aria-hidden

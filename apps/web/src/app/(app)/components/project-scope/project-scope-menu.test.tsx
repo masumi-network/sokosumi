@@ -7,12 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   loadPinned: vi.fn(),
-  push: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mocks.push }),
-}));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
@@ -46,6 +42,8 @@ vi.mock("@/lib/project-scope-list.client", () => ({
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
+
+import { recordProjectVisit } from "@/hooks/use-recent-projects";
 
 import { ProjectScopeMenu } from "./project-scope-menu";
 
@@ -81,10 +79,20 @@ function setup(
 
 const DEBOUNCE_WAIT = { timeout: 3000 };
 
-function group(heading: string) {
-  const node = screen.getByText(heading).closest("[cmdk-group]");
-  if (!(node instanceof HTMLElement)) throw new Error(`No group ${heading}`);
-  return within(node);
+/** The project rows, top to bottom. */
+function rowIds() {
+  return screen
+    .queryAllByTestId(/^project-scope-item-/)
+    .map((row) => row.dataset.testid?.replace("project-scope-item-", ""));
+}
+
+/** Whether a row carries the pin mark, by its words for assistive tech. */
+function isPinnedRow(id: string) {
+  return (
+    within(screen.getByTestId(`project-scope-item-${id}`)).queryByText(
+      "pinned",
+    ) !== null
+  );
 }
 
 /** Core's answer per search query; every keystroke is its own query. */
@@ -129,16 +137,40 @@ afterEach(() => {
 });
 
 describe("ProjectScopeMenu", () => {
-  it("lists Pinned first and never shows a closed project", async () => {
+  it("lists Pins, then recently visited, then the rest, as one list", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        project("active-1", "Active One"),
+        project("visited-1", "Visited One"),
+        project("pinned-1", "Pinned One"),
+        project("closed-1", "Closed One", "2026-09-01T00:00:00Z"),
+      ],
+      nextCursor: "page-2",
+    });
+    recordProjectVisit("visited-1", {
+      userId: "user-1",
+      organizationId: "org-1",
+    });
     setup();
 
     await screen.findByText("Pinned One");
-    expect(group("pinned").getByText("Pinned One")).toBeInTheDocument();
-    expect(group("recent").getByText("Active One")).toBeInTheDocument();
+    expect(rowIds()).toEqual(["pinned-1", "visited-1", "active-1"]);
+    expect(isPinnedRow("pinned-1")).toBe(true);
+    expect(isPinnedRow("visited-1")).toBe(false);
+    expect(isPinnedRow("active-1")).toBe(false);
+    // One group of rows: no Pinned, Recent or Projects heading.
+    expect(document.querySelector("[cmdk-group-heading]")).toBeNull();
     expect(screen.queryByText("Pinned Closed")).not.toBeInTheDocument();
     expect(screen.queryByText("Closed One")).not.toBeInTheDocument();
-    // A shortlisted project is not repeated in the full list.
-    expect(screen.getAllByText("Pinned One")).toHaveLength(1);
+  });
+
+  it("ends with Create project and offers no Manage projects row", async () => {
+    setup();
+
+    await screen.findByText("Pinned One");
+    expect(screen.getByTestId("project-scope-create")).toBeInTheDocument();
+    expect(screen.queryByTestId("project-scope-manage")).toBeNull();
+    expect(screen.queryByText("manage")).toBeNull();
   });
 
   it("hands back the chosen project, or null for the workspace view", async () => {
@@ -153,20 +185,27 @@ describe("ProjectScopeMenu", () => {
     expect(onDone).toHaveBeenCalledTimes(2);
   });
 
-  it("asks Core when searching and hides the shortlist", async () => {
+  it("asks Core when searching and keeps the list's order and pins", async () => {
     const user = userEvent.setup();
     setup();
     await screen.findByText("Pinned One");
-    searchResults({ far: [project("far-1", "Far Away")] });
+    searchResults({
+      one: [
+        project("far-1", "Far One"),
+        project("pinned-1", "Pinned One"),
+        project("closed-1", "Closed One", "2026-09-01T00:00:00Z"),
+      ],
+    });
 
-    await user.type(screen.getByPlaceholderText("searchPlaceholder"), "far");
+    await user.type(screen.getByPlaceholderText("searchPlaceholder"), "one");
 
-    await screen.findByText("Far Away");
+    await screen.findByText("Far One");
     expect(mocks.load).toHaveBeenLastCalledWith(
-      expect.objectContaining({ cursor: null, query: "far" }),
+      expect.objectContaining({ cursor: null, query: "one" }),
     );
+    expect(rowIds()).toEqual(["pinned-1", "far-1"]);
+    expect(isPinnedRow("pinned-1")).toBe(true);
     expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
-    expect(screen.queryByText("pinned")).toBeNull();
   });
 
   it("filters a complete list at once, without asking Core", async () => {
@@ -215,7 +254,6 @@ describe("ProjectScopeMenu", () => {
     expect(onSelect).not.toHaveBeenCalled();
     expect(onCreate).not.toHaveBeenCalled();
     expect(onDone).not.toHaveBeenCalled();
-    expect(mocks.push).not.toHaveBeenCalled();
     await screen.findByText("Pinned One");
     expect(screen.getByTestId("project-scope-workspace")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "clearSearch" })).toBeNull();

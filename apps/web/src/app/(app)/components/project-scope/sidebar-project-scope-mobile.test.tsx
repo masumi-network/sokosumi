@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -232,6 +232,30 @@ describe("sidebar project scope scope name", () => {
 });
 
 describe("sidebar project scope chip", () => {
+  it("badges a Closed project on the chip", async () => {
+    mocks.fetch.mockImplementation(() =>
+      Promise.resolve(
+        Response.json({
+          project: {
+            id: "p-1",
+            name: "Acme",
+            logo: null,
+            closedAt: "2026-09-01T00:00:00.000Z",
+          },
+        }),
+      ),
+    );
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() =>
+      expect(chip()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(
+      within(chip()).getByTestId("project-scope-closed-badge"),
+    ).toHaveTextContent("closed");
+  });
+
   it("hides the chip on a chat room but keeps its dialog reachable", async () => {
     const user = userEvent.setup();
     mocks.pathname = "/chat/rooms/r-1";

@@ -1,7 +1,6 @@
 "use client";
 
-import { Check, FolderKanban, Layers, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Check, Layers, Pin, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -19,7 +18,6 @@ import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
 
 const WORKSPACE_VALUE = "__workspace__";
 const CREATE_VALUE = "__create_project__";
-const MANAGE_VALUE = "__manage_projects__";
 
 /**
  * The trigger of the popover, sheet or dialog that holds the menu. Radix links
@@ -52,9 +50,10 @@ interface ProjectScopeMenuProps {
 }
 
 /**
- * The one project list every switcher shows: search, the workspace view,
- * Pinned, Recent, all projects, then Create and Manage. Search asks Core, so
- * the list filters itself off.
+ * The one project list every switcher shows: search, the workspace view, one
+ * list of projects (Pins first, each with a pin, then recently visited, then
+ * the rest), then Create. Search narrows that same list and asks Core, so the
+ * list filters itself off.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
@@ -65,7 +64,6 @@ export function ProjectScopeMenu({
   className,
 }: ProjectScopeMenuProps) {
   const t = useTranslations("App.ProjectScope");
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const projects = useScopeProjects({ search, selectedProjectId });
@@ -75,11 +73,12 @@ export function ProjectScopeMenu({
     onDone?.();
   }
 
-  function row(project: ScopeProject, group: string) {
+  function row(project: ScopeProject) {
+    const pinned = projects.pinnedIds.has(project.id);
     return (
       <CommandItem
-        key={`${group}-${project.id}`}
-        value={`${group}-${project.id}`}
+        key={project.id}
+        value={project.id}
         data-testid={`project-scope-item-${project.id}`}
         className={cn(
           "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
@@ -100,19 +99,23 @@ export function ProjectScopeMenu({
         <span className="min-w-0 flex-1 break-words leading-normal">
           {project.name}
         </span>
+        {pinned ? (
+          <>
+            <Pin
+              className="text-muted-foreground size-3.5 shrink-0"
+              aria-hidden
+            />
+            <span className="sr-only">{t("pinned")}</span>
+          </>
+        ) : null}
         <CurrentMark current={project.id === selectedProjectId} />
       </CommandItem>
     );
   }
 
-  const shortlistIds = new Set(
-    [...projects.pinned, ...projects.recent].map((project) => project.id),
-  );
-  const rest = projects.isSearching
-    ? projects.all
-    : projects.all.filter((project) => !shortlistIds.has(project.id));
+  const rows = projects.projects;
 
-  // Not `CommandEmpty` for "empty": Create and Manage are always mounted, so
+  // Not `CommandEmpty` for "empty": Create is always mounted, so
   // cmdk never counts the list as empty. The rows of a search Core has not
   // answered yet are the last search's, so they cannot mean "none found".
   const busy = projects.isPending || projects.isSearchPending;
@@ -122,7 +125,7 @@ export function ProjectScopeMenu({
       ? t("loading")
       : projects.isSearchPending
         ? t("searching")
-        : projects.isSearching && rest.length === 0
+        : projects.isSearching && rows.length === 0
           ? t("empty")
           : null;
 
@@ -170,7 +173,7 @@ export function ProjectScopeMenu({
           >
             {t("retry")}
           </Button>
-        ) : projects.isSearching && rest.length === 0 && !busy ? (
+        ) : projects.isSearching && rows.length === 0 && !busy ? (
           <Button
             type="button"
             variant="ghost"
@@ -226,20 +229,8 @@ export function ProjectScopeMenu({
             </CommandGroup>
           )}
 
-          {!projects.isSearching && projects.pinned.length > 0 ? (
-            <CommandGroup heading={t("pinned")}>
-              {projects.pinned.map((project) => row(project, "pinned"))}
-            </CommandGroup>
-          ) : null}
-          {!projects.isSearching && projects.recent.length > 0 ? (
-            <CommandGroup heading={t("recent")}>
-              {projects.recent.map((project) => row(project, "recent"))}
-            </CommandGroup>
-          ) : null}
-          {rest.length > 0 ? (
-            <CommandGroup heading={projects.isSearching ? undefined : t("all")}>
-              {rest.map((project) => row(project, "all"))}
-            </CommandGroup>
+          {rows.length > 0 ? (
+            <CommandGroup>{rows.map(row)}</CommandGroup>
           ) : null}
         </div>
         <CommandGroup forceMount className="shrink-0 border-t">
@@ -261,24 +252,6 @@ export function ProjectScopeMenu({
               <Plus className="size-4" />
             </span>
             <span className="min-w-0 flex-1 break-words">{t("create")}</span>
-          </CommandItem>
-          <CommandItem
-            forceMount
-            className="min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5"
-            value={MANAGE_VALUE}
-            data-testid="project-scope-manage"
-            onSelect={() => {
-              onDone?.();
-              router.push("/projects");
-            }}
-          >
-            <span
-              className="flex size-6 shrink-0 items-center justify-center"
-              aria-hidden
-            >
-              <FolderKanban className="size-4" />
-            </span>
-            <span className="min-w-0 flex-1 break-words">{t("manage")}</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>

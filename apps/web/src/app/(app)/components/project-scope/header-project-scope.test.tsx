@@ -94,6 +94,38 @@ describe("header project scope", () => {
     expect(trigger()).toHaveTextContent("Acme");
   });
 
+  it("badges a Closed project the menu does not list", async () => {
+    mocks.fetch.mockImplementation(() =>
+      Promise.resolve(
+        Response.json({
+          project: {
+            id: "p-1",
+            name: "Acme",
+            logo: null,
+            closedAt: "2026-09-01T00:00:00.000Z",
+          },
+        }),
+      ),
+    );
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() =>
+      expect(trigger()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(screen.getByTestId("project-scope-closed-badge")).toHaveTextContent(
+      "closed",
+    );
+  });
+
+  it("badges nothing for an open project", async () => {
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
+    expect(screen.queryByTestId("project-scope-closed-badge")).toBeNull();
+  });
+
   it("shows no clear button when no project is picked", () => {
     renderScope();
 
