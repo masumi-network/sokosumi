@@ -15,6 +15,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(searchRef.current),
 }));
 
+// Core's answer for the scoped project, without a fetch.
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useSelectedScopeProject: (projectId: string | null) =>
+    projectId ? { id: projectId, name: "Acme", logo: null } : null,
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
@@ -134,7 +140,6 @@ describe("MenuItems", () => {
     expect(
       screen.getByRole("link", { name: /taskManager/i }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /projects/i })).toBeNull();
   });
 
   it("does not show Calendar in the sidebar", () => {
@@ -265,6 +270,7 @@ describe("MenuItems groups", () => {
     renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
+      "projects",
       "home",
       "exploreAgents",
       "taskManager",
@@ -314,11 +320,11 @@ describe("MenuItems groups", () => {
 
   // The wordmark's link to `/` became this row when the Workspace switcher
   // took the sidebar header.
-  it("leads Work with Home, a plain link to the home page", () => {
+  it("puts Home under the scope's row, a plain link to the home page", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
-    expect(destinationsUnder("groups.work")[0]).toBe("home");
+    expect(destinationsUnder("groups.work")[1]).toBe("home");
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "href",
       "/",
@@ -330,6 +336,7 @@ describe("MenuItems groups", () => {
     renderMenu(true, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
+      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -428,14 +435,6 @@ describe("MenuItems current destination", () => {
     pathnameRef.current = "/";
   });
 
-  // A count alone would pass with the mark on the wrong row, which is the one
-  // way this can fail without looking broken.
-  function markedHrefs() {
-    return [...document.querySelectorAll('a[aria-current="page"]')].map(
-      (link) => link.getAttribute("href"),
-    );
-  }
-
   it("marks exactly the destination the reader is on", () => {
     pathnameRef.current = "/tasks";
     renderMenu();
@@ -462,6 +461,14 @@ describe("MenuItems current destination", () => {
   });
 });
 
+// A count alone would pass with the mark on the wrong row, which is the one
+// way this can fail without looking broken.
+function markedHrefs() {
+  return [...document.querySelectorAll('a[aria-current="page"]')].map((link) =>
+    link.getAttribute("href"),
+  );
+}
+
 describe("MenuItems project scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -469,10 +476,62 @@ describe("MenuItems project scope", () => {
     searchRef.current = "";
   });
 
-  it("omits the old Projects navigation row", () => {
+  it("leads Work with Projects, to the Projects list, with no project selected", () => {
+    renderMenu(true, false);
+
+    expect(destinationsUnder("groups.work")[0]).toBe("projects");
+    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
+    expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
+  });
+
+  it("marks Projects current on the Projects list", () => {
+    pathnameRef.current = "/projects";
+    renderMenu(true, false);
+
+    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("swaps Projects for Overview, with the project's avatar, once one is selected", () => {
+    searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
     expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    const overview = screen.getByRole("link", { name: "overview" });
+    expect(overview).toHaveAttribute("href", "/projects/p-1");
+    // First in Work. Its text starts with the avatar's hidden initial.
+    expect(screen.getAllByRole("link")[0]).toBe(overview);
+    const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
+    expect(
+      slot?.querySelector('[data-testid="project-avatar"]'),
+    ).toHaveTextContent("A");
+  });
+
+  it.each([
+    "/projects/p-1",
+    "/projects/p-1/design-md",
+    "/projects/p-1/memory",
+    "/projects/p-1/bots",
+    "/projects/p-1/edit",
+  ])("marks Overview current on %s", (pathname) => {
+    pathnameRef.current = pathname;
+    renderMenu(true, false);
+
+    expect(markedHrefs()).toEqual(["/projects/p-1"]);
+  });
+
+  it("shows Overview on the phone sheet too", () => {
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, true);
+
+    expect(screen.getAllByRole("link")[0]).toBe(
+      screen.getByRole("link", { name: "overview" }),
+    );
   });
 
   it("keeps plain destination links in the workspace view", () => {
@@ -517,6 +576,5 @@ describe("MenuItems project scope", () => {
       "href",
       "/tasks?projectId=p-1",
     );
-    expect(document.querySelector('a[aria-current="page"]')).toBeNull();
   });
 });

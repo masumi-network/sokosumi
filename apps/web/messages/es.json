@@ -4354,6 +4354,8 @@
           "newTask": "Nueva tarea",
           "search": "Buscar",
           "home": "Inicio",
+          "projects": "Proyectos",
+          "overview": "Resumen",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",

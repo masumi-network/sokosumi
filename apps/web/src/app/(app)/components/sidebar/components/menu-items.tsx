@@ -3,6 +3,7 @@
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
+  FolderKanban,
   HardDrive,
   House,
   ImagePlus,
@@ -24,6 +25,8 @@ import {
   useState,
 } from "react";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
+import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { Collapsible } from "@/components/ui/collapsible";
 import { SheetClose } from "@/components/ui/sheet";
@@ -58,6 +61,8 @@ interface MenuItemConfig {
   href: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  /** Drawn in the row's slot instead of `Icon`, as a project's avatar. */
+  mark?: ReactNode;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
 }
@@ -105,13 +110,41 @@ function ScopedMenuItems({
   socialBetaEnabled: boolean;
   newsletterEnabled: boolean;
 }) {
-  const { hrefFor } = useProjectScope();
+  const { projectId, hrefFor } = useProjectScope();
+  const selectedProject = useSelectedScopeProject(projectId);
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
 
   const allDestinations: NavDestination[] = [
+    // One row for the scope: the Projects list, or the selected project's
+    // own page. The nav never shows both.
+    projectId === null
+      ? {
+          key: "projects",
+          href: "/projects",
+          label: t("projects"),
+          Icon: FolderKanban,
+          group: "work",
+        }
+      : {
+          key: "overview",
+          href: `/projects/${encodeURIComponent(projectId)}`,
+          label: t("overview"),
+          // The glyph holds the slot until the project's name and logo load.
+          Icon: FolderKanban,
+          mark: selectedProject ? (
+            <ProjectAvatar
+              name={selectedProject.name}
+              logo={selectedProject.logo}
+              // The ring keeps the tile's edge on the current row, whose
+              // fill is the same grey as the initial's tile.
+              className="ring-sidebar-border size-4 rounded ring-1 md:size-3.5 [&_[data-slot=avatar-fallback]]:rounded [&_[data-slot=avatar-fallback]]:text-2xs"
+            />
+          ) : undefined,
+          group: "work",
+        },
     // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
     {
       key: "home",
@@ -211,7 +244,14 @@ function ScopedMenuItems({
     ? allDestinations.filter(({ desktopOnly }) => !desktopOnly)
     : allDestinations;
 
-  function renderItem({ key, href, label, Icon, feature }: MenuItemConfig) {
+  function renderItem({
+    key,
+    href,
+    label,
+    Icon,
+    mark,
+    feature,
+  }: MenuItemConfig) {
     const isActive = isPathActive(pathname, href);
 
     return (
@@ -228,8 +268,8 @@ function ScopedMenuItems({
                   : SIDEBAR_ROW_LINK_CLASS,
               )}
             >
-              <SidebarRowSlot>
-                <Icon aria-hidden />
+              <SidebarRowSlot aria-hidden>
+                {mark ?? <Icon aria-hidden />}
               </SidebarRowSlot>
               <span
                 className={cn(
