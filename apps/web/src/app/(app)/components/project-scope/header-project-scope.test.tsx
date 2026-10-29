@@ -91,6 +91,24 @@ describe("header project scope", () => {
     expect(trigger()).toHaveTextContent("Acme");
   });
 
+  it("shows no clear button when no project is picked", () => {
+    renderScope();
+
+    expect(
+      screen.queryByRole("button", { name: "clearProject" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears the picked project back to All projects", async () => {
+    const user = userEvent.setup();
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await user.click(screen.getByRole("button", { name: "clearProject" }));
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
   it("shows the up/down chevron after the name", () => {
     renderScope();
 
