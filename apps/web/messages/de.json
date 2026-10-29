@@ -2330,6 +2330,7 @@
         "activity": {
           "title": "Letzte Aktivität",
           "empty": "Noch keine Aktivität in offenen Projekten.",
+          "emptyProject": "Noch keine Aktivität in diesem Projekt.",
           "error": "Fehler beim Laden der letzten Aktivität.",
           "showAll": "Alle anzeigen",
           "untitledJob": "Job ohne Namen",
@@ -2992,6 +2993,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Letztes Update",
+        "stats": {
+          "label": "Aufgabenzahlen",
+          "running": "Läuft",
+          "waiting": "Wartet",
+          "done": "Erledigt"
+        },
         "emptyBriefing": "Noch kein Briefing.",
         "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",
