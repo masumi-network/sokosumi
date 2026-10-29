@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  pathname: "/tasks",
   search: "",
   push: vi.fn(),
   fetch: vi.fn(),
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/tasks",
+  usePathname: () => mocks.pathname,
   useSearchParams: () => new URLSearchParams(mocks.search),
   useRouter: () => ({ push: mocks.push }),
 }));
@@ -60,6 +61,7 @@ function trigger() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.pathname = "/tasks";
   mocks.search = "";
   mocks.fetch.mockImplementation(() =>
     Promise.resolve(
@@ -69,6 +71,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.loadPinned.mockResolvedValue([]);
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -107,6 +110,29 @@ describe("header project scope", () => {
     await user.click(screen.getByRole("button", { name: "clearProject" }));
 
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/tasks");
+    expect(trigger()).toHaveFocus();
+  });
+
+  it("clears a remembered project on a page without its own scope", async () => {
+    const user = userEvent.setup();
+    const storageKey = JSON.stringify([
+      "sokosumi.project-scope.v1",
+      "user-1",
+      "org-1",
+    ]);
+    mocks.pathname = "/chat";
+    sessionStorage.setItem(storageKey, "p-1");
+    renderScope();
+
+    await user.click(screen.getByRole("button", { name: "clearProject" }));
+
+    expect(sessionStorage.getItem(storageKey)).toBeNull();
+    expect(trigger()).toHaveTextContent("allProjects");
+    expect(trigger()).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "clearProject" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/chat");
   });
 
   it("shows the up/down chevron after the name", () => {

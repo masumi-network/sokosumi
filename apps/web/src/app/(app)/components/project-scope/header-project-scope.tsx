@@ -2,7 +2,7 @@
 
 import { ChevronsUpDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { WORKSPACE_SWITCHER_ROW_CLASS } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import {
@@ -29,12 +29,14 @@ export function HeaderProjectScope() {
   const [open, setOpen] = useState(false);
   const { projectId, name, label, mark, select } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
+            ref={triggerRef}
             type="button"
             aria-label={label}
             title={name}
@@ -80,8 +82,11 @@ export function HeaderProjectScope() {
           type="button"
           aria-label={t("clearProject")}
           title={t("clearProject")}
-          data-testid="project-scope-header-clear"
-          onClick={() => select(null)}
+          onClick={() => {
+            select(null);
+            // This button unmounts with the scope; keep focus in the header.
+            triggerRef.current?.focus();
+          }}
           className={cn(
             SIDEBAR_CONTROL_INTERACTION_CLASS,
             "text-muted-foreground hover:text-foreground press hit-area flex size-8 shrink-0 items-center justify-center rounded-full transition-[opacity,background-color,color]",
