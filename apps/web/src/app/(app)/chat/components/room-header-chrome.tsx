@@ -173,8 +173,21 @@ export function RoomHeaderChrome({
     !isDirectRoom && trimmedTopic && headerVariant !== "C"
       ? trimmedTopic
       : null;
-  // PROTOTYPE D: topic on its own line under the title.
-  const stacked = headerVariant === "D" && channelTopic !== null;
+  // PROTOTYPE D: every room gets a second line, so the title never moves
+  // between rooms. The topic when there is one, else a plain fact.
+  // Hardcoded English: prototype only.
+  const stacked = headerVariant === "D";
+  const memberCount = getRoomParticipantPreviews(room).length;
+  const subtitle = !stacked
+    ? null
+    : (channelTopic ??
+      (room.isSelfDirect
+        ? "Only you"
+        : room.isGroupDirect
+          ? `${memberCount} people`
+          : isDirectRoom
+            ? "Direct message"
+            : `${memberCount} members`));
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -191,7 +204,7 @@ export function RoomHeaderChrome({
         data-prototype-header-title={headerVariant === "E" ? "" : undefined}
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2",
-          stacked && "flex-col items-start gap-0 md:gap-0",
+          stacked && "flex-col items-start justify-center gap-0 md:gap-0",
           // PROTOTYPE E: the reading column's left edge (its margin, with
           // 100% + 48px = the section behind the header's px-6), less the
           // 24px header inset, plus 14px so the title icon sits over the
@@ -200,91 +213,105 @@ export function RoomHeaderChrome({
             "ms-[max(0px,min((100cqw_-_var(--container-4xl))/2,100%_+_48px_-_var(--container-4xl))_-_10px)]",
         )}
       >
-        {isDirectRoom ? (
-          <>
-            {room.isSelfDirect ? (
-              <DirectRoomAvatarStack
-                room={room}
-                currentUserId={currentUserId}
-              />
-            ) : room.isGroupDirect ? null : (
-              <MessageCircle className="text-muted-foreground size-4 shrink-0" />
-            )}
-            {room.isGroupDirect ? (
-              <NameGroupDialog
-                room={room}
-                open={editOpen}
-                onOpenChange={onEditOpenChange}
-              >
-                <button
-                  type="button"
-                  className={ROOM_TITLE_BUTTON_CLASS}
-                  title={t("GroupName.rename")}
+        <div
+          className={
+            stacked
+              ? "flex min-w-0 max-w-full items-center gap-1.5 md:gap-2"
+              : "contents"
+          }
+        >
+          {isDirectRoom ? (
+            <>
+              {room.isSelfDirect ? (
+                <DirectRoomAvatarStack
+                  room={room}
+                  currentUserId={currentUserId}
+                />
+              ) : room.isGroupDirect ? null : (
+                <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+              )}
+              {room.isGroupDirect ? (
+                <NameGroupDialog
+                  room={room}
+                  open={editOpen}
+                  onOpenChange={onEditOpenChange}
+                >
+                  <button
+                    type="button"
+                    className={ROOM_TITLE_BUTTON_CLASS}
+                    title={t("GroupName.rename")}
+                    data-testid="room-open-title"
+                  >
+                    <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+                    <span className="min-w-0 truncate">{displayName}</span>
+                  </button>
+                </NameGroupDialog>
+              ) : (
+                <p
+                  className="text-foreground min-w-0 truncate text-sm"
                   data-testid="room-open-title"
                 >
-                  <MessageCircle className="text-muted-foreground size-4 shrink-0" />
-                  <span className="min-w-0 truncate">{displayName}</span>
-                </button>
-              </NameGroupDialog>
-            ) : (
-              <p
-                className="text-foreground min-w-0 truncate text-sm"
-                data-testid="room-open-title"
-              >
-                {displayName}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            {canManageSettings ? (
-              <EditChannelDialog
-                channel={room}
-                open={editOpen}
-                onOpenChange={onEditOpenChange}
-              >
+                  {displayName}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              {canManageSettings ? (
+                <EditChannelDialog
+                  channel={room}
+                  open={editOpen}
+                  onOpenChange={onEditOpenChange}
+                >
+                  <button
+                    type="button"
+                    className={cn(
+                      ROOM_TITLE_BUTTON_CLASS,
+                      channelTopic && "shrink-0",
+                    )}
+                    title={t("editChannel")}
+                    data-testid="room-open-title"
+                  >
+                    {channelTitle}
+                  </button>
+                </EditChannelDialog>
+              ) : (
                 <button
                   type="button"
                   className={cn(
                     ROOM_TITLE_BUTTON_CLASS,
                     channelTopic && "shrink-0",
                   )}
-                  title={t("editChannel")}
+                  title={t("RoomRoster.open")}
+                  aria-expanded={rosterOpen}
+                  aria-controls={ROOM_ROSTER_PANEL_ID}
                   data-testid="room-open-title"
+                  onClick={onOpenRoster}
                 >
                   {channelTitle}
                 </button>
-              </EditChannelDialog>
-            ) : (
-              <button
-                type="button"
-                className={cn(
-                  ROOM_TITLE_BUTTON_CLASS,
-                  channelTopic && "shrink-0",
-                )}
-                title={t("RoomRoster.open")}
-                aria-expanded={rosterOpen}
-                aria-controls={ROOM_ROSTER_PANEL_ID}
-                data-testid="room-open-title"
-                onClick={onOpenRoster}
-              >
-                {channelTitle}
-              </button>
-            )}
-            {channelTopic ? (
-              <p
-                className={cn(
-                  "text-muted-foreground min-w-0 flex-1 truncate text-sm",
-                  stacked && "max-w-full flex-none px-1.5 text-xs",
-                )}
-                title={channelTopic}
-                data-testid="room-open-topic"
-              >
-                {channelTopic}
-              </p>
-            ) : null}
-          </>
-        )}
+              )}
+              {channelTopic && !stacked ? (
+                <p
+                  className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
+                  title={channelTopic}
+                  data-testid="room-open-topic"
+                >
+                  {channelTopic}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+        {subtitle !== null ? (
+          <p
+            className="text-muted-foreground max-w-full truncate px-1.5 text-xs"
+            title={subtitle}
+            data-testid="room-open-topic"
+          >
+            {subtitle}
+          </p>
+        ) : null}
       </div>
       {/* The row above clips at its padding edge. The threads badge hangs
           4px past the icon button (border, offset, and ring), and the last

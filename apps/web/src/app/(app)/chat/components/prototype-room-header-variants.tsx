@@ -12,7 +12,7 @@ export const ROOM_HEADER_VARIANTS = {
   A: "Full width (today)",
   B: "Aligned to the reading column",
   C: "Aligned, no topic",
-  D: "Aligned, topic under the title",
+  D: "Aligned, always two lines",
   E: "Title on the column, actions at the edge",
 } as const;
 
