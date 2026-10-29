@@ -13,6 +13,7 @@ export const ROOM_HEADER_VARIANTS = {
   B: "Aligned to the reading column",
   C: "Aligned, no topic",
   D: "Aligned, topic under the title",
+  E: "Title on the column, actions at the edge",
 } as const;
 
 export type RoomHeaderVariant = keyof typeof ROOM_HEADER_VARIANTS;

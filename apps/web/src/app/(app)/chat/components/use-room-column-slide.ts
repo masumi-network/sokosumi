@@ -29,7 +29,10 @@ export function useRoomColumnSlide() {
     // Read on every resize: `wrapColumn` (the file drop zone) can remount the
     // column body, so the nodes from mount may be gone.
     const columns = () => [
-      headerRef.current,
+      // PROTOTYPE E indents the title inside RoomHeaderChrome, out of reach
+      // of a ref from here.
+      headerRef.current ??
+        main.querySelector<HTMLElement>("[data-prototype-header-title]"),
       listRef.current,
       composerRef.current,
     ];

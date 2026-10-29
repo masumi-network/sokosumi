@@ -188,9 +188,16 @@ export function RoomHeaderChrome({
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4">
       <div
+        data-prototype-header-title={headerVariant === "E" ? "" : undefined}
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2",
           stacked && "flex-col items-start gap-0 md:gap-0",
+          // PROTOTYPE E: the reading column's left edge (its margin, with
+          // 100% + 48px = the section behind the header's px-6), less the
+          // 24px header inset, plus 14px so the title icon sits over the
+          // avatars (list px-5 minus the title button's px-1.5).
+          headerVariant === "E" &&
+            "ms-[max(0px,min((100cqw_-_var(--container-4xl))/2,100%_+_48px_-_var(--container-4xl))_-_10px)]",
         )}
       >
         {isDirectRoom ? (

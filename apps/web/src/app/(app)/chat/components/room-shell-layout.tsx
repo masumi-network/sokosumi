@@ -89,7 +89,8 @@ export function RoomShellLayout({
   const headerVariant = useRoomHeaderVariant();
   const header =
     desktopHeader != null ? (
-      headerVariant === "A" ? (
+      // E keeps today's full-width row; RoomHeaderChrome indents its title.
+      headerVariant === "A" || headerVariant === "E" ? (
         <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
           {desktopHeader}
         </header>
