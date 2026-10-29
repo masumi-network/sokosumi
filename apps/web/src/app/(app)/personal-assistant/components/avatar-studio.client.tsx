@@ -1,0 +1,471 @@
+"use client";
+
+import type {
+  SokoBotAvatarChange,
+  SokoBotAvatarState,
+  SokoBotAvatarStudio,
+} from "@sokosumi/core-client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
+import {
+  useAvatarStateCopy,
+  usePlayOnce,
+  useReducedMotion,
+} from "@/components/soko-bot/avatar-state";
+import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { Input } from "@/components/ui/input";
+import {
+  createSokoBotAvatarDraftAction,
+  keepSokoBotAvatarDraftAction,
+} from "@/lib/actions/soko-bot/action";
+import { avatarSources, isCraftedAvatar } from "@/lib/soko-bot/avatar";
+import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
+import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
+import { cn } from "@/lib/utils";
+
+const STATES: SokoBotAvatarState[] = [
+  "idle",
+  "thinking",
+  "working",
+  "done",
+  "needs_you",
+  "offline",
+];
+/** Original ideas only: a typed change that names a brand or a character is refused. */
+const IDEAS = ["wizard", "coffee", "snow", "sleepy", "beach"] as const;
+const PREVIEW_SIZES = ["size-20", "size-12", "size-8", "size-6"] as const;
+const POLL_ENDPOINT = "/api/personal-assistant/avatar";
+const POLL_MS = 5_000;
+
+type Progress = SokoBotAvatarStudio["progress"];
+
+function isRendering({ ready, failed, total }: Progress): boolean {
+  return total > 0 && ready + failed < total;
+}
+
+/** "wizard-hat" → "wizard hat"; the button capitalises it. */
+function optionLabel(id: string): string {
+  return id.replace(/[-_]+/g, " ");
+}
+
+/**
+ * Where the owner changes a bot's look: one change at a time makes a draft,
+ * and Keep makes the draft the avatar. A kept look then renders its states in
+ * the background, which this page polls until they are ready.
+ */
+export function AvatarStudio({
+  botId,
+  botName,
+  consoleHref,
+  initial,
+}: {
+  /** The shared bot being edited; null for the caller's own. */
+  botId: string | null;
+  botName: string;
+  consoleHref: string;
+  initial: SokoBotAvatarStudio;
+}) {
+  const t = useTranslations("App.SokoBot.Avatar.Studio");
+  const { label: stateLabel, alt } = useAvatarStateCopy();
+  const router = useRouter();
+  const reducedMotion = useReducedMotion();
+  const [studio, setStudio] = useState(initial);
+  const [draft, setDraft] = useState(initial.draft);
+  const [note, setNote] = useState("");
+  const [typed, setTyped] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [pick, setPick] = useState<{ state: SokoBotAvatarState; n: number }>({
+    state: "idle",
+    n: 0,
+  });
+  const [isDrafting, startDrafting] = useTransition();
+  const [isKeeping, startKeeping] = useTransition();
+  const busy = isDrafting || isKeeping;
+  // Picking a state plays it once, then it rests on its still.
+  const playing = usePlayOnce(`${pick.state}:${pick.n}`, false);
+
+  const rendering = isRendering(studio.progress);
+  useEffect(() => {
+    if (!rendering) return;
+    let stopped = false;
+    const timer = setInterval(async () => {
+      try {
+        const response = await fetch(withBotIdParam(POLL_ENDPOINT, botId), {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!response.ok || stopped) return;
+        const body = (await response.json()) as {
+          studio?: Pick<SokoBotAvatarStudio, "avatar" | "progress">;
+        };
+        const next = body.studio;
+        if (!next || stopped) return;
+        setStudio((prev) => ({
+          ...prev,
+          avatar: next.avatar,
+          progress: next.progress,
+        }));
+        // Sidebar and console show the new states once they are ready.
+        if (!isRendering(next.progress)) router.refresh();
+      } catch {
+        // Offline: the next tick retries.
+      }
+    }, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [rendering, botId, router]);
+
+  function failed(code: string, fallback: string) {
+    toast.error(
+      code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
+        ? t("rateLimited")
+        : fallback,
+    );
+  }
+
+  function change(next: SokoBotAvatarChange) {
+    startDrafting(async () => {
+      const result = await createSokoBotAvatarDraftAction({
+        botId: botId ?? undefined,
+        input: {
+          change: next,
+          draftId: next.kind === "shuffle" ? undefined : draft?.id,
+        },
+      });
+      if (!result.ok) {
+        failed(result.error.code, t("error"));
+        return;
+      }
+      // A refusal answers with a note and no draft: the look stays as it was.
+      setNote(result.value.note);
+      if (result.value.draft) {
+        setDraft(result.value.draft);
+        setSaved(false);
+        if (next.kind === "typed") setTyped("");
+      }
+    });
+  }
+
+  function keep() {
+    if (!draft) return;
+    const draftId = draft.id;
+    startKeeping(async () => {
+      const result = await keepSokoBotAvatarDraftAction({
+        botId: botId ?? undefined,
+        draftId,
+      });
+      if (!result.ok) {
+        failed(result.error.code, t("keepError"));
+        return;
+      }
+      setStudio(result.value);
+      setDraft(null);
+      setNote("");
+      setSaved(true);
+      setPick({ state: "idle", n: 0 });
+      router.refresh();
+    });
+  }
+
+  const crafted = draft !== null || isCraftedAvatar(studio.avatar);
+  const sources = avatarSources(
+    studio.avatar,
+    pick.state,
+    studio.avatar?.stillUrl ?? null,
+  );
+  const lookImage = draft?.imageUrl ?? studio.avatar?.stillUrl ?? null;
+  const shown = draft
+    ? draft.imageUrl
+    : playing && !reducedMotion && sources.loopLarge
+      ? sources.loopLarge
+      : sources.still;
+  const currentLook = draft?.look ?? studio.look;
+  const statesHint =
+    draft || !crafted
+      ? t("statesDraft")
+      : rendering
+        ? t("statesProgress", {
+            ready: studio.progress.ready,
+            total: studio.progress.total,
+          })
+        : t("statesPlay");
+
+  return (
+    <div className="grid w-full gap-8 py-2 lg:grid-cols-[minmax(0,35rem)_minmax(0,1fr)] lg:gap-16">
+      <div className="flex min-w-0 flex-col gap-6">
+        <div
+          aria-busy={isDrafting}
+          className="bg-muted relative aspect-square w-full overflow-hidden rounded-2xl"
+        >
+          {shown ? (
+            <img
+              src={shown}
+              alt={
+                draft
+                  ? t("draftAlt", { name: botName })
+                  : alt(botName, pick.state)
+              }
+              className={cn(
+                "size-full object-cover transition-opacity duration-200",
+                isDrafting && "opacity-45",
+              )}
+            />
+          ) : null}
+          {isDrafting ? (
+            <div className="absolute inset-x-0 bottom-6 flex justify-center">
+              <span
+                role="status"
+                className="bg-background border-border relative overflow-hidden rounded-lg border px-3.5 py-2.5 text-sm"
+              >
+                {t("making")}
+                <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5">
+                  <span className="bg-foreground animate-button-loading-sweep block h-0.5 w-2/5 motion-reduce:translate-x-[75%] motion-reduce:animate-none" />
+                </span>
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        {lookImage ? (
+          <div className="flex items-end gap-4">
+            {PREVIEW_SIZES.map((size) => (
+              <AvatarFace
+                key={size}
+                src={lookImage}
+                crafted={crafted}
+                className={cn("border", size)}
+              />
+            ))}
+            <span className="text-muted-foreground ml-auto text-xs">
+              {t("sizes")}
+            </span>
+          </div>
+        ) : null}
+
+        <div className={HOLDER_CLASS}>
+          <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-4 p-4")}>
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-sm font-semibold">{t("states")}</h2>
+              <p
+                role="status"
+                className="text-muted-foreground ml-auto text-xs"
+              >
+                {statesHint}
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+              {STATES.map((state) => {
+                const still = studio.avatar?.states[state]?.stillUrl ?? null;
+                const selected = !draft && pick.state === state;
+                return (
+                  <button
+                    key={state}
+                    type="button"
+                    disabled={draft !== null || !still}
+                    aria-pressed={selected}
+                    onClick={() =>
+                      setPick((prev) => ({ state, n: prev.n + 1 }))
+                    }
+                    className="focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2 disabled:opacity-40"
+                  >
+                    <span
+                      className={cn(
+                        "bg-muted border-border block aspect-square w-full overflow-hidden rounded-lg border",
+                        selected &&
+                          "ring-foreground ring-offset-background ring-2 ring-offset-2",
+                      )}
+                    >
+                      {still ? (
+                        <img
+                          src={still}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : null}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs",
+                        selected ? "font-semibold" : "font-medium",
+                      )}
+                    >
+                      {stateLabel(state)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-8">
+        <div className="flex flex-col gap-3">
+          <Link
+            href={consoleHref}
+            className="text-muted-foreground hover:text-foreground w-fit text-xs underline-offset-4 hover:underline"
+          >
+            {t("back", { name: botName })}
+          </Link>
+          <h1 className="text-foreground text-3xl font-light tracking-tight">
+            {t("title", { name: botName })}
+          </h1>
+          <p className="text-muted-foreground max-w-xl text-sm text-pretty">
+            {t("description")}
+          </p>
+        </div>
+
+        <div className={HOLDER_CLASS}>
+          <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-6 p-5")}>
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-muted-foreground mb-3 text-xs font-medium">
+                {t("creature")}
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {studio.options.creatures.map(({ id }) => {
+                  const on = currentLook?.creature === id;
+                  return (
+                    <Button
+                      key={id}
+                      type="button"
+                      size="sm"
+                      variant={on ? "default" : "outline"}
+                      aria-pressed={on}
+                      disabled={busy}
+                      className={cn("capitalize", on && "font-semibold")}
+                      onClick={() =>
+                        on || change({ kind: "creature", creature: id })
+                      }
+                    >
+                      {optionLabel(id)}
+                    </Button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-muted-foreground mb-3 text-xs font-medium">
+                {t("accessory")}
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {studio.options.accessories.map(({ id }) => {
+                  const on = currentLook?.accessories.includes(id) ?? false;
+                  return (
+                    <Button
+                      key={id}
+                      type="button"
+                      size="sm"
+                      variant={on ? "default" : "outline"}
+                      aria-pressed={on}
+                      disabled={busy}
+                      className={cn("capitalize", on && "font-semibold")}
+                      onClick={() =>
+                        change({
+                          kind: "accessory",
+                          accessory: id,
+                          enabled: !on,
+                        })
+                      }
+                    >
+                      {optionLabel(id)}
+                    </Button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const text = typed.trim();
+                if (text && !busy) change({ kind: "typed", text });
+              }}
+            >
+              <label
+                htmlFor="avatar-studio-ask"
+                className="text-muted-foreground text-xs font-medium"
+              >
+                {t("describe")}
+              </label>
+              <div className="flex max-w-xl gap-2">
+                <Input
+                  id="avatar-studio-ask"
+                  value={typed}
+                  maxLength={300}
+                  placeholder={t("placeholder")}
+                  disabled={busy}
+                  onChange={(event) => setTyped(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={busy || !typed.trim()}
+                >
+                  {t("apply")}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {IDEAS.map((idea) => (
+                  <Button
+                    key={idea}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      change({ kind: "typed", text: t(`ideas.${idea}`) })
+                    }
+                  >
+                    {t(`ideas.${idea}`)}
+                  </Button>
+                ))}
+              </div>
+              <p
+                role="status"
+                className="text-muted-foreground min-h-5 max-w-xl text-sm"
+              >
+                {note}
+              </p>
+            </form>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!draft || busy}
+                loading={isKeeping}
+                onClick={keep}
+              >
+                {t("keep")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => change({ kind: "shuffle" })}
+              >
+                {t("shuffle")}
+              </Button>
+              <p role="status" className="text-muted-foreground ml-2 text-sm">
+                {saved ? t("saved") : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
