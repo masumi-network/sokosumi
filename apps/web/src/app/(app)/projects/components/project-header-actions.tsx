@@ -43,6 +43,9 @@ export async function ProjectHeaderActions({
         }}
       />
       <ProjectDetailActions
+        // Muted like the unpinned Pin beside it, so the pair reads as one
+        // quiet group and only a Pin's blue stands out.
+        triggerClassName="text-muted-foreground"
         projectId={projectId}
         projectRevision={projectRevision}
         isClosingOrClosed={isClosingOrClosed}

@@ -175,6 +175,50 @@ describe("GET /v1/projects/activity", () => {
     expect(sql.values).toContain("user_123");
   });
 
+  it("scopes to one project, Closed or Hidden included", async () => {
+    queryRawMock.mockResolvedValue([
+      {
+        kind: "project",
+        id: "ev_closed",
+        at: AT,
+        projectId: PROJECT_ID,
+        entityId: PROJECT_ID,
+        title: "Launch",
+        status: "CLOSE_FINALIZED",
+        agentId: null,
+      },
+    ]);
+
+    const response = await createApp().request(
+      `http://localhost/activity?projectId=${PROJECT_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      {
+        id: "ev_closed",
+        createdAt: AT.toISOString(),
+        project,
+        kind: "project",
+        event: "CLOSE_FINALIZED",
+      },
+    ]);
+    const [sql] = queryRawMock.mock.calls[0];
+    // The project filter replaces the open and not-Hidden ones.
+    expect(sql.sql).not.toContain('p."closedAt" IS NULL');
+    expect(sql.sql).not.toContain("project_hide");
+    expect(sql.values).toContain(PROJECT_ID);
+  });
+
+  it("rejects a projectId that is not a UUID", async () => {
+    const response = await createApp().request(
+      "http://localhost/activity?projectId=nope",
+    );
+    expect(response.status).toBe(422);
+    expect(queryRawMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a limit above 20", async () => {
     const response = await createApp().request(
       "http://localhost/activity?limit=21",

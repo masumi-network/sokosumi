@@ -195,7 +195,11 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createWorkspace": "Workspace erstellen",
-      "userAvatarAlt": "Nutzer-Avatar"
+      "userAvatarAlt": "Nutzer-Avatar",
+      "inviteMembers": "Mitglieder einladen",
+      "organizationSettings": "Einstellungen",
+      "membersAndSettings": "Mitglieder & Einstellungen",
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Mitglieder gesammelt einladen",
-        "description": "Füge E-Mail-Adressen ein, um mehrere Mitglieder gleichzeitig einzuladen.",
+        "title": "Mitglieder einladen",
+        "description": "Füge eine oder mehrere E-Mail-Adressen ein.",
         "label": "E-Mail-Adressen",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Trenne E-Mail-Adressen mit Kommas, Semikolons oder Zeilenumbrüchen.",
@@ -2324,6 +2328,18 @@
           "error": "Fehler beim Laden dessen, was auf dich wartet.",
           "showAll": "Alle anzeigen"
         },
+        "activity": {
+          "title": "Letzte Aktivität",
+          "empty": "Noch keine Aktivität in offenen Projekten.",
+          "emptyProject": "Noch keine Aktivität in diesem Projekt.",
+          "error": "Fehler beim Laden der letzten Aktivität.",
+          "showAll": "Alle anzeigen",
+          "untitledJob": "Job ohne Namen",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Aufgabe erstellt} COMMENT {Kommentar hinzugefügt} READY {Aufgabe bereit} QUEUED {Aufgabe geplant} RUNNING {Aufgabe läuft} INPUT_REQUIRED {Aufgabe braucht Eingabe} APPROVAL_REQUIRED {Aufgabe braucht Freigabe} AUTHENTICATION_REQUIRED {Aufgabe braucht Anmeldung} OUT_OF_CREDITS {Aufgabe pausiert: Credits nötig} COMPLETED {Aufgabe abgeschlossen} FAILED {Aufgabe fehlgeschlagen} CANCELED {Aufgabe abgebrochen} other {Aufgabe aktualisiert}}",
+          "job": "{status, select, INITIATED {Job gestartet} AWAITING_PAYMENT {Job wartet auf Zahlung} AWAITING_INPUT {Job braucht Eingabe} RUNNING {Job läuft} COMPLETED {Job abgeschlossen} FAILED {Job fehlgeschlagen} other {Job aktualisiert}}",
+          "project": "{event, select, CLOSE_REQUESTED {Schließen angefordert} BATCH_FAILED {Schließen fehlgeschlagen} RETRY_REQUESTED {Schließen erneut versucht} SERIES_RESOLVED {Geplante Arbeit gestoppt} CLOSE_FINALIZED {Projekt geschlossen} other {Projekt aktualisiert}}"
+        },
         "projects": {
           "showAll": "Alle Projekte",
           "error": "Projekte konnten nicht geladen werden.",
@@ -2331,8 +2347,7 @@
         },
         "teamDay": {
           "empty": "In den letzten 24 Stunden hat sich nichts bewegt.",
-          "error": "Die letzten 24 Stunden konnten nicht geladen werden.",
-          "showAll": "Alle anzeigen"
+          "error": "Die letzten 24 Stunden konnten nicht geladen werden."
         }
       },
       "Briefing": {
@@ -2988,6 +3003,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Letztes Update",
+        "stats": {
+          "label": "Aufgabenzahlen",
+          "running": "Läuft",
+          "waiting": "Wartet",
+          "done": "Erledigt"
+        },
         "emptyBriefing": "Noch kein Briefing.",
         "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",

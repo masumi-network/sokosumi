@@ -1,4 +1,4 @@
-import type { UserWorkspace } from "@sokosumi/core-client";
+import { MemberRole, type UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,6 +9,12 @@ import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace
 const mocks = vi.hoisted(() => ({
   useSession: vi.fn(),
   useWorkspaceSwitcher: vi.fn(),
+}));
+
+vi.mock("@/components/organizations/organization-bulk-invite/modal", () => ({
+  default: function OrganizationBulkInviteModal() {
+    return null;
+  },
 }));
 
 vi.mock("next-intl", () => ({
@@ -52,6 +58,8 @@ function organization(id: string, name: string): UserWorkspace {
     name,
     organizationId: id,
     slug: id,
+    role: MemberRole.MEMBER,
+    memberCount: 2,
     logo: null,
     websiteUrl: null,
     preferred: false,
@@ -138,7 +146,12 @@ describe("WorkspaceSwitcherProvider", () => {
     await user.click(trigger("top-bar"));
     expect(screen.getAllByRole("menu")).toHaveLength(1);
     expect(menuItems()).toEqual(fromSidebar);
-    expect(fromSidebar).toEqual(["Org A", "Org B", "createWorkspace"]);
+    expect(fromSidebar).toEqual([
+      "membersAndSettings",
+      "Org A",
+      "Org B",
+      "createWorkspace",
+    ]);
   });
 
   // Under the trigger's own edge: its start in the sidebar, its end at the

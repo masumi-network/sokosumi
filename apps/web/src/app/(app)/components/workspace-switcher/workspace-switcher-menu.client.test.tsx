@@ -1,4 +1,4 @@
-import type { UserWorkspace } from "@sokosumi/core-client";
+import { MemberRole, type UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,6 +26,17 @@ vi.mock("@/hooks/use-modal", () => ({
     Component: null,
     showModal: mocks.showCreateOrganizationModal,
   }),
+}));
+
+vi.mock("@/components/organizations/organization-bulk-invite/modal", () => ({
+  default: ({
+    open,
+    organizationId,
+  }: {
+    open: boolean;
+    organizationId: string;
+  }) =>
+    open ? <div role="dialog" aria-label={`invite ${organizationId}`} /> : null,
 }));
 
 vi.mock("@/lib/actions/workspace-gate/action", () => ({
@@ -76,6 +87,8 @@ const personalWorkspace: UserWorkspace = {
   name: "Personal",
   organizationId: null,
   slug: null,
+  role: null,
+  memberCount: null,
   logo: null,
   websiteUrl: null,
   preferred: false,
@@ -88,6 +101,8 @@ const orgWorkspace: UserWorkspace = {
   name: "Org A",
   organizationId: "org-a",
   slug: "org-a",
+  role: MemberRole.OWNER,
+  memberCount: 14,
   logo: null,
   websiteUrl: null,
   preferred: false,
@@ -210,6 +225,60 @@ describe("WorkspaceSwitcherMenu", () => {
     expect(screen.queryByText("createPersonalWorkspace")).toBeNull();
     expect(screen.queryByText("createOrganization")).toBeNull();
     expect(screen.queryByRole("menuitem", { name: /Test User/ })).toBeNull();
+  });
+
+  it("lets an owner invite people from the active organization's header", async () => {
+    const user = userEvent.setup();
+    renderSwitcher({
+      workspaces: [personalWorkspace, orgWorkspace],
+      activeOrganizationId: "org-a",
+    });
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+
+    expect(screen.getByText("roleAndMemberCount")).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "organizationSettings" }),
+    ).toHaveAttribute("href", "/organization");
+
+    await user.click(screen.getByRole("menuitem", { name: "inviteMembers" }));
+
+    expect(screen.getByRole("dialog", { name: "invite org-a" })).toBeVisible();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("gives a member the member list and settings, but no invite", async () => {
+    const user = userEvent.setup();
+    renderSwitcher({
+      workspaces: [{ ...orgWorkspace, role: MemberRole.MEMBER }],
+      activeOrganizationId: "org-a",
+    });
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+
+    expect(
+      screen.getByRole("menuitem", { name: "membersAndSettings" }),
+    ).toHaveAttribute("href", "/organization");
+    expect(
+      screen.queryByRole("menuitem", { name: "inviteMembers" }),
+    ).toBeNull();
+  });
+
+  it("shows no organization header in the personal workspace", async () => {
+    const user = userEvent.setup();
+    renderSwitcher({
+      workspaces: [personalWorkspace, orgWorkspace],
+      activeOrganizationId: null,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Test User/i }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: "inviteMembers" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "organizationSettings" }),
+    ).toBeNull();
   });
 
   it("switches to the workspace picked from the menu", async () => {

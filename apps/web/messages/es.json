@@ -195,7 +195,11 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createWorkspace": "Crear espacio de trabajo",
-      "userAvatarAlt": "Avatar del usuario"
+      "userAvatarAlt": "Avatar del usuario",
+      "inviteMembers": "Invitar miembros",
+      "organizationSettings": "Ajustes",
+      "membersAndSettings": "Miembros y ajustes",
+      "roleAndMemberCount": "{role, select, owner {Propietario} admin {Admin} other {Miembro}} · {count, plural, =1 {1 miembro} other {# miembros}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Invitar miembros en bloque",
-        "description": "Pega direcciones de email para invitar a varios miembros a la vez.",
+        "title": "Invitar miembros",
+        "description": "Pega una o varias direcciones de email.",
         "label": "Direcciones de email",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separa los emails con comas, punto y coma o saltos de línea.",
@@ -2324,6 +2328,18 @@
           "error": "No se pudo cargar lo que te necesita.",
           "showAll": "Ver todo"
         },
+        "activity": {
+          "title": "Actividad reciente",
+          "empty": "Todavía no hay actividad en proyectos abiertos.",
+          "emptyProject": "Todavía no hay actividad en este proyecto.",
+          "error": "No se pudo cargar la actividad reciente.",
+          "showAll": "Ver todo",
+          "untitledJob": "Trabajo sin nombre",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Tarea creada} COMMENT {Comentario añadido} READY {Tarea lista} QUEUED {Tarea programada} RUNNING {Tarea en curso} INPUT_REQUIRED {La tarea necesita datos} APPROVAL_REQUIRED {La tarea necesita aprobación} AUTHENTICATION_REQUIRED {La tarea necesita inicio de sesión} OUT_OF_CREDITS {Tarea en pausa por créditos} COMPLETED {Tarea completada} FAILED {Tarea fallida} CANCELED {Tarea cancelada} other {Tarea actualizada}}",
+          "job": "{status, select, INITIATED {Trabajo iniciado} AWAITING_PAYMENT {Trabajo pendiente de pago} AWAITING_INPUT {El trabajo necesita datos} RUNNING {Trabajo en curso} COMPLETED {Trabajo completado} FAILED {Trabajo fallido} other {Trabajo actualizado}}",
+          "project": "{event, select, CLOSE_REQUESTED {Cierre solicitado} BATCH_FAILED {Cierre fallido} RETRY_REQUESTED {Cierre reintentado} SERIES_RESOLVED {Trabajo programado detenido} CLOSE_FINALIZED {Proyecto cerrado} other {Proyecto actualizado}}"
+        },
         "projects": {
           "showAll": "Todos los proyectos",
           "error": "No se pudieron cargar los proyectos.",
@@ -2331,8 +2347,7 @@
         },
         "teamDay": {
           "empty": "Nada se movió en las últimas 24 horas.",
-          "error": "No se pudieron cargar las últimas 24 horas.",
-          "showAll": "Ver todo"
+          "error": "No se pudieron cargar las últimas 24 horas."
         }
       },
       "Briefing": {
@@ -2988,6 +3003,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
+        "stats": {
+          "label": "Recuento de tareas",
+          "running": "En ejecución",
+          "waiting": "En espera",
+          "done": "Hecho"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",

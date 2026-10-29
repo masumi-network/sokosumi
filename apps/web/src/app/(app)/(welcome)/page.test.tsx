@@ -63,6 +63,7 @@ vi.mock("@/lib/services/notification.service", () => ({
 }));
 vi.mock("@/app/projects/components/workspace-column", () => ({
   NeedsYouPanel: () => <div>needs you</div>,
+  panelFeed: <T,>(promise: Promise<T[]>) => promise.catch(() => null),
 }));
 vi.mock("./components/home-panels", () => ({
   HOME_PROJECT_LIMIT: 6,

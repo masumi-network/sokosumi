@@ -6,7 +6,10 @@ import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
-import { NeedsYouPanel } from "@/app/projects/components/workspace-column";
+import {
+  NeedsYouPanel,
+  panelFeed,
+} from "@/app/projects/components/workspace-column";
 import { WorkspaceColumnPanelSkeleton } from "@/app/projects/components/workspace-column-skeleton";
 import {
   projectsListStateQuery,
@@ -49,14 +52,6 @@ async function loadSokoBotRoomId(sokoBotId: string): Promise<string | null> {
     .listRooms("direct")
     .catch(() => ({ rooms: [] }));
   return findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null;
-}
-
-/** A panel's feed failing leaves that panel saying so, not the page erroring. */
-function panelFeed<T>(promise: Promise<T[]>): Promise<T[] | null> {
-  return promise.catch((error: unknown) => {
-    console.warn("Home panel feed failed", { error });
-    return null;
-  });
 }
 
 /**

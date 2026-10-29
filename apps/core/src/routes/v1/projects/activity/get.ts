@@ -13,7 +13,10 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { projectActivityItemSchema } from "@/schemas/project.schema";
+import {
+  projectActivityItemSchema,
+  projectIdQuerySchema,
+} from "@/schemas/project.schema";
 import { resolveProjectReaderAccess } from "@/types/project";
 
 const query = z.object({
@@ -28,6 +31,9 @@ const query = z.object({
       description: "How many rows to return, newest first",
       example: 5,
     }),
+  projectId: projectIdQuerySchema(
+    "Only this project's events. It may be Closed or one of the reader's Hidden projects: its history stays readable.",
+  ),
 });
 
 const route = withCoworkerContextHeaderParameters(
@@ -35,7 +41,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/activity",
     description:
-      "The newest task, job and project events across the workspace's open projects, minus the reader's Hidden ones (ADR 0036), one row per task, job or project, newest first. Only events the reader can see; the same sources that set a project's lastActivityAt.",
+      "The newest task, job and project events across the workspace's open projects, minus the reader's Hidden ones (ADR 0036), one row per task, job or project, newest first. Only events the reader can see; the same sources that set a project's lastActivityAt. With projectId, one project's events instead.",
     tags: ["Projects"],
     request: { query },
     responses: {
@@ -55,7 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { limit } = c.req.valid("query");
+    const { limit, projectId } = c.req.valid("query");
     const { sqlWhere: visibility } = await resolveProjectReaderAccess(
       c.var.authContext,
       workspaceContext.workspaceId,
@@ -68,6 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Hides are personal (ADR 0036): a coworker context drops none.
         readerUserId:
           c.var.authContext.actor === "user" ? c.var.authContext.userId : null,
+        projectId,
       }),
     );
     const projectIds = [...new Set(rows.map((row) => row.projectId))];
