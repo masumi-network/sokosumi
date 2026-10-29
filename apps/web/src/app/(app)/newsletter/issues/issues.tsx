@@ -11,25 +11,19 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { newsletterHref } from "../newsletter-tabs";
 import { DraftIssueButton } from "./draft-issue-dialog";
-import { IssueActions } from "./issue-actions";
 import { IssueDeleteButton } from "./issue-delete-button";
+import {
+  IssueDeliveryOutcome,
+  IssueStatusBadge,
+} from "./issue-delivery-status";
 import { NewIssueDialog } from "./new-issue-dialog";
 import { issueSearchParams } from "./search-params";
 
@@ -70,7 +64,15 @@ export function Issues({
   return (
     <section className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold">{t("title")}</h3>
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold">{t("title")}</h3>
+          <Link
+            className="text-muted-foreground inline-block py-1 text-sm underline underline-offset-4"
+            href={newsletterHref("/newsletter/subscribers", projectId)}
+          >
+            {t("Readiness.audienceCount", { count: activeSubscribers })}
+          </Link>
+        </div>
         {issues.length ? newIssue : null}
       </div>
       {!issues.length ? (
@@ -83,85 +85,80 @@ export function Issues({
           />
         </div>
       ) : (
-        <div className={cn(HOLDER_CLASS, "min-w-0")}>
-          <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
-            <Table aria-label={t("title")} aria-busy={pending}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("subject")}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
-                  <TableHead>{t("deliveryDate")}</TableHead>
-                  <TableHead>{t("updatedAt")}</TableHead>
-                  <TableHead>
-                    <span className="sr-only">{t("actions")}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {issues.map((issue) => (
-                  <TableRow key={issue.id}>
-                    <TableCell className="min-w-44 whitespace-normal">
+        <ul
+          aria-label={t("title")}
+          aria-busy={pending}
+          className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}
+        >
+          {issues.map((issue) => {
+            const href = newsletterHref(
+              `/newsletter/issues/${encodeURIComponent(issue.id)}`,
+              projectId,
+            );
+            const nextAction =
+              issue.status === "NEEDS_APPROVAL" &&
+              issue.approvedAt &&
+              issue.approvedByUserId
+                ? "APPROVED"
+                : issue.status;
+            return (
+              <li
+                key={issue.id}
+                className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}
+              >
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
+                  <div className="min-w-0 space-y-2">
+                    <h4 className="text-base font-medium wrap-anywhere">
                       <Link
-                        href={newsletterHref(
-                          `/newsletter/issues/${encodeURIComponent(issue.id)}`,
-                          projectId,
-                        )}
-                        className="font-medium break-words underline-offset-4 hover:underline"
+                        href={href}
+                        className="underline-offset-4 hover:underline"
                       >
                         {issue.subject}
                       </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          issue.status === NewsletterIssueStatus.FAILED
-                            ? "destructive"
-                            : "secondary"
-                        }
-                      >
-                        {issue.approvedAt && issue.status === "NEEDS_APPROVAL"
-                          ? t("Lifecycle.approved")
-                          : t(`statuses.${issue.status}`)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
+                    </h4>
+                    <IssueStatusBadge issue={issue} />
+                    <p className="text-muted-foreground text-sm wrap-anywhere">
                       {issue.sentAt
                         ? t("sentAt", {
                             date: format.dateTime(issue.sentAt, "dateTime"),
                           })
                         : issue.scheduledAt
-                          ? t("scheduledAt", {
+                          ? t("Lifecycle.scheduled", {
                               date: format.dateTime(
                                 issue.scheduledAt,
                                 "dateTime",
+                                {
+                                  timeZone: issue.timezone ?? "UTC",
+                                },
                               ),
+                              timezone: issue.timezone ?? "UTC",
                             })
-                          : t("noDate")}
-                    </TableCell>
-                    <TableCell>
-                      {format.dateTime(issue.updatedAt, "dateTime")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-2">
-                        <IssueActions
-                          issue={issue}
-                          projectId={projectId}
-                          activeSubscribers={activeSubscribers}
-                        />
-                        {issue.status === NewsletterIssueStatus.DRAFT ? (
-                          <IssueDeleteButton
-                            projectId={projectId}
-                            issue={issue}
-                          />
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                          : t("updated", {
+                              date: format.dateTime(
+                                issue.updatedAt,
+                                "dateTime",
+                              ),
+                            })}
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-auto min-h-10 max-w-full py-2 whitespace-normal"
+                    >
+                      <Link href={href}>{t(`nextActions.${nextAction}`)}</Link>
+                    </Button>
+                    {issue.status === NewsletterIssueStatus.DRAFT ? (
+                      <IssueDeleteButton projectId={projectId} issue={issue} />
+                    ) : null}
+                  </div>
+                </div>
+                <IssueDeliveryOutcome issue={issue} projectId={projectId} />
+              </li>
+            );
+          })}
+        </ul>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p role="status" className="text-muted-foreground text-sm tabular-nums">

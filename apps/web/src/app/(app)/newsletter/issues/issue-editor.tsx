@@ -5,6 +5,7 @@ import {
   type NewsletterIssue,
   type NewsletterIssueAnalytics,
   NewsletterIssueStatus,
+  type NewsletterSendingDomainState,
 } from "@sokosumi/core-client";
 import type { NewsletterBlock } from "@sokosumi/utils";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
@@ -13,7 +14,6 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,6 +40,10 @@ import { newsletterHref } from "../newsletter-tabs";
 import { DraftIssueButton } from "./draft-issue-dialog";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
+import {
+  IssueDeliveryOutcome,
+  IssueStatusBadge,
+} from "./issue-delivery-status";
 import { NewsletterIssuePreview } from "./issue-preview";
 
 const BLOCK_TYPES = ["heading", "text", "image", "button", "divider"] as const;
@@ -48,6 +52,8 @@ export function NewsletterIssueEditor({
   projectId,
   issue,
   activeSubscribers,
+  senderName,
+  sendingDomain,
   newsletterSlug,
   analytics,
   draftedBySokoBot = false,
@@ -55,6 +61,8 @@ export function NewsletterIssueEditor({
   projectId: string;
   issue: NewsletterIssue;
   activeSubscribers: number;
+  senderName: string;
+  sendingDomain: NewsletterSendingDomainState;
   newsletterSlug: string;
   analytics?: NewsletterIssueAnalytics | null;
   draftedBySokoBot?: boolean;
@@ -173,21 +181,20 @@ export function NewsletterIssueEditor({
               </Link>
             </Button>
           ) : null}
-          <Badge variant="secondary">
-            {currentIssue.approvedAt && status === "NEEDS_APPROVAL"
-              ? t("Lifecycle.approved")
-              : t(`statuses.${status}`)}
-          </Badge>
+          <IssueStatusBadge issue={currentIssue} />
         </div>
       </div>
       <IssueActions
         issue={currentIssue}
         projectId={projectId}
         activeSubscribers={activeSubscribers}
+        senderName={senderName}
+        sendingDomain={sendingDomain}
         disabled={isDirty || isSubmitting}
         onChanged={setCurrentIssue}
         onBusyChange={setLifecyclePending}
       />
+      <IssueDeliveryOutcome issue={currentIssue} projectId={projectId} />
       {isDirty ? (
         <p className="text-muted-foreground text-sm">
           {t("Lifecycle.saveFirst")}

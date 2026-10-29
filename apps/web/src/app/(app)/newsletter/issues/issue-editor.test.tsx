@@ -15,6 +15,7 @@ import es from "@/messages/es.json";
 import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
+  NEWSLETTER_SENDING_DOMAIN_STATE,
   PUBLIC_NEWSLETTER_SLUG,
 } from "@/test/newsletter";
 
@@ -49,6 +50,8 @@ function renderEditor(
         projectId={NEWSLETTER_PROJECT_ID}
         issue={issue}
         activeSubscribers={3}
+        senderName="Ada"
+        sendingDomain={NEWSLETTER_SENDING_DOMAIN_STATE}
         newsletterSlug={PUBLIC_NEWSLETTER_SLUG}
         draftedBySokoBot={draftedBySokoBot}
       />
@@ -232,9 +235,9 @@ describe("newsletter issue editor", () => {
     "CANCELED",
   ] satisfies NewsletterIssue["status"][])("makes %s read-only", (status) => {
     renderEditor({ ...NEWSLETTER_ISSUE, status });
-    expect(screen.getByRole("note")).toHaveTextContent(
-      en.App.Projects.Newsletter.Issues.readOnly,
-    );
+    expect(
+      screen.getByText(en.App.Projects.Newsletter.Issues.readOnly),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Subject")).toBeDisabled();
     expect(
       screen.getByRole("combobox", { name: "Heading level" }),
@@ -263,5 +266,48 @@ describe("newsletter issue editor", () => {
       await screen.findByText(copy.Validation.subject),
     ).toBeInTheDocument();
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it.each(["FAILED", "SENT"] as const)(
+    "explains a %s delivery without exposing a resend action",
+    (status) => {
+      renderEditor({
+        ...NEWSLETTER_ISSUE,
+        status,
+        lastError: "Provider could not confirm delivery",
+      });
+      expect(
+        screen.getByText(/Provider could not confirm delivery/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", {
+          name: en.App.Projects.Newsletter.Issues.Delivery.reviewSettings,
+        }),
+      ).toHaveAttribute(
+        "href",
+        `/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+      expect(
+        screen.queryByRole("button", { name: "Send now" }),
+      ).not.toBeInTheDocument();
+      if (status === "SENT")
+        expect(
+          screen.getByText(en.App.Projects.Newsletter.Issues.Delivery.partial),
+        ).toBeInTheDocument();
+    },
+  );
+  it("removes prerequisite navigation while the issue has unsaved changes", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const readiness = en.App.Projects.Newsletter.Issues.Readiness;
+    expect(
+      screen.getByRole("link", { name: readiness.senderSettings }),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Subject"), " changed");
+    expect(
+      screen.queryByRole("link", { name: readiness.senderSettings }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(en.App.Projects.Newsletter.Issues.Lifecycle.saveFirst),
+    ).toBeInTheDocument();
   });
 });
