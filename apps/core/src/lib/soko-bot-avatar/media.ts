@@ -65,8 +65,11 @@ export async function fetchFfmpeg(
 
 let fetched: Promise<string> | undefined;
 
-/** Local installs have ffmpeg-static's binary; a Vercel instance fetches it. */
-function ffmpegBinary(): Promise<string> {
+/**
+ * Local installs have ffmpeg-static's binary; a Vercel instance fetches it,
+ * which is the slow first call that callers can wait on to time it apart.
+ */
+export function ensureFfmpeg(): Promise<string> {
   if (ffmpegPath && existsSync(ffmpegPath)) return Promise.resolve(ffmpegPath);
   // The pinned build is linux-x64 only; anywhere else it cannot run.
   if (process.platform !== "linux" || process.arch !== "x64") {
@@ -84,7 +87,7 @@ function ffmpegBinary(): Promise<string> {
 }
 
 async function run(args: string[], input?: Buffer): Promise<Buffer> {
-  const binary = await ffmpegBinary();
+  const binary = await ensureFfmpeg();
   return await new Promise((resolve, reject) => {
     const child = spawn(binary, ["-v", "error", "-y", ...args], {
       stdio: ["pipe", "pipe", "pipe"],

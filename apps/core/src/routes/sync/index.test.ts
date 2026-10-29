@@ -1096,6 +1096,7 @@ describe("sync routes", () => {
     expect(reconcileAvatarRendersMock).toHaveBeenCalledTimes(1);
     expect(reconcileAvatarRendersMock).toHaveBeenCalledWith({
       shouldContinue: expect.any(Function),
+      msRemaining: expect.any(Function),
     });
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });

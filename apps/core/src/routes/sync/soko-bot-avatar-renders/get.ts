@@ -11,8 +11,11 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(
       c,
       SOKO_BOT_AVATAR_RENDERS_SYNC_LOCK_KEY,
-      async ({ shouldContinue }) => {
-        const result = await reconcileAvatarRenders({ shouldContinue });
+      async ({ shouldContinue, msRemaining }) => {
+        const result = await reconcileAvatarRenders({
+          shouldContinue,
+          msRemaining,
+        });
         console.info("[sync/soko-bot-avatar-renders] Completed sync", result);
       },
     );

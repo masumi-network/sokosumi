@@ -229,6 +229,8 @@ export async function drawStill(
      * is refused or fails). For someone waiting; the cron retries by row.
      */
     fallback?: { model: string; timeoutMs: number };
+    /** Told how long the edit and the levelling took, for the logs. */
+    onTimings?: (timings: { editMs: number; levelMs: number }) => void;
   },
 ): Promise<Buffer> {
   const edit = (extra: { timeoutMs: number; model?: string }) =>
@@ -250,7 +252,13 @@ export async function drawStill(
       return edit(input.fallback);
     },
   );
-  return await levelStill(edited, input.target);
+  const editedAt = Date.now();
+  const leveled = await levelStill(edited, input.target);
+  input.onTimings?.({
+    editMs: editedAt - started,
+    levelMs: Date.now() - editedAt,
+  });
+  return leveled;
 }
 
 const ASSET_CONTENT_TYPE = { webp: "image/webp", mp4: "video/mp4" } as const;

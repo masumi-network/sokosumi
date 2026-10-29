@@ -342,8 +342,11 @@ import {
   sweepExpiredDrafts,
 } from "@/services/soko-bot-avatar.service";
 import {
+  COLLECT_MIN_BUDGET_MS,
+  MAX_COLLECTS_PER_RUN,
   MAX_RENDER_ATTEMPTS,
   reconcileAvatarRenders,
+  STILL_MIN_BUDGET_MS,
   UNCERTAIN_WAIT_MS,
 } from "@/services/soko-bot-avatar-render.service";
 import {
@@ -1450,6 +1453,177 @@ describe("reconciling renders", () => {
     expect(
       renders.rows.filter((row) => row.status === "VIDEO_SUBMITTED").length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe("keeping a run inside the function's time limit", () => {
+  /** Kept look whose six loops are all submitted and none ready yet. */
+  async function allSubmitted() {
+    pollsBeforeDone = 1_000_000;
+    await keptLook({ kind: "creature", creature: "otter" });
+    for (let tick = 0; tick < 6; tick += 1) {
+      await reconcileAvatarRenders();
+      if (renders.rows.every((row) => row.status === "VIDEO_SUBMITTED")) break;
+    }
+    expect(renders.rows.map((row) => row.status)).toEqual(
+      Array(6).fill("VIDEO_SUBMITTED"),
+    );
+    pollsBeforeDone = 0;
+    providerMock.pollVideo.mockClear();
+  }
+
+  it("starts no collect with too little time left, and leaves the row untouched", async () => {
+    await allSubmitted();
+    const before = renders.rows.map((row) => ({ ...row }));
+
+    const result = await reconcileAvatarRenders({
+      msRemaining: () => COLLECT_MIN_BUDGET_MS - 1,
+    });
+
+    expect(result.finished).toBe(0);
+    expect(providerMock.pollVideo).not.toHaveBeenCalled();
+    // No lease taken, no attempt counted, nothing rewritten.
+    expect(renders.rows.map((row) => ({ ...row }))).toEqual(before);
+  });
+
+  it("starts no still with too little time left either, leaving its row for the next run", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+    const pending = renders.rows.filter((row) => row.status === "PENDING");
+
+    await reconcileAvatarRenders({
+      msRemaining: () => STILL_MIN_BUDGET_MS - 1,
+    });
+
+    expect(providerMock.editImage).not.toHaveBeenCalled();
+    for (const row of pending) {
+      expect(row).toMatchObject({
+        status: "PENDING",
+        attempts: 0,
+        leaseUntil: null,
+      });
+    }
+  });
+
+  it("does a still with enough time for one but not for a collect", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+
+    await reconcileAvatarRenders({
+      msRemaining: () => COLLECT_MIN_BUDGET_MS - 1,
+    });
+
+    expect(providerMock.editImage).toHaveBeenCalledTimes(5);
+  });
+
+  it("checks the time when a step is about to start, not when it was queued", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+    // Plenty of time for the first three stills, then the clock runs out.
+    let left = 10 * 60_000;
+    providerMock.editImage.mockImplementation(async () => {
+      left = 0;
+      return fixturePng;
+    });
+
+    await reconcileAvatarRenders({ msRemaining: () => left });
+
+    // Those already running (at most three at a time, the idle loop's submit
+    // among them) finished; the ones queued behind them saw no time left and
+    // were left whole.
+    const started = providerMock.editImage.mock.calls.length;
+    expect(started).toBeGreaterThan(0);
+    expect(started).toBeLessThanOrEqual(3);
+    const waiting = renders.rows.filter((row) => row.status === "PENDING");
+    expect(waiting).toHaveLength(5 - started);
+    for (const row of waiting) {
+      expect(row).toMatchObject({ attempts: 0, leaseUntil: null });
+    }
+  });
+
+  it("collects at most two loops a run, one at a time", async () => {
+    await allSubmitted();
+    let inFlight = 0;
+    let mostAtOnce = 0;
+    providerMock.pollVideo.mockImplementation(async () => {
+      inFlight += 1;
+      mostAtOnce = Math.max(mostAtOnce, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      inFlight -= 1;
+      return { status: "completed", video: fixtureClip };
+    });
+
+    const first = await reconcileAvatarRenders();
+
+    expect(first.finished).toBe(MAX_COLLECTS_PER_RUN);
+    expect(mostAtOnce).toBe(1);
+    expect(renders.rows.filter((row) => row.status === "READY")).toHaveLength(
+      2,
+    );
+    // The rest were not started: no lease, no poll beyond the two.
+    expect(providerMock.pollVideo).toHaveBeenCalledTimes(2);
+    for (const row of renders.rows.filter((one) => one.status !== "READY")) {
+      expect(row).toMatchObject({
+        status: "VIDEO_SUBMITTED",
+        leaseUntil: null,
+      });
+    }
+
+    await reconcileAvatarRenders();
+    await reconcileAvatarRenders();
+    expect(renders.rows.map((row) => row.status)).toEqual(
+      Array(6).fill("READY"),
+    );
+  }, 120_000);
+
+  it("does not spend a collect slot on a clip that is not ready yet", async () => {
+    await allSubmitted();
+    // Four are still rendering, two are done: both done ones get collected.
+    const done = new Set(renders.rows.slice(-2).map((row) => row.id));
+    providerMock.pollVideo.mockImplementation(async (op: { job: string }) => {
+      const row = renders.rows.find(
+        (one) =>
+          (one.providerOperation as { operation: { job: string } }).operation
+            .job === op.job,
+      );
+      return row && done.has(row.id as string)
+        ? { status: "completed", video: fixtureClip }
+        : { status: "pending" };
+    });
+
+    const result = await reconcileAvatarRenders();
+
+    expect(result.finished).toBe(2);
+  }, 120_000);
+
+  it("logs how long each collect and each still took, step by step", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    await keptLook({ kind: "creature", creature: "otter" });
+
+    await reconcileUntilSettled();
+
+    const logged = info.mock.calls.map((call) => call[1]);
+    const numbers = expect.any(Number);
+    expect(logged).toContainEqual({
+      kind: "avatar_render_still",
+      state: expect.any(String),
+      editMs: numbers,
+      levelMs: numbers,
+      uploadMs: numbers,
+    });
+    expect(logged).toContainEqual({
+      kind: "avatar_render_collect",
+      state: expect.any(String),
+      downloadMs: numbers,
+      ffmpegReadyMs: numbers,
+      encodeMs: numbers,
+      uploadMs: numbers,
+      totalMs: numbers,
+    });
+    expect(
+      logged.filter((entry) => entry?.kind === "avatar_render_collect"),
+    ).toHaveLength(6);
+    info.mockRestore();
   });
 });
 

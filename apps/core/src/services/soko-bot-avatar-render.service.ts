@@ -12,7 +12,11 @@ import {
   errorText,
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
-import { downloadAvatarAsset, encodeLoops } from "@/lib/soko-bot-avatar/media";
+import {
+  downloadAvatarAsset,
+  encodeLoops,
+  ensureFfmpeg,
+} from "@/lib/soko-bot-avatar/media";
 import {
   avatarProvider,
   IMAGE_TIMEOUT_RENDER_MS,
@@ -67,6 +71,17 @@ export const MAX_RENDER_ATTEMPTS = 3;
 /** A video that has not finished by now never will. */
 const VIDEO_MAX_AGE_MS = 30 * 60 * 1000;
 const RUN_BATCH = 9;
+/**
+ * A step is only started when the run has this long left, so the function's own
+ * time limit cannot cut it off half done (and strand its lease and its lock).
+ * Sized from what a step takes, not from its worst-case timeouts: a still is an
+ * image edit (usually ten seconds, up to 120) plus upload; a collect downloads
+ * the clip, may fetch ffmpeg on an instance's first run, and encodes twice.
+ */
+export const STILL_MIN_BUDGET_MS = 60_000;
+export const COLLECT_MIN_BUDGET_MS = 120_000;
+/** Collects per run, one at a time: each holds a clip and two encodes in memory and CPU. */
+export const MAX_COLLECTS_PER_RUN = 2;
 /** More than about four large uploads at once make the Gateway reset connections. */
 const CONCURRENCY = 3;
 
@@ -170,13 +185,24 @@ async function drawStateStill(
   if (claim.count === 0) return "done";
   const attempts = row.attempts + 1;
   try {
+    let timings = { editMs: 0, levelMs: 0 };
     const image = await drawStill(style, {
       prompt: stillPrompt(style, state, creatureFor(style, row.avatar.look)),
       reference: await downloadAvatarAsset(row.avatar.imageUrl),
       target: style.backgroundTarget(state),
       timeoutMs: IMAGE_TIMEOUT_RENDER_MS,
+      onTimings: (measured) => {
+        timings = measured;
+      },
     });
+    const uploadStarted = Date.now();
     const stillUrl = await storeAvatarAsset(image, `${row.avatar.id}-${state}`);
+    console.info("Soko Bot avatar render step", {
+      kind: "avatar_render_still",
+      state,
+      ...timings,
+      uploadMs: Date.now() - uploadStarted,
+    });
     await prisma.sokoBotAvatarRender.updateMany({
       where: { id: row.id, status: "PENDING" },
       data: {
@@ -266,6 +292,8 @@ async function submitLoop(
 async function collectLoop(
   row: RenderRow,
   style: SokoBotAvatarStyle,
+  /** Called once the clip is in hand, which is when a collect costs something. */
+  onClip: () => void,
 ): Promise<"finished" | "failed" | "pending"> {
   const state = fromDbAvatarState(row.state);
   const submittedAt = row.submittedAt ?? row.updatedAt;
@@ -289,6 +317,7 @@ async function collectLoop(
   if (claim.count === 0) return "pending";
   try {
     const stored = storedSubmission(row.providerOperation);
+    const collectStarted = Date.now();
     const polled = await avatarProvider().pollVideo(
       // Rows stored before the key travelled with the operation hold it bare.
       stored ? stored.operation : row.providerOperation,
@@ -311,10 +340,20 @@ async function collectLoop(
       );
       return row.attempts >= MAX_RENDER_ATTEMPTS ? "failed" : "pending";
     }
+    onClip();
+    // Polling and downloading the clip happen in one provider call.
+    const downloadMs = Date.now() - collectStarted;
+    // The first encode on an instance fetches ffmpeg; time that apart.
+    const ffmpegStarted = Date.now();
+    await ensureFfmpeg();
+    const ffmpegReadyMs = Date.now() - ffmpegStarted;
+    const encodeStarted = Date.now();
     const loops = await encodeLoops(
       polled.video,
       style.backgroundTarget(state),
     );
+    const encodeMs = Date.now() - encodeStarted;
+    const uploadStarted = Date.now();
     const [loopUrl, loopLargeUrl] = await Promise.all([
       storeAvatarAsset(loops.loop, `${row.avatar.id}-${state}-loop`, "mp4"),
       storeAvatarAsset(
@@ -323,6 +362,7 @@ async function collectLoop(
         "mp4",
       ),
     ]);
+    const uploadMs = Date.now() - uploadStarted;
     await prisma.sokoBotAvatarRender.updateMany({
       where: { id: row.id, status: "VIDEO_SUBMITTED" },
       data: {
@@ -332,6 +372,15 @@ async function collectLoop(
         leaseUntil: null,
         lastError: null,
       },
+    });
+    console.info("Soko Bot avatar render step", {
+      kind: "avatar_render_collect",
+      state,
+      downloadMs,
+      ffmpegReadyMs,
+      encodeMs,
+      uploadMs,
+      totalMs: Date.now() - collectStarted,
     });
     return "finished";
   } catch (error) {
@@ -354,7 +403,11 @@ async function collectLoop(
  * avatars a bot still holds.
  */
 export async function reconcileAvatarRenders(
-  options: { shouldContinue?: () => boolean } = {},
+  options: {
+    shouldContinue?: () => boolean;
+    /** Time left in this run (the sync context's `msRemaining`). Unset: no limit. */
+    msRemaining?: () => number;
+  } = {},
 ): Promise<RenderRunResult> {
   const result: RenderRunResult = {
     stills: 0,
@@ -395,10 +448,19 @@ export async function reconcileAvatarRenders(
   });
 
   const limit = pLimit(CONCURRENCY);
+  // Collects run one at a time, apart from the stills and submits.
+  const collectLimit = pLimit(1);
+  let collected = 0;
+  // Checked when a step is about to start, not when it was queued: it may have
+  // waited behind others. A step that does not fit is left whole for the next run.
+  const hasBudget = (needMs: number) =>
+    (!options.shouldContinue || options.shouldContinue()) &&
+    (!options.msRemaining || options.msRemaining() >= needMs);
   await Promise.all(
-    rows.map((row) =>
-      limit(async () => {
-        if (options.shouldContinue && !options.shouldContinue()) return;
+    rows.map((row) => {
+      const collects = row.status === "VIDEO_SUBMITTED";
+      return (collects ? collectLimit : limit)(async () => {
+        if (!hasBudget(0)) return;
         const style = findAvatarStyle(row.avatar.styleId);
         if (!style) {
           // A style this deploy does not know cannot be drawn.
@@ -422,6 +484,7 @@ export async function reconcileAvatarRenders(
             return;
           }
           if (row.status === "PENDING") {
+            if (!hasBudget(STILL_MIN_BUDGET_MS)) return;
             const outcome = await drawStateStill(row, style);
             if (outcome === "failed") result.failed += 1;
             else result.stills += 1;
@@ -433,7 +496,11 @@ export async function reconcileAvatarRenders(
             if (outcome === "submitted") result.submitted += 1;
             if (outcome === "failed") result.failed += 1;
           } else {
-            const outcome = await collectLoop(row, style);
+            if (collected >= MAX_COLLECTS_PER_RUN) return;
+            if (!hasBudget(COLLECT_MIN_BUDGET_MS)) return;
+            const outcome = await collectLoop(row, style, () => {
+              collected += 1;
+            });
             if (outcome === "finished") result.finished += 1;
             if (outcome === "failed") result.failed += 1;
           }
@@ -443,8 +510,8 @@ export async function reconcileAvatarRenders(
             error: errorText(error),
           });
         }
-      }),
-    ),
+      });
+    }),
   );
   return result;
 }
