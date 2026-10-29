@@ -13267,6 +13267,21 @@ export type SetAdminSokoBotAvatarErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -13513,6 +13528,21 @@ export type KeepAdminSokoBotAvatarDraftErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
         error: string;
         message: string;
         kind?: string;
@@ -65532,6 +65562,21 @@ export type ClaimMySokoBotAvatarErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

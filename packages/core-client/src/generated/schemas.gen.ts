@@ -4942,7 +4942,8 @@ export const SokoBotAvatarDraftSchema = {
         },
         expiresAt: {
             type: 'string',
-            format: 'date-time'
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [
