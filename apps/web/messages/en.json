@@ -8965,6 +8965,17 @@
       "Disabled": {
         "title": "Soko Bot is temporarily unavailable",
         "description": "An administrator has switched Soko Bot off for now. Nothing your assistant has done is lost, and it will pick up where it left off."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Your assistant uses the Project's ad accounts from the Ads page.",
+        "open": "Open",
+        "empty": "No ad accounts connected yet.",
+        "connectOnAds": "Connect one on the Ads page.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
