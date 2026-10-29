@@ -1571,6 +1571,8 @@
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
+          "trendUp": "{count} más que en las 24 horas anteriores",
+          "trendDown": "{count} menos que en las 24 horas anteriores",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
         },
         "team": {
@@ -1588,6 +1590,7 @@
           "headingWithName": "¿Qué sigue, {name}?",
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
+          "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
           "suggestions": {
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
@@ -2339,15 +2342,6 @@
           "task": "{status, select, CREATED {Tarea creada} COMMENT {Comentario añadido} READY {Tarea lista} QUEUED {Tarea programada} RUNNING {Tarea en curso} INPUT_REQUIRED {La tarea necesita datos} APPROVAL_REQUIRED {La tarea necesita aprobación} AUTHENTICATION_REQUIRED {La tarea necesita inicio de sesión} OUT_OF_CREDITS {Tarea en pausa por créditos} COMPLETED {Tarea completada} FAILED {Tarea fallida} CANCELED {Tarea cancelada} other {Tarea actualizada}}",
           "job": "{status, select, INITIATED {Trabajo iniciado} AWAITING_PAYMENT {Trabajo pendiente de pago} AWAITING_INPUT {El trabajo necesita datos} RUNNING {Trabajo en curso} COMPLETED {Trabajo completado} FAILED {Trabajo fallido} other {Trabajo actualizado}}",
           "project": "{event, select, CLOSE_REQUESTED {Cierre solicitado} BATCH_FAILED {Cierre fallido} RETRY_REQUESTED {Cierre reintentado} SERIES_RESOLVED {Trabajo programado detenido} CLOSE_FINALIZED {Proyecto cerrado} other {Proyecto actualizado}}"
-        },
-        "projects": {
-          "showAll": "Todos los proyectos",
-          "error": "No se pudieron cargar los proyectos.",
-          "detail": "{pinned, select, true {Fijado · } other {}}{tasks, plural, one {# tarea} other {# tareas}} · {jobs, plural, one {# trabajo} other {# trabajos}}"
-        },
-        "teamDay": {
-          "empty": "Nada se movió en las últimas 24 horas.",
-          "error": "No se pudieron cargar las últimas 24 horas."
         }
       },
       "Briefing": {
@@ -4509,6 +4503,7 @@
           "newTask": "Nueva tarea",
           "search": "Buscar",
           "home": "Inicio",
+          "projects": "Proyectos",
           "overview": "Resumen",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
@@ -7575,6 +7570,7 @@
         "tasks": "Tareas",
         "agents": "Agentes",
         "chats": "Chats",
+        "projects": "Proyectos",
         "chatsUnread": "Chats no leídos",
         "you": "Tú",
         "ariaLabel": "Navegación principal",

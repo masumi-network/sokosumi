@@ -102,8 +102,8 @@ describe("switchScopeHref", () => {
     expect(switchScopeHref("/schedules/s1", null)).toBe("/schedules");
   });
 
-  it("leaves a project page for Home when the workspace is chosen", () => {
-    expect(switchScopeHref("/projects/p1/memory", null)).toBe("/");
+  it("leaves a project page for the list when the workspace is chosen", () => {
+    expect(switchScopeHref("/projects/p1/memory", null)).toBe("/projects");
   });
 
   it("scopes Social the way the studio is scoped", () => {

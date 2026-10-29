@@ -1047,23 +1047,6 @@ describe("createTask Run at", () => {
     );
   });
 
-  it("refreshes Tasks, Projects and Home, which lists the projects", async () => {
-    const { createTask } = await import("./action");
-    const { revalidatePath } = await import("next/cache");
-
-    await createTask({
-      description: "Queued task",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: TaskStatus.QUEUED,
-    });
-
-    for (const path of ["/tasks", "/projects", "/"]) {
-      expect(revalidatePath).toHaveBeenCalledWith(path);
-    }
-  });
-
   it("sends the Run at and lets Core queue the Task", async () => {
     const { createTask } = await import("./action");
 

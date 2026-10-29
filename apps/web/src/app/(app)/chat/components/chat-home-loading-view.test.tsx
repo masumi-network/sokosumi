@@ -39,17 +39,6 @@ describe("ChatHomePageSkeleton", () => {
     );
   });
 
-  it("follows the welcome with Home's three panels", () => {
-    render(<ChatHomePageSkeleton />);
-
-    const board = screen.getByTestId("home-board-loading");
-    for (const panel of ["needs-you", "projects", "team-day"]) {
-      expect(
-        board.querySelector(`[data-testid="home-${panel}-loading"]`),
-      ).not.toBeNull();
-    }
-  });
-
   it("stays a sync shell of pulse bones (no async APIs)", () => {
     const { container } = render(<ChatHomePageSkeleton />);
 

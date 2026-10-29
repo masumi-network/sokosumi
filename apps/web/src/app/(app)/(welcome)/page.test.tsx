@@ -5,8 +5,8 @@ const getMine = vi.fn();
 const listRooms = vi.fn();
 const listMessages = vi.fn();
 const sokoBotHome = vi.fn();
-const teamDayPanel = vi.fn();
-const listProjects = vi.fn();
+const needsYouPanel = vi.fn();
+const chatLanding = vi.fn();
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -48,30 +48,28 @@ vi.mock("@/app/chat/components/chat-landing-notice", () => ({
   ChatLandingNotice: () => null,
 }));
 vi.mock("@/app/chat/components/landing/chat-landing", () => ({
-  ChatLanding: () => <div>coworker welcome</div>,
-}));
-vi.mock("@/app/chat/components/landing/chat-landing.mobile", () => ({
-  ChatLandingMobile: () => null,
-}));
-vi.mock("@/lib/services/project.service", () => ({
-  projectService: {
-    listProjects: (...args: unknown[]) => listProjects(...args),
+  ChatLanding: (props: { needsYou?: React.ReactNode }) => {
+    chatLanding(props);
+    return (
+      <div>
+        coworker welcome
+        {props.needsYou}
+      </div>
+    );
   },
 }));
 vi.mock("@/lib/services/notification.service", () => ({
   notificationService: { listNeedsYou: async () => [] },
 }));
 vi.mock("@/app/projects/components/workspace-column", () => ({
-  NeedsYouPanel: () => <div>needs you</div>,
   panelFeed: <T,>(promise: Promise<T[]>) => promise.catch(() => null),
-}));
-vi.mock("./components/home-panels", () => ({
-  HOME_PROJECT_LIMIT: 6,
-  HomeProjectsPanel: () => <div>projects</div>,
-  HomeTeamDayPanel: (props: unknown) => {
-    teamDayPanel(props);
-    return <div>team day</div>;
+  NeedsYouPanel: (props: unknown) => {
+    needsYouPanel(props);
+    return <div>needs you</div>;
   },
+}));
+vi.mock("@/app/chat/components/landing/chat-landing.mobile", () => ({
+  ChatLandingMobile: () => null,
 }));
 vi.mock("./components/soko-bot-home", () => ({
   SokoBotHome: (props: unknown) => {
@@ -88,7 +86,6 @@ async function renderPage() {
 
 describe("WelcomePage", () => {
   beforeEach(() => {
-    listProjects.mockResolvedValue({ projects: [] });
     listRooms.mockResolvedValue({
       rooms: [
         {
@@ -125,13 +122,24 @@ describe("WelcomePage", () => {
     expect(sokoBotHome).not.toHaveBeenCalled();
   });
 
+  it("puts the quiet Needs you under the coworker welcome", async () => {
+    getMine.mockResolvedValue(null);
+    await renderPage();
+
+    expect(screen.getByText("needs you")).toBeTruthy();
+    expect(needsYouPanel).toHaveBeenCalledTimes(1);
+    expect(needsYouPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ quiet: true, projects: {} }),
+    );
+  });
+
   it("keeps the coworker welcome when the bot cannot be read", async () => {
     getMine.mockRejectedValue(new Error("feature off"));
     await renderPage();
     expect(screen.getByText("coworker welcome")).toBeTruthy();
   });
 
-  it("shows the bot home with its room", async () => {
+  it("shows the bot home with its room and the team's day", async () => {
     getMine.mockResolvedValue({
       id: "bot-1",
       name: "Joseph",
@@ -145,27 +153,9 @@ describe("WelcomePage", () => {
       expect.objectContaining({
         roomId: "room-1",
         summary: { awaitingInput: 2 },
+        teamTasks: [expect.objectContaining({ name: "Plan my week" })],
+        needsYou: expect.anything(),
       }),
     );
-  });
-
-  it("puts Needs you, the first Open projects and the team's day below either top", async () => {
-    getMine.mockResolvedValue(null);
-    await renderPage();
-
-    for (const panel of ["needs you", "projects", "team day"]) {
-      expect(screen.getByText(panel)).toBeTruthy();
-    }
-    expect(listProjects).toHaveBeenCalledWith({
-      limit: 6,
-      state: "open",
-      pinnedFirst: true,
-    });
-    const { feed } = teamDayPanel.mock.calls[0][0] as {
-      feed: Promise<unknown>;
-    };
-    expect(await feed).toEqual([
-      expect.objectContaining({ name: "Plan my week" }),
-    ]);
   });
 });

@@ -159,7 +159,7 @@ describe("useProjectScopeSwitch", () => {
 
     act(() => current().select(null));
 
-    expect(mocks.push).toHaveBeenCalledWith("/");
+    expect(mocks.push).toHaveBeenCalledWith("/projects");
   });
 });
 

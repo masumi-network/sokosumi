@@ -124,26 +124,6 @@ function ScopedMenuItems({
   const markFeatureSeen = useMarkFeatureSeen();
 
   const allDestinations: NavDestination[] = [
-    // One row for the scope: the selected project's own page. The Projects
-    // list has no row of its own; Home lists the projects and links to it.
-    ...(hasProjectPage
-      ? [
-          {
-            key: "overview",
-            href: `/projects/${encodeURIComponent(projectId)}`,
-            label: t("overview"),
-            // The glyph holds the slot until the project's name and logo load.
-            Icon: FolderKanban,
-            tile: selectedProject ? (
-              <ProjectAvatar
-                name={selectedProject.name}
-                logo={selectedProject.logo}
-              />
-            ) : undefined,
-            group: "work",
-          } satisfies NavDestination,
-        ]
-      : []),
     // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
     {
       key: "home",
@@ -153,6 +133,31 @@ function ScopedMenuItems({
       group: "work",
       desktopOnly: true,
     },
+    // Under Home: Home answers what needs you, Projects browses the work.
+    // One row for the scope: the Projects list, or the selected project's
+    // own page. The nav never shows both.
+    !hasProjectPage
+      ? {
+          key: "projects",
+          href: "/projects",
+          label: t("projects"),
+          Icon: FolderKanban,
+          group: "work",
+        }
+      : {
+          key: "overview",
+          href: `/projects/${encodeURIComponent(projectId)}`,
+          label: t("overview"),
+          // The glyph holds the slot until the project's name and logo load.
+          Icon: FolderKanban,
+          tile: selectedProject ? (
+            <ProjectAvatar
+              name={selectedProject.name}
+              logo={selectedProject.logo}
+            />
+          ) : undefined,
+          group: "work",
+        },
     {
       key: "explore-agents",
       href: "/agents",

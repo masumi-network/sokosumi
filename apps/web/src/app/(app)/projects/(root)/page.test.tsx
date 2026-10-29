@@ -1,12 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { projectServiceMock, projectsViewMock } = vi.hoisted(() => ({
-  projectServiceMock: {
-    listProjects: vi.fn(),
-  },
-  projectsViewMock: vi.fn(),
-}));
+const { notificationServiceMock, projectServiceMock, projectsViewMock } =
+  vi.hoisted(() => ({
+    notificationServiceMock: {
+      listNeedsYou: vi.fn(),
+    },
+    projectServiceMock: {
+      listProjects: vi.fn(),
+      listRecentActivity: vi.fn(),
+    },
+    projectsViewMock: vi.fn(),
+  }));
 
 vi.mock("next/server", () => ({
   connection: vi.fn(async () => undefined),
@@ -21,8 +26,22 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
 
+vi.mock("@/lib/services/notification.service", () => ({
+  notificationService: notificationServiceMock,
+}));
+
+vi.mock("@/app/projects/components/workspace-column", async () => ({
+  panelFeed: (
+    await vi.importActual<
+      typeof import("@/app/projects/components/workspace-column")
+    >("@/app/projects/components/workspace-column")
+  ).panelFeed,
+  WorkspaceColumn: () => <aside data-testid="workspace-column" />,
+}));
+
 vi.mock("@/app/projects/components/projects-view", () => ({
   ProjectsView: (props: {
+    column?: React.ReactNode;
     projects: Array<{ id: string; name: string }>;
     labels: {
       empty: { title: string };
@@ -33,6 +52,7 @@ vi.mock("@/app/projects/components/projects-view", () => ({
 
     return (
       <section data-testid="projects-view">
+        {props.column}
         <h1>{props.labels.empty.title}</h1>
         {props.projects.map((project) => (
           <article key={project.id}>{project.name}</article>
@@ -72,10 +92,27 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
 describe("ProjectsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    notificationServiceMock.listNeedsYou.mockResolvedValue([]);
+    projectServiceMock.listRecentActivity.mockResolvedValue([]);
   });
 
-  // Needs you and the team's day moved to Home, which links here.
-  it.each(["open", "hidden", "closed"])(
+  it("puts the Workspace column beside the Open view with Recent activity only", async () => {
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [buildProject()],
+      pagination: null,
+    });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByTestId("workspace-column")).toBeInTheDocument();
+    // Needs you lives on Home.
+    expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
+    expect(projectServiceMock.listRecentActivity).toHaveBeenCalledWith(5);
+  });
+
+  it.each(["hidden", "closed"])(
     "leaves the %s view's grid at full width, with no column",
     async (state) => {
       projectServiceMock.listProjects.mockResolvedValue({
@@ -91,9 +128,12 @@ describe("ProjectsPage", () => {
         }),
       );
 
+      expect(screen.queryByTestId("workspace-column")).not.toBeInTheDocument();
       expect(projectsViewMock).toHaveBeenCalledWith(
-        expect.not.objectContaining({ column: expect.anything() }),
+        expect.objectContaining({ column: null }),
       );
+      expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
+      expect(projectServiceMock.listRecentActivity).not.toHaveBeenCalled();
     },
   );
 

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+import { WORKSPACE_COLUMN_STACKED_ROWS } from "@/app/projects/constants";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -15,12 +16,11 @@ const ACTION_CLASS = cn(
   "text-muted-foreground hover:text-foreground cursor-pointer rounded-sm text-xs font-medium transition-colors",
 );
 
-/** A link out, at every width: Needs you opens the Notification Center view. */
-interface WorkspaceColumnPanelAction {
-  label: string;
-  href: string;
-  onClick?: () => void;
-}
+type WorkspaceColumnPanelAction =
+  /** A link out, at every width: Needs you opens the Notification Center view. */
+  | { kind: "link"; label: string; href: string; onClick?: () => void }
+  /** Stacked only: shows the rows the cap hid, in place. */
+  | { kind: "expand"; label: string };
 
 interface WorkspaceColumnPanelProps {
   testId: string;
@@ -28,14 +28,13 @@ interface WorkspaceColumnPanelProps {
   rows: Array<{ key: string; node: ReactNode }>;
   /** The one line a panel with no rows says. */
   empty: string;
-  /** Shown whenever passed; a caller with nothing to link to leaves it out. */
   action?: WorkspaceColumnPanelAction;
 }
 
 /**
- * One panel of Home's board: a heading, its action, and compact rows in one
- * bordered list. Every row shows at every width; each feed already loads
- * only as many as Home has room for.
+ * One panel of the Workspace column: a heading, its action, and compact rows
+ * in one bordered list. Under `xl` the column stacks above the grid and each
+ * panel shows its first three rows, so the grid stays near the top.
  */
 export function WorkspaceColumnPanel({
   testId,
@@ -44,6 +43,10 @@ export function WorkspaceColumnPanel({
   empty,
   action,
 }: WorkspaceColumnPanelProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isCapped = rows.length > WORKSPACE_COLUMN_STACKED_ROWS && !isExpanded;
+  const showExpand = action?.kind === "expand" && isCapped;
+
   return (
     <section
       data-testid={testId}
@@ -52,7 +55,7 @@ export function WorkspaceColumnPanel({
     >
       <div className="flex min-h-6 items-center justify-between gap-3 px-2">
         <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
-        {action ? (
+        {action?.kind === "link" && rows.length > 0 ? (
           <Link
             href={action.href}
             onClick={action.onClick}
@@ -60,6 +63,15 @@ export function WorkspaceColumnPanel({
           >
             {action.label}
           </Link>
+        ) : null}
+        {showExpand ? (
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            className={cn(ACTION_CLASS, "xl:hidden")}
+          >
+            {action.label}
+          </button>
         ) : null}
       </div>
       {rows.length > 0 ? (
@@ -69,8 +81,16 @@ export function WorkspaceColumnPanel({
             "divide-border flex flex-col divide-y overflow-hidden",
           )}
         >
-          {rows.map((row) => (
-            <li key={row.key} data-testid={`${testId}-row`}>
+          {rows.map((row, index) => (
+            <li
+              key={row.key}
+              data-testid={`${testId}-row`}
+              className={cn(
+                isCapped &&
+                  index >= WORKSPACE_COLUMN_STACKED_ROWS &&
+                  "max-xl:hidden",
+              )}
+            >
               {row.node}
             </li>
           ))}

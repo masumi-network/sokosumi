@@ -1,7 +1,9 @@
+import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import type { Coworker } from "@/app/chat/utils/types";
 
 import {
+  buildActivityStats,
   compareCoworkerRank,
   orderStripCoworkers,
   resolveFeaturedCoworker,
@@ -31,6 +33,25 @@ describe("resolveLandingGreetingName", () => {
     expect(resolveLandingGreetingName("   ")).toBeNull();
   });
 });
+
+function buildSummary(
+  overrides: Partial<TaskActivitySummary> = {},
+): TaskActivitySummary {
+  return {
+    awaitingInput: 0,
+    completed: 0,
+    createdByOtherHumans: 0,
+    since: new Date("2026-08-10T09:00:00.000Z"),
+    workedMinutes: 0,
+    previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+    ...overrides,
+  };
+}
+
+/** Mirrors next-intl's shape closely enough to assert which keys are used. */
+function fakeTranslator(key: string, values?: Record<string, number | string>) {
+  return values ? `${key}:${JSON.stringify(values)}` : key;
+}
 
 describe("compareCoworkerRank", () => {
   it("ranks higher priority first", () => {
@@ -249,5 +270,59 @@ describe("orderStripCoworkers", () => {
     const ordered = orderStripCoworkers([lowest, lead, second], lead);
     expect(ordered.map((c) => c.id)).toEqual(["hannah", "alex", "blake"]);
     expect(ordered.length % 2).toBe(1);
+  });
+});
+
+describe("buildActivityStats", () => {
+  const labels = (stats: ReturnType<typeof buildActivityStats>) =>
+    stats.map((stat) => stat.label);
+
+  it("still emits zero chips in a personal workspace with no activity", () => {
+    const stats = buildActivityStats(buildSummary(), false, fakeTranslator);
+    expect(labels(stats)).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+    ]);
+    expect(stats.every((stat) => stat.trend === null)).toBe(true);
+  });
+
+  it("keeps the teammates chip at zero inside an organization", () => {
+    const stats = buildActivityStats(buildSummary(), true, fakeTranslator);
+    expect(labels(stats)).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+      'stats.byTeammates:{"count":0}',
+    ]);
+  });
+
+  it("still emits zero chips when the summary could not be loaded", () => {
+    expect(labels(buildActivityStats(null, true, fakeTranslator))).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+      'stats.byTeammates:{"count":0}',
+    ]);
+  });
+
+  it("derives trends vs the previous 24h and never for awaiting", () => {
+    const stats = buildActivityStats(
+      buildSummary({
+        awaitingInput: 9,
+        completed: 4,
+        createdByOtherHumans: 1,
+        workedMinutes: 30,
+        previous: { completed: 1, createdByOtherHumans: 3, workedMinutes: 30 },
+      }),
+      true,
+      fakeTranslator,
+    );
+    expect(stats.map((stat) => stat.trend)).toEqual([
+      { delta: 3, direction: "up", label: 'stats.trendUp:{"count":3}' },
+      null,
+      null,
+      { delta: 2, direction: "down", label: 'stats.trendDown:{"count":2}' },
+    ]);
   });
 });

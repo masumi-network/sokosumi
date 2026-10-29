@@ -275,6 +275,7 @@ describe("MenuItems groups", () => {
 
     expect(destinationsUnder("groups.work")).toEqual([
       "home",
+      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -323,8 +324,7 @@ describe("MenuItems groups", () => {
 
   // The wordmark's link to `/` became this row when the Workspace switcher
   // took the sidebar header.
-  // With no project row (none known here), Home leads Work.
-  it("puts Home under the scope's row, a plain link to the home page", () => {
+  it("puts Home above the scope's row, a plain link to the home page", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
@@ -340,6 +340,7 @@ describe("MenuItems groups", () => {
     renderMenu(true, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
+      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -479,14 +480,25 @@ describe("MenuItems project scope", () => {
     searchRef.current = "";
   });
 
-  // Home lists the projects and links to the full list, so the workspace
-  // scope has no row of its own.
-  it("leads Work with Home, and no Projects row, with no project selected", () => {
+  it("puts Projects, to the Projects list, right under Home with no project selected", () => {
     renderMenu(true, false);
 
-    expect(destinationsUnder("groups.work")[0]).toBe("home");
-    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    expect(destinationsUnder("groups.work")[1]).toBe("projects");
+    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
+  });
+
+  it("marks Projects current on the Projects list", () => {
+    pathnameRef.current = "/projects";
+    renderMenu(true, false);
+
+    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("swaps Projects for Overview, with the project's avatar, once one is selected", () => {
@@ -496,19 +508,22 @@ describe("MenuItems project scope", () => {
     expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
     const overview = screen.getByRole("link", { name: "overview" });
     expect(overview).toHaveAttribute("href", "/projects/p-1");
-    // First in Work. Its text starts with the avatar's hidden initial.
-    expect(screen.getAllByRole("link")[0]).toBe(overview);
+    // Right under Home. Its text starts with the avatar's hidden initial.
+    expect(screen.getAllByRole("link")[1]).toBe(overview);
     const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
     expect(
       slot?.querySelector('[data-testid="project-avatar"]'),
     ).toHaveTextContent("A");
   });
 
-  it("shows no scope row when Core does not know the scoped project", () => {
+  it("keeps Projects when Core does not know the scoped project", () => {
     searchRef.current = "projectId=gone";
     renderMenu(true, false);
 
-    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
   });
 

@@ -17,7 +17,7 @@ import {
 import { WorkspaceColumnPanelSkeleton } from "./workspace-column-skeleton";
 
 /** Null when the feed failed: the panel says so instead of failing the page. */
-export type PanelFeed<T> = Promise<T[] | null>;
+type PanelFeed<T> = Promise<T[] | null>;
 
 /** A panel's feed failing leaves that panel saying so, not the page erroring. */
 export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
@@ -28,7 +28,8 @@ export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
 }
 
 interface WorkspaceColumnProps {
-  needsYou: PanelFeed<NotificationItem>;
+  /** Left out on the Projects list: Needs you lives on Home there. */
+  needsYou?: PanelFeed<NotificationItem>;
   activity: PanelFeed<ProjectActivityItem>;
   projects: Record<string, ColumnProject>;
   /** The feeds hold one project's rows: Project Overview's right column. */
@@ -39,7 +40,8 @@ interface WorkspaceColumnProps {
  * The Workspace column beside the Open grid: Needs you, then Recent
  * activity. Each panel streams behind its own boundary, so a slow feed holds
  * up neither the grid nor the other panel. Project Overview shows the same
- * two panels with feeds scoped to its project.
+ * two panels with feeds scoped to its project. The Projects list shows Recent
+ * activity only; its Needs you sits on Home.
  */
 export function WorkspaceColumn({
   needsYou,
@@ -49,21 +51,15 @@ export function WorkspaceColumn({
 }: WorkspaceColumnProps) {
   return (
     <div data-testid="workspace-column" className="flex min-w-0 flex-col gap-5">
-      <Suspense
-        fallback={
-          <WorkspaceColumnPanelSkeleton testId="workspace-needs-you-loading" />
-        }
-      >
-        <NeedsYouPanel
-          feed={needsYou}
-          projects={Promise.resolve(
-            Object.entries(projects).map(([id, project]) => ({
-              id,
-              ...project,
-            })),
-          )}
-        />
-      </Suspense>
+      {needsYou ? (
+        <Suspense
+          fallback={
+            <WorkspaceColumnPanelSkeleton testId="workspace-needs-you-loading" />
+          }
+        >
+          <NeedsYouPanel feed={needsYou} projects={projects} />
+        </Suspense>
+      ) : null}
       <Suspense
         fallback={
           <WorkspaceColumnPanelSkeleton testId="workspace-activity-loading" />
@@ -75,8 +71,7 @@ export function WorkspaceColumn({
   );
 }
 
-/** "5 minutes ago" for every panel row, the Notification Center's wording. */
-export async function loadTimeLabel() {
+async function loadTimeLabel() {
   const [formatter, tCenter] = await Promise.all([
     getFormatter(),
     getTranslations("Components.NotificationCenter"),
@@ -98,24 +93,23 @@ function notificationProjectId(notification: NotificationItem): string | null {
  * Each row's project, by notification id. The grid's page answers most of
  * them; a project it does not hold (a later page, or filtered out by `q`) is
  * read on its own, so a row never loses its avatar to the grid's filter.
- * On Home the "grid" is the first Open projects it already loaded.
  */
 async function resolveRowProjects(
   rows: NotificationItem[],
-  knownProjects: Record<string, ColumnProject>,
+  gridProjects: Record<string, ColumnProject>,
 ): Promise<Record<string, ColumnProject>> {
   const missingIds = [
     ...new Set(
       rows.flatMap((row) => {
         const projectId = notificationProjectId(row);
-        return projectId && !knownProjects[projectId] ? [projectId] : [];
+        return projectId && !gridProjects[projectId] ? [projectId] : [];
       }),
     ),
   ];
   const fetched = await Promise.all(
     missingIds.map((id) => projectService.getProjectById(id).catch(() => null)),
   );
-  const byProjectId: Record<string, ColumnProject> = { ...knownProjects };
+  const byProjectId: Record<string, ColumnProject> = { ...gridProjects };
   for (const project of fetched) {
     if (project) {
       byProjectId[project.id] = { name: project.name, logo: project.logo };
@@ -134,28 +128,20 @@ async function resolveRowProjects(
 export async function NeedsYouPanel({
   feed,
   projects,
+  quiet = false,
 }: {
   feed: PanelFeed<NotificationItem>;
-  /** Projects already loaded for the page, for their avatars; awaited beside
-   * the feed, so the slower of the two sets the pace. */
-  projects: PanelFeed<{ id: string; name: string; logo: string | null }>;
+  projects: WorkspaceColumnProps["projects"];
+  /** Home's quiet list instead of the column's panel. */
+  quiet?: boolean;
 }) {
-  const [notifications, loaded, t, timeLabel] = await Promise.all([
+  const [notifications, t, timeLabel] = await Promise.all([
     feed,
-    projects,
     getTranslations("App.Projects.column.needsYou"),
     loadTimeLabel(),
   ]);
   const rows = notifications ?? [];
-  const projectByNotificationId = await resolveRowProjects(
-    rows,
-    Object.fromEntries(
-      (loaded ?? []).map((project) => [
-        project.id,
-        { name: project.name, logo: project.logo },
-      ]),
-    ),
-  );
+  const projectByNotificationId = await resolveRowProjects(rows, projects);
 
   return (
     <NeedsYouPanelList
@@ -169,6 +155,7 @@ export async function NeedsYouPanel({
         empty: notifications ? t("empty") : t("error"),
         showAll: t("showAll"),
       }}
+      quiet={quiet}
     />
   );
 }
@@ -234,6 +221,7 @@ export async function RecentActivityPanel({
       testId="workspace-activity"
       title={t("title")}
       empty={items ? t(projectScoped ? "emptyProject" : "empty") : t("error")}
+      action={{ kind: "expand", label: t("showAll") }}
       rows={(items ?? []).map((item) => {
         const { title, event } = describe(item);
         return {

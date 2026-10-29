@@ -1,4 +1,10 @@
-import { Home, ListTodo, type LucideIcon, MessageCircle } from "lucide-react";
+import {
+  FolderKanban,
+  Home,
+  ListTodo,
+  type LucideIcon,
+  MessageCircle,
+} from "lucide-react";
 
 import {
   CHAT_CATCH_UP_PATH,
@@ -93,14 +99,19 @@ export function chatMobileHeightShellClass(
   return CHAT_MOBILE_HEIGHT_SHELL_CLASS;
 }
 
-export type ChatMobileTabId = "home" | "tasks" | "chats" | "you";
-export type ChatMobileTabLabelKey = "home" | "tasks" | "chats" | "you";
+export type ChatMobileTabId = "home" | "tasks" | "chats" | "projects" | "you";
+export type ChatMobileTabLabelKey =
+  | "home"
+  | "tasks"
+  | "chats"
+  | "projects"
+  | "you";
 
 export type ChatMobileTab =
   | {
       kind: "link";
       id: Exclude<ChatMobileTabId, "you">;
-      href: "/" | "/tasks" | "/chat";
+      href: "/" | "/tasks" | "/chat" | "/projects";
       labelKey: Exclude<ChatMobileTabLabelKey, "you">;
       icon: LucideIcon;
       isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
@@ -124,8 +135,6 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     icon: Home,
     isActive: (pathname, searchParams) =>
       classifyChatChromeSurface(pathname, searchParams) === "home" ||
-      // Home lists the projects; the full list has no tab of its own.
-      pathname === "/projects" ||
       pathname === "/agents" ||
       pathname === "/drive" ||
       pathname === "/calendar" ||
@@ -155,6 +164,14 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     isActive: (pathname, searchParams) =>
       classifyChatChromeSurface(pathname, searchParams) === "chats" ||
       pathname.startsWith(CHAT_CATCH_UP_PATH),
+  },
+  {
+    id: "projects",
+    kind: "link",
+    href: "/projects",
+    labelKey: "projects",
+    icon: FolderKanban,
+    isActive: (pathname) => pathname === "/projects",
   },
   {
     id: "you",

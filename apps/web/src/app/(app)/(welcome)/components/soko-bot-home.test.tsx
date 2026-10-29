@@ -82,6 +82,15 @@ async function renderHome(
         workedMinutes: 45,
         previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
       },
+      teamTasks: [
+        {
+          id: "task-1",
+          name: "Research EU marketplaces",
+          status: "COMPLETED",
+          updatedAt: new Date("2026-10-24T08:00:00Z"),
+          who: "Hannah",
+        },
+      ],
       ...overrides,
     }),
   );
@@ -127,6 +136,47 @@ describe("SokoBotHome", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "heading" }),
     ).toBeTruthy();
+  });
+
+  it("shows what the team did in the last day, each Task linked", async () => {
+    await renderHome();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
+      'completed:{"count":3} · worked:{"minutes":45}',
+    );
+    const row = screen.getByRole("link", { name: /Research EU marketplaces/ });
+    expect(row.getAttribute("href")).toBe("/tasks/task-1");
+    expect(row.textContent).toContain("Hannah");
+    expect(row.textContent).toContain("2h");
+  });
+
+  it("puts what needs the user above the team's day", async () => {
+    await renderHome({ needsYou: <section>needs you</section> });
+    const needsYou = screen.getByText("needs you");
+    const day = screen.getByRole("heading", { level: 2 });
+    expect(
+      needsYou.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("counts long work in hours", async () => {
+    await renderHome({
+      summary: {
+        since: new Date(),
+        completed: 0,
+        awaitingInput: 0,
+        createdByOtherHumans: 0,
+        workedMinutes: 7200,
+        previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+      },
+    });
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
+      'workedHours:{"hours":120}',
+    );
+  });
+
+  it("says so when nothing moved", async () => {
+    await renderHome({ teamTasks: [], summary: null });
+    expect(screen.getByText('quietDay:{"name":"Joseph"}')).toBeTruthy();
   });
 
   it("links to tasks only when some need the user", async () => {

@@ -108,9 +108,7 @@ describe("NeedsYouPanel", () => {
           notification("n1", project.id),
           notification("n2"),
         ]),
-        projects: Promise.resolve([
-          { id: project.id, name: "Launch", logo: null },
-        ]),
+        projects: { [project.id]: { name: "Launch", logo: null } },
       }),
     );
 
@@ -156,7 +154,7 @@ describe("NeedsYouPanel", () => {
       await NeedsYouPanel({
         feed: Promise.resolve([notification("n1", project.id)]),
         // The grid is filtered by `q`, so its page lacks this project.
-        projects: Promise.resolve([]),
+        projects: {},
       }),
     );
 
@@ -167,12 +165,7 @@ describe("NeedsYouPanel", () => {
   });
 
   it("says nothing waits when the view is empty", async () => {
-    render(
-      await NeedsYouPanel({
-        feed: Promise.resolve([]),
-        projects: Promise.resolve([]),
-      }),
-    );
+    render(await NeedsYouPanel({ feed: Promise.resolve([]), projects: {} }));
 
     expect(screen.getByTestId("workspace-needs-you-empty")).toHaveTextContent(
       "App.Projects.column.needsYou.empty",
@@ -181,16 +174,45 @@ describe("NeedsYouPanel", () => {
   });
 
   it("says the feed failed rather than that nothing waits", async () => {
-    render(
-      await NeedsYouPanel({
-        feed: Promise.resolve(null),
-        projects: Promise.resolve([]),
-      }),
-    );
+    render(await NeedsYouPanel({ feed: Promise.resolve(null), projects: {} }));
 
     expect(screen.getByTestId("workspace-needs-you-empty")).toHaveTextContent(
       "App.Projects.column.needsYou.error",
     );
+  });
+
+  it("lists the rows quietly on Home, with no panel, and Show all beside the heading", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        projects: { [project.id]: { name: "Launch", logo: null } },
+        quiet: true,
+      }),
+    );
+
+    const section = screen.getByTestId("home-needs-you");
+    expect(screen.queryByTestId("workspace-needs-you")).toBeNull();
+    expect(
+      within(section).getByRole("heading", {
+        name: "App.Projects.column.needsYou.title",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId("home-needs-you-row")).toHaveLength(1);
+    expect(
+      within(section).getByRole("link", {
+        name: "App.Projects.column.needsYou.showAll",
+      }),
+    ).toHaveAttribute("href", "/notifications");
+  });
+
+  it("leaves Home calm, with nothing at all, when nothing waits or the feed failed", async () => {
+    for (const feed of [Promise.resolve([]), Promise.resolve(null)]) {
+      const { container, unmount } = render(
+        await NeedsYouPanel({ feed, projects: {}, quiet: true }),
+      );
+      expect(container).toBeEmptyDOMElement();
+      unmount();
+    }
   });
 });
 

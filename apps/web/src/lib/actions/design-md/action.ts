@@ -100,8 +100,6 @@ async function revalidateOwner(owner: DesignMdOwnerSchemaType): Promise<void> {
 
   if (owner.type === "project") {
     revalidatePath("/projects");
-    // Home lists the projects too.
-    revalidatePath("/");
     revalidatePath(`/projects/${owner.projectId}`);
   }
 }

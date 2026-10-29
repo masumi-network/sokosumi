@@ -25,10 +25,9 @@ describe("chat landing coworker strip edge-to-edge contract", () => {
 
       // The scrollable middle column must not carry px-* (that insets + clips
       // the strip). Greeting/intro may pad themselves; strip stays full width.
-      // The landing no longer scrolls on its own (Home's page does), so no
-      // ancestor here may turn overflow on at all.
-      expect(source).not.toMatch(/overflow-y-auto/);
-      expect(source).not.toMatch(/items-stretch[^\n]*px-\d/);
+      expect(source).toMatch(/overflow-y-auto/);
+      expect(source).not.toMatch(/overflow-y-auto[^\n]*px-\d/);
+      expect(source).not.toMatch(/px-\d[^\n]*overflow-y-auto/);
 
       // Landing still pads non-strip surfaces so text/stats aren't flush.
       expect(source).toMatch(/px-4/);

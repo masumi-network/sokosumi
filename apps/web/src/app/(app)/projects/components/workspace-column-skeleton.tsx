@@ -1,4 +1,7 @@
-import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import {
+  WORKSPACE_COLUMN_ROWS,
+  WORKSPACE_COLUMN_STACKED_ROWS,
+} from "@/app/projects/constants";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -24,7 +27,13 @@ export function WorkspaceColumnPanelSkeleton({ testId }: { testId: string }) {
         )}
       >
         {Array.from({ length: WORKSPACE_COLUMN_ROWS }, (_, index) => (
-          <div key={index} className="flex items-start gap-2.5 px-3 py-2">
+          <div
+            key={index}
+            className={cn(
+              "flex items-start gap-2.5 px-3 py-2",
+              index >= WORKSPACE_COLUMN_STACKED_ROWS && "max-xl:hidden",
+            )}
+          >
             <Skeleton className="mt-0.5 size-4 shrink-0 rounded-sm" />
             <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-0.5">
               <Skeleton className="h-3.5 w-3/4" />
@@ -34,6 +43,19 @@ export function WorkspaceColumnPanelSkeleton({ testId }: { testId: string }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Both panels, for the Instant shell. */
+export function WorkspaceColumnSkeleton() {
+  return (
+    <div
+      data-testid="workspace-column-loading"
+      className="flex min-w-0 flex-col gap-5"
+    >
+      <WorkspaceColumnPanelSkeleton testId="workspace-needs-you-loading" />
+      <WorkspaceColumnPanelSkeleton testId="workspace-activity-loading" />
     </div>
   );
 }

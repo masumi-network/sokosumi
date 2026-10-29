@@ -3,7 +3,7 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
@@ -13,6 +13,7 @@ import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_OPEN_LAYOUT_CLASS,
   type ProjectsListState,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,8 @@ interface ProjectsViewProps {
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
+  /** The Workspace column, beside the grid. The page passes it for Open only. */
+  column?: ReactNode;
 }
 
 function ProjectsMobileCreateFabSlot() {
@@ -118,6 +121,7 @@ export function ProjectsView({
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
+  column,
 }: ProjectsViewProps) {
   const listKey = browseListKey(query, state, projects);
   const [items, setItems] = useState(projects);
@@ -179,56 +183,63 @@ export function ProjectsView({
             className="hidden md:inline-flex"
           />
         </div>
-        <div className="flex min-w-0 flex-col gap-5">
-          {/* One panel for the grid and for every empty state, so switching
+        {/* The column comes first in source and on screen: stacked above the
+            grid when narrow, on its leading side from xl. */}
+        <div className={column ? PROJECTS_OPEN_LAYOUT_CLASS : "contents"}>
+          {column}
+          <div className="flex min-w-0 flex-col gap-5">
+            {/* One panel for the grid and for every empty state, so switching
                 views or filtering never swaps the surface under the toolbar. */}
-          <div
-            data-testid="projects-browse"
-            className={cn(
-              PROJECTS_BROWSE_CARD_CLASS,
-              // Only while there are no cards: a short grid sits in a card that
-              // ends with it, as Transactions does, not in a mostly empty well.
-              !hasLoadedProjects &&
-                cn(PROJECTS_LIST_CARD_MIN_H_CLASS, "flex flex-col"),
-            )}
-          >
-            {hasLoadedProjects ? (
-              <div className={PROJECTS_BROWSE_LIST_CLASS}>
-                {items.map((project) => (
-                  <ProjectListItem
-                    key={project.id}
-                    project={project}
-                    hidden={state === "hidden"}
-                    labels={{
-                      counts: labels.counts,
-                      lastActivity: labels.lastActivity,
-                      created: labels.created,
-                      pinned: labels.pinned,
-                      closed: labels.closed,
-                      actions: labels.actions,
-                    }}
-                  />
-                ))}
+            <div
+              data-testid="projects-browse"
+              className={cn(
+                PROJECTS_BROWSE_CARD_CLASS,
+                // Only while there are no cards: a short grid sits in a card that
+                // ends with it, as Transactions does, not in a mostly empty well.
+                !hasLoadedProjects &&
+                  cn(PROJECTS_LIST_CARD_MIN_H_CLASS, "flex flex-col"),
+              )}
+            >
+              {hasLoadedProjects ? (
+                <div className={PROJECTS_BROWSE_LIST_CLASS}>
+                  {items.map((project) => (
+                    <ProjectListItem
+                      key={project.id}
+                      project={project}
+                      hidden={state === "hidden"}
+                      labels={{
+                        counts: labels.counts,
+                        lastActivity: labels.lastActivity,
+                        created: labels.created,
+                        pinned: labels.pinned,
+                        closed: labels.closed,
+                        actions: labels.actions,
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : emptyMessage ? (
+                <ProjectsListMessage
+                  testId={
+                    isFiltering ? "projects-no-matches" : "projects-empty"
+                  }
+                  message={emptyMessage}
+                />
+              ) : null}
+            </div>
+
+            {cursor ? (
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  loading={isPending}
+                >
+                  {labels.loadMore}
+                </Button>
               </div>
-            ) : emptyMessage ? (
-              <ProjectsListMessage
-                testId={isFiltering ? "projects-no-matches" : "projects-empty"}
-                message={emptyMessage}
-              />
             ) : null}
           </div>
-
-          {cursor ? (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                onClick={handleLoadMore}
-                loading={isPending}
-              >
-                {labels.loadMore}
-              </Button>
-            </div>
-          ) : null}
         </div>
       </div>
       <ProjectsMobileCreateFabSlot />

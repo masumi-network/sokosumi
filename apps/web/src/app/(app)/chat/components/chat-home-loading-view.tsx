@@ -1,9 +1,3 @@
-import {
-  HOME_BOARD_CLASS,
-  HOME_BOARD_COLUMN_CLASS,
-  HOME_STACK_CLASS,
-} from "@/app/(welcome)/components/home-layout";
-import { WorkspaceColumnPanelSkeleton } from "@/app/projects/components/workspace-column-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -12,19 +6,16 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Both breakpoints land on the welcome here, so both get welcome bones —
  * mobile at the compact scale (32px mark, 80px featured face flanked by four
  * at 44px), desktop the centred column.
- *
- * Home's board follows the welcome: Needs you over Projects, the team's day
- * wider beside them from `xl`, as on the page.
  */
 export function ChatHomePageSkeleton(): React.ReactElement {
   return (
-    <div className={HOME_STACK_CLASS}>
+    <>
       <div
-        className="flex w-full flex-col items-center px-4 pt-4 md:hidden"
+        className="flex min-h-full w-full flex-col items-center px-4 pt-4 pb-5 md:hidden"
         data-testid="chat-home-loading-mobile"
       >
         <Skeleton className="size-8 shrink-0 rounded-full" />
-        <div className="flex w-full flex-col items-center gap-3 py-6">
+        <div className="flex w-full flex-1 flex-col items-center justify-center gap-3 py-6">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-72" />
           <div className="mt-5 flex items-center justify-center gap-3">
@@ -41,7 +32,7 @@ export function ChatHomePageSkeleton(): React.ReactElement {
       </div>
 
       <div
-        className="hidden w-full items-center justify-center px-6 pt-10 md:flex"
+        className="hidden min-h-full w-full items-center justify-center px-6 py-10 md:flex"
         data-testid="chat-home-loading-desktop"
       >
         <div className="flex w-full max-w-xl flex-col items-center gap-10">
@@ -56,14 +47,6 @@ export function ChatHomePageSkeleton(): React.ReactElement {
           </div>
         </div>
       </div>
-
-      <div data-testid="home-board-loading" className={HOME_BOARD_CLASS}>
-        <div className={HOME_BOARD_COLUMN_CLASS}>
-          <WorkspaceColumnPanelSkeleton testId="home-needs-you-loading" />
-          <WorkspaceColumnPanelSkeleton testId="home-projects-loading" />
-        </div>
-        <WorkspaceColumnPanelSkeleton testId="home-team-day-loading" />
-      </div>
-    </div>
+    </>
   );
 }

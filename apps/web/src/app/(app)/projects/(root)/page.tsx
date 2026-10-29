@@ -6,9 +6,14 @@ import { Suspense } from "react";
 import { ProjectsPageSkeleton } from "@/app/projects/components/projects-loading-view";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
+  panelFeed,
+  WorkspaceColumn,
+} from "@/app/projects/components/workspace-column";
+import {
   PROJECTS_PAGE_LIMIT,
   PROJECTS_PAGE_SHELL_CLASS,
   projectsListStateQuery,
+  WORKSPACE_COLUMN_ROWS,
 } from "@/app/projects/constants";
 import { loadProjectsSearchParams } from "@/app/projects/projects-query";
 import { projectService } from "@/lib/services/project.service";
@@ -46,6 +51,17 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
     ...projectsListStateQuery(state),
   });
   const translationsPromise = getTranslations("App.Projects");
+  // Started beside the grid's request, awaited inside their own boundaries.
+  // Needs you lives on Home, so the list's column is Recent activity alone.
+  const column =
+    state === "open"
+      ? {
+          activity: panelFeed(
+            projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS),
+          ),
+        }
+      : null;
+
   const [projectsPage, t] = await Promise.all([
     projectsPagePromise,
     translationsPromise,
@@ -70,6 +86,19 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         hasClosedProjects={hasClosedProjects}
         initialCreateProjectOpen={initialCreateProjectOpen}
         createProjectModalResetKey={String(initialCreateProjectOpen)}
+        column={
+          column ? (
+            <WorkspaceColumn
+              activity={column.activity}
+              projects={Object.fromEntries(
+                projectsPage.projects.map((project) => [
+                  project.id,
+                  { name: project.name, logo: project.logo },
+                ]),
+              )}
+            />
+          ) : null
+        }
         labels={{
           newProject: t("empty.action"),
           empty: {

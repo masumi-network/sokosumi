@@ -129,8 +129,7 @@ export function switchScopeHref(
 
   const section = projectPageSection(pathname);
   if (section !== null) {
-    // Home lists the projects, so the workspace lands there.
-    if (!projectId) return "/";
+    if (!projectId) return "/projects";
     const keep = PROJECT_ONLY_SUBPATHS.has(section) ? "" : section;
     return `/projects/${encodeURIComponent(projectId)}${keep}`;
   }

@@ -1571,6 +1571,8 @@
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
+          "trendUp": "{count} more than the previous 24 hours",
+          "trendDown": "{count} fewer than the previous 24 hours",
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
         },
         "team": {
@@ -1588,6 +1590,7 @@
           "headingWithName": "What's next, {name}?",
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
+          "quietDay": "Nothing moved yet. Ask {name} to start something.",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
@@ -2339,15 +2342,6 @@
           "task": "{status, select, CREATED {Task created} COMMENT {Comment added} READY {Task ready} QUEUED {Task scheduled} RUNNING {Task running} INPUT_REQUIRED {Task needs input} APPROVAL_REQUIRED {Task needs approval} AUTHENTICATION_REQUIRED {Task needs sign-in} OUT_OF_CREDITS {Task paused for credits} COMPLETED {Task completed} FAILED {Task failed} CANCELED {Task canceled} other {Task updated}}",
           "job": "{status, select, INITIATED {Job started} AWAITING_PAYMENT {Job awaiting payment} AWAITING_INPUT {Job needs input} RUNNING {Job running} COMPLETED {Job completed} FAILED {Job failed} other {Job updated}}",
           "project": "{event, select, CLOSE_REQUESTED {Close requested} BATCH_FAILED {Close failed} RETRY_REQUESTED {Close retried} SERIES_RESOLVED {Scheduled work stopped} CLOSE_FINALIZED {Project closed} other {Project updated}}"
-        },
-        "projects": {
-          "showAll": "All projects",
-          "error": "Failed to load projects.",
-          "detail": "{pinned, select, true {Pinned · } other {}}{tasks, plural, one {# task} other {# tasks}} · {jobs, plural, one {# job} other {# jobs}}"
-        },
-        "teamDay": {
-          "empty": "Nothing moved in the last 24 hours.",
-          "error": "Failed to load the last 24 hours."
         }
       },
       "Briefing": {
@@ -4509,6 +4503,7 @@
           "newTask": "New task",
           "search": "Search",
           "home": "Home",
+          "projects": "Projects",
           "overview": "Overview",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
@@ -7575,6 +7570,7 @@
         "tasks": "Tasks",
         "agents": "Agents",
         "chats": "Chats",
+        "projects": "Projects",
         "chatsUnread": "Unread chats",
         "you": "You",
         "ariaLabel": "Main navigation",
