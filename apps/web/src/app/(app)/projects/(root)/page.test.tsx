@@ -92,6 +92,8 @@ describe("ProjectsPage", () => {
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       limit: 20,
       query: "launch",
+      state: "open",
+      pinnedFirst: true,
     });
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({ query: "launch" }),
@@ -127,6 +129,8 @@ describe("ProjectsPage", () => {
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       limit: 20,
       query: "",
+      state: "open",
+      pinnedFirst: true,
     });
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -143,6 +147,76 @@ describe("ProjectsPage", () => {
           }),
         }),
       }),
+    );
+  });
+
+  it.each([
+    [undefined, "open", true],
+    ["closed", "closed", false],
+    // An unknown value is the default view, not a Core 422.
+    ["archived", "open", true],
+  ])(
+    "lists the %s state as the %s view",
+    async (stateParam, state, pinnedFirst) => {
+      projectServiceMock.listProjects.mockResolvedValue({
+        projects: [],
+        pagination: null,
+      });
+
+      const { ProjectsPageContent } = await import("./page");
+
+      render(
+        await ProjectsPageContent({
+          searchParams: Promise.resolve({ state: stateParam }),
+        }),
+      );
+
+      // Pins lead only the Open view: a Closed card has no Pin to sort by.
+      expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
+        limit: 20,
+        query: "",
+        state,
+        pinnedFirst,
+      });
+      expect(projectsViewMock).toHaveBeenCalledWith(
+        expect.objectContaining({ state }),
+      );
+    },
+  );
+
+  it("asks Core for one Closed project only when the Open view is empty", async () => {
+    projectServiceMock.listProjects
+      .mockResolvedValueOnce({ projects: [], pagination: null })
+      .mockResolvedValueOnce({ projects: [buildProject()], pagination: null });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(projectServiceMock.listProjects).toHaveBeenLastCalledWith({
+      limit: 1,
+      state: "closed",
+    });
+    expect(projectsViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hasClosedProjects: true }),
+    );
+  });
+
+  it("skips the Closed probe when the Open view has projects or a filter", async () => {
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [],
+      pagination: null,
+    });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(
+      await ProjectsPageContent({ searchParams: Promise.resolve({ q: "x" }) }),
+    );
+
+    expect(projectServiceMock.listProjects).toHaveBeenCalledOnce();
+    expect(projectsViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hasClosedProjects: false }),
     );
   });
 });
