@@ -100,6 +100,16 @@ export function previewNeonConfigs(
   );
 }
 
+/** `": <code>: <message>"` from a Vercel error body, or `""`. */
+export function vercelErrorDetail(payload: unknown) {
+  const error = (payload as { error?: { code?: unknown; message?: unknown } })
+    ?.error;
+  const reason = [error?.code, error?.message]
+    .filter((part) => typeof part === "string" && part)
+    .join(": ");
+  return reason ? `: ${reason}` : "";
+}
+
 // Error responses can echo submitted environment values. Never log their bodies;
 // only Vercel's error code and message reach the thrown error.
 export async function vercelRequest(
@@ -120,11 +130,8 @@ export async function vercelRequest(
   if (response.status === 404 && init.method === "DELETE") return null;
   if (!response.ok) {
     const payload = await response.json().catch(() => undefined);
-    const reason = [payload?.error?.code, payload?.error?.message]
-      .filter((part) => typeof part === "string" && part)
-      .join(": ");
     throw new Error(
-      `Vercel ${init.method ?? "GET"} ${url.pathname} failed (${response.status})${reason ? `: ${reason}` : ""}`,
+      `Vercel ${init.method ?? "GET"} ${url.pathname} failed (${response.status})${vercelErrorDetail(payload)}`,
     );
   }
   return response.status === 204 ? null : response.json();

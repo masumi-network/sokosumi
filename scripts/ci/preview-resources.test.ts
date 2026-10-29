@@ -27,6 +27,7 @@ function setup() {
   ];
   const envs: Record<string, unknown>[] = [];
   const deployments: Record<string, unknown>[] = [];
+  const gitRefs: { ref: string }[] = [];
   const pull = {
     number: 7,
     state: "open",
@@ -39,7 +40,10 @@ function setup() {
     const body = JSON.parse(String(init.body ?? "{}"));
     calls.push({ url, method, body });
     const json = (value: unknown) => Response.json(value);
-    if (url.host === "api.github.com") return json(pull);
+    if (url.host === "api.github.com")
+      return json(
+        url.pathname.includes("/git/matching-refs/") ? gitRefs : pull,
+      );
     if (url.host === "console.neon.tech") {
       if (url.pathname.endsWith("/branches")) {
         if (method === "POST") {
@@ -124,7 +128,7 @@ function setup() {
     neonFetchImpl: fetchImpl,
     fetchImpl,
   };
-  return { options, calls, branches, envs, deployments, pull };
+  return { options, calls, branches, envs, deployments, pull, gitRefs };
 }
 
 test("bare /deploy replies with help without touching Neon or Vercel", async () => {
@@ -494,7 +498,11 @@ test("daily inventory skips a missing PR and still includes later closed PRs", a
   const lookedUp: number[] = [];
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
-    if (url.host !== "api.github.com") return options.fetchImpl(input, init);
+    if (
+      url.host !== "api.github.com" ||
+      url.pathname.includes("/git/matching-refs/")
+    )
+      return options.fetchImpl(input, init);
     const number = Number(url.pathname.split("/").at(-1));
     lookedUp.push(number);
     return number === 6
@@ -533,7 +541,11 @@ test("daily inventory skips open PRs and drains a backlog in bounded batches", a
   const lookedUp: number[] = [];
   const fetchImpl: typeof fetch = (input, init) => {
     const url = new URL(String(input));
-    if (url.host !== "api.github.com") return options.fetchImpl(input, init);
+    if (
+      url.host !== "api.github.com" ||
+      url.pathname.includes("/git/matching-refs/")
+    )
+      return options.fetchImpl(input, init);
     const number = Number(url.pathname.split("/").at(-1));
     lookedUp.push(number);
     return Promise.resolve(
@@ -760,5 +772,29 @@ test("Vercel errors carry Vercel's code and message, never the rest of the body"
       error.message ===
         "Vercel POST /v10/projects/prj/env failed (400): bad_request: Branch not found" &&
       !error.message.includes("secret"),
+  );
+});
+
+test("inventory finds a fork preview branch whose /deploy failed before its env vars", async () => {
+  const { options, calls, pull, gitRefs } = setup();
+  gitRefs.push(
+    { ref: "refs/heads/preview-fork/pr-7" },
+    { ref: "refs/heads/preview-fork/pr-7-copy" },
+  );
+  pull.head.repo.id = 100;
+  pull.state = "closed";
+  assert.deepEqual(await previewCleanupInventory(options), [7]);
+  assert.ok(
+    calls.some((call) =>
+      call.url.pathname.endsWith("/git/matching-refs/heads/preview-fork/pr-"),
+    ),
+  );
+  await cleanupClosedPreview(options);
+  assert.ok(
+    calls.some(
+      (call) =>
+        call.method === "DELETE" &&
+        call.url.pathname.endsWith("/git/refs/heads/preview-fork/pr-7"),
+    ),
   );
 });

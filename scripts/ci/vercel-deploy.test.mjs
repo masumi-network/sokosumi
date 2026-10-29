@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  changesVercelConfig,
   createGitDeployment,
   deleteForkPreviewBranch,
   deployTargets,
@@ -411,7 +412,11 @@ describe("runPreviewDeployComment", () => {
 
   function commentDeploy(
     commentBody,
-    { headRepo = { id: 2, fork: true } } = {},
+    {
+      headRepo = { id: 2, fork: true },
+      headRef = "main",
+      files = [{ filename: "apps/web/app/page.tsx" }],
+    } = {},
   ) {
     const posted = [];
     const reactions = [];
@@ -428,10 +433,10 @@ describe("runPreviewDeployComment", () => {
         state: "open",
         number: 12,
         // A fork branch may share a name with one of ours.
-        head: { sha: FORK_SHA, ref: "main", repo: headRepo },
+        head: { sha: FORK_SHA, ref: headRef, repo: headRepo },
         base: { repo: { id: 1 } },
       }),
-      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      listFiles: async () => files,
       pointBranch: async ({ branch, sha }) => {
         steps.push({ branch, sha });
       },
@@ -496,6 +501,31 @@ describe("runPreviewDeployComment", () => {
     }
     // Core env vars are scoped to that branch, never the fork's `main`.
     assert.equal(run.prepared[0].ref, "preview-fork/pr-12");
+  });
+
+  it("refuses a fork that changes Vercel config, or whose file list is capped", async () => {
+    for (const files of [
+      [{ filename: "apps/core/vercel.json" }],
+      Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, index) => ({
+        filename: `apps/web/file-${index}.ts`,
+      })),
+    ]) {
+      const run = commentDeploy(`/deploy preprod ${FORK_SHA}`, { files });
+      assert.equal((await run.result).kind, "fork-vercel-config");
+      assert.match(run.posted[0], /vercel\.json/);
+      assert.deepEqual(run.steps, []);
+      assert.deepEqual(run.created, []);
+    }
+  });
+
+  it("refuses a same-repo pull request from a reserved preview-fork branch", async () => {
+    const run = commentDeploy("/deploy preprod", {
+      headRepo: { id: 1 },
+      headRef: "preview-fork/pr-3",
+    });
+    assert.equal((await run.result).kind, "reserved-branch");
+    assert.deepEqual(run.steps, []);
+    assert.deepEqual(run.created, []);
   });
 
   it("never writes a branch for a same-repo pull request", async () => {
@@ -744,6 +774,17 @@ describe("fork preview branch", () => {
       method: "PATCH",
       body: { sha: FORK_SHA, force: true },
     });
+  });
+
+  it("throws when GitHub moves the branch to another commit", async () => {
+    const { options } = github([
+      [422, { message: "Reference already exists" }],
+      [200, { object: { sha: STALE_SHA } }],
+    ]);
+    await assert.rejects(
+      pointForkPreviewBranch({ ...options, sha: FORK_SHA }),
+      /did not move preview-fork\/pr-12/,
+    );
   });
 
   it("throws when GitHub refuses the branch", async () => {
@@ -1003,6 +1044,34 @@ describe("summarizeCliDeployResult", () => {
     assert.deepEqual(summarizeCliDeployResult({ kind: "ignore" }), {
       kind: "ignore",
     });
+  });
+});
+
+describe("changesVercelConfig", () => {
+  it("matches Vercel project config files only", () => {
+    for (const filename of [
+      "apps/core/vercel.json",
+      "vercel.json",
+      "apps/web/vercel.ts",
+      "now.json",
+    ]) {
+      assert.ok(changesVercelConfig([{ filename }]), filename);
+    }
+    assert.ok(
+      !changesVercelConfig([
+        { filename: "docs/vercel.md" },
+        { filename: "apps/web/vercel.json.bak" },
+        { filename: "scripts/ci/vercel-deploy.mjs" },
+      ]),
+    );
+    assert.ok(
+      changesVercelConfig([
+        {
+          filename: "apps/core/config.json",
+          previous_filename: "apps/core/vercel.json",
+        },
+      ]),
+    );
   });
 });
 

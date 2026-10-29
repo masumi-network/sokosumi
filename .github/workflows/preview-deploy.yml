@@ -41,8 +41,9 @@ jobs:
       queue: max
     permissions:
       # Write: a fork PR deploys from `preview-fork/pr-<number>`, which this
-      # job points at the approved SHA. Vercel scopes env vars only to our
-      # branches. GitHub starts no workflow run for a ref GITHUB_TOKEN writes.
+      # job points at the approved SHA. Vercel refused env vars scoped to
+      # `refs/pull/<number>/head`. GitHub starts no workflow run for a ref
+      # GITHUB_TOKEN writes.
       contents: write
       pull-requests: write
       issues: write
