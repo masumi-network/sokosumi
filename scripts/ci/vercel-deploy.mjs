@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 import {
   preparePreviewResources,
   previewMetadata,
+  vercelErrorDetail,
 } from "./preview-resources.ts";
 
 const NETWORKS = ["mainnet", "preprod"];
@@ -174,6 +175,21 @@ export function hasPreviewRelevantChanges(files) {
   );
 }
 
+const VERCEL_CONFIG_FILE = /(^|\/)(vercel\.(json|[cm]?[jt]s)|now\.json)$/;
+
+/**
+ * Whether any changed file is a Vercel project config Vercel reads from Git.
+ * Renaming one away counts: without it, Vercel builds every branch.
+ */
+export function changesVercelConfig(files) {
+  return files.some((file) =>
+    (typeof file === "string"
+      ? [file]
+      : [file?.filename, file?.previous_filename]
+    ).some((name) => typeof name === "string" && VERCEL_CONFIG_FILE.test(name)),
+  );
+}
+
 export function noPreviewChangesMessage() {
   return [
     "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, or `packages/`.",
@@ -221,11 +237,8 @@ export async function createGitDeployment({
   const payload = await response.json().catch(() => undefined);
   if (!response.ok) {
     // Vercel's error body names the cause; without it the log shows only a status.
-    const reason = [payload?.error?.code, payload?.error?.message]
-      .filter(Boolean)
-      .join(": ");
     throw new Error(
-      `Vercel deploy failed for ${target.name} (${response.status})${reason ? `: ${reason}` : ""}`,
+      `Vercel deploy failed for ${target.name} (${response.status})${vercelErrorDetail(payload)}`,
     );
   }
   return payload;
@@ -306,9 +319,13 @@ export async function githubJson(fetchImpl, token, url, init = {}) {
   }
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(`GitHub ${response.status}: ${JSON.stringify(payload)}`);
+    throw githubError(response.status, payload);
   }
   return payload;
+}
+
+export function githubError(status, payload) {
+  return new Error(`GitHub ${status}: ${JSON.stringify(payload)}`);
 }
 
 /**
@@ -362,14 +379,97 @@ function failedDeployments(targets, deployments) {
 }
 
 /**
- * The ref a preview deploys from and scopes its Core env vars to. A fork's
+ * The branch a preview deploys from and scopes its Core env vars to. A fork's
  * branch does not exist in this repository, and its name can equal one of
- * ours (even `main`), so forks use the PR's own head ref here.
+ * ours (even `main`). Vercel refused env vars scoped to `refs/pull/<n>/head`
+ * with a 400, most likely because it scopes them only to branches of the
+ * connected repository. So a fork deploys from a branch of ours that
+ * `/deploy` points at the approved SHA (see pointForkPreviewBranch).
  */
 export function previewRef(pullRequest) {
   return isSameRepoPullRequest(pullRequest)
     ? pullRequest.head.ref
-    : `refs/pull/${pullRequest.number}/head`;
+    : forkPreviewBranch(pullRequest.number);
+}
+
+/** Reserved for the preview workflow: never push a branch under `preview-fork/`. */
+export const FORK_PREVIEW_BRANCH_PREFIX = "preview-fork/pr-";
+
+export function forkPreviewBranch(pullNumber) {
+  return `${FORK_PREVIEW_BRANCH_PREFIX}${pullNumber}`;
+}
+
+/**
+ * Create or force-move this repository's fork preview branch to `sha`, the
+ * head commit the commenter approved. No workflow runs on that ref: GitHub
+ * starts no run for a ref written with GITHUB_TOKEN. Vercel builds only
+ * `main` on its own (`git.deploymentEnabled`); a fork that flips that only
+ * builds this same approved commit.
+ */
+export async function pointForkPreviewBranch({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  branch,
+  sha,
+}) {
+  const refs = `https://api.github.com/repos/${repoOwner}/${repoName}/git/refs`;
+  const headers = {
+    ...githubHeaders(githubToken),
+    "Content-Type": "application/json",
+  };
+  const created = await fetchImpl(refs, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+  });
+  if (created.ok) {
+    return;
+  }
+  // 422: the branch exists from an earlier `/deploy`. Move it, also after a
+  // force-push to the fork.
+  if (created.status !== 422) {
+    throw githubError(
+      created.status,
+      await created.json().catch(() => undefined),
+    );
+  }
+  const moved = await githubJson(
+    fetchImpl,
+    githubToken,
+    `${refs}/heads/${branch}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha, force: true }),
+    },
+  );
+  if (moved?.object?.sha !== sha) {
+    throw new Error(`GitHub did not move ${branch} to the approved commit`);
+  }
+}
+
+/** Delete the fork preview branch. A missing branch counts as deleted. */
+export async function deleteForkPreviewBranch({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  branch,
+}) {
+  const response = await fetchImpl(
+    `https://api.github.com/repos/${repoOwner}/${repoName}/git/refs/heads/${branch}`,
+    { method: "DELETE", headers: githubHeaders(githubToken) },
+  );
+  // GitHub answers 422 "Reference does not exist" for a deleted branch.
+  if (response.ok || response.status === 404 || response.status === 422) {
+    return;
+  }
+  throw githubError(
+    response.status,
+    await response.json().catch(() => undefined),
+  );
 }
 
 export function previewGitSource(pullRequest, repoId) {
@@ -384,7 +484,7 @@ export function previewGitSource(pullRequest, repoId) {
   };
 }
 
-function isSameRepoPullRequest(pullRequest) {
+export function isSameRepoPullRequest(pullRequest) {
   return pullRequest.head.repo?.id === pullRequest.base.repo.id;
 }
 
@@ -635,6 +735,32 @@ export async function runPreviewDeployComment(options) {
       if (!isTruncatedFileList(files) && !hasPreviewRelevantChanges(files)) {
         await comment(noPreviewChangesMessage());
         return { kind: "skip" };
+      }
+      const fork = !isSameRepoPullRequest(pullRequest);
+      if (!fork && pullRequest.head.ref.startsWith("preview-fork/")) {
+        await comment(
+          "Branches under `preview-fork/` are reserved for fork previews. Push this change to another branch and open a new pull request to preview it.",
+        );
+        return { kind: "reserved-branch" };
+      }
+      // Vercel reads `git.deploymentEnabled` from the pushed commit, so a fork's
+      // config could start builds on our branch in projects nobody approved.
+      if (fork && (isTruncatedFileList(files) || changesVercelConfig(files))) {
+        await comment(
+          "This pull request comes from a fork and changes a Vercel config file such as `vercel.json`, or has too many changed files to check. A fork preview builds from a branch of this repository, where that file could start builds nobody approved, so it gets no preview.",
+        );
+        return { kind: "fork-vercel-config" };
+      }
+      // Before the env vars: Vercel refused them for a ref that is not a branch.
+      if (fork) {
+        await (options.pointBranch ?? pointForkPreviewBranch)({
+          fetchImpl,
+          githubToken,
+          repoOwner,
+          repoName,
+          branch: previewRef(pullRequest),
+          sha: pullRequest.head.sha,
+        });
       }
       await (options.prepareResources ?? preparePreviewResources)(
         {

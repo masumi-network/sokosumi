@@ -40,7 +40,11 @@ jobs:
       cancel-in-progress: false
       queue: max
     permissions:
-      contents: read
+      # Write: a fork PR deploys from `preview-fork/pr-<number>`, which this
+      # job points at the approved SHA. Vercel refused env vars scoped to
+      # `refs/pull/<number>/head`. GitHub starts no workflow run for a ref
+      # GITHUB_TOKEN writes.
+      contents: write
       pull-requests: write
       issues: write
     runs-on: ubuntu-latest
@@ -278,7 +282,8 @@ jobs:
       queue: max
     environment: preview-database
     permissions:
-      contents: read
+      # Write: deletes a closed fork PR's `preview-fork/pr-<number>` branch.
+      contents: write
       pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 40

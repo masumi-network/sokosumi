@@ -180,6 +180,46 @@ describe("NeedsYouPanel", () => {
       "App.Projects.column.needsYou.error",
     );
   });
+
+  it("lists the rows quietly on Home, with no panel, and Show all beside the heading", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        projects: { [project.id]: { name: "Launch", logo: null } },
+        quiet: true,
+      }),
+    );
+
+    const section = screen.getByTestId("home-needs-you");
+    expect(screen.queryByTestId("workspace-needs-you")).toBeNull();
+    expect(
+      within(section).getByRole("heading", {
+        name: "App.Projects.column.needsYou.title",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId("home-needs-you-row")).toHaveLength(1);
+    expect(
+      within(section).getByRole("link", {
+        name: "App.Projects.column.needsYou.showAll",
+      }),
+    ).toHaveAttribute("href", "/notifications");
+  });
+
+  it("says in one line on Home that nothing waits, or that the feed failed", async () => {
+    for (const [feed, line] of [
+      [Promise.resolve([]), "App.Projects.column.needsYou.empty"],
+      [Promise.resolve(null), "App.Projects.column.needsYou.error"],
+    ] as const) {
+      const { unmount } = render(
+        await NeedsYouPanel({ feed, projects: {}, quiet: true }),
+      );
+      expect(screen.getByTestId("home-needs-you-empty")).toHaveTextContent(
+        line,
+      );
+      expect(screen.queryByRole("link")).toBeNull();
+      unmount();
+    }
+  });
 });
 
 describe("RecentActivityPanel", () => {

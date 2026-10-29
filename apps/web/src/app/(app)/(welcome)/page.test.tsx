@@ -5,6 +5,8 @@ const getMine = vi.fn();
 const listRooms = vi.fn();
 const listMessages = vi.fn();
 const sokoBotHome = vi.fn();
+const needsYouPanel = vi.fn();
+const chatLanding = vi.fn();
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -46,7 +48,25 @@ vi.mock("@/app/chat/components/chat-landing-notice", () => ({
   ChatLandingNotice: () => null,
 }));
 vi.mock("@/app/chat/components/landing/chat-landing", () => ({
-  ChatLanding: () => <div>coworker welcome</div>,
+  ChatLanding: (props: { needsYou?: React.ReactNode }) => {
+    chatLanding(props);
+    return (
+      <div>
+        coworker welcome
+        {props.needsYou}
+      </div>
+    );
+  },
+}));
+vi.mock("@/lib/services/notification.service", () => ({
+  notificationService: { listNeedsYou: async () => [] },
+}));
+vi.mock("@/app/projects/components/workspace-column", () => ({
+  panelFeed: <T,>(promise: Promise<T[]>) => promise.catch(() => null),
+  NeedsYouPanel: (props: unknown) => {
+    needsYouPanel(props);
+    return <div>needs you</div>;
+  },
 }));
 vi.mock("@/app/chat/components/landing/chat-landing.mobile", () => ({
   ChatLandingMobile: () => null,
@@ -102,6 +122,17 @@ describe("WelcomePage", () => {
     expect(sokoBotHome).not.toHaveBeenCalled();
   });
 
+  it("puts the quiet Needs you under the coworker welcome", async () => {
+    getMine.mockResolvedValue(null);
+    await renderPage();
+
+    expect(screen.getByText("needs you")).toBeTruthy();
+    expect(needsYouPanel).toHaveBeenCalledTimes(1);
+    expect(needsYouPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ quiet: true, projects: {} }),
+    );
+  });
+
   it("keeps the coworker welcome when the bot cannot be read", async () => {
     getMine.mockRejectedValue(new Error("feature off"));
     await renderPage();
@@ -123,6 +154,7 @@ describe("WelcomePage", () => {
         roomId: "room-1",
         summary: { awaitingInput: 2 },
         teamTasks: [expect.objectContaining({ name: "Plan my week" })],
+        needsYou: expect.anything(),
       }),
     );
   });
