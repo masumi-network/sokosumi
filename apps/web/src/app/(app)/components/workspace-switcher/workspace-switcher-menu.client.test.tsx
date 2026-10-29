@@ -236,7 +236,7 @@ describe("WorkspaceSwitcherMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
 
-    expect(screen.getByText("owner · memberCount")).toBeInTheDocument();
+    expect(screen.getByText("roleAndMemberCount")).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: "organizationSettings" }),
     ).toHaveAttribute("href", "/organization");

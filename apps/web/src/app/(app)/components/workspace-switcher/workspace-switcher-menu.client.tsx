@@ -112,7 +112,6 @@ function ActiveOrganizationHeader({
   onInvite,
 }: ActiveOrganizationHeaderProps) {
   const t = useTranslations("Components.OrganizationSwitcher");
-  const tRole = useTranslations("Components.Organizations.Role");
   const canInvite =
     workspace.role !== null && isOrganizationOwnerOrAdmin(workspace.role);
 
@@ -131,14 +130,10 @@ function ActiveOrganizationHeader({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{workspace.name}</p>
             <p className="text-muted-foreground text-xs">
-              {[
-                workspace.role ? tRole(workspace.role) : null,
-                workspace.memberCount !== null
-                  ? t("memberCount", { count: workspace.memberCount })
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
+              {t("roleAndMemberCount", {
+                role: workspace.role ?? "member",
+                count: workspace.memberCount ?? 0,
+              })}
             </p>
           </div>
         </div>
@@ -205,6 +200,8 @@ export default function WorkspaceSwitcherMenu({
     openCreateWorkspace,
     openInviteMembers,
   } = useWorkspaceSwitcherState();
+  const showOrganizationHeader =
+    activeWorkspace !== null && activeOrganizationId !== null;
 
   return (
     <div
@@ -257,8 +254,13 @@ export default function WorkspaceSwitcherMenu({
             <WorkspaceSwitcherArrows placement={placement} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72" align={MENU_ALIGN[placement]}>
-          {activeWorkspace && activeOrganizationId !== null ? (
+        <DropdownMenuContent
+          // The pinned header's height, so a row focused by arrow keys
+          // scrolls into view below it, never under it.
+          className={cn("w-72", showOrganizationHeader && "scroll-pt-29")}
+          align={MENU_ALIGN[placement]}
+        >
+          {showOrganizationHeader ? (
             <ActiveOrganizationHeader
               sessionUser={sessionUser}
               workspace={activeWorkspace}

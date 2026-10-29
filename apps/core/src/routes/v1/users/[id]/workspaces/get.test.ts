@@ -313,6 +313,30 @@ describe("GET /users/{id}/workspaces", () => {
     );
   });
 
+  it("lists a membership with an unknown stored role as having no role", async () => {
+    memberFindManyMock.mockResolvedValue([
+      {
+        role: "guest",
+        organization: {
+          id: "org_1",
+          name: "Acme",
+          slug: "acme-x1y2z3",
+          logo: null,
+          metadata: null,
+          _count: { members: 3 },
+          workspace: { id: ORG_WORKSPACE_ID },
+        },
+      },
+    ]);
+
+    const response = await createApp().request("/me/workspaces");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.workspaces).toEqual([
+      expect.objectContaining({ id: ORG_WORKSPACE_ID, role: null }),
+    ]);
+  });
+
   it("creates the missing workspace row of an organization membership", async () => {
     memberFindManyMock.mockResolvedValue([
       {

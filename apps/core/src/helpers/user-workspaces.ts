@@ -100,7 +100,8 @@ export async function listUserWorkspaces(
       name: organization.name,
       organizationId: organization.id,
       slug: organization.slug,
-      role: memberRoleSchema.parse(role),
+      // An unknown stored role reads as no role, so one bad row cannot fail the list.
+      role: memberRoleSchema.safeParse(role).data ?? null,
       memberCount: organization._count.members,
       enabledSocialProviders: [
         ...socialProvidersForWorkspace({ organizationSlug: organization.slug }),

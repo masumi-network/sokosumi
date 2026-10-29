@@ -19411,7 +19411,7 @@ export const UserWorkspaceSchema = {
                 }
             ],
             example: 'member',
-            description: 'The person\'s role in the organization, or null for a personal workspace'
+            description: 'The person\'s role in the organization, or null for a personal workspace or a role this API does not know'
         },
         memberCount: {
             type: [

@@ -199,7 +199,7 @@
       "inviteMembers": "Invite members",
       "organizationSettings": "Settings",
       "membersAndSettings": "Members & settings",
-      "memberCount": "{count, plural, =1 {1 member} other {# members}}"
+      "roleAndMemberCount": "{role, select, owner {Owner} admin {Admin} other {Member}} · {count, plural, =1 {1 member} other {# members}}"
     },
     "DataTable": {
       "Data": {

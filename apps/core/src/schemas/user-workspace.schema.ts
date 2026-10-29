@@ -42,7 +42,7 @@ export const userWorkspaceSchema = z
     }),
     role: memberRoleNullableSchema.openapi({
       description:
-        "The person's role in the organization, or null for a personal workspace",
+        "The person's role in the organization, or null for a personal workspace or a role this API does not know",
     }),
     memberCount: z.number().int().positive().nullable().openapi({
       description:
