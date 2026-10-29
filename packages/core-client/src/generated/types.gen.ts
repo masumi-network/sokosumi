@@ -46997,6 +46997,10 @@ export type GetProjectsActivityData = {
          * How many rows to return, newest first
          */
         limit?: number;
+        /**
+         * Only this project's events. It may be Closed or one of the reader's Hidden projects: its history stays readable.
+         */
+        projectId?: string;
     };
     url: '/projects/activity';
 };
@@ -60952,6 +60956,10 @@ export type GetNotificationsData = {
          * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
          */
         needsAction?: 'true' | 'false';
+        /**
+         * With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.
+         */
+        projectId?: string;
         /**
          * When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.
          */

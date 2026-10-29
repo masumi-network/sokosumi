@@ -30,7 +30,12 @@ vi.mock("@/lib/services/notification.service", () => ({
   notificationService: notificationServiceMock,
 }));
 
-vi.mock("@/app/projects/components/workspace-column", () => ({
+vi.mock("@/app/projects/components/workspace-column", async () => ({
+  panelFeed: (
+    await vi.importActual<
+      typeof import("@/app/projects/components/workspace-column")
+    >("@/app/projects/components/workspace-column")
+  ).panelFeed,
   WorkspaceColumn: () => <aside data-testid="workspace-column" />,
 }));
 

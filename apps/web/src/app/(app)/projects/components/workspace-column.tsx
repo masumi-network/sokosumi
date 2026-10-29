@@ -19,21 +19,33 @@ import { WorkspaceColumnPanelSkeleton } from "./workspace-column-skeleton";
 /** Null when the feed failed: the panel says so instead of failing the page. */
 type PanelFeed<T> = Promise<T[] | null>;
 
+/** A panel's feed failing leaves that panel saying so, not the page erroring. */
+export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
+  return promise.catch((error: unknown) => {
+    console.warn("Workspace column feed failed", { error });
+    return null;
+  });
+}
+
 interface WorkspaceColumnProps {
   needsYou: PanelFeed<NotificationItem>;
   activity: PanelFeed<ProjectActivityItem>;
   projects: Record<string, ColumnProject>;
+  /** The feeds hold one project's rows: Project Overview's right column. */
+  projectScoped?: boolean;
 }
 
 /**
  * The Workspace column beside the Open grid: Needs you, then Recent
  * activity. Each panel streams behind its own boundary, so a slow feed holds
- * up neither the grid nor the other panel.
+ * up neither the grid nor the other panel. Project Overview shows the same
+ * two panels with feeds scoped to its project.
  */
 export function WorkspaceColumn({
   needsYou,
   activity,
   projects,
+  projectScoped = false,
 }: WorkspaceColumnProps) {
   return (
     <div data-testid="workspace-column" className="flex min-w-0 flex-col gap-5">
@@ -49,7 +61,7 @@ export function WorkspaceColumn({
           <WorkspaceColumnPanelSkeleton testId="workspace-activity-loading" />
         }
       >
-        <RecentActivityPanel feed={activity} />
+        <RecentActivityPanel feed={activity} projectScoped={projectScoped} />
       </Suspense>
     </div>
   );
@@ -165,8 +177,10 @@ function activityHref(item: ProjectActivityItem): string {
 
 export async function RecentActivityPanel({
   feed,
+  projectScoped = false,
 }: {
   feed: WorkspaceColumnProps["activity"];
+  projectScoped?: boolean;
 }) {
   const [items, t, timeLabel] = await Promise.all([
     feed,
@@ -198,7 +212,7 @@ export async function RecentActivityPanel({
     <WorkspaceColumnPanel
       testId="workspace-activity"
       title={t("title")}
-      empty={items ? t("empty") : t("error")}
+      empty={items ? t(projectScoped ? "emptyProject" : "empty") : t("error")}
       action={{ kind: "expand", label: t("showAll") }}
       rows={(items ?? []).map((item) => {
         const { title, event } = describe(item);

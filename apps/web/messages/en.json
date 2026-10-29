@@ -2334,6 +2334,7 @@
         "activity": {
           "title": "Recent activity",
           "empty": "No activity in open projects yet.",
+          "emptyProject": "No activity in this project yet.",
           "error": "Failed to load recent activity.",
           "showAll": "Show all",
           "untitledJob": "Untitled job",
@@ -2996,6 +2997,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Latest update",
+        "stats": {
+          "label": "Task counts",
+          "running": "Running",
+          "waiting": "Waiting",
+          "done": "Done"
+        },
         "emptyBriefing": "No briefing yet.",
         "writeBriefing": "Write briefing",
         "showMore": "Show more",
