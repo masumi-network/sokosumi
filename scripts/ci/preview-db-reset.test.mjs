@@ -23,6 +23,9 @@ const PULL_REQUEST = {
   base: { repo: { id: 99 } },
 };
 
+// A full SHA, so the fork refusal is not a usage reply.
+const FORK_HEAD_SHA = "a".repeat(40);
+
 const NEON_ENV = {
   NEON_API_KEY: "neon-key",
   NEON_PREVIEW_PROJECT_ID_MAINNET: "prj-mainnet",
@@ -269,14 +272,13 @@ describe("runPreviewDbResetComment", () => {
 
   it("refuses fork pull requests even with the approved head SHA", async () => {
     // A reset redeploys the current head, so a SHA cannot approve it.
-    const sha = "a".repeat(40);
     const forkPull = async () => ({
       ...PULL_REQUEST,
-      head: { ...PULL_REQUEST.head, sha, repo: { id: 2 } },
+      head: { ...PULL_REQUEST.head, sha: FORK_HEAD_SHA, repo: { id: 2 } },
     });
     for (const commentBody of [
-      `/reset-db preprod ${sha}`,
-      `/deploy preprod ${sha} --reset-db`,
+      `/reset-db preprod ${FORK_HEAD_SHA}`,
+      `/deploy preprod ${FORK_HEAD_SHA} --reset-db`,
     ]) {
       const { options, posted, neonCalls, created } = setup({
         commentBody,

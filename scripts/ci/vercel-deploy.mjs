@@ -457,13 +457,13 @@ export async function settlePreviewDeployments(options) {
 
 /**
  * Shared flow for PR comment commands: parse `command.name`, require write
- * access and a same-repository PR, react with eyes, then call `command.run`.
+ * access and a same-repository PR (or, with `command.allowFork`, a fork PR at
+ * a named head SHA), react with eyes, then call `command.run`.
  * `run` reacts with rocket itself on success. A thrown error becomes a
  * `<subject> failed: …` reply.
  *
- * `command.allowFork` also accepts fork PRs, but only when the comment names
- * the PR's full head SHA: the commenter approves that reviewed commit, and a
- * push after the review no longer matches.
+ * The fork PR's comment must name its full head SHA: the commenter approves
+ * that reviewed commit, and a push after the review no longer matches.
  */
 export async function runPullRequestCommand(options, command) {
   const {
@@ -566,7 +566,7 @@ export async function runPullRequestCommand(options, command) {
     return { kind: "closed" };
   }
 
-  // The reply leaves out the head SHA: pasting it would approve commits
+  // Neither reply names the head SHA: pasting it would approve commits
   // pushed after the commenter's review.
   if (fork && !parsed.sha) {
     await comment(
@@ -578,7 +578,7 @@ export async function runPullRequestCommand(options, command) {
   // Also checked on same-repo PRs that name one: the SHA is an approval.
   if (parsed.sha && parsed.sha !== pullRequest.head.sha) {
     await comment(
-      `\`${parsed.sha}\` is not this pull request's head commit (\`${pullRequest.head.sha}\`). Review the new commits, then comment again with the current head SHA.`,
+      `\`${parsed.sha}\` is not this pull request's head commit. Review the commits pushed since, then comment again with the SHA of the head commit you reviewed.`,
     );
     return { kind: "sha-mismatch" };
   }
