@@ -283,8 +283,8 @@ inside a full-width panel.
   app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
   little above the middle of the screen, prompt chips, then a quiet list with no panel or
   borders.
-- **Chat room:** the transcript and composer share one centred `max-w-[45.25rem]` reading
-  column (at most about 95 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`, applied by
+- **Chat room:** the transcript and composer share one centred `max-w-4xl` reading
+  column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`, applied by
   `RoomShellLayout`); the header and scroller stay full width. The thread panel stays full width.
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
