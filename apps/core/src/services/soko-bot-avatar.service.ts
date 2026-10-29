@@ -27,7 +27,10 @@ import {
   randomSeed,
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
-import { AVATAR_IMAGE_MODEL } from "@/lib/soko-bot-avatar/provider";
+import {
+  AVATAR_IMAGE_MODEL,
+  IMAGE_TIMEOUT_RENDER_MS,
+} from "@/lib/soko-bot-avatar/provider";
 import {
   AVATAR_STATES,
   type AvatarLook,
@@ -223,6 +226,7 @@ async function fillReservation(reservation: AvatarReservation): Promise<void> {
     prompt: reservation.prompt,
     reference: await loadHouseScene(style),
     target: style.backgroundTarget("idle"),
+    timeoutMs: IMAGE_TIMEOUT_RENDER_MS,
   });
   const imageUrl = await storeAvatarAsset(
     image,

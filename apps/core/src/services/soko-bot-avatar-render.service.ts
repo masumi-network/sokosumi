@@ -13,6 +13,7 @@ import {
 import { downloadAvatarAsset, encodeLoops } from "@/lib/soko-bot-avatar/media";
 import {
   avatarProvider,
+  IMAGE_TIMEOUT_RENDER_MS,
   VideoSubmissionUncertainError,
 } from "@/lib/soko-bot-avatar/provider";
 import {
@@ -150,6 +151,7 @@ async function drawStateStill(
       prompt: stillPrompt(style, state, creatureFor(style, row.avatar.look)),
       reference: await downloadAvatarAsset(row.avatar.imageUrl),
       target: style.backgroundTarget(state),
+      timeoutMs: IMAGE_TIMEOUT_RENDER_MS,
     });
     const stillUrl = await storeAvatarAsset(image, `${row.avatar.id}-${state}`);
     await prisma.sokoBotAvatarRender.updateMany({

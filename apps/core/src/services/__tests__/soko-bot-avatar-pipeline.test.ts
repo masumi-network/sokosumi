@@ -309,7 +309,12 @@ Object.assign(db, {
 
 import { LIMITS } from "@/config/constants";
 import { levelStill } from "@/lib/soko-bot-avatar/media";
-import { VideoSubmissionUncertainError } from "@/lib/soko-bot-avatar/provider";
+import {
+  IMAGE_TIMEOUT_RENDER_MS,
+  IMAGE_TIMEOUT_STUDIO_MS,
+  ImageTimeoutError,
+  VideoSubmissionUncertainError,
+} from "@/lib/soko-bot-avatar/provider";
 import {
   AVATAR_STATES,
   AVATAR_STYLES,
@@ -1695,6 +1700,76 @@ describe("one of a kind", () => {
       "bot-old-1",
       "bot-old-2",
     ]);
+  });
+
+  describe("time limits", () => {
+    it("gives an interactive draft 45 s and the cron 120 s", async () => {
+      const draft = await keptLook({ kind: "creature", creature: "otter" });
+      expect(draft).toBeDefined();
+      expect(providerMock.editImage.mock.calls[0]?.[0].timeoutMs).toBe(
+        IMAGE_TIMEOUT_STUDIO_MS,
+      );
+      providerMock.editImage.mockClear();
+
+      await reconcileAvatarRenders();
+
+      expect(IMAGE_TIMEOUT_STUDIO_MS).toBe(45_000);
+      expect(IMAGE_TIMEOUT_RENDER_MS).toBe(120_000);
+      expect(providerMock.editImage.mock.calls[0]?.[0].timeoutMs).toBe(
+        IMAGE_TIMEOUT_RENDER_MS,
+      );
+    });
+
+    it("answers a stalled draft with a distinct 503 and gives the slot back", async () => {
+      providerMock.editImage.mockRejectedValue(new ImageTimeoutError("slow"));
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const error = await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "creature", creature: "frog" },
+      }).catch((caught: unknown) => caught);
+
+      expect(error).toMatchObject({
+        status: 503,
+        message: "Drawing took too long. Try again.",
+        cause: { kind: "avatar_draw_timed_out" },
+      });
+      expect(avatars.rows).toHaveLength(0);
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ kind: "avatar_draw_timed_out" }),
+      );
+    });
+
+    it("keeps the generic kind for any other draw failure", async () => {
+      providerMock.editImage.mockRejectedValue(new Error("quota"));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(
+        createAvatarDraft({
+          sokoBotId: BOT,
+          userId: USER,
+          change: { kind: "creature", creature: "frog" },
+        }),
+      ).rejects.toMatchObject({ cause: { kind: "avatar_draw_failed" } });
+    });
+
+    it("lets a stalled render retry on the next tick, as any failed still does", async () => {
+      await keptLook({ kind: "creature", creature: "otter" });
+      providerMock.editImage.mockClear();
+      providerMock.editImage.mockRejectedValueOnce(
+        new ImageTimeoutError("slow"),
+      );
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await reconcileAvatarRenders();
+      await reconcileUntilSettled();
+
+      expect(renders.rows.map((row) => row.status)).toEqual(
+        Array(6).fill("READY"),
+      );
+    });
   });
 
   describe("when drawing cannot happen", () => {

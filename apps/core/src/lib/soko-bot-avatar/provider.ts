@@ -22,7 +22,13 @@ export const AVATAR_REWRITER_MODEL = "anthropic/claude-haiku-5.5";
 /** Honours a last frame, which the loop needs. Gateway's Wan does not. */
 export const AVATAR_VIDEO_MODEL = "bytedance/seedance-v1.5-pro";
 
-const IMAGE_TIMEOUT_MS = 120_000;
+/**
+ * How long one image edit may take. An edit usually answers in under ten
+ * seconds, but the upstream stalls now and then for minutes. Someone waiting in
+ * the studio would rather retry after 45 s; the cron has nobody waiting.
+ */
+export const IMAGE_TIMEOUT_STUDIO_MS = 45_000;
+export const IMAGE_TIMEOUT_RENDER_MS = 120_000;
 const REWRITE_TIMEOUT_MS = 20_000;
 const VIDEO_REQUEST_TIMEOUT_MS = 30_000;
 const LOOP_SECONDS = 4;
@@ -47,12 +53,24 @@ export type VideoPoll =
  */
 export class VideoSubmissionUncertainError extends Error {}
 
+/** The image edit did not answer within its time limit. */
+export class ImageTimeoutError extends Error {}
+
+/** The image type of a reference, from its first bytes. */
+function imageMediaType(image: Buffer): string {
+  if (image[0] === 0xff && image[1] === 0xd8) return "image/jpeg";
+  if (image.subarray(0, 4).toString("latin1") === "RIFF") return "image/webp";
+  return "image/png";
+}
+
 export interface AvatarProvider {
   /** One image edit: `system` is the house prompt, `reference` the current look. */
   editImage(input: {
     system: string;
     prompt: string;
     reference: Buffer;
+    /** Throws {@link ImageTimeoutError} when the edit takes longer. */
+    timeoutMs: number;
   }): Promise<Buffer>;
   rewrite(input: { rules: string; request: string }): Promise<RewrittenChange>;
   /**
@@ -77,7 +95,8 @@ function gateway() {
 
 function createGatewayProvider(): AvatarProvider {
   return {
-    async editImage({ system, prompt, reference }) {
+    async editImage({ system, prompt, reference, timeoutMs }) {
+      const signal = AbortSignal.timeout(timeoutMs);
       const result = await generateText({
         model: gateway().languageModel(AVATAR_IMAGE_MODEL),
         system,
@@ -85,7 +104,11 @@ function createGatewayProvider(): AvatarProvider {
           {
             role: "user",
             content: [
-              { type: "image", image: reference },
+              {
+                type: "file",
+                data: reference,
+                mediaType: imageMediaType(reference),
+              },
               { type: "text", text: prompt },
             ],
           },
@@ -99,7 +122,15 @@ function createGatewayProvider(): AvatarProvider {
         // The row's attempt counter is the retry policy; a hidden retry here
         // would be a second paid call it cannot see.
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+        abortSignal: signal,
+      }).catch((error: unknown) => {
+        // The SDK wraps the abort in its own error, so ask the signal.
+        if (signal.aborted) {
+          throw new ImageTimeoutError(
+            `The image edit took longer than ${timeoutMs} ms`,
+          );
+        }
+        throw error;
       });
       const image = result.files.find((file) =>
         file.mediaType.startsWith("image/"),

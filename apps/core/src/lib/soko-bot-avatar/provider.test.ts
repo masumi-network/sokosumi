@@ -34,6 +34,7 @@ import {
   AVATAR_REWRITER_MODEL,
   AVATAR_VIDEO_MODEL,
   avatarProvider,
+  ImageTimeoutError,
   VideoSubmissionUncertainError,
 } from "./provider";
 
@@ -63,6 +64,7 @@ describe("avatar provider", () => {
         system: "s",
         prompt: "p",
         reference: Buffer.from("x"),
+        timeoutMs: 1_000,
       }),
     ).rejects.toThrow("AI_GATEWAY_API_KEY");
   });
@@ -81,14 +83,16 @@ describe("avatar provider", () => {
         system: "HOUSE",
         prompt: "make it blue",
         reference,
+        timeoutMs: 45_000,
       });
 
       expect(image).toEqual(Buffer.from([1, 2, 3]));
       expect(languageModelMock).toHaveBeenCalledWith(AVATAR_IMAGE_MODEL);
       const call = generateTextMock.mock.calls[0]?.[0];
       expect(call.system).toBe("HOUSE");
+      // The current form of an image part, not the deprecated `type: "image"`.
       expect(call.messages[0].content).toEqual([
-        { type: "image", image: reference },
+        { type: "file", data: reference, mediaType: "image/png" },
         { type: "text", text: "make it blue" },
       ]);
       expect(call.providerOptions.google).toMatchObject({
@@ -97,6 +101,79 @@ describe("avatar provider", () => {
       });
       // A hidden retry would be a second paid call the row cannot see.
       expect(call.maxRetries).toBe(0);
+    });
+
+    it.each([
+      ["a jpeg", Buffer.from([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg"],
+      ["a webp", Buffer.from("RIFF\0\0\0\0WEBPVP8 "), "image/webp"],
+      ["a png", Buffer.from([0x89, 0x50, 0x4e, 0x47]), "image/png"],
+    ])("sends the reference as %s", async (_name, reference, mediaType) => {
+      generateTextMock.mockResolvedValue({
+        files: [{ mediaType: "image/png", uint8Array: new Uint8Array([1]) }],
+      });
+
+      await avatarProvider().editImage({
+        system: "s",
+        prompt: "p",
+        reference,
+        timeoutMs: 1_000,
+      });
+
+      expect(
+        generateTextMock.mock.calls[0]?.[0].messages[0].content[0],
+      ).toEqual({ type: "file", data: reference, mediaType });
+    });
+
+    it("gives up when the time limit passes, and says so as a timeout", async () => {
+      // The SDK wraps the abort in an error of its own.
+      generateTextMock.mockImplementation(
+        ({ abortSignal }: { abortSignal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            abortSignal.addEventListener("abort", () =>
+              reject(new Error("Gateway request failed: aborted")),
+            );
+          }),
+      );
+
+      await expect(
+        avatarProvider().editImage({
+          system: "s",
+          prompt: "p",
+          reference: Buffer.from("x"),
+          timeoutMs: 20,
+        }),
+      ).rejects.toBeInstanceOf(ImageTimeoutError);
+    });
+
+    it("passes the time limit on as the abort signal", async () => {
+      generateTextMock.mockResolvedValue({
+        files: [{ mediaType: "image/png", uint8Array: new Uint8Array([1]) }],
+      });
+
+      await avatarProvider().editImage({
+        system: "s",
+        prompt: "p",
+        reference: Buffer.from("x"),
+        timeoutMs: 45_000,
+      });
+
+      expect(generateTextMock.mock.calls[0]?.[0].abortSignal).toBeInstanceOf(
+        AbortSignal,
+      );
+    });
+
+    it("leaves an error that is not a timeout as it is", async () => {
+      const failure = new Error("quota");
+      generateTextMock.mockRejectedValue(failure);
+
+      await expect(
+        avatarProvider().editImage({
+          system: "s",
+          prompt: "p",
+          reference: Buffer.from("x"),
+          timeoutMs: 45_000,
+        }),
+      ).rejects.toBe(failure);
     });
 
     it("throws when the model answered without an image", async () => {
@@ -109,6 +186,7 @@ describe("avatar provider", () => {
           system: "s",
           prompt: "p",
           reference: Buffer.from("x"),
+          timeoutMs: 1_000,
         }),
       ).rejects.toThrow("no image");
     });

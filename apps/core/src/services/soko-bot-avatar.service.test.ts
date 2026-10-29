@@ -189,6 +189,8 @@ describe("Soko Bot avatar pool", () => {
     const call = drawStillMock.mock.calls[0]?.[1];
     expect(call.reference).toEqual(Buffer.from("house"));
     expect(call.target).toBe(245);
+    // Nobody waits on the pool, so it gets the patient limit.
+    expect(call.timeoutMs).toBe(120_000);
   });
 
   it("fills a short pool when the caller asks to top up", async () => {

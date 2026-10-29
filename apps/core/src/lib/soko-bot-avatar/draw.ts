@@ -218,12 +218,15 @@ export async function drawStill(
     prompt: string;
     reference: Buffer;
     target: number;
+    /** See `IMAGE_TIMEOUT_STUDIO_MS` and `IMAGE_TIMEOUT_RENDER_MS`. */
+    timeoutMs: number;
   },
 ): Promise<Buffer> {
   const edited = await avatarProvider().editImage({
     system: style.housePrompt,
     prompt: input.prompt,
     reference: input.reference,
+    timeoutMs: input.timeoutMs,
   });
   return await levelStill(edited, input.target);
 }

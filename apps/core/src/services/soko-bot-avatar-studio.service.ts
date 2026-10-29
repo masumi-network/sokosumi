@@ -16,7 +16,11 @@ import {
   storeAvatarAsset,
 } from "@/lib/soko-bot-avatar/draw";
 import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
-import { AVATAR_IMAGE_MODEL } from "@/lib/soko-bot-avatar/provider";
+import {
+  AVATAR_IMAGE_MODEL,
+  IMAGE_TIMEOUT_STUDIO_MS,
+  ImageTimeoutError,
+} from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarLook,
   alsoChangePrompt,
@@ -43,6 +47,7 @@ import {
 
 const DRAWING_UNAVAILABLE = "avatar_drawing_unavailable";
 const DRAW_FAILED = "avatar_draw_failed";
+const DRAW_TIMED_OUT = "avatar_draw_timed_out";
 /** Rolls of the scene details to find a combination nobody has. */
 const REROLLS = 12;
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -247,6 +252,7 @@ export async function createAvatarDraft(input: {
       prompt: plan.prompt,
       reference,
       target: style.backgroundTarget("idle"),
+      timeoutMs: IMAGE_TIMEOUT_STUDIO_MS,
     });
     const imageUrl = await storeAvatarAsset(image, `draft-${reservation.id}`);
     await prisma.sokoBotAvatar.update({
@@ -268,14 +274,19 @@ export async function createAvatarDraft(input: {
     await prisma.sokoBotAvatar
       .deleteMany({ where: { id: reservation.id } })
       .catch(() => undefined);
+    // A stall upstream is not our fault and a retry usually works: say so.
+    const kind =
+      error instanceof ImageTimeoutError ? DRAW_TIMED_OUT : DRAW_FAILED;
     console.warn("Soko Bot avatar draft failed", {
-      kind: DRAW_FAILED,
+      kind,
       error: errorText(error),
     });
-    throw serviceUnavailable("The look could not be drawn. Try again.", {
-      kind: DRAW_FAILED,
-      reportToSentry: false,
-    });
+    throw serviceUnavailable(
+      kind === DRAW_TIMED_OUT
+        ? "Drawing took too long. Try again."
+        : "The look could not be drawn. Try again.",
+      { kind, reportToSentry: false },
+    );
   }
 }
 
