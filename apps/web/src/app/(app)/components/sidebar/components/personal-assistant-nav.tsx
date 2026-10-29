@@ -27,6 +27,8 @@ const loadYourBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
       name: member.bot.name,
       status: member.bot.status,
       lastActivityAt: member.bot.lastActivityAt,
+      avatarState: member.bot.avatarState ?? "idle",
+      avatar: member.bot.avatar ?? null,
     };
   } catch {
     return null;

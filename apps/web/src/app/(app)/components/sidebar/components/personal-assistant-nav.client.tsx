@@ -1,6 +1,11 @@
 "use client";
 
-import { AnnouncedFeature, SokoBotStatus } from "@sokosumi/core-client";
+import {
+  AnnouncedFeature,
+  type SokoBotAvatarState,
+  type SokoBotAvatarView,
+  SokoBotStatus,
+} from "@sokosumi/core-client";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,11 +13,24 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
+import {
+  AvatarStateLine,
+  AvatarStatePill,
+  useAvatarStateCopy,
+  usePlayOnce,
+  useReducedMotion,
+} from "@/components/soko-bot/avatar-state";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
 import {
   STATUS_TONE_DOT_CLASS,
   STATUS_TONE_TEXT_CLASS,
 } from "@/components/soko-bot/status-badge";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -29,6 +47,7 @@ import {
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { avatarSources } from "@/lib/soko-bot/avatar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { isPathActive } from "@/lib/utils/is-path-active";
@@ -54,6 +73,9 @@ export interface SidebarSokoBotLive extends SidebarSokoBotAvatar {
   name: string | null;
   status: SokoBotStatus;
   lastActivityAt: Date | null;
+  avatarState: SokoBotAvatarState;
+  /** Stills and loops of a crafted avatar; null for a mascot or an orb. */
+  avatar: SokoBotAvatarView | null;
 }
 
 /**
@@ -137,39 +159,49 @@ function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
     <SidebarMenuItem className="relative">
       {/* The hover and selection fill stay on this one element and cover
           both lines. */}
-      <SidebarMenuButton asChild isActive={isActive} lines={2}>
-        <SheetClose asChild>
-          <Link
-            href={SOKO_BOT_ROUTE}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              isActive
-                ? "text-sidebar-accent-foreground"
-                : SIDEBAR_ROW_LINK_CLASS,
-            )}
-          >
-            <SidebarRowSlot>
-              <LiveBotFace bot={bot} />
-            </SidebarRowSlot>
-            <span
-              className={cn(SIDEBAR_ROW_LABEL_CLASS, "flex flex-col gap-0.5")}
-            >
-              <span
-                className={cn(SIDEBAR_FEATURE_LABEL_CLASS, "leading-tight")}
+      {/* Hover or keyboard focus opens the card; Radix mounts its content only
+          while open, so the loop inside runs only while it is. */}
+      <HoverCard openDelay={200} closeDelay={100}>
+        <SidebarMenuButton asChild isActive={isActive} lines={2}>
+          <SheetClose asChild>
+            <HoverCardTrigger asChild>
+              <Link
+                href={SOKO_BOT_ROUTE}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  isActive
+                    ? "text-sidebar-accent-foreground"
+                    : SIDEBAR_ROW_LINK_CLASS,
+                )}
               >
-                <SidebarFeatureLabel
-                  label={bot.name ?? t("fallbackName")}
-                  feature={AnnouncedFeature.SOKO_BOTS}
-                />
-              </span>
-              <span className="sr-only">, </span>
-              <StatusLine bot={bot} />
-            </span>
-            {/* Holds the label clear of the team link drawn over the end. */}
-            <span aria-hidden className="w-7 shrink-0" />
-          </Link>
-        </SheetClose>
-      </SidebarMenuButton>
+                <SidebarRowSlot>
+                  <LiveBotFace bot={bot} />
+                </SidebarRowSlot>
+                <span
+                  className={cn(
+                    SIDEBAR_ROW_LABEL_CLASS,
+                    "flex flex-col gap-0.5",
+                  )}
+                >
+                  <span
+                    className={cn(SIDEBAR_FEATURE_LABEL_CLASS, "leading-tight")}
+                  >
+                    <SidebarFeatureLabel
+                      label={bot.name ?? t("fallbackName")}
+                      feature={AnnouncedFeature.SOKO_BOTS}
+                    />
+                  </span>
+                  <span className="sr-only">, </span>
+                  <StatusLine bot={bot} />
+                </span>
+                {/* Holds the label clear of the team link drawn over the end. */}
+                <span aria-hidden className="w-7 shrink-0" />
+              </Link>
+            </HoverCardTrigger>
+          </SheetClose>
+        </SidebarMenuButton>
+        <BotHoverCard bot={bot} />
+      </HoverCard>
       <div
         className={cn(
           "absolute top-1/2 right-1 z-10 -translate-y-1/2",
@@ -244,6 +276,12 @@ function LastActive({ at }: { at: Date }) {
  */
 function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
   const faceClass = "size-5 shrink-0 rounded-full object-cover";
+  const reducedMotion = useReducedMotion();
+  // A state change plays once on the small face, then it rests on the still.
+  const playing = usePlayOnce(bot.avatarState, false);
+  const sources = avatarSources(bot.avatar, bot.avatarState, bot.imageUrl);
+  const shown =
+    playing && !reducedMotion && sources.loop ? sources.loop : sources.still;
 
   return (
     <span className="relative flex size-5 shrink-0">
@@ -254,8 +292,12 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
           className="border-status-working absolute inset-0 rounded-full border-2 motion-safe:animate-ping"
         />
       ) : null}
-      {bot.imageUrl ? (
-        <img src={bot.imageUrl} alt="" className={faceClass} aria-hidden />
+      {shown ? (
+        <AvatarFace
+          src={shown}
+          crafted={sources.crafted}
+          className={faceClass}
+        />
       ) : (
         <AuroraOrb seed={bot.seed} size={40} className={faceClass} />
       )}
@@ -268,5 +310,50 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
         )}
       />
     </span>
+  );
+}
+
+/** The bot's picture, name, state and what it is doing, beside its row. */
+function BotHoverCard({ bot }: { bot: SidebarSokoBotLive }) {
+  const t = useTranslations("App.Sidebar.Content.SokoBot");
+  const { alt } = useAvatarStateCopy();
+  const reducedMotion = useReducedMotion();
+  const sources = avatarSources(bot.avatar, bot.avatarState, bot.imageUrl);
+  const shown = !reducedMotion && sources.loop ? sources.loop : sources.still;
+  const name = bot.name ?? t("fallbackName");
+
+  return (
+    <HoverCardContent
+      side="right"
+      align="start"
+      className="flex w-66 flex-col gap-3 p-3"
+    >
+      {shown ? (
+        <img
+          src={shown}
+          alt={alt(name, bot.avatarState)}
+          className="bg-muted size-60 rounded-lg object-cover"
+        />
+      ) : (
+        <AuroraOrb
+          seed={bot.seed}
+          size={480}
+          alt={alt(name, bot.avatarState)}
+          className="size-60 rounded-lg"
+        />
+      )}
+      <div className="flex flex-col gap-1.5 px-0.5 pb-0.5">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold">{name}</span>
+          <AvatarStatePill state={bot.avatarState} />
+        </div>
+        <span className="text-muted-foreground text-xs">
+          <AvatarStateLine
+            state={bot.avatarState}
+            lastActivityAt={bot.lastActivityAt}
+          />
+        </span>
+      </div>
+    </HoverCardContent>
   );
 }

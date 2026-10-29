@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { cloneElement, isValidElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { pathnameRef, relativeTime } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
@@ -58,7 +58,7 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
-import { SokoBotStatus } from "@sokosumi/core-client";
+import { type SokoBotAvatarView, SokoBotStatus } from "@sokosumi/core-client";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
@@ -75,6 +75,8 @@ const bot: SidebarSokoBotLive = {
   name: "Mo",
   status: SokoBotStatus.IDLE,
   lastActivityAt: null,
+  avatarState: "idle",
+  avatar: null,
 };
 
 function tokens(className: string): string[] {
@@ -286,5 +288,199 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
       expect.arrayContaining(["h-auto", "md:h-auto", "min-h-11", "md:min-h-7"]),
     );
     expect(tokens).not.toContain("md:min-h-8");
+  });
+});
+
+const NO_STATES = {
+  idle: null,
+  thinking: null,
+  working: null,
+  done: null,
+  needs_you: null,
+  offline: null,
+};
+
+function stateAssets(name: string) {
+  return {
+    stillUrl: `https://blob/${name}.png`,
+    loopUrl: `https://blob/${name}-320.webp`,
+    loopLargeUrl: `https://blob/${name}-560.webp`,
+  };
+}
+
+const CRAFTED: SokoBotAvatarView = {
+  styleId: "crafted-desk",
+  styleVersion: 1,
+  stillUrl: "https://blob/idle.png",
+  states: {
+    ...NO_STATES,
+    idle: stateAssets("idle"),
+    working: stateAssets("working"),
+    done: stateAssets("done"),
+  },
+};
+
+const craftedBot: SidebarSokoBotLive = {
+  ...bot,
+  imageUrl: CRAFTED.stillUrl,
+  avatar: CRAFTED,
+};
+
+function reducedMotion(matches: boolean) {
+  vi.stubGlobal("matchMedia", () => ({
+    matches,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
+function rowFace(container: HTMLElement) {
+  return container.querySelector('[data-slot="sidebar-row-slot"] img');
+}
+
+describe("PersonalAssistantNav crafted avatar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    pathnameRef.current = "/";
+    reducedMotion(false);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("crops a crafted avatar to the creature's face", () => {
+    const { container } = renderNav({ bot: craftedBot });
+    const face = rowFace(container);
+
+    expect(face).toHaveAttribute("src", "https://blob/idle.png");
+    expect(tokens(face?.className ?? "")).toEqual(
+      expect.arrayContaining(["-left-[89%]", "-top-[51%]", "size-[240%]"]),
+    );
+    expect(face?.parentElement?.className).toContain("overflow-hidden");
+  });
+
+  it("rests on the still on mount and plays once when the state changes", () => {
+    const view = renderNav({ bot: craftedBot });
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/idle.png",
+    );
+
+    view.rerender(
+      <SidebarProvider defaultOpen>
+        <PersonalAssistantNav bot={{ ...craftedBot, avatarState: "working" }} />
+      </SidebarProvider>,
+    );
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/working-320.webp",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/working.png",
+    );
+  });
+
+  it("keeps the row on the still under reduced motion", () => {
+    reducedMotion(true);
+    const view = renderNav({ bot: craftedBot });
+    view.rerender(
+      <SidebarProvider defaultOpen>
+        <PersonalAssistantNav bot={{ ...craftedBot, avatarState: "working" }} />
+      </SidebarProvider>,
+    );
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/working.png",
+    );
+  });
+
+  it("leaves a legacy mascot uncropped and still", () => {
+    const mascot: SidebarSokoBotLive = {
+      ...bot,
+      avatarState: "working",
+      avatar: {
+        styleId: "mascot",
+        styleVersion: 1,
+        stillUrl: bot.imageUrl ?? "",
+        states: NO_STATES,
+      },
+    };
+    const { container } = renderNav({ bot: mascot });
+    const face = rowFace(container);
+
+    expect(face).toHaveAttribute("src", "https://example.com/1.png");
+    expect(tokens(face?.className ?? "")).not.toContain("size-[240%]");
+  });
+
+  describe("hover card", () => {
+    const working: SidebarSokoBotLive = {
+      ...craftedBot,
+      avatarState: "working",
+    };
+
+    function cardImage() {
+      return screen.queryByRole("img", { name: "alt(Mo,label.working)" });
+    }
+
+    function openCard() {
+      fireEvent.focus(screen.getByRole("link", { name: /Mo/ }));
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+    }
+
+    it("is closed until the row is hovered or focused", () => {
+      renderNav({ bot: working });
+      expect(cardImage()).toBeNull();
+    });
+
+    it("opens on keyboard focus with the loop, name, state and line", () => {
+      renderNav({ bot: working });
+      openCard();
+
+      expect(cardImage()).toHaveAttribute(
+        "src",
+        "https://blob/working-320.webp",
+      );
+      expect(screen.getByText("label.working")).toBeInTheDocument();
+      expect(screen.getByText("line.working")).toBeInTheDocument();
+    });
+
+    it("opens on hover too", () => {
+      renderNav({ bot: working });
+      fireEvent.pointerEnter(screen.getByRole("link", { name: /Mo/ }), {
+        pointerType: "mouse",
+      });
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(cardImage()).not.toBeNull();
+    });
+
+    it("loops only while open: closing it removes the loop", () => {
+      renderNav({ bot: working });
+      openCard();
+      expect(cardImage()).not.toBeNull();
+
+      fireEvent.blur(screen.getByRole("link", { name: /Mo/ }));
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(cardImage()).toBeNull();
+    });
+
+    it("shows the still under reduced motion", () => {
+      reducedMotion(true);
+      renderNav({ bot: working });
+      openCard();
+      expect(cardImage()).toHaveAttribute("src", "https://blob/working.png");
+    });
   });
 });
