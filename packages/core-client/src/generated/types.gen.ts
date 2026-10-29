@@ -5632,6 +5632,14 @@ export type UserWorkspace = {
      */
     websiteUrl: string | null;
     /**
+     * The person's role in the organization, or null for a personal workspace or a role this API does not know
+     */
+    role: MemberRole | null;
+    /**
+     * How many people are members of the organization, or null for a personal workspace
+     */
+    memberCount: number | null;
+    /**
      * Social providers enabled for projects owned by this workspace
      */
     enabledSocialProviders: Array<ProjectSocialProvider>;

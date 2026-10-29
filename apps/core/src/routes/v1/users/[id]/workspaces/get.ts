@@ -35,6 +35,8 @@ const route = withCoworkerContextHeaderParameters(
               name: "Acme",
               organizationId: "org_123",
               slug: "acme-x1y2z3",
+              role: "owner",
+              memberCount: 14,
               logo: null,
               websiteUrl: "https://acme.com",
               preferred: true,
