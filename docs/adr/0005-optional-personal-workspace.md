@@ -1,5 +1,7 @@
 # Optional personal workspace; first workspace from the workspace gate
 
+The superseded record of the `REQUIRE_PERSONAL_WORKSPACE` overlay is [temporary org-first personal workspace](./superseded/temporary-org-first-personal-workspace.md).
+
 A User is no longer guaranteed a personal workspace. Signup does not create one. The product is unusable until the user has a **first workspace**: they create a personal workspace, they create an organization (and its workspace), or they join an organization via invitation or join link.
 
 **Why optional (not deleted):** personal remains a first-class user-owned workspace. Invitees should not get a leftover personal workspace they never asked for. Organic users still choose personal vs organization after signup.

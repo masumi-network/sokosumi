@@ -13,7 +13,7 @@ One run turns one change into one announcement image. The frame (layout, the "Ne
 
 ## Steps
 
-1. **Gather the context.** For a PR: `gh pr view <PR> --json number,title,body,url,files`, then read its body, its linked Linear issue when you can reach it, and the diff of every file a user sees the effect of. For a description or screenshots: read them, and find the surfaces they name in `apps/web`. Take on-screen strings verbatim from `apps/web/messages/en.json`. Done when every claim you plan to make traces to what the user sent, the diff, or `en.json`. Nothing user-visible to announce: stop and say so.
+1. **Gather the context.** For a PR: `gh pr view <PR> --json number,title,body,url,files`, then read its body and the diff of every file a user sees the effect of. For a description or screenshots: read them, and find the surfaces they name in `apps/web`. Take on-screen strings verbatim from `apps/web/messages/en.json`. Done when every claim you plan to make traces to what the user sent, the diff, or `en.json`. Nothing user-visible to announce: stop and say so.
 2. **Write the pitch** into a fragment shaped like the skeleton below:
    - `h1`: two short sentences, one per line, joined by `<br />` ("Mention them.<br />They're in.").
    - `.lede`: one sentence on what changed for the user, at most 30 words.
