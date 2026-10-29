@@ -5,10 +5,11 @@
  * API key with access to that table and never reaches the browser.
  */
 
+import { normalizeContactChannelValue } from "@sokosumi/utils";
+
 const API = "https://api.sokosumi.com/v1";
 const ORG_SLUG = "utxo";
 const TABLE_ID = "01a111e2-9c09-7180-9552-44161a45e89d";
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DOMAIN = /^(?=.{1,253}$)([a-z0-9](-?[a-z0-9])*\.)+[a-z]{2,}$/i;
 
 /** Column ids by name, read once per warm instance. */
@@ -90,9 +91,11 @@ export async function POST(request: Request): Promise<Response> {
     // An empty or broken body fails the email check below.
   }
 
-  if (!EMAIL.test(email)) {
+  const address = normalizeContactChannelValue("EMAIL", email);
+  if (address === null) {
     return reply(400, { error: "Please enter a valid email." });
   }
+  email = address;
   const site = normalizeWebsite(website);
   if (site === null) {
     return reply(400, {

@@ -45,16 +45,17 @@ vi.mock("@/lib/site-capture", () => ({
     url,
     title: "Acme",
     screenshot: Buffer.from("shot"),
-    images: url.startsWith("https://acme.io")
-      ? [
-          {
-            url: "https://acme.io/sneaker.jpg",
-            width: 1200,
-            height: 900,
-            alt: "Red sneaker on white",
-          },
-        ]
-      : [],
+    images:
+      new URL(url).hostname === "acme.io"
+        ? [
+            {
+              url: "https://acme.io/sneaker.jpg",
+              width: 1200,
+              height: 900,
+              alt: "Red sneaker on white",
+            },
+          ]
+        : [],
   }),
 }));
 

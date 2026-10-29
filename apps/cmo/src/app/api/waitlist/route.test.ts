@@ -50,6 +50,10 @@ it("adds the email and website as a row in the waitlist table", async () => {
 
 it("refuses a bad email or website without calling Sokosumi", async () => {
   expect((await POST(signup({ email: "nope" }))).status).toBe(400);
+  // CodeQL's slow-regex input: refused at once, not after seconds of backtracking.
+  expect(
+    (await POST(signup({ email: `!@!.${"!.".repeat(50_000)}` }))).status,
+  ).toBe(400);
   expect(
     (await POST(signup({ email: "ana@acme.io", website: "not a site" })))
       .status,
