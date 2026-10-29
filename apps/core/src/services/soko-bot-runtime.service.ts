@@ -71,6 +71,7 @@ import {
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
+import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
@@ -146,10 +147,8 @@ import {
   type SokoBotTurnReader,
   sokoBotSharedScopeOf,
 } from "@/helpers/task-visibility";
-import {
-  GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
-  type GoogleDisplayImageRole,
-} from "@/lib/ads/campaigns";
+
+import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
 import { fitDisplayImage } from "@/lib/ads/display-image-fit";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";

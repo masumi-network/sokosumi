@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { z } from "@hono/zod-openapi";
+import {
+  GOOGLE_KEYWORD_MATCH_TYPES,
+  type GoogleDisplayImageRole,
+  type GoogleKeywordMatchType,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -27,7 +32,6 @@ import {
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
   GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
-  GOOGLE_KEYWORD_MATCH_TYPES,
   GOOGLE_MAX_IDS,
   GOOGLE_MAX_LOCATION_SUGGESTIONS,
   type GoogleCampaignCreate,
@@ -39,9 +43,7 @@ import {
   type GoogleDisplayCampaignSpec,
   type GoogleDisplayEditSpec,
   type GoogleDisplayImage,
-  type GoogleDisplayImageRole,
   type GoogleKeyword,
-  type GoogleKeywordMatchType,
   type GoogleLocationLookup,
   type GoogleSearchCampaignSpec,
   type GoogleSitelink,
