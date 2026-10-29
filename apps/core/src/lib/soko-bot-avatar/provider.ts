@@ -36,6 +36,11 @@ export const IMAGE_TIMEOUT_RENDER_MS = 120_000;
 const REWRITE_TIMEOUT_MS = 20_000;
 const VIDEO_REQUEST_TIMEOUT_MS = 30_000;
 const LOOP_SECONDS = 4;
+/**
+ * The SDK types `resolution` as `WxH`, but the Gateway forwards it verbatim and
+ * Seedance rejects "480x480" (flf2v wants "480p"). The cast is the whole gap.
+ */
+const LOOP_RESOLUTION = "480p" as `${number}x${number}`;
 
 export interface RewrittenChange {
   /** One edit instruction for the image model; empty when nothing is allowed. */
@@ -164,7 +169,7 @@ function createGatewayProvider(): AvatarProvider {
           model: gateway().videoModel(AVATAR_VIDEO_MODEL),
           prompt,
           aspectRatio: "1:1",
-          resolution: "480x480",
+          resolution: LOOP_RESOLUTION,
           duration: LOOP_SECONDS,
           generateAudio: false,
           // A hosted URL, not bytes: Gateway caps async request bodies at 300 KiB.
