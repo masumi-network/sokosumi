@@ -1,6 +1,7 @@
 import { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { ProjectCardMenu } from "@/app/projects/components/project-card-menu";
 import { ProjectPinButton } from "@/app/projects/components/project-pin-button";
 import {
   type ProjectResourceCountPillLabels,
@@ -15,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
+import type { ProjectHideLabels } from "./use-project-hide";
+
 interface ProjectListItemLabels {
   counts: ProjectResourceCountPillLabels;
   lastActivity: string;
@@ -23,19 +26,27 @@ interface ProjectListItemLabels {
   unpin: string;
   pinError: string;
   closed: string;
+  moreActions: string;
+  hide: ProjectHideLabels;
 }
 
 interface ProjectListItemProps {
   project: ProjectListItemType;
   labels: ProjectListItemLabels;
+  /** The card sits in the Hidden view: no Pin, and its menu offers Show. */
+  hidden?: boolean;
   /** Runs once a Pin or Unpin has landed at Core. */
   onPinnedChange?: () => void;
+  /** Runs once a Hide, Show or its Undo has landed at Core. */
+  onHiddenChange?: () => void;
 }
 
 export function ProjectListItem({
   project,
   labels,
+  hidden = false,
   onPinnedChange,
+  onHiddenChange,
 }: ProjectListItemProps) {
   const briefing = stripMarkdownToText(project.briefing);
   // Core floors lastActivityAt at createdAt (GREATEST(p."createdAt", …)), so
@@ -49,13 +60,15 @@ export function ProjectListItem({
     new Date(project.createdAt).getTime();
   // Only a finished close counts: closing and close-failed projects stay Open.
   const closedAt = project.closedAt;
+  // A Hidden card has no Pin: hiding unpinned it, and Pinning would show it.
+  const showPin = !closedAt && !hidden;
 
   return (
-    // The Pin button cannot live inside the link — a button nested in an
-    // anchor is invalid and the click would navigate instead of pinning — so
-    // the card holds the link and the button side by side: the link fills
-    // the card, the button sits over its top-right corner and keeps its own
-    // hit area.
+    // The Pin button and the menu cannot live inside the link — a button
+    // nested in an anchor is invalid and the click would navigate instead —
+    // so the card holds the link and the buttons side by side: the link fills
+    // the card, the buttons sit over its top-right corner and keep their own
+    // hit areas.
     <article
       className={cn(
         PROJECTS_CARD_LAYOUT_CLASS,
@@ -77,8 +90,13 @@ export function ProjectListItem({
           "press content-in",
         )}
       >
-        {/* Clear of the Pin button in the top-right corner. */}
-        <div className="flex min-w-0 items-center gap-3 pe-8">
+        {/* Clear of the Pin and menu buttons in the top-right corner. */}
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-3",
+            showPin ? "pe-18" : "pe-8",
+          )}
+        >
           <ProjectAvatar name={project.name} logo={project.logo} />
           <span className="text-foreground line-clamp-1 min-w-0 text-sm font-medium">
             {project.name}
@@ -114,22 +132,33 @@ export function ProjectListItem({
         </div>
       </Link>
 
-      {/* A Closed card has no Pin: the Closed view never sorts by one, and
-          the project header still offers Unpin for a Pin a close left. */}
+      {/* A Closed card has no Pin or menu: the Closed view never sorts by a
+          Pin, a Closed project lists there Hidden or not, and the project
+          header still offers Unpin and Show for what a close left. */}
       {closedAt ? null : (
-        <ProjectPinButton
-          projectId={project.id}
-          isPinned={project.starredAt != null}
-          isClosed={project.closingAt != null}
-          revealOnHover
-          onPinnedChange={onPinnedChange}
-          className="absolute end-2 top-2"
-          labels={{
-            pin: labels.pin,
-            unpin: labels.unpin,
-            error: labels.pinError,
-          }}
-        />
+        // gap-3 keeps the two 44px hit areas from overlapping.
+        <div className="absolute end-2 top-2 flex items-center gap-3">
+          {showPin ? (
+            <ProjectPinButton
+              projectId={project.id}
+              isPinned={project.starredAt != null}
+              isClosed={project.closingAt != null}
+              revealOnHover
+              onPinnedChange={onPinnedChange}
+              labels={{
+                pin: labels.pin,
+                unpin: labels.unpin,
+                error: labels.pinError,
+              }}
+            />
+          ) : null}
+          <ProjectCardMenu
+            projectId={project.id}
+            hidden={hidden}
+            onHiddenChange={onHiddenChange}
+            labels={{ ...labels.hide, moreActions: labels.moreActions }}
+          />
+        </div>
       )}
     </article>
   );

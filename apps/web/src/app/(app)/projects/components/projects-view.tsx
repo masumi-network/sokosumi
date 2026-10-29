@@ -32,6 +32,7 @@ import {
   ProjectsStateToggle,
   type ProjectsStateToggleLabels,
 } from "./projects-state-toggle";
+import type { ProjectHideLabels } from "./use-project-hide";
 
 export interface ProjectsViewLabels {
   newProject: string;
@@ -40,6 +41,10 @@ export interface ProjectsViewLabels {
     description: string;
   };
   emptyClosed: {
+    title: string;
+    description: string;
+  };
+  emptyHidden: {
     title: string;
     description: string;
   };
@@ -61,6 +66,8 @@ export interface ProjectsViewLabels {
   unpin: string;
   pinError: string;
   closed: string;
+  moreActions: string;
+  hide: ProjectHideLabels;
   state: ProjectsStateToggleLabels;
   filter: ProjectsFilterLabels;
   noMatches: string;
@@ -138,9 +145,11 @@ export function ProjectsView({
       ? { title: labels.noMatches }
       : state === "closed"
         ? labels.emptyClosed
-        : hasClosedProjects
-          ? labels.onlyClosed
-          : labels.empty;
+        : state === "hidden"
+          ? labels.emptyHidden
+          : hasClosedProjects
+            ? labels.onlyClosed
+            : labels.empty;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
@@ -198,9 +207,12 @@ export function ProjectsView({
                     <ProjectListItem
                       key={project.id}
                       project={project}
+                      hidden={state === "hidden"}
                       // Pins lead the Open view, so a new Pin moves its card:
                       // refetch the server-ordered page once the write lands.
                       onPinnedChange={() => router.refresh()}
+                      // A Hide or Show moves the card to another view.
+                      onHiddenChange={() => router.refresh()}
                       labels={{
                         counts: labels.counts,
                         lastActivity: labels.lastActivity,
@@ -209,6 +221,8 @@ export function ProjectsView({
                         unpin: labels.unpin,
                         pinError: labels.pinError,
                         closed: labels.closed,
+                        moreActions: labels.moreActions,
+                        hide: labels.hide,
                       }}
                     />
                   ))}

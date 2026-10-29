@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { createTranslator } from "next-intl";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import en from "@/messages/en.json";
@@ -16,6 +16,14 @@ vi.mock("next-intl/server", () => ({
         : `${namespace}.${key}`,
 }));
 
+const { isProjectHiddenMock } = vi.hoisted(() => ({
+  isProjectHiddenMock: vi.fn(),
+}));
+
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: { isProjectHidden: isProjectHiddenMock },
+}));
+
 vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
   ProjectDetailPinButton: ({ isClosed }: { isClosed?: boolean }) => (
     <div data-closed={String(isClosed)} data-testid="pin" />
@@ -25,10 +33,12 @@ vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
 vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: ({
     isClosingOrClosed,
+    isHidden,
     labels,
     projectRevision,
   }: {
     isClosingOrClosed: boolean;
+    isHidden: boolean;
     labels: {
       moreActions: string;
       closeDialog: { scheduledPostsWarning?: string };
@@ -37,6 +47,7 @@ vi.mock("@/app/projects/components/project-detail-actions", () => ({
   }) => (
     <div
       data-closed={String(isClosingOrClosed)}
+      data-hidden={String(isHidden)}
       data-revision={String(projectRevision)}
       data-testid="menu"
     >
@@ -49,6 +60,28 @@ vi.mock("@/app/projects/components/project-detail-actions", () => ({
 }));
 
 describe("ProjectHeaderActions", () => {
+  beforeEach(() => {
+    isProjectHiddenMock.mockReset();
+    isProjectHiddenMock.mockResolvedValue(false);
+  });
+
+  it("tells the menu whether the reader has Hidden the project", async () => {
+    isProjectHiddenMock.mockResolvedValue(true);
+
+    render(await ProjectHeaderActions({ projectId: "p1" }));
+
+    expect(isProjectHiddenMock).toHaveBeenCalledWith("p1");
+    expect(screen.getByTestId("menu")).toHaveAttribute("data-hidden", "true");
+  });
+
+  it("offers Hide when the Hide cannot be read", async () => {
+    isProjectHiddenMock.mockRejectedValue(new Error("down"));
+
+    render(await ProjectHeaderActions({ projectId: "p1" }));
+
+    expect(screen.getByTestId("menu")).toHaveAttribute("data-hidden", "false");
+  });
+
   it("renders pin and the project menu for an open project", async () => {
     render(await ProjectHeaderActions({ projectId: "p1", projectRevision: 3 }));
 

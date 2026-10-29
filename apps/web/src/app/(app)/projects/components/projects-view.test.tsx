@@ -1,7 +1,12 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { loadMoreProjects, pinProjectAction } from "@/app/projects/actions";
+import {
+  loadMoreProjects,
+  pinProjectAction,
+  showProjectAction,
+} from "@/app/projects/actions";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
@@ -32,6 +37,8 @@ vi.mock("@/app/projects/actions", () => ({
   loadMoreProjects: vi.fn(),
   pinProjectAction: vi.fn(),
   unpinProjectAction: vi.fn(),
+  hideProjectAction: vi.fn(),
+  showProjectAction: vi.fn(),
 }));
 
 vi.mock("@/app/projects/components/create-project-modal", () => ({
@@ -71,7 +78,25 @@ const labels = {
   unpin: "Unpin project",
   pinError: "Could not change the Pin.",
   closed: "Closed",
-  state: { label: "Show projects", open: "Open", closed: "Closed" },
+  moreActions: "More actions",
+  hide: {
+    hide: "Hide project",
+    show: "Show project",
+    hidden: "Project hidden",
+    undo: "Undo",
+    hideError: "Could not hide",
+    showError: "Could not show",
+  },
+  emptyHidden: {
+    title: "No hidden projects",
+    description: "Hide a project that isn't yours from its menu.",
+  },
+  state: {
+    label: "Show projects",
+    open: "Open",
+    hidden: "Hidden",
+    closed: "Closed",
+  },
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   noMatches: "No projects match",
 };
@@ -284,6 +309,13 @@ describe("ProjectsView empty states", () => {
     expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
   });
 
+  it("says there are no hidden projects in an empty Hidden view", () => {
+    renderView({ projects: [], state: "hidden" });
+
+    expect(screen.getByText("No hidden projects")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+  });
+
   it("keeps the first-project empty state for the Open view", () => {
     renderView({ projects: [] });
 
@@ -316,6 +348,34 @@ describe("ProjectsView empty states", () => {
       expect(panel.firstElementChild).toHaveClass("flex-1");
       unmount();
     }
+  });
+});
+
+describe("ProjectsView Hidden view", () => {
+  it("draws its cards without a Pin, each offering Show", async () => {
+    const user = userEvent.setup();
+    renderView({ state: "hidden" });
+
+    expect(screen.queryByTestId("project-pin-button")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      screen.getByRole("menuitem", { name: "Show project" }),
+    ).toBeInTheDocument();
+  });
+
+  it("refetches the page once a Show lands, so the card leaves the view", async () => {
+    const user = userEvent.setup();
+    vi.mocked(showProjectAction).mockResolvedValue({
+      projectId: "project-1",
+      hiddenAt: null,
+    });
+    refreshMock.mockClear();
+    renderView({ state: "hidden" });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Show project" }));
+
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
   });
 });
 

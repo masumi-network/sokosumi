@@ -60,7 +60,7 @@ const query = cursorPaginationQuerySchema
       .openapi({
         param: { name: "state", in: "query" },
         description:
-          "open: projects without closedAt, including closing and close-failed ones. closed: projects with closedAt. Omitted: every project.",
+          "open: projects without closedAt, including closing and close-failed ones, minus the acting user's Hidden projects. hidden: the acting user's Hidden projects without closedAt (ADR 0036). closed: projects with closedAt, Hidden or not. Omitted: every project. Non-user actors have no Hidden projects.",
       }),
     pinnedFirst: z
       .enum(["true", "false"])
@@ -78,7 +78,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), optionally led by the reader's Pins and filtered to open or closed projects, paginated globally",
+      "List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), optionally led by the reader's Pins and filtered to open, Hidden or closed projects, paginated globally",
     tags: ["Projects"],
     request: {
       query,
@@ -116,9 +116,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceContext.workspaceId,
       visibility,
     );
-    // A Pin belongs to a person (ADR 0036), so only a user context resolves
-    // one. A coworker or vendor reading the same list sees every row unpinned
-    // rather than seeing the bound user's Pins as its own.
+    // A Pin or Hide belongs to a person (ADR 0036), so only a user context
+    // resolves one. A coworker or vendor reading the same list sees every row
+    // unpinned and nothing Hidden, rather than the bound user's as its own.
     const readerUserId =
       c.var.authContext.actor === "user" ? c.var.authContext.userId : null;
     const ranked = await prisma.$queryRaw<ProjectActivityRow[]>(
@@ -129,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         visibility: activityVisibility,
         search,
         state,
+        readerUserId,
         pinnedFirstUserId:
           queryParams.pinnedFirst === "true" ? readerUserId : null,
       }),
@@ -141,11 +142,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
       // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
       // would inflate the total relative to the escaped ranked query.
-      // Raw for every page, not only a search: the open/closed predicate
+      // Raw for every page, not only a search: the open/hidden/closed predicate
       // then lives once, in the clause the ranked query shares.
       prisma
         .$queryRaw<Array<{ count: bigint }>>(
-          projectCountQuery(workspaceId, { search, state }),
+          projectCountQuery(workspaceId, { search, state, readerUserId }),
         )
         .then((result) => Number(result[0]?.count ?? 0n)),
       // Bounded by the page, and served by the (userId, projectId) unique

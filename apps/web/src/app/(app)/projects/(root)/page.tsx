@@ -118,6 +118,10 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             title: t("list.emptyClosed.title"),
             description: t("list.emptyClosed.description"),
           },
+          emptyHidden: {
+            title: t("list.emptyHidden.title"),
+            description: t("list.emptyHidden.description"),
+          },
           onlyClosed: {
             title: t("list.onlyClosed.title"),
             description: t("list.onlyClosed.description"),
@@ -135,9 +139,19 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           unpin: t("list.unpin"),
           pinError: t("list.pinError"),
           closed: t("list.closed"),
+          moreActions: t("Detail.actions.moreActions"),
+          hide: {
+            hide: t("list.hide.hide"),
+            show: t("list.hide.show"),
+            hidden: t("list.hide.hidden"),
+            undo: t("list.hide.undo"),
+            hideError: t("list.hide.hideError"),
+            showError: t("list.hide.showError"),
+          },
           state: {
             label: t("list.state.label"),
             open: t("list.state.open"),
+            hidden: t("list.state.hidden"),
             closed: t("list.state.closed"),
           },
           filter: {

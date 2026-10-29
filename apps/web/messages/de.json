@@ -2294,6 +2294,10 @@
           "title": "Keine geschlossenen Projekte",
           "description": "Ein Projekt, das du schließt, landet hier – mit seinem Verlauf."
         },
+        "emptyHidden": {
+          "title": "Keine ausgeblendeten Projekte",
+          "description": "Blende ein Projekt, das nicht deins ist, über sein Menü aus. Es verschwindet aus Offen, dem Projektwechsler und den letzten Aktivitäten und wartet hier."
+        },
         "onlyClosed": {
           "title": "Alle Projekte sind geschlossen",
           "description": "Geschlossene Projekte behalten ihren Verlauf in der Ansicht „Geschlossen“.",
@@ -2302,9 +2306,18 @@
         "state": {
           "label": "Projekte anzeigen",
           "open": "Offen",
+          "hidden": "Ausgeblendet",
           "closed": "Geschlossen"
         },
-        "closed": "Geschlossen"
+        "closed": "Geschlossen",
+        "hide": {
+          "hide": "Projekt ausblenden",
+          "show": "Projekt einblenden",
+          "hidden": "Projekt ausgeblendet",
+          "undo": "Rückgängig",
+          "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
+          "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        }
       },
       "column": {
         "needsYou": {

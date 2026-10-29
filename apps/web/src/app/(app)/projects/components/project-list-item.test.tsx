@@ -1,5 +1,6 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
 import { PROJECTS_CARD_LAYOUT_CLASS } from "@/app/projects/constants";
@@ -29,6 +30,15 @@ const labels = {
   pinError: "Could not change the Pin.",
   created: "Created",
   closed: "Closed",
+  moreActions: "More actions",
+  hide: {
+    hide: "Hide project",
+    show: "Show project",
+    hidden: "Project hidden",
+    undo: "Undo",
+    hideError: "Could not hide",
+    showError: "Could not show",
+  },
 };
 
 const project = {
@@ -66,16 +76,17 @@ describe("ProjectListItem", () => {
     );
   });
 
-  it("does not expose overflow row actions on the browse surface", () => {
+  it("offers Hide from a menu beside the link, and no other row action", async () => {
+    const user = userEvent.setup();
     render(<ProjectListItem project={project} labels={labels} />);
 
+    const menu = screen.getByRole("button", { name: "More actions" });
+    expect(screen.getByRole("link").contains(menu)).toBe(false);
+    await user.click(menu);
+
     expect(
-      screen.queryByRole("button", { name: /more/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", { name: /edit|delete|view/i }),
-    ).not.toBeInTheDocument();
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["Hide project"]);
   });
 
   it("stacks the name, the briefing and a footer down the card", () => {
@@ -213,7 +224,8 @@ describe("ProjectListItem Pin button", () => {
     // holds the link and the button side by side rather than being one link.
     expect(button.closest("a")).toBeNull();
     expect(button.closest("article")).not.toBeNull();
-    expect(button).toHaveClass("absolute", "top-2", "end-2");
+    // The Pin and the menu share the card's top-right corner.
+    expect(button.parentElement).toHaveClass("absolute", "top-2", "end-2");
   });
 
   it("waits for hover or focus while unpinned, where a pointer can hover", () => {
@@ -266,6 +278,29 @@ describe("ProjectListItem Pin button", () => {
   });
 });
 
+describe("ProjectListItem in the Hidden view", () => {
+  it("has no Pin, and its menu offers Show instead of Hide", async () => {
+    const user = userEvent.setup();
+    render(<ProjectListItem project={project} labels={labels} hidden />);
+
+    expect(screen.queryByTestId("project-pin-button")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["Show project"]);
+  });
+
+  it("still opens the project", () => {
+    render(<ProjectListItem project={project} labels={labels} hidden />);
+
+    expect(screen.getByRole("link", { name: /Autumn Launch/ })).toHaveAttribute(
+      "href",
+      "/projects/project-1",
+    );
+  });
+});
+
 describe("ProjectListItem in the Closed view", () => {
   const closed = {
     ...project,
@@ -277,6 +312,12 @@ describe("ProjectListItem in the Closed view", () => {
     render(<ProjectListItem project={closed} labels={labels} />);
 
     expect(screen.queryByTestId("project-pin-button")).not.toBeInTheDocument();
+  });
+
+  it("has no menu: a Closed project lists here whether or not it is Hidden", () => {
+    render(<ProjectListItem project={closed} labels={labels} />);
+
+    expect(screen.queryByTestId("project-card-menu")).not.toBeInTheDocument();
   });
 
   it("shows a Closed badge and the close date in place of last activity", () => {

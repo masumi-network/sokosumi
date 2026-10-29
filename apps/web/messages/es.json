@@ -2294,6 +2294,10 @@
           "title": "No hay proyectos cerrados",
           "description": "Un proyecto que cierras pasa aquí y conserva su historial."
         },
+        "emptyHidden": {
+          "title": "No hay proyectos ocultos",
+          "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
+        },
         "onlyClosed": {
           "title": "Todos los proyectos están cerrados",
           "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
@@ -2302,9 +2306,18 @@
         "state": {
           "label": "Mostrar proyectos",
           "open": "Abiertos",
+          "hidden": "Ocultos",
           "closed": "Cerrados"
         },
-        "closed": "Cerrado"
+        "closed": "Cerrado",
+        "hide": {
+          "hide": "Ocultar proyecto",
+          "show": "Mostrar proyecto",
+          "hidden": "Proyecto oculto",
+          "undo": "Deshacer",
+          "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
+          "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        }
       },
       "column": {
         "needsYou": {

@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleStop, MoreHorizontal, Pencil } from "lucide-react";
+import { CircleStop, Eye, EyeOff, MoreHorizontal, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -27,10 +27,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { closeProject } from "@/lib/actions/project/action";
 
+import { type ProjectHideLabels, useProjectHide } from "./use-project-hide";
+
 interface ProjectDetailActionsLabels {
   moreActions: string;
   edit: string;
   close: string;
+  hide: ProjectHideLabels;
   closeDialog: {
     title: string;
     description: string;
@@ -48,6 +51,8 @@ interface ProjectDetailActionsProps {
   projectId: string;
   projectRevision?: number;
   isClosingOrClosed?: boolean;
+  /** The reader's own Hide; Hidden or not, the project stays reachable here. */
+  isHidden?: boolean;
   labels: ProjectDetailActionsLabels;
 }
 
@@ -55,9 +60,15 @@ export function ProjectDetailActions({
   projectId,
   projectRevision,
   isClosingOrClosed = false,
+  isHidden = false,
   labels,
 }: ProjectDetailActionsProps) {
   const router = useRouter();
+  // The header reads the Hide on the server, so a refresh redraws the item.
+  const projectHide = useProjectHide({
+    labels: labels.hide,
+    onChange: () => router.refresh(),
+  });
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const closeAttemptRef = useRef<{
     operationId: string;
@@ -133,6 +144,23 @@ export function ProjectDetailActions({
               {labels.edit}
             </Link>
           </DropdownMenuItem>
+          {isHidden ? (
+            <DropdownMenuItem
+              disabled={projectHide.isPending}
+              onSelect={() => projectHide.show(projectId)}
+            >
+              <Eye className="size-4" aria-hidden />
+              {labels.hide.show}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              disabled={projectHide.isPending}
+              onSelect={() => projectHide.hide(projectId)}
+            >
+              <EyeOff className="size-4" aria-hidden />
+              {labels.hide.hide}
+            </DropdownMenuItem>
+          )}
           {!isClosingOrClosed && projectRevision !== undefined ? (
             <DropdownMenuItem
               variant="destructive"
