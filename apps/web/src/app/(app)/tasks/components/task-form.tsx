@@ -40,6 +40,7 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,7 @@ import {
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -1143,6 +1145,15 @@ export function TaskForm({
                   size={36}
                   className="size-9 shrink-0"
                   alt={selectedOption.name}
+                />
+              ) : selectedOption.kind === "sokoBot" &&
+                selectedOption.image &&
+                isCraftedStyle(selectedOption.avatarStyleId) ? (
+                <AvatarFace
+                  src={selectedOption.image}
+                  crafted
+                  alt={selectedOption.name}
+                  className="ring-border size-9 ring-1"
                 />
               ) : (
                 <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">

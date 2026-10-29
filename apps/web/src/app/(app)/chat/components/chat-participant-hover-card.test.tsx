@@ -150,6 +150,42 @@ describe("ChatParticipantHoverCard", () => {
     );
   });
 
+  it("crops a crafted Soko Bot avatar to its face, but not a mascot", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <ChatParticipantHoverCard
+        profile={{
+          ...sokoBotProfile,
+          image: "https://blob/idle.png",
+          avatarStyleId: "crafted-desk",
+        }}
+      >
+        <span>Soko</span>
+      </ChatParticipantHoverCard>,
+    );
+    await user.hover(screen.getByRole("button", { name: "Soko" }));
+    const card = screen.getByTestId("chat-participant-hover-card");
+    expect(
+      card.querySelector('img[src="https://blob/idle.png"]')?.className,
+    ).toContain("size-[240%]");
+
+    rerender(
+      <ChatParticipantHoverCard
+        profile={{
+          ...sokoBotProfile,
+          image: "https://blob/m.png",
+          avatarStyleId: "mascot",
+        }}
+      >
+        <span>Soko</span>
+      </ChatParticipantHoverCard>,
+    );
+    expect(
+      screen.getByTestId("chat-participant-hover-card").querySelector("img")
+        ?.className ?? "",
+    ).not.toContain("size-[240%]");
+  });
+
   it("falls back to the kind label for a personal assistant without caption", async () => {
     const user = userEvent.setup();
     render(

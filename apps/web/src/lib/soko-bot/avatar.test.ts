@@ -1,7 +1,7 @@
 import type { SokoBotAvatarView } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { avatarSources, isCraftedAvatar } from "./avatar";
+import { avatarSources, isCraftedAvatar, isCraftedStyle } from "./avatar";
 
 const noStates = {
   idle: null,
@@ -78,5 +78,14 @@ describe("avatarSources", () => {
     expect(avatarSources(null, "idle", "https://blob/x.png").still).toBe(
       "https://blob/x.png",
     );
+  });
+});
+
+describe("isCraftedStyle", () => {
+  it("is true only for a style other than the legacy mascot", () => {
+    expect(isCraftedStyle("crafted-desk")).toBe(true);
+    expect(isCraftedStyle("mascot")).toBe(false);
+    expect(isCraftedStyle(null)).toBe(false);
+    expect(isCraftedStyle(undefined)).toBe(false);
   });
 });

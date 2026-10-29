@@ -1815,6 +1815,7 @@ function RoomView({
           name: sokoBot.name,
           slug,
           image: sokoBot.image,
+          avatarStyleId: sokoBot.avatarStyleId,
         };
         return [
           sokoBot.id,

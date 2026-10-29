@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 import {
@@ -12,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,7 @@ interface PersonDisplay {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
+  avatarStyleId?: string | null;
 }
 
 function resolveTaskAssigneeDisplay(
@@ -72,6 +75,7 @@ function resolveTaskAssigneeDisplay(
       avatarSeed: claimed
         ? null
         : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
+      avatarStyleId: sokoBot.avatarStyleId,
     };
   }
 
@@ -288,6 +292,17 @@ function PersonAvatar({ person }: { person: PersonDisplay }) {
         size={20}
         className="size-5 shrink-0"
         alt={person.name}
+      />
+    );
+  }
+
+  if (person.image && isCraftedStyle(person.avatarStyleId)) {
+    return (
+      <AvatarFace
+        src={person.image}
+        crafted
+        alt={person.name}
+        className="size-5"
       />
     );
   }

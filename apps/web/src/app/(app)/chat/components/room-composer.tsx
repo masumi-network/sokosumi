@@ -59,6 +59,7 @@ import { SkillPicker } from "@/components/chat/skill-picker";
 import { StickerPicker } from "@/components/chat/sticker-picker";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
@@ -66,6 +67,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -127,6 +129,10 @@ function RoomMentionSuggestion({
         <div className="bg-muted flex size-6 items-center justify-center rounded-full">
           <Users className="text-muted-foreground size-3.5" aria-hidden />
         </div>
+      ) : mention.data?.kind === "sokoBot" &&
+        mention.data.image &&
+        isCraftedStyle(mention.data.avatarStyleId) ? (
+        <AvatarFace src={mention.data.image} crafted className="size-6" />
       ) : (
         <Avatar className="size-6">
           <AvatarImage src={mention.data?.image ?? undefined} alt="" />

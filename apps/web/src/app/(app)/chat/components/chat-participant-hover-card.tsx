@@ -19,6 +19,7 @@ import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -309,6 +311,10 @@ export function ChatParticipantHoverCard({
                 alt=""
                 className="ring-border size-12 ring-1"
               />
+            ) : isSokoBot &&
+              profile.image &&
+              isCraftedStyle(profile.avatarStyleId) ? (
+              <AvatarFace src={profile.image} crafted className="size-12" />
             ) : (
               <Avatar className="size-12">
                 <AvatarImage src={profile.image ?? undefined} alt="" />

@@ -9,11 +9,19 @@ const LEGACY_STYLE_ID = "mascot";
 /** How long a state plays when it changes, before the face rests on its still. */
 export const AVATAR_PLAY_ONCE_MS = 4_000;
 
-/** Crafted avatars are scenes cropped to the face; a mascot is already a face. */
+/**
+ * Crafted avatars are scenes cropped to the face; a mascot is already a face.
+ * Summaries that carry only a bot's style id (task and chat participants) ask
+ * this; a null id means the bot has no claimed avatar.
+ */
+export function isCraftedStyle(styleId: string | null | undefined): boolean {
+  return styleId != null && styleId !== LEGACY_STYLE_ID;
+}
+
 export function isCraftedAvatar(
   avatar: SokoBotAvatarView | null | undefined,
 ): avatar is SokoBotAvatarView {
-  return avatar != null && avatar.styleId !== LEGACY_STYLE_ID;
+  return isCraftedStyle(avatar?.styleId);
 }
 
 export interface AvatarSources {

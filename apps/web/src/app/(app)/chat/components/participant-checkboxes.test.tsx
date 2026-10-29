@@ -31,6 +31,44 @@ function checkboxFor(name: string) {
   return within(label as HTMLElement).getByRole("checkbox");
 }
 
+describe("ParticipantCheckboxes Soko Bots", () => {
+  function renderWithBot(avatarStyleId: string) {
+    render(
+      <ParticipantCheckboxes
+        members={[]}
+        coworkers={[]}
+        sokoBots={[
+          {
+            id: "bot-1",
+            name: "Jarvis",
+            image: "https://blob/idle.png",
+            avatarSeed: null,
+            avatarStyleId,
+          },
+        ]}
+        memberIds={[]}
+        coworkerIds={[]}
+        sokoBotIds={[]}
+        onMemberIdsChange={vi.fn()}
+        onCoworkerIdsChange={vi.fn()}
+        onSokoBotIdsChange={vi.fn()}
+        membersLoadFailed={false}
+      />,
+    );
+    return document.querySelector('img[src="https://blob/idle.png"]');
+  }
+
+  it("crops a crafted avatar to the bot's face", () => {
+    expect(renderWithBot("crafted-desk")?.className).toContain("size-[240%]");
+  });
+
+  it("leaves a mascot uncropped", () => {
+    expect(renderWithBot("mascot")?.className ?? "").not.toContain(
+      "size-[240%]",
+    );
+  });
+});
+
 describe("ParticipantCheckboxes locked self", () => {
   it("keeps the locked member checked and ignores uncheck", async () => {
     const user = userEvent.setup();

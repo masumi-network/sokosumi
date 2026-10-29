@@ -93,6 +93,7 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,6 +137,7 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -2160,6 +2162,13 @@ function SenderFace({
         className={cn("ring-border ring-1", className)}
       />
     );
+  }
+  if (
+    sender.kind === "sokoBot" &&
+    sender.image &&
+    isCraftedStyle(sender.avatarStyleId)
+  ) {
+    return <AvatarFace src={sender.image} crafted className={className} />;
   }
   return (
     <Avatar className={className}>

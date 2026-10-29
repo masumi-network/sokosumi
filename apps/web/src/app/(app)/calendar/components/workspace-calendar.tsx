@@ -157,6 +157,7 @@ export interface CalendarCoworker {
   slug?: string;
   kind?: "coworker" | "user" | "sokoBot";
   avatarSeed?: string | null;
+  avatarStyleId?: string | null;
 }
 
 interface CalendarPeople {

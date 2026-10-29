@@ -12,7 +12,9 @@ import {
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -92,20 +94,30 @@ function RoomParticipantStack({
           className="relative inline-flex size-6 shrink-0"
           style={{ zIndex: visibleParticipants.length - index }}
         >
-          <Avatar className="ring-border size-full shadow-xs ring-1">
-            <AvatarImage src={participant.image ?? undefined} alt="" />
-            <AvatarFallback
-              className={cn(
-                "text-2xs",
-                participant.kind === "coworker" ||
-                  participant.kind === "sokoBot"
-                  ? "bg-primary-quinary text-primary"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {getInitials(participant.name)}
-            </AvatarFallback>
-          </Avatar>
+          {participant.kind === "sokoBot" &&
+          participant.image &&
+          isCraftedStyle(participant.avatarStyleId) ? (
+            <AvatarFace
+              src={participant.image}
+              crafted
+              className="ring-border size-full shadow-xs ring-1"
+            />
+          ) : (
+            <Avatar className="ring-border size-full shadow-xs ring-1">
+              <AvatarImage src={participant.image ?? undefined} alt="" />
+              <AvatarFallback
+                className={cn(
+                  "text-2xs",
+                  participant.kind === "coworker" ||
+                    participant.kind === "sokoBot"
+                    ? "bg-primary-quinary text-primary"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {getInitials(participant.name)}
+              </AvatarFallback>
+            </Avatar>
+          )}
           {/* No availability text here on purpose. This button is one control
               named "open the roster", and its own aria-label already replaces
               every descendant word. Per-person availability belongs to the
