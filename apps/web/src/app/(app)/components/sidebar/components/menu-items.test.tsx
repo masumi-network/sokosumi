@@ -274,8 +274,8 @@ describe("MenuItems groups", () => {
     renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "projects",
       "home",
+      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -324,11 +324,11 @@ describe("MenuItems groups", () => {
 
   // The wordmark's link to `/` became this row when the Workspace switcher
   // took the sidebar header.
-  it("puts Home under the scope's row, a plain link to the home page", () => {
+  it("puts Home above the scope's row, a plain link to the home page", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
-    expect(destinationsUnder("groups.work")[1]).toBe("home");
+    expect(destinationsUnder("groups.work")[0]).toBe("home");
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "href",
       "/",
@@ -480,10 +480,10 @@ describe("MenuItems project scope", () => {
     searchRef.current = "";
   });
 
-  it("leads Work with Projects, to the Projects list, with no project selected", () => {
+  it("puts Projects, to the Projects list, right under Home with no project selected", () => {
     renderMenu(true, false);
 
-    expect(destinationsUnder("groups.work")[0]).toBe("projects");
+    expect(destinationsUnder("groups.work")[1]).toBe("projects");
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
@@ -508,8 +508,8 @@ describe("MenuItems project scope", () => {
     expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
     const overview = screen.getByRole("link", { name: "overview" });
     expect(overview).toHaveAttribute("href", "/projects/p-1");
-    // First in Work. Its text starts with the avatar's hidden initial.
-    expect(screen.getAllByRole("link")[0]).toBe(overview);
+    // Right under Home. Its text starts with the avatar's hidden initial.
+    expect(screen.getAllByRole("link")[1]).toBe(overview);
     const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
     expect(
       slot?.querySelector('[data-testid="project-avatar"]'),
