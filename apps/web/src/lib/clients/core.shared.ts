@@ -80,6 +80,7 @@ import type {
   GetWorkspacesCalendarSourcesData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
+  ListChatPeopleData,
   NewsletterIssueRevisionRequest,
   Notice,
   PaginationMetadata,
@@ -363,6 +364,7 @@ import {
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
   listAdminVendors as coreListAdminVendors,
+  listChatPeople as coreListChatPeople,
   listCoworkerAssignments as coreListCoworkerAssignments,
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
@@ -1314,6 +1316,14 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat room",
+    );
+  }
+
+  async function listChatPeople(query?: ListChatPeopleData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListChatPeople({ client, query, cache: "no-store" }),
+      "Failed to fetch chat people",
     );
   }
 
@@ -6392,6 +6402,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     subscribeTaskParticipant,
     getChatRoom,
+    listChatPeople,
     getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomMessage,
