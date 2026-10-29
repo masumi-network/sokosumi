@@ -9200,9 +9200,7 @@
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
-      "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
       "pinned": "Angepinnt",
-      "recent": "Zuletzt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",
       "empty": "Keine Projekte gefunden.",
@@ -9210,7 +9208,7 @@
       "error": "Projekte konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "create": "Projekt erstellen",
-      "manage": "Projekte verwalten",
+      "closed": "Geschlossen",
       "current": "(aktuell)",
       "searching": "Projekte werden gesucht..."
     },

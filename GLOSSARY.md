@@ -369,7 +369,7 @@ The current user's personal pin of a project they can read. Not shared, and not 
 _Avoid_: Starred project (API-only name), favorite, treating this as a Pinned room
 
 **Recently visited project**:
-A project this reader opened, newest first, tracked per device rather than on the server. Follows the Pinned projects in the Project switcher's shortlist, ahead of the rest in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
+A project this reader opened, newest first, tracked per device rather than on the server. Follows the Pinned projects in the Project switcher's list, ahead of the rest in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
 _Avoid_: Recent project (says nothing about whose), active project, last activity
 
 ### Billing

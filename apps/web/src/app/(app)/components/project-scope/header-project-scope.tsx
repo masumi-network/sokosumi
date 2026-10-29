@@ -13,7 +13,11 @@ import {
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 
-import { useCurrentScope } from "./sidebar-project-scope-mobile";
+import {
+  ScopeClosedBadge,
+  useClearScope,
+  useCurrentScope,
+} from "./project-scope-trigger";
 import { openScopeCreate } from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
@@ -21,15 +25,17 @@ import { usePrefetchScopeProjects } from "./use-scope-projects";
  * The project scope at the start of the top bar: the scope's mark and name
  * with an up/down chevron, opening the project menu. A
  * long name is shortened with "…"; the accessible name keeps it whole, as
- * "Project: …". While a project is picked, an × beside it returns to All
+ * "Project: …". A Closed project, which the menu never lists, gets a small
+ * Closed badge. While a project is picked, an × beside it returns to All
  * projects. Below md the header's chip and bottom sheet take over.
  */
 export function HeaderProjectScope() {
   const t = useTranslations("App.ProjectScope");
   const [open, setOpen] = useState(false);
-  const { projectId, name, label, mark, select } = useCurrentScope();
+  const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const clearScope = useClearScope(triggerRef);
 
   return (
     <>
@@ -56,6 +62,7 @@ export function HeaderProjectScope() {
               {mark}
             </span>
             <span className="min-w-0 truncate">{name}</span>
+            {closed ? <ScopeClosedBadge /> : null}
             <ChevronsUpDown
               className="text-muted-foreground size-3 shrink-0"
               aria-hidden
@@ -82,11 +89,7 @@ export function HeaderProjectScope() {
           type="button"
           aria-label={t("clearProject")}
           title={t("clearProject")}
-          onClick={() => {
-            select(null);
-            // This button unmounts with the scope; keep focus in the header.
-            triggerRef.current?.focus();
-          }}
+          onClick={clearScope}
           className={cn(
             SIDEBAR_CONTROL_INTERACTION_CLASS,
             "text-muted-foreground hover:text-foreground press hit-area flex size-8 shrink-0 items-center justify-center rounded-full transition-[opacity,background-color,color]",
