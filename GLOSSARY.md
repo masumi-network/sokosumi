@@ -360,6 +360,14 @@ _Avoid_: Project detail page, project settings, Manage project
 Every project in the workspace as a grid of cards, one view at a time: Open (the default) or Closed. Pinned projects come first, then the rest in activity order, the same order as the Project switcher.
 _Avoid_: Manage projects, project management page, All projects (that is the scope, not this page)
 
+**Workspace column**:
+The two panels beside the Projects list's Open view: Needs you (the Notification Center view's rows, newest first) and Recent activity. Only what the reader can act on or just changed; the recap of what happened while they were away stays on Home. Not shown in the Closed view.
+_Avoid_: Dashboard, team overview, sidebar (that is the app's nav), usage panel
+
+**Recent activity**:
+The newest task, job and project events across the workspace's open projects, whoever caused them: the same events that set a project's last activity. Distinct from Notifications, which are only what was sent to the reader.
+_Avoid_: Activity feed (when meaning the Notification Center), history (the full searchable record), notifications
+
 **Closed project**:
 A project whose close has finished: its scheduled work is stopped, its history kept, and it cannot be reopened. Out of the Project switcher's list, and in the Projects list only under its Closed view; the Open view is the default. Opening one still makes it the Project scope, so its history stays readable, and the switcher then marks it Closed. A project that is closing, or whose close failed, is not yet Closed. Closed is the archive: there is no separate archived state.
 _Avoid_: Archived project, deleted project, inactive project
