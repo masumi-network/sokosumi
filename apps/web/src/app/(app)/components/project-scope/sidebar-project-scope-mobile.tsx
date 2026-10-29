@@ -94,7 +94,10 @@ export function ScopeClosedBadge() {
   );
 }
 
-/** Below md: a compact scope chip in the header that opens a bottom sheet. */
+/**
+ * Below md: a compact scope chip in the header that opens a bottom sheet.
+ * While a project is picked, an × beside it returns to All projects.
+ */
 export function SidebarScopeMobileChip() {
   const prefetch = usePrefetchScopeProjects();
   const t = useTranslations("App.ProjectScope");
@@ -173,6 +176,24 @@ export function SidebarScopeMobileChip() {
             />
           </SheetContent>
         </Sheet>
+        {projectId !== null && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("clearProject")}
+            title={t("clearProject")}
+            data-testid="project-scope-chip-clear"
+            onClick={() => {
+              select(null);
+              // This button unmounts with the scope; keep focus in the header.
+              chipRef.current?.focus();
+            }}
+            className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        )}
       </div>
       <InlineCreateProjectModal
         open={createOpen}

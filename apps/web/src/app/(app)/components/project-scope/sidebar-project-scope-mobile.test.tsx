@@ -232,6 +232,25 @@ describe("sidebar project scope scope name", () => {
 });
 
 describe("sidebar project scope chip", () => {
+  it("clears the picked project back to All projects with the chip's ×", async () => {
+    const user = userEvent.setup();
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    const clear = screen.getByTestId("project-scope-chip-clear");
+    expect(clear).toHaveAccessibleName("clearProject");
+    await user.click(clear);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/tasks");
+    expect(chip()).toHaveFocus();
+  });
+
+  it("shows no × on the chip in the workspace view", () => {
+    renderHarness();
+
+    expect(screen.queryByTestId("project-scope-chip-clear")).toBeNull();
+  });
+
   it("badges a Closed project on the chip", async () => {
     mocks.fetch.mockImplementation(() =>
       Promise.resolve(

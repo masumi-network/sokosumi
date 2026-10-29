@@ -100,7 +100,6 @@ describe("SocialAccountsProjectPrompt", () => {
 
     await user.click(screen.getByRole("button", { name: "Choose a project" }));
     expect(screen.getByRole("combobox")).toHaveFocus();
-    expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
     await user.click(screen.getByRole("option", { name: "Marketing" }));
 
     expect(mocks.push).toHaveBeenCalledWith(

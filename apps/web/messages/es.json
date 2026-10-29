@@ -9185,7 +9185,6 @@
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
       "all": "Proyectos",
       "searchPlaceholder": "Buscar un proyecto...",

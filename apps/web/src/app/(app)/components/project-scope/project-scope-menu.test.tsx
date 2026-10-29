@@ -173,16 +173,16 @@ describe("ProjectScopeMenu", () => {
     expect(screen.queryByText("manage")).toBeNull();
   });
 
-  it("hands back the chosen project, or null for the workspace view", async () => {
+  it("hands back the chosen project and offers no All projects row", async () => {
     const user = userEvent.setup();
     const { onSelect, onDone } = setup({ selectedProjectId: "active-1" });
 
     await user.click(await screen.findByText("Active One"));
     expect(onSelect).toHaveBeenLastCalledWith("active-1");
-
-    await user.click(screen.getByTestId("project-scope-workspace"));
-    expect(onSelect).toHaveBeenLastCalledWith(null);
-    expect(onDone).toHaveBeenCalledTimes(2);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    // The trigger's × returns to All projects, not a row here.
+    expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
+    expect(screen.queryByText("allProjects")).toBeNull();
   });
 
   it("asks Core when searching and keeps the list's order and pins", async () => {
@@ -205,7 +205,6 @@ describe("ProjectScopeMenu", () => {
     );
     expect(rowIds()).toEqual(["pinned-1", "far-1"]);
     expect(isPinnedRow("pinned-1")).toBe(true);
-    expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
   });
 
   it("filters a complete list at once, without asking Core", async () => {
@@ -255,7 +254,6 @@ describe("ProjectScopeMenu", () => {
     expect(onCreate).not.toHaveBeenCalled();
     expect(onDone).not.toHaveBeenCalled();
     await screen.findByText("Pinned One");
-    expect(screen.getByTestId("project-scope-workspace")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "clearSearch" })).toBeNull();
   });
 
@@ -378,26 +376,17 @@ describe("ProjectScopeMenu", () => {
     const current = await screen.findByTestId("project-scope-item-active-1");
     expect(within(current).getByText("current")).toHaveClass("sr-only");
     expect(
-      within(screen.getByTestId("project-scope-workspace")).queryByText(
-        "current",
-      ),
-    ).toBeNull();
-    expect(
       within(screen.getByTestId("project-scope-item-pinned-1")).queryByText(
         "current",
       ),
     ).toBeNull();
   });
 
-  it("marks the workspace view current when no project is", async () => {
+  it("marks no row current in the workspace view", async () => {
     setup({ selectedProjectId: null });
 
     await screen.findByText("Pinned One");
-    expect(
-      within(screen.getByTestId("project-scope-workspace")).getByText(
-        "current",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("current")).toBeNull();
   });
 
   it("hands Create the control that opened the menu", async () => {

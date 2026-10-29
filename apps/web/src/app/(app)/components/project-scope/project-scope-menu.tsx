@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Layers, Pin, Plus } from "lucide-react";
+import { Check, Pin, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 
 import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
 
-const WORKSPACE_VALUE = "__workspace__";
 const CREATE_VALUE = "__create_project__";
 
 /**
@@ -35,32 +34,25 @@ function openerOf(menu: Element | null): HTMLElement | null {
 
 interface ProjectScopeMenuProps {
   selectedProjectId: string | null;
-  /** A project id, or null for the workspace view. */
-  onSelect: (projectId: string | null) => void;
+  onSelect: (projectId: string) => void;
   /** Gets the control that opened the menu, to take focus back on cancel. */
   onCreate: (opener: HTMLElement | null) => void;
   /** Closes whatever holds the menu. Runs after every choice. */
   onDone?: () => void;
-  /**
-   * Offer the workspace view as a choice. Off where a project is required,
-   * such as picking where a new image goes.
-   */
-  includeWorkspace?: boolean;
   className?: string;
 }
 
 /**
- * The one project list every switcher shows: search, the workspace view, one
- * list of projects (Pins first, each with a pin, then recently visited, then
- * the rest), then Create. Search narrows that same list and asks Core, so the
- * list filters itself off.
+ * The one project list every switcher shows: search, one list of projects
+ * (Pins first, each with a pin, then recently visited, then the rest), then
+ * Create. Search narrows that same list and asks Core, so the list filters
+ * itself off. All projects is not a row: the trigger's × returns to it.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
   onSelect,
   onCreate,
   onDone,
-  includeWorkspace = true,
   className,
 }: ProjectScopeMenuProps) {
   const t = useTranslations("App.ProjectScope");
@@ -68,7 +60,7 @@ export function ProjectScopeMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const projects = useScopeProjects({ search, selectedProjectId });
 
-  function choose(projectId: string | null) {
+  function choose(projectId: string) {
     onSelect(projectId);
     onDone?.();
   }
@@ -201,34 +193,6 @@ export function ProjectScopeMenu({
           className="app-scrollbar min-h-0 overflow-y-auto overscroll-contain scroll-py-1.5"
           role="presentation"
         >
-          {projects.isSearching || !includeWorkspace ? null : (
-            <CommandGroup>
-              <CommandItem
-                value={WORKSPACE_VALUE}
-                data-testid="project-scope-workspace"
-                className={cn(
-                  "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
-                  selectedProjectId === null && "font-medium",
-                )}
-                onSelect={() => choose(null)}
-              >
-                <span
-                  className="flex size-6 shrink-0 items-center justify-center"
-                  aria-hidden
-                >
-                  <Layers className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block break-words">{t("allProjects")}</span>
-                  <span className="text-muted-foreground mt-0.5 block text-xs font-normal leading-relaxed">
-                    {t("workspaceDescription")}
-                  </span>
-                </span>
-                <CurrentMark current={selectedProjectId === null} />
-              </CommandItem>
-            </CommandGroup>
-          )}
-
           {rows.length > 0 ? (
             <CommandGroup>{rows.map(row)}</CommandGroup>
           ) : null}
