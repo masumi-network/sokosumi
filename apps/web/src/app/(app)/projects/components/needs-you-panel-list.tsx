@@ -34,7 +34,7 @@ interface NeedsYouPanelListProps {
   labels: { title: string; empty: string; showAll: string };
   /**
    * Home's quiet list: no panel or border, under the composer like the
-   * team's day, and nothing at all when nothing waits.
+   * team's day, and one line saying so when nothing waits.
    */
   quiet?: boolean;
 }
@@ -113,28 +113,38 @@ export function NeedsYouPanelList({
   };
 
   if (quiet) {
-    if (rows.length === 0) return null;
     return (
       <section aria-labelledby={headingId} data-testid="home-needs-you">
         <div className="flex items-baseline justify-between gap-3 px-3 pb-2">
           <h2 id={headingId} className="text-foreground text-sm font-medium">
             {labels.title}
           </h2>
-          <Link
-            href={showAll.href}
-            onClick={showAll.onClick}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm outline-none transition-colors focus-visible:ring-2"
-          >
-            {showAll.label}
-          </Link>
+          {rows.length > 0 ? (
+            <Link
+              href={showAll.href}
+              onClick={showAll.onClick}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm outline-none transition-colors focus-visible:ring-2"
+            >
+              {showAll.label}
+            </Link>
+          ) : null}
         </div>
-        <ul className="flex flex-col">
-          {rows.map((row) => (
-            <li key={row.key} data-testid="home-needs-you-row">
-              {row.node}
-            </li>
-          ))}
-        </ul>
+        {rows.length > 0 ? (
+          <ul className="flex flex-col">
+            {rows.map((row) => (
+              <li key={row.key} data-testid="home-needs-you-row">
+                {row.node}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p
+            data-testid="home-needs-you-empty"
+            className="text-muted-foreground px-3 text-sm"
+          >
+            {labels.empty}
+          </p>
+        )}
       </section>
     );
   }

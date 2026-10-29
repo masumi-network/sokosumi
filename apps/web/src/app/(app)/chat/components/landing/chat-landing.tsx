@@ -74,7 +74,7 @@ export async function ChatLanding({
         ) : null}
 
         {/* Below the coworkers, in the welcome's own column; the wrapper
-            collapses when nothing waits. */}
+            collapses while the list loads. */}
         <div className="mt-10 w-full max-w-3xl self-center px-4 text-left empty:hidden lg:mt-14">
           {needsYou}
         </div>

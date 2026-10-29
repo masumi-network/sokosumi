@@ -205,12 +205,18 @@ describe("NeedsYouPanel", () => {
     ).toHaveAttribute("href", "/notifications");
   });
 
-  it("leaves Home calm, with nothing at all, when nothing waits or the feed failed", async () => {
-    for (const feed of [Promise.resolve([]), Promise.resolve(null)]) {
-      const { container, unmount } = render(
+  it("says in one line on Home that nothing waits, or that the feed failed", async () => {
+    for (const [feed, line] of [
+      [Promise.resolve([]), "App.Projects.column.needsYou.empty"],
+      [Promise.resolve(null), "App.Projects.column.needsYou.error"],
+    ] as const) {
+      const { unmount } = render(
         await NeedsYouPanel({ feed, projects: {}, quiet: true }),
       );
-      expect(container).toBeEmptyDOMElement();
+      expect(screen.getByTestId("home-needs-you-empty")).toHaveTextContent(
+        line,
+      );
+      expect(screen.queryByRole("link")).toBeNull();
       unmount();
     }
   });

@@ -24,8 +24,8 @@ interface SokoBotHomeProps {
   summary: TaskActivitySummary | null;
   /** Tasks the team moved in the last 24 hours, newest first. */
   teamTasks: SokoBotHomeTask[];
-  /** What waits on the reader, above the team's day; renders nothing when
-   * nothing does. */
+  /** What waits on the reader, above the team's day; one line when nothing
+   * does. */
   needsYou?: ReactNode;
 }
 

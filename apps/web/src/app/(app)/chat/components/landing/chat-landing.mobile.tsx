@@ -71,7 +71,7 @@ export async function ChatLandingMobile({
             </OpenCoworkerRoomProvider>
           ) : null}
 
-          {/* Below the coworkers; the wrapper collapses when nothing waits. */}
+          {/* Below the coworkers; the wrapper collapses while the list loads. */}
           <div className="mt-8 w-full px-1 text-left empty:hidden">
             {needsYou}
           </div>
