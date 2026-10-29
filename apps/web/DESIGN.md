@@ -283,8 +283,9 @@ inside a full-width panel.
   app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
   little above the middle of the screen, prompt chips, then a quiet list with no panel or
   borders.
-- **Chat room:** the transcript and composer share one centred `max-w-[45.25rem]` reading column (at most about 95 characters per line)
-  (`CHAT_CONTENT_COLUMN_CLASS`); the header and scroller stay full width.
+- **Chat room:** the transcript and composer share one centred `max-w-[45.25rem]` reading
+  column (at most about 95 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`, applied by
+  `RoomShellLayout`); the header and scroller stay full width. The thread panel stays full width.
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).
@@ -539,5 +540,5 @@ primary on a neutral background. Brand names are always lowercase.
   `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
   `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
-- A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
-  directly on the white page.
+- A centred `mx-auto max-w-*` page column (outside the entry page and chat room exceptions in
+  **Fill the width**), a bordered panel, or a white component sitting directly on the white page.

@@ -3,7 +3,10 @@ import type { ReactNode, Ref } from "react";
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
-import { ROOM_MESSAGE_LIST_CONTENT_CLASSNAME } from "@/app/chat/components/room-message-list-skeleton";
+import {
+  ROOM_CONTENT_COLUMN_CLASSNAME,
+  ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
+} from "@/app/chat/components/room-message-list-skeleton";
 import { cn } from "@/lib/utils";
 
 /** Root height for open room (no mobile tab bar). Instant + live must match. */
@@ -98,7 +101,9 @@ export function RoomShellLayout({
           {listContent}
         </div>
       </div>
-      {composer}
+      <div className={cn("shrink-0", ROOM_CONTENT_COLUMN_CLASSNAME)}>
+        {composer}
+      </div>
     </>
   );
 

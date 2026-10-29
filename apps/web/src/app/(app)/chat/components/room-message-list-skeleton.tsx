@@ -1,9 +1,15 @@
-import {
-  CHAT_CONTENT_COLUMN_CLASS,
-  CHAT_MESSAGE_LIST_CONTENT_CLASS,
-} from "@/app/chat/chat-message-list-scroller";
+import { CHAT_MESSAGE_LIST_CONTENT_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+
+/**
+ * Centred reading column for a room's transcript and composer slot, sized so
+ * 14px Inter body text stays at or under about 95 characters per line. Rem, so
+ * the column grows with Dynamic Type and keeps that measure. The scroller stays
+ * full width so its scrollbar keeps to the pane edge. Applied by the room shell,
+ * not `RoomComposer`, so the thread panel and home composer keep their width.
+ */
+export const ROOM_CONTENT_COLUMN_CLASSNAME = "mx-auto w-full max-w-[45.25rem]";
 
 /**
  * Outer padding for room message list content (skeleton + live).
@@ -12,7 +18,7 @@ import { cn } from "@/lib/utils";
  */
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME = cn(
   CHAT_MESSAGE_LIST_CONTENT_CLASS,
-  CHAT_CONTENT_COLUMN_CLASS,
+  ROOM_CONTENT_COLUMN_CLASSNAME,
   "px-5 pt-6 pb-2 md:pb-3",
 );
 

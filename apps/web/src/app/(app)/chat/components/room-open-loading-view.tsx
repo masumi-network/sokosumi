@@ -3,7 +3,6 @@
 import { ALargeSmall, AtSign, Paperclip, SmilePlus } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 
-import { CHAT_CONTENT_COLUMN_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
 import { getFormatToolbarOpenPreference } from "@/app/chat/utils/format-toolbar-preference-storage";
@@ -54,7 +53,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
             sendAriaLabel="Send"
             withOuterPadding={false}
             withSafeAreaPadding
-            className={cn(CHAT_CONTENT_COLUMN_CLASS, "px-3 md:px-5")}
+            className="px-3 md:px-5"
             aboveEditor={
               formatToolbarOpen ? (
                 <ComposerFormatToolbar
