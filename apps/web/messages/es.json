@@ -9029,6 +9029,7 @@
           "error": "No se pudo cambiar el aspecto. Inténtalo de nuevo.",
           "keepError": "No se pudo conservar este aspecto. Inténtalo de nuevo.",
           "cancelError": "No se pudo volver a tu aspecto actual. Inténtalo de nuevo.",
+          "empty": "Todavía no hay aspecto. Elige una criatura o pulsa «Al azar» para empezar.",
           "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde.",
           "unavailable": "Ahora mismo no se puede cambiar el aspecto."
         }

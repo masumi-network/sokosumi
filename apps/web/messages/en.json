@@ -9029,6 +9029,7 @@
           "error": "Could not change the look. Try again.",
           "keepError": "Could not keep this look. Try again.",
           "cancelError": "Could not go back to your current look. Try again.",
+          "empty": "No look yet. Pick a creature or press Shuffle to start.",
           "rateLimited": "You have made a lot of new looks. Try again later.",
           "unavailable": "Changing the look is not available right now."
         }

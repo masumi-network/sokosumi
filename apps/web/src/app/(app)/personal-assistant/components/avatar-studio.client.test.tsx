@@ -517,4 +517,14 @@ describe("AvatarStudio", () => {
     expect(screen.getByText("statesDraft")).toBeInTheDocument();
     expect(look()).toHaveAttribute("src", "https://blob/mascot.png");
   });
+
+  it("invites a first look when the bot has none", () => {
+    renderStudio({
+      ...studio,
+      avatar: null,
+      look: null,
+      progress: { ready: 0, failed: 0, total: 0 },
+    });
+    expect(screen.getByText("empty")).toBeInTheDocument();
+  });
 });

@@ -290,7 +290,11 @@ export function AvatarStudio({
                   isDrafting && "opacity-45",
                 )}
               />
-            ) : null}
+            ) : isDrafting ? null : (
+              <p className="text-muted-foreground absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-balance">
+                {t("empty")}
+              </p>
+            )}
             {isDrafting ? (
               <div className="absolute inset-x-0 bottom-6 flex justify-center">
                 <span

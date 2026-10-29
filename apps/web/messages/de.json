@@ -9029,6 +9029,7 @@
           "error": "Der Look konnte nicht geändert werden. Versuch es erneut.",
           "keepError": "Der Look konnte nicht gespeichert werden. Versuch es erneut.",
           "cancelError": "Der aktuelle Look konnte nicht wiederhergestellt werden. Versuch es erneut.",
+          "empty": "Noch kein Look. Wähle ein Tier oder tippe auf „Zufällig“, um zu starten.",
           "rateLimited": "Du hast sehr viele neue Looks erstellt. Versuch es später noch einmal.",
           "unavailable": "Der Look lässt sich gerade nicht ändern."
         }
