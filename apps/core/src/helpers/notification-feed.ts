@@ -326,14 +326,14 @@ export async function findNeedsActionNotificationIds(
             where: {
               id: { in: taskIds },
               status: TaskStatus.INPUT_REQUIRED,
-              ...(projectId ? { projectId } : {}),
+              projectId,
             },
             select: { id: true },
           }),
       jobIds.length === 0
         ? []
         : prisma.job.findMany({
-            where: { id: { in: jobIds }, ...(projectId ? { projectId } : {}) },
+            where: { id: { in: jobIds }, projectId },
             select: { id: true, ...jobForStatusComputeSelect },
           }),
       grantIds.length === 0

@@ -31,6 +31,7 @@ import {
   notificationListSchema,
 } from "@/schemas/notification.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { projectIdQuerySchema } from "@/schemas/project.schema";
 
 const notificationKindsQuerySchema = z
   .preprocess(
@@ -69,16 +70,6 @@ const needsActionQuerySchema = z
     example: "true",
   });
 
-const projectIdQuerySchema = z
-  .uuid()
-  .optional()
-  .openapi({
-    param: { name: "projectId", in: "query" },
-    description:
-      "With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.",
-    example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
-  });
-
 const mentionsQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -95,7 +86,9 @@ const query = z
     kind: notificationKindsQuerySchema,
     isRead: isReadQuerySchema,
     needsAction: needsActionQuerySchema,
-    projectId: projectIdQuerySchema,
+    projectId: projectIdQuerySchema(
+      "With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.",
+    ),
     mentions: mentionsQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);

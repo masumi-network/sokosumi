@@ -13,7 +13,10 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { projectActivityItemSchema } from "@/schemas/project.schema";
+import {
+  projectActivityItemSchema,
+  projectIdQuerySchema,
+} from "@/schemas/project.schema";
 import { resolveProjectReaderAccess } from "@/types/project";
 
 const query = z.object({
@@ -28,15 +31,9 @@ const query = z.object({
       description: "How many rows to return, newest first",
       example: 5,
     }),
-  projectId: z
-    .uuid()
-    .optional()
-    .openapi({
-      param: { name: "projectId", in: "query" },
-      description:
-        "Only this project's events. It may be Closed or one of the reader's Hidden projects: its history stays readable.",
-      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
-    }),
+  projectId: projectIdQuerySchema(
+    "Only this project's events. It may be Closed or one of the reader's Hidden projects: its history stays readable.",
+  ),
 });
 
 const route = withCoworkerContextHeaderParameters(

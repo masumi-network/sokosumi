@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CollapsibleSectionMarkdown } from "@/app/projects/components/project-latest-update";
+import { CollapsibleSectionMarkdown } from "@/app/projects/components/collapsible-section-markdown";
 import { Button } from "@/components/ui/button";
 
 interface ProjectBriefingProps {

@@ -155,15 +155,17 @@ export function ProjectWorkspaceShell({
           tabs block adds 16px in one column, so the Properties close their
           group before the tabs start. The 56px column gap keeps the header's
           actions clear of the rail. */}
-      {/* From `xl` up, three rows: the name and the Properties share the
-          first, the tab block spans the other two, and the panels sit in the
-          last, under the Properties. The last row is `1fr` so a tall tab
-          block grows that row and never the second, which would push the
-          panels away from the Properties. */}
+      {/* With panels, from `xl` up, three rows: the name and the Properties
+          share the first, the tab block spans the other two, and the panels
+          sit in the last, under the Properties. The last row is `1fr` so a
+          tall tab block grows that row and never the second, which would
+          push the panels away from the Properties. Without panels the grid
+          keeps its two rows. */}
       <div
         className={cn(
           TASK_DETAIL_GRID_CLASS,
-          "gap-y-4 xl:grid-rows-[auto_auto_1fr] xl:gap-x-14",
+          "gap-y-4 xl:gap-x-14",
+          panels && "xl:grid-rows-[auto_auto_1fr]",
         )}
       >
         <ProjectDetailHeader
@@ -173,11 +175,15 @@ export function ProjectWorkspaceShell({
         />
 
         {/* Capped so a row's qualifier stays near its value while the rail
-            runs the full width of a single column. From `xl` up the column
-            is narrower than the cap, so the rows end where the panels under
-            them do. */}
+            runs the full width of a single column. With panels, from `xl`
+            up, the column is narrower than the cap anyway, so the rows end
+            where the panels under them do. */}
         <aside
-          className={cn(TASK_DETAIL_SIDEBAR_CLASS, "max-w-sm xl:max-w-none")}
+          className={cn(
+            TASK_DETAIL_SIDEBAR_CLASS,
+            "max-w-sm",
+            panels && "xl:max-w-none",
+          )}
         >
           <ProjectProperties
             createdAt={createdAt}
@@ -191,7 +197,12 @@ export function ProjectWorkspaceShell({
         {/* The tabs open the block they switch, so nothing (not the rail,
             which comes before this on a phone) sits between a tab and its
             content. */}
-        <div className="min-w-0 space-y-8 max-xl:mt-4 xl:col-start-1 xl:row-span-2 xl:row-start-2">
+        <div
+          className={cn(
+            "min-w-0 space-y-8 max-xl:mt-4",
+            panels && "xl:col-start-1 xl:row-span-2 xl:row-start-2",
+          )}
+        >
           <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
           {children}
         </div>

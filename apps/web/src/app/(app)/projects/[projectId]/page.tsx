@@ -54,7 +54,10 @@ export default async function ProjectDetailPage({
     projectService
       .getProjectsStats([project.id])
       .then(([entry]) => entry ?? null)
-      .catch(() => null),
+      .catch((error: unknown) => {
+        console.warn("Project Overview task counts failed", { error });
+        return null;
+      }),
     getTranslations("App.Projects.Detail"),
     getFormatter(),
   ]);
