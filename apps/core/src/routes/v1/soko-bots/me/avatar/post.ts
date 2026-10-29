@@ -28,6 +28,7 @@ const claimAvatarRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
+    429: jsonErrorResponse("Too Many Requests"),
   },
 });
 
@@ -37,7 +38,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const bot = await getSokoBotState(auth.userId, workspace.workspaceId);
     if (!bot) throw notFound("Create a Soko Bot first");
-    await claimAvatar(bot.id, c.req.valid("json").avatarId);
+    await claimAvatar(bot.id, c.req.valid("json").avatarId, undefined, {
+      userId: auth.userId,
+    });
     const refreshed = await getSokoBotState(auth.userId, workspace.workspaceId);
     return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
   });

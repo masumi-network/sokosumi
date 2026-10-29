@@ -65,6 +65,14 @@ const BUILD_OUTPUTS = [
     file: "dist/soko-bot-runner.mjs",
     why: "Soko Bot turns run in a sandbox from this file",
   },
+  {
+    file: "node_modules/ffmpeg-static/ffmpeg",
+    why: "avatar levels and loops run this binary",
+  },
+  {
+    file: "assets/soko-bot-avatar/crafted-desk-house.jpg",
+    why: "every avatar draw edits this house scene",
+  },
 ];
 
 /** The function key whose `includeFiles` has to cover the parser. */

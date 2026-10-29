@@ -24,7 +24,9 @@ const {
   syncProjectClosesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
+  reconcileAvatarRendersMock,
 } = vi.hoisted(() => ({
+  reconcileAvatarRendersMock: vi.fn(),
   releaseDueTaskSchedulesMock: vi.fn(),
   releaseDueRunAtsMock: vi.fn(),
   acquireLockMock: vi.fn(),
@@ -208,6 +210,10 @@ vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
   calendarInvalidationOutboxService: {
     syncInvalidations: syncCalendarInvalidationsMock,
   },
+}));
+
+vi.mock("@/services/soko-bot-avatar-render.service", () => ({
+  reconcileAvatarRenders: reconcileAvatarRendersMock,
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -1045,6 +1051,53 @@ describe("sync routes", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("returns 401 for missing cron auth on avatar render sync", async () => {
+    const response = await createApp().request(
+      "http://localhost/sync/soko-bot-avatar-renders",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(reconcileAvatarRendersMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the avatar render lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+
+    const response = await createApp().request(
+      "http://localhost/sync/soko-bot-avatar-renders",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(409);
+    expect(reconcileAvatarRendersMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and reconciles avatar renders exactly once in background", async () => {
+    reconcileAvatarRendersMock.mockResolvedValue({
+      stills: 1,
+      submitted: 0,
+      finished: 0,
+      failed: 0,
+    });
+
+    const response = await createApp().request(
+      "http://localhost/sync/soko-bot-avatar-renders",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "soko-bot-avatar-renders-sync",
+    );
+    await flushMicrotasks();
+    expect(reconcileAvatarRendersMock).toHaveBeenCalledTimes(1);
+    expect(reconcileAvatarRendersMock).toHaveBeenCalledWith({
+      shouldContinue: expect.any(Function),
+    });
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("returns 401 for missing cron auth on x402 header purge sync", async () => {
