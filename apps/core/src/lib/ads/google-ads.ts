@@ -1065,7 +1065,10 @@ export async function searchGoogleLocations(
   }
   const context = "suggest Google Ads locations";
   const data = await callGoogleAds(
-    input,
+    {
+      connectedAccountId: input.connectedAccountId,
+      executorUserId: input.executorUserId,
+    },
     GEO_TARGET_SUGGEST_ENDPOINT,
     {
       locale: "en",
