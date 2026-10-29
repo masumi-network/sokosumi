@@ -106,27 +106,30 @@ describe("ProjectsPage", () => {
     expect(projectServiceMock.listRecentActivity).toHaveBeenCalledWith(5);
   });
 
-  it("leaves the Closed view's grid at full width, with no column", async () => {
-    projectServiceMock.listProjects.mockResolvedValue({
-      projects: [buildProject()],
-      pagination: null,
-    });
+  it.each(["hidden", "closed"])(
+    "leaves the %s view's grid at full width, with no column",
+    async (state) => {
+      projectServiceMock.listProjects.mockResolvedValue({
+        projects: [buildProject()],
+        pagination: null,
+      });
 
-    const { ProjectsPageContent } = await import("./page");
+      const { ProjectsPageContent } = await import("./page");
 
-    render(
-      await ProjectsPageContent({
-        searchParams: Promise.resolve({ state: "closed" }),
-      }),
-    );
+      render(
+        await ProjectsPageContent({
+          searchParams: Promise.resolve({ state }),
+        }),
+      );
 
-    expect(screen.queryByTestId("workspace-column")).not.toBeInTheDocument();
-    expect(projectsViewMock).toHaveBeenCalledWith(
-      expect.objectContaining({ column: null }),
-    );
-    expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
-    expect(projectServiceMock.listRecentActivity).not.toHaveBeenCalled();
-  });
+      expect(screen.queryByTestId("workspace-column")).not.toBeInTheDocument();
+      expect(projectsViewMock).toHaveBeenCalledWith(
+        expect.objectContaining({ column: null }),
+      );
+      expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
+      expect(projectServiceMock.listRecentActivity).not.toHaveBeenCalled();
+    },
+  );
 
   it("forwards the q search param to Core and down to the view", async () => {
     projectServiceMock.listProjects.mockResolvedValue({
@@ -206,6 +209,7 @@ describe("ProjectsPage", () => {
 
   it.each([
     [undefined, "open", true],
+    ["hidden", "hidden", false],
     ["closed", "closed", false],
     // An unknown value is the default view, not a Core 422.
     ["archived", "open", true],
@@ -225,7 +229,8 @@ describe("ProjectsPage", () => {
         }),
       );
 
-      // Pins lead only the Open view: a Closed card has no Pin to sort by.
+      // Pins lead only the Open view: a Closed card has no Pin to sort by,
+      // and hiding unpins, so the Hidden view has none either.
       expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
         limit: 20,
         query: "",

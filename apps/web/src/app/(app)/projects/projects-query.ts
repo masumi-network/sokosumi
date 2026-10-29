@@ -3,7 +3,7 @@ import { createLoader, parseAsStringLiteral } from "nuqs/server";
 import { PROJECTS_LIST_STATES } from "./constants";
 
 /**
- * The Projects list's Open / Closed view, read on the server and written by
+ * The Projects list's Open / Hidden / Closed view, read on the server and written by
  * `ProjectsStateToggle`. An unknown `?state=` is the default Open view.
  */
 export const projectsSearchParams = {

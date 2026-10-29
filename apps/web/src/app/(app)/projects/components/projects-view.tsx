@@ -2,7 +2,6 @@
 
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -26,6 +25,7 @@ import {
   CreateProjectModalProvider,
   useCreateProjectModal,
 } from "./create-project-modal";
+import type { ProjectDetailActionsLabels } from "./project-detail-actions";
 import { ProjectListItem } from "./project-list-item";
 import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
 import {
@@ -43,6 +43,10 @@ export interface ProjectsViewLabels {
     title: string;
     description: string;
   };
+  emptyHidden: {
+    title: string;
+    description: string;
+  };
   /** The Open view when every project in the workspace is Closed. */
   onlyClosed: {
     title: string;
@@ -57,10 +61,13 @@ export interface ProjectsViewLabels {
   };
   lastActivity: string;
   created: string;
-  pin: string;
-  unpin: string;
-  pinError: string;
+  pinned: string;
   closed: string;
+  /**
+   * Each card's menu: Pin or Unpin, Hide or Show, and Close. Its writes
+   * refresh the page, so a new Pin re-sorts the Open view.
+   */
+  actions: Omit<ProjectDetailActionsLabels, "edit">;
   state: ProjectsStateToggleLabels;
   filter: ProjectsFilterLabels;
   noMatches: string;
@@ -116,7 +123,6 @@ export function ProjectsView({
   labels,
   column,
 }: ProjectsViewProps) {
-  const router = useRouter();
   const listKey = browseListKey(query, state, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
@@ -138,9 +144,11 @@ export function ProjectsView({
       ? { title: labels.noMatches }
       : state === "closed"
         ? labels.emptyClosed
-        : hasClosedProjects
-          ? labels.onlyClosed
-          : labels.empty;
+        : state === "hidden"
+          ? labels.emptyHidden
+          : hasClosedProjects
+            ? labels.onlyClosed
+            : labels.empty;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
@@ -198,17 +206,14 @@ export function ProjectsView({
                     <ProjectListItem
                       key={project.id}
                       project={project}
-                      // Pins lead the Open view, so a new Pin moves its card:
-                      // refetch the server-ordered page once the write lands.
-                      onPinnedChange={() => router.refresh()}
+                      hidden={state === "hidden"}
                       labels={{
                         counts: labels.counts,
                         lastActivity: labels.lastActivity,
                         created: labels.created,
-                        pin: labels.pin,
-                        unpin: labels.unpin,
-                        pinError: labels.pinError,
+                        pinned: labels.pinned,
                         closed: labels.closed,
+                        actions: labels.actions,
                       }}
                     />
                   ))}

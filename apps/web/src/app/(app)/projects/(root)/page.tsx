@@ -118,6 +118,10 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             title: t("list.emptyClosed.title"),
             description: t("list.emptyClosed.description"),
           },
+          emptyHidden: {
+            title: t("list.emptyHidden.title"),
+            description: t("list.emptyHidden.description"),
+          },
           onlyClosed: {
             title: t("list.onlyClosed.title"),
             description: t("list.onlyClosed.description"),
@@ -131,13 +135,41 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           },
           lastActivity: t("list.lastActivity"),
           created: t("list.created"),
-          pin: t("list.pin"),
-          unpin: t("list.unpin"),
-          pinError: t("list.pinError"),
+          pinned: t("list.pinned"),
           closed: t("list.closed"),
+          // No scheduled-posts warning: the list does not count a card's
+          // scheduled posts, so the dialog keeps its general description.
+          actions: {
+            moreActions: t("Detail.actions.moreActions"),
+            close: t("Detail.actions.close"),
+            pin: {
+              pin: t("list.pin"),
+              unpin: t("list.unpin"),
+              error: t("list.pinError"),
+            },
+            hide: {
+              hide: t("list.hide.hide"),
+              show: t("list.hide.show"),
+              hidden: t("list.hide.hidden"),
+              undo: t("list.hide.undo"),
+              hideError: t("list.hide.hideError"),
+              showError: t("list.hide.showError"),
+            },
+            closeDialog: {
+              title: t("Detail.close.dialog.title"),
+              description: t("Detail.close.dialog.description"),
+              reasonLabel: t("Detail.close.dialog.reasonLabel"),
+              reasonPlaceholder: t("Detail.close.dialog.reasonPlaceholder"),
+              confirm: t("Detail.close.dialog.confirm"),
+              cancel: t("Detail.close.dialog.cancel"),
+              success: t("Detail.close.dialog.success"),
+              error: t("Detail.close.dialog.error"),
+            },
+          },
           state: {
             label: t("list.state.label"),
             open: t("list.state.open"),
+            hidden: t("list.state.hidden"),
             closed: t("list.state.closed"),
           },
           filter: {

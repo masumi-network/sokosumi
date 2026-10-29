@@ -35,7 +35,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/activity",
     description:
-      "The newest task, job and project events across the workspace's open projects, one row per task, job or project, newest first. Only events the reader can see; the same sources that set a project's lastActivityAt.",
+      "The newest task, job and project events across the workspace's open projects, minus the reader's Hidden ones (ADR 0036), one row per task, job or project, newest first. Only events the reader can see; the same sources that set a project's lastActivityAt.",
     tags: ["Projects"],
     request: { query },
     responses: {
@@ -65,6 +65,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId: workspaceContext.workspaceId,
         take: limit,
         visibility,
+        // Hides are personal (ADR 0036): a coworker context drops none.
+        readerUserId:
+          c.var.authContext.actor === "user" ? c.var.authContext.userId : null,
       }),
     );
     const projectIds = [...new Set(rows.map((row) => row.projectId))];

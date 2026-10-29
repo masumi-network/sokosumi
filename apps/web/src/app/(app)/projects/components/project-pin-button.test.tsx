@@ -67,40 +67,6 @@ describe("ProjectPinButton", () => {
     expect(mocks.pin).not.toHaveBeenCalled();
   });
 
-  it("reports a landed write so a Pins-first list can re-sort", async () => {
-    const onPinnedChange = vi.fn();
-    render(
-      <ProjectPinButton
-        projectId="p1"
-        isPinned={false}
-        labels={labels}
-        onPinnedChange={onPinnedChange}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
-
-    await waitFor(() => expect(onPinnedChange).toHaveBeenCalledOnce());
-  });
-
-  it("reports nothing when the write fails", async () => {
-    mocks.pin.mockRejectedValue(new Error("down"));
-    const onPinnedChange = vi.fn();
-    render(
-      <ProjectPinButton
-        projectId="p1"
-        isPinned={false}
-        labels={labels}
-        onPinnedChange={onPinnedChange}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
-
-    await waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(labels.error),
-    );
-    expect(onPinnedChange).not.toHaveBeenCalled();
-  });
-
   it("renders without a QueryClientProvider", () => {
     // Refreshing the sidebar cache is best-effort. The button must not demand
     // a provider, or every test that renders a project row needs one.

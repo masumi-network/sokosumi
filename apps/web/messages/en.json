@@ -2252,8 +2252,9 @@
         },
         "lastActivity": "Last activity",
         "created": "Created",
-        "pin": "Pin project",
-        "unpin": "Unpin project",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "pinned": "Pinned",
         "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
@@ -2294,6 +2295,10 @@
           "title": "No closed projects",
           "description": "A project you close moves here, with its history kept."
         },
+        "emptyHidden": {
+          "title": "No hidden projects",
+          "description": "Hide a project that isn't yours from its menu. It leaves Open, the project switcher and Recent activity, and waits here."
+        },
         "onlyClosed": {
           "title": "All projects are closed",
           "description": "Closed projects keep their history in the Closed view.",
@@ -2302,9 +2307,18 @@
         "state": {
           "label": "Show projects",
           "open": "Open",
+          "hidden": "Hidden",
           "closed": "Closed"
         },
-        "closed": "Closed"
+        "closed": "Closed",
+        "hide": {
+          "hide": "Hide",
+          "show": "Show",
+          "hidden": "Project hidden",
+          "undo": "Undo",
+          "hideError": "Could not hide the project. Try again.",
+          "showError": "Could not show the project. Try again."
+        }
       },
       "column": {
         "needsYou": {
@@ -3054,7 +3068,7 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
-          "close": "Close project",
+          "close": "Close",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },

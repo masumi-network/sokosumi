@@ -23682,6 +23682,54 @@ export const ProjectStarSchema = {
     ]
 } as const;
 
+export const ProjectHideSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        hiddenAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'hiddenAt'
+    ]
+} as const;
+
+export const ProjectHideResultSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectHide'
+        },
+        {
+            type: 'object',
+            properties: {
+                hiddenAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                unpinned: {
+                    type: 'boolean',
+                    description: 'True when the project was Pinned and hiding it removed the Pin.'
+                }
+            },
+            required: [
+                'unpinned'
+            ]
+        }
+    ]
+} as const;
+
 export const ProjectSocialConnectionSchema = {
     type: 'object',
     properties: {
