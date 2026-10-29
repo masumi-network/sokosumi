@@ -255,7 +255,7 @@ describe("avatar provider", () => {
         prompt: "wave",
         aspectRatio: "1:1",
         // What Seedance accepts for first-and-last-frame loops; "480x480" was refused.
-        resolution: "480p",
+        resolution: "720p",
         duration: 4,
         generateAudio: false,
         maxRetries: 0,

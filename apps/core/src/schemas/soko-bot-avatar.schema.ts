@@ -46,9 +46,9 @@ export const sokoBotAvatarStateSchema = z
 export const sokoBotAvatarStateAssetsSchema = z
   .object({
     stillUrl: z.string(),
-    /** Animated WebP, 320 px. Null until its loop is ready. */
+    /** 480 px H.264 MP4, muted, meant to loop. Null until its loop is ready. */
     loopUrl: z.string().nullable(),
-    /** Animated WebP, 560 px. */
+    /** 960 px H.264 MP4, muted, meant to loop. */
     loopLargeUrl: z.string().nullable(),
   })
   .openapi("SokoBotAvatarStateAssets");

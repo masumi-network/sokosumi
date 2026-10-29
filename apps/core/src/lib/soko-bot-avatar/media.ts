@@ -11,9 +11,11 @@ import sharp from "sharp";
 
 import { getEnv } from "@/config/env";
 
-/** Stills are stored at this size; the studio shows them at 560 px. */
-export const STILL_SIZE = 640;
-export const LOOP_SIZES = [320, 560] as const;
+/** Stills are stored at the image model's own size, crisp at the studio's 560 px on retina. */
+export const STILL_SIZE = 1024;
+/** Loop sizes: `loopUrl` and `loopLargeUrl`. The source is 960 px (Seedance 720p). */
+export const LOOP_SIZES = [480, 960] as const;
+const LOOP_CRF = "26";
 
 const EDGE_RING = 8;
 const MIN_GAIN = 0.85;
@@ -148,7 +150,7 @@ function gainFilter(gains: number[]): string {
 }
 
 /**
- * Brand neutral: square the image to 640 px and scale each channel so the
+ * Brand neutral: square the image to 1024 px and scale each channel so the
  * background lands on `target`, clamped to 0.85-1.3. Returns a WebP.
  */
 export async function levelStill(
@@ -168,8 +170,8 @@ export async function levelStill(
 
 /**
  * A video drifts off the still's levels, so the gain is read from its first
- * frame and applied to every frame. Encoded as looping animated WebP at both
- * loop sizes.
+ * frame and applied to every frame. Encoded as H.264 (High, yuv420p) MP4 with
+ * the index up front, no audio and the source's frame rate, at both loop sizes.
  */
 export async function encodeLoops(
   video: Buffer,
@@ -196,21 +198,25 @@ export async function encodeLoops(
     const lut = gainFilter(levelGains(first, STILL_SIZE, target));
     const [small, large] = await Promise.all(
       LOOP_SIZES.map(async (size) => {
-        const out = path.join(dir, `loop-${size}.webp`);
+        const out = path.join(dir, `loop-${size}.mp4`);
         await run([
           "-i",
           source,
           "-an",
           "-vf",
-          `${lut},fps=15,scale=${size}:${size}:flags=lanczos`,
+          `${lut},scale=${size}:${size}:flags=lanczos`,
           "-c:v",
-          "libwebp_anim",
-          "-loop",
-          "0",
-          "-quality",
-          "70",
-          "-compression_level",
-          "6",
+          "libx264",
+          "-profile:v",
+          "high",
+          "-pix_fmt",
+          "yuv420p",
+          "-crf",
+          LOOP_CRF,
+          "-preset",
+          "medium",
+          "-movflags",
+          "+faststart",
           out,
         ]);
         return await readFile(out);

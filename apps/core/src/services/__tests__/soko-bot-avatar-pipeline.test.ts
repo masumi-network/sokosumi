@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,27 +22,34 @@ import type { SokoBotAvatarStyle } from "@/lib/soko-bot-avatar/style";
 /**
  * Seam 1: the avatar pipeline end to end. The Gateway adapter is faked, and so
  * are Blob, Prisma (an in-memory table that honours the filters the pipeline
- * uses) and env. ffmpeg is real: the levels step and the WebP loops are
+ * uses) and env. ffmpeg is real: the levels step and the MP4 loops are
  * proven on a tiny generated still and clip.
  */
 
-const { providerMock, blobFiles, getEnvMock, swapScene } = vi.hoisted(() => ({
-  swapScene: { buffer: Buffer.alloc(0) as Buffer },
-  providerMock: {
-    editImage: vi.fn(),
-    rewrite: vi.fn(),
-    startVideo: vi.fn(),
-    pollVideo: vi.fn(),
-  },
-  blobFiles: new Map<string, Buffer>(),
-  getEnvMock: vi.fn(),
-}));
+const { providerMock, blobFiles, blobTypes, getEnvMock, swapScene } =
+  vi.hoisted(() => ({
+    blobTypes: new Map<string, string>(),
+    swapScene: { buffer: Buffer.alloc(0) as Buffer },
+    providerMock: {
+      editImage: vi.fn(),
+      rewrite: vi.fn(),
+      startVideo: vi.fn(),
+      pollVideo: vi.fn(),
+    },
+    blobFiles: new Map<string, Buffer>(),
+    getEnvMock: vi.fn(),
+  }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({
-  put: async (pathname: string, body: Buffer) => {
+  put: async (
+    pathname: string,
+    body: Buffer,
+    options: { contentType: string },
+  ) => {
     const url = `https://blob.test/${pathname}`;
     blobFiles.set(url, Buffer.from(body));
+    blobTypes.set(url, options.contentType);
     return { url };
   },
 }));
@@ -373,39 +380,65 @@ async function pixel(webp: Buffer, x: number, y: number): Promise<number[]> {
   return [data[at]!, data[at + 1]!, data[at + 2]!];
 }
 
-/** The first frame of an animated WebP, rewrapped as a still ffmpeg can decode. */
-function firstFrame(animated: Buffer): Buffer {
-  const at = animated.indexOf("ANMF");
-  const size = animated.readUInt32LE(at + 4);
-  // An ANMF payload is a 16-byte frame header, then the frame's own chunks.
-  const chunks = animated.subarray(at + 8 + 16, at + 8 + size);
-  const header = Buffer.alloc(12);
-  header.write("RIFF", 0);
-  header.writeUInt32LE(4 + chunks.length, 4);
-  header.write("WEBP", 8);
-  return Buffer.concat([header, chunks]);
-}
-
-/** Canvas size and frame count read from the WebP container itself. */
+/** The size of a lossy WebP still, read from its own header. */
 function webpInfo(file: Buffer) {
   expect(file.subarray(0, 4).toString()).toBe("RIFF");
   expect(file.subarray(8, 12).toString()).toBe("WEBP");
-  if (file.subarray(12, 16).toString() === "VP8 ") {
-    // A plain lossy still: the size sits in the frame header.
-    return {
-      animated: false,
-      width: (file[26]! | (file[27]! << 8)) & 0x3fff,
-      height: (file[28]! | (file[29]! << 8)) & 0x3fff,
-      frames: 0,
-    };
-  }
-  expect(file.subarray(12, 16).toString()).toBe("VP8X");
+  expect(file.subarray(12, 16).toString()).toBe("VP8 ");
   return {
-    animated: (file[20]! & 0x02) !== 0,
-    width: (file[24]! | (file[25]! << 8) | (file[26]! << 16)) + 1,
-    height: (file[27]! | (file[28]! << 8) | (file[29]! << 16)) + 1,
-    frames: file.toString("latin1").split("ANMF").length - 1,
+    width: (file[26]! | (file[27]! << 8)) & 0x3fff,
+    height: (file[28]! | (file[29]! << 8)) & 0x3fff,
   };
+}
+
+/** What ffmpeg reports about an MP4: its streams, and where the index sits. */
+function mp4Info(file: Buffer) {
+  const probe = spawnSync(
+    ffmpegPath as string,
+    ["-hide_banner", "-i", "pipe:0"],
+    {
+      input: file,
+      encoding: "utf8",
+    },
+  );
+  const report = probe.stderr;
+  const video =
+    /Stream #0:\d+.*Video: (\w+) \((\w+)\).*?, (\d+)x(\d+).*?, ([\d.]+) fps/.exec(
+      report,
+    );
+  return {
+    codec: video?.[1],
+    profile: video?.[2],
+    width: Number(video?.[3]),
+    height: Number(video?.[4]),
+    fps: Number(video?.[5]),
+    hasAudio: /Audio:/.test(report),
+    pixelFormat: /Video: .*?yuv420p/.test(report) ? "yuv420p" : "other",
+    // Faststart: the index comes before the media data, so it plays while it loads.
+    indexFirst:
+      file.indexOf("moov") !== -1 &&
+      file.indexOf("moov") < file.indexOf("mdat"),
+  };
+}
+
+/** The red channel of one pixel of the first frame of an MP4. */
+function mp4Corner(file: Buffer): number {
+  const raw = ffmpeg(
+    [
+      "-i",
+      "pipe:0",
+      "-frames:v",
+      "1",
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "rgb24",
+      "pipe:1",
+    ],
+    file,
+  );
+  const side = Math.sqrt(raw.length / 3);
+  return raw[(3 * side + 3) * 3]!;
 }
 
 beforeAll(() => {
@@ -440,19 +473,20 @@ beforeAll(() => {
     "image2pipe",
     "pipe:1",
   ]);
-  // One second of a square sliding over a background that has drifted dark.
+  // One second of a square sliding over a background that has drifted dark,
+  // shaped like Seedance's answer: 960 px square, 24 fps.
   const clip = path.join(scratch, "clip.mp4");
   ffmpeg([
     "-f",
     "lavfi",
     "-i",
-    "color=c=0xE0E0E0:s=128x128:d=1:r=15",
+    "color=c=0xE0E0E0:s=960x960:d=1:r=24",
     "-f",
     "lavfi",
     "-i",
-    "color=c=0x884422:s=30x30:d=1:r=15",
+    "color=c=0x884422:s=100x100:d=1:r=24",
     "-filter_complex",
-    "[0][1]overlay=x='t*60':y=50:eval=frame",
+    "[0][1]overlay=x='t*600':y=400:eval=frame",
     // H.264 in MP4, as Seedance returns it.
     "-c:v",
     "libx264",
@@ -477,6 +511,7 @@ function resetWorld() {
   avatars.reset();
   renders.reset();
   blobFiles.clear();
+  blobTypes.clear();
   bots.avatarImageUrl = null;
   deletedBots.clear();
   operations = [];
@@ -561,11 +596,7 @@ describe("levels", () => {
     for (const channel of [r, g, b]) {
       expect(Math.abs(channel! - 245)).toBeLessThanOrEqual(2);
     }
-    expect(webpInfo(leveled)).toMatchObject({
-      animated: false,
-      width: 640,
-      height: 640,
-    });
+    expect(webpInfo(leveled)).toEqual({ width: 1024, height: 1024 });
   });
 
   it("clamps the correction instead of chasing a far-off background", async () => {
@@ -605,7 +636,7 @@ describe("drafting", () => {
       requestedByUserId: USER,
     });
     const stored = blobFiles.get(draft!.imageUrl)!;
-    expect(webpInfo(stored).width).toBe(640);
+    expect(webpInfo(stored).width).toBe(1024);
     // And it came back levelled to #F5F5F5.
     expect(Math.abs((await pixel(stored, 2, 2))[0]! - 245)).toBeLessThanOrEqual(
       1,
@@ -978,7 +1009,7 @@ describe("keeping a look", () => {
 });
 
 describe("reconciling renders", () => {
-  it("walks every state to READY with a still and two animated loops", async () => {
+  it("walks every state to READY with a still and two MP4 loops", async () => {
     const draft = await keptLook({ kind: "creature", creature: "otter" });
     providerMock.editImage.mockClear();
 
@@ -1009,19 +1040,33 @@ describe("reconciling renders", () => {
       expect(blobFiles.has(call[0].imageUrl)).toBe(true);
     }
     for (const row of renders.rows) {
-      const loop = webpInfo(blobFiles.get(row.loopUrl as string)!);
-      const large = webpInfo(blobFiles.get(row.loopLargeUrl as string)!);
-      expect(loop).toMatchObject({ animated: true, width: 320, height: 320 });
-      expect(large).toMatchObject({ animated: true, width: 560, height: 560 });
-      expect(loop.frames).toBeGreaterThan(5);
+      const small = blobFiles.get(row.loopUrl as string)!;
+      const large = blobFiles.get(row.loopLargeUrl as string)!;
+      // H.264 High in MP4, muted, at the source's 24 fps, index first.
+      for (const [file, side] of [
+        [small, 480],
+        [large, 960],
+      ] as const) {
+        expect(mp4Info(file)).toEqual({
+          codec: "h264",
+          profile: "High",
+          width: side,
+          height: side,
+          fps: 24,
+          hasAudio: false,
+          pixelFormat: "yuv420p",
+          indexFirst: true,
+        });
+      }
       // Loops are colour-corrected to the state's background.
       const target = row.state === "OFFLINE" ? 215 : 245;
-      const [corner] = await pixel(
-        firstFrame(blobFiles.get(row.loopUrl as string)!),
-        3,
-        3,
-      );
-      expect(Math.abs(corner! - target)).toBeLessThanOrEqual(3);
+      expect(Math.abs(mp4Corner(small) - target)).toBeLessThanOrEqual(3);
+      expect(Math.abs(mp4Corner(large) - target)).toBeLessThanOrEqual(3);
+      for (const url of [row.loopUrl, row.loopLargeUrl] as string[]) {
+        expect(url).toMatch(/\.mp4$/);
+        expect(blobTypes.get(url)).toBe("video/mp4");
+      }
+      expect(blobTypes.get(row.stillUrl as string)).toBe("image/webp");
     }
     // The still of a dimmer state lands on its own, darker background.
     const offline = renders.rows.find((row) => row.state === "OFFLINE")!;

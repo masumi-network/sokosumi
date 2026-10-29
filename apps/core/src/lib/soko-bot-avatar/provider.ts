@@ -38,9 +38,10 @@ const VIDEO_REQUEST_TIMEOUT_MS = 30_000;
 const LOOP_SECONDS = 4;
 /**
  * The SDK types `resolution` as `WxH`, but the Gateway forwards it verbatim and
- * Seedance rejects "480x480" (flf2v wants "480p"). The cast is the whole gap.
+ * Seedance's first-and-last-frame mode wants "720p" (it refuses "480x480") and
+ * returns a 960 px square at 24 fps. The cast is the whole gap.
  */
-const LOOP_RESOLUTION = "480p" as `${number}x${number}`;
+const LOOP_RESOLUTION = "720p" as `${number}x${number}`;
 
 export interface RewrittenChange {
   /** One edit instruction for the image model; empty when nothing is allowed. */

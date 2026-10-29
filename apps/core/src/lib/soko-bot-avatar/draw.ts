@@ -253,23 +253,30 @@ export async function drawStill(
   return await levelStill(edited, input.target);
 }
 
+const ASSET_CONTENT_TYPE = { webp: "image/webp", mp4: "video/mp4" } as const;
+
 /** Copy bytes into the blob store under a content-hashed name. Returns the public URL. */
 export async function storeAvatarAsset(
   buffer: Buffer,
   key: string,
+  format: keyof typeof ASSET_CONTENT_TYPE = "webp",
 ): Promise<string> {
   const token = getEnv().BLOB_READ_WRITE_TOKEN;
   if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-  const blob = await put(buildSokoBotAvatarBlobPathname(key, hash), buffer, {
-    access: "public",
-    contentType: "image/webp",
-    token,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    // Bounded: an unbounded upload is the one step with no time limit, and a
-    // hung one would outlive the lease or reservation that covers it.
-    abortSignal: AbortSignal.timeout(ASSET_TIMEOUT_MS),
-  });
+  const blob = await put(
+    buildSokoBotAvatarBlobPathname(key, hash, format),
+    buffer,
+    {
+      access: "public",
+      contentType: ASSET_CONTENT_TYPE[format],
+      token,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      // Bounded: an unbounded upload is the one step with no time limit, and a
+      // hung one would outlive the lease or reservation that covers it.
+      abortSignal: AbortSignal.timeout(ASSET_TIMEOUT_MS),
+    },
+  );
   return blob.url;
 }

@@ -316,8 +316,12 @@ async function collectLoop(
       style.backgroundTarget(state),
     );
     const [loopUrl, loopLargeUrl] = await Promise.all([
-      storeAvatarAsset(loops.loop, `${row.avatar.id}-${state}-loop`),
-      storeAvatarAsset(loops.loopLarge, `${row.avatar.id}-${state}-loop-large`),
+      storeAvatarAsset(loops.loop, `${row.avatar.id}-${state}-loop`, "mp4"),
+      storeAvatarAsset(
+        loops.loopLarge,
+        `${row.avatar.id}-${state}-loop-large`,
+        "mp4",
+      ),
     ]);
     await prisma.sokoBotAvatarRender.updateMany({
       where: { id: row.id, status: "VIDEO_SUBMITTED" },

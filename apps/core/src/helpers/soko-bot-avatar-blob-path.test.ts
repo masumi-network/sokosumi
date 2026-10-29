@@ -15,8 +15,11 @@ describe("soko-bot avatar blob path", () => {
   it("encodes the new pool pathname as soko-bots/avatars/{key}-{hash12}.webp", () => {
     expect(SOKO_BOT_AVATAR_BLOB_DIR).toBe("soko-bots/avatars");
     expect(SOKO_BOT_AVATAR_LEGACY_BLOB_DIR).toBe("soko-bot-avatars");
-    expect(buildSokoBotAvatarBlobPathname(KEY, SHA256_HEX)).toBe(
+    expect(buildSokoBotAvatarBlobPathname(KEY, SHA256_HEX, "webp")).toBe(
       `soko-bots/avatars/${KEY}-${HASH12}.webp`,
+    );
+    expect(buildSokoBotAvatarBlobPathname(KEY, SHA256_HEX, "mp4")).toBe(
+      `soko-bots/avatars/${KEY}-${HASH12}.mp4`,
     );
   });
 
