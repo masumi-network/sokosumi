@@ -14,10 +14,10 @@ import type { ReactNode } from "react";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { AvatarFace } from "@/components/soko-bot/avatar-face";
+import { AvatarLoop } from "@/components/soko-bot/avatar-loop";
 import {
   AvatarStateLine,
   AvatarStatePill,
-  useAvatarImage,
   useAvatarStateCopy,
   usePlayOnce,
 } from "@/components/soko-bot/avatar-state";
@@ -295,17 +295,19 @@ function LastActive({ at }: { at: Date }) {
 function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
   const faceClass = "size-5 shrink-0 rounded-full object-cover";
   // A state change plays once on the small face, then it rests on the still.
-  const playing = usePlayOnce(bot.avatarState, false);
+  const [playing, stop] = usePlayOnce(bot.avatarState, false);
   const sources = avatarSources(bot.avatar, bot.avatarState, bot.imageUrl);
-  const shown = useAvatarImage(sources, playing, "loop");
 
   return (
     <span className="relative flex size-5 shrink-0">
-      {shown ? (
+      {sources.still ? (
         <AvatarFace
-          src={shown}
+          src={sources.still}
           crafted={sources.crafted}
           className={faceClass}
+          loopSrc={sources.loop}
+          playing={playing}
+          onEnded={stop}
         />
       ) : (
         <AuroraOrb seed={bot.seed} size={40} className={faceClass} />
@@ -326,12 +328,7 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
 function BotHoverCard({ bot }: { bot: SidebarSokoBotLive }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const { alt } = useAvatarStateCopy();
-  // The card exists only while open, so it loops for as long as it does.
-  const shown = useAvatarImage(
-    avatarSources(bot.avatar, bot.avatarState, bot.imageUrl),
-    true,
-    "loop",
-  );
+  const sources = avatarSources(bot.avatar, bot.avatarState, bot.imageUrl);
   const name = bot.name ?? t("fallbackName");
 
   return (
@@ -340,9 +337,13 @@ function BotHoverCard({ bot }: { bot: SidebarSokoBotLive }) {
       align="start"
       className="flex w-66 flex-col gap-3 p-3"
     >
-      {shown ? (
-        <img
-          src={shown}
+      {sources.still ? (
+        // The card exists only while open, so it loops for as long as it does.
+        <AvatarLoop
+          poster={sources.still}
+          src={sources.loop}
+          playing
+          loop
           alt={alt(name, bot.avatarState)}
           className="bg-muted size-60 rounded-lg object-cover"
         />

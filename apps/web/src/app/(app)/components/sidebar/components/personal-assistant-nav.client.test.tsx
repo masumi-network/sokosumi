@@ -306,8 +306,8 @@ const NO_STATES = {
 function stateAssets(name: string) {
   return {
     stillUrl: `https://blob/${name}.png`,
-    loopUrl: `https://blob/${name}-320.webp`,
-    loopLargeUrl: `https://blob/${name}-560.webp`,
+    loopUrl: `https://blob/${name}-480.mp4`,
+    loopLargeUrl: `https://blob/${name}-960.mp4`,
   };
 }
 
@@ -337,12 +337,21 @@ function rowFace(container: HTMLElement) {
   return container.querySelector('[data-slot="sidebar-row-slot"] img');
 }
 
+function rowLoop(container: HTMLElement) {
+  return container.querySelector('[data-slot="sidebar-row-slot"] video');
+}
+
 describe("PersonalAssistantNav crafted avatar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     pathnameRef.current = "/";
     reducedMotion(false);
+    // No media playback in the test DOM: a loop is a video that never plays.
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(() => Promise.resolve()),
+    });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -362,6 +371,7 @@ describe("PersonalAssistantNav crafted avatar", () => {
 
   it("rests on the still on mount and plays once when the state changes", () => {
     const view = renderNav({ bot: craftedBot });
+    expect(rowLoop(view.container)).toBeNull();
     expect(rowFace(view.container)).toHaveAttribute(
       "src",
       "https://blob/idle.png",
@@ -372,14 +382,17 @@ describe("PersonalAssistantNav crafted avatar", () => {
         <PersonalAssistantNav bot={{ ...craftedBot, avatarState: "working" }} />
       </SidebarProvider>,
     );
-    expect(rowFace(view.container)).toHaveAttribute(
-      "src",
-      "https://blob/working-320.webp",
+    const video = rowLoop(view.container);
+    expect(video).toHaveAttribute("src", "https://blob/working-480.mp4");
+    expect(video).toHaveAttribute("poster", "https://blob/working.png");
+    expect(video).not.toHaveAttribute("loop");
+    // The same face crop as the still.
+    expect(tokens(video?.className ?? "")).toEqual(
+      expect.arrayContaining(["-left-[89%]", "-top-[51%]", "size-[240%]"]),
     );
 
-    act(() => {
-      vi.advanceTimersByTime(4_000);
-    });
+    fireEvent.ended(video as HTMLVideoElement);
+    expect(rowLoop(view.container)).toBeNull();
     expect(rowFace(view.container)).toHaveAttribute(
       "src",
       "https://blob/working.png",
@@ -394,6 +407,7 @@ describe("PersonalAssistantNav crafted avatar", () => {
         <PersonalAssistantNav bot={{ ...craftedBot, avatarState: "working" }} />
       </SidebarProvider>,
     );
+    expect(rowLoop(view.container)).toBeNull();
     expect(rowFace(view.container)).toHaveAttribute(
       "src",
       "https://blob/working.png",
@@ -428,6 +442,12 @@ describe("PersonalAssistantNav crafted avatar", () => {
       return screen.queryByRole("img", { name: "alt(Mo,label.working)" });
     }
 
+    function cardVideo() {
+      return document.querySelector(
+        '[data-slot="hover-card-content"] video',
+      ) as HTMLVideoElement | null;
+    }
+
     function openCard() {
       fireEvent.focus(screen.getByRole("link", { name: /Mo/ }));
       act(() => {
@@ -444,10 +464,10 @@ describe("PersonalAssistantNav crafted avatar", () => {
       renderNav({ bot: working });
       openCard();
 
-      expect(cardImage()).toHaveAttribute(
-        "src",
-        "https://blob/working-320.webp",
-      );
+      const video = cardVideo();
+      expect(video).toHaveAttribute("src", "https://blob/working-480.mp4");
+      expect(video).toHaveAttribute("poster", "https://blob/working.png");
+      expect(cardImage()).not.toBeNull();
       expect(
         screen.getByText("label.working", {
           selector: '[data-slot="avatar-state-pill"]',
@@ -467,15 +487,16 @@ describe("PersonalAssistantNav crafted avatar", () => {
       expect(cardImage()).not.toBeNull();
     });
 
-    it("loops only while open: closing it removes the loop", () => {
+    it("loops while open, and closing it removes the loop", () => {
       renderNav({ bot: working });
       openCard();
-      expect(cardImage()).not.toBeNull();
+      expect(cardVideo()?.loop).toBe(true);
 
       fireEvent.blur(screen.getByRole("link", { name: /Mo/ }));
       act(() => {
         vi.advanceTimersByTime(300);
       });
+      expect(cardVideo()).toBeNull();
       expect(cardImage()).toBeNull();
     });
 
@@ -483,6 +504,7 @@ describe("PersonalAssistantNav crafted avatar", () => {
       reducedMotion(true);
       renderNav({ bot: working });
       openCard();
+      expect(cardVideo()).toBeNull();
       expect(cardImage()).toHaveAttribute("src", "https://blob/working.png");
     });
   });

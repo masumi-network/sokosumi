@@ -9,8 +9,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { AuroraOrb } from "@/components/aurora-orb";
+import { AvatarLoop } from "@/components/soko-bot/avatar-loop";
 import {
-  useAvatarImage,
   useAvatarStateCopy,
   usePlayOnce,
 } from "@/components/soko-bot/avatar-state";
@@ -41,19 +41,18 @@ export function BotProfileAvatar({
 }: BotProfileAvatarProps) {
   const t = useTranslations("App.SokoBot.Avatar");
   const { alt } = useAvatarStateCopy();
-  const playing = usePlayOnce(state, true);
-  const shown = useAvatarImage(
-    avatarSources(avatar, state, imageUrl),
-    playing,
-    "loopLarge",
-  );
+  const [playing, stop] = usePlayOnce(state, true);
+  const sources = avatarSources(avatar, state, imageUrl);
 
   return (
     <div className="relative size-38 shrink-0 md:size-46">
       <div className="bg-muted ring-border size-full overflow-hidden rounded-full ring-4">
-        {shown ? (
-          <img
-            src={shown}
+        {sources.still ? (
+          <AvatarLoop
+            poster={sources.still}
+            src={sources.loop}
+            playing={playing}
+            onEnded={stop}
             alt={alt(name, state)}
             className="size-full object-cover"
           />

@@ -14,8 +14,8 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 import { AvatarFace } from "@/components/soko-bot/avatar-face";
+import { AvatarLoop } from "@/components/soko-bot/avatar-loop";
 import {
-  useAvatarImage,
   useAvatarStateCopy,
   usePlayOnce,
 } from "@/components/soko-bot/avatar-state";
@@ -122,7 +122,8 @@ export function AvatarStudio({
   const [isCancelling, startCancelling] = useTransition();
   const busy = isDrafting || isKeeping || isCancelling;
   // Picking a state plays it once, then it rests on its still.
-  const playing = usePlayOnce(`${pick.state}:${pick.n}`, false);
+  const pickKey = `${pick.state}:${pick.n}`;
+  const [playing, stop] = usePlayOnce(pickKey, false);
 
   const rendering = isRendering(studio.progress);
   useEffect(() => {
@@ -240,8 +241,10 @@ export function AvatarStudio({
     studio.avatar?.stillUrl ?? null,
   );
   const lookImage = draft?.imageUrl ?? studio.avatar?.stillUrl ?? null;
-  const stateImage = useAvatarImage(sources, playing, "loopLarge");
-  const shown = draft ? draft.imageUrl : stateImage;
+  const lookClass = cn(
+    "size-full object-cover transition-opacity duration-200",
+    isDrafting && "opacity-45",
+  );
   const currentLook = draft?.look ?? studio.look;
   const statesHint =
     draft || !crafted
@@ -277,18 +280,21 @@ export function AvatarStudio({
             aria-busy={isDrafting}
             className="bg-muted relative aspect-square w-full overflow-hidden rounded-2xl"
           >
-            {shown ? (
+            {draft ? (
               <img
-                src={shown}
-                alt={
-                  draft
-                    ? t("draftAlt", { name: botName })
-                    : alt(botName, pick.state)
-                }
-                className={cn(
-                  "size-full object-cover transition-opacity duration-200",
-                  isDrafting && "opacity-45",
-                )}
+                src={draft.imageUrl}
+                alt={t("draftAlt", { name: botName })}
+                className={lookClass}
+              />
+            ) : sources.still ? (
+              <AvatarLoop
+                key={pickKey}
+                poster={sources.still}
+                src={sources.loopLarge}
+                playing={playing}
+                onEnded={stop}
+                alt={alt(botName, pick.state)}
+                className={lookClass}
               />
             ) : isDrafting ? null : (
               <p className="text-muted-foreground absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-balance">

@@ -1,10 +1,17 @@
 import { cn } from "@/lib/utils";
 
+import { AvatarLoop } from "./avatar-loop";
+
 interface AvatarFaceProps {
+  /** The still. */
   src: string;
   crafted: boolean;
   alt?: string;
   className?: string;
+  /** The state's loop, played while `playing`. */
+  loopSrc?: string | null;
+  playing?: boolean;
+  onEnded?: () => void;
 }
 
 /**
@@ -17,15 +24,22 @@ export function AvatarFace({
   crafted,
   alt = "",
   className,
+  loopSrc = null,
+  playing = false,
+  onEnded,
 }: AvatarFaceProps) {
+  const media = (mediaClass: string) => (
+    <AvatarLoop
+      poster={src}
+      src={loopSrc}
+      playing={playing}
+      onEnded={onEnded}
+      alt={alt}
+      className={mediaClass}
+    />
+  );
   if (!crafted) {
-    return (
-      <img
-        src={src}
-        alt={alt}
-        className={cn("shrink-0 rounded-full object-cover", className)}
-      />
-    );
+    return media(cn("shrink-0 rounded-full object-cover", className));
   }
   return (
     <span
@@ -34,11 +48,7 @@ export function AvatarFace({
         className,
       )}
     >
-      <img
-        src={src}
-        alt={alt}
-        className="absolute -top-[51%] -left-[89%] block size-[240%] max-w-none"
-      />
+      {media("absolute -top-[51%] -left-[89%] block size-[240%] max-w-none")}
     </span>
   );
 }

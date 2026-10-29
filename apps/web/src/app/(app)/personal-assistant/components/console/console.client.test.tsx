@@ -1,5 +1,5 @@
 import type { SokoBotAvatarView } from "@sokosumi/core-client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -266,8 +266,8 @@ const NO_STATES = {
 function stateAssets(name: string) {
   return {
     stillUrl: `https://blob/${name}.png`,
-    loopUrl: `https://blob/${name}-320.webp`,
-    loopLargeUrl: `https://blob/${name}-560.webp`,
+    loopUrl: `https://blob/${name}-480.mp4`,
+    loopLargeUrl: `https://blob/${name}-960.mp4`,
   };
 }
 
@@ -302,31 +302,42 @@ function reducedMotion(matches: boolean) {
   reduceMotion.current = matches;
 }
 
-/** The portrait: the one image named after the bot and its state. */
+/** The portrait still: the one image named after the bot and its state. */
 function portrait() {
   return screen.getByRole("img", { name: /^alt\(/ });
+}
+
+/** The loop, while it plays. */
+function loop() {
+  return document.querySelector("video");
 }
 
 describe("SokoBotConsole header portrait", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
     viewMock.mockReturnValue(null);
     reducedMotion(false);
+    // No media playback in the test DOM: a loop is a video that never plays.
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(() => Promise.resolve()),
+    });
   });
   afterEach(() => {
-    vi.useRealTimers();
     reduceMotion.current = false;
   });
 
   it("plays the current state once on mount, then rests on its still", () => {
     renderConsole({ initialState: craftedState("working") });
-    expect(portrait()).toHaveAttribute("src", "https://blob/working-560.webp");
+    expect(loop()).toHaveAttribute("src", "https://blob/working-480.mp4");
+    expect(loop()).toHaveAttribute("poster", "https://blob/working.png");
+    expect(loop()).toHaveAttribute("aria-hidden", "true");
+    expect(loop()).not.toHaveAttribute("loop");
     expect(portrait()).toHaveAttribute("alt", "alt(Ops,label.working)");
 
-    act(() => {
-      vi.advanceTimersByTime(4_000);
-    });
+    fireEvent.ended(loop() as HTMLVideoElement);
+
+    expect(loop()).toBeNull();
     expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
   });
 
@@ -334,23 +345,29 @@ describe("SokoBotConsole header portrait", () => {
     const { rerender } = renderConsole({
       initialState: craftedState("working"),
     });
-    act(() => {
-      vi.advanceTimersByTime(4_000);
-    });
-    expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
+    fireEvent.ended(loop() as HTMLVideoElement);
+    expect(loop()).toBeNull();
 
     rerender(consoleElement({ initialState: craftedState("done") }));
-    expect(portrait()).toHaveAttribute("src", "https://blob/done-560.webp");
+    expect(loop()).toHaveAttribute("src", "https://blob/done-480.mp4");
+    expect(loop()).toHaveAttribute("poster", "https://blob/done.png");
 
-    act(() => {
-      vi.advanceTimersByTime(4_000);
-    });
+    fireEvent.ended(loop() as HTMLVideoElement);
+    expect(loop()).toBeNull();
     expect(portrait()).toHaveAttribute("src", "https://blob/done.png");
+  });
+
+  it("rests on the still when the clip cannot play", () => {
+    renderConsole({ initialState: craftedState("working") });
+    fireEvent.error(loop() as HTMLVideoElement);
+    expect(loop()).toBeNull();
+    expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
   });
 
   it("shows only stills under reduced motion", () => {
     reducedMotion(true);
     renderConsole({ initialState: craftedState("working") });
+    expect(loop()).toBeNull();
     expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
   });
 
@@ -372,6 +389,7 @@ describe("SokoBotConsole header portrait", () => {
         },
       },
     });
+    expect(loop()).toBeNull();
     expect(portrait()).toHaveAttribute("src", "https://blob/mascot.png");
   });
 

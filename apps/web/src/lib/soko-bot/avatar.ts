@@ -6,9 +6,6 @@ import type {
 /** The style id of the mascots drawn before crafted avatars: one image, no states. */
 const LEGACY_STYLE_ID = "mascot";
 
-/** How long a state plays when it changes, before the face rests on its still. */
-export const AVATAR_PLAY_ONCE_MS = 4_000;
-
 /**
  * Crafted avatars are scenes cropped to the face; a mascot is already a face.
  * Summaries that carry only a bot's style id (task and chat participants) ask
@@ -28,9 +25,9 @@ export interface AvatarSources {
   crafted: boolean;
   /** The state's still, else the idle still, else the bot's single image. */
   still: string | null;
-  /** 320 px animated WebP; null for a legacy avatar or a loop not yet rendered. */
+  /** 480 px MP4; null for a legacy avatar or a loop not yet rendered. */
   loop: string | null;
-  /** 560 px animated WebP. */
+  /** 960 px MP4. */
   loopLarge: string | null;
 }
 

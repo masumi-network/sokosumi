@@ -14,7 +14,10 @@ const { createMock, keepMock, discardMock, refreshMock, toastErrorMock } =
     toastErrorMock: vi.fn(),
   }));
 
-vi.mock("motion/react", () => ({ useReducedMotion: () => false }));
+const reduceMotion = vi.hoisted(() => ({ current: false }));
+vi.mock("motion/react", () => ({
+  useReducedMotion: () => reduceMotion.current,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
@@ -52,8 +55,8 @@ const NO_STATES = {
 function assets(name: string) {
   return {
     stillUrl: `https://blob/${name}.png`,
-    loopUrl: `https://blob/${name}-320.webp`,
-    loopLargeUrl: `https://blob/${name}-560.webp`,
+    loopUrl: `https://blob/${name}-480.mp4`,
+    loopLargeUrl: `https://blob/${name}-960.mp4`,
   };
 }
 
@@ -111,6 +114,12 @@ describe("AvatarStudio", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    reduceMotion.current = false;
+    // No media playback in the test DOM: a loop is a video that never plays.
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(() => Promise.resolve()),
+    });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -318,16 +327,43 @@ describe("AvatarStudio", () => {
     expect(screen.getByRole("button", { name: "label.done" })).toBeDisabled();
   });
 
-  it("plays a picked state once, then rests on its still", async () => {
-    renderStudio();
+  describe("a picked state", () => {
+    const video = () => document.querySelector("video");
 
-    await click(screen.getByRole("button", { name: "label.working" }));
-    expect(look()).toHaveAttribute("src", "https://blob/working-560.webp");
+    it("plays once, then rests on its still", async () => {
+      renderStudio();
+      expect(video()).toBeNull();
 
-    act(() => {
-      vi.advanceTimersByTime(4_000);
+      await click(screen.getByRole("button", { name: "label.working" }));
+      expect(video()).toHaveAttribute("src", "https://blob/working-960.mp4");
+      expect(video()).toHaveAttribute("poster", "https://blob/working.png");
+      expect(video()).not.toHaveAttribute("loop");
+
+      fireEvent.ended(video() as HTMLVideoElement);
+      expect(video()).toBeNull();
+      expect(look()).toHaveAttribute("src", "https://blob/working.png");
     });
-    expect(look()).toHaveAttribute("src", "https://blob/working.png");
+
+    it("plays again when the same state is picked again", async () => {
+      renderStudio();
+      await click(screen.getByRole("button", { name: "label.working" }));
+      fireEvent.ended(video() as HTMLVideoElement);
+      expect(video()).toBeNull();
+
+      await click(screen.getByRole("button", { name: "label.working" }));
+
+      expect(video()).toHaveAttribute("src", "https://blob/working-960.mp4");
+    });
+
+    it("stays a still under reduced motion", async () => {
+      reduceMotion.current = true;
+      renderStudio();
+
+      await click(screen.getByRole("button", { name: "label.working" }));
+
+      expect(video()).toBeNull();
+      expect(look()).toHaveAttribute("src", "https://blob/working.png");
+    });
   });
 
   describe("Cancel", () => {

@@ -2,46 +2,29 @@
 
 import { SokoBotAvatarState } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
-import { useReducedMotion } from "motion/react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
-import { AVATAR_PLAY_ONCE_MS, type AvatarSources } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 
 /**
- * The picture to show: the state's loop while `playing`, else its still. A
- * person who prefers reduced motion, a legacy avatar and a loop that is not
- * rendered yet all get the still.
+ * Whether an avatar is playing its state, and how to say the clip is over.
+ * It plays after mount when `playOnMount`, and again whenever `key` changes;
+ * `AvatarLoop`'s `onEnded` calls `stop` and the avatar rests on its still.
  */
-export function useAvatarImage(
-  sources: AvatarSources,
-  playing: boolean,
-  loop: "loop" | "loopLarge",
-): string | null {
-  const reducedMotion = useReducedMotion();
-  return (playing && !reducedMotion ? sources[loop] : null) ?? sources.still;
-}
-
-/**
- * True for four seconds after `key` changes (and after mount when
- * `playOnMount`), then false. An avatar plays its state while this is true and
- * rests on its still otherwise.
- */
-export function usePlayOnce(key: string, playOnMount: boolean): boolean {
+export function usePlayOnce(
+  key: string,
+  playOnMount: boolean,
+): [playing: boolean, stop: () => void] {
   const [playing, setPlaying] = useState(playOnMount);
   const [seenKey, setSeenKey] = useState(key);
   if (seenKey !== key) {
     setSeenKey(key);
     setPlaying(true);
   }
-  useEffect(() => {
-    if (!playing) return;
-    const timer = setTimeout(() => setPlaying(false), AVATAR_PLAY_ONCE_MS);
-    return () => clearTimeout(timer);
-  }, [playing, key]);
-  return playing;
+  const stop = useCallback(() => setPlaying(false), []);
+  return [playing, stop];
 }
 
 /** The words for an avatar state, and the alt text that names bot and state. */
