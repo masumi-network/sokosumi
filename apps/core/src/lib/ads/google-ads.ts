@@ -1066,10 +1066,12 @@ const googleErrorSchema = z.object({
 
 /**
  * Calls a Google Ads REST endpoint through the Composio proxy with the
- * connected account's credentials. A status outside 2xx is a provider error.
+ * connected account's credentials, as the executor: Project connections are
+ * SHARED, and Composio refuses a user outside their ACL. A status outside 2xx
+ * is a provider error.
  */
 async function callGoogleAds(
-  connectedAccountId: string,
+  { connectedAccountId, executorUserId }: AdsConnectedAccount,
   endpoint: string,
   body: Record<string, unknown>,
   context: string,
@@ -1078,6 +1080,7 @@ async function callGoogleAds(
     method: "POST",
     jsonBody: {
       connected_account_id: connectedAccountId,
+      user_id: executorUserId,
       endpoint,
       method: "POST",
       body,
@@ -1136,7 +1139,10 @@ export async function searchGoogleLocations(
   }
   const context = "suggest Google Ads locations";
   const data = await callGoogleAds(
-    input.connectedAccountId,
+    {
+      connectedAccountId: input.connectedAccountId,
+      executorUserId: input.executorUserId,
+    },
     GEO_TARGET_SUGGEST_ENDPOINT,
     {
       locale: "en",

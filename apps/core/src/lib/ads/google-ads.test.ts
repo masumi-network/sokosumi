@@ -1720,7 +1720,9 @@ describe("Google targeting lookups", () => {
     const suggestions = (list: unknown[]) =>
       proxied({ geoTargetConstantSuggestions: list });
 
-    it("suggests locations by name through the proxy, without a session", async () => {
+    // Project connections are SHARED; Composio refuses (403) a proxy call
+    // without a user id from the connection's ACL.
+    it("suggests locations by name through the proxy as the executor, without a session", async () => {
       suggestions([]);
       await searchGoogleLocations({ ...connected, q: "müNCHEN" });
       expect(proxyFetchMock).toHaveBeenCalledTimes(1);
@@ -1730,6 +1732,7 @@ describe("Google targeting lookups", () => {
           method: "POST",
           jsonBody: {
             connected_account_id: "ca_google",
+            user_id: "sokosumi:project-executor:project_1",
             endpoint: SUGGEST,
             method: "POST",
             body: { locale: "en", locationNames: { names: ["müNCHEN"] } },
@@ -1744,6 +1747,7 @@ describe("Google targeting lookups", () => {
       await searchGoogleLocations({ ...connected, ids: ["2372", "2840"] });
       expect(proxyFetchMock.mock.calls[0]?.[1].jsonBody).toEqual({
         connected_account_id: "ca_google",
+        user_id: "sokosumi:project-executor:project_1",
         endpoint: SUGGEST,
         method: "POST",
         body: {

@@ -17,8 +17,12 @@ export interface ProjectActivityRow {
   starredAt?: Date | null;
 }
 
-/** `open` covers closing and close-failed projects: only `closedAt` is terminal. */
-export const PROJECT_LIST_STATES = ["open", "closed"] as const;
+/**
+ * `open` covers closing and close-failed projects: only `closedAt` is
+ * terminal. `hidden` is the reader's own Hidden projects that are still open
+ * (ADR 0036); a project both Closed and Hidden lists under `closed`.
+ */
+export const PROJECT_LIST_STATES = ["open", "hidden", "closed"] as const;
 export type ProjectListState = (typeof PROJECT_LIST_STATES)[number];
 
 export function encodeProjectActivityCursor(
@@ -55,6 +59,8 @@ interface ProjectActivityPageParams {
   visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
   search?: string;
   state?: ProjectListState;
+  /** The reader whose Hides split `open` from `hidden`; null hides nothing. */
+  readerUserId?: string | null;
   /** The reader whose Pins lead the page; omitted keeps pure activity order. */
   pinnedFirstUserId?: string | null;
 }
@@ -73,31 +79,62 @@ function projectNameSearchClause(search: string) {
   return PrismaRaw.sql`AND p.name ILIKE ${literalSubstringPattern(search)} ESCAPE '\\'`;
 }
 
-function projectStateClause(state?: ProjectListState) {
-  if (state === "open") return PrismaRaw.sql`AND p."closedAt" IS NULL`;
+/** The reader's Hide on project `p`, for `EXISTS` / `NOT EXISTS`. */
+function readerHideClause(readerUserId: string) {
+  return PrismaRaw.sql`(SELECT 1 FROM project_hide h WHERE h."projectId" = p.id AND h."userId" = ${readerUserId})`;
+}
+
+/**
+ * Hides belong to a person, so without a reader (a coworker or vendor
+ * context) nothing is Hidden: `open` is every open project, `hidden` is empty.
+ */
+function projectStateClause(
+  state: ProjectListState | undefined,
+  readerUserId: string | null,
+) {
+  if (state === "open") {
+    return readerUserId
+      ? PrismaRaw.sql`AND p."closedAt" IS NULL AND NOT EXISTS ${readerHideClause(readerUserId)}`
+      : PrismaRaw.sql`AND p."closedAt" IS NULL`;
+  }
+  if (state === "hidden") {
+    return readerUserId
+      ? PrismaRaw.sql`AND p."closedAt" IS NULL AND EXISTS ${readerHideClause(readerUserId)}`
+      : PrismaRaw.sql`AND FALSE`;
+  }
   if (state === "closed") return PrismaRaw.sql`AND p."closedAt" IS NOT NULL`;
   return PrismaRaw.empty;
 }
 
+interface ProjectListFilter {
+  search?: string;
+  state?: ProjectListState;
+  readerUserId?: string | null;
+}
+
 /**
  * The ranked page query's `WHERE`, shared with the count so `pagination.total`
- * cannot drift from the pages: the name search and the open/closed split.
+ * cannot drift from the pages: the name search and the open/hidden/closed split.
  */
-function projectListFilterClause(search?: string, state?: ProjectListState) {
+function projectListFilterClause({
+  search,
+  state,
+  readerUserId = null,
+}: ProjectListFilter) {
   return PrismaRaw.sql`${search ? projectNameSearchClause(search) : PrismaRaw.empty}
-      ${projectStateClause(state)}`;
+      ${projectStateClause(state, readerUserId)}`;
 }
 
 /** Same predicate as the ranked page query, so pagination.total cannot drift. */
 export function projectCountQuery(
   workspaceId: string,
-  { search, state }: { search?: string; state?: ProjectListState } = {},
+  filter: ProjectListFilter = {},
 ) {
   return PrismaRaw.sql`
     SELECT COUNT(*)::bigint AS count
     FROM project p
     WHERE p."workspaceId" = ${workspaceId}::uuid
-      ${projectListFilterClause(search, state)}
+      ${projectListFilterClause(filter)}
   `;
 }
 
@@ -116,6 +153,7 @@ export function projectActivityPageQuery({
   visibility,
   search,
   state,
+  readerUserId,
   pinnedFirstUserId,
 }: ProjectActivityPageParams) {
   const boundary = cursor
@@ -156,7 +194,7 @@ export function projectActivityPageQuery({
           : PrismaRaw.empty
       }
       WHERE p."workspaceId" = ${workspaceId}::uuid
-      ${projectListFilterClause(search, state)}
+      ${projectListFilterClause({ search, state, readerUserId })}
       GROUP BY p.id, p."createdAt"
     )
     SELECT r.id, r."lastActivityAt", r."starredAt" FROM ranked r
@@ -177,4 +215,85 @@ function projectActivityBoundaryClause(
   return PrismaRaw.sql`WHERE r."starredAt" IS NULL
     OR r."starredAt" > ${boundary.starredAt}::timestamp
     OR (r."starredAt" = ${boundary.starredAt}::timestamp AND ${afterActivity})`;
+}
+
+export interface ProjectRecentActivityRow {
+  kind: "task" | "job" | "project";
+  id: string;
+  at: Date;
+  projectId: string;
+  entityId: string;
+  title: string | null;
+  /** Task or job event status; a project row's event kind. */
+  status: string | null;
+  agentId: string | null;
+}
+
+/**
+ * The newest event per task, job and project across the workspace's open
+ * projects, minus the reader's Hidden ones (ADR 0036), newest first: the same sources `projectActivityPageQuery` ranks
+ * projects by, minus ready task outputs, which land with the task's own event.
+ * One row per task or job, so a job that polls ten statuses is one row.
+ * With `projectId`, the same rows for that one project.
+ *
+ * shortcut: DISTINCT ON scans every visible task and job event in the
+ * workspace, like the ranked projects page does; add an events-by-workspace
+ * index if this shows up in query times.
+ */
+export function projectRecentActivityQuery({
+  workspaceId,
+  take,
+  visibility,
+  readerUserId,
+  projectId,
+}: {
+  workspaceId: string;
+  take: number;
+  visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
+  /** The reader whose Hidden projects drop out; null drops none. */
+  readerUserId: string | null;
+  /**
+   * One project's events, whether open, Closed or Hidden: the reader opened
+   * it, so its history stays readable.
+   */
+  projectId?: string;
+}) {
+  const projectFilter = projectId
+    ? PrismaRaw.sql`AND p.id = ${projectId}::uuid`
+    : readerUserId
+      ? PrismaRaw.sql`AND p."closedAt" IS NULL AND NOT EXISTS ${readerHideClause(readerUserId)}`
+      : PrismaRaw.sql`AND p."closedAt" IS NULL`;
+  return PrismaRaw.sql`
+    SELECT * FROM (
+      (SELECT DISTINCT ON (t.id) 'task' AS kind, e.id::text AS id, e."createdAt" AS at,
+        t."projectId"::text AS "projectId", t.id AS "entityId", t.name AS title,
+        e.status::text AS status, NULL::text AS "agentId"
+      FROM "taskEvent" e
+      JOIN task t ON t.id = e."taskId"
+      JOIN project p ON p.id = t."projectId" ${projectFilter}
+      WHERE t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL
+        ${visibility.task}
+      ORDER BY t.id, e."createdAt" DESC, e.id DESC)
+      UNION ALL
+      (SELECT DISTINCT ON (j.id) 'job', e.id::text, e."createdAt",
+        j."projectId"::text, j.id, j.name, e.status::text, j."agentId"
+      FROM "jobEvent" e
+      JOIN "Job" j ON j.id = e."jobId"
+      JOIN project p ON p.id = j."projectId" ${projectFilter}
+      LEFT JOIN task t ON t.id = j."taskId"
+      WHERE j."workspaceId" = ${workspaceId}::uuid
+        AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
+        ${visibility.job}
+      ORDER BY j.id, e."createdAt" DESC, e.id DESC)
+      UNION ALL
+      (SELECT DISTINCT ON (p.id) 'project', e.id::text, e."createdAt",
+        p.id::text, p.id::text, p.name, e.kind::text, NULL::text
+      FROM project_event e
+      JOIN project p ON p.id = e."projectId" ${projectFilter}
+      WHERE p."workspaceId" = ${workspaceId}::uuid
+      ORDER BY p.id, e."createdAt" DESC, e.id DESC)
+    ) a
+    ORDER BY a.at DESC, a.id DESC
+    LIMIT ${take}
+  `;
 }

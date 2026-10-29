@@ -15,35 +15,23 @@ interface ProjectPinButtonProps {
   /** Closing counts as closed here: both are on their way out of the list. */
   isClosed?: boolean;
   labels: { pin: string; unpin: string; error: string };
-  /**
-   * Hide an unpinned button until its `group/card` is hovered or focused.
-   * Only where the pointer can hover: a touch device keeps it visible.
-   */
-  revealOnHover?: boolean;
-  /** Runs once the write has landed, e.g. to re-sort a Pins-first list. */
-  onPinnedChange?: () => void;
   className?: string;
 }
 
 /**
- * Pins a project from the surface the reader browses on. Product UI says Pin;
- * the action underneath says star (ADR 0017).
+ * Pins a project from its own header. Product UI says Pin; the action
+ * underneath says star (ADR 0017).
  *
  * Always rendered rather than revealed on hover: a hover-only control does not
- * exist on a touch device, which is where half this list is read. Chat hides
- * the same action in a row menu, but that menu already carries five other
- * items — one here would hold nothing else (ADR-0036).
- * The Projects list card is the exception that `revealOnHover` serves: on a
- * fine pointer an unpinned card shows its Pin on hover or focus, so a grid of
- * cards does not repeat the same grey icon. Touch keeps it always visible.
+ * exist on a touch device. On the Projects list the card menu carries Pin
+ * beside Hide and Close instead, and the card marks a Pin by its name
+ * (ADR-0036).
  */
 export function ProjectPinButton({
   projectId,
   isPinned,
   isClosed = false,
   labels,
-  revealOnHover = false,
-  onPinnedChange,
   className,
 }: ProjectPinButtonProps) {
   // Read through the context rather than `useQueryClient`, which throws when
@@ -55,8 +43,6 @@ export function ProjectPinButton({
   // when the transition ends and falls back to `isPinned` — which on the
   // projects list comes from the server-rendered card's `starredAt` and is
   // never refreshed, so a Pin flipped blue and snapped straight back to grey.
-  // The list now refreshes through `onPinnedChange`, but only after the write
-  // lands, so this committed state still carries the Pin until then.
   const [pinned, setPinned] = useState(isPinned);
   // Whatever the server last told us. When that changes — a navigation, a
   // refresh, a refetched Pin list — it wins over what this button remembers.
@@ -89,7 +75,6 @@ export function ProjectPinButton({
       await queryClient?.invalidateQueries({
         queryKey: [PINNED_PROJECTS_QUERY_KEY],
       });
-      onPinnedChange?.();
     });
   }
 
@@ -121,17 +106,13 @@ export function ProjectPinButton({
         // project instead of doing nothing.
         "before:absolute before:-inset-1.5 before:content-['']",
         "disabled:pointer-events-none disabled:opacity-50",
-        // Pinned carries three signals at once — hue, fill and a tinted
-        // ground — because at 16px a filled pin is barely distinguishable
-        // from an outlined one, and one step of grey did not read at all.
-        // Solid ramp steps, not an opacity modifier: the colour-token rule is
-        // absolute, and this is the same pairing the task-created badge uses.
-        pinned
-          ? "text-primary bg-primary-quinary hover:bg-primary-quaternary"
-          : "text-muted-foreground hover:text-foreground",
-        revealOnHover &&
-          !pinned &&
-          "pointer-fine:opacity-0 pointer-fine:group-hover/card:opacity-100 pointer-fine:group-focus-within/card:opacity-100",
+        // Pinned carries two signals, hue and fill, because at 16px a filled
+        // pin is barely distinguishable from an outlined one, and one step of
+        // grey did not read at all. No tinted ground: beside the plain ghost
+        // "More" button a filled square read as a different kind of control.
+        // Both states hover like that ghost button.
+        "hover:bg-accent",
+        pinned ? "text-primary" : "text-muted-foreground hover:text-foreground",
         className,
       )}
     >

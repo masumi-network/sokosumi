@@ -195,7 +195,11 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createWorkspace": "Crear espacio de trabajo",
-      "userAvatarAlt": "Avatar del usuario"
+      "userAvatarAlt": "Avatar del usuario",
+      "inviteMembers": "Invitar miembros",
+      "organizationSettings": "Ajustes",
+      "membersAndSettings": "Miembros y ajustes",
+      "roleAndMemberCount": "{role, select, owner {Propietario} admin {Admin} other {Miembro}} · {count, plural, =1 {1 miembro} other {# miembros}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Invitar miembros en bloque",
-        "description": "Pega direcciones de email para invitar a varios miembros a la vez.",
+        "title": "Invitar miembros",
+        "description": "Pega una o varias direcciones de email.",
         "label": "Direcciones de email",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separa los emails con comas, punto y coma o saltos de línea.",
@@ -2252,8 +2256,9 @@
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
-        "pin": "Fijar proyecto",
-        "unpin": "Desfijar proyecto",
+        "pin": "Fijar",
+        "unpin": "Desfijar",
+        "pinned": "Fijado",
         "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
@@ -2294,6 +2299,10 @@
           "title": "No hay proyectos cerrados",
           "description": "Un proyecto que cierras pasa aquí y conserva su historial."
         },
+        "emptyHidden": {
+          "title": "No hay proyectos ocultos",
+          "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
+        },
         "onlyClosed": {
           "title": "Todos los proyectos están cerrados",
           "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
@@ -2302,9 +2311,38 @@
         "state": {
           "label": "Mostrar proyectos",
           "open": "Abiertos",
+          "hidden": "Ocultos",
           "closed": "Cerrados"
         },
-        "closed": "Cerrado"
+        "closed": "Cerrado",
+        "hide": {
+          "hide": "Ocultar",
+          "show": "Mostrar",
+          "hidden": "Proyecto oculto",
+          "undo": "Deshacer",
+          "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
+          "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Te necesita",
+          "empty": "Nada te está esperando.",
+          "error": "No se pudo cargar lo que te necesita.",
+          "showAll": "Ver todo"
+        },
+        "activity": {
+          "title": "Actividad reciente",
+          "empty": "Todavía no hay actividad en proyectos abiertos.",
+          "emptyProject": "Todavía no hay actividad en este proyecto.",
+          "error": "No se pudo cargar la actividad reciente.",
+          "showAll": "Ver todo",
+          "untitledJob": "Trabajo sin nombre",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Tarea creada} COMMENT {Comentario añadido} READY {Tarea lista} QUEUED {Tarea programada} RUNNING {Tarea en curso} INPUT_REQUIRED {La tarea necesita datos} APPROVAL_REQUIRED {La tarea necesita aprobación} AUTHENTICATION_REQUIRED {La tarea necesita inicio de sesión} OUT_OF_CREDITS {Tarea en pausa por créditos} COMPLETED {Tarea completada} FAILED {Tarea fallida} CANCELED {Tarea cancelada} other {Tarea actualizada}}",
+          "job": "{status, select, INITIATED {Trabajo iniciado} AWAITING_PAYMENT {Trabajo pendiente de pago} AWAITING_INPUT {El trabajo necesita datos} RUNNING {Trabajo en curso} COMPLETED {Trabajo completado} FAILED {Trabajo fallido} other {Trabajo actualizado}}",
+          "project": "{event, select, CLOSE_REQUESTED {Cierre solicitado} BATCH_FAILED {Cierre fallido} RETRY_REQUESTED {Cierre reintentado} SERIES_RESOLVED {Trabajo programado detenido} CLOSE_FINALIZED {Proyecto cerrado} other {Proyecto actualizado}}"
+        }
       },
       "Briefing": {
         "label": "Briefing",
@@ -2759,6 +2797,7 @@
           },
           "performance": {
             "lastDays": "Últimos {days} días",
+            "rangeLabel": "Periodo",
             "moreFilters": "Más filtros",
             "activeFilters": "{count} activos",
             "posts": "Publicaciones",
@@ -2958,6 +2997,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
+        "stats": {
+          "label": "Recuento de tareas",
+          "running": "En ejecución",
+          "waiting": "En espera",
+          "done": "Hecho"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",
@@ -3034,7 +3079,7 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
-          "close": "Cerrar proyecto",
+          "close": "Cerrar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
@@ -3448,7 +3493,7 @@
             "humanRequired": "Una persona debe aprobar o enviar esta edición desde una sesión iniciada en el navegador.",
             "invalidSchedule": "Elige una fecha entre un minuto y un año a partir de ahora y una zona horaria válida.",
             "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
-            "noSender": "El envío de boletines no está configurado. Pide a un administrador del espacio de trabajo que complete la configuración.",
+            "noSender": "Conecta un dominio de envío en la configuración del boletín, en «Dominio de envío», antes de programar o enviar.",
             "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
           },
           "viewOnWeb": "Ver en la web"
@@ -3544,6 +3589,95 @@
           "unset": "Predeterminado",
           "welcome": "Correo de bienvenida",
           "noSubject": "Aún sin asunto"
+        },
+        "SendingDomain": {
+          "title": "Dominio de envío",
+          "description": "Envía boletines desde tu propia dirección, como news@news.tumarca.com. Todos los proyectos de este espacio de trabajo la usan.",
+          "managedByAdmins": "Solo la persona propietaria o un administrador del espacio de trabajo puede conectar un dominio de envío.",
+          "fromAddress": "Dirección del remitente",
+          "fromAddressPlaceholder": "news@news.tumarca.com",
+          "fromAddressHint": "Usa un subdominio, como news.tumarca.com. Así la reputación de tus boletines queda separada de tu correo habitual.",
+          "add": "Añadir dominio",
+          "added": "Dominio añadido. Ahora añade sus registros DNS.",
+          "fallback": "Hasta que se verifique, los boletines se envían desde la dirección de Sokosumi como «tu nombre de remitente via Sokosumi».",
+          "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
+          "status": {
+            "PENDING": "Pendiente",
+            "VERIFIED": "Verificado",
+            "FAILED": "Fallido"
+          },
+          "lastChecked": "Última comprobación: {time}",
+          "verifiedDescription": "Los boletines de todos los proyectos de este espacio de trabajo se envían ahora desde esta dirección.",
+          "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
+          "checked": "Comprobado. Tus registros DNS aún no son visibles. Los cambios de DNS pueden tardar unas horas.",
+          "checkNow": "Comprobar ahora",
+          "connectTitle": "Añadir los registros DNS",
+          "dmarc": {
+            "title": "No se encontró ninguna política DMARC",
+            "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
+          },
+          "oneClick": {
+            "title": "Configuración con un clic",
+            "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
+            "lookup": "Buscar mi proveedor de DNS",
+            "found": "Tu dominio usa {provider}.",
+            "connect": "Conectar con {provider}",
+            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Usa un token de Cloudflare o añade los registros de abajo."
+          },
+          "cloudflare": {
+            "title": "Token de la API de Cloudflare",
+            "description": "Crea un token con Zone · DNS · Edit para la zona de este dominio y pégalo aquí. Sokosumi lo usa una vez para añadir los registros y nunca lo guarda.",
+            "submit": "Añadir registros en Cloudflare",
+            "success": "Registros añadidos en Cloudflare. La comprobación puede tardar unos minutos."
+          },
+          "records": {
+            "title": "Registros DNS",
+            "description": "O añade estos registros tú mismo en tu proveedor de DNS.",
+            "name": "Nombre",
+            "value": "Valor",
+            "priority": "Prioridad",
+            "found": "Registro encontrado",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Demuestra que el correo viene de ti."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Permite que Sokosumi envíe en tu nombre."
+              },
+              "bounce": {
+                "label": "Ruta de retorno (MX)",
+                "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Indica a los buzones qué hacer con el correo que no supera estas comprobaciones. p=none solo supervisa."
+              },
+              "other": {
+                "label": "Registro adicional",
+                "explanation": "Lo exige el proveedor de correo."
+              }
+            }
+          },
+          "remove": {
+            "action": "Quitar dominio",
+            "title": "¿Quitar el dominio de envío?",
+            "description": "Los boletines dejan de enviarse desde {domain}. Sus registros DNS siguen en tu proveedor de DNS hasta que los borres.",
+            "cancel": "Cancelar",
+            "success": "Dominio de envío quitado."
+          },
+          "errors": {
+            "generic": "No se pudo actualizar el dominio de envío. Inténtalo de nuevo.",
+            "invalidAddress": "Introduce una dirección de correo, como news@news.tumarca.com.",
+            "forbidden": "Solo la persona propietaria o un administrador del espacio de trabajo puede cambiar el dominio de envío.",
+            "notFound": "Este dominio de envío se quitó. Recarga la página.",
+            "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro espacio de trabajo.",
+            "domainRejected": "Este dominio no se puede usar. Revisa la dirección e inténtalo de nuevo.",
+            "providerFailed": "El proveedor de correo no respondió. Inténtalo de nuevo en un minuto.",
+            "cloudflareRejected": "Cloudflare rechazó el token. Comprueba que tenga Zone · DNS · Edit para la zona de este dominio.",
+            "cloudflareFailed": "Cloudflare no respondió. Inténtalo de nuevo en un minuto."
+          }
         }
       }
     },
@@ -8915,6 +9049,7 @@
       "today": "Hoy",
       "weekNumber": "Semana {week}",
       "view": {
+        "label": "Vista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"
