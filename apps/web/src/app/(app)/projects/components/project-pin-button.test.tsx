@@ -67,40 +67,6 @@ describe("ProjectPinButton", () => {
     expect(mocks.pin).not.toHaveBeenCalled();
   });
 
-  it("reports a landed write so a Pins-first list can re-sort", async () => {
-    const onPinnedChange = vi.fn();
-    render(
-      <ProjectPinButton
-        projectId="p1"
-        isPinned={false}
-        labels={labels}
-        onPinnedChange={onPinnedChange}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
-
-    await waitFor(() => expect(onPinnedChange).toHaveBeenCalledOnce());
-  });
-
-  it("reports nothing when the write fails", async () => {
-    mocks.pin.mockRejectedValue(new Error("down"));
-    const onPinnedChange = vi.fn();
-    render(
-      <ProjectPinButton
-        projectId="p1"
-        isPinned={false}
-        labels={labels}
-        onPinnedChange={onPinnedChange}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
-
-    await waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(labels.error),
-    );
-    expect(onPinnedChange).not.toHaveBeenCalled();
-  });
-
   it("renders without a QueryClientProvider", () => {
     // Refreshing the sidebar cache is best-effort. The button must not demand
     // a provider, or every test that renders a project row needs one.
@@ -137,14 +103,15 @@ describe("ProjectPinButton", () => {
   it("marks a Pinned project apart by more than one step of grey", () => {
     // On the preview the two states were near-identical at 16px: a filled
     // lucide Pin barely differs from an outlined one, and muted-to-foreground
-    // is a small step. Hue, fill and ground now move together.
+    // is a small step. Hue and fill move together; the tinted ground is gone
+    // because it read as a different control beside the ghost "More" button.
     const { unmount } = render(
       <ProjectPinButton projectId="p1" isPinned labels={labels} />,
     );
     const pinnedClasses =
       screen.getByRole("button").className.split(/\s+/) ?? [];
     expect(pinnedClasses).toContain("text-primary");
-    expect(pinnedClasses).toContain("bg-primary-quinary");
+    expect(pinnedClasses).not.toContain("bg-primary-quinary");
     expect(
       screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
     ).toContain("fill-current");

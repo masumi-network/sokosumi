@@ -1,3 +1,4 @@
+import { MemberRole } from "@sokosumi/core-client";
 import {
   SOCIAL_PUBLIC_PROVIDERS,
   socialProvidersForWorkspace,
@@ -189,6 +190,8 @@ describe("AuthenticatedAppFrame workspace gate", () => {
         name: slug ?? "Personal",
         organizationId: slug,
         slug,
+        role: slug ? MemberRole.MEMBER : null,
+        memberCount: slug ? 2 : null,
         enabledSocialProviders: [
           ...socialProvidersForWorkspace({ organizationSlug: slug }),
         ],

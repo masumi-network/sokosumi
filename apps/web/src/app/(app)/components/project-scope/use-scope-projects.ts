@@ -16,7 +16,7 @@ import {
 import { useSession } from "@/lib/auth/auth.client";
 import { fetchScopeList } from "@/lib/project-scope-list.client";
 
-/** One switcher row. Closed projects never become one. */
+/** One switcher row. Closed and Hidden projects never become one. */
 export interface ScopeProject {
   id: string;
   name: string;
@@ -53,9 +53,12 @@ function useWorkspaceScope(): RecentProjectsScope | null {
   };
 }
 
+/** Root of the switcher list's cache key, for a refresh after a Hide. */
+export const SCOPE_PAGE_QUERY_KEY = "project-scope-page";
+
 function pageQueryKey(scope: RecentProjectsScope | null, query: string) {
   return [
-    "project-scope-page",
+    SCOPE_PAGE_QUERY_KEY,
     scope?.userId ?? null,
     scope?.organizationId ?? null,
     query,

@@ -90,13 +90,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1633,8 +1627,9 @@ export function WorkspaceCalendar({
               "max-md:order-1 max-md:w-full max-md:justify-between",
           )}
         >
-          <Tabs
-            className="min-w-0 max-w-full"
+          <ToggleGroup
+            type="single"
+            aria-label={t("view.label")}
             value={view}
             onValueChange={(value) => {
               const nextView = views.find((candidate) => candidate === value);
@@ -1642,30 +1637,25 @@ export function WorkspaceCalendar({
                 handleViewChange(nextView);
               }
             }}
+            className={cn(
+              "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+              socialPostsOnly && "min-h-11 md:min-h-8",
+            )}
+            data-testid="calendar-views"
           >
-            <TabsList
-              className={cn(
-                SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
-                socialPostsOnly && "min-h-11 md:min-h-8",
-              )}
-              data-testid="calendar-views"
-            >
-              {views.map((calendarView) => (
-                <TabsTrigger
-                  className={cn(
-                    SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                    "max-sm:px-1.5 max-sm:text-xs",
-                    socialPostsOnly && "min-h-11 shrink-0 md:min-h-8",
-                  )}
-                  key={calendarView}
-                  value={calendarView}
-                >
-                  {t(`view.${calendarView}`)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+            {views.map((calendarView) => (
+              <ToggleGroupItem
+                className={cn(
+                  "max-sm:px-1.5 max-sm:text-xs",
+                  socialPostsOnly && "min-h-11 shrink-0 md:min-h-8",
+                )}
+                key={calendarView}
+                value={calendarView}
+              >
+                {t(`view.${calendarView}`)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           {includeSocialPosts && !socialPostsOnly ? (
             <Button
               aria-pressed={socialOnly}

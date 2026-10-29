@@ -50,10 +50,8 @@ export function AdsPerformanceChart({
           const next = CHART_METRICS.find((candidate) => candidate === value);
           if (next) setMetric(next);
         }}
-        size="sm"
         type="single"
         value={metric}
-        variant="outline"
       >
         {CHART_METRICS.map((candidate) => (
           <ToggleGroupItem key={candidate} value={candidate}>

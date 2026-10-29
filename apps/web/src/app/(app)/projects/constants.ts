@@ -9,17 +9,22 @@ export const PROJECTS_PAGE_LIMIT = 20;
 /**
  * The Projects list shows one state at a time, in `?state=`. Open is the
  * default and covers closing and close-failed projects; only a finished close
- * (`closedAt`) moves a project to Closed.
+ * (`closedAt`) moves a project to Closed. Hidden is the reader's own Hidden
+ * projects (ADR 0036); one both Closed and Hidden lists under Closed.
  */
 export const PROJECTS_LIST_STATES = [
   "open",
+  "hidden",
   "closed",
 ] as const satisfies ReadonlyArray<
   NonNullable<NonNullable<GetProjectsData["query"]>["state"]>
 >;
 export type ProjectsListState = (typeof PROJECTS_LIST_STATES)[number];
 
-/** Pinned projects lead the Open view; a Closed card has no Pin to sort by. */
+/**
+ * Pinned projects lead the Open view. A Closed card has no Pin to sort by,
+ * and a Hidden project has none: hiding unpins it.
+ */
 export function projectsListStateQuery(state: ProjectsListState) {
   return { state, pinnedFirst: state === "open" };
 }
@@ -82,6 +87,19 @@ export const PROJECTS_CARD_LAYOUT_CLASS =
  */
 export const PROJECTS_CARD_CLASS =
   "bg-background border-border rounded-lg border";
+
+/** Rows each Workspace column panel loads, and shows beside the grid (`xl`). */
+export const WORKSPACE_COLUMN_ROWS = 5;
+
+/** Rows each panel shows while the column stacks above the grid (under `xl`). */
+export const WORKSPACE_COLUMN_STACKED_ROWS = 3;
+
+/**
+ * Workspace column beside the Open grid: stacked above it under `xl`, a
+ * 20rem column on its leading side from `xl`. Shared with the Instant shell.
+ */
+export const PROJECTS_OPEN_LAYOUT_CLASS =
+  "flex flex-col gap-5 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources
