@@ -1,6 +1,8 @@
 "use client";
 
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -12,6 +14,7 @@ import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  type ProjectsListState,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,12 +27,26 @@ import {
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
 import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
+import {
+  ProjectsStateToggle,
+  type ProjectsStateToggleLabels,
+} from "./projects-state-toggle";
 
 export interface ProjectsViewLabels {
   newProject: string;
   empty: {
     title: string;
     description: string;
+  };
+  emptyClosed: {
+    title: string;
+    description: string;
+  };
+  /** The Open view when every project in the workspace is Closed. */
+  onlyClosed: {
+    title: string;
+    description: string;
+    action: string;
   };
   loadMore: string;
   loadMoreError: string;
@@ -42,6 +59,8 @@ export interface ProjectsViewLabels {
   pin: string;
   unpin: string;
   pinError: string;
+  closed: string;
+  state: ProjectsStateToggleLabels;
   filter: ProjectsFilterLabels;
   noMatches: string;
 }
@@ -50,6 +69,9 @@ interface ProjectsViewProps {
   projects: ProjectListItemType[];
   nextCursor: string | null;
   query: string;
+  state: ProjectsListState;
+  /** Open view only: an empty Open list says so when Closed has projects. */
+  hasClosedProjects?: boolean;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -67,9 +89,16 @@ function ProjectsMobileCreateFabSlot() {
   );
 }
 
-function browseListKey(query: string, projects: ProjectListItemType[]) {
-  return `${query}|${projects
-    .map((project) => `${project.id}:${project.updatedAt}`)
+function browseListKey(
+  query: string,
+  state: ProjectsListState,
+  projects: ProjectListItemType[],
+) {
+  return `${query}|${state}|${projects
+    .map(
+      (project) =>
+        `${project.id}:${project.updatedAt}:${project.starredAt ?? ""}`,
+    )
     .join("|")}`;
 }
 
@@ -77,11 +106,14 @@ export function ProjectsView({
   projects,
   nextCursor,
   query,
+  state,
+  hasClosedProjects = false,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
-  const listKey = browseListKey(query, projects);
+  const router = useRouter();
+  const listKey = browseListKey(query, state, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
   const [itemsKey, setItemsKey] = useState(listKey);
@@ -96,14 +128,22 @@ export function ProjectsView({
   const hasLoadedProjects = items.length > 0;
   const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
-  const hasNothingAtAll = showEmptyState && !isFiltering;
+  const emptyMessage = !showEmptyState
+    ? null
+    : isFiltering
+      ? { title: labels.noMatches }
+      : state === "closed"
+        ? labels.emptyClosed
+        : hasClosedProjects
+          ? labels.onlyClosed
+          : labels.empty;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects({ cursor, query });
+        const result = await loadMoreProjects({ cursor, query, state });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setCursor(result.nextCursor);
       } catch {
@@ -125,45 +165,52 @@ export function ProjectsView({
           className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
         >
           <ProjectsFilter labels={labels.filter} />
+          <ProjectsStateToggle labels={labels.state} />
           <AddProjectButton
             label={labels.newProject}
             className="hidden md:inline-flex"
           />
         </div>
-        {hasNothingAtAll ? (
-          <ProjectsEmptyState labels={labels.empty} />
-        ) : (
-          <div
-            data-testid="projects-browse"
-            className={cn(
-              PROJECTS_BROWSE_CARD_CLASS,
-              // Only while there are no rows: a short list sits in a card that
-              // ends with it, as Transactions does, not in a mostly empty well.
-              !hasLoadedProjects && PROJECTS_LIST_CARD_MIN_H_CLASS,
-            )}
-          >
-            {hasLoadedProjects ? (
-              <div className={PROJECTS_BROWSE_LIST_CLASS}>
-                {items.map((project) => (
-                  <ProjectListItem
-                    key={project.id}
-                    project={project}
-                    labels={{
-                      counts: labels.counts,
-                      lastActivity: labels.lastActivity,
-                      created: labels.created,
-                      pin: labels.pin,
-                      unpin: labels.unpin,
-                      pinError: labels.pinError,
-                    }}
-                  />
-                ))}
-              </div>
-            ) : showEmptyState ? (
-              <ProjectsNoMatches message={labels.noMatches} />
-            ) : null}
-          </div>
-        )}
+        {/* One panel for the grid and for every empty state, so switching
+            views or filtering never swaps the surface under the toolbar. */}
+        <div
+          data-testid="projects-browse"
+          className={cn(
+            PROJECTS_BROWSE_CARD_CLASS,
+            // Only while there are no cards: a short grid sits in a card that
+            // ends with it, as Transactions does, not in a mostly empty well.
+            !hasLoadedProjects &&
+              cn(PROJECTS_LIST_CARD_MIN_H_CLASS, "flex flex-col"),
+          )}
+        >
+          {hasLoadedProjects ? (
+            <div className={PROJECTS_BROWSE_LIST_CLASS}>
+              {items.map((project) => (
+                <ProjectListItem
+                  key={project.id}
+                  project={project}
+                  // Pins lead the Open view, so a new Pin moves its card:
+                  // refetch the server-ordered page once the write lands.
+                  onPinnedChange={() => router.refresh()}
+                  labels={{
+                    counts: labels.counts,
+                    lastActivity: labels.lastActivity,
+                    created: labels.created,
+                    pin: labels.pin,
+                    unpin: labels.unpin,
+                    pinError: labels.pinError,
+                    closed: labels.closed,
+                  }}
+                />
+              ))}
+            </div>
+          ) : emptyMessage ? (
+            <ProjectsListMessage
+              testId={isFiltering ? "projects-no-matches" : "projects-empty"}
+              message={emptyMessage}
+            />
+          ) : null}
+        </div>
 
         {cursor ? (
           <div className="flex justify-center">
@@ -183,38 +230,37 @@ export function ProjectsView({
   );
 }
 
-/** Search feedback stays inside the content group; controls remain above it. */
-function ProjectsNoMatches({ message }: { message: string }) {
-  return (
-    <div
-      data-testid="projects-no-matches"
-      className="flex flex-col items-center justify-center px-6 py-12 text-center"
-    >
-      <p className="text-muted-foreground text-sm">{message}</p>
-    </div>
-  );
-}
-
-function ProjectsEmptyState({
-  labels,
+/**
+ * Empty and no-match feedback, centred in the grid's own panel; the toolbar
+ * above keeps search, the view switch and create reachable.
+ */
+function ProjectsListMessage({
+  testId,
+  message,
 }: {
-  labels: ProjectsViewLabels["empty"];
+  testId: string;
+  message: { title: string; description?: string; action?: string };
 }) {
   return (
     <div
-      className={cn(
-        "bg-card-background flex flex-col items-center justify-center rounded-xl px-6 py-12 text-center",
-        PROJECTS_LIST_CARD_MIN_H_CLASS,
-      )}
+      data-testid={testId}
+      className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center"
     >
       <div className="max-w-sm">
-        <h2 className="text-foreground text-lg font-semibold">
-          {labels.title}
+        <h2 className="text-foreground text-base font-semibold text-balance">
+          {message.title}
         </h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          {labels.description}
-        </p>
+        {message.description ? (
+          <p className="text-muted-foreground mt-2 text-sm text-pretty">
+            {message.description}
+          </p>
+        ) : null}
       </div>
+      {message.action ? (
+        <Button asChild variant="outline">
+          <Link href="/projects?state=closed">{message.action}</Link>
+        </Button>
+      ) : null}
     </div>
   );
 }

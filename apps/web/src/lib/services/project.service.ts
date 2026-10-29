@@ -6,6 +6,7 @@ import type {
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  GetProjectsData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   JobSummary,
@@ -36,6 +37,10 @@ interface ListProjectsParams {
   limit?: number;
   /** Case-insensitive project-name filter, applied by Core before paging. */
   query?: string;
+  /** Open (closing and close-failed included) or Closed; omitted lists both. */
+  state?: NonNullable<GetProjectsData["query"]>["state"];
+  /** Lead with the reader's Pins, by `starredAt` ascending. */
+  pinnedFirst?: boolean;
 }
 
 interface ListProjectResourcesParams {
@@ -67,6 +72,8 @@ export const projectService = (() => {
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       q: params.query || undefined,
+      state: params.state,
+      pinnedFirst: params.pinnedFirst ? "true" : undefined,
     });
 
     return {

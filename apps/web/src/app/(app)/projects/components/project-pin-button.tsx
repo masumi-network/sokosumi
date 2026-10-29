@@ -10,11 +10,18 @@ import { cn } from "@/lib/utils";
 
 interface ProjectPinButtonProps {
   projectId: string;
-  /** The reader's own Pin, from `starredAt` on the row. */
+  /** The reader's own Pin, from `starredAt` on the list item. */
   isPinned: boolean;
   /** Closing counts as closed here: both are on their way out of the list. */
   isClosed?: boolean;
   labels: { pin: string; unpin: string; error: string };
+  /**
+   * Hide an unpinned button until its `group/card` is hovered or focused.
+   * Only where the pointer can hover: a touch device keeps it visible.
+   */
+  revealOnHover?: boolean;
+  /** Runs once the write has landed, e.g. to re-sort a Pins-first list. */
+  onPinnedChange?: () => void;
   className?: string;
 }
 
@@ -26,12 +33,17 @@ interface ProjectPinButtonProps {
  * exist on a touch device, which is where half this list is read. Chat hides
  * the same action in a row menu, but that menu already carries five other
  * items — one here would hold nothing else (ADR-0036).
+ * The Projects list card is the exception that `revealOnHover` serves: on a
+ * fine pointer an unpinned card shows its Pin on hover or focus, so a grid of
+ * cards does not repeat the same grey icon. Touch keeps it always visible.
  */
 export function ProjectPinButton({
   projectId,
   isPinned,
   isClosed = false,
   labels,
+  revealOnHover = false,
+  onPinnedChange,
   className,
 }: ProjectPinButtonProps) {
   // Read through the context rather than `useQueryClient`, which throws when
@@ -41,8 +53,10 @@ export function ProjectPinButton({
   const [isPending, startTransition] = useTransition();
   // Committed state, not `useOptimistic`. An optimistic value is discarded
   // when the transition ends and falls back to `isPinned` — which on the
-  // projects list comes from the server-rendered row's `starredAt` and is
+  // projects list comes from the server-rendered card's `starredAt` and is
   // never refreshed, so a Pin flipped blue and snapped straight back to grey.
+  // The list now refreshes through `onPinnedChange`, but only after the write
+  // lands, so this committed state still carries the Pin until then.
   const [pinned, setPinned] = useState(isPinned);
   // Whatever the server last told us. When that changes — a navigation, a
   // refresh, a refetched Pin list — it wins over what this button remembers.
@@ -75,6 +89,7 @@ export function ProjectPinButton({
       await queryClient?.invalidateQueries({
         queryKey: [PINNED_PROJECTS_QUERY_KEY],
       });
+      onPinnedChange?.();
     });
   }
 
@@ -98,10 +113,10 @@ export function ProjectPinButton({
       aria-pressed={pinned}
       data-testid="project-pin-button"
       className={cn(
-        // The row around this is a link, so the button sits beside it rather
+        // The card under this is a link, so the button sits beside it rather
         // than inside it — nesting would swallow the click and is invalid.
-        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors outline-hidden focus-visible:ring-2",
-        // The circle stays 32px, but the hit area grows to 44px: the row
+        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-[color,background-color,opacity] outline-hidden focus-visible:ring-2",
+        // The circle stays 32px, but the hit area grows to 44px: the card
         // behind this is a link, so a near miss on a phone navigates to the
         // project instead of doing nothing.
         "before:absolute before:-inset-1.5 before:content-['']",
@@ -114,6 +129,9 @@ export function ProjectPinButton({
         pinned
           ? "text-primary bg-primary-quinary hover:bg-primary-quaternary"
           : "text-muted-foreground hover:text-foreground",
+        revealOnHover &&
+          !pinned &&
+          "pointer-fine:opacity-0 pointer-fine:group-hover/card:opacity-100 pointer-fine:group-focus-within/card:opacity-100",
         className,
       )}
     >

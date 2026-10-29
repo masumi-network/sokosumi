@@ -6228,7 +6228,7 @@ export type ProjectListItem = Project & {
      */
     lastActivityAt: Date;
     /**
-     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.
+     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.
      */
     starredAt: Date | null;
 };
@@ -46001,6 +46001,14 @@ export type GetProjectsData = {
          * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
          */
         q?: string;
+        /**
+         * open: projects without closedAt, including closing and close-failed ones. closed: projects with closedAt. Omitted: every project.
+         */
+        state?: 'open' | 'closed';
+        /**
+         * true: the acting user's Pinned projects lead, by starredAt ascending, before the rest in activity order. Ignored for non-user actors, whose rows are never Pinned.
+         */
+        pinnedFirst?: 'true' | 'false';
     };
     url: '/projects';
 };

@@ -3320,7 +3320,7 @@ export const postChatRoomInviteLinksByTokenAccept = <ThrowOnError extends boolea
 });
 
 /**
- * List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), paginated globally
+ * List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), optionally led by the reader's Pins and filtered to open or closed projects, paginated globally
  */
 export const getProjects = <ThrowOnError extends boolean = false>(options?: Options<GetProjectsData, ThrowOnError>): RequestResult<GetProjectsResponses, GetProjectsErrors, ThrowOnError> => (options?.client ?? client).get<GetProjectsResponses, GetProjectsErrors, ThrowOnError>({
     responseTransformer: getProjectsResponseTransformer,
