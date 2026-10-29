@@ -286,6 +286,9 @@ inside a full-width panel.
 - **Chat room:** the transcript and composer share one centred `max-w-4xl` reading
   column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`, applied by
   `RoomShellLayout`); the header and scroller stay full width. The thread panel stays full width.
+  A docked side panel (thread, threads, pinned, members) does not re-centre the column: it
+  keeps its left edge while it fits, moves left only as far as it must, and slides there
+  with a transform (`useRoomColumnSlide`, off under reduced motion).
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).

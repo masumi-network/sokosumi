@@ -10,8 +10,16 @@ import { cn } from "@/lib/utils";
  * The scroller stays full width so its scrollbar keeps to the pane edge.
  * Applied by the room shell, not `RoomComposer`, so the thread panel and home
  * composer keep their width.
+ *
+ * When a side panel docks (thread, threads, pinned, members) the column keeps
+ * its left edge while it still fits, then moves left only as far as it must,
+ * and narrows only at the pane edge. `100cqw` is the whole room pane
+ * (`@container` on `ROOM_SHELL_MAIN_CLASSNAME`), so `(100cqw-56rem)/2` is the
+ * closed-state centring margin; `100%-56rem` is the room left beside the panel.
+ * `w-auto` lets the stretched flex item take what is left after that margin.
  */
-export const ROOM_CONTENT_COLUMN_CLASSNAME = "mx-auto w-full max-w-4xl";
+export const ROOM_CONTENT_COLUMN_CLASSNAME =
+  "w-auto max-w-4xl ms-[max(0px,min((100cqw-56rem)/2,100%-56rem))]";
 
 /**
  * Outer padding for room message list content (skeleton + live).
