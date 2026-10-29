@@ -1486,6 +1486,16 @@ describe("keeping a run inside the function's time limit", () => {
     expect(renders.rows.map((row) => ({ ...row }))).toEqual(before);
   });
 
+  it("still collects a loop in the shortest configured run (120 s lock, 25 s buffer)", async () => {
+    await allSubmitted();
+
+    const result = await reconcileAvatarRenders({
+      msRemaining: () => 120_000 - 25_000,
+    });
+
+    expect(result.finished).toBeGreaterThan(0);
+  });
+
   it("starts no still with too little time left either, leaving its row for the next run", async () => {
     await keptLook({ kind: "creature", creature: "otter" });
     providerMock.editImage.mockClear();
@@ -1503,17 +1513,6 @@ describe("keeping a run inside the function's time limit", () => {
         leaseUntil: null,
       });
     }
-  });
-
-  it("does a still with enough time for one but not for a collect", async () => {
-    await keptLook({ kind: "creature", creature: "otter" });
-    providerMock.editImage.mockClear();
-
-    await reconcileAvatarRenders({
-      msRemaining: () => COLLECT_MIN_BUDGET_MS - 1,
-    });
-
-    expect(providerMock.editImage).toHaveBeenCalledTimes(5);
   });
 
   it("checks the time when a step is about to start, not when it was queued", async () => {

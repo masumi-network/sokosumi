@@ -76,10 +76,12 @@ const RUN_BATCH = 9;
  * time limit cannot cut it off half done (and strand its lease and its lock).
  * Sized from what a step takes, not from its worst-case timeouts: a still is an
  * image edit (usually ten seconds, up to 120) plus upload; a collect downloads
- * the clip, may fetch ffmpeg on an instance's first run, and encodes twice.
+ * the clip, may fetch ffmpeg on an instance's first run, and encodes two H.264
+ * sizes. Both must fit the shortest run we configure: `.env.example` gives a
+ * sync 120 s minus a 25 s buffer, and a minimum above that would never collect.
  */
 export const STILL_MIN_BUDGET_MS = 60_000;
-export const COLLECT_MIN_BUDGET_MS = 120_000;
+export const COLLECT_MIN_BUDGET_MS = 60_000;
 /** Collects per run, one at a time: each holds a clip and two encodes in memory and CPU. */
 export const MAX_COLLECTS_PER_RUN = 2;
 /** More than about four large uploads at once make the Gateway reset connections. */
