@@ -6,6 +6,7 @@ import {
   NEWSLETTER_ID,
   NEWSLETTER_ISSUE,
   NEWSLETTER_ISSUE_ID,
+  NEWSLETTER_PROJECT_ID,
   NEWSLETTER_SUBSCRIBER,
 } from "@/test/newsletter";
 
@@ -42,6 +43,7 @@ const m = vi.hoisted(() => {
     sendDelete: vi.fn(),
     transaction: vi.fn(),
     batchSend: vi.fn(),
+    sendingDomain: vi.fn(),
   };
 });
 
@@ -75,7 +77,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: m.sendCount,
       deleteMany: m.sendDelete,
     },
-    newsletterSendingDomain: { findUnique: async () => null },
+    newsletterSendingDomain: { findUnique: m.sendingDomain },
     $transaction: m.transaction,
   },
 }));
@@ -96,6 +98,7 @@ beforeEach(() => {
   m.state.providerCounter = 0;
   m.state.withdrewConsent = false;
   m.state.organizationSlug = "utxo";
+  m.sendingDomain.mockResolvedValue(null);
   const issue = {
     ...NEWSLETTER_ISSUE,
     status: "SCHEDULED",
@@ -203,6 +206,33 @@ beforeEach(() => {
 });
 
 describe("sendNewsletterIssue", () => {
+  it("uses this project's verified sending domain", async () => {
+    m.sendingDomain.mockResolvedValue({
+      fromAddress: "updates@project.example",
+      status: "VERIFIED",
+    });
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    expect(m.sendingDomain).toHaveBeenCalledWith({
+      where: { projectId: NEWSLETTER_PROJECT_ID },
+    });
+    expect(m.batchSend.mock.calls[0]?.[0][0]).toMatchObject({
+      from: '"Ada" <updates@project.example>',
+    });
+  });
+
+  it("uses the shared sender when only another project has a verified domain", async () => {
+    m.sendingDomain.mockImplementation(
+      ({ where }: { where: { projectId?: string; workspaceId?: string } }) =>
+        where.projectId === NEWSLETTER_PROJECT_ID
+          ? null
+          : { fromAddress: "updates@other.example", status: "VERIFIED" },
+    );
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    expect(m.batchSend.mock.calls[0]?.[0][0]).toMatchObject({
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
+    });
+  });
+
   it("sends 250 active subscribers in three private batches with signed links and headers", async () => {
     m.state.subscribers = subscribers(250);
     await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);

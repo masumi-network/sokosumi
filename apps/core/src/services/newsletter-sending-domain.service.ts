@@ -15,16 +15,13 @@ import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
   badGateway,
   conflict,
-  forbidden,
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import {
   isPrismaRecordNotFoundError,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
-import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import { hasDmarcPolicy } from "@/lib/newsletter/dmarc";
 import {
@@ -47,7 +44,6 @@ import {
   withDmarcRecord,
   zoneCandidates,
 } from "@/lib/newsletter/sending-domain";
-import type { WorkspaceContext } from "@/middleware/workspace";
 import { newsletterDnsRecordsSchema } from "@/schemas/newsletter-sending-domain.schema";
 
 /** A pending domain is re-read from Resend at most this often on its own. */
@@ -68,40 +64,12 @@ function statusCodeOf(error: unknown): number | null {
   return typeof statusCode === "number" ? statusCode : null;
 }
 
-/**
- * Who may add, verify, connect and remove the Workspace's sending domain: an
- * Organization OWNER or ADMIN, read live, or a personal Workspace's owner.
- * Agents never may; callers reject them before this.
- */
-export async function canManageNewsletterSendingDomain(
-  userId: string,
-  workspace: WorkspaceContext,
-): Promise<boolean> {
-  if (workspace.userId) return workspace.userId === userId;
-  const role = await organizationRoleInWorkspace(
-    userId,
-    workspace.workspaceId,
-    prisma,
-  );
-  return role !== null && isOrganizationOwnerOrAdmin(role);
+async function findSendingDomain(projectId: string) {
+  return prisma.newsletterSendingDomain.findUnique({ where: { projectId } });
 }
 
-export async function assertCanManageNewsletterSendingDomain(
-  userId: string,
-  workspace: WorkspaceContext,
-): Promise<void> {
-  if (await canManageNewsletterSendingDomain(userId, workspace)) return;
-  throw forbidden(
-    "Only a workspace owner or admin can manage the newsletter sending domain",
-  );
-}
-
-async function findSendingDomain(workspaceId: string) {
-  return prisma.newsletterSendingDomain.findUnique({ where: { workspaceId } });
-}
-
-async function requireSendingDomain(workspaceId: string) {
-  const domain = await findSendingDomain(workspaceId);
+async function requireSendingDomain(projectId: string) {
+  const domain = await findSendingDomain(projectId);
   if (!domain) throw notFound("No newsletter sending domain");
   return domain;
 }
@@ -164,23 +132,23 @@ async function withLazyRefresh(
   return refreshSendingDomain(row, { verify: false, dmarc }).catch(() => row);
 }
 
-export async function getNewsletterSendingDomain(workspaceId: string) {
-  return withLazyRefresh(await findSendingDomain(workspaceId), {
+export async function getNewsletterSendingDomain(projectId: string) {
+  return withLazyRefresh(await findSendingDomain(projectId), {
     dmarc: true,
   });
 }
 
 /**
- * Sets the Workspace's From address. A new domain is registered with Resend;
+ * Sets the Project's From address. A new domain is registered with Resend;
  * the same domain with another local part only changes the address.
  */
 export async function putNewsletterSendingDomain(
-  workspaceId: string,
+  projectId: string,
   fromAddress: string,
 ) {
   const domain = sendingDomainOf(fromAddress);
   const address = `${fromAddress.slice(0, fromAddress.lastIndexOf("@"))}@${domain}`;
-  const existing = await findSendingDomain(workspaceId);
+  const existing = await findSendingDomain(projectId);
   if (existing) {
     if (existing.domain !== domain) {
       throw conflict("Remove the current sending domain before adding another");
@@ -196,7 +164,7 @@ export async function putNewsletterSendingDomain(
       select: { id: true },
     })
   ) {
-    throw conflict("This domain is already connected to another workspace");
+    throw conflict("This domain is already connected to another project");
   }
 
   let created: Awaited<ReturnType<typeof createEmailDomain>>;
@@ -220,7 +188,7 @@ export async function putNewsletterSendingDomain(
   try {
     return await prisma.newsletterSendingDomain.create({
       data: {
-        workspaceId,
+        projectId,
         domain,
         fromAddress: address,
         resendDomainId: created.id,
@@ -233,22 +201,22 @@ export async function putNewsletterSendingDomain(
     // Don't strand a Resend domain no row points at.
     await removeEmailDomain(created.id).catch(() => undefined);
     if (isPrismaUniqueViolation(error)) {
-      throw conflict("This workspace or domain already has a sending domain");
+      throw conflict("This project or domain already has a sending domain");
     }
     throw error;
   }
 }
 
 /** "Check now": asks Resend to verify the DNS records, then stores the result. */
-export async function checkNewsletterSendingDomain(workspaceId: string) {
-  return refreshSendingDomain(await requireSendingDomain(workspaceId), {
+export async function checkNewsletterSendingDomain(projectId: string) {
+  return refreshSendingDomain(await requireSendingDomain(projectId), {
     verify: true,
   });
 }
 
 /** Deletes the domain in Resend, then the row. Resend already lacking it is fine. */
-export async function removeNewsletterSendingDomain(workspaceId: string) {
-  const row = await requireSendingDomain(workspaceId);
+export async function removeNewsletterSendingDomain(projectId: string) {
+  const row = await requireSendingDomain(projectId);
   try {
     await removeEmailDomain(row.resendDomainId);
   } catch (error) {
@@ -280,10 +248,10 @@ async function findCloudflareZone(
  * token is used for this request only: never stored, logged, or echoed.
  */
 export async function connectNewsletterSendingDomainWithCloudflare(
-  workspaceId: string,
+  projectId: string,
   apiToken: string,
 ) {
-  const row = await requireSendingDomain(workspaceId);
+  const row = await requireSendingDomain(projectId);
   try {
     const { zone, client } = await findCloudflareZone(row.domain, apiToken);
     if (!zone) {
@@ -326,12 +294,9 @@ export async function connectNewsletterSendingDomainWithCloudflare(
  * when signing is unconfigured, nothing is left to add, Resend's records fall
  * outside the template, or the provider does not serve the template yet.
  */
-export async function getNewsletterSendingDomainConnect(
-  workspaceId: string,
-  projectId: string | undefined,
-) {
+export async function getNewsletterSendingDomainConnect(projectId: string) {
   const privateKey = getEnv().DOMAIN_CONNECT_PRIVATE_KEY;
-  const row = await requireSendingDomain(workspaceId);
+  const row = await requireSendingDomain(projectId);
   if (!privateKey) return null;
   const template = domainConnectTemplateInput(row.domain, storedRecords(row));
   if (!template) return null;
@@ -346,7 +311,7 @@ export async function getNewsletterSendingDomainConnect(
   );
   if (!provider) return null;
   const redirect = new URL("/newsletter/settings", getWebAppBaseUrl());
-  if (projectId) redirect.searchParams.set("projectId", projectId);
+  redirect.searchParams.set("projectId", projectId);
   return {
     providerName: provider.providerName,
     applyUrl: buildDomainConnectApplyUrl({
@@ -362,9 +327,9 @@ export async function getNewsletterSendingDomainConnect(
 }
 
 async function sendingDomainSender(
-  workspaceId: string,
+  projectId: string,
 ): Promise<NewsletterSendingDomainSender | null> {
-  const row = await withLazyRefresh(await findSendingDomain(workspaceId), {
+  const row = await withLazyRefresh(await findSendingDomain(projectId), {
     dmarc: false,
   });
   return row ? { fromAddress: row.fromAddress, status: row.status } : null;
@@ -372,13 +337,13 @@ async function sendingDomainSender(
 
 /** From and Reply-To for a newsletter email, per {@link newsletterSenderOptions}. */
 export async function resolveNewsletterSender(newsletter: {
-  workspaceId: string;
+  projectId: string;
   senderName: string;
   replyTo: string;
 }) {
   return newsletterSenderOptions(
     newsletter,
-    await sendingDomainSender(newsletter.workspaceId),
+    await sendingDomainSender(newsletter.projectId),
   );
 }
 
@@ -388,12 +353,12 @@ export async function resolveNewsletterSender(newsletter: {
  * safe inside a transaction.
  */
 export async function assertNewsletterSenderConfigured(
-  workspaceId: string,
+  projectId: string,
   client: Pick<DbClient, "newsletterSendingDomain"> = prisma,
 ): Promise<void> {
   newsletterSenderMailbox(
     await client.newsletterSendingDomain.findUnique({
-      where: { workspaceId },
+      where: { projectId },
       select: { fromAddress: true, status: true },
     }),
   );
