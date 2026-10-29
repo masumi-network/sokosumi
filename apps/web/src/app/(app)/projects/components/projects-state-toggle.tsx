@@ -37,8 +37,6 @@ export function ProjectsStateToggle({
     <ToggleGroup
       aria-label={labels.label}
       type="single"
-      variant="outline"
-      size="lg"
       value={state}
       onValueChange={(value) => {
         // Clicking the selected view again would clear it; keep it.
@@ -48,7 +46,7 @@ export function ProjectsStateToggle({
       className="shrink-0"
     >
       {PROJECTS_LIST_STATES.map((option) => (
-        <ToggleGroupItem key={option} value={option} className="px-3">
+        <ToggleGroupItem key={option} value={option}>
           {labels[option]}
         </ToggleGroupItem>
       ))}
