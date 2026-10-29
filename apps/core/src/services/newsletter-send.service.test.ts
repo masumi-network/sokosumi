@@ -75,6 +75,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: m.sendCount,
       deleteMany: m.sendDelete,
     },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
 }));
@@ -223,7 +224,7 @@ describe("sendNewsletterIssue", () => {
     const second = m.batchSend.mock.calls[0]?.[0][1];
     expect(first).toMatchObject({
       to: "reader1@example.com",
-      from: '"Ada" <newsletter@news.example.com>',
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
       replyTo: "ada@example.com",
       subject: NEWSLETTER_ISSUE.subject,
       headers: {
@@ -290,7 +291,7 @@ describe("sendNewsletterIssue", () => {
   it("refuses without a newsletter sending domain before claiming or sending", async () => {
     m.state.domain = undefined;
     await expect(sendNewsletterIssue(NEWSLETTER_ISSUE_ID)).rejects.toThrow(
-      "NEWSLETTER_FROM_DOMAIN",
+      "Connect a sending domain",
     );
     expect(m.issueUpdate).not.toHaveBeenCalled();
     expect(m.batchSend).not.toHaveBeenCalled();
