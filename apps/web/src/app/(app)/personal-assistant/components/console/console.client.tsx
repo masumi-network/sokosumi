@@ -1,13 +1,14 @@
 "use client";
 
-import type {
-  SokoBotAvatar,
-  SokoBotDailyStats,
-  SokoBotInstalledSkill,
-  SokoBotIntegrationCatalogEntry,
-  SokoBotIntegrations,
-  SokoBotUsage,
-  SokoBotVersion,
+import {
+  type SokoBotAvatar,
+  type SokoBotDailyStats,
+  type SokoBotInstalledSkill,
+  type SokoBotIntegrationCatalogEntry,
+  type SokoBotIntegrations,
+  SokoBotStatus,
+  type SokoBotUsage,
+  type SokoBotVersion,
 } from "@sokosumi/core-client";
 import { MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +30,7 @@ import Markdown from "@/components/markdown";
 import {
   AvatarStateLine,
   AvatarStatePill,
+  useAvatarStateCopy,
 } from "@/components/soko-bot/avatar-state";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
@@ -192,6 +194,7 @@ export function SokoBotConsole({
 }: SokoBotConsoleProps) {
   const consoleRoute = sokoBotConsoleRoute(botId);
   const t = useTranslations("App.SokoBot");
+  const { alt: stateAlt } = useAvatarStateCopy();
   const adsBlock = ads ? (
     <AdAccountsSection accounts={ads.accounts} botProjectId={ads.projectId} />
   ) : null;
@@ -263,6 +266,7 @@ export function SokoBotConsole({
               ? {
                   url: bot.avatarImageUrl,
                   crafted: isCraftedAvatar(bot.avatar),
+                  alt: stateAlt(botName, bot.avatarState),
                 }
               : null
           }
@@ -283,7 +287,7 @@ export function SokoBotConsole({
                     {botName}
                   </h1>
                   <AvatarStatePill state={bot.avatarState} />
-                  {bot.status === "ERROR" ? (
+                  {bot.status === SokoBotStatus.ERROR ? (
                     <SokoBotStatusBadge status={bot.status} />
                   ) : null}
                   {version ? (

@@ -119,8 +119,8 @@ function invalidInput(): ActionError {
 }
 
 // A spent hourly allowance is a wait, not a breakage. Give the picker its own
-// code so it can say so instead of showing the generic load failure.
-function mapAvatarTopUpError(error: unknown): ActionError {
+// code so the picker and the studio can say so instead of the generic failure.
+function mapAvatarError(error: unknown): ActionError {
   if (error instanceof CoreApiRequestError && error.status === 429) {
     return {
       code: SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
@@ -382,7 +382,7 @@ export const topUpSokoBotAvatarsAction = withSession<
     );
     return toActionResult(ok(avatars));
   } catch (error) {
-    return toActionResult(err(mapAvatarTopUpError(error)));
+    return toActionResult(err(mapAvatarError(error)));
   }
 });
 
@@ -407,12 +407,16 @@ export const createSokoBotAvatarDraftAction = withSession<
     );
     return toActionResult(ok(result));
   } catch (error) {
-    return toActionResult(err(mapAvatarTopUpError(error)));
+    return toActionResult(err(mapAvatarError(error)));
   }
 });
 
+interface KeepAvatarDraftParams extends BotScopedParams {
+  draftId: unknown;
+}
+
 export const keepSokoBotAvatarDraftAction = withSession<
-  BotScopedParams & { draftId: unknown },
+  KeepAvatarDraftParams,
   ActionResultDto<SokoBotAvatarStudio, ActionError>
 >(async ({ draftId, botId }) => {
   const parsed = z.string().uuid().safeParse(draftId);
@@ -427,7 +431,7 @@ export const keepSokoBotAvatarDraftAction = withSession<
     revalidate(parsedBot.data);
     return toActionResult(ok(studio));
   } catch (error) {
-    return toActionResult(err(mapAvatarTopUpError(error)));
+    return toActionResult(err(mapAvatarError(error)));
   }
 });
 

@@ -3,11 +3,10 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
+import { AvatarStudio } from "@/app/personal-assistant/components/avatar-studio.client";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
-
-import { AvatarStudio } from "../components/avatar-studio.client";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBot.Avatar.Studio");

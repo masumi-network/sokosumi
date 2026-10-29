@@ -1,28 +1,27 @@
 "use client";
 
-import type { SokoBotAvatarState } from "@sokosumi/core-client";
+import { SokoBotAvatarState } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
-import { AVATAR_PLAY_ONCE_MS } from "@/lib/soko-bot/avatar";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
+import { AVATAR_PLAY_ONCE_MS, type AvatarSources } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-
-function subscribeToReducedMotion(onChange: () => void) {
-  const query = window.matchMedia?.(REDUCED_MOTION_QUERY);
-  query?.addEventListener("change", onChange);
-  return () => query?.removeEventListener("change", onChange);
-}
-
-/** True when the person asked for less motion: every avatar then shows stills. */
-export function useReducedMotion(): boolean {
-  return useSyncExternalStore(
-    subscribeToReducedMotion,
-    () => window.matchMedia?.(REDUCED_MOTION_QUERY).matches ?? false,
-    () => false,
-  );
+/**
+ * The picture to show: the state's loop while `playing`, else its still. A
+ * person who prefers reduced motion, a legacy avatar and a loop that is not
+ * rendered yet all get the still.
+ */
+export function useAvatarImage(
+  sources: AvatarSources,
+  playing: boolean,
+  loop: "loop" | "loopLarge",
+): string | null {
+  const reducedMotion = useReducedMotion();
+  return (playing && !reducedMotion ? sources[loop] : null) ?? sources.still;
 }
 
 /**
@@ -55,18 +54,20 @@ export function useAvatarStateCopy() {
   };
 }
 
+interface AvatarStateLineProps {
+  state: SokoBotAvatarState;
+  lastActivityAt: Date | string | null;
+}
+
 /** What the bot is doing, in a line. An idle bot says when it was last active. */
 export function AvatarStateLine({
   state,
   lastActivityAt,
-}: {
-  state: SokoBotAvatarState;
-  lastActivityAt: Date | string | null;
-}) {
+}: AvatarStateLineProps) {
   const t = useTranslations("Components.SokoBot.AvatarState");
   const formatter = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
-  if (state === "idle") {
+  if (state === SokoBotAvatarState.IDLE) {
     return lastActivityAt
       ? t("lastActive", {
           time: formatter.relativeTime(new Date(lastActivityAt), now),
@@ -80,7 +81,7 @@ function StateDisc({ state }: { state: SokoBotAvatarState }) {
   const base =
     "flex size-3.5 shrink-0 items-center justify-center rounded-full";
   switch (state) {
-    case "done":
+    case SokoBotAvatarState.DONE:
       return (
         <span
           aria-hidden
@@ -92,7 +93,7 @@ function StateDisc({ state }: { state: SokoBotAvatarState }) {
           <Check className="size-2.5" strokeWidth={4} />
         </span>
       );
-    case "needs_you":
+    case SokoBotAvatarState.NEEDS_YOU:
       return (
         <span
           aria-hidden
@@ -113,7 +114,7 @@ function StateDisc({ state }: { state: SokoBotAvatarState }) {
           </svg>
         </span>
       );
-    case "offline":
+    case SokoBotAvatarState.OFFLINE:
       return <span aria-hidden className={cn(base, "bg-muted-foreground")} />;
     default:
       return (
@@ -125,19 +126,20 @@ function StateDisc({ state }: { state: SokoBotAvatarState }) {
   }
 }
 
+interface AvatarStatePillProps {
+  state: SokoBotAvatarState;
+  className?: string;
+}
+
 /**
  * The state as a word with a mark: a filled disc, or, while the bot is busy,
  * a sweep along the pill's lower edge. Colour never carries it alone.
  */
-export function AvatarStatePill({
-  state,
-  className,
-}: {
-  state: SokoBotAvatarState;
-  className?: string;
-}) {
+export function AvatarStatePill({ state, className }: AvatarStatePillProps) {
   const { label } = useAvatarStateCopy();
-  const busy = state === "thinking" || state === "working";
+  const busy =
+    state === SokoBotAvatarState.THINKING ||
+    state === SokoBotAvatarState.WORKING;
   return (
     <span
       data-slot="avatar-state-pill"
@@ -150,14 +152,7 @@ export function AvatarStatePill({
     >
       {busy ? null : <StateDisc state={state} />}
       {label(state)}
-      {busy ? (
-        <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5">
-          <span
-            data-slot="avatar-state-sweep"
-            className="bg-foreground animate-button-loading-sweep block h-0.5 w-2/5 motion-reduce:translate-x-[75%] motion-reduce:animate-none"
-          />
-        </span>
-      ) : null}
+      {busy ? <ButtonLoadingBar label={label(state)} /> : null}
     </span>
   );
 }

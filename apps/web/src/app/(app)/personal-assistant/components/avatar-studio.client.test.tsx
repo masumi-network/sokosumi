@@ -14,12 +14,19 @@ const { createMock, keepMock, refreshMock, toastErrorMock } = vi.hoisted(
   }),
 );
 
+vi.mock("motion/react", () => ({ useReducedMotion: () => false }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }));
+// Only `creatures.owl` has a translation here; the rest fall back to the id.
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values ? `${key}(${Object.values(values).join(",")})` : key,
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, string>) =>
+        values ? `${key}(${Object.values(values).join(",")})` : key,
+      { has: (key: string) => key === "creatures.owl" },
+    ),
 }));
 vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
 vi.mock("@/lib/actions/soko-bot/action", () => ({
@@ -103,11 +110,6 @@ describe("AvatarStudio", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    vi.stubGlobal("matchMedia", () => ({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }));
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -117,15 +119,14 @@ describe("AvatarStudio", () => {
   it("opens on the current look with the creature and accessories it has", () => {
     renderStudio();
     expect(look()).toHaveAttribute("src", "https://blob/idle.png");
-    expect(screen.getByRole("button", { name: "owl" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "frog" })).toHaveAttribute(
+    expect(
+      screen.getByRole("button", { name: "creatures.owl" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Frog" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
-    expect(screen.getByRole("button", { name: "glasses" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Glasses" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -139,7 +140,7 @@ describe("AvatarStudio", () => {
     });
     renderStudio();
 
-    await click(screen.getByRole("button", { name: "frog" }));
+    await click(screen.getByRole("button", { name: "Frog" }));
 
     expect(createMock).toHaveBeenCalledWith({
       botId: undefined,
@@ -159,7 +160,7 @@ describe("AvatarStudio", () => {
     });
     renderStudio();
 
-    await click(screen.getByRole("button", { name: "scarf" }));
+    await click(screen.getByRole("button", { name: "Scarf" }));
     expect(createMock).toHaveBeenLastCalledWith({
       botId: undefined,
       input: {
@@ -168,7 +169,7 @@ describe("AvatarStudio", () => {
       },
     });
 
-    await click(screen.getByRole("button", { name: "glasses" }));
+    await click(screen.getByRole("button", { name: "Glasses" }));
     expect(createMock).toHaveBeenLastCalledWith({
       botId: undefined,
       input: {
@@ -290,7 +291,7 @@ describe("AvatarStudio", () => {
     expect(screen.getByText("statesPlay")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "label.working" })).toBeEnabled();
 
-    await click(screen.getByRole("button", { name: "frog" }));
+    await click(screen.getByRole("button", { name: "Frog" }));
 
     expect(screen.getByText("statesDraft")).toBeInTheDocument();
     expect(
@@ -335,7 +336,7 @@ describe("AvatarStudio", () => {
       },
     });
     renderStudio(studio, BOT_ID);
-    await click(screen.getByRole("button", { name: "frog" }));
+    await click(screen.getByRole("button", { name: "Frog" }));
 
     await click(screen.getByRole("button", { name: "keep" }));
 
@@ -377,6 +378,23 @@ describe("AvatarStudio", () => {
       vi.advanceTimersByTime(20_000);
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a poll answer that is not the studio shape", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ studio: { progress: { ready: "six" } } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderStudio({ ...studio, progress: { ready: 2, failed: 0, total: 6 } });
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByText("statesProgress(2,6)")).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("stops polling when the page goes away", () => {

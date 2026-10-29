@@ -1,23 +1,25 @@
 "use client";
 
-import type {
-  SokoBotAvatarChange,
+import {
+  type SokoBotAvatarChange,
   SokoBotAvatarState,
-  SokoBotAvatarStudio,
+  type SokoBotAvatarStudio,
 } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
+import * as z from "zod";
 
 import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import {
+  useAvatarImage,
   useAvatarStateCopy,
   usePlayOnce,
-  useReducedMotion,
 } from "@/components/soko-bot/avatar-state";
 import { Button } from "@/components/ui/button";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -32,14 +34,7 @@ import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
-const STATES: SokoBotAvatarState[] = [
-  "idle",
-  "thinking",
-  "working",
-  "done",
-  "needs_you",
-  "offline",
-];
+const STATES = Object.values(SokoBotAvatarState);
 /** Original ideas only: a typed change that names a brand or a character is refused. */
 const IDEAS = ["wizard", "coffee", "snow", "sleepy", "beach"] as const;
 const PREVIEW_SIZES = ["size-20", "size-12", "size-8", "size-6"] as const;
@@ -48,13 +43,50 @@ const POLL_MS = 5_000;
 
 type Progress = SokoBotAvatarStudio["progress"];
 
+const stateAssetsSchema = z.object({
+  stillUrl: z.string(),
+  loopUrl: z.string().nullable(),
+  loopLargeUrl: z.string().nullable(),
+});
+
+/** What the poll needs from the studio: the avatar view and render progress. */
+const pollResponseSchema = z.object({
+  studio: z.object({
+    avatar: z
+      .object({
+        styleId: z.string(),
+        styleVersion: z.number(),
+        stillUrl: z.string(),
+        states: z.record(
+          z.enum(SokoBotAvatarState),
+          stateAssetsSchema.nullable(),
+        ),
+      })
+      .nullable(),
+    progress: z.object({
+      ready: z.number(),
+      failed: z.number(),
+      total: z.number(),
+    }),
+  }),
+});
+
 function isRendering({ ready, failed, total }: Progress): boolean {
   return total > 0 && ready + failed < total;
 }
 
-/** "wizard-hat" → "wizard hat"; the button capitalises it. */
-function optionLabel(id: string): string {
-  return id.replace(/[-_]+/g, " ");
+/** "wizard-hat" → "Wizard hat": a style option that has no translation yet. */
+function humanise(id: string): string {
+  const words = id.replace(/[-_]+/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+interface AvatarStudioProps {
+  /** The shared bot being edited; null for the caller's own. */
+  botId: string | null;
+  botName: string;
+  consoleHref: string;
+  initial: SokoBotAvatarStudio;
 }
 
 /**
@@ -67,24 +99,17 @@ export function AvatarStudio({
   botName,
   consoleHref,
   initial,
-}: {
-  /** The shared bot being edited; null for the caller's own. */
-  botId: string | null;
-  botName: string;
-  consoleHref: string;
-  initial: SokoBotAvatarStudio;
-}) {
+}: AvatarStudioProps) {
   const t = useTranslations("App.SokoBot.Avatar.Studio");
   const { label: stateLabel, alt } = useAvatarStateCopy();
   const router = useRouter();
-  const reducedMotion = useReducedMotion();
   const [studio, setStudio] = useState(initial);
   const [draft, setDraft] = useState(initial.draft);
   const [note, setNote] = useState("");
   const [typed, setTyped] = useState("");
   const [saved, setSaved] = useState(false);
   const [pick, setPick] = useState<{ state: SokoBotAvatarState; n: number }>({
-    state: "idle",
+    state: SokoBotAvatarState.IDLE,
     n: 0,
   });
   const [isDrafting, startDrafting] = useTransition();
@@ -104,11 +129,9 @@ export function AvatarStudio({
           cache: "no-store",
         });
         if (!response.ok || stopped) return;
-        const body = (await response.json()) as {
-          studio?: Pick<SokoBotAvatarStudio, "avatar" | "progress">;
-        };
-        const next = body.studio;
-        if (!next || stopped) return;
+        const body = pollResponseSchema.safeParse(await response.json());
+        if (!body.success || stopped) return;
+        const next = body.data.studio;
         setStudio((prev) => ({
           ...prev,
           avatar: next.avatar,
@@ -126,7 +149,12 @@ export function AvatarStudio({
     };
   }, [rendering, botId, router]);
 
-  function failed(code: string, fallback: string) {
+  /** A style option's name: translated when we know it, else made readable. */
+  function optionLabel(group: "creatures" | "accessories", id: string) {
+    return t.has(`${group}.${id}`) ? t(`${group}.${id}`) : humanise(id);
+  }
+
+  function toastFailure(code: string, fallback: string) {
     toast.error(
       code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
         ? t("rateLimited")
@@ -134,7 +162,7 @@ export function AvatarStudio({
     );
   }
 
-  function change(next: SokoBotAvatarChange) {
+  function handleChange(next: SokoBotAvatarChange) {
     startDrafting(async () => {
       const result = await createSokoBotAvatarDraftAction({
         botId: botId ?? undefined,
@@ -144,7 +172,7 @@ export function AvatarStudio({
         },
       });
       if (!result.ok) {
-        failed(result.error.code, t("error"));
+        toastFailure(result.error.code, t("error"));
         return;
       }
       // A refusal answers with a note and no draft: the look stays as it was.
@@ -157,7 +185,7 @@ export function AvatarStudio({
     });
   }
 
-  function keep() {
+  function handleKeep() {
     if (!draft) return;
     const draftId = draft.id;
     startKeeping(async () => {
@@ -166,14 +194,14 @@ export function AvatarStudio({
         draftId,
       });
       if (!result.ok) {
-        failed(result.error.code, t("keepError"));
+        toastFailure(result.error.code, t("keepError"));
         return;
       }
       setStudio(result.value);
       setDraft(null);
       setNote("");
       setSaved(true);
-      setPick({ state: "idle", n: 0 });
+      setPick({ state: SokoBotAvatarState.IDLE, n: 0 });
       router.refresh();
     });
   }
@@ -185,11 +213,8 @@ export function AvatarStudio({
     studio.avatar?.stillUrl ?? null,
   );
   const lookImage = draft?.imageUrl ?? studio.avatar?.stillUrl ?? null;
-  const shown = draft
-    ? draft.imageUrl
-    : playing && !reducedMotion && sources.loopLarge
-      ? sources.loopLarge
-      : sources.still;
+  const stateImage = useAvatarImage(sources, playing, "loopLarge");
+  const shown = draft ? draft.imageUrl : stateImage;
   const currentLook = draft?.look ?? studio.look;
   const statesHint =
     draft || !crafted
@@ -229,9 +254,7 @@ export function AvatarStudio({
                 className="bg-background border-border relative overflow-hidden rounded-lg border px-3.5 py-2.5 text-sm"
               >
                 {t("making")}
-                <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5">
-                  <span className="bg-foreground animate-button-loading-sweep block h-0.5 w-2/5 motion-reduce:translate-x-[75%] motion-reduce:animate-none" />
-                </span>
+                <ButtonLoadingBar label={t("making")} />
               </span>
             </div>
           ) : null}
@@ -244,7 +267,7 @@ export function AvatarStudio({
                 key={size}
                 src={lookImage}
                 crafted={crafted}
-                className={cn("border", size)}
+                className={size}
               />
             ))}
             <span className="text-muted-foreground ml-auto text-xs">
@@ -343,12 +366,12 @@ export function AvatarStudio({
                       variant={on ? "default" : "outline"}
                       aria-pressed={on}
                       disabled={busy}
-                      className={cn("capitalize", on && "font-semibold")}
+                      className={cn(on && "font-semibold")}
                       onClick={() =>
-                        on || change({ kind: "creature", creature: id })
+                        on || handleChange({ kind: "creature", creature: id })
                       }
                     >
-                      {optionLabel(id)}
+                      {optionLabel("creatures", id)}
                     </Button>
                   );
                 })}
@@ -370,16 +393,16 @@ export function AvatarStudio({
                       variant={on ? "default" : "outline"}
                       aria-pressed={on}
                       disabled={busy}
-                      className={cn("capitalize", on && "font-semibold")}
+                      className={cn(on && "font-semibold")}
                       onClick={() =>
-                        change({
+                        handleChange({
                           kind: "accessory",
                           accessory: id,
                           enabled: !on,
                         })
                       }
                     >
-                      {optionLabel(id)}
+                      {optionLabel("accessories", id)}
                     </Button>
                   );
                 })}
@@ -391,7 +414,7 @@ export function AvatarStudio({
               onSubmit={(event) => {
                 event.preventDefault();
                 const text = typed.trim();
-                if (text && !busy) change({ kind: "typed", text });
+                if (text && !busy) handleChange({ kind: "typed", text });
               }}
             >
               <label
@@ -426,7 +449,7 @@ export function AvatarStudio({
                     variant="outline"
                     disabled={busy}
                     onClick={() =>
-                      change({ kind: "typed", text: t(`ideas.${idea}`) })
+                      handleChange({ kind: "typed", text: t(`ideas.${idea}`) })
                     }
                   >
                     {t(`ideas.${idea}`)}
@@ -447,7 +470,7 @@ export function AvatarStudio({
                 variant="primary"
                 disabled={!draft || busy}
                 loading={isKeeping}
-                onClick={keep}
+                onClick={handleKeep}
               >
                 {t("keep")}
               </Button>
@@ -455,7 +478,7 @@ export function AvatarStudio({
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={() => change({ kind: "shuffle" })}
+                onClick={() => handleChange({ kind: "shuffle" })}
               >
                 {t("shuffle")}
               </Button>

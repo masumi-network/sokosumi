@@ -8,6 +8,11 @@ import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { SokoBotTargetContext } from "../soko-bot-target";
 import { SokoBotConsole, type SokoBotConsoleProps } from "./console.client";
 
+const reduceMotion = vi.hoisted(() => ({ current: false }));
+vi.mock("motion/react", () => ({
+  useReducedMotion: () => reduceMotion.current,
+}));
+
 const pushMock = vi.fn();
 const toastErrorMock = vi.fn();
 const ensureRoomMock = vi.fn();
@@ -294,11 +299,7 @@ function craftedState(
 }
 
 function reducedMotion(matches: boolean) {
-  vi.stubGlobal("matchMedia", () => ({
-    matches,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
+  reduceMotion.current = matches;
 }
 
 /** The portrait: the one image named after the bot and its state. */
@@ -315,7 +316,7 @@ describe("SokoBotConsole header portrait", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-    vi.unstubAllGlobals();
+    reduceMotion.current = false;
   });
 
   it("plays the current state once on mount, then rests on its still", () => {
@@ -380,13 +381,13 @@ describe("SokoBotConsole header portrait", () => {
     });
     expect(screen.getByText("label.working")).toBeInTheDocument();
     expect(
-      document.querySelector('[data-slot="avatar-state-sweep"]'),
+      document.querySelector('[data-slot="button-loading-bar"]'),
     ).not.toBeNull();
 
     rerender(consoleElement({ initialState: craftedState("done") }));
     expect(screen.getByText("label.done")).toBeInTheDocument();
     expect(
-      document.querySelector('[data-slot="avatar-state-sweep"]'),
+      document.querySelector('[data-slot="button-loading-bar"]'),
     ).toBeNull();
   });
 

@@ -4561,7 +4561,6 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
-          "workingNow": "Working now",
           "needsAttention": "Needs attention",
           "activeAgo": "Active {time}",
           "ready": "Ready",
@@ -8999,6 +8998,20 @@
           "statesProgress": "Making its animations · {ready} of {total} ready",
           "creature": "Creature",
           "accessory": "Accessory",
+          "creatures": {
+            "owl": "Owl",
+            "frog": "Frog",
+            "hedgehog": "Hedgehog",
+            "otter": "Otter",
+            "penguin": "Penguin"
+          },
+          "accessories": {
+            "beanie": "Beanie",
+            "glasses": "Glasses",
+            "scarf": "Scarf",
+            "headphones": "Headphones",
+            "magnifier": "Magnifier"
+          },
           "describe": "Or describe a change",
           "placeholder": "Give it a tiny wizard hat",
           "apply": "Apply",

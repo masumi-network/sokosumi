@@ -22,7 +22,7 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
     getAvatarStudio: () => getAvatarStudioMock(),
   },
 }));
-vi.mock("../components/avatar-studio.client", () => ({
+vi.mock("@/app/personal-assistant/components/avatar-studio.client", () => ({
   AvatarStudio: (props: { botId: string | null; botName: string }) => (
     <div data-testid="studio">{`${props.botId ?? "own"}:${props.botName}`}</div>
   ),

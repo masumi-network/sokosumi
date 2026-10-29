@@ -1,5 +1,12 @@
 import { cn } from "@/lib/utils";
 
+interface AvatarFaceProps {
+  src: string;
+  crafted: boolean;
+  alt?: string;
+  className?: string;
+}
+
 /**
  * A bot's small round face. A crafted avatar is a whole scene (a creature at
  * its desk), so a small face crops it to the creature's head; a mascot is
@@ -10,12 +17,7 @@ export function AvatarFace({
   crafted,
   alt = "",
   className,
-}: {
-  src: string;
-  crafted: boolean;
-  alt?: string;
-  className?: string;
-}) {
+}: AvatarFaceProps) {
   if (!crafted) {
     return (
       <img
