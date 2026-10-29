@@ -4926,6 +4926,12 @@ export const SokoBotAvatarLookSchema = {
             items: {
                 type: 'string'
             }
+        },
+        traits: {
+            type: 'object',
+            additionalProperties: {
+                type: 'string'
+            }
         }
     },
     required: [

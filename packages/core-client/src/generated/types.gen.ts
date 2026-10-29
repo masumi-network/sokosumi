@@ -1191,6 +1191,9 @@ export type SokoBotAvatarLook = {
     creature: string;
     accessories: Array<string>;
     typed: Array<string>;
+    traits?: {
+        [key: string]: string;
+    };
 };
 
 export type SokoBotAvatarDraft = {
