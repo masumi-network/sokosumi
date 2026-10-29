@@ -45,7 +45,7 @@ function App() {
   showOverlay = setOverlay;
   return (
     <RoomShellLayout
-      rootClassName="flex h-screen min-h-0 min-w-0 flex-col overflow-hidden"
+      rootClassName="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden"
       desktopHeader={<span>Room</span>}
       listContent={<p>Short transcript, so the scroller shows no scrollbar.</p>}
       composer={
