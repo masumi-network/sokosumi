@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 
-import { put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
@@ -12,276 +11,76 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
-import { buildSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
+import { toDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
   CONCURRENCY_CONFLICT_KIND,
   serializableTransaction,
 } from "@/lib/db/transaction";
+import {
+  drawStill,
+  loadHouseScene,
+  planShuffle,
+  storeAvatarAsset,
+} from "@/lib/soko-bot-avatar/draw";
+import { AVATAR_IMAGE_MODEL } from "@/lib/soko-bot-avatar/provider";
+import {
+  AVATAR_STATES,
+  type AvatarLook,
+  CURRENT_AVATAR_STYLE,
+  findAvatarStyle,
+  type SokoBotAvatarStyle,
+} from "@/lib/soko-bot-avatar/style";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 
 /**
- * Mascot avatar pool for Soko Bots. Images follow the "IP as logo" recipe
- * (one cute character from a few rounded shapes, two character colours, one
- * solid background, emerging from a lower corner) and are drawn once per
- * unique (subject, background, seed). A bot claims exactly one; the pool is
- * topped up when it runs low so onboarding always has choices.
+ * Avatar pool and claim for Soko Bots. The pool holds fresh looks drawn in the
+ * current style (the house scene with a random creature, maybe an accessory);
+ * a bot claims exactly one, and claiming a crafted look gives it one render per
+ * state (see `soko-bot-avatar-render.service`). The pool is topped up when it
+ * runs low so onboarding always has choices. Legacy mascot rows are read and
+ * claimed as before, never drawn again.
  */
 
-export const AVATAR_MODEL = "fal-ai/gemini-3.1-flash-image-preview";
-const FAL_SYNC_URL = `https://fal.run/${AVATAR_MODEL}`;
-const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
-
-interface AvatarSubject {
-  subject: string;
-  feature: string;
-  colors: string;
-}
-
-/** Subjects a personal project manager can plausibly be, each with one defining feature. */
-const SUBJECTS: readonly AvatarSubject[] = [
-  {
-    subject: "owl",
-    feature: "two large round tufted ear-bumps",
-    colors:
-      "warm cream (#F4EBDD) body and deep ink (#1E1B2E) for the face mask and eyes",
-  },
-  {
-    subject: "fox",
-    feature: "two large rounded ears",
-    colors:
-      "warm apricot (#F09A5A) body and deep plum ink (#2B1E3A) for the eyes and muzzle patch",
-  },
-  {
-    subject: "round helper robot",
-    feature: "one broad rounded visor face",
-    colors:
-      "soft porcelain white (#F3F1EC) body and deep navy ink (#1B2140) for the visor and eyes",
-  },
-  {
-    subject: "bear cub",
-    feature: "two small round ears",
-    colors:
-      "cocoa brown (#8B5E3C) body and pale cream (#F7EFE3) for the muzzle patch and eyes",
-  },
-  {
-    subject: "whale",
-    feature: "one broad rounded tail fin",
-    colors:
-      "soft ocean blue (#5B8DEF) body and pale cream (#F4F1EA) for the belly and eyes",
-  },
-  {
-    subject: "cat",
-    feature: "two rounded ears",
-    colors:
-      "charcoal (#2F2F38) body and warm cream (#F5EDE0) for the muzzle patch and eyes",
-  },
-  {
-    subject: "penguin",
-    feature: "one small rounded beak",
-    colors:
-      "deep ink (#1F2233) body and soft white (#F6F5F0) for the belly patch and eyes",
-  },
-  {
-    subject: "sloth",
-    feature: "one broad rounded face mask",
-    colors:
-      "warm taupe (#A98F72) body and cream (#F3EAD9) for the face mask and eyes",
-  },
-  {
-    subject: "axolotl",
-    feature: "two rounded external gill puffs",
-    colors:
-      "soft pink (#F3A6B8) body and deep berry ink (#4A2138) for the eyes and tiny mouth",
-  },
-  {
-    subject: "frog",
-    feature: "two large round eye bumps",
-    colors:
-      "leaf green (#7BB662) body and cream (#F5F1DF) for the belly and eyes",
-  },
-  {
-    subject: "elephant",
-    feature: "two big round ears",
-    colors:
-      "dusty blue-gray (#8D9AB3) body and pale blush (#F5E4E0) for the inner ears and eyes",
-  },
-  {
-    subject: "koala",
-    feature: "two big fluffy round ears",
-    colors:
-      "soft gray (#B8B5B0) body and deep ink (#26242C) for the nose patch and eyes",
-  },
-  {
-    subject: "duckling",
-    feature: "one small rounded bill",
-    colors:
-      "sunny yellow (#F2C94C) body and warm orange (#E07A2F) for the bill and eyes",
-  },
-  {
-    subject: "hedgehog",
-    feature: "one rounded quill cap",
-    colors: "chestnut (#8F5B3C) quill cap and cream (#F6EBDA) face",
-  },
-  {
-    subject: "rabbit",
-    feature: "two tall rounded ears",
-    colors:
-      "soft white (#F5F2EC) body and dusty rose (#C98A8A) for the inner ears and eyes",
-  },
-  {
-    subject: "otter",
-    feature: "one small rounded muzzle patch",
-    colors:
-      "warm brown (#7C5A3E) body and cream (#F4E9D6) for the muzzle patch and eyes",
-  },
-] as const;
-
-interface AvatarBackground {
-  name: string;
-  hex: string;
-}
-
-/** Muted, clearly chromatic backgrounds; the brand wisteria is one of them, not the default for all. */
-const BACKGROUNDS: readonly AvatarBackground[] = [
-  { name: "gently muted lavender purple", hex: "#7A5AD6" },
-  { name: "gently muted sage green", hex: "#8FB59C" },
-  { name: "gently muted slate blue", hex: "#6B7FB3" },
-  { name: "gently muted peach", hex: "#E8B79A" },
-  { name: "gently muted teal", hex: "#5FA8A3" },
-  { name: "gently muted mustard", hex: "#D9B24C" },
-  { name: "gently muted dusty rose", hex: "#D98C9E" },
-  { name: "gently muted mint", hex: "#9CCFB8" },
-  { name: "gently muted terracotta", hex: "#D27D5B" },
-  { name: "gently muted periwinkle", hex: "#8C93D9" },
-] as const;
-
-export function buildAvatarPrompt(input: {
-  subject: AvatarSubject;
-  background: AvatarBackground;
-  corner: "lower-left" | "lower-right";
-}): string {
-  const side = input.corner === "lower-left" ? "left" : "right";
-  return [
-    "Create one complete full-bleed 1:1 square image.",
-    `Background: fill the entire square with solid ${input.background.name} (like ${input.background.hex} with slightly lowered saturation). Keep that color visible in every open area and in the corners not occupied by the character; the ${input.corner} corner must be occupied by the character.`,
-    `Subject: place one extremely simplified, cute, endearing ${input.subject.subject} character on the background, reduced to one soft rounded continuous silhouette and one defining feature: ${input.subject.feature}.`,
-    "Complexity: use only 4–7 large basic shapes and at most two broad internal color regions. Use two simple eyes and add one tiny mouth only when it helps the expression. Remove every nonessential line, outline, anatomical detail, texture, and decoration. Keep the character readable at 32 × 32.",
-    `Color behavior: use exactly three semantic colors in the complete image: exactly two character base colors plus the background color. Character colors: ${input.subject.colors}. Reuse those two colors for facial marks. Keep the character, facial marks, and background clearly separated.`,
-    `Composition: keep the character upright and emerging from the ${input.corner} corner, filling about 85–95% of the square so it remains visually dominant. Cropping at the bottom or ${side} side is welcome when it strengthens the corner emergence. Preserve both paired identifying features. Never center or bottom-center the character.`,
-    "Style: make simplification, cuteness, and lovable baby-like appeal the strongest qualities. Use large soft forms, compact proportions, thick rounded contours, and an ultra-clean graphic treatment. Prefer one clear shape over several explanatory details. Add an extremely, extremely subtle, almost imperceptible sense of depth through a barely-there neo-skeuomorphic treatment.",
-    "Finish: show only the character on the full-canvas background, with clean surfaces and normal square outer corners.",
-    "Constraints: Use no text or watermark. Add no borders, frames, cards, or presentation masks. Include one character only, with no extra subjects or scenery. Use no fragile lines, sharp tips, unnecessary outlines, tiny details, or decorative marks. Add no photorealistic material, dramatic bevel, glossy hotspot, deep occlusion, extrusion, strong three-dimensional rendering, or external cast shadow. Keep the background solid and uniform, with no texture, vignette, or lighting variation.",
-  ].join("\n");
-}
-
-/** Deterministic draw plan: never repeats a (subject, background, seed) triple. */
-export async function nextAvatarDraws(
-  count: number,
-  client: Prisma.TransactionClient | typeof prisma = prisma,
-) {
-  const existing = await client.sokoBotAvatar.findMany({
-    select: { subject: true, background: true, seed: true },
-  });
-  const used = new Set(
-    existing.map((row) => `${row.subject}|${row.background}|${row.seed}`),
-  );
-  const draws: {
-    subject: AvatarSubject;
-    background: AvatarBackground;
-    seed: number;
-    corner: "lower-left" | "lower-right";
-  }[] = [];
-  // Walk subject × background diagonally so consecutive draws differ in both,
-  // then bump the seed once the grid is exhausted.
-  for (let seed = 1; draws.length < count && seed < 1_000; seed += 1) {
-    for (let i = 0; i < SUBJECTS.length && draws.length < count; i += 1) {
-      const subject = SUBJECTS[i]!;
-      const background = BACKGROUNDS[(i + seed) % BACKGROUNDS.length]!;
-      const key = `${subject.subject}|${background.name}|${seed}`;
-      if (used.has(key)) continue;
-      used.add(key);
-      draws.push({
-        subject,
-        background,
-        seed,
-        corner: (i + seed) % 2 === 0 ? "lower-left" : "lower-right",
-      });
-    }
-  }
-  return draws;
-}
-
-async function generateImage(prompt: string, seed: number): Promise<string> {
-  const env = getEnv();
-  if (!env.FAL_KEY) throw new Error("FAL_KEY is not configured");
-  const response = await fetch(FAL_SYNC_URL, {
-    method: "POST",
-    headers: {
-      authorization: `Key ${env.FAL_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt,
-      aspect_ratio: "1:1",
-      resolution: "1K",
-      num_images: 1,
-      seed,
-      output_format: "png",
-    }),
-    signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(`fal.ai returned ${response.status}`);
-  }
-  const body = (await response.json()) as {
-    images?: Array<{ url?: string }>;
-  };
-  const url = body.images?.[0]?.url;
-  if (!url) throw new Error("fal.ai returned no image");
-  return url;
-}
-
-/** Copy a generated image into our blob store; falls back to the source URL without a token. */
-export async function persistAvatarImage(
-  sourceUrl: string,
-  key: string,
-): Promise<string> {
-  const env = getEnv();
-  if (!env.BLOB_READ_WRITE_TOKEN) return sourceUrl;
-  const response = await fetch(sourceUrl, {
-    signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-  });
-  if (!response.ok)
-    throw new Error(`avatar download failed (${response.status})`);
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-  const blob = await put(buildSokoBotAvatarBlobPathname(key, hash), buffer, {
-    access: "public",
-    contentType: "image/png",
-    token: env.BLOB_READ_WRITE_TOKEN,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    // Bounded like the two fetches above. Without it this is the one step of a
-    // fill with no time limit, and a hung upload outliving the sweep cutoff
-    // would have its own reservation deleted from under it.
-    abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-  });
-  return blob.url;
-}
-
-/** Draw `count` new unique avatars into the pool. Returns how many were added. */
-type AvatarDraw = Awaited<ReturnType<typeof nextAvatarDraws>>[number];
+const GENERATION_WINDOW_MS = 60 * 60 * 1000;
+export const KEEP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** A draw this run owns, and the empty row holding it. */
 interface AvatarReservation {
   id: string;
-  draw: AvatarDraw;
+  style: SokoBotAvatarStyle;
+  look: AvatarLook;
+  prompt: string;
+  seed: number;
 }
 
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
 export class AvatarGenerationCappedError extends Error {}
+
+/** A random positive int; with 31 bits a clash on the unique key is negligible. */
+export function randomAvatarSeed(): number {
+  return crypto.randomInt(1, 2 ** 31 - 1);
+}
+
+/** The unique-key columns of a look: creature, what it wears, a random seed. */
+export function avatarRowKey(
+  style: SokoBotAvatarStyle,
+  look: AvatarLook,
+  seed: number,
+) {
+  return {
+    subject: look.creature,
+    background: `${style.id}:${[...look.accessories].sort().join("+") || "none"}`,
+    seed,
+  };
+}
+
+/** Whether the pool can draw at all: it needs the Gateway and a blob store. */
+export function canDraw(): boolean {
+  const env = getEnv();
+  return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
+}
 
 /**
  * Claim draws under the caller's hourly allowance, in one atomic step.
@@ -297,21 +96,21 @@ export class AvatarGenerationCappedError extends Error {}
  * and each retry re-reads a count that now includes the winner's rows.
  *
  * Nothing here touches the network. The images are bought after this returns,
- * so the transaction never waits on FAL.
+ * so the transaction never waits on the provider.
  */
 async function reserveDraws(
   count: number,
   requestedByUserId: string | null,
+  style: SokoBotAvatarStyle,
 ): Promise<AvatarReservation[]> {
   return await serializableTransaction(async (tx) => {
-    const draws = await nextAvatarDraws(count, tx);
-    if (draws.length === 0) return [];
-
-    let allowed = draws.length;
+    let allowed = count;
     if (requestedByUserId) {
       const recent = await tx.sokoBotAvatar.count({
         where: {
           requestedByUserId,
+          // Studio drafts have their own allowance.
+          draftForSokoBotId: null,
           createdAt: { gte: new Date(Date.now() - GENERATION_WINDOW_MS) },
         },
       });
@@ -323,24 +122,34 @@ async function reserveDraws(
     }
 
     const reservations: AvatarReservation[] = [];
-    for (const draw of draws.slice(0, allowed)) {
+    for (let i = 0; i < allowed; i += 1) {
+      const plan = planShuffle(style);
+      if (plan.kind !== "edit") continue;
+      const seed = randomAvatarSeed();
       // Sequential on purpose: Prisma does not support concurrent queries on
       // one interactive transaction client.
       const row = await tx.sokoBotAvatar.create({
         data: {
-          subject: draw.subject.subject,
-          background: draw.background.name,
-          seed: draw.seed,
-          model: AVATAR_MODEL,
+          ...avatarRowKey(style, plan.look, seed),
+          model: AVATAR_IMAGE_MODEL,
+          styleId: style.id,
+          styleVersion: style.version,
+          look: plan.look,
+          requestedByUserId,
           // Filled in once the image exists. `reservedAt` keeps the row out of
           // every read until then, so nobody sees or claims a blank avatar.
           imageUrl: "",
-          requestedByUserId,
           reservedAt: new Date(),
         },
         select: { id: true },
       });
-      reservations.push({ id: row.id, draw });
+      reservations.push({
+        id: row.id,
+        style,
+        look: plan.look,
+        prompt: plan.prompt,
+        seed,
+      });
     }
     return reservations;
   }, "Another avatar top-up is running. Try again.");
@@ -348,21 +157,27 @@ async function reserveDraws(
 
 /** Buy the image for a reservation and publish the row. */
 async function fillReservation(reservation: AvatarReservation): Promise<void> {
-  const { draw } = reservation;
-  const sourceUrl = await generateImage(buildAvatarPrompt(draw), draw.seed);
-  const key = `${draw.subject.subject.replaceAll(" ", "-")}-${draw.seed}`;
-  const imageUrl = await persistAvatarImage(sourceUrl, key);
+  const { style } = reservation;
+  const image = await drawStill(style, {
+    prompt: reservation.prompt,
+    reference: await loadHouseScene(style),
+    target: style.backgroundTarget("idle"),
+  });
+  const imageUrl = await storeAvatarAsset(
+    image,
+    `${reservation.look.creature}-${reservation.seed}`,
+  );
   // Clearing `reservedAt` is what publishes the row.
   await prisma.sokoBotAvatar.update({
     where: { id: reservation.id },
-    data: { imageUrl, sourceUrl, reservedAt: null },
+    data: { imageUrl, reservedAt: null },
   });
 }
 
 /**
  * Give back reservations this run never spent on.
  *
- * Only for draws whose image was never requested. A reservation whose FAL call
+ * Only for draws whose image was never requested. A reservation whose provider call
  * may have run stays, because it represents money and the cap should see it
  * until it ages out of the window.
  */
@@ -420,14 +235,16 @@ function isRecoverableGenerationFailure(error: unknown): boolean {
 export async function generateAvatars(
   count: number,
   requestedByUserId: string | null = null,
+  style: SokoBotAvatarStyle = CURRENT_AVATAR_STYLE,
 ): Promise<number> {
   const reservations = await reserveDraws(
     Math.min(count, MAX_TOP_UP_PER_CALL),
     requestedByUserId,
+    style,
   );
   if (reservations.length === 0) return 0;
 
-  // Fill one before committing to the rest. fal bills for an image whether or
+  // Fill one before committing to the rest. the provider bills for an image whether or
   // not we manage to store it, so a misconfigured blob token would otherwise
   // buy six images every cron run, for ever, while the pool never fills and
   // nothing louder than a warning is written.
@@ -483,7 +300,8 @@ export async function stockAvatarPool(): Promise<{
   // a dead reservation hides its draw from every future run, so leaving it
   // behind a disabled flag means it is never cleaned up at all.
   await sweepStaleReservations();
-  if (!getEnv().FAL_KEY) return { available: 0, generated: 0 };
+  await sweepExpiredDrafts();
+  if (!canDraw()) return { available: 0, generated: 0 };
   // "Disable Soko Bot" has to mean no paid model calls of any kind. Avatar
   // generation is the one that has nothing to do with turns, so the turn gate
   // never sees it.
@@ -513,7 +331,7 @@ export async function stockAvatarPool(): Promise<{
  * against every future run. The cutoff is past the generation timeout, so a
  * reservation still in flight is never swept out from under its own run.
  *
- * Stale rows are kept for a full window on purpose: they represent FAL spend
+ * Stale rows are kept for a full window on purpose: they represent image spend
  * and the hourly cap should see them until they age out of it.
  */
 async function sweepStaleReservations(now: Date = new Date()): Promise<void> {
@@ -527,12 +345,10 @@ async function sweepStaleReservations(now: Date = new Date()): Promise<void> {
   });
 }
 
-const GENERATION_WINDOW_MS = 60 * 60 * 1000;
-
 /** The 429 for a caller who has spent their hourly allowance. */
 function avatarGenerationCapped() {
   return tooManyRequests(
-    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} mascot images per hour. Try again later.`,
+    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} avatar looks per hour. Try again later.`,
     { kind: "avatar_generation_rate_limited" },
   );
 }
@@ -543,6 +359,8 @@ function unclaimedAvatarFilter(excludeIds?: string[]) {
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
+    // A draft, or a kept look its bot replaced, is private to that bot.
+    draftForSokoBotId: null,
     ...(excludeIds?.length ? { id: { notIn: excludeIds } } : {}),
   };
 }
@@ -567,7 +385,7 @@ export async function listAvailableAvatars(
  * creation picker asks to fill it explicitly rather than showing an empty grid
  * on every preview.
  *
- * This spends FAL budget and writes rows, so it belongs behind a POST. The
+ * This spends image budget and writes rows, so it belongs behind a POST. The
  * caller here is waiting on purpose; decorative reads use
  * `listAvailableAvatars` so a page render never waits on image generation.
  */
@@ -575,11 +393,11 @@ export async function topUpAvailableAvatars(
   take: number,
   options: { excludeIds?: string[]; requestedByUserId?: string } = {},
 ): Promise<AvailableAvatar[]> {
-  if (getEnv().FAL_KEY) {
+  if (canDraw()) {
     // Count the real pool, not the caller's filtered view of it. Counting
     // through `excludeIds` let a caller list the pool, hand the ids straight
     // back, and drive the count to zero, so generation ran on a pool that
-    // needed nothing. FAL bills per image, so that is spend on demand.
+    // needed nothing. Each image is billed, so that is spend on demand.
     const available = await prisma.sokoBotAvatar.count({
       where: unclaimedAvatarFilter(),
     });
@@ -611,14 +429,52 @@ export async function topUpAvailableAvatars(
 }
 
 /**
- * Give an unclaimed avatar to a bot, releasing whatever it held before. The
- * unique index on `claimedBySokoBotId` guarantees one avatar per bot; the
- * updateMany guard guarantees one bot per avatar.
+ * Delete drafts and replaced looks past their expiry, unless a bot holds them.
+ * Renders go with them (cascade).
+ */
+export async function sweepExpiredDrafts(
+  now: Date = new Date(),
+): Promise<number> {
+  const { count } = await prisma.sokoBotAvatar.deleteMany({
+    where: { draftExpiresAt: { lt: now }, claimedBySokoBotId: null },
+  });
+  return count;
+}
+
+async function assertKeepAllowance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const kept = await tx.sokoBotAvatar.count({
+    where: {
+      keptByUserId: userId,
+      keptAt: { gte: new Date(Date.now() - KEEP_WINDOW_MS) },
+    },
+  });
+  if (kept >= LIMITS.SOKO_BOT_AVATAR_KEEPS_PER_DAY) {
+    throw tooManyRequests(
+      `You can keep at most ${LIMITS.SOKO_BOT_AVATAR_KEEPS_PER_DAY} new looks per day. Try again tomorrow.`,
+      { kind: "avatar_keep_rate_limited" },
+    );
+  }
+}
+
+/**
+ * Give an avatar to a bot, releasing whatever it held before. The unique index
+ * on `claimedBySokoBotId` guarantees one avatar per bot; the updateMany guard
+ * guarantees one bot per avatar.
+ *
+ * Claiming a crafted look is keeping it: it counts against `by`'s daily keep
+ * cap (staff pass `null`), the bot's other drafts go, and one render row per
+ * state is created for the cron to work through. A look the bot held that was
+ * kept before is not released to the pool: it stays private to the bot until
+ * it expires.
  */
 export async function claimAvatar(
   sokoBotId: string,
   avatarId: string,
   outerTx?: Prisma.TransactionClient,
+  by: { userId: string } | null = null,
 ): Promise<string> {
   const run = async (tx: Prisma.TransactionClient) => {
     const avatar = await tx.sokoBotAvatar.findUnique({
@@ -628,17 +484,56 @@ export async function claimAvatar(
         imageUrl: true,
         claimedBySokoBotId: true,
         reservedAt: true,
+        styleId: true,
+        keptAt: true,
+        draftForSokoBotId: true,
+        draftExpiresAt: true,
       },
     });
     if (!avatar) throw notFound("Avatar not found");
     // Its image is still in flight, so claiming it would set the bot's avatar
     // to an empty URL that nothing ever fills in.
     if (avatar.reservedAt) throw notFound("Avatar not found");
+    // A draft is private to its bot, and an expired one is as good as swept.
+    if (avatar.draftForSokoBotId && avatar.draftForSokoBotId !== sokoBotId) {
+      throw notFound("Avatar not found");
+    }
+    const now = new Date();
+    if (
+      !avatar.keptAt &&
+      avatar.draftExpiresAt &&
+      avatar.draftExpiresAt < now
+    ) {
+      throw notFound("Avatar not found");
+    }
     if (avatar.claimedBySokoBotId && avatar.claimedBySokoBotId !== sokoBotId) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }
+    const crafted = findAvatarStyle(avatar.styleId) !== null;
+    const firstKeep = crafted && !avatar.keptAt;
+    if (firstKeep && by) await assertKeepAllowance(tx, by.userId);
+
+    // The look it held before: private to the bot if it was kept (the daily
+    // cap reads it), back in the pool if it never was.
     await tx.sokoBotAvatar.updateMany({
-      where: { claimedBySokoBotId: sokoBotId, id: { not: avatarId } },
+      where: {
+        claimedBySokoBotId: sokoBotId,
+        id: { not: avatarId },
+        keptAt: { not: null },
+      },
+      data: {
+        claimedBySokoBotId: null,
+        claimedAt: null,
+        draftForSokoBotId: sokoBotId,
+        draftExpiresAt: new Date(now.getTime() + KEEP_WINDOW_MS),
+      },
+    });
+    await tx.sokoBotAvatar.updateMany({
+      where: {
+        claimedBySokoBotId: sokoBotId,
+        id: { not: avatarId },
+        keptAt: null,
+      },
       data: { claimedBySokoBotId: null, claimedAt: null },
     });
     const claimed = await tx.sokoBotAvatar.updateMany({
@@ -646,7 +541,12 @@ export async function claimAvatar(
         id: avatarId,
         OR: [{ claimedBySokoBotId: null }, { claimedBySokoBotId: sokoBotId }],
       },
-      data: { claimedBySokoBotId: sokoBotId, claimedAt: new Date() },
+      data: {
+        claimedBySokoBotId: sokoBotId,
+        claimedAt: now,
+        ...(crafted ? { draftExpiresAt: null } : {}),
+        ...(firstKeep ? { keptAt: now, keptByUserId: by?.userId ?? null } : {}),
+      },
     });
     if (claimed.count === 0) {
       throw unprocessableEntity("This avatar was just taken by another bot");
@@ -655,7 +555,33 @@ export async function claimAvatar(
       where: { id: sokoBotId },
       data: { avatarImageUrl: avatar.imageUrl },
     });
+    if (crafted) {
+      // The idle still is the look itself; the other states are drawn by the cron.
+      await tx.sokoBotAvatarRender.createMany({
+        data: AVATAR_STATES.map((state) => ({
+          avatarId,
+          state: toDbAvatarState(state),
+          ...(state === "idle"
+            ? { status: "STILL_READY" as const, stillUrl: avatar.imageUrl }
+            : {}),
+        })),
+        skipDuplicates: true,
+      });
+      await tx.sokoBotAvatar.deleteMany({
+        where: {
+          draftForSokoBotId: sokoBotId,
+          claimedBySokoBotId: null,
+          keptAt: null,
+          id: { not: avatarId },
+        },
+      });
+    }
     return avatar.imageUrl;
   };
-  return outerTx ? run(outerTx) : prisma.$transaction(run);
+  return outerTx
+    ? run(outerTx)
+    : serializableTransaction(
+        run,
+        "Another avatar change is running. Try again.",
+      );
 }
