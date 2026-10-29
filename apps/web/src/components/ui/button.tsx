@@ -10,7 +10,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground",
+        primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
         // The guide's default is the bordered button: one filled primary per
         // view, and Neutral 950 fill belongs to the X alone.
         default: "border-border bg-background text-foreground hover:bg-accent",

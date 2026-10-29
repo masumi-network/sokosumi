@@ -79,6 +79,8 @@ components:
   buttonPrimary:
     backgroundColor: primary
     textColor: primary-foreground
+  buttonPrimaryHover:
+    backgroundColor: primary-hover
   buttonSm:
     height: h-8
     padding: 0 12px
@@ -143,12 +145,15 @@ the work stands out. Brand names and the first letter of any brand are always **
 
 ### Primary — Iris Flower, a fill
 
-The primary is Iris Flower, the same in light and dark. It is a **fill**: the label on it
-is always `--primary-foreground` (Neutral 950, 7.33:1; white measures 2.67:1). It is never
-text, a border or a thin mark on the page, where it measures 2.67:1 on white. There is no
-hover pink: a primary keeps its fill and answers with the press.
+The primary is Iris Flower in light. Dark rests on **Dark Iris** `#D141D1` (Proposed,
+off-guide): Iris Flower measures 7.3:1 on Neutral 950 against 2.7:1 on white, so it reads
+about three times louder in dark. It is a **fill**: the label on it is always
+`--primary-foreground` (Neutral 950; 7.33:1 on Iris Flower, 5:1 on Dark Iris). It is never
+text, a border or a thin mark on the page, where it measures 2.67:1 on white.
+`--primary-hover` is Iris Flower in both themes, so a dark primary lifts to full Iris on
+hover and a light one keeps its fill.
 
-There are no primary aliases or tints: use `bg-primary`, and the neutral steps for tints.
+There are no other primary aliases or tints: use `bg-primary`, and the neutral steps for tints.
 Never invent a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no
 step fits, add one in `globals.css`.
 
@@ -172,7 +177,7 @@ Category accents come from the shared Masumi palette, mapped to `--chart-1…5` 
 stock shadcn chart defaults. Hex values live only in `globals.css`. Proposed until the
 guide's data visualization rules (6.6) land.
 
-- `--chart-1` — Iris Flower
+- `--chart-1` — Iris Flower (both themes; the primary dims in dark, the chart does not)
 - `--chart-2` — Persimmon
 - `--chart-3` — Golden Yellow
 - `--chart-4` — Sand
@@ -194,7 +199,7 @@ Beyond the above, `globals.css` exposes:
   tint or label step: chips and tints take the neutral roles (`bg-muted`, `bg-quinary`,
   `border-border`, `text-foreground`). There is no info role: it was retired into
   `--status-working`.
-- **Status:** `--status-working` (Iris, a fill only), `--status-external`, `--status-done`
+- **Status:** `--status-working` (Iris, Dark Iris in dark, a fill only), `--status-external`, `--status-done`
   (neutral, no steps), `--presence-offline`, `--risk-high` (Golden Yellow, a fill only).
   `src-walk-guards.test.ts` fails on a fill-only status colour used as text or an edge.
 - **Overlay:** `--overlay` (the Alpha 50 scrim behind a dialog),
@@ -349,12 +354,12 @@ shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `
 Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
 prop/state-driven.
 
-- **Button** — 8 variants: `primary` (bg-primary), `default` (bg-secondary, _default_),
+- **Button** — 8 variants: `primary` (bg-primary), `default` (bordered, _default_),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
   `transition-[color,background-color,border-color,transform] duration-150 ease-out press
-  disabled:opacity-50`, hover per-variant (none on `primary`, which keeps its fill /
+  disabled:opacity-50`, hover per-variant (`hover:bg-primary-hover` on `primary`, Iris Flower over Dark Iris in dark /
   `hover:bg-accent` on the bordered `default` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
   Pass `loading` to the button whose request is running: it keeps the label and width and
   draws `ButtonLoadingBar`.

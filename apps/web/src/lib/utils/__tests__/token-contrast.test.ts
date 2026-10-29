@@ -20,6 +20,7 @@ const PAIRS: [string, string, number][] = [
   ["muted-foreground", "quinary", TEXT],
   ["muted-foreground", "quaternary", TEXT],
   ["primary-foreground", "primary", TEXT],
+  ["primary-foreground", "primary-hover", TEXT],
   ["secondary-foreground", "secondary", TEXT],
   ["background-muted", "foreground", TEXT],
   ["input", "background", NON_TEXT],
@@ -35,9 +36,13 @@ describe("token contrast", () => {
       },
     );
 
-    it(`${theme}: the primary is Iris Flower`, () => {
-      // Guide 5.2: Iris stays the same in light and dark.
-      expect(block).toMatch(/--primary:\s*#ff51ff;/i);
+    it(`${theme}: the primary rests on its Iris and hovers to Iris Flower`, () => {
+      // Iris Flower reads 7.3:1 on Neutral 950 against 2.7:1 on white, so
+      // dark rests on Dark Iris (Proposed) and only hover is full Iris.
+      const rest = theme === "dark" ? "#d141d1" : "#ff51ff";
+      expect(block).toMatch(new RegExp(`--primary:\\s*${rest};`, "i"));
+      expect(block).toMatch(new RegExp(`--status-working:\\s*${rest};`, "i"));
+      expect(block).toMatch(/--primary-hover:\s*#ff51ff;/i);
     });
   }
 

@@ -62,6 +62,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-tertiary: var(--tertiary);
@@ -261,7 +262,8 @@
    Each value is a guide step named in its comment; the chart tints say how
    they are derived. Iris Flower #FF51FF is the one primary and carries
    Neutral 950 text (7.33:1; white is 2.67:1). It is a fill, never text, an
-   edge or a thin mark on the page.
+   edge or a thin mark on the page. Dark rests on Dark Iris #D141D1
+   (Proposed, 5:1 under Neutral 950) and hovers to Iris Flower.
 
    Two light and three dark values leave the guide's role table to meet its
    own AA floor (5.11); `token-contrast.test.ts` holds each pair:
@@ -307,6 +309,7 @@
   --popover-foreground: #171717; /* Neutral 900 */
   --primary: #ff51ff; /* Iris Flower */
   --primary-foreground: #0c0c0c; /* Neutral 950 */
+  --primary-hover: #ff51ff; /* Iris Flower */
   /* No hover pink: a primary keeps its fill and answers with the press. */
   --secondary: #0c0c0c; /* Neutral 950 */
   --secondary-foreground: #fafafa; /* Neutral 50 */
@@ -397,8 +400,11 @@
   --background-muted: #525252; /* Neutral 600 */
   --popover: #0c0c0c; /* Neutral 950 */
   --popover-foreground: #fafafa; /* Neutral 50 */
-  --primary: #ff51ff; /* Iris Flower */
+  /* Dark Iris (Proposed, off-guide): Iris Flower reads three times louder
+     on Neutral 950, so dark rests on this and hover lifts to full Iris. */
+  --primary: #d141d1; /* Dark Iris */
   --primary-foreground: #0c0c0c; /* Neutral 950 */
+  --primary-hover: #ff51ff; /* Iris Flower */
   --secondary: #fafafa; /* Neutral 50 */
   --secondary-foreground: #0c0c0c; /* Neutral 950 */
   --tertiary: #525252; /* Neutral 600 */
@@ -454,7 +460,7 @@
   --risk-high: #ffd300; /* Golden Yellow */
   --risk-high-foreground: #0c0c0c; /* Neutral 950 */
 
-  --status-working: #ff51ff; /* Iris Flower */
+  --status-working: #d141d1; /* Dark Iris */
   --status-external: #fafafa; /* Neutral 50 */
   --status-done: #a3a3a3; /* Neutral 400 */
 }
