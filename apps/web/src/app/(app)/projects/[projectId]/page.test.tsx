@@ -276,14 +276,21 @@ describe("ProjectDetailPage", () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
-  it("counts the project's tasks, each linking to Tasks filtered to it", async () => {
+  it("counts the Tasks board's columns, each linking to the project's board", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
     projectServiceMock.getProjectsStats.mockResolvedValue(
       stats([
+        // In progress: Running and Awaiting external.
         { status: "RUNNING", count: 3 },
         { status: "AWAITING_EXTERNAL", count: 1 },
+        // Input required: every status the board puts there.
         { status: "INPUT_REQUIRED", count: 2 },
+        { status: "APPROVAL_REQUIRED", count: 1 },
+        { status: "OUT_OF_CREDITS", count: 1 },
+        // Todo and backlog are on the board but not in the strip.
         { status: "READY", count: 4 },
+        { status: "DRAFT", count: 2 },
+        // Done: completed, failed and canceled.
         { status: "COMPLETED", count: 12 },
         { status: "FAILED", count: 1 },
         { status: "CANCELED", count: 1 },
@@ -299,21 +306,15 @@ describe("ProjectDetailPage", () => {
 
     const running = screen.getByTestId("project-status-running");
     const waiting = screen.getByTestId("project-status-waiting");
-    const open = screen.getByTestId("project-status-open");
-    // Running and Waiting are exactly the status their link filters by.
-    expect(running).toHaveTextContent("App.Projects.Detail.stats.running3");
-    expect(running).toHaveAttribute(
-      "href",
-      "/tasks?projectId=project-1&status=RUNNING",
-    );
-    expect(waiting).toHaveTextContent("App.Projects.Detail.stats.waiting2");
-    expect(waiting).toHaveAttribute(
-      "href",
-      "/tasks?projectId=project-1&status=INPUT_REQUIRED",
-    );
-    // Open is every task not yet completed, failed or canceled.
-    expect(open).toHaveTextContent("App.Projects.Detail.stats.open10");
-    expect(open).toHaveAttribute("href", "/tasks?projectId=project-1");
+    const done = screen.getByTestId("project-status-done");
+    expect(running).toHaveTextContent("App.Projects.Detail.stats.running4");
+    expect(waiting).toHaveTextContent("App.Projects.Detail.stats.waiting4");
+    expect(done).toHaveTextContent("App.Projects.Detail.stats.done14");
+    // Each opens the project's board, where its column shows that number.
+    for (const link of [running, waiting, done]) {
+      expect(link).toHaveAttribute("href", "/tasks?projectId=project-1");
+    }
+    expect(screen.queryByTestId("project-status-open")).toBeNull();
   });
 
   it("leaves the strip out when the counts fail to load", async () => {

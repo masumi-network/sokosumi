@@ -1,5 +1,7 @@
-import { type ProjectStatsEntry, TaskStatus } from "@sokosumi/core-client";
+import type { ProjectStatsEntry } from "@sokosumi/core-client";
 import Link from "next/link";
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
+import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -9,28 +11,31 @@ import { cn } from "@/lib/utils";
 
 import { WORKSPACE_COLUMN_FOCUS_RING } from "./workspace-column-row";
 
-const SETTLED_TASK_STATUSES = new Set<string>([
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-  TaskStatus.CANCELED,
-]);
+/** Each count is one column of the Tasks board, by the board's own statuses. */
+const STRIP_COLUMNS = {
+  running: "in-progress",
+  waiting: "input-required",
+  done: "done",
+} as const satisfies Record<string, KanbanColumnId>;
+
+type StripCount = keyof typeof STRIP_COLUMNS;
 
 /**
- * The strip's three task counts. Running and Waiting are one status each, the
- * one the Tasks link filters by, so a count always equals the rows it opens.
- * Open is every task that has not settled.
+ * The strip's three task counts, each the number the project's Tasks board
+ * shows in that column.
  */
-export function projectTaskCounts(tasks: ProjectStatsEntry["tasks"]) {
-  const count = (status: string) =>
-    tasks.byStatus.find((row) => row.status === status)?.count ?? 0;
-  const settled = tasks.byStatus
-    .filter((row) => SETTLED_TASK_STATUSES.has(row.status))
-    .reduce((sum, row) => sum + row.count, 0);
+export function projectTaskCounts(
+  tasks: ProjectStatsEntry["tasks"],
+): Record<StripCount, number> {
+  const columnCount = (column: KanbanColumnId) =>
+    tasks.byStatus
+      .filter((row) => COLUMN_TASK_STATUSES[column].includes(row.status))
+      .reduce((sum, row) => sum + row.count, 0);
 
   return {
-    running: count(TaskStatus.RUNNING),
-    waiting: count(TaskStatus.INPUT_REQUIRED),
-    open: tasks.total - settled,
+    running: columnCount(STRIP_COLUMNS.running),
+    waiting: columnCount(STRIP_COLUMNS.waiting),
+    done: columnCount(STRIP_COLUMNS.done),
   };
 }
 
@@ -39,12 +44,12 @@ interface ProjectStatusStripProps {
   counts: ReturnType<typeof projectTaskCounts>;
   /** Formats a count in the reader's locale. */
   formatCount: (value: number) => string;
-  labels: { label: string; running: string; waiting: string; open: string };
+  labels: Record<StripCount | "label", string>;
 }
 
 /**
- * The top of Project Overview: Running, Waiting and Open task counts, each a
- * link to Tasks filtered to this project (and to that status).
+ * The top of Project Overview: Running, Waiting and Done task counts. Each
+ * opens the project's Tasks board, where its column shows the same number.
  */
 export function ProjectStatusStrip({
   projectId,
@@ -52,31 +57,12 @@ export function ProjectStatusStrip({
   formatCount,
   labels,
 }: ProjectStatusStripProps) {
-  const tasksHref = (status?: TaskStatus) =>
-    `/tasks?${new URLSearchParams({
-      projectId,
-      ...(status ? { status } : {}),
-    }).toString()}`;
-  const items = [
-    {
-      key: "running",
-      label: labels.running,
-      value: counts.running,
-      href: tasksHref(TaskStatus.RUNNING),
-    },
-    {
-      key: "waiting",
-      label: labels.waiting,
-      value: counts.waiting,
-      href: tasksHref(TaskStatus.INPUT_REQUIRED),
-    },
-    {
-      key: "open",
-      label: labels.open,
-      value: counts.open,
-      href: tasksHref(),
-    },
-  ];
+  const href = `/tasks?${new URLSearchParams({ projectId }).toString()}`;
+  const items = (Object.keys(STRIP_COLUMNS) as StripCount[]).map((key) => ({
+    key,
+    label: labels[key],
+    value: counts[key],
+  }));
 
   return (
     <section
@@ -87,7 +73,7 @@ export function ProjectStatusStrip({
       {items.map((item) => (
         <Link
           key={item.key}
-          href={item.href}
+          href={href}
           data-testid={`project-status-${item.key}`}
           className={cn(
             HOLDER_ITEM_CLASS,

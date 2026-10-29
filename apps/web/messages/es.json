@@ -2997,7 +2997,7 @@
           "label": "Recuento de tareas",
           "running": "En ejecución",
           "waiting": "En espera",
-          "open": "Tareas abiertas"
+          "done": "Hecho"
         },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",

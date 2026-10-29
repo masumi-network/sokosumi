@@ -2997,7 +2997,7 @@
           "label": "Task counts",
           "running": "Running",
           "waiting": "Waiting",
-          "open": "Open tasks"
+          "done": "Done"
         },
         "emptyBriefing": "No briefing yet.",
         "writeBriefing": "Write briefing",

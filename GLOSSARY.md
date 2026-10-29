@@ -353,7 +353,7 @@ The header control that shows and changes the Project scope: one searchable list
 _Avoid_: Flyout, project picker, project selector, Manage projects as a way into the list
 
 **Project Overview**:
-The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both. Its Overview tab opens with the project's Running, Waiting and Open task counts, each a link to Tasks filtered to the project, and shows the Workspace column's two panels under the project's Properties, scoped to the project.
+The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both. Its Overview tab opens with the project's Running, Waiting and Done task counts, the In progress, Input required and Done columns of the project's Tasks board, each a link to that board, and shows the Workspace column's two panels under the project's Properties, scoped to the project.
 _Avoid_: Project detail page, project settings, Manage project
 
 **Projects list**:

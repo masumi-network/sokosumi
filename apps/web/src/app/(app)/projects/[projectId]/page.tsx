@@ -119,7 +119,7 @@ export default async function ProjectDetailPage({
                 label: t("stats.label"),
                 running: t("stats.running"),
                 waiting: t("stats.waiting"),
-                open: t("stats.open"),
+                done: t("stats.done"),
               }}
             />
           ) : null}

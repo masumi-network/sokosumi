@@ -2997,7 +2997,7 @@
           "label": "Aufgabenzahlen",
           "running": "Läuft",
           "waiting": "Wartet",
-          "open": "Offene Aufgaben"
+          "done": "Erledigt"
         },
         "emptyBriefing": "Noch kein Briefing.",
         "writeBriefing": "Briefing verfassen",
