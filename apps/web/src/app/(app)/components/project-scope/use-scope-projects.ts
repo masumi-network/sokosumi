@@ -27,8 +27,10 @@ interface MaybeClosed extends ScopeProject {
   closedAt?: Date | string | null;
 }
 
-/** Rows for Pinned and Recent before the full list takes over. */
-const SCOPE_SHORTLIST_CAP = 8;
+/** The project a trigger names, which may be a Closed project. */
+export interface SelectedScopeProject extends ScopeProject {
+  closed: boolean;
+}
 
 function isOpen(project: MaybeClosed): boolean {
   return project.closedAt == null;
@@ -36,6 +38,10 @@ function isOpen(project: MaybeClosed): boolean {
 
 function toRow({ id, name, logo }: ScopeProject): ScopeProject {
   return { id, name, logo };
+}
+
+function toSelected(project: MaybeClosed): SelectedScopeProject {
+  return { ...toRow(project), closed: !isOpen(project) };
 }
 
 function useWorkspaceScope(): RecentProjectsScope | null {
@@ -115,7 +121,7 @@ export const SCOPE_SELECTED_QUERY_KEY = "project-scope-selected";
  */
 async function fetchScopeProject(
   projectId: string,
-): Promise<ScopeProject | null> {
+): Promise<MaybeClosed | null> {
   const response = await fetch(
     `/api/project-scope/${encodeURIComponent(projectId)}`,
     { credentials: "same-origin", cache: "no-store" },
@@ -123,7 +129,7 @@ async function fetchScopeProject(
   if (!response.ok) {
     throw new Error(`Project scope read failed: ${response.status}`);
   }
-  const body = (await response.json()) as { project: ScopeProject | null };
+  const body = (await response.json()) as { project: MaybeClosed | null };
   return body.project;
 }
 
@@ -183,7 +189,7 @@ export function useIsUnknownScopeProject(
 export function useSelectedScopeProject(
   selectedProjectId: string | null,
   loaded: ScopeProject[] = [],
-): ScopeProject | null {
+): SelectedScopeProject | null {
   const { listed, selected } = useSelectedProjectQuery(
     selectedProjectId,
     loaded,
@@ -191,15 +197,15 @@ export function useSelectedScopeProject(
   // Core's answer wins, and a failed refetch keeps the last one. A listed row
   // names the project while it loads.
   if (selected.data !== undefined) {
-    return selected.data ? toRow(selected.data) : null;
+    return selected.data ? toSelected(selected.data) : null;
   }
-  return listed ? toRow(listed) : null;
+  return listed ? toSelected(listed) : null;
 }
 
 /**
- * Everything a project switcher lists: Pinned, then recently visited, then
- * the workspace's projects in Core's activity order. A search asks Core, so it
- * reaches past the first page.
+ * Everything a project switcher lists, as one list: Pinned projects, then
+ * recently visited, then the workspace's projects in Core's activity order.
+ * A search asks Core, so it reaches past the first page.
  */
 export function useScopeProjects({
   search,
@@ -240,12 +246,7 @@ export function useScopeProjects({
     .filter(isOpen)
     .map(toRow);
 
-  const { rows: shortlist, pinnedCount } = orderSidebarProjects<ScopeProject>({
-    projects: [...pinnedProjects, ...firstPageProjects],
-    pinnedIds: pinnedProjects.map((project) => project.id),
-    visitedIds,
-    cap: SCOPE_SHORTLIST_CAP,
-  });
+  const pinnedIds = pinnedProjects.map((project) => project.id);
 
   // Every keystroke filters the rows already loaded at once; Core's answer,
   // when one is needed, replaces them once it matches what was typed.
@@ -263,8 +264,8 @@ export function useScopeProjects({
       ]),
     ).values(),
   ];
-  const all = !typed
-    ? firstPageProjects
+  const matched = !typed
+    ? known
     : coreAnswered
       ? (searchPage.data?.projects ?? []).filter(isOpen).map(toRow)
       : known.filter((project) => matches(project, needle));
@@ -272,11 +273,19 @@ export function useScopeProjects({
   const selectedProject = useSelectedScopeProject(selectedProjectId, known);
 
   return {
-    /** Shown only while the search box is empty. */
-    pinned: shortlist.slice(0, pinnedCount),
-    recent: shortlist.slice(pinnedCount),
-    /** The workspace page, or the matches for the search. */
-    all,
+    /**
+     * The one list, or the matches for the search, in the same order. No
+     * cap: the list scrolls, so every Pinned and recently visited project
+     * leads and the rest follow in Core's order.
+     */
+    rows: orderSidebarProjects({
+      projects: matched,
+      pinnedIds,
+      visitedIds,
+      cap: Number.POSITIVE_INFINITY,
+    }).rows,
+    /** Rows that carry the pin mark. */
+    pinnedIds: new Set(pinnedIds),
     selectedProject,
     isSearching: typed.length > 0,
     /** Core has not answered the typed search yet; local matches show meanwhile. */

@@ -217,7 +217,7 @@ describe("public newsletter signup", () => {
       "https://core.example.com/v1/public/newsletter/unsubscribe?token=",
     );
     const link = email.html.match(
-      /href="(https:\/\/core.example.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
+      /href="(https:\/\/core\.example\.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
     )?.[1];
     expect(link).toBeDefined();
     const token = new globalThis.URL(link!).searchParams.get("token")!;

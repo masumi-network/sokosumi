@@ -2289,6 +2289,40 @@
             "dispute_pending": "Streitfall",
             "dispute_resolved": "Geklärt"
           }
+        },
+        "emptyClosed": {
+          "title": "Keine geschlossenen Projekte",
+          "description": "Ein Projekt, das du schließt, landet hier – mit seinem Verlauf."
+        },
+        "onlyClosed": {
+          "title": "Alle Projekte sind geschlossen",
+          "description": "Geschlossene Projekte behalten ihren Verlauf in der Ansicht „Geschlossen“.",
+          "action": "Geschlossene Projekte anzeigen"
+        },
+        "state": {
+          "label": "Projekte anzeigen",
+          "open": "Offen",
+          "closed": "Geschlossen"
+        },
+        "closed": "Geschlossen"
+      },
+      "column": {
+        "needsYou": {
+          "title": "Wartet auf dich",
+          "empty": "Nichts wartet auf dich.",
+          "error": "Fehler beim Laden dessen, was auf dich wartet.",
+          "showAll": "Alle anzeigen"
+        },
+        "activity": {
+          "title": "Letzte Aktivität",
+          "empty": "Noch keine Aktivität in offenen Projekten.",
+          "error": "Fehler beim Laden der letzten Aktivität.",
+          "showAll": "Alle anzeigen",
+          "untitledJob": "Job ohne Namen",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Aufgabe erstellt} COMMENT {Kommentar hinzugefügt} READY {Aufgabe bereit} QUEUED {Aufgabe geplant} RUNNING {Aufgabe läuft} INPUT_REQUIRED {Aufgabe braucht Eingabe} APPROVAL_REQUIRED {Aufgabe braucht Freigabe} AUTHENTICATION_REQUIRED {Aufgabe braucht Anmeldung} OUT_OF_CREDITS {Aufgabe pausiert: Credits nötig} COMPLETED {Aufgabe abgeschlossen} FAILED {Aufgabe fehlgeschlagen} CANCELED {Aufgabe abgebrochen} other {Aufgabe aktualisiert}}",
+          "job": "{status, select, INITIATED {Job gestartet} AWAITING_PAYMENT {Job wartet auf Zahlung} AWAITING_INPUT {Job braucht Eingabe} RUNNING {Job läuft} COMPLETED {Job abgeschlossen} FAILED {Job fehlgeschlagen} other {Job aktualisiert}}",
+          "project": "{event, select, CLOSE_REQUESTED {Schließen angefordert} BATCH_FAILED {Schließen fehlgeschlagen} RETRY_REQUESTED {Schließen erneut versucht} SERIES_RESOLVED {Geplante Arbeit gestoppt} CLOSE_FINALIZED {Projekt geschlossen} other {Projekt aktualisiert}}"
         }
       },
       "Briefing": {
@@ -4443,6 +4477,8 @@
           "newTask": "Neue Aufgabe",
           "search": "Suche",
           "home": "Startseite",
+          "projects": "Projekte",
+          "overview": "Übersicht",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -9267,13 +9303,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
+      "clearProject": "Projekt abwählen",
       "close": "Schließen",
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
-      "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
       "pinned": "Angepinnt",
-      "recent": "Zuletzt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",
       "empty": "Keine Projekte gefunden.",
@@ -9281,7 +9316,7 @@
       "error": "Projekte konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "create": "Projekt erstellen",
-      "manage": "Projekte verwalten",
+      "closed": "Geschlossen",
       "current": "(aktuell)",
       "searching": "Projekte werden gesucht..."
     },

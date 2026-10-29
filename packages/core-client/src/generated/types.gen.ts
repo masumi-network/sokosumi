@@ -6279,7 +6279,7 @@ export type ProjectListItem = Project & {
      */
     lastActivityAt: Date;
     /**
-     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.
+     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.
      */
     starredAt: Date | null;
 };
@@ -6402,6 +6402,88 @@ export type ProjectJobStatusCount = {
     count: number;
     status: SokosumiJobStatus;
 };
+
+export type ProjectActivityItem = ({
+    kind: 'task';
+} & ProjectTaskActivity) | ({
+    kind: 'job';
+} & ProjectJobActivity) | ({
+    kind: 'project';
+} & ProjectLifecycleActivity);
+
+export type ProjectTaskActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'task';
+    taskId: string;
+    title: string;
+    /**
+     * The status the event set. Null for an event that only added a comment.
+     */
+    status: TaskEventStatus | null;
+};
+
+export type ProjectJobActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'job';
+    jobId: string;
+    agentId: string;
+    /**
+     * The job's name, else its agent's display name. Null when neither resolves.
+     */
+    title: string | null;
+    status: AgentJobStatus;
+};
+
+export const AgentJobStatus = {
+    INITIATED: 'INITIATED',
+    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+    AWAITING_INPUT: 'AWAITING_INPUT',
+    RUNNING: 'RUNNING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED'
+} as const;
+
+export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
+
+export type ProjectLifecycleActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'project';
+    event: ProjectEventKind;
+};
+
+export const ProjectEventKind = {
+    CLOSE_REQUESTED: 'CLOSE_REQUESTED',
+    BATCH_FAILED: 'BATCH_FAILED',
+    RETRY_REQUESTED: 'RETRY_REQUESTED',
+    SERIES_RESOLVED: 'SERIES_RESOLVED',
+    CLOSE_FINALIZED: 'CLOSE_FINALIZED'
+} as const;
+
+export type ProjectEventKind = typeof ProjectEventKind[keyof typeof ProjectEventKind];
 
 export type StarredProject = Project & {
     /**
@@ -8210,7 +8292,7 @@ export type Job = {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: AgentJobStatus;
+        status: AgentJobStatus & unknown;
         inputSchema?: string | null;
         input?: {
             id: string;
@@ -8224,17 +8306,6 @@ export type Job = {
     }>;
     share: JobShare | null;
 };
-
-export const AgentJobStatus = {
-    INITIATED: 'INITIATED',
-    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
-    AWAITING_INPUT: 'AWAITING_INPUT',
-    RUNNING: 'RUNNING',
-    COMPLETED: 'COMPLETED',
-    FAILED: 'FAILED'
-} as const;
-
-export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
 
 export type File = {
     id: string;
@@ -46604,6 +46675,14 @@ export type GetProjectsData = {
          * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
          */
         q?: string;
+        /**
+         * open: projects without closedAt, including closing and close-failed ones. closed: projects with closedAt. Omitted: every project.
+         */
+        state?: 'open' | 'closed';
+        /**
+         * true: the acting user's Pinned projects lead, by starredAt ascending, before the rest in activity order. Ignored for non-user actors, whose rows are never Pinned.
+         */
+        pinnedFirst?: 'true' | 'false';
     };
     url: '/projects';
 };
@@ -46874,6 +46953,128 @@ export type GetProjectsStatsResponses = {
 };
 
 export type GetProjectsStatsResponse = GetProjectsStatsResponses[keyof GetProjectsStatsResponses];
+
+export type GetProjectsActivityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * How many rows to return, newest first
+         */
+        limit?: number;
+    };
+    url: '/projects/activity';
+};
+
+export type GetProjectsActivityErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsActivityError = GetProjectsActivityErrors[keyof GetProjectsActivityErrors];
+
+export type GetProjectsActivityResponses = {
+    /**
+     * Recent activity across open projects
+     */
+    200: {
+        data: Array<ProjectActivityItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsActivityResponse = GetProjectsActivityResponses[keyof GetProjectsActivityResponses];
 
 export type GetProjectsStarredData = {
     body?: never;

@@ -6,10 +6,12 @@ import type {
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  GetProjectsData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   JobSummary,
   Project,
+  ProjectActivityItem,
   ProjectCloseRecoveryRequest,
   ProjectCloseRequest,
   ProjectCloseStatus,
@@ -36,6 +38,10 @@ interface ListProjectsParams {
   limit?: number;
   /** Case-insensitive project-name filter, applied by Core before paging. */
   query?: string;
+  /** Open (closing and close-failed included) or Closed; omitted lists both. */
+  state?: NonNullable<GetProjectsData["query"]>["state"];
+  /** Lead with the reader's Pins, by `starredAt` ascending. */
+  pinnedFirst?: boolean;
 }
 
 interface ListProjectResourcesParams {
@@ -67,6 +73,8 @@ export const projectService = (() => {
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       q: params.query || undefined,
+      state: params.state,
+      pinnedFirst: params.pinnedFirst ? "true" : undefined,
     });
 
     return {
@@ -87,6 +95,14 @@ export const projectService = (() => {
     });
 
     return result.data.projects;
+  }
+
+  /** Recent activity: the newest event per task, job and project across open projects. */
+  async function listRecentActivity(
+    limit: number,
+  ): Promise<ProjectActivityItem[]> {
+    const result = await coreClient.getProjectsActivity({ limit });
+    return result.data;
   }
 
   async function getProjectById(projectId: string): Promise<Project | null> {
@@ -632,6 +648,7 @@ export const projectService = (() => {
     pinProject,
     unpinProject,
     listPinnedProjects,
+    listRecentActivity,
     patchProject,
     removeProjectDesignMd,
     listSocialConnections,

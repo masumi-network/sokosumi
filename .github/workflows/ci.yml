@@ -5,6 +5,7 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   # A new push to the same PR cancels the queued or running run for the old commit.
@@ -29,9 +30,15 @@ env:
 # Each gate is `!= 'false'` rather than `== 'true'`: when `changes` fails,
 # its outputs are empty and every leg runs instead of skipping silently.
 # `!cancelled()` stops a superseded run from starting legs.
+#
+# Draft PRs run nothing; `ready_for_review` starts the full run. Every leg
+# repeats the draft guard: `!cancelled()` would otherwise start legs after a
+# skipped `changes`, whose empty outputs pass `!= 'false'`. Skipped required
+# checks are harmless on a draft, which cannot merge.
 jobs:
   changes:
     name: Detect JS changes
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,7 +79,7 @@ jobs:
   web:
     name: Test Web
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.web != 'false' }}
     runs-on: ubuntu-latest
     # id-token lets Setup exchange OIDC for the Turborepo remote cache.
     permissions: &turbo-permissions
@@ -100,7 +107,7 @@ jobs:
   core:
     name: Test Core
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -211,7 +218,7 @@ jobs:
   packages:
     name: Test Packages
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.packages != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.packages != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -268,7 +275,7 @@ jobs:
   cli:
     name: Test CLI
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.cli != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.cli != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -299,7 +306,7 @@ jobs:
   local-env:
     name: Test Local env
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.local-env != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.local-env != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -312,7 +319,7 @@ jobs:
   ci-config:
     name: Test CI config
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.ci-config != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.ci-config != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -325,7 +332,7 @@ jobs:
   cloud-agent-db:
     name: Test Cloud agent db
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.cloud-agent-db != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.cloud-agent-db != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -343,7 +350,7 @@ jobs:
   design-md:
     name: Lint DESIGN.md
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.design-md != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.design-md != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - *checkout
@@ -369,7 +376,7 @@ jobs:
   build:
     name: Build
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
     # A build takes 1-3 minutes. A hung one otherwise holds the required
     # check for GitHub's 6-hour default.
@@ -407,7 +414,7 @@ jobs:
   biome:
     name: Biome
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - *checkout
@@ -426,7 +433,7 @@ jobs:
   typecheck:
     name: Typecheck
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:

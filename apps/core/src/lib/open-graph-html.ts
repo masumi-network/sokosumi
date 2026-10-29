@@ -142,7 +142,7 @@ export function tweetTextFromOembedHtml(html: string): string | null {
 }
 
 /** Drop everything from a `<` to the next `>`; a `<` inside a tag stays in it. */
-function stripTags(html: string): string {
+export function stripTags(html: string): string {
   let out = "";
   let inTag = false;
   for (const char of html) {
