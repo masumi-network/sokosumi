@@ -9178,6 +9178,7 @@
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
+      "clearProject": "Clear project",
       "close": "Close",
       "label": "Project",
       "allProjects": "All projects",
