@@ -294,6 +294,11 @@ export const newsletterService = {
     return response.data;
   },
 
+  async resumeSendingDomainWarmup() {
+    const response = await coreClient.postNewsletterSendingDomainWarmupResume();
+    return response.data;
+  },
+
   async connectSendingDomainWithCloudflare(apiToken: string) {
     const response =
       await coreClient.postNewsletterSendingDomainCloudflare(apiToken);

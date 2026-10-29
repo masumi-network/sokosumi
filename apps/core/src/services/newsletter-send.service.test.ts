@@ -1,5 +1,11 @@
-import type { NewsletterSend, NewsletterSubscriber } from "@sokosumi/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  NewsletterSend,
+  NewsletterSendingDomain,
+  NewsletterSubscriber,
+} from "@sokosumi/database";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import prisma from "@/lib/db/prisma";
 
 import {
   NEWSLETTER,
@@ -22,6 +28,14 @@ const m = vi.hoisted(() => {
     providerCounter: number;
     withdrewConsent: boolean;
     organizationSlug: string | null;
+    sendingDomain: NewsletterSendingDomain | null;
+    engagement: Map<string, Date>;
+    adverseEvents: {
+      sendId: string;
+      type: "BOUNCED" | "COMPLAINED";
+      bounceType: string | null;
+      occurredAt: Date;
+    }[];
   } = {
     domain: "news.example.com",
     subscribers: [],
@@ -29,6 +43,9 @@ const m = vi.hoisted(() => {
     providerCounter: 0,
     withdrewConsent: false,
     organizationSlug: "utxo",
+    sendingDomain: null,
+    engagement: new Map(),
+    adverseEvents: [],
   };
   return {
     state,
@@ -40,8 +57,12 @@ const m = vi.hoisted(() => {
     sendUpdate: vi.fn(),
     sendCount: vi.fn(),
     sendDelete: vi.fn(),
+    sendFindMany: vi.fn(),
     transaction: vi.fn(),
     batchSend: vi.fn(),
+    domainFind: vi.fn(),
+    domainUpdate: vi.fn(),
+    domainUpdateMany: vi.fn(),
   };
 });
 
@@ -74,8 +95,13 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: m.sendUpdate,
       count: m.sendCount,
       deleteMany: m.sendDelete,
+      findMany: m.sendFindMany,
     },
-    newsletterSendingDomain: { findUnique: async () => null },
+    newsletterSendingDomain: {
+      findUnique: m.domainFind,
+      update: m.domainUpdate,
+      updateMany: m.domainUpdateMany,
+    },
     $transaction: m.transaction,
   },
 }));
@@ -88,6 +114,88 @@ function subscribers(count: number): NewsletterSubscriber[] {
   }));
 }
 
+function customDomain(
+  overrides: Partial<NewsletterSendingDomain> = {},
+): NewsletterSendingDomain {
+  return {
+    id: "custom-domain",
+    workspaceId: NEWSLETTER.workspaceId,
+    domain: "custom.example.com",
+    fromAddress: "hello@custom.example.com",
+    resendDomainId: "resend-domain",
+    status: "VERIFIED",
+    dnsRecords: [],
+    lastCheckedAt: new Date(),
+    failureReason: null,
+    warmupStartedAt: new Date(),
+    warmupPausedAt: null,
+    warmupPauseReason: null,
+    warmupSentOnDayUtc: null,
+    warmupSentCount: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+interface SendWhere {
+  id?: string | { in: string[] };
+  issueId?: string;
+  status?: string;
+  sendingDomainId?: string;
+  attemptedAt?: null | { not?: null; gte?: Date; lte?: Date };
+  events?: {
+    some: {
+      type: string;
+      bounceType?: { in: string[] };
+      occurredAt: { gte: Date; lte: Date };
+    };
+  };
+}
+
+function matchesSend(row: NewsletterSend, where: SendWhere): boolean {
+  if (where.issueId && row.issueId !== where.issueId) return false;
+  if (where.status && row.status !== where.status) return false;
+  if (where.sendingDomainId && row.sendingDomainId !== where.sendingDomainId)
+    return false;
+  if (typeof where.id === "string" && row.id !== where.id) return false;
+  if (typeof where.id === "object" && !where.id.in.includes(row.id))
+    return false;
+  if (where.attemptedAt === null && row.attemptedAt !== null) return false;
+  if (where.attemptedAt && row.attemptedAt === null) return false;
+  if (where.attemptedAt?.gte && row.attemptedAt! < where.attemptedAt.gte)
+    return false;
+  if (where.attemptedAt?.lte && row.attemptedAt! > where.attemptedAt.lte)
+    return false;
+  if (where.events) {
+    const filter = where.events.some;
+    if (
+      !m.state.adverseEvents.some(
+        (event) =>
+          event.sendId === row.id &&
+          event.type === filter.type &&
+          (!filter.bounceType ||
+            filter.bounceType.in.includes(event.bounceType ?? "")) &&
+          event.occurredAt >= filter.occurredAt.gte &&
+          event.occurredAt <= filter.occurredAt.lte,
+      )
+    )
+      return false;
+  }
+  return true;
+}
+
+function recoverIssue(id = NEWSLETTER_ISSUE_ID) {
+  m.issueFindUnique.mockResolvedValue({
+    ...NEWSLETTER_ISSUE,
+    id,
+    newsletter: NEWSLETTER,
+    status: "SENDING",
+    leaseToken: null,
+    leaseExpiresAt: new Date(0),
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   m.state.domain = "news.example.com";
@@ -96,6 +204,26 @@ beforeEach(() => {
   m.state.providerCounter = 0;
   m.state.withdrewConsent = false;
   m.state.organizationSlug = "utxo";
+  m.state.sendingDomain = null;
+  m.state.engagement = new Map();
+  m.state.adverseEvents = [];
+  m.domainFind.mockImplementation(() =>
+    m.state.sendingDomain ? { ...m.state.sendingDomain } : null,
+  );
+  m.domainUpdate.mockImplementation(
+    ({ data }: { data: Partial<NewsletterSendingDomain> }) => {
+      Object.assign(m.state.sendingDomain!, data);
+      return m.state.sendingDomain;
+    },
+  );
+  m.domainUpdateMany.mockImplementation(
+    ({ data }: { data: Partial<NewsletterSendingDomain> }) => {
+      if (!m.state.sendingDomain || m.state.sendingDomain.warmupPausedAt)
+        return { count: 0 };
+      Object.assign(m.state.sendingDomain, data);
+      return { count: 1 };
+    },
+  );
   const issue = {
     ...NEWSLETTER_ISSUE,
     status: "SCHEDULED",
@@ -155,11 +283,13 @@ beforeEach(() => {
           continue;
         const send: NewsletterSend = {
           ...row,
-          id: `send-${row.subscriberId}`,
+          id: `send-${row.issueId}-${row.subscriberId}`,
           status: "QUEUED",
           providerMessageId: null,
           sentAt: null,
           error: null,
+          attemptedAt: null,
+          sendingDomainId: null,
         };
         m.state.sends.push(send);
         created.push(send);
@@ -168,31 +298,46 @@ beforeEach(() => {
     },
   );
   m.sendUpdate.mockImplementation(
-    ({
-      where,
-      data,
-    }: {
-      where: { id?: string | { in: string[] }; status?: string };
-      data: Partial<NewsletterSend>;
-    }) => {
+    ({ where, data }: { where: SendWhere; data: Partial<NewsletterSend> }) => {
       let count = 0;
       for (const row of m.state.sends) {
-        if (where.status && row.status !== where.status) continue;
-        if (typeof where.id === "string" && row.id !== where.id) continue;
-        if (typeof where.id === "object" && !where.id.in.includes(row.id))
-          continue;
+        if (!matchesSend(row, where)) continue;
         Object.assign(row, data);
         count++;
       }
       return { count };
     },
   );
-  m.sendCount.mockImplementation(
-    ({ where }: { where: { status: string } }) =>
-      m.state.sends.filter((row) => row.status === where.status).length,
+  m.sendFindMany.mockImplementation(({ where }: { where: SendWhere }) =>
+    m.state.sends
+      .filter((row) => matchesSend(row, where))
+      .map((row) => {
+        const subscriber = m.state.subscribers.find(
+          ({ id }) => id === row.subscriberId,
+        )!;
+        const engagedAt = m.state.engagement.get(subscriber.id);
+        return {
+          ...row,
+          subscriber: {
+            ...subscriber,
+            events: engagedAt ? [{ occurredAt: engagedAt }] : [],
+          },
+        };
+      }),
   );
-  m.transaction.mockImplementation((operations: Promise<unknown>[]) =>
-    Promise.all(operations),
+  m.sendCount.mockImplementation(
+    ({ where }: { where: SendWhere }) =>
+      m.state.sends.filter((row) => matchesSend(row, where)).length,
+  );
+  m.transaction.mockImplementation(
+    (
+      operations:
+        | Promise<unknown>[]
+        | ((tx: typeof prisma) => Promise<unknown>),
+    ) =>
+      typeof operations === "function"
+        ? operations(prisma)
+        : Promise.all(operations),
   );
   m.batchSend.mockImplementation((inputs: unknown[]) => ({
     data: {
@@ -202,7 +347,362 @@ beforeEach(() => {
   }));
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("sendNewsletterIssue", () => {
+  it("keeps recipients above a custom domain's daily cap queued", async () => {
+    m.state.subscribers = subscribers(75);
+    m.state.sendingDomain = customDomain();
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    expect(m.state.sends.filter((send) => send.status === "SENT")).toHaveLength(
+      50,
+    );
+    expect(
+      m.state.sends.filter((send) => send.status === "QUEUED"),
+    ).toHaveLength(25);
+    expect(m.issueUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SENDING", leaseToken: null }),
+      }),
+    );
+  });
+
+  it("resumes the unsent remainder through the scheduler on the next UTC day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-29T23:59:00Z"));
+    m.state.subscribers = subscribers(75);
+    m.state.sendingDomain = customDomain();
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.state.sendingDomain.warmupSentCount).toBe(50);
+    expect(m.issueUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SENDING",
+          leaseExpiresAt: new Date("2026-10-30T00:00:00Z"),
+        }),
+      }),
+    );
+    const queued = m.state.sends.filter(({ status }) => status === "QUEUED");
+    expect(queued).toHaveLength(25);
+    expect(queued.every(({ attemptedAt }) => attemptedAt === null)).toBe(true);
+
+    vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
+    recoverIssue();
+    await sendDueNewsletterIssues();
+
+    expect(m.batchSend.mock.calls.map(([batch]) => batch.length)).toEqual([
+      50, 25,
+    ]);
+    expect(
+      m.state.sends.filter(({ status }) => status === "SENT"),
+    ).toHaveLength(75);
+    expect(m.state.sendingDomain.warmupSentCount).toBe(25);
+    expect(m.state.sendingDomain.warmupSentOnDayUtc).toEqual(
+      new Date("2026-10-30T00:00:00Z"),
+    );
+    expect(m.issueUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SENT" }),
+      }),
+    );
+  });
+
+  it("ranks engagement across all subscriber pages before spending the cap", async () => {
+    m.state.subscribers = subscribers(150);
+    m.state.sendingDomain = customDomain();
+    m.state.engagement.set(
+      m.state.subscribers[148]!.id,
+      new Date("2026-10-28T12:00:00Z"),
+    );
+    m.state.engagement.set(
+      m.state.subscribers[149]!.id,
+      new Date("2026-10-29T12:00:00Z"),
+    );
+    m.state.subscribers[147]!.confirmedAt = new Date("2026-10-29T11:00:00Z");
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    const delivered = m.batchSend.mock.calls[0]?.[0].map(
+      (input: { to: string }) => input.to,
+    );
+    expect(delivered.slice(0, 4)).toEqual([
+      "reader150@example.com",
+      "reader149@example.com",
+      "reader148@example.com",
+      "reader1@example.com",
+    ]);
+    expect(delivered).toHaveLength(50);
+    expect(
+      m.state.sends.filter(({ status }) => status === "QUEUED"),
+    ).toHaveLength(100);
+    expect(m.sendFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          subscriber: {
+            include: {
+              events: {
+                where: { type: { in: ["OPENED", "CLICKED"] } },
+                orderBy: { occurredAt: "desc" },
+                take: 1,
+                select: { occurredAt: true },
+              },
+            },
+          },
+        },
+      }),
+    );
+  });
+
+  it("shares a domain's daily capacity across newsletter issues", async () => {
+    m.state.subscribers = subscribers(40);
+    m.state.sendingDomain = customDomain();
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    const nextIssueId = "66666666-6666-4666-8666-666666666666";
+    m.issueFindUnique.mockResolvedValue({
+      ...NEWSLETTER_ISSUE,
+      id: nextIssueId,
+      newsletter: NEWSLETTER,
+      status: "SCHEDULED",
+    });
+
+    await sendNewsletterIssue(nextIssueId);
+
+    expect(m.batchSend.mock.calls.map(([batch]) => batch.length)).toEqual([
+      40, 10,
+    ]);
+    expect(m.state.sendingDomain.warmupSentCount).toBe(50);
+    expect(
+      m.state.sends.filter(
+        ({ issueId, status }) => issueId === nextIssueId && status === "QUEUED",
+      ),
+    ).toHaveLength(30);
+    expect(
+      m.state.sends
+        .filter(({ status }) => status === "SENT")
+        .every(
+          ({ sendingDomainId, attemptedAt }) =>
+            sendingDomainId === "custom-domain" && attemptedAt instanceof Date,
+        ),
+    ).toBe(true);
+    expect(m.transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
+  });
+
+  it("preserves all recipients when today's domain capacity is already used", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+    m.state.subscribers = subscribers(3);
+    m.state.sendingDomain = customDomain({
+      warmupSentOnDayUtc: new Date("2026-10-29T00:00:00Z"),
+      warmupSentCount: 50,
+    });
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend).not.toHaveBeenCalled();
+    expect(m.state.sends).toHaveLength(3);
+    expect(
+      m.state.sends.every(
+        ({ status, attemptedAt }) =>
+          status === "QUEUED" && attemptedAt === null,
+      ),
+    ).toBe(true);
+    expect(m.issueUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SENDING",
+          lastError: expect.stringContaining("daily warm-up limit"),
+        }),
+      }),
+    );
+  });
+
+  it("pauses when new attempts make an existing complaint reach the minimum sample", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+    m.state.sendingDomain = customDomain();
+    m.state.subscribers = subscribers(20);
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    m.state.adverseEvents.push({
+      sendId: m.state.sends[0]!.id,
+      type: "COMPLAINED",
+      bounceType: null,
+      occurredAt: new Date(),
+    });
+    expect(m.state.sendingDomain.warmupPausedAt).toBeNull();
+
+    const nextIssueId = "66666666-6666-4666-8666-666666666666";
+    m.state.subscribers = subscribers(60);
+    m.issueFindUnique.mockResolvedValue({
+      ...NEWSLETTER_ISSUE,
+      id: nextIssueId,
+      newsletter: NEWSLETTER,
+      status: "SCHEDULED",
+    });
+    await sendNewsletterIssue(nextIssueId);
+
+    expect(m.batchSend.mock.calls.map(([batch]) => batch.length)).toEqual([
+      20, 30,
+    ]);
+    expect(m.state.sendingDomain).toMatchObject({
+      warmupPausedAt: new Date(),
+      warmupPauseReason: "COMPLAINT_RATE",
+      warmupSentCount: 50,
+    });
+    expect(
+      m.state.sends.filter(
+        ({ issueId, status }) => issueId === nextIssueId && status === "QUEUED",
+      ),
+    ).toHaveLength(30);
+
+    recoverIssue(nextIssueId);
+    await sendNewsletterIssue(nextIssueId);
+
+    expect(m.batchSend).toHaveBeenCalledTimes(2);
+    expect(
+      m.state.sends.filter(
+        ({ issueId, status }) => issueId === nextIssueId && status === "QUEUED",
+      ),
+    ).toHaveLength(30);
+  });
+
+  it("keeps paused custom-domain recipients queued until an admin resumes it", async () => {
+    m.state.subscribers = subscribers(3);
+    m.state.sendingDomain = customDomain({
+      warmupPausedAt: new Date(),
+      warmupPauseReason: "COMPLAINT_RATE",
+    });
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend).not.toHaveBeenCalled();
+    expect(m.state.sends).toHaveLength(3);
+    expect(
+      m.state.sends.every(
+        ({ status, attemptedAt }) =>
+          status === "QUEUED" && attemptedAt === null,
+      ),
+    ).toBe(true);
+    expect(m.issueUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SENDING",
+          lastError: expect.stringContaining("paused"),
+        }),
+      }),
+    );
+
+    m.state.sendingDomain.warmupPausedAt = null;
+    m.state.sendingDomain.warmupPauseReason = null;
+    recoverIssue();
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend).toHaveBeenCalledOnce();
+    expect(
+      m.batchSend.mock.calls[0]?.[0].every((input: { from: string }) =>
+        input.from.includes("hello@custom.example.com"),
+      ),
+    ).toBe(true);
+    expect(m.state.sends.every(({ status }) => status === "SENT")).toBe(true);
+  });
+
+  it("stops the next batch if a webhook pauses the domain during dispatch", async () => {
+    m.state.subscribers = subscribers(250);
+    m.state.sendingDomain = customDomain({
+      warmupStartedAt: new Date(Date.now() - 7 * 86_400_000),
+    });
+    const acceptedBatch = m.batchSend.getMockImplementation()!;
+    m.batchSend.mockImplementationOnce((...args) => {
+      const result = acceptedBatch(...args);
+      m.state.sendingDomain!.warmupPausedAt = new Date();
+      m.state.sendingDomain!.warmupPauseReason = "BOUNCE_RATE";
+      return result;
+    });
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend).toHaveBeenCalledOnce();
+    expect(
+      m.state.sends.filter(({ status }) => status === "SENT"),
+    ).toHaveLength(100);
+    const queued = m.state.sends.filter(({ status }) => status === "QUEUED");
+    expect(queued).toHaveLength(150);
+    expect(queued.every(({ attemptedAt }) => attemptedAt === null)).toBe(true);
+    expect(m.state.sendingDomain.warmupSentCount).toBe(100);
+    expect(m.issueUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SENDING",
+          lastError: expect.stringContaining("paused"),
+        }),
+      }),
+    );
+  });
+
+  it("sends the full list after a custom domain reaches unlimited capacity", async () => {
+    m.state.subscribers = subscribers(250);
+    m.state.sendingDomain = customDomain({
+      warmupStartedAt: new Date(Date.now() - 28 * 86_400_000),
+      warmupSentCount: 10_000,
+    });
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend.mock.calls.map(([batch]) => batch.length)).toEqual([
+      100, 100, 50,
+    ]);
+    expect(m.state.sends.every(({ status }) => status === "SENT")).toBe(true);
+  });
+
+  it("retains safe queued reservations across a deadline before any provider attempt", async () => {
+    m.state.subscribers = subscribers(3);
+    const shouldContinue = vi
+      .fn()
+      .mockReturnValueOnce(true)
+      .mockReturnValue(false);
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID, { shouldContinue });
+
+    expect(m.batchSend).not.toHaveBeenCalled();
+    expect(m.state.sends).toHaveLength(3);
+    expect(
+      m.state.sends.every(
+        ({ status, attemptedAt }) =>
+          status === "QUEUED" && attemptedAt === null,
+      ),
+    ).toBe(true);
+    recoverIssue();
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    expect(m.batchSend.mock.calls[0]?.[0]).toHaveLength(3);
+    expect(m.state.sends.every(({ status }) => status === "SENT")).toBe(true);
+  });
+
+  it("does not spend domain capacity when the lease is lost before reservation", async () => {
+    m.state.sendingDomain = customDomain();
+    m.issueUpdate
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValue({ count: 0 });
+
+    await expect(
+      sendNewsletterIssue(NEWSLETTER_ISSUE_ID),
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(m.batchSend).not.toHaveBeenCalled();
+    expect(m.state.sendingDomain.warmupSentCount).toBe(0);
+    expect(m.domainUpdate).not.toHaveBeenCalled();
+    expect(m.state.sends[0]).toMatchObject({
+      status: "QUEUED",
+      attemptedAt: null,
+    });
+  });
+
   it("sends 250 active subscribers in three private batches with signed links and headers", async () => {
     m.state.subscribers = subscribers(250);
     await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
@@ -240,6 +740,7 @@ describe("sendNewsletterIssue", () => {
       second.headers["List-Unsubscribe"],
     );
     expect(m.state.sends).toHaveLength(250);
+    expect(m.domainUpdate).not.toHaveBeenCalled();
     expect(
       m.state.sends.every(
         (row) => row.status === "SENT" && row.providerMessageId && row.sentAt,
@@ -307,6 +808,8 @@ describe("sendNewsletterIssue", () => {
       providerMessageId: null,
       sentAt: null,
       error: null,
+      attemptedAt: new Date(),
+      sendingDomainId: null,
     };
     m.state.sends = [existing];
     const shouldContinue = vi
@@ -315,7 +818,11 @@ describe("sendNewsletterIssue", () => {
       .mockReturnValue(false);
     await sendNewsletterIssue(NEWSLETTER_ISSUE_ID, { shouldContinue });
     expect(m.batchSend).not.toHaveBeenCalled();
-    expect(m.state.sends).toEqual([existing]);
+    expect(m.state.sends).toHaveLength(3);
+    expect(m.state.sends).toContain(existing);
+    expect(
+      m.state.sends.filter((send) => send.status === "QUEUED"),
+    ).toHaveLength(2);
     expect(m.issueUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "SENT" }),
@@ -379,7 +886,7 @@ describe("sendNewsletterIssue", () => {
     );
   });
 
-  it("never resends existing sent, failed, or queued reservations", async () => {
+  it("never resends existing sent, failed, or attempted reservations", async () => {
     m.state.subscribers = subscribers(5);
     m.state.sends = m.state.subscribers.slice(0, 3).map((subscriber, i) => ({
       id: `existing-${i}`,
@@ -389,6 +896,8 @@ describe("sendNewsletterIssue", () => {
       providerMessageId: i === 0 ? "previous-provider-id" : null,
       sentAt: i === 0 ? new Date() : null,
       error: null,
+      attemptedAt: new Date(),
+      sendingDomainId: null,
     }));
     await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
     expect(
@@ -425,6 +934,40 @@ describe("sendNewsletterIssue", () => {
         }),
       }),
     );
+  });
+
+  it("marks attempted rows failed after delivery persistence fails and never sends them again", async () => {
+    m.state.subscribers = subscribers(3);
+    const update = m.sendUpdate.getMockImplementation()!;
+    m.sendUpdate.mockImplementation((args) => {
+      if (args.data.status === "SENT") {
+        throw new Error("Delivery persistence unavailable");
+      }
+      return update(args);
+    });
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend).toHaveBeenCalledOnce();
+    expect(m.state.sends).toHaveLength(3);
+    expect(
+      m.state.sends.every(
+        ({ attemptedAt, status }) =>
+          attemptedAt instanceof Date && status === "FAILED",
+      ),
+    ).toBe(true);
+    expect(
+      m.state.sends.every(
+        ({ error }) => error === "Delivery persistence unavailable",
+      ),
+    ).toBe(true);
+
+    m.sendUpdate.mockImplementation(update);
+    recoverIssue();
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.batchSend).toHaveBeenCalledOnce();
+    expect(m.state.sends.every(({ status }) => status === "FAILED")).toBe(true);
   });
 
   it("continues later batches after a provider failure and keeps their ids", async () => {

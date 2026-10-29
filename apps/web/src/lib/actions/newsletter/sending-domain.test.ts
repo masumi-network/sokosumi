@@ -9,6 +9,7 @@ import en from "@/messages/en.json";
 const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   check: vi.fn(),
+  resume: vi.fn(),
   remove: vi.fn(),
   cloudflare: vi.fn(),
   connect: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   newsletterService: {
     saveSendingDomain: mocks.save,
     checkSendingDomain: mocks.check,
+    resumeSendingDomainWarmup: mocks.resume,
     removeSendingDomain: mocks.remove,
     connectSendingDomainWithCloudflare: mocks.cloudflare,
     getSendingDomainConnect: mocks.connect,
@@ -41,6 +43,7 @@ import {
   connectNewsletterSendingDomainWithCloudflare,
   getNewsletterSendingDomainConnect,
   removeNewsletterSendingDomain,
+  resumeNewsletterSendingDomainWarmup,
   saveNewsletterSendingDomain,
 } from "./sending-domain";
 
@@ -54,6 +57,14 @@ const DOMAIN: NewsletterSendingDomain = {
   dnsRecords: [],
   lastCheckedAt: null,
   failureReason: null,
+  warmup: {
+    startedAt: null,
+    day: null,
+    dailyCap: null,
+    sentToday: 0,
+    pausedAt: null,
+    pauseReason: null,
+  },
   createdAt: new Date(),
 };
 
@@ -61,10 +72,34 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.save.mockResolvedValue(DOMAIN);
   mocks.check.mockResolvedValue(DOMAIN);
+  mocks.resume.mockResolvedValue(DOMAIN);
   mocks.cloudflare.mockResolvedValue(DOMAIN);
 });
 
 describe("sending domain actions", () => {
+  it("resumes warm-up through Core and revalidates settings", async () => {
+    expect(await resumeNewsletterSendingDomainWarmup({})).toEqual({
+      ok: true,
+      value: DOMAIN,
+    });
+    expect(mocks.resume).toHaveBeenCalledExactlyOnceWith();
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter/settings");
+  });
+
+  it.each([
+    [403, T.errors.forbidden],
+    [404, T.errors.notFound],
+    [409, T.errors.resumeUnavailable],
+    [500, T.errors.generic],
+  ])("maps resume failures to actionable copy: %s", async (status, message) => {
+    mocks.resume.mockRejectedValue(new CoreApiRequestError("x", { status }));
+    expect(await resumeNewsletterSendingDomainWarmup({})).toEqual({
+      ok: false,
+      error: { message },
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("saves a trimmed From address and revalidates settings", async () => {
     const result = await saveNewsletterSendingDomain({
       fromAddress: " news@brand.example ",

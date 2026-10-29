@@ -7,6 +7,7 @@ import mountDeleteSendingDomain from "./sending-domain/delete.js";
 import mountGetSendingDomainConnect from "./sending-domain/domain-connect/get.js";
 import mountGetSendingDomain from "./sending-domain/get.js";
 import mountPutSendingDomain from "./sending-domain/put.js";
+import mountPostSendingDomainWarmupResume from "./sending-domain/warmup/resume/post.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
@@ -17,5 +18,6 @@ mountDeleteSendingDomain(app);
 mountPostSendingDomainCheck(app);
 mountPostSendingDomainCloudflare(app);
 mountGetSendingDomainConnect(app);
+mountPostSendingDomainWarmupResume(app);
 
 export default app;

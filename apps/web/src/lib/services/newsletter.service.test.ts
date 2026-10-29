@@ -26,6 +26,7 @@ const core = vi.hoisted(() => ({
   getNewsletterAvailability: vi.fn(),
   getProjectsByIdNewsletter: vi.fn(),
   putProjectsByIdNewsletter: vi.fn(),
+  postNewsletterSendingDomainWarmupResume: vi.fn(),
   getProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribersImport: vi.fn(),
@@ -48,6 +49,21 @@ beforeEach(() => {
 });
 
 describe("newsletterService", () => {
+  it("resumes sending-domain warm-up through Core and preserves errors", async () => {
+    const resumed = { id: "d1", warmup: { pausedAt: null } };
+    core.postNewsletterSendingDomainWarmupResume.mockResolvedValue({
+      data: resumed,
+    });
+    expect(await newsletterService.resumeSendingDomainWarmup()).toBe(resumed);
+    expect(
+      core.postNewsletterSendingDomainWarmupResume,
+    ).toHaveBeenCalledExactlyOnceWith();
+    const error = new CoreApiRequestError("Forbidden", { status: 403 });
+    core.postNewsletterSendingDomainWarmupResume.mockRejectedValue(error);
+    await expect(newsletterService.resumeSendingDomainWarmup()).rejects.toBe(
+      error,
+    );
+  });
   it("drafts through the generated endpoint and preserves Core failures", async () => {
     const input = { brief: "Launch" };
     core.postProjectsByIdNewsletterIssuesDraftWithAi.mockResolvedValue({

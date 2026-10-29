@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   check: vi.fn(),
   remove: vi.fn(),
+  resume: vi.fn(),
   cloudflare: vi.fn(),
   connect: vi.fn(),
 }));
@@ -24,6 +25,7 @@ vi.mock("@/lib/actions/newsletter/sending-domain", () => ({
   saveNewsletterSendingDomain: mocks.save,
   checkNewsletterSendingDomain: mocks.check,
   removeNewsletterSendingDomain: mocks.remove,
+  resumeNewsletterSendingDomainWarmup: mocks.resume,
   connectNewsletterSendingDomainWithCloudflare: mocks.cloudflare,
   getNewsletterSendingDomainConnect: mocks.connect,
 }));
@@ -59,7 +61,35 @@ const DOMAIN: NewsletterSendingDomain = {
   ],
   lastCheckedAt: new Date("2026-10-27T12:00:00Z"),
   failureReason: null,
+  warmup: {
+    startedAt: null,
+    day: null,
+    dailyCap: null,
+    sentToday: 0,
+    pausedAt: null,
+    pauseReason: null,
+  },
   createdAt: new Date("2026-10-27T12:00:00Z"),
+};
+const WARMING_DOMAIN: NewsletterSendingDomain = {
+  ...DOMAIN,
+  status: "VERIFIED",
+  warmup: {
+    startedAt: new Date("2026-10-27T12:00:00Z"),
+    day: 0,
+    dailyCap: 50,
+    sentToday: 25,
+    pausedAt: null,
+    pauseReason: null,
+  },
+};
+const PAUSED_DOMAIN: NewsletterSendingDomain = {
+  ...WARMING_DOMAIN,
+  warmup: {
+    ...WARMING_DOMAIN.warmup,
+    pausedAt: new Date("2026-10-27T13:00:00Z"),
+    pauseReason: "BOUNCE_RATE",
+  },
 };
 
 function renderCard(state: Partial<NewsletterSendingDomainState> = {}) {
@@ -83,6 +113,107 @@ beforeEach(() => {
 });
 
 describe("SendingDomainCard", () => {
+  it("shows UTC warm-up usage to members without management controls", () => {
+    renderCard({ sendingDomain: WARMING_DOMAIN, canManage: false });
+    const warmup = screen.getByRole("region", { name: T.warmup.title });
+    expect(
+      within(warmup).getByText("Day 0 · 25 of 50 sent today (UTC)"),
+    ).toBeInTheDocument();
+    expect(within(warmup).getByText(T.warmup.description)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: T.remove.action })).toBeNull();
+    expect(screen.queryByRole("button", { name: T.warmup.resume })).toBeNull();
+  });
+
+  it("shows Unlimited once the daily cap ends", () => {
+    renderCard({
+      sendingDomain: {
+        ...WARMING_DOMAIN,
+        warmup: { ...WARMING_DOMAIN.warmup, day: 28, dailyCap: null },
+      },
+    });
+    expect(
+      screen.getByText("Day 28 · 25 sent today (UTC) · Unlimited"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(T.warmup.description)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["BOUNCE_RATE", T.warmup.bounceReason],
+    ["COMPLAINT_RATE", T.warmup.complaintReason],
+  ] as const)("shows a paused %s reason to members", (pauseReason, reason) => {
+    renderCard({
+      sendingDomain: {
+        ...PAUSED_DOMAIN,
+        warmup: { ...PAUSED_DOMAIN.warmup, pauseReason },
+      },
+      canManage: false,
+    });
+    const warmup = screen.getByRole("region", { name: T.warmup.paused });
+    expect(within(warmup).getByText(reason)).toBeInTheDocument();
+    expect(
+      within(warmup).getByText(T.warmup.pausedDescription),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: T.warmup.resume })).toBeNull();
+    expect(screen.queryByText(T.verifiedDescription)).not.toBeInTheDocument();
+    expect(screen.queryByText(T.fallback)).not.toBeInTheDocument();
+  });
+
+  it("lets an admin resume and refreshes the warm-up status", async () => {
+    const user = userEvent.setup();
+    mocks.resume.mockResolvedValue({ ok: true, value: WARMING_DOMAIN });
+    renderCard({ sendingDomain: PAUSED_DOMAIN });
+    await user.click(screen.getByRole("button", { name: T.warmup.resume }));
+    await waitFor(() => expect(mocks.resume).toHaveBeenCalledWith({}));
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+  });
+
+  it.each(["PENDING", "FAILED"] as const)(
+    "keeps the pause visible to members if DNS verification becomes %s",
+    (status) => {
+      renderCard({
+        sendingDomain: { ...PAUSED_DOMAIN, status },
+        canManage: false,
+      });
+      const warmup = screen.getByRole("region", { name: T.warmup.paused });
+      expect(
+        within(warmup).getByText(T.warmup.bounceReason),
+      ).toBeInTheDocument();
+      expect(
+        within(warmup).getByText(T.warmup.pausedDescription),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(T.fallback)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: T.warmup.resume }),
+      ).toBeNull();
+    },
+  );
+
+  it("keeps the pause visible and reports a failed resume inline", async () => {
+    const user = userEvent.setup();
+    mocks.resume.mockResolvedValue({
+      ok: false,
+      error: { message: T.errors.forbidden },
+    });
+    renderCard({ sendingDomain: PAUSED_DOMAIN });
+    await user.click(screen.getByRole("button", { name: T.warmup.resume }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      T.errors.forbidden,
+    );
+    expect(screen.getByText(T.warmup.paused)).toBeInTheDocument();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reports a resume request failure without changing the status", async () => {
+    const user = userEvent.setup();
+    mocks.resume.mockRejectedValue(new Error("Network error"));
+    renderCard({ sendingDomain: PAUSED_DOMAIN });
+    await user.click(screen.getByRole("button", { name: T.warmup.resume }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      T.errors.generic,
+    );
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
   it("lets an admin add a From address", async () => {
     const user = userEvent.setup();
     mocks.save.mockResolvedValue({ ok: true, value: DOMAIN });

@@ -436,6 +436,7 @@ import {
   postJobsByIdRefund as corePostJobsByIdRefund,
   postNewsletterSendingDomainCheck as corePostNewsletterSendingDomainCheck,
   postNewsletterSendingDomainCloudflare as corePostNewsletterSendingDomainCloudflare,
+  postNewsletterSendingDomainWarmupResume as corePostNewsletterSendingDomainWarmupResume,
   postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
   postOrganizationsByIdCoworkerAccessByAccessIdApprove as corePostOrganizationsByIdCoworkerAccessByAccessIdApprove,
   postOrganizationsByIdCoworkerAccessByAccessIdDeny as corePostOrganizationsByIdCoworkerAccessByAccessIdDeny,
@@ -993,6 +994,14 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => corePostNewsletterSendingDomainCheck({ client }),
       "Failed to check the newsletter sending domain",
+    );
+  }
+
+  async function postNewsletterSendingDomainWarmupResume() {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostNewsletterSendingDomainWarmupResume({ client }),
+      "Failed to resume the newsletter sending domain",
     );
   }
 
@@ -6835,6 +6844,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteNewsletterSendingDomain,
     postNewsletterSendingDomainCheck,
     postNewsletterSendingDomainCloudflare,
+    postNewsletterSendingDomainWarmupResume,
     getNewsletterSendingDomainDomainConnect,
     getProjectsByIdNewsletterAnalytics,
     getProjectsByIdNewsletterIssuesByIssueIdAnalytics,

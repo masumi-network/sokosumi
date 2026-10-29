@@ -18753,6 +18753,9 @@ export const NewsletterSendingDomainSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        warmup: {
+            $ref: '#/components/schemas/NewsletterSendingDomainWarmup'
         }
     },
     required: [
@@ -18763,7 +18766,8 @@ export const NewsletterSendingDomainSchema = {
         'dnsRecords',
         'lastCheckedAt',
         'failureReason',
-        'createdAt'
+        'createdAt',
+        'warmup'
     ]
 } as const;
 
@@ -18812,6 +18816,65 @@ export const NewsletterDnsRecordSchema = {
         'ttl',
         'priority',
         'status'
+    ]
+} as const;
+
+export const NewsletterSendingDomainWarmupSchema = {
+    type: 'object',
+    properties: {
+        startedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        day: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        dailyCap: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        sentToday: {
+            type: 'integer',
+            minimum: 0
+        },
+        pausedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pauseReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'BOUNCE_RATE',
+                'COMPLAINT_RATE',
+                null
+            ]
+        }
+    },
+    required: [
+        'startedAt',
+        'day',
+        'dailyCap',
+        'sentToday',
+        'pausedAt',
+        'pauseReason'
     ]
 } as const;
 

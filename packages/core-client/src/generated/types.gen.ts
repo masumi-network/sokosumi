@@ -5411,6 +5411,7 @@ export type NewsletterSendingDomain = {
     lastCheckedAt: Date | null;
     failureReason: string | null;
     createdAt: Date;
+    warmup: NewsletterSendingDomainWarmup;
 };
 
 export const NewsletterSendingDomainStatus = {
@@ -5429,6 +5430,15 @@ export type NewsletterDnsRecord = {
     ttl: string;
     priority: number | null;
     status: string;
+};
+
+export type NewsletterSendingDomainWarmup = {
+    startedAt: Date | null;
+    day: number | null;
+    dailyCap: number | null;
+    sentToday: number;
+    pausedAt: Date | null;
+    pauseReason: 'BOUNCE_RATE' | 'COMPLAINT_RATE' | null;
 };
 
 export type PutNewsletterSendingDomainRequest = {
@@ -38721,6 +38731,94 @@ export type GetNewsletterSendingDomainDomainConnectResponses = {
 };
 
 export type GetNewsletterSendingDomainDomainConnectResponse = GetNewsletterSendingDomainDomainConnectResponses[keyof GetNewsletterSendingDomainDomainConnectResponses];
+
+export type PostNewsletterSendingDomainWarmupResumeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/newsletter/sending-domain/warmup/resume';
+};
+
+export type PostNewsletterSendingDomainWarmupResumeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostNewsletterSendingDomainWarmupResumeError = PostNewsletterSendingDomainWarmupResumeErrors[keyof PostNewsletterSendingDomainWarmupResumeErrors];
+
+export type PostNewsletterSendingDomainWarmupResumeResponses = {
+    /**
+     * Sending domain warm-up resumed
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostNewsletterSendingDomainWarmupResumeResponse = PostNewsletterSendingDomainWarmupResumeResponses[keyof PostNewsletterSendingDomainWarmupResumeResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;

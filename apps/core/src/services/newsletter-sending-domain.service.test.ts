@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudflareApiError } from "@/clients/cloudflare-dns.client";
 
 import {
+  assertNewsletterSenderConfigured,
   canManageNewsletterSendingDomain,
   checkNewsletterSendingDomain,
   connectNewsletterSendingDomainWithCloudflare,
@@ -12,6 +13,8 @@ import {
   putNewsletterSendingDomain,
   removeNewsletterSendingDomain,
   resolveNewsletterSender,
+  resolveNewsletterSendingContext,
+  resumeNewsletterSendingDomainWarmup,
 } from "./newsletter-sending-domain.service";
 
 const WORKSPACE_ID = "019a0000-0000-7000-8000-000000000001";
@@ -26,6 +29,8 @@ const m = vi.hoisted(() => ({
   findUnique: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  updateMany: vi.fn(),
+  transaction: vi.fn(),
   deleteMany: vi.fn(),
   memberFindFirst: vi.fn(),
   createDomain: vi.fn(),
@@ -49,9 +54,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: m.findUnique,
       create: m.create,
       update: m.update,
+      updateMany: m.updateMany,
       deleteMany: m.deleteMany,
     },
     member: { findFirst: m.memberFindFirst },
+    $transaction: m.transaction,
   },
 }));
 vi.mock("@/clients/email.client", () => ({
@@ -147,6 +154,11 @@ const ROW = {
   failureReason: null,
   createdAt: NOW,
   updatedAt: NOW,
+  warmupStartedAt: null,
+  warmupPausedAt: null,
+  warmupPauseReason: null,
+  warmupSentOnDayUtc: null,
+  warmupSentCount: 0,
 };
 
 beforeEach(() => {
@@ -156,7 +168,17 @@ beforeEach(() => {
   m.env.NEWSLETTER_FROM_DOMAIN = "news.sokosumi.example";
   m.env.DOMAIN_CONNECT_PRIVATE_KEY = undefined;
   m.findUnique.mockResolvedValue(ROW);
-  m.update.mockImplementation(async ({ data }) => ({ ...ROW, ...data }));
+  m.update.mockImplementation(async ({ data }) => ({
+    ...ROW,
+    ...m.updateMany.mock.lastCall?.[0].data,
+    ...data,
+  }));
+  m.updateMany.mockResolvedValue({ count: 1 });
+  m.transaction.mockImplementation(async (callback) =>
+    callback({
+      newsletterSendingDomain: { update: m.update, updateMany: m.updateMany },
+    }),
+  );
   m.create.mockImplementation(async ({ data }) => ({ ...ROW, ...data }));
   m.getDomain.mockResolvedValue({
     id: ROW.resendDomainId,
@@ -389,7 +411,9 @@ describe("checking", () => {
     const stale = { ...ROW, lastCheckedAt: null };
     m.findUnique.mockResolvedValue(stale);
     m.getDomain.mockRejectedValue(new Error("Resend down"));
-    await expect(getNewsletterSendingDomain(WORKSPACE_ID)).resolves.toBe(stale);
+    await expect(
+      getNewsletterSendingDomain(WORKSPACE_ID),
+    ).resolves.toMatchObject(stale);
   });
 });
 
@@ -654,5 +678,154 @@ describe("resolveNewsletterSender", () => {
     await expect(resolveNewsletterSender(NEWSLETTER)).rejects.toMatchObject({
       status: 409,
     });
+  });
+});
+
+describe("sending-domain warm-up", () => {
+  it("starts the UTC ramp on first verification and preserves its original start", async () => {
+    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    expect(domain.warmup).toEqual({
+      startedAt: NOW,
+      day: 0,
+      dailyCap: 50,
+      sentToday: 0,
+      pausedAt: null,
+      pauseReason: null,
+    });
+    const startedAt = new Date("2026-10-24T23:59:59Z");
+    m.findUnique.mockResolvedValue({ ...ROW, warmupStartedAt: startedAt });
+    m.update.mockImplementation(async ({ data }) => ({
+      ...ROW,
+      warmupStartedAt: startedAt,
+      ...data,
+    }));
+    expect((await checkNewsletterSendingDomain(WORKSPACE_ID)).warmup.day).toBe(
+      3,
+    );
+    expect(m.update.mock.lastCall?.[0].data).not.toHaveProperty(
+      "warmupStartedAt",
+    );
+  });
+
+  it("never overwrites the first verification timestamp when concurrent checks return a stale row", async () => {
+    const firstStartedAt = new Date(NOW.getTime() - 500);
+    m.updateMany.mockResolvedValue({ count: 0 });
+    m.update.mockImplementation(async ({ data }) => ({
+      ...ROW,
+      warmupStartedAt: firstStartedAt,
+      ...data,
+    }));
+    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    expect(m.updateMany).toHaveBeenCalledWith({
+      where: { id: ROW.id, warmupStartedAt: null, status: { not: "VERIFIED" } },
+      data: { warmupStartedAt: NOW },
+    });
+    expect(m.update.mock.lastCall?.[0].data).not.toHaveProperty(
+      "warmupStartedAt",
+    );
+    expect(domain.warmup.startedAt).toEqual(firstStartedAt);
+  });
+
+  it("starts a domain already verified when created, leaving existing verified rows exempt", async () => {
+    m.findUnique.mockResolvedValue(null);
+    m.createDomain.mockResolvedValue({
+      id: "resend_domain_1",
+      status: "verified",
+      records: RESEND_RECORDS,
+    });
+    expect(
+      (await putNewsletterSendingDomain(WORKSPACE_ID, "news@brand.example"))
+        .warmup.startedAt,
+    ).toEqual(NOW);
+    m.findUnique.mockResolvedValue({ ...ROW, status: "VERIFIED" });
+    expect(
+      (await checkNewsletterSendingDomain(WORKSPACE_ID)).warmup.startedAt,
+    ).toBeNull();
+    expect(m.update.mock.lastCall?.[0].data).not.toHaveProperty(
+      "warmupStartedAt",
+    );
+  });
+
+  it("shows today's transactional usage and resets yesterday's displayed usage", async () => {
+    const verified = {
+      ...ROW,
+      status: "VERIFIED",
+      warmupStartedAt: NOW,
+      warmupSentOnDayUtc: new Date("2026-10-27T00:00:00Z"),
+      warmupSentCount: 21,
+    };
+    m.findUnique.mockResolvedValue(verified);
+    expect(
+      (await getNewsletterSendingDomain(WORKSPACE_ID))?.warmup.sentToday,
+    ).toBe(21);
+    m.findUnique.mockResolvedValue({
+      ...verified,
+      warmupSentOnDayUtc: new Date("2026-10-26T00:00:00Z"),
+    });
+    expect(
+      (await getNewsletterSendingDomain(WORKSPACE_ID))?.warmup.sentToday,
+    ).toBe(0);
+  });
+
+  it.each(["VERIFIED", "FAILED", "PENDING"])(
+    "blocks paused %s custom senders without switching to shared fallback",
+    async (status) => {
+      m.findUnique.mockResolvedValue({
+        ...ROW,
+        status,
+        warmupStartedAt: NOW,
+        warmupPausedAt: NOW,
+      });
+      const newsletter = {
+        workspaceId: WORKSPACE_ID,
+        senderName: "Brand",
+        replyTo: "editor@brand.example",
+      };
+      await expect(resolveNewsletterSender(newsletter)).rejects.toMatchObject({
+        status: 409,
+      });
+      await expect(
+        assertNewsletterSenderConfigured(WORKSPACE_ID),
+      ).rejects.toMatchObject({ status: 409 });
+      const context = await resolveNewsletterSendingContext(newsletter);
+      expect(context.domain?.warmupPausedAt).toEqual(NOW);
+      expect(context.sender.from).toContain("news@brand.example");
+    },
+  );
+
+  it("does not attach warm-up to a pending domain's shared sender", async () => {
+    const context = await resolveNewsletterSendingContext({
+      workspaceId: WORKSPACE_ID,
+      senderName: "Brand",
+      replyTo: "editor@brand.example",
+    });
+    expect(context.domain).toBeNull();
+    expect(context.sender.from).toContain("via Sokosumi");
+  });
+
+  it("resumes by clearing only pause fields, preserving the ramp and cap usage", async () => {
+    m.findUnique.mockResolvedValue({
+      ...ROW,
+      status: "VERIFIED",
+      warmupStartedAt: NOW,
+      warmupPausedAt: NOW,
+      warmupPauseReason: "BOUNCE_RATE",
+    });
+    await resumeNewsletterSendingDomainWarmup(WORKSPACE_ID);
+    expect(m.update).toHaveBeenCalledWith({
+      where: { id: ROW.id },
+      data: { warmupPausedAt: null, warmupPauseReason: null },
+    });
+  });
+
+  it("refuses to resume an unverified or pre-warm-up domain", async () => {
+    await expect(
+      resumeNewsletterSendingDomainWarmup(WORKSPACE_ID),
+    ).rejects.toMatchObject({ status: 409 });
+    m.findUnique.mockResolvedValue({ ...ROW, status: "VERIFIED" });
+    await expect(
+      resumeNewsletterSendingDomainWarmup(WORKSPACE_ID),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(m.update).not.toHaveBeenCalled();
   });
 });

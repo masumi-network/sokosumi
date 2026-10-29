@@ -183,6 +183,11 @@ model NewsletterSend {
   subscriberId String               @db.Uuid
   subscriber   NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade, map: "newsletter_send_subscriberId_fkey")
 
+  sendingDomainId String?                  @db.Uuid
+  sendingDomain   NewsletterSendingDomain? @relation(fields: [sendingDomainId], references: [id], onDelete: SetNull, map: "newsletter_send_sendingDomainId_fkey")
+  /// Legacy senders omit this; only the retryable queue explicitly writes null.
+  attemptedAt     DateTime?                @default(now())
+
   /// Unset until Resend accepts the queued send.
   providerMessageId String?              @unique(map: "newsletter_send_providerMessageId_key")
   status            NewsletterSendStatus @default(QUEUED)
@@ -193,6 +198,8 @@ model NewsletterSend {
 
   @@unique([issueId, subscriberId], map: "newsletter_send_issueId_subscriberId_key")
   @@index([subscriberId], map: "newsletter_send_subscriberId_idx")
+  @@index([issueId, status, attemptedAt], map: "newsletter_send_issueId_status_attemptedAt_idx")
+  @@index([sendingDomainId, attemptedAt], map: "newsletter_send_sendingDomainId_attemptedAt_idx")
   @@map("newsletter_send")
 }
 
@@ -213,6 +220,7 @@ model NewsletterEvent {
 
   type            NewsletterEventType
   url             String?
+  bounceType      String?
   occurredAt      DateTime            @default(now())
   /// Local subscription events need no provider id.
   providerEventId String?             @unique(map: "newsletter_event_providerEventId_key")
@@ -242,6 +250,14 @@ model NewsletterSendingDomain {
   dnsRecords     Json                          @default("[]")
   lastCheckedAt  DateTime?
   failureReason  String?
+
+  warmupStartedAt    DateTime?
+  warmupPausedAt     DateTime?
+  warmupPauseReason  String?
+  warmupSentOnDayUtc DateTime?
+  warmupSentCount    Int       @default(0)
+
+  sends NewsletterSend[]
 
   @@map("newsletter_sending_domain")
 }

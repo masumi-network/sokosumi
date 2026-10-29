@@ -17,6 +17,17 @@ export const newsletterDnsRecordSchema = z
 
 export const newsletterDnsRecordsSchema = z.array(newsletterDnsRecordSchema);
 
+export const newsletterSendingDomainWarmupSchema = z
+  .object({
+    startedAt: dateTimeSchema.nullable(),
+    day: z.number().int().min(0).nullable(),
+    dailyCap: z.number().int().min(0).nullable(),
+    sentToday: z.number().int().min(0),
+    pausedAt: dateTimeSchema.nullable(),
+    pauseReason: z.enum(["BOUNCE_RATE", "COMPLAINT_RATE"]).nullable(),
+  })
+  .openapi("NewsletterSendingDomainWarmup");
+
 export const newsletterSendingDomainSchema = z
   .object({
     id: z.uuid(),
@@ -29,6 +40,7 @@ export const newsletterSendingDomainSchema = z
     lastCheckedAt: dateTimeSchema.nullable(),
     failureReason: z.string().nullable(),
     createdAt: dateTimeSchema,
+    warmup: newsletterSendingDomainWarmupSchema,
   })
   .openapi("NewsletterSendingDomain");
 

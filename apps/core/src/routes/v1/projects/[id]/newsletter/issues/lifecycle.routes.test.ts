@@ -467,7 +467,7 @@ describe("newsletter approval and delivery", () => {
     expect(response.status).toBe(200);
     expect(m.sendingDomain).toHaveBeenCalledWith({
       where: { workspaceId: NEWSLETTER_WORKSPACE_ID },
-      select: { fromAddress: true, status: true },
+      select: { fromAddress: true, status: true, warmupPausedAt: true },
     });
   });
   it.each(["2026-10-23T10:00:59Z", "2027-10-23T10:00:01Z"])(

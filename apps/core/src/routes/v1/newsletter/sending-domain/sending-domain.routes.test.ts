@@ -12,6 +12,7 @@ import mountDelete from "./delete";
 import mountDomainConnect from "./domain-connect/get";
 import mountGet from "./get";
 import mountPut from "./put";
+import mountResume from "./warmup/resume/post";
 
 const WORKSPACE_ID = "019a0000-0000-7000-8000-000000000001";
 const TOKEN = "cf-secret-token-0123456789abcdef";
@@ -25,6 +26,14 @@ const DOMAIN = {
   lastCheckedAt: null,
   failureReason: null,
   createdAt: new Date(NOW),
+  warmup: {
+    startedAt: null,
+    day: null,
+    dailyCap: null,
+    sentToday: 0,
+    pausedAt: null,
+    pauseReason: null,
+  },
 };
 
 const m = vi.hoisted(() => ({
@@ -36,6 +45,7 @@ const m = vi.hoisted(() => ({
   remove: vi.fn(),
   cloudflare: vi.fn(),
   connect: vi.fn(),
+  resume: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -60,6 +70,7 @@ vi.mock("@/services/newsletter-sending-domain.service", async (original) => ({
   removeNewsletterSendingDomain: m.remove,
   connectNewsletterSendingDomainWithCloudflare: m.cloudflare,
   getNewsletterSendingDomainConnect: m.connect,
+  resumeNewsletterSendingDomainWarmup: m.resume,
 }));
 
 const USER: AuthenticationContext = {
@@ -104,6 +115,7 @@ function createApp(auth: AuthenticationContext = USER) {
     mountCheck,
     mountCloudflare,
     mountDomainConnect,
+    mountResume,
   ]) {
     mount(app);
   }
@@ -115,6 +127,7 @@ const MUTATIONS = [
   ["PUT", "/sending-domain", { fromAddress: "news@brand.example" }],
   ["DELETE", "/sending-domain", undefined],
   ["POST", "/sending-domain/check", undefined],
+  ["POST", "/sending-domain/warmup/resume", undefined],
   ["POST", "/sending-domain/cloudflare", { apiToken: TOKEN }],
   ["GET", "/sending-domain/domain-connect", undefined],
 ] as const;
@@ -141,6 +154,7 @@ beforeEach(() => {
   m.get.mockResolvedValue(DOMAIN);
   m.put.mockResolvedValue(DOMAIN);
   m.check.mockResolvedValue(DOMAIN);
+  m.resume.mockResolvedValue(DOMAIN);
   m.cloudflare.mockResolvedValue(DOMAIN);
   m.connect.mockResolvedValue(null);
 });
@@ -186,6 +200,7 @@ describe("sending domain mutations", () => {
       expect(m.put).toHaveBeenCalledWith(WORKSPACE_ID, "news@brand.example");
       expect(m.cloudflare).toHaveBeenCalledWith(WORKSPACE_ID, TOKEN);
       expect(m.remove).toHaveBeenCalledWith(WORKSPACE_ID);
+      expect(m.resume).toHaveBeenCalledWith(WORKSPACE_ID);
     },
   );
 
@@ -230,5 +245,35 @@ describe("sending domain mutations", () => {
     ]);
     expect(response.status).toBe(422);
     expect(await response.text()).not.toContain("short-token");
+  });
+});
+
+it("returns warm-up status for ordinary members", async () => {
+  m.member.mockResolvedValue({ role: "member" });
+  m.get.mockResolvedValue({
+    ...DOMAIN,
+    status: "VERIFIED",
+    warmup: {
+      startedAt: new Date(NOW),
+      day: 0,
+      dailyCap: 50,
+      sentToday: 17,
+      pausedAt: new Date(NOW),
+      pauseReason: "BOUNCE_RATE",
+    },
+  });
+  const response = await createApp().request("/sending-domain");
+  expect(response.status).toBe(200);
+  expect((await response.json()).data).toMatchObject({
+    canManage: false,
+    sendingDomain: {
+      warmup: {
+        day: 0,
+        dailyCap: 50,
+        sentToday: 17,
+        pausedAt: NOW,
+        pauseReason: "BOUNCE_RATE",
+      },
+    },
   });
 });

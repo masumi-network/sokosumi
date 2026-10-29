@@ -3665,7 +3665,20 @@
             "domainRejected": "Este dominio no se puede usar. Revisa la dirección e inténtalo de nuevo.",
             "providerFailed": "El proveedor de correo no respondió. Inténtalo de nuevo en un minuto.",
             "cloudflareRejected": "Cloudflare rechazó el token. Comprueba que tenga Zone · DNS · Edit para la zona de este dominio.",
-            "cloudflareFailed": "Cloudflare no respondió. Inténtalo de nuevo en un minuto."
+            "cloudflareFailed": "Cloudflare no respondió. Inténtalo de nuevo en un minuto.",
+            "resumeUnavailable": "Verifica este dominio de envío antes de reanudar. Comprueba sus registros DNS e inténtalo de nuevo."
+          },
+          "warmup": {
+            "title": "Calentamiento del dominio",
+            "progress": "Día {day} · {used} de {cap} enviados hoy (UTC)",
+            "unlimited": "Día {day} · {used} enviados hoy (UTC) · Sin límite",
+            "description": "Los destinatarios que superan el límite de hoy siguen en cola y reciben el boletín automáticamente cuando vuelve a haber capacidad. El límite diario se restablece a las 00:00 UTC.",
+            "paused": "Envío pausado",
+            "bounceReason": "Demasiados correos tuvieron rebotes permanentes.",
+            "complaintReason": "Demasiados destinatarios marcaron los correos como spam.",
+            "pausedDescription": "Los destinatarios siguen en cola hasta que la persona propietaria o un administrador del espacio de trabajo reanude el envío. Revisa antes la lista de suscriptores.",
+            "resume": "Reanudar envío",
+            "resumed": "Envío reanudado. Los destinatarios en cola recibirán el boletín dentro del límite diario."
           }
         }
       }
