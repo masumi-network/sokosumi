@@ -195,7 +195,11 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createWorkspace": "Workspace erstellen",
-      "userAvatarAlt": "Nutzer-Avatar"
+      "userAvatarAlt": "Nutzer-Avatar",
+      "inviteMembers": "Mitglieder einladen",
+      "organizationSettings": "Einstellungen",
+      "membersAndSettings": "Mitglieder & Einstellungen",
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Mitglieder gesammelt einladen",
-        "description": "Füge E-Mail-Adressen ein, um mehrere Mitglieder gleichzeitig einzuladen.",
+        "title": "Mitglieder einladen",
+        "description": "Füge eine oder mehrere E-Mail-Adressen ein.",
         "label": "E-Mail-Adressen",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Trenne E-Mail-Adressen mit Kommas, Semikolons oder Zeilenumbrüchen.",
@@ -2330,6 +2334,7 @@
         "activity": {
           "title": "Letzte Aktivität",
           "empty": "Noch keine Aktivität in offenen Projekten.",
+          "emptyProject": "Noch keine Aktivität in diesem Projekt.",
           "error": "Fehler beim Laden der letzten Aktivität.",
           "showAll": "Alle anzeigen",
           "untitledJob": "Job ohne Namen",
@@ -2992,6 +2997,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Letztes Update",
+        "stats": {
+          "label": "Aufgabenzahlen",
+          "running": "Läuft",
+          "waiting": "Wartet",
+          "done": "Erledigt"
+        },
         "emptyBriefing": "Noch kein Briefing.",
         "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",

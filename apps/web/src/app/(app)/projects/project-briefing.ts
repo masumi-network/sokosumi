@@ -1,7 +1,6 @@
 export const PROJECT_NAME_MAX_LENGTH = 200;
 export const PROJECT_BRIEFING_MAX_LENGTH = 20_000;
 export const BRIEFING_WORD_TARGET = 300;
-export const BRIEFING_COLLAPSE_CHAR_THRESHOLD = 480;
 
 export const BRIEFING_CHIP_IDS = [
   "goals",
