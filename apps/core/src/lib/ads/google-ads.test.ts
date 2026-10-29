@@ -1581,7 +1581,22 @@ describe("createGoogleCampaign for Display", () => {
         },
       })}`;
 
-    it("raises 422 naming the image when Google rejects an upload, and stops there", async () => {
+    it("raises 422 naming the image when Google rejects the first upload", async () => {
+      executeToolMock.mockRejectedValueOnce(
+        new ComposioToolError({
+          message: "refused",
+          providerMessage: failure("The image is too small."),
+        }),
+      );
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: 'Image "wide.png": The image is too small.',
+      });
+      expect(calls()).toHaveLength(1);
+      expect(deleteSessionMock).toHaveBeenCalled();
+    });
+
+    it("raises a tool error when a later upload fails after assets were written", async () => {
       executeToolMock
         .mockResolvedValueOnce(assetResult(100))
         .mockRejectedValueOnce(
@@ -1591,7 +1606,7 @@ describe("createGoogleCampaign for Display", () => {
           }),
         );
       await expect(createGoogleCampaign(create)).rejects.toMatchObject({
-        status: 422,
+        name: "ComposioToolError",
         message: 'Image "square.jpg": The image is too small.',
       });
       expect(calls()).toHaveLength(2);
@@ -1628,7 +1643,7 @@ describe("createGoogleCampaign for Display", () => {
       expect(calls()).toHaveLength(1);
     });
 
-    it("raises the tree failure after the uploads without retrying", async () => {
+    it("raises a tool error for the tree failure after the uploads without retrying", async () => {
       executeToolMock
         .mockResolvedValueOnce(assetResult(100))
         .mockResolvedValueOnce(assetResult(101))
@@ -1640,7 +1655,7 @@ describe("createGoogleCampaign for Display", () => {
           }),
         );
       await expect(createGoogleCampaign(create)).rejects.toMatchObject({
-        status: 422,
+        name: "ComposioToolError",
         message: "Destination not working",
       });
       expect(calls()).toHaveLength(4);

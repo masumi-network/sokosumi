@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  pathname: "/tasks",
   search: "",
   push: vi.fn(),
   fetch: vi.fn(),
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/tasks",
+  usePathname: () => mocks.pathname,
   useSearchParams: () => new URLSearchParams(mocks.search),
   useRouter: () => ({ push: mocks.push }),
 }));
@@ -42,6 +43,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 }));
 
 import { HeaderProjectScope } from "./header-project-scope";
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 
 function renderScope() {
   const client = new QueryClient({
@@ -60,6 +62,7 @@ function trigger() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.pathname = "/tasks";
   mocks.search = "";
   mocks.fetch.mockImplementation(() =>
     Promise.resolve(
@@ -69,6 +72,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.loadPinned.mockResolvedValue([]);
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -89,6 +93,68 @@ describe("header project scope", () => {
 
     await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
     expect(trigger()).toHaveTextContent("Acme");
+  });
+
+  it("badges a Closed project the menu does not list", async () => {
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() =>
+      expect(trigger()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(screen.getByTestId("project-scope-closed-badge")).toHaveTextContent(
+      "closed",
+    );
+  });
+
+  it("badges nothing for an open project", async () => {
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
+    expect(screen.queryByTestId("project-scope-closed-badge")).toBeNull();
+  });
+
+  it("shows no clear button when no project is picked", () => {
+    renderScope();
+
+    expect(
+      screen.queryByRole("button", { name: "clearProject" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears the picked project back to All projects", async () => {
+    const user = userEvent.setup();
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await user.click(screen.getByRole("button", { name: "clearProject" }));
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/tasks");
+    expect(trigger()).toHaveFocus();
+  });
+
+  it("clears a remembered project on a page without its own scope", async () => {
+    const user = userEvent.setup();
+    const storageKey = JSON.stringify([
+      "sokosumi.project-scope.v1",
+      "user-1",
+      "org-1",
+    ]);
+    mocks.pathname = "/chat";
+    sessionStorage.setItem(storageKey, "p-1");
+    renderScope();
+
+    await user.click(screen.getByRole("button", { name: "clearProject" }));
+
+    expect(sessionStorage.getItem(storageKey)).toBeNull();
+    expect(trigger()).toHaveTextContent("allProjects");
+    expect(trigger()).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "clearProject" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/chat");
   });
 
   it("shows the up/down chevron after the name", () => {

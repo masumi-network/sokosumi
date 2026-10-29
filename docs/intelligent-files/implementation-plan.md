@@ -24,5 +24,3 @@ needs `AI_GATEWAY_API_KEY`.
   models) in `packages/database/prisma/schema.prisma`
 - Core Jev: `apps/core/src/lib/files/` (`jev-client.ts`, `jev-request.ts`,
   `jev-rubrics.ts`, `jev-scheduler.ts`)
-
-Remaining Files UX lives in Linear and open Files PRs, not in this note.

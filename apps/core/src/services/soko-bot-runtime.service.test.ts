@@ -7215,7 +7215,7 @@ describe("Soko Bot project social tools", () => {
             toolCallId: "ads-wrong-audience",
             input: { projectId },
           }),
-        ).rejects.toThrow("only available for the owner");
+        ).rejects.toThrow("Project ads tools are only available for the owner");
         expect(ads.accounts).not.toHaveBeenCalled();
       },
     );

@@ -35,7 +35,6 @@ const LIST_CAMPAIGNS = "METAADS_LIST_CAMPAIGNS";
 const GET_INSIGHTS = "METAADS_GET_INSIGHTS";
 const GET_OBJECT = "METAADS_GET_OBJECT";
 const UPDATE_CAMPAIGN = "METAADS_UPDATE_CAMPAIGN";
-const DELETE_CAMPAIGN = "METAADS_DELETE_CAMPAIGN";
 const CREATE_CAMPAIGN = "METAADS_CREATE_CAMPAIGN";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
@@ -329,9 +328,10 @@ export async function updateMetaCampaign(
 }
 
 /**
- * Deletes a campaign. The delete tool takes only a campaign id, so the object
- * is read first, as for an update: it must be a campaign of the attached ad
- * account, else 404. That is the only refusal point; the delete is one call.
+ * Deletes a campaign by setting its status to DELETED through the update path.
+ * The object is read first, as for an update: it must be a campaign of the
+ * attached ad account, else 404. That is the only refusal point; the write is
+ * one call.
  */
 export async function deleteMetaCampaign(
   input: AdsConnectedAccount & { adAccountId: string; campaignId: string },
@@ -342,13 +342,14 @@ export async function deleteMetaCampaign(
     {
       ...connected,
       toolkit: PROJECT_AD_PROVIDERS.meta_ads,
-      toolSlugs: [GET_OBJECT, DELETE_CAMPAIGN],
+      toolSlugs: [GET_OBJECT, UPDATE_CAMPAIGN],
     },
     async (execute) => {
       await lookUpMetaCampaign(execute, adAccountId, campaignId);
 
-      const result = await execute(DELETE_CAMPAIGN, {
+      const result = await execute(UPDATE_CAMPAIGN, {
         campaign_id: campaignId,
+        status: "DELETED",
       });
       if (!metaSuccessSchema.safeParse(result).success) {
         throw new ComposioToolError({

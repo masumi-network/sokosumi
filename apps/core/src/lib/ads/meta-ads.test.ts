@@ -551,7 +551,7 @@ describe("deleteMetaCampaign", () => {
   const writes = () =>
     executeToolMock.mock.calls
       .map(([call]) => call)
-      .filter((call) => call.toolSlug === "METAADS_DELETE_CAMPAIGN");
+      .filter((call) => call.toolSlug === "METAADS_UPDATE_CAMPAIGN");
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -563,19 +563,19 @@ describe("deleteMetaCampaign", () => {
     );
   });
 
-  it("reads the campaign's account, then deletes it in one call", async () => {
+  it("reads the campaign's account, then sets status DELETED in one call", async () => {
     await deleteMetaCampaign(remove);
     expect(executeToolMock.mock.calls[0]?.[0]).toMatchObject({
       toolSlug: "METAADS_GET_OBJECT",
       arguments: { object_id: "10" },
     });
     expect(writes().map((call) => call.arguments)).toEqual([
-      { campaign_id: "10" },
+      { campaign_id: "10", status: "DELETED" },
     ]);
     expect(createSessionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         toolkitSlug: "metaads",
-        toolSlugs: ["METAADS_GET_OBJECT", "METAADS_DELETE_CAMPAIGN"],
+        toolSlugs: ["METAADS_GET_OBJECT", "METAADS_UPDATE_CAMPAIGN"],
       }),
     );
     expect(deleteSessionMock).toHaveBeenCalled();

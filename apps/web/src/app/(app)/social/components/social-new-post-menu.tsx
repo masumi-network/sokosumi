@@ -157,7 +157,6 @@ export function SocialNewPostMenu({
             className="max-h-96"
             selectedProjectId={project?.id ?? null}
             onSelect={(projectId) => {
-              if (!projectId) return;
               const query = new URLSearchParams({
                 projectId,
                 compose: "new",

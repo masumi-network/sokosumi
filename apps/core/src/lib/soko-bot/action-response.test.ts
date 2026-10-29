@@ -804,18 +804,26 @@ describe("authoritative action responses", () => {
   });
 
   it.each([
-    ["update_ad_campaign", "Updated ad campaign"],
-    ["edit_ad_campaign", "Edited ad campaign"],
+    [
+      "update_ad_campaign",
+      "Updated ad campaign",
+      { campaignId: "123", updated: true as const },
+    ],
+    [
+      "edit_ad_campaign",
+      "Edited ad campaign",
+      { campaignId: "123", edited: true as const },
+    ],
   ])(
     "reports %s with a link to open the campaign",
-    async (capability, label) => {
+    async (capability, label, proof) => {
       const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
       db.sokoBotToolCall.findMany.mockResolvedValueOnce([
         receipt({
           capability,
           targetId: "123",
           verification: "PROVIDER_ACK",
-          result: { campaignId: "123", updated: true, link },
+          result: { ...proof, link },
         }),
       ]);
       const response = await buildActionResponse(

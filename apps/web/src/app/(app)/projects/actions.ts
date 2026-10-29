@@ -6,12 +6,18 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-import { PROJECTS_PAGE_LIMIT } from "./constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  type ProjectsListState,
+  projectsListStateQuery,
+} from "./constants";
 
 interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
   /** Carries the active name filter so later pages stay inside it. */
   query?: string;
+  /** Carries the Open/Closed view; its cursor only makes sense inside it. */
+  state: ProjectsListState;
 }
 
 export const loadMoreProjects = withSession<
@@ -22,11 +28,12 @@ export const loadMoreProjects = withSession<
     >["projects"];
     nextCursor: string | null;
   }
->(async ({ cursor, query }) => {
+>(async ({ cursor, query, state }) => {
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,
     query,
+    ...projectsListStateQuery(state),
   });
 
   return {

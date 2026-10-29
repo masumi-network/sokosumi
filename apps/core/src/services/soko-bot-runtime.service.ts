@@ -611,11 +611,11 @@ export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
 
 /**
- * Runs an ads service call. Its refusals come before the provider is called,
- * and Google checks a create as one atomic batch, so a refused call created
- * no campaign (Display images uploaded before it may remain) and the model may
- * fix it and retry. A provider failure leaves the outcome unknown and is never
- * retried. Anything else is a bug and propagates.
+ * Runs an ads service call. 4xx refusals happen before the provider write, or
+ * as an atomic Google batch with nothing left behind, so the model may fix and
+ * retry (REJECTED). 5xx and Composio failures leave the outcome unknown and
+ * are never retried. Display image uploads that already wrote assets rethrow as
+ * ComposioToolError so they take the unknown path too.
  */
 async function callAds<T>(call: () => Promise<T>): Promise<T> {
   try {
@@ -5450,15 +5450,14 @@ export class SokoBotRuntimeService {
   private async requireSocialAccess(
     authorized: AuthorizedSokoBotRuntime,
     tx: Prisma.TransactionClient = prisma,
+    ownerMessage = "Project social tools are only available for the owner",
   ) {
     if (
       authorized.turn.chainDepth > 0 ||
       authorized.askedByKind === "ASSISTANT" ||
       authorized.askedByKind === "TEAMMATE"
     ) {
-      throw new SokoBotRuntimeAuthorizationError(
-        "Project social tools are only available for the owner",
-      );
+      throw new SokoBotRuntimeAuthorizationError(ownerMessage);
     }
     const userId = actingMemberOf(authorized);
     const owner = await tx.user.findUnique({
@@ -5499,7 +5498,11 @@ export class SokoBotRuntimeService {
       projectId,
     ]);
     if (refusal) throw new SokoBotRefusedUnsentError(refusal);
-    const workspace = await this.requireSocialAccess(authorized);
+    const workspace = await this.requireSocialAccess(
+      authorized,
+      prisma,
+      "Project ads tools are only available for the owner",
+    );
     await requireSocialBetaAccess(actingMemberOf(authorized), prisma);
     return workspace;
   }

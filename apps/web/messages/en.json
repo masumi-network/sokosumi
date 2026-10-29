@@ -2289,7 +2289,22 @@
             "dispute_pending": "Dispute",
             "dispute_resolved": "Resolved"
           }
-        }
+        },
+        "emptyClosed": {
+          "title": "No closed projects",
+          "description": "A project you close moves here, with its history kept."
+        },
+        "onlyClosed": {
+          "title": "All projects are closed",
+          "description": "Closed projects keep their history in the Closed view.",
+          "action": "Show closed projects"
+        },
+        "state": {
+          "label": "Show projects",
+          "open": "Open",
+          "closed": "Closed"
+        },
+        "closed": "Closed"
       },
       "Briefing": {
         "label": "Briefing",
@@ -4354,6 +4369,8 @@
           "newTask": "New task",
           "search": "Search",
           "home": "Home",
+          "projects": "Projects",
+          "overview": "Overview",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
           "taskManager": "Tasks",
@@ -9189,13 +9206,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
+      "clearProject": "Clear project",
       "close": "Close",
       "label": "Project",
       "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
-      "recent": "Recent",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",
       "empty": "No projects found.",
@@ -9203,7 +9219,7 @@
       "error": "Projects could not load.",
       "retry": "Try again",
       "create": "Create project",
-      "manage": "Manage projects",
+      "closed": "Closed",
       "current": "(current)",
       "searching": "Searching projects..."
     },

@@ -2289,7 +2289,22 @@
             "dispute_pending": "Disputa",
             "dispute_resolved": "Resuelto"
           }
-        }
+        },
+        "emptyClosed": {
+          "title": "No hay proyectos cerrados",
+          "description": "Un proyecto que cierras pasa aquí y conserva su historial."
+        },
+        "onlyClosed": {
+          "title": "Todos los proyectos están cerrados",
+          "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
+          "action": "Ver proyectos cerrados"
+        },
+        "state": {
+          "label": "Mostrar proyectos",
+          "open": "Abiertos",
+          "closed": "Cerrados"
+        },
+        "closed": "Cerrado"
       },
       "Briefing": {
         "label": "Briefing",
@@ -4354,6 +4369,8 @@
           "newTask": "Nueva tarea",
           "search": "Buscar",
           "home": "Inicio",
+          "projects": "Proyectos",
+          "overview": "Resumen",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
@@ -9189,13 +9206,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
+      "clearProject": "Quitar proyecto",
       "close": "Cerrar",
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
-      "recent": "Recientes",
       "all": "Proyectos",
       "searchPlaceholder": "Buscar un proyecto...",
       "empty": "No se encontraron proyectos.",
@@ -9203,7 +9219,7 @@
       "error": "No se pudieron cargar los proyectos.",
       "retry": "Reintentar",
       "create": "Crear proyecto",
-      "manage": "Gestionar proyectos",
+      "closed": "Cerrado",
       "current": "(actual)",
       "searching": "Buscando proyectos..."
     },
