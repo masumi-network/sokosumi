@@ -1,6 +1,12 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -630,6 +636,23 @@ describe("RoomsClient room header chrome", () => {
     await user.click(trigger);
     expect(screen.queryByTestId("thread-list-panel")).toBeNull();
     expect(screen.getByTestId("room-roster-panel")).toBeTruthy();
+  });
+
+  it("offers Message on a person in the roster from the personal workspace", async () => {
+    const user = userEvent.setup();
+    const group = { ...groupDirectRoom(), organizationId: null };
+    renderRoomsClient(
+      { ...roomClientProps(group), activeOrganization: null },
+      { wrapper: TestQueryProvider },
+    );
+
+    await user.click(await screen.findByTestId("room-roster-trigger"));
+
+    const bobRow = screen
+      .getAllByTestId("room-roster-member")
+      .find((row) => within(row).queryByText("Bob"));
+    expect(bobRow).toBeDefined();
+    expect(within(bobRow!).getByTitle("RoomRoster.message")).toBeEnabled();
   });
 
   it("hides the roster control on human 1:1 directs", async () => {

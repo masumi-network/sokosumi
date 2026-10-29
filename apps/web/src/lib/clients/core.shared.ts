@@ -80,6 +80,7 @@ import type {
   GetWorkspacesCalendarSourcesData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
+  ListChatPeopleData,
   NewsletterIssueRevisionRequest,
   Notice,
   PaginationMetadata,
@@ -246,8 +247,6 @@ import {
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
-  getChatsSignalsNeedsYou as coreGetChatsSignalsNeedsYou,
-  getChatsSignalsOpenLoops as coreGetChatsSignalsOpenLoops,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
   getChatsSignalsSummary as coreGetChatsSignalsSummary,
@@ -369,6 +368,7 @@ import {
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
   listAdminVendors as coreListAdminVendors,
+  listChatPeople as coreListChatPeople,
   listCoworkerAssignments as coreListCoworkerAssignments,
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
@@ -1386,6 +1386,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listChatPeople(query?: ListChatPeopleData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListChatPeople({ client, query, cache: "no-store" }),
+      "Failed to fetch chat people",
+    );
+  }
+
   async function updateChatRoom(
     id: string,
     body: NonNullable<PatchChatsRoomsByIdData["body"]>,
@@ -1630,22 +1638,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch pinned messages",
-    );
-  }
-
-  async function getChatNeedsYou() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetChatsSignalsNeedsYou({ client, cache: "no-store" }),
-      "Failed to fetch messages that need you",
-    );
-  }
-
-  async function getChatOpenLoops() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetChatsSignalsOpenLoops({ client, cache: "no-store" }),
-      "Failed to fetch open loops",
     );
   }
 
@@ -6477,6 +6469,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     subscribeTaskParticipant,
     getChatRoom,
+    listChatPeople,
     getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomMessage,
@@ -6500,8 +6493,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     unpinChatRoom,
     reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
-    getChatNeedsYou,
-    getChatOpenLoops,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
     getChatRoomDecisions,

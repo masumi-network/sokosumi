@@ -29,6 +29,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
@@ -763,18 +764,32 @@ export function ChannelMessageText({
                 className="my-2 flex w-full min-w-0 max-w-full flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
-                {segment.links.map((link) => (
-                  <FileChipMiniPreviewFrame
-                    key={`${link.index}-${link.url}`}
-                    url={link.url}
-                    fileName={link.fileName}
-                    variant={useLargeImage ? "large" : "thumb"}
-                    sizeClass={useLargeImage ? undefined : "size-16"}
-                    onOpenImage={() => {
-                      setOpenImageSrc(link.url);
-                    }}
-                  />
-                ))}
+                {segment.links.map((link) =>
+                  /^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\/stickers\//.test(
+                    link.url,
+                  ) ? (
+                    <Image
+                      key={`${link.index}-${link.url}`}
+                      src={link.url}
+                      alt={link.fileName}
+                      width={160}
+                      height={160}
+                      unoptimized
+                      className="size-40 object-contain"
+                    />
+                  ) : (
+                    <FileChipMiniPreviewFrame
+                      key={`${link.index}-${link.url}`}
+                      url={link.url}
+                      fileName={link.fileName}
+                      variant={useLargeImage ? "large" : "thumb"}
+                      sizeClass={useLargeImage ? undefined : "size-16"}
+                      onOpenImage={() => {
+                        setOpenImageSrc(link.url);
+                      }}
+                    />
+                  ),
+                )}
               </div>
             );
           }

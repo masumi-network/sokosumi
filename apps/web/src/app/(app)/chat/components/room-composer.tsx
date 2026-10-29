@@ -56,6 +56,7 @@ import {
 } from "@/components/chat/room-message-composer";
 import { ComposerSkillChips } from "@/components/chat/skill-chip";
 import { SkillPicker } from "@/components/chat/skill-picker";
+import { StickerPicker } from "@/components/chat/sticker-picker";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -783,6 +784,24 @@ export function RoomComposer({
                 editorRef.current?.insertText(emoji);
               }}
             />
+            {allowAttachments && currentUserId ? (
+              <StickerPicker
+                userId={currentUserId}
+                triggerClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                disabled={isSending}
+                onPick={(sticker) => {
+                  onAttachmentsChange((current) => [
+                    ...current,
+                    {
+                      url: sticker.url,
+                      fileName: sticker.name,
+                      mediaType: null,
+                    },
+                  ]);
+                  editorRef.current?.focus();
+                }}
+              />
+            ) : null}
             {onSkillsChange ? (
               <SkillPicker
                 selected={skills}

@@ -1,18 +1,22 @@
 ---
 name: linear-requirement
 description: >-
-  Draft and file a Sokosumi Linear requirement issue (## Requirement) after user
-  approval. Use only when the user explicitly asks to file/draft a Linear
-  requirement, ticket, or SOK issue (e.g. "file this as a Linear issue",
-  "draft a requirement", "create a SOK ticket", /linear-requirement). Never use
-  under implement, bug-fix, feature, refactor, PR review, or
-  casual chat about a bug/feature when the user did not ask to file a ticket.
+  RETIRED for the Sokosumi monorepo: requirements are Sokosumi Tasks now. If
+  invoked, redirect to the sokosumi skill and docs/agents/issue-tracker.md.
+  Do not file Linear issues for this repo. Historical Linear-only installs may
+  still use the files in this folder.
 disable-model-invocation: true
 ---
 
 # linear-requirement
 
-You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough to start work later, not a final spec.
+**Retired for this repository.** Specs and tickets live as Sokosumi Tasks. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/SKILL.md) and follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md). Draft in chat, wait for approval, then `sokosumi --preprod tasks create|update … --description-file …`.
+
+Do **not** call Linear CLI or Linear MCP for new Sokosumi monorepo work. The rest of this file is historical for out-of-repo Linear installs only.
+
+---
+
+You are the **requirement agent** (legacy Linear path). Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough to start work later, not a final spec.
 
 **Explicit ask only.** Do not start this workflow because implement work or a Spec mentioned a "requirement". The user must ask to draft or file a Linear issue (or invoke this skill).
 

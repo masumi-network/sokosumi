@@ -346,6 +346,27 @@ describe("GET /chats/rooms/{id}", () => {
     expect(body.data.peerInActiveOrganization).toBe(false);
   });
 
+  it("opens a hosted External channel for a host member from another workspace", async () => {
+    roomFindFirstMock.mockResolvedValue({
+      ...room(),
+      discoverability: "external",
+    });
+
+    const response = await createApp({
+      ...userAuthContext,
+      organizationId: "org_other",
+    }).request(`/${ROOM_ID}`);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      id: ROOM_ID,
+      organizationId: ORG_ID,
+      discoverability: "external",
+      myAccess: "member",
+    });
+  });
+
   it("returns 404 when the room is missing", async () => {
     roomFindFirstMock.mockResolvedValue(null);
 

@@ -8,6 +8,7 @@ import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-vie
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
+import { isShownInEveryWorkspace } from "@/lib/chat/room-workspace-scope";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { userService } from "@/lib/services/user.service";
@@ -41,21 +42,6 @@ interface ChatRoomShellProps {
 }
 
 const ROOM_UNAVAILABLE_HREF = "/?notice=room-unavailable";
-
-/** Org-less matched channels open via roster membership, not host-org context. */
-function isMatchedMemberChannel(
-  room: Pick<
-    ChatRoom,
-    "organizationId" | "kind" | "discoverability" | "myAccess"
-  >,
-): boolean {
-  return (
-    room.organizationId === null &&
-    room.kind === "channel" &&
-    room.discoverability === "matched" &&
-    room.myAccess === "member"
-  );
-}
 
 function NoOrganizationCard({
   title,
@@ -144,12 +130,11 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       redirect(ROOM_UNAVAILABLE_HREF);
     }
 
-    const isPersonalDirect =
+    // Personal AI 1:1s belong to the personal workspace.
+    const isPersonalWorkspaceDirect =
       selectedRoom.organizationId === null && selectedRoom.kind === "direct";
-    const isGuestRoom = selectedRoom.myAccess === "guest";
-    const isMatchedRoom = isMatchedMemberChannel(selectedRoom);
 
-    if (!isPersonalDirect && !isGuestRoom && !isMatchedRoom) {
+    if (!isPersonalWorkspaceDirect && !isShownInEveryWorkspace(selectedRoom)) {
       return (
         <NoOrganizationCard
           title={t("NoOrganization.title")}
@@ -187,14 +172,10 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 
-  const isHostOrgRoom = selectedRoom.organizationId === activeOrganization.id;
-  const isGuestRoom = selectedRoom.myAccess === "guest";
-  const isPersonalDirect =
-    selectedRoom.organizationId === null &&
-    selectedRoom.kind === "direct" &&
-    selectedRoom.coworkerMembers.length === 0;
-  const isMatchedRoom = isMatchedMemberChannel(selectedRoom);
-  if (!isHostOrgRoom && !isGuestRoom && !isPersonalDirect && !isMatchedRoom) {
+  if (
+    selectedRoom.organizationId !== activeOrganization.id &&
+    !isShownInEveryWorkspace(selectedRoom)
+  ) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 

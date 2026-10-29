@@ -18,21 +18,20 @@ networkConcurrency: 8
 overrides:
   # js-yaml GHSA-2883-xcg3-v3hh (CVE-2026-84375) patched in 4.3.2;
   # GHSA-5p4m-2wfm-xmqj patched in 4.3.1; GHSA-52cp-r559-cp3m patched in 4.3.0.
-  # 2026-10-27 re-resolve with overrides removed landed only js-yaml@4.2.0 via
+  # 2026-10-29 re-resolve with overrides removed landed only js-yaml@4.2.0 via
   # @hey-api/json-schema-ref-parser@1.4.4 (latest; still depends on 4.2.0).
-  # 4.3.2 is the latest 4.x patch. 5.x is a separate major.
+  # 4.3.2 is the latest 4.x patch. OSV reports no advisories against 4.3.2.
+  # 5.x is a separate major (5.5.0); its advisories are not the 4.x set.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c.
   # Patched floors are 6.29.1, 7.30.1, and 8.12.2.
-  # 2026-10-27 re-resolve with overrides removed already landed only
-  # undici@6.29.1 and undici@7.30.1, so those pins were dropped.
-  # undici@8 still landed 8.10.2 from eve@0.83.2 plus an unrelated 8.12.3
-  # from @scalar/json-magic. eve@0.84.0 still declares undici 8.10.2.
-  # Latest 8.x patch is 8.12.3.
+  # 2026-10-29 re-resolve with this override emptied (eve@0.87.0, lockfile-only)
+  # landed undici@6.29.1, undici@7.30.1, undici@8.12.3, and undici@8.10.2.
+  # 8.10.2 is eve@0.87.0's direct dependency and is still below the 8.12.2 floor,
+  # so the 8.x pin stays. 6.x and 7.x pins stay dropped. 8.12.3 is the latest 8.x.
   "undici@8": "8.12.3"
-  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. Fresh re-resolve without the override
-  # already lands only esbuild@0.28.2 (patched). tsup 9 / tsx ~0.28 / react-email
-  # ^0.28 / vite peer all resolve to 0.28.2; no 0.27.x remains.
+  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-10-29 re-resolve without an
+  # override still lands only esbuild@0.28.2 (patched).
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
