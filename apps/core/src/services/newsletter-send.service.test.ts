@@ -16,7 +16,6 @@ import {
 
 const m = vi.hoisted(() => {
   const state: {
-    enabled: boolean;
     domain?: string;
     subscribers: NewsletterSubscriber[];
     sends: NewsletterSend[];
@@ -24,7 +23,6 @@ const m = vi.hoisted(() => {
     withdrewConsent: boolean;
     organizationSlug: string | null;
   } = {
-    enabled: true,
     domain: "news.example.com",
     subscribers: [],
     sends: [],
@@ -58,7 +56,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.state.enabled,
       NEWSLETTER_FROM_DOMAIN: m.state.domain,
     }),
     getBetterAuthPublicBaseUrl: () => "https://core.example.com",
@@ -78,6 +75,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: m.sendCount,
       deleteMany: m.sendDelete,
     },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
 }));
@@ -92,7 +90,6 @@ function subscribers(count: number): NewsletterSubscriber[] {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.state.enabled = true;
   m.state.domain = "news.example.com";
   m.state.subscribers = subscribers(1);
   m.state.sends = [];
@@ -227,7 +224,7 @@ describe("sendNewsletterIssue", () => {
     const second = m.batchSend.mock.calls[0]?.[0][1];
     expect(first).toMatchObject({
       to: "reader1@example.com",
-      from: '"Ada" <newsletter@news.example.com>',
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
       replyTo: "ada@example.com",
       subject: NEWSLETTER_ISSUE.subject,
       headers: {
@@ -294,7 +291,7 @@ describe("sendNewsletterIssue", () => {
   it("refuses without a newsletter sending domain before claiming or sending", async () => {
     m.state.domain = undefined;
     await expect(sendNewsletterIssue(NEWSLETTER_ISSUE_ID)).rejects.toThrow(
-      "NEWSLETTER_FROM_DOMAIN",
+      "Connect a sending domain",
     );
     expect(m.issueUpdate).not.toHaveBeenCalled();
     expect(m.batchSend).not.toHaveBeenCalled();
@@ -512,16 +509,6 @@ describe("sendNewsletterIssue", () => {
 });
 
 describe("newsletter scheduler", () => {
-  it("does no work while disabled", async () => {
-    m.state.enabled = false;
-    await sendDueNewsletterIssues();
-    await expect(
-      sendNewsletterIssue(NEWSLETTER_ISSUE_ID),
-    ).rejects.toMatchObject({ status: 404 });
-    expect(m.issueFindMany).not.toHaveBeenCalled();
-    expect(m.batchSend).not.toHaveBeenCalled();
-  });
-
   it("selects due scheduled issues and expired leases, and obeys the cron deadline", async () => {
     await sendDueNewsletterIssues({ shouldContinue: () => false });
     expect(m.issueFindMany).toHaveBeenCalledWith(

@@ -7,6 +7,7 @@ import {
   type RoomReadAttentionSnapshot,
   sameRoomReadAttention,
 } from "@/app/chat/utils/room-read-attention";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { roomAttentionAfterRead } from "@/components/chat/room-attention";
 import {
@@ -23,6 +24,12 @@ interface RoomReadAttentionOptions {
   openThreadParentId: string | null;
   threadMessages: RoomReadAttentionSnapshot["threadMessages"];
   isThreadLoading: boolean;
+  /**
+   * The reader is at the end of the room transcript, the state in which Jump
+   * to latest is hidden, and no explicit-target jump is still placing them.
+   * Room last-read waits for it; a Thread Look does not.
+   */
+  transcriptAtEnd: boolean;
   /**
    * Called after a Look reaches Core. Every Look lowers the room's unread
    * thread count, including the automatic one this hook writes when the reader
@@ -61,7 +68,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
   const readRoom = useCallback(
     async (roomId: string, optimistic: boolean): Promise<boolean> => {
       const current = snapshotRef.current;
-      if (!canReadRoom(roomId) || !current.room) {
+      if (!canReadRoom(roomId) || !current.room || !current.transcriptAtEnd) {
         return false;
       }
       const previousRoom = applyRoomReadOverlays([current.room])[0];
@@ -110,6 +117,12 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         const result = await markThreadReadAction(roomId, parentMessageId);
         if (result.ok) {
           snapshotRef.current.onThreadLooked?.(parentMessageId);
+          // Core announces no Look, and above the end no room read follows
+          // to carry the fresh room, so the sidebar's Thread row would stay.
+          notifyOrganizationChatRoomsChanged({
+            collections: ["active"],
+            roomId,
+          });
         }
         return result.ok;
       } catch {
@@ -140,6 +153,10 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
 
   const syncRoomAttentionAfterThreadLook = useCallback(
     async (roomId: string): Promise<void> => {
+      // Above the end the room is not read yet, which is no failure: the
+      // marker stays, as in `readCurrentRoom`, so the Thread is not Looked
+      // again for the same content.
+      if (!snapshotRef.current.transcriptAtEnd) return;
       if (!(await readRoom(roomId, false))) {
         readMarkerRef.current = null;
       }
@@ -171,7 +188,9 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         return;
       }
     }
-    const read = await readRoom(roomId, true);
+    // Above the end there is nothing to read yet; the marker stays so the
+    // same content does not Look again, and reaching the end reads it.
+    const read = marker.transcriptAtEnd ? await readRoom(roomId, true) : true;
     if ((!read || !looked) && readMarkerRef.current === marker) {
       readMarkerRef.current = null;
     }
@@ -201,6 +220,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
     options.messagesPending,
     options.messageLoadFailed,
     options.isThreadLoading,
+    options.transcriptAtEnd,
     readCurrentRoom,
   ]);
 

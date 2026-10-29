@@ -9,6 +9,7 @@ import {
   ImagePlus,
   LifeBuoy,
   LogOut,
+  Mail,
   Megaphone,
   Repeat,
   Scale,
@@ -51,8 +52,9 @@ const ADS_HREF = "/ads";
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
   adminSettingsChrome: AccountAdminSettingsChrome;
-  /** Social and Ads are still behind the beta; their rows exist only where the pages do. */
+  /** Ads-only beta flag; Social scheduling is public. */
   socialBetaEnabled?: boolean;
+  newsletterEnabled?: boolean;
 }
 
 export function YouPageClient({
@@ -66,6 +68,7 @@ export function YouPageClient({
   buyCreditsPath,
   adminSettingsChrome,
   socialBetaEnabled = false,
+  newsletterEnabled = false,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
@@ -187,21 +190,27 @@ export function YouPageClient({
             />
             {/* The sidebar's Social and Ads rows, for phones, where the You
                 page is the menu. */}
+            <MobileStackedMenuLink
+              href={SOCIAL_HREF}
+              icon={<Share2 className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("social")}
+              testId="you-social"
+            />
             {socialBetaEnabled ? (
-              <>
-                <MobileStackedMenuLink
-                  href={SOCIAL_HREF}
-                  icon={<Share2 className="size-4 shrink-0" aria-hidden />}
-                  label={tMenu("social")}
-                  testId="you-social"
-                />
-                <MobileStackedMenuLink
-                  href={ADS_HREF}
-                  icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
-                  label={tMenu("ads")}
-                  testId="you-ads"
-                />
-              </>
+              <MobileStackedMenuLink
+                href={ADS_HREF}
+                icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
+                label={tMenu("ads")}
+                testId="you-ads"
+              />
+            ) : null}
+            {newsletterEnabled ? (
+              <MobileStackedMenuLink
+                href="/newsletter"
+                icon={<Mail className="size-4 shrink-0" />}
+                label={tMenu("newsletter")}
+                testId="you-newsletter"
+              />
             ) : null}
             <MobileStackedMenuLink
               href={DRIVE_HREF}

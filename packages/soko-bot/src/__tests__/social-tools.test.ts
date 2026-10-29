@@ -1,3 +1,7 @@
+import {
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialPostProviderLabel,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -191,20 +195,21 @@ describe("Social tool contracts", () => {
     expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
   });
 
-  it("describes every provider's publishing rules", () => {
+  it("describes available publishing platforms while retaining all-provider history", () => {
     const descriptions = SOKO_BOT_TOOL_DESCRIPTIONS;
-    const socialKeys = [
+    for (const key of [
       "list_project_social_accounts",
-      "list_social_posts",
-      "get_social_post",
       "create_social_post",
       "update_social_post",
       "schedule_social_post",
-      "cancel_social_post",
       "publish_social_post",
-    ] as const;
-    for (const key of socialKeys) {
-      expect(descriptions[key]).not.toMatch(/X only/);
+    ] as const) {
+      expect(descriptions[key]).toContain(
+        `Public publishing platforms: ${SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel).join(", ")}.`,
+      );
+      expect(descriptions[key]).toContain("Coming soon");
+      expect(descriptions[key]).toContain("enabledProviders");
+      expect(descriptions[key]).not.toContain("beta workspace");
     }
     expect(descriptions.list_project_social_accounts).toMatch(/Instagram/);
     expect(descriptions.create_social_post).toMatch(/video/);
@@ -255,6 +260,108 @@ describe("Social tool contracts", () => {
         socialConnectionId: null,
       }).success,
     ).toBe(true);
+  });
+
+  it.each(["create_social_post", "update_social_post"] as const)(
+    "%s accepts X thread parts, a quote, and a first comment like Core's REST API",
+    (capability) => {
+      const input = {
+        ...inputs[capability],
+        text: "x".repeat(300),
+        firstComment: "#launch",
+        threadParts: [
+          { text: "Second" },
+          { text: "", media: [{ fileId: socialConnectionId }] },
+        ],
+        quotedPostId: postId,
+      };
+      expect(schemas[capability].parse(input)).toMatchObject({
+        threadParts: [
+          { text: "Second" },
+          { text: "", media: [{ fileId: socialConnectionId }] },
+        ],
+        quotedPostId: postId,
+        firstComment: "#launch",
+      });
+      expect(
+        schemas[capability].safeParse({ ...input, quotedPostId: null }).success,
+      ).toBe(true);
+      expect(
+        schemas[capability].safeParse({ ...input, threadParts: [] }).success,
+      ).toBe(true);
+      for (const patch of [
+        { quotedPostId: "invalid" },
+        { threadParts: [{ text: "Second", position: 2 }] },
+        { threadParts: Array.from({ length: 25 }, () => ({ text: "Part" })) },
+        { threadParts: [{ text: "x".repeat(63207) }] },
+        { firstComment: "x".repeat(25_001) },
+        { thread: [{ text: "Second" }] },
+      ]) {
+        expect(
+          schemas[capability].safeParse({ ...input, ...patch }).success,
+        ).toBe(false);
+      }
+      expect(
+        schemas[capability].safeParse({
+          ...input,
+          threadParts: Array.from({ length: 24 }, () => ({ text: "Part" })),
+        }).success,
+      ).toBe(true);
+    },
+  );
+
+  it("lists quote candidates with Core's filters", () => {
+    expect(
+      schemas.list_social_posts.parse({
+        projectId,
+        quoteCandidates: true,
+        excludePostId: postId,
+        search: " launch ",
+      }),
+    ).toEqual({
+      projectId,
+      quoteCandidates: true,
+      excludePostId: postId,
+      search: "launch",
+      limit: 20,
+    });
+    for (const patch of [
+      { quoteCandidates: "true" },
+      { excludePostId: "invalid" },
+      { search: "x".repeat(501) },
+    ]) {
+      expect(
+        schemas.list_social_posts.safeParse({ projectId, ...patch }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("tells the bot each account's real text limit, threads, and quotes", () => {
+    const descriptions = SOKO_BOT_TOOL_DESCRIPTIONS;
+    for (const key of [
+      "list_project_social_accounts",
+      "create_social_post",
+      "update_social_post",
+    ] as const) {
+      expect(descriptions[key]).toContain("textLimit");
+      expect(descriptions[key]).toContain("xPremium");
+      expect(descriptions[key]).toContain("25,000");
+      expect(descriptions[key]).toContain("280");
+    }
+    for (const key of ["create_social_post", "update_social_post"] as const) {
+      expect(descriptions[key]).toContain("threadParts");
+      expect(descriptions[key]).toContain("up to 24 more posts");
+      expect(descriptions[key]).toMatch(/one long post/);
+      expect(descriptions[key]).toMatch(/offer a thread/);
+      expect(descriptions[key]).toContain("quotedPostId");
+      expect(descriptions[key]).toContain("quoteCandidates: true");
+      expect(descriptions[key]).toMatch(/strictly after/);
+      expect(descriptions[key]).toContain("firstCommentLimit");
+    }
+    expect(descriptions.update_social_post).toMatch(/\[\] removes them/);
+    expect(descriptions.list_social_posts).toContain("quoteCandidates: true");
+    expect(descriptions.schedule_social_post).toMatch(/strictly after/);
+    expect(descriptions.publish_social_post).toMatch(/quote/);
   });
 
   it.each(["create_social_post", "schedule_social_post"] as const)(

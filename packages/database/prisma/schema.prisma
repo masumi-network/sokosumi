@@ -168,6 +168,7 @@ model Workspace {
   tasks                    Task[]
   socialPosts              SocialPost[]
   newsletters              Newsletter[]
+  newsletterSendingDomain  NewsletterSendingDomain?
   newsletterIssues         NewsletterIssue[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
@@ -481,6 +482,7 @@ model Project {
   closeOperation   ProjectCloseOperation?
   events           ProjectEvent[]
   stars            ProjectStar[]
+  hides            ProjectHide[]
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
@@ -560,6 +562,29 @@ model ProjectStar {
   // non-leading FK.
   @@index([projectId])
   @@map("project_star")
+}
+
+/// One user's Hide on one project: the per-user opposite of a ProjectStar,
+/// personal and never shared, and membership does not change (ADR 0036).
+/// Hiding deletes the user's star on the project and starring deletes the
+/// hide, so the two never coexist. Reads drop a Hidden project from the
+/// Projects list's Open view, the Project switcher and Recent activity;
+/// Needs you ignores it.
+model ProjectHide {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  hiddenAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  // Same reason as ProjectStar: the unique key leads with userId.
+  @@index([projectId])
+  @@map("project_hide")
 }
 
 model ProjectSocialConnection {
@@ -827,6 +852,12 @@ model SocialPost {
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
   media        Json    @default("[]")
 
+  quotedPostId         String?      @db.Uuid
+  quotedPost           SocialPost?  @relation("SocialPostQuotes", fields: [quotedPostId], references: [id], onDelete: SetNull)
+  quotingPosts         SocialPost[] @relation("SocialPostQuotes")
+  /// Quote dependency failure. Retained by a SQL delete trigger when the FK is cleared.
+  needsAttentionReason String?
+
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
   /// IANA zone the scheduling human used. Display only.
@@ -848,13 +879,15 @@ model SocialPost {
   scheduledByCoworkerId String?
   scheduledByCoworker   Coworker? @relation("SocialPostScheduledByCoworker", fields: [scheduledByCoworkerId], references: [id], onDelete: Restrict)
 
-  canceledAt          DateTime?
-  publishedAt         DateTime?
-  publishedExternalId String?
-  publishedUrl        String?
+  canceledAt                   DateTime?
+  publishedAt                  DateTime?
+  publishedExternalId          String?
+  publishedUrl                 String?
+  /// In-flight X thread part (1 is the main post). Unconfirmed creates must never be retried blindly.
+  publishingThreadPartPosition Int?
   /// Latest lifetime metrics and refresh state; no history or credentials.
-  statistics          Json?
-  lastError           String?
+  statistics                   Json?
+  lastError                    String?
 
   /// Publish attempts made so far (scheduler and publish-now alike).
   attemptCount   Int       @default(0)
@@ -868,19 +901,40 @@ model SocialPost {
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
-  attempts SocialPostPublishAttempt[]
+  attempts    SocialPostPublishAttempt[]
+  threadParts SocialPostThreadPart[]
 
   @@index([projectId, status, scheduledAt])
+  @@index([workspaceId, projectId, createdAt, id], map: "social_post_workspaceId_projectId_createdAt_id_idx")
   @@index([status, scheduledAt])
   @@index([status, nextAttemptAt])
   @@index([workspaceId, scheduledAt])
   @@index([socialConnectionId])
+  @@index([quotedPostId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
   @@map("social_post")
+}
+
+/// Additional X posts in one account's thread; position 1 remains on SocialPost.
+/// The position range CHECK lives in SQL because Prisma cannot express CHECKs.
+model SocialPostThreadPart {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  postId         String     @db.Uuid
+  post           SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  position       Int
+  text           String
+  /// Same Drive attachment shape as SocialPost.media.
+  media          Json       @default("[]")
+  externalPostId String?
+  publishedAt    DateTime?
+  error          String?
+
+  @@unique([postId, position], map: "social_post_thread_part_postId_position_key")
+  @@map("social_post_thread_part")
 }
 
 model SocialPostPublishAttempt {

@@ -174,7 +174,6 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
       "settings": "Settings",
-      "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "lowCreditsLabel": "Low credits {credits, number}",
       "creditsSummary": "Credits summary:",
@@ -196,7 +195,11 @@
       "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or join organization",
-      "userAvatarAlt": "User avatar"
+      "userAvatarAlt": "User avatar",
+      "inviteMembers": "Invite members",
+      "organizationSettings": "Settings",
+      "membersAndSettings": "Members & settings",
+      "roleAndMemberCount": "{role, select, owner {Owner} admin {Admin} other {Member}} · {count, plural, =1 {1 member} other {# members}}"
     },
     "DataTable": {
       "Data": {
@@ -301,50 +304,6 @@
       "loading": "Searching…",
       "error": "Search failed. Try again.",
       "idle": "Type to search users."
-    },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agents",
-      "credits": "Credits",
-      "coupon": "Coupon",
-      "subscriptions": "Subscriptions",
-      "billing": "Billing",
-      "account": "Account",
-      "admin": "Admin",
-      "organizations": "Organizations",
-      "users": "Users",
-      "edit": "Edit",
-      "editor": "Editor",
-      "enterprise-contracts": "Enterprise contracts",
-      "invoices": "Invoices",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Tasks",
-      "connections": "Connections",
-      "developer": "Developer",
-      "personal-assistant": "Personal assistant",
-      "history": "Credit history",
-      "new": "New",
-      "notifications": "Notifications",
-      "projects": "Projects",
-      "oauth-clients": "OAuth clients",
-      "api-keys": "API keys",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Documentation",
-      "drive": "Files",
-      "soko-bots": "Soko Bots",
-      "calendar": "Calendar",
-      "schedules": "Schedules",
-      "threads": "Threads",
-      "studio": "Content Studio",
-      "design-md": "Design",
-      "memory": "Memory",
-      "social": "Social Scheduling",
-      "ads": "Ads",
-      "evaluations": "Model evaluations",
-      "catch-up": "Catch up",
-      "contacts": "Contacts"
     },
     "Jobs": {
       "StatusBadge": {
@@ -777,8 +736,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Bulk invite members",
-        "description": "Paste email addresses to invite multiple members at once.",
+        "title": "Invite members",
+        "description": "Paste one or more email addresses.",
         "label": "Email addresses",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separate emails with commas, semicolons, or new lines.",
@@ -2297,8 +2256,9 @@
         },
         "lastActivity": "Last activity",
         "created": "Created",
-        "pin": "Pin project",
-        "unpin": "Unpin project",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "pinned": "Pinned",
         "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
@@ -2334,6 +2294,54 @@
             "dispute_pending": "Dispute",
             "dispute_resolved": "Resolved"
           }
+        },
+        "emptyClosed": {
+          "title": "No closed projects",
+          "description": "A project you close moves here, with its history kept."
+        },
+        "emptyHidden": {
+          "title": "No hidden projects",
+          "description": "Hide a project that isn't yours from its menu. It leaves Open, the project switcher and Recent activity, and waits here."
+        },
+        "onlyClosed": {
+          "title": "All projects are closed",
+          "description": "Closed projects keep their history in the Closed view.",
+          "action": "Show closed projects"
+        },
+        "state": {
+          "label": "Show projects",
+          "open": "Open",
+          "hidden": "Hidden",
+          "closed": "Closed"
+        },
+        "closed": "Closed",
+        "hide": {
+          "hide": "Hide",
+          "show": "Show",
+          "hidden": "Project hidden",
+          "undo": "Undo",
+          "hideError": "Could not hide the project. Try again.",
+          "showError": "Could not show the project. Try again."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Needs you",
+          "empty": "Nothing waits on you.",
+          "error": "Failed to load what needs you.",
+          "showAll": "Show all"
+        },
+        "activity": {
+          "title": "Recent activity",
+          "empty": "No activity in open projects yet.",
+          "emptyProject": "No activity in this project yet.",
+          "error": "Failed to load recent activity.",
+          "showAll": "Show all",
+          "untitledJob": "Untitled job",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Task created} COMMENT {Comment added} READY {Task ready} QUEUED {Task scheduled} RUNNING {Task running} INPUT_REQUIRED {Task needs input} APPROVAL_REQUIRED {Task needs approval} AUTHENTICATION_REQUIRED {Task needs sign-in} OUT_OF_CREDITS {Task paused for credits} COMPLETED {Task completed} FAILED {Task failed} CANCELED {Task canceled} other {Task updated}}",
+          "job": "{status, select, INITIATED {Job started} AWAITING_PAYMENT {Job awaiting payment} AWAITING_INPUT {Job needs input} RUNNING {Job running} COMPLETED {Job completed} FAILED {Job failed} other {Job updated}}",
+          "project": "{event, select, CLOSE_REQUESTED {Close requested} BATCH_FAILED {Close failed} RETRY_REQUESTED {Close retried} SERIES_RESOLVED {Scheduled work stopped} CLOSE_FINALIZED {Project closed} other {Project updated}}"
         }
       },
       "Briefing": {
@@ -2465,6 +2473,8 @@
           "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
+        "linkedinPersonalOnly": "Personal profile only. Company pages aren't supported yet.",
+        "personalProfile": "Personal profile",
         "connectComingSoon": "{provider} (coming soon)",
         "empty": "No accounts yet.",
         "emptyHint": "Connect one to post."
@@ -2499,6 +2509,7 @@
           "missed": "Missed the scheduled time."
         },
         "failures": {
+          "providerComingSoon": "{provider} is coming soon. Available now: {providers}.",
           "rateLimited": "Rate limited. Try again later.",
           "timeout": "Timed out. Try again.",
           "unauthorized": "Reconnect the account.",
@@ -2506,7 +2517,8 @@
           "rejected": "The platform rejected this post.",
           "mediaMissing": "A file is missing.",
           "mediaType": "That file type is not allowed.",
-          "generic": "Couldn't publish. Open the post for details."
+          "generic": "Couldn't publish. Open the post for details.",
+          "unconfirmed": "We couldn't confirm the post. Check {provider} before retrying so it isn't posted twice."
         },
         "sections": {
           "calendar": "Calendar",
@@ -2644,6 +2656,7 @@
           "confirm": "Dismiss"
         },
         "toasts": {
+          "movedQuotes": "Also moved {count, plural, one {# quote} other {# quotes}} to keep {count, plural, one {it} other {them}} after this post",
           "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
@@ -2660,7 +2673,8 @@
           "publishFailed": "Publishing failed: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
-          "duplicated": "Draft created."
+          "duplicated": "Draft created.",
+          "approved": "Post approved."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -2672,7 +2686,8 @@
           "publishNow": "Post now",
           "retry": "Retry",
           "dismiss": "Dismiss",
-          "duplicate": "Duplicate as draft"
+          "duplicate": "Duplicate as draft",
+          "approve": "Approve"
         },
         "publishDialog": {
           "title": "Post this now?",
@@ -2782,6 +2797,7 @@
           },
           "performance": {
             "lastDays": "Last {days} days",
+            "rangeLabel": "Time range",
             "moreFilters": "More filters",
             "activeFilters": "{count} active",
             "posts": "Posts",
@@ -2925,7 +2941,50 @@
           "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
           "later": "Later"
         },
-        "moreActions": "Post actions"
+        "moreActions": "Post actions",
+        "thread": {
+          "add": "Add to thread",
+          "limit": "Threads can have up to {max} parts.",
+          "part": "Part {part}",
+          "text": "Part {part} text",
+          "position": "{part}/{total}",
+          "positionLabel": "Part {part} of {total}",
+          "moveUp": "Move part {part} up",
+          "moveDown": "Move part {part} down",
+          "remove": "Remove part {part}",
+          "onlyX": "Thread parts are only supported for X accounts. Deselect other accounts or remove the extra parts.",
+          "empty": "Part {part} is empty. Add text or media.",
+          "tooLong": "Part {part} is over the limit.",
+          "mediaInvalid": "Part {part}: {error}",
+          "partlyPosted": "Partly posted",
+          "progress": "Partly posted: {published} of {total} parts posted.",
+          "failedPart": "Part {part} failed.",
+          "retry": "Retry remaining parts",
+          "outcomeUnknown": "We couldn’t confirm whether part {part} was posted. Check X, then confirm it was not posted to continue, or leave it.",
+          "confirmNotPosted": "It was not posted, continue",
+          "viewPart": "View part {part} on X",
+          "retryDescription": "Only the remaining parts will be posted."
+        },
+        "quote": {
+          "label": "Quote",
+          "choose": "Quote a post",
+          "pickerDescription": "Choose an X post from this project to quote.",
+          "search": "Search posts",
+          "select": "Quote this post",
+          "empty": "No posts found. Try another search or schedule an X post in this project.",
+          "loadFailed": "Failed to load posts. Try again.",
+          "embedded": "Quoted post",
+          "change": "Choose another post",
+          "remove": "Remove quote",
+          "publishesAfter": "Publishes after the quoted post ({time})",
+          "scheduleAfter": "Choose a time after the quoted post ({time}).",
+          "scheduleTargetFirst": "Schedule the quoted post before scheduling this quote.",
+          "postNowUnavailable": "Post now is unavailable until the quoted post is published.",
+          "onlyX": "Quotes are available for X accounts only. Remove the quote or choose only X accounts.",
+          "failed": "The post it quotes failed to publish",
+          "cancelled": "The quoted post was cancelled",
+          "waiting": "Waiting for the quoted post"
+        }
       },
       "Detail": {
         "back": "Back to projects",
@@ -2938,6 +2997,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Latest update",
+        "stats": {
+          "label": "Task counts",
+          "running": "Running",
+          "waiting": "Waiting",
+          "done": "Done"
+        },
         "emptyBriefing": "No briefing yet.",
         "writeBriefing": "Write briefing",
         "showMore": "Show more",
@@ -3014,7 +3079,7 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
-          "close": "Close project",
+          "close": "Close",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
@@ -3079,8 +3144,7 @@
           "design": "Design",
           "memory": "Memory",
           "ariaLabel": "Project sections",
-          "bots": "Bots",
-          "newsletter": "Newsletter"
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
@@ -3095,12 +3159,11 @@
         "navigation": "Newsletter sections",
         "settings": "Settings",
         "emptyTitle": "Set up your newsletter",
-        "emptyDescription": "Choose a name, sender, and brand below, then save your settings to create the newsletter.",
+        "emptyDescription": "Choose a name, sender, and brand, then save your settings to create the newsletter.",
         "general": "General",
         "brand": "Brand",
         "welcome": "Welcome email",
         "welcomeDescription": "Send a welcome email after a subscriber confirms their email address.",
-        "publicAddress": "Public newsletter address",
         "colorHint": "Use a hex color, such as #1a2b3c, or leave blank.",
         "save": "Save settings",
         "success": "Newsletter settings saved",
@@ -3111,7 +3174,7 @@
           "name": "Newsletter name",
           "senderName": "Sender name",
           "replyTo": "Reply-to email",
-          "logoUrl": "Logo URL",
+          "logoUrl": "Logo",
           "primaryColor": "Primary color",
           "accentColor": "Accent color",
           "fontFamily": "Font family",
@@ -3141,7 +3204,7 @@
           "cancel": "Cancel",
           "done": "Done",
           "emptyTitle": "No subscribers yet",
-          "emptyDescription": "Add someone who agreed to receive your newsletter, or import a CSV list with consent.",
+          "emptyDescription": "Add people from Contacts, import a CSV, or add a subscriber by hand.",
           "search": "Search by email",
           "searchPlaceholder": "name@example.com",
           "searchButton": "Search",
@@ -3177,21 +3240,22 @@
             "MANUAL": "Added by hand",
             "CSV_IMPORT": "CSV import",
             "SIGNUP_FORM": "Signup form",
-            "API": "API"
+            "API": "API",
+            "CONTACTS": "Contacts"
           },
           "Validation": {
             "email": "Enter a valid email address.",
             "name": "Use at most 200 characters.",
-            "consent": "Confirm consent before continuing."
+            "consent": "Choose how they agreed and confirm their consent before continuing."
           },
           "Add": {
-            "description": "Add a person who agreed to receive this newsletter.",
+            "description": "Add a person to this newsletter.",
             "email": "Email",
             "name": "Name (optional)",
-            "consent": "This person agreed to receive this newsletter",
             "duplicate": "This email is already on the list. Search for it to manage the existing subscriber.",
             "error": "Failed to add subscriber. Try again.",
-            "success": "Subscriber added"
+            "success": "Subscriber added",
+            "pendingConfirmation": "Confirmation email sent"
           },
           "Remove": {
             "title": "Remove subscriber?",
@@ -3208,7 +3272,6 @@
             "fileType": "Choose a file ending in .csv.",
             "fileSize": "Choose a CSV file no larger than 5 MB.",
             "fileRequired": "Choose a CSV file to import.",
-            "consent": "Everyone in this CSV agreed to receive this newsletter",
             "importing": "Importing subscribers…",
             "error": "Failed to import subscribers. Try again.",
             "invalidCsv": "Check the CSV: include an email header, an optional name header, and at most 50,000 rows. Then try again.",
@@ -3216,13 +3279,405 @@
             "result": {
               "imported": "Imported",
               "skippedExisting": "Already on the list",
-              "invalid": "Invalid rows reported"
+              "invalid": "Invalid rows reported",
+              "skippedUnsubscribed": "Skipped because they unsubscribed",
+              "skippedBounced": "Skipped because they bounced",
+              "pendingConfirmation": "Waiting for confirmation"
             },
             "invalidHint": "Fix these rows and import them again. Row numbers include the header. Up to 100 invalid rows are reported.",
             "invalidRow": "Row {row}: {value}",
             "moreInvalid": "{count, plural, one {# more invalid row reported} other {# more invalid rows reported}}"
           },
-          "dismiss": "Dismiss"
+          "dismiss": "Dismiss",
+          "fromContacts": "Add from Contacts",
+          "openContactList": "Open list in Contacts",
+          "Consent": {
+            "question": "How did they agree to get this newsletter?",
+            "CONFIRMED": "They already agreed (add them now)",
+            "ASK": "Ask them first (send a confirmation email)",
+            "confirm": "I confirm these people agreed to receive this newsletter",
+            "note": "People you add are also saved in Contacts, on the list ‘{newsletterName} subscribers’. People who unsubscribed are never added again."
+          },
+          "FromContacts": {
+            "description": "Choose people and lists from your workspace’s Contacts.",
+            "people": "People",
+            "lists": "Lists",
+            "search": "Search people",
+            "noEmail": "No email",
+            "loading": "Loading contacts…",
+            "noPeople": "No people found. Try another search.",
+            "noLists": "No lists yet. Create a list in Contacts.",
+            "loadPeopleError": "Failed to load people. Try again.",
+            "loadListsError": "Failed to load lists. Try again.",
+            "retry": "Try again",
+            "loadMore": "Load more people",
+            "members": "{count, plural, one {# member} other {# members}}",
+            "peopleSelected": "{count, plural, one {# person selected} other {# people selected}}",
+            "listsSelected": "{count, plural, one {# list selected} other {# lists selected}}",
+            "selectionRequired": "Choose at least one person or list.",
+            "selectionLimit": "Choose at most 1,000 people and 20 lists at a time.",
+            "add": "Add",
+            "adding": "Adding subscribers…",
+            "error": "Failed to add subscribers. Try again.",
+            "doneDescription": "Subscribers added. Review the results below.",
+            "result": {
+              "added": "Added",
+              "alreadySubscribed": "Already subscribed",
+              "skippedUnsubscribed": "Skipped because they unsubscribed",
+              "skippedBounced": "Skipped because they bounced",
+              "skippedNoEmail": "Skipped without email",
+              "pendingConfirmation": "Waiting for confirmation"
+            }
+          }
+        },
+        "Calendar": {
+          "title": "Calendar",
+          "description": "See when each newsletter issue is scheduled or was sent.",
+          "navigation": "Change month",
+          "previous": "Previous month",
+          "next": "Next month",
+          "today": "Today",
+          "emptyTitle": "No newsletters this month",
+          "emptyDescription": "Scheduled and sent issues appear here on their delivery date. Schedule an issue to plan your next send.",
+          "viewIssues": "View issues"
+        },
+        "Issues": {
+          "title": "Issues",
+          "description": "Write newsletter issues and preview how they look in an inbox.",
+          "newIssue": "New issue",
+          "Ai": {
+            "action": "Write it for me",
+            "description": "Describe this issue. Soko Bot will draft it for you to review before approval.",
+            "brief": "Brief",
+            "placeholder": "Share our autumn launch highlights and invite readers to the demo.",
+            "useProjectMemory": "Use project memory",
+            "useRecentSocialPosts": "Use recent social posts",
+            "template": "Template",
+            "pickImages": "Pick images from Content Studio",
+            "images": "Recent project images",
+            "imagesHint": "Choose up to 10 images. Selected images get public links so they can appear in email.",
+            "noImages": "No images yet. Create an image in Content Studio, then try again.",
+            "imagesError": "Could not load images. Try picking images again.",
+            "generate": "Generate draft",
+            "cancel": "Cancel",
+            "invalid": "Enter a brief between 1 and 10,000 characters and choose up to 10 images.",
+            "error": "Could not draft this issue. Keep your brief and try again.",
+            "rateLimited": "Too many drafts for this project. Wait ten minutes and try again.",
+            "notice": "Drafted by Soko Bot — review before submitting for approval"
+          },
+          "emptyTitle": "No issues yet",
+          "emptyDescription": "Choose a template to start your first newsletter issue.",
+          "subject": "Subject",
+          "previewText": "Preview text",
+          "status": "Status",
+          "deliveryDate": "Scheduled / sent",
+          "updatedAt": "Updated",
+          "actions": "Actions",
+          "sentAt": "Sent {date}",
+          "scheduledAt": "Scheduled {date}",
+          "noDate": "Not scheduled",
+          "firstPage": "First page",
+          "nextPage": "Next page",
+          "results": "{count, plural, one {# issue} other {# issues}}",
+          "statuses": {
+            "DRAFT": "Draft",
+            "NEEDS_APPROVAL": "Needs approval",
+            "SCHEDULED": "Scheduled",
+            "SENDING": "Sending",
+            "SENT": "Sent",
+            "FAILED": "Failed",
+            "CANCELED": "Canceled"
+          },
+          "createError": "Failed to create issue. Try choosing the template again.",
+          "saveError": "Failed to save issue. Keep your changes and try again.",
+          "conflict": "This issue changed or is no longer editable. Copy your changes, reload the page, and try again.",
+          "invalid": "Check the highlighted fields and try again.",
+          "save": "Save issue",
+          "saved": "All changes saved",
+          "unsaved": "Unsaved changes",
+          "readOnly": "This issue is read-only. Only drafts and issues needing approval can be edited.",
+          "back": "Back to issues",
+          "blocks": "Content blocks",
+          "addBlock": "Add block",
+          "moveUp": "Move block {number} up",
+          "moveDown": "Move block {number} down",
+          "removeBlock": "Remove block {number}",
+          "blockNumber": "Block {number}: {type}",
+          "emptyBlocks": "Add a block to start writing.",
+          "level": "Heading level",
+          "mainHeading": "Main heading",
+          "subheading": "Subheading",
+          "text": "Text",
+          "imageUrl": "Image URL",
+          "alt": "Alt text",
+          "imageLink": "Link URL (optional)",
+          "buttonLabel": "Button label",
+          "buttonUrl": "Button URL",
+          "httpsHint": "Use a full HTTPS URL.",
+          "blockTypes": {
+            "heading": "Heading",
+            "text": "Text",
+            "image": "Image",
+            "button": "Button",
+            "divider": "Divider"
+          },
+          "Validation": {
+            "subject": "Enter a subject between 1 and 200 characters.",
+            "previewText": "Keep preview text within 500 characters.",
+            "content": "Check this block. Use HTTPS URLs and keep text within the field limits."
+          },
+          "Templates": {
+            "title": "Choose a template",
+            "description": "Start with a layout, then edit every block.",
+            "subject": "Untitled issue",
+            "heading": "This week’s highlights",
+            "text": "Share the latest news, a useful idea, or an update with your subscribers.",
+            "closing": "Thanks for reading. See you next time.",
+            "heroAlt": "Hero image",
+            "imageAlt": "Supporting image",
+            "button": "Read more",
+            "TEXT": {
+              "title": "Text",
+              "description": "A heading, paragraphs, and a divider."
+            },
+            "IMAGES": {
+              "title": "Images",
+              "description": "A heading, hero image, text, and another image."
+            },
+            "BUTTONS": {
+              "title": "Buttons",
+              "description": "A heading, text, a button, divider, and closing text."
+            }
+          },
+          "Preview": {
+            "title": "Preview",
+            "label": "Newsletter email preview",
+            "mobile": "Mobile",
+            "desktop": "Desktop",
+            "loading": "Updating preview…",
+            "error": "Failed to load preview. Try again.",
+            "invalid": "Complete the subject and check block content to see a preview.",
+            "retry": "Retry preview"
+          },
+          "Delete": {
+            "title": "Delete draft issue?",
+            "description": "“{subject}” will be permanently deleted. This cannot be undone.",
+            "action": "Delete draft",
+            "cancel": "Cancel",
+            "error": "Failed to delete issue. It may have changed status. Refresh and try again."
+          },
+          "Lifecycle": {
+            "submit": "Submit for approval",
+            "approve": "Approve",
+            "approved": "Approved",
+            "schedule": "Schedule",
+            "sendNow": "Send now",
+            "cancel": "Cancel schedule",
+            "close": "Close",
+            "approvedBy": "Approved by {user} on {date}",
+            "formerMember": "Former workspace member",
+            "task": "View approval task",
+            "scheduled": "Scheduled for {date} ({timezone})",
+            "when": "When",
+            "timezone": "Time zone: {timezone}",
+            "scheduleTitle": "Schedule newsletter",
+            "scheduleDescription": "Choose a time between one minute and one year from now.",
+            "sendTitle": "Send this newsletter now?",
+            "sendDescription": "{count, plural, one {This issue will be sent to # active subscriber. Sending cannot be undone.} other {This issue will be sent to # active subscribers. Sending cannot be undone.}}",
+            "cancelTitle": "Cancel this newsletter’s schedule?",
+            "cancelDescription": "This issue will return to draft. Submit it again for approval before scheduling or sending.",
+            "saveFirst": "Save your changes before submitting, approving, scheduling, or sending.",
+            "invalid": "Check the issue and try again.",
+            "error": "Failed to update the newsletter issue. Refresh the page and try again.",
+            "conflict": "This issue changed. Refresh the page and try again.",
+            "humanRequired": "A person must approve or send this issue from a signed-in browser session.",
+            "invalidSchedule": "Choose a time between one minute and one year from now and a valid time zone.",
+            "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
+            "noSender": "Connect a sending domain in Newsletter settings, under Sending domain, before scheduling or sending.",
+            "approvalRequired": "Submit this issue and get a person’s approval before scheduling or sending."
+          },
+          "viewOnWeb": "View on web"
+        },
+        "publicArchive": "Public archive",
+        "SignupForm": {
+          "title": "Signup form",
+          "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "hostedPage": "Hosted signup page",
+          "open": "Open signup page",
+          "embedCode": "Embed code",
+          "embedTitle": "Newsletter signup"
+        },
+        "Analytics": {
+          "title": "Analytics",
+          "description": "Track subscriber growth and newsletter engagement.",
+          "keyMetrics": "Newsletter metrics",
+          "from": "From",
+          "to": "To",
+          "lastDays": "Last {days} days",
+          "resetRange": "Reset dates",
+          "invalidRange": "Choose valid dates spanning 1 to 366 days, with the start before the end, or reset dates.",
+          "periodNote": "Dates use UTC. Sends and events are counted when they happen, including engagement with older issues. Subscriber totals show the current audience.",
+          "ratesNote": "Open and click rates use delivered emails, or sent emails when no deliveries are recorded. Opens and clicks count each subscriber once per period or issue. Delayed events can make period rates exceed 100%.",
+          "opensNote": "Opens can be under-counted because some mail apps block images.",
+          "issueUnsubscribesNote": "Unsubscribes are newsletter-wide and cannot be attributed to an individual issue.",
+          "emptyTitle": "No sends in this period",
+          "emptyDescription": "Send an issue to see its performance, or choose dates with earlier activity.",
+          "viewIssues": "View issues",
+          "subscriberGrowth": "Subscriber growth",
+          "growthMetric": "Subscriber chart metric",
+          "engagement": "Opens and clicks",
+          "engagementMetric": "Engagement chart metric",
+          "issuePerformance": "Issue performance",
+          "subject": "Subject",
+          "sentAt": "Sent at",
+          "unavailable": "—",
+          "issueSummary": "Issue analytics",
+          "topLinks": "Top clicked links",
+          "url": "URL",
+          "noLinks": "No link clicks recorded yet.",
+          "metrics": {
+            "sent": "Sent",
+            "delivered": "Delivered",
+            "uniqueOpens": "Unique opens",
+            "uniqueClicks": "Unique clicks",
+            "unsubscribes": "Unsubscribes",
+            "bounces": "Bounces",
+            "complaints": "Complaints",
+            "openRate": "Open rate",
+            "clickRate": "Click rate",
+            "activeSubscribers": "Active subscribers"
+          },
+          "growth": {
+            "newActive": "New active subscribers",
+            "unsubscribed": "Unsubscribed",
+            "bounced": "Bounced",
+            "net": "Net growth",
+            "runningTotal": "Active subscriber total"
+          }
+        },
+        "generalDescription": "Who the newsletter comes from and where replies go.",
+        "brandDescription": "The logo, colors, and font your issues use.",
+        "welcomeCardDescription": "An optional first email for new subscribers.",
+        "unsavedChanges": "You have unsaved changes.",
+        "colorPlaceholder": "No color",
+        "presetColors": "Preset colors",
+        "clearColor": {
+          "primaryColor": "Clear primary color",
+          "accentColor": "Clear accent color"
+        },
+        "Logo": {
+          "description": "Upload an image up to {maxSize}. Save settings to use it in your issues.",
+          "upload": "Upload",
+          "replace": "Replace",
+          "remove": "Remove logo",
+          "previewAlt": "Newsletter logo",
+          "uploadError": "Failed to upload the logo. Try again.",
+          "fileTooLarge": "File is too large",
+          "fileTypeNotAccepted": "File type is not accepted",
+          "maxFilesExceeded": "Upload one logo at a time"
+        },
+        "Preview": {
+          "title": "Preview",
+          "description": "A sketch of how your brand looks in an issue. Updates as you type.",
+          "from": "From {sender}",
+          "sampleHeading": "Your next issue",
+          "sampleBody": "Your issue content appears here, in your brand font.",
+          "button": "Read more",
+          "unsubscribe": "Unsubscribe",
+          "primary": "Primary",
+          "accent": "Accent",
+          "unset": "Default",
+          "welcome": "Welcome email",
+          "noSubject": "No subject yet"
+        },
+        "SendingDomain": {
+          "title": "Sending domain",
+          "description": "Send newsletters from your own address, like news@news.yourbrand.com. Every project in this workspace uses it.",
+          "managedByAdmins": "Only a workspace owner or admin can connect a sending domain.",
+          "fromAddress": "From address",
+          "fromAddressPlaceholder": "news@news.yourbrand.com",
+          "fromAddressHint": "Use a subdomain, like news.yourbrand.com. It keeps newsletter reputation separate from your everyday email.",
+          "add": "Add domain",
+          "added": "Domain added. Now add its DNS records.",
+          "fallback": "Until it’s verified, newsletters go out from Sokosumi’s address as “your sender name via Sokosumi”.",
+          "noFallback": "Newsletters can’t be sent until this domain is verified.",
+          "status": {
+            "PENDING": "Pending",
+            "VERIFIED": "Verified",
+            "FAILED": "Failed"
+          },
+          "lastChecked": "Last checked {time}",
+          "verifiedDescription": "Every project’s newsletter in this workspace now sends from this address.",
+          "verifiedToast": "Domain verified. Newsletters now send from your address.",
+          "checked": "Checked. Your DNS records aren’t visible yet. DNS changes can take up to a few hours.",
+          "checkNow": "Check now",
+          "connectTitle": "Add the DNS records",
+          "dmarc": {
+            "title": "No DMARC policy found",
+            "description": "DMARC tells inboxes what to do with mail that fails these checks. Add the suggested DMARC record below. It starts with p=none, which only monitors and never blocks mail."
+          },
+          "oneClick": {
+            "title": "One-click setup",
+            "description": "Sign in to your DNS provider and confirm. Sokosumi adds the records for you.",
+            "lookup": "Find my DNS provider",
+            "found": "Your domain uses {provider}.",
+            "connect": "Connect with {provider}",
+            "unavailable": "One-click setup isn’t available for your DNS provider yet. Use a Cloudflare token or add the records below."
+          },
+          "cloudflare": {
+            "title": "Cloudflare API token",
+            "description": "Create a token with Zone · DNS · Edit for this domain’s zone and paste it here. Sokosumi uses it once to add the records and never stores it.",
+            "submit": "Add records in Cloudflare",
+            "success": "Records added in Cloudflare. Checking can take a few minutes."
+          },
+          "records": {
+            "title": "DNS records",
+            "description": "Or add these records at your DNS provider yourself.",
+            "name": "Name",
+            "value": "Value",
+            "priority": "Priority",
+            "found": "Record found",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Proves the mail comes from you."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Lets Sokosumi send for you."
+              },
+              "bounce": {
+                "label": "Return path (MX)",
+                "explanation": "Receives bounces, so Sokosumi can stop mailing addresses that fail."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Tells inboxes what to do with mail that fails these checks. p=none only monitors."
+              },
+              "other": {
+                "label": "Extra record",
+                "explanation": "Required by the email provider."
+              }
+            }
+          },
+          "remove": {
+            "action": "Remove domain",
+            "title": "Remove sending domain?",
+            "description": "Newsletters stop sending from {domain}. Its DNS records stay at your DNS provider until you delete them.",
+            "cancel": "Cancel",
+            "success": "Sending domain removed."
+          },
+          "errors": {
+            "generic": "Unable to update the sending domain. Try again.",
+            "invalidAddress": "Enter an email address, like news@news.yourbrand.com.",
+            "forbidden": "Only a workspace owner or admin can change the sending domain.",
+            "notFound": "This sending domain was removed. Refresh the page.",
+            "conflict": "This domain is already connected. Remove the current domain first, or use a domain no other workspace uses.",
+            "domainRejected": "This domain can’t be used. Check the address and try again.",
+            "providerFailed": "The email provider didn’t respond. Try again in a minute.",
+            "cloudflareRejected": "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain’s zone.",
+            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute."
+          }
         }
       }
     },
@@ -3964,8 +4419,21 @@
         "retry": "Try again"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Each project has its own newsletter. Choose a project to manage it.",
+      "pickProject": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "projectTitle": "{project} newsletter",
+      "nextPage": "Next projects",
+      "empty": {
+        "title": "No projects yet",
+        "description": "Create a project to start a newsletter.",
+        "action": "Create project"
+      }
+    },
     "Social": {
-      "title": "Social Scheduling",
+      "title": "Social posts",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
         "label": "New post",
@@ -4025,15 +4493,18 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",
+        "compactCredits": "{count, plural, =0 {No credits} =1 {# credit} other {{credits} credits}}",
         "planLabel": "Plan",
-        "openSummary": "Open account summary: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Open account summary: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "New",
           "newTask": "New task",
           "search": "Search",
+          "home": "Home",
+          "projects": "Projects",
+          "overview": "Overview",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
           "taskManager": "Tasks",
@@ -4047,9 +4518,15 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social Scheduling",
+          "social": "Social posts",
           "ads": "Ads",
-          "contacts": "Contacts"
+          "newsletter": "Newsletter",
+          "contacts": "Contacts",
+          "groups": {
+            "work": "Work",
+            "records": "Records",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -4061,9 +4538,20 @@
           "title": "Assigned seat required",
           "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
           "hint": "Ask an owner or admin to assign you a Seat."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Working now",
+          "needsAttention": "Needs attention",
+          "activeAgo": "Active {time}",
+          "ready": "Ready",
+          "team": "Your team's Soko Bots"
         }
       },
-      "toggle": "Toggle sidebar"
+      "show": "Show sidebar",
+      "hide": "Hide sidebar",
+      "resize": "Resize sidebar",
+      "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {
       "title": "Search",
@@ -7140,6 +7628,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
+      "chats": "Chats",
       "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
@@ -7162,6 +7651,7 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
+        "peopleLoadFailedDescription": "People you can message are temporarily unavailable. Try again in a moment.",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "noDirectMessagesDescription": "Send a message to start the conversation.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -7216,7 +7706,6 @@
         "title": "New direct message",
         "empty": "Choose who to message.",
         "chooseRecipientError": "Choose a recipient.",
-        "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
@@ -7330,6 +7819,10 @@
       },
       "loadOlder": "Load older messages",
       "jumpToLatest": "Jump to latest",
+      "UnreadDivider": {
+        "label": "New",
+        "accessibleName": "New messages"
+      },
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
@@ -7517,12 +8010,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "unreadMessagesCapped": "More than {max} unread messages",
-        "railUnread": "Unread"
+        "unread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "mentionsCapped": "More than {max} mentions",
-        "railMention": "Mentions you"
+        "mentionsYou": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",
@@ -7663,6 +8156,7 @@
       "SelfDirect": {
         "messageYourself": "Message yourself",
         "you": "You",
+        "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
       },
@@ -7697,12 +8191,14 @@
         "editTagsNote": "Your correction applies for everyone in the room.",
         "taskDue": "Due {date}",
         "taskSource": "From the chat:",
+        "taskFrom": "{name} wrote:",
         "Buckets": {
           "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
           "escalation": "{count, plural, one {# escalation} other {# escalations}}",
           "urgent": "{count, plural, one {# urgent} other {# urgent}}",
           "blocker": "{count, plural, one {# blocker} other {# blockers}}",
           "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "announcement": "{count, plural, one {# announcement} other {# announcements}}",
           "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
           "commitment": "{count, plural, one {# commitment} other {# commitments}}",
           "workRequest": "{count, plural, one {# work request} other {# work requests}}",
@@ -7722,6 +8218,7 @@
           "urgent": "Urgent",
           "blocker": "Blocker",
           "decisionMade": "Decision",
+          "announcement": "Announcement",
           "needsDecision": "Needs a decision",
           "commitment": "Commitment",
           "commitmentDue": "Commitment · due {date}",
@@ -7731,6 +8228,7 @@
           "question": "Asks someone a question",
           "needsDecision": "Needs a decision",
           "decisionMade": "Decision made",
+          "announcement": "Announcement",
           "commitment": "Commitment",
           "blocker": "Blocker",
           "urgent": "Urgent",
@@ -7751,10 +8249,22 @@
           "overview": "Overview",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG or WebP images up to 2 MiB. Select a sticker, then send.",
+        "upload": "Upload sticker",
+        "invalid": "Choose a PNG, JPEG or WebP image no larger than 2 MiB.",
+        "uploadFailed": "Unable to save sticker. Try uploading again.",
+        "loading": "Loading stickers…",
+        "loadFailed": "Unable to load stickers.",
+        "retry": "Try again",
+        "empty": "Upload a sticker to start your collection.",
+        "collection": "Saved stickers",
+        "select": "Select {name}"
       }
     },
     "Drive": {
-      "breadcrumb": "Files",
       "breadcrumbNavLabel": "Files folder navigation",
       "myDrive": "My files",
       "uploadButton": "Upload",
@@ -8537,7 +9047,9 @@
       "previous": "Previous period",
       "next": "Next period",
       "today": "Today",
+      "weekNumber": "Week {week}",
       "view": {
+        "label": "View",
         "month": "Month",
         "week": "Week",
         "agenda": "Agenda"
@@ -8619,7 +9131,28 @@
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
-        "platform": "Platform"
+        "platform": "Platform",
+        "more": "+{count} more",
+        "moreHint": "Show {count, plural, one {# more post} other {# more posts}} on this day",
+        "newOnDay": "New post on {date}",
+        "newPost": "New post",
+        "dragHint": "Drag to another day to reschedule.",
+        "dayEmpty": "Nothing scheduled on this day.",
+        "dayCount": "{count, plural, =0 {no posts} one {# post} other {# posts}}",
+        "statusFilter": "Show posts by status",
+        "postCount": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
+        "dayAttention": "{count, plural, one {# needs attention} other {# need attention}}",
+        "reschedule": "Reschedule",
+        "rescheduleNamed": "Reschedule the {time} post: {text}"
+      },
+      "socialMove": {
+        "title": "Reschedule post",
+        "description": "Pick a new date and time. Times are in {zone}.",
+        "label": "New date and time",
+        "confirm": "Reschedule",
+        "cancel": "Cancel",
+        "invalid": "Choose a valid date and time.",
+        "past": "Choose a time in the future."
       },
       "socialOnly": {
         "label": "Social posts only"
@@ -8797,13 +9330,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
+      "clearProject": "Clear project",
       "close": "Close",
       "label": "Project",
+      "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceView": "Everything",
-      "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
-      "recent": "Recent",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",
       "empty": "No projects found.",
@@ -8811,7 +9343,7 @@
       "error": "Projects could not load.",
       "retry": "Try again",
       "create": "Create project",
-      "manage": "Manage projects",
+      "closed": "Closed",
       "current": "(current)",
       "searching": "Searching projects..."
     },
@@ -9519,6 +10051,36 @@
       "later": "Later",
       "skip": "Skip",
       "continue": "Continue"
+    }
+  },
+  "PublicNewsletter": {
+    "archive": "Archive",
+    "subscribe": "Subscribe",
+    "emptyTitle": "No issues yet",
+    "emptyDescription": "Published issues will appear here.",
+    "loadMore": "Load more",
+    "loadError": "Failed to load issues. Try again.",
+    "unavailable": "This archive is no longer available. Reload the page.",
+    "metadataTitle": "{name} archive",
+    "metadataDescription": "Read past issues of {name}.",
+    "backToArchive": "Back to archive",
+    "issueContent": "Newsletter issue: {subject}",
+    "Signup": {
+      "title": "Subscribe to {name}",
+      "description": "Get new issues delivered to your inbox.",
+      "email": "Email address",
+      "name": "Name (optional)",
+      "consent": "I agree to receive this newsletter. You can unsubscribe at any time.",
+      "website": "Website",
+      "archive": "Browse the archive",
+      "success": "Check your inbox to confirm your subscription",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidName": "Use a name with 200 characters or fewer.",
+      "consentRequired": "Agree to receive the newsletter to subscribe.",
+      "invalid": "Check the highlighted fields and try again.",
+      "rateLimit": "Too many signup attempts. Wait a few minutes and try again.",
+      "unavailable": "This newsletter is unavailable. Reload the page and try again.",
+      "error": "Failed to subscribe. Try again."
     }
   }
 }

@@ -48,8 +48,11 @@ const PERSONAL = {
   name: "Ada Lovelace",
   organizationId: null,
   slug: null,
+  role: null,
+  memberCount: null,
   logo: null,
   websiteUrl: null,
+  enabledSocialProviders: ["x", "youtube", "linkedin"],
   preferred: false,
 } as const;
 
@@ -59,8 +62,11 @@ const ORGANIZATION = {
   name: "Acme",
   organizationId: "org_1",
   slug: "acme-x1y2z3",
+  role: "owner",
+  memberCount: 1,
   logo: null,
   websiteUrl: "https://acme.com",
+  enabledSocialProviders: ["x", "youtube", "linkedin"],
   preferred: true,
 } as const;
 

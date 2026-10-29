@@ -80,10 +80,14 @@ import {
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
   clampTaskFileName,
   createDataTableSchema,
+  isXLongPostSubscription,
   parseChatRoomFileUrl,
   resolveTaskFileContentType,
   resolveUserUploadContentType,
+  socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
+  socialPostTextLimit,
+  socialProvidersForWorkspace,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -94,6 +98,7 @@ import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { socialProviderWorkspaceForProject } from "@/config/social-providers";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
@@ -113,7 +118,6 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
@@ -164,6 +168,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
@@ -249,6 +254,7 @@ import {
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
+import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
@@ -275,7 +281,16 @@ import {
   type ImageJobSettings,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
-import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import { getNewsletter } from "@/services/newsletter.service";
+import {
+  generateNewsletterDraft,
+  isNewsletterDraftAvailable,
+} from "@/services/newsletter-draft.service";
+import { createNewsletterIssue } from "@/services/newsletter-issues.service";
+import {
+  listProjectSocialConnections,
+  requireScopedProject,
+} from "@/services/project-social-connections.service";
 import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
@@ -333,6 +348,7 @@ import {
   createTaskForActor,
   updateTaskForActor,
 } from "@/services/task-domain.service";
+import { resolveProjectXSubscriptionTypes } from "@/services/x-subscription-tier.service";
 
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -2290,6 +2306,44 @@ export class SokoBotRuntimeService {
   }
 
   /**
+   * The post's media and each thread part's media, resolved in one Drive
+   * lookup so a long thread with images does not read the Drive per part.
+   */
+  private async resolveSocialPostMedia(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      media?: SocialMediaInput[];
+      threadParts?: { text: string; media?: SocialMediaInput[] }[];
+    },
+  ): Promise<{
+    media: SocialMediaRef[] | undefined;
+    threadParts: { text: string; media?: SocialMediaRef[] }[] | undefined;
+  }> {
+    const groups = [
+      input.media,
+      ...(input.threadParts ?? []).map((part) => part.media),
+    ];
+    const resolved =
+      (await this.resolveSocialMedia(
+        authorized,
+        groups.flatMap((group) => group ?? []),
+      )) ?? [];
+    let offset = 0;
+    const [media, ...partMedia] = groups.map((group) => {
+      if (!group) return undefined;
+      offset += group.length;
+      return resolved.slice(offset - group.length, offset);
+    });
+    return {
+      media,
+      threadParts: input.threadParts?.map((part, index) => ({
+        text: part.text,
+        media: partMedia[index],
+      })),
+    };
+  }
+
+  /**
    * The Drive the owner sees on their Files page in the bot's workspace: the
    * organization's in an organization workspace, their own in the personal
    * one. Always writing to the personal Drive made a file "in my Files"
@@ -3480,7 +3534,7 @@ export class SokoBotRuntimeService {
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       const task = await tx.task.findFirst({
         where: {
@@ -3612,7 +3666,7 @@ export class SokoBotRuntimeService {
         : { allowed: true, claimId: null };
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       const task = await tx.task.findFirst({
         where: {
@@ -3967,7 +4021,7 @@ export class SokoBotRuntimeService {
         : { allowed: true, claimId: null };
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       if (approved) {
         await tx.sokoBotToolCall.upsert({
@@ -4111,7 +4165,7 @@ export class SokoBotRuntimeService {
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       if (approved) {
         await tx.sokoBotToolCall.upsert({
@@ -4352,7 +4406,7 @@ export class SokoBotRuntimeService {
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
-          "This turn has no current authority for this task event action",
+          claim.refusal ?? "This turn may not change this Task",
         );
       if (approved) {
         await tx.sokoBotToolCall.upsert({
@@ -4587,7 +4641,10 @@ export class SokoBotRuntimeService {
     let markdown: string;
     try {
       markdown = renderSokoBotMemory(
-        parseSokoBotMemory(input.markdown, { secretHandling: "reject" }),
+        parseSokoBotMemory(input.markdown, {
+          secretHandling: "reject",
+          unknownSections: "reject",
+        }),
       );
     } catch (error) {
       throw new SokoBotRuntimeValidationError(
@@ -4659,6 +4716,12 @@ export class SokoBotRuntimeService {
 
   async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
     const authorized = await this.authorize(input);
+    if (input.capability === "newsletter_draft_issue") {
+      const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(
+        input.input,
+      );
+      await this.requireNewsletterDraftScope(authorized, params.projectId);
+    }
     assertEvaluationActor({
       ...authorized.turn,
       userId: authorized.turn.actingUserId,
@@ -5215,7 +5278,7 @@ export class SokoBotRuntimeService {
       authorized.turn.workspaceId,
     );
     await requireAssignedOrganizationSeat(userId, workspace.organizationId, tx);
-    await requireSocialBetaAccess(userId, tx);
+
     return workspace;
   }
 
@@ -5232,11 +5295,53 @@ export class SokoBotRuntimeService {
             input.input,
           );
         await this.requireSocialAccess(authorized);
-        return z
-          .array(projectSocialConnectionSchema)
-          .parse(
-            await listProjectSocialConnections({ ...params, workspaceId }),
-          );
+        const project = await requireScopedProject({ ...params, workspaceId });
+        const [accounts, xTiers] = await Promise.all([
+          listProjectSocialConnections({ ...params, workspaceId }),
+          resolveProjectXSubscriptionTypes(params.projectId),
+        ]);
+        const enabledProviders = socialProvidersForWorkspace(
+          socialProviderWorkspaceForProject(project),
+        );
+        return {
+          enabledProviders,
+          // Read before drafting: how a good post reads on each network.
+          writingGuides: Object.fromEntries(
+            enabledProviders
+              .filter((provider) =>
+                accounts.some((account) => account.provider === provider),
+              )
+              .map((provider) => [
+                provider,
+                SOCIAL_POST_WRITING_GUIDES[provider],
+              ]),
+          ),
+          // The bot otherwise assumes "X allows 280 characters" for every X
+          // account, so each account states its own limits.
+          accounts: z
+            .array(projectSocialConnectionSchema)
+            .parse(accounts)
+            .map((account) => {
+              const subscriptionType = xTiers.has(account.id)
+                ? (xTiers.get(account.id) ?? null)
+                : account.subscriptionType;
+              return {
+                ...account,
+                subscriptionType,
+                xPremium:
+                  account.provider === "x" &&
+                  isXLongPostSubscription(subscriptionType),
+                textLimit: socialPostTextLimit(
+                  account.provider,
+                  subscriptionType,
+                ),
+                firstCommentLimit: socialPostFirstCommentLimit(
+                  account.provider,
+                  subscriptionType,
+                ),
+              };
+            }),
+        };
       }
       case "list_social_posts": {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_posts.parse(
@@ -5335,15 +5440,16 @@ export class SokoBotRuntimeService {
       case "cancel_social_post": {
         // Resolved before the transaction: it reads the blob store, and a
         // serializable transaction should not wait on the network.
-        const media =
+        const { media, threadParts } =
           input.capability === "create_social_post" ||
           input.capability === "update_social_post"
-            ? await this.resolveSocialMedia(
+            ? await this.resolveSocialPostMedia(
                 authorized,
-                SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(input.input)
-                  .media,
+                SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+                  input.input,
+                ),
               )
-            : undefined;
+            : { media: undefined, threadParts: undefined };
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,
@@ -5369,6 +5475,7 @@ export class SokoBotRuntimeService {
                     ...params,
                     ...scope,
                     media,
+                    threadParts,
                     sokoBotId: authorized.turn.sokoBotId,
                     scheduledAt: params.scheduledAt
                       ? new Date(params.scheduledAt)
@@ -5382,7 +5489,16 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
-                return updateSocialPost({ ...params, ...scope, media }, tx);
+                return updateSocialPost(
+                  {
+                    ...params,
+                    ...scope,
+                    media,
+                    threadParts,
+                    sokoBotId: authorized.turn.sokoBotId,
+                  },
+                  tx,
+                );
               }
               case "schedule_social_post": {
                 const params =
@@ -5463,6 +5579,31 @@ export class SokoBotRuntimeService {
     return input;
   }
 
+  private async requireNewsletterDraftScope(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
+      projectId,
+    ]);
+    if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
+    const scope = await requireProjectAccess({
+      projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: actingMemberOf(authorized),
+    });
+    if (
+      !(await isNewsletterDraftAvailable({
+        projectId,
+        workspaceId: scope.workspaceId,
+      }))
+    ) {
+      throw new SokoBotRuntimeAuthorizationError("Newsletter is not enabled");
+    }
+    await getNewsletter({ projectId, workspaceId: scope.workspaceId });
+    return scope;
+  }
+
   private async executeAuthorizedTool(
     raw: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
@@ -5472,6 +5613,48 @@ export class SokoBotRuntimeService {
       input: await this.resolveTaskIds(authorized, raw.input),
     };
     switch (input.capability) {
+      case "newsletter_draft_issue": {
+        const { projectId, ...params } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(input.input);
+        const scope = await this.requireNewsletterDraftScope(
+          authorized,
+          projectId,
+        );
+        const draft = await generateNewsletterDraft(scope, params);
+        return serializableTransaction(async (tx) => {
+          await this.requireMutationAuthority(
+            tx,
+            authorized,
+            false,
+            input.capability,
+            { projectIds: [projectId] },
+          );
+          const issue = await createNewsletterIssue(
+            { projectId, workspaceId: scope.workspaceId },
+            draft,
+            { client: tx, creatorSokoBotId: authorized.turn.sokoBotId },
+          );
+          // Keep the review target intact even when the content exceeds the receipt size limit.
+          const result = newsletterIssueSchema
+            .pick({
+              id: true,
+              projectId: true,
+              subject: true,
+              status: true,
+              revision: true,
+            })
+            .parse(issue);
+          await commitActionReceipt(tx, {
+            turnId: authorized.turn.id,
+            toolCallId: input.toolCallId,
+            actorBotId: authorized.turn.sokoBotId,
+            targetId: issue.id,
+            observedVersion: String(issue.revision),
+            result: persistedToolResult(result),
+          });
+          return result;
+        }, "Newsletter draft changed concurrently");
+      }
       case "list_project_social_accounts":
       case "list_social_posts":
       case "list_social_post_statistics":

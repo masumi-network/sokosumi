@@ -1,11 +1,23 @@
-import { render } from "@testing-library/react";
+import { MemberRole } from "@sokosumi/core-client";
+import {
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialProvidersForWorkspace,
+} from "@sokosumi/utils";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 
 const readRouteSessionMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
+const getMyWorkspacesMock =
+  vi.fn<
+    typeof import("@/lib/services/user.service").userService.getMyWorkspaces
+  >();
 const hasAssignedOrganizationSeatMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
+const workspaceSwitcherProviderMock = vi.fn();
 const hasSocialBetaAccessMock = vi.fn();
+const isNewsletterEnabledMock = vi.fn();
 const getRequestPathMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
@@ -39,11 +51,20 @@ vi.mock("@/lib/services/organization-seat.service", () => ({
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
+    getMyWorkspaces: () => getMyWorkspacesMock(),
   },
+}));
+
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: { getMyBadgeCampaigns: async () => [] },
 }));
 
 vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
+}));
+
+vi.mock("@/lib/newsletter-access.server", () => ({
+  isNewsletterEnabled: () => isNewsletterEnabledMock(),
 }));
 
 vi.mock("@/app/chat/components/authenticated-room-cache", () => ({
@@ -78,11 +99,6 @@ vi.mock("@/contexts/organization-seat-context", () => ({
     <>{children}</>
   ),
 }));
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  BreadcrumbOverrideProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}));
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
   HistorySearchDialogProvider: ({
     children,
@@ -90,6 +106,26 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
     children: React.ReactNode;
   }) => <>{children}</>,
 }));
+vi.mock(
+  "@/app/components/workspace-switcher/workspace-switcher.client",
+  () => ({
+    WorkspaceSwitcherProvider: ({
+      children,
+      ...props
+    }: {
+      children: React.ReactNode;
+    }) => {
+      workspaceSwitcherProviderMock(props);
+      return <>{children}</>;
+    },
+  }),
+);
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-edge-handle.client",
+  () => ({
+    SidebarEdgeHandle: () => null,
+  }),
+);
 vi.mock("../private-cached-app-sidebar", () => ({
   default: (props: unknown) => {
     privateCachedAppSidebarMock(props);
@@ -125,6 +161,15 @@ vi.mock("@/components/emergency-dialog/emergency-dialog", () => ({
   EmergencyDialog: () => null,
 }));
 
+vi.mock("@/components/impersonation/impersonation-banner", () => ({
+  ImpersonationBanner: () => null,
+}));
+
+function SocialProviderProbe() {
+  const { enabledProviders } = useSocialProviderAvailability();
+  return <div data-testid="social-providers">{enabledProviders.join(",")}</div>;
+}
+
 describe("AuthenticatedAppFrame workspace gate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -137,6 +182,25 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
     hasSocialBetaAccessMock.mockResolvedValue(false);
+    isNewsletterEnabledMock.mockResolvedValue(false);
+    getMyWorkspacesMock.mockResolvedValue({
+      workspaces: [null, "utxo", "other"].map((slug) => ({
+        id: slug ?? "personal",
+        kind: slug ? "organization" : "personal",
+        name: slug ?? "Personal",
+        organizationId: slug,
+        slug,
+        role: slug ? MemberRole.MEMBER : null,
+        memberCount: slug ? 2 : null,
+        enabledSocialProviders: [
+          ...socialProvidersForWorkspace({ organizationSlug: slug }),
+        ],
+        logo: null,
+        websiteUrl: null,
+        preferred: slug === null,
+      })),
+      pendingInvitationCount: 0,
+    });
     getRequestPathMock.mockResolvedValue("/");
   });
 
@@ -206,13 +270,38 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     );
   });
 
+  // One Workspace switcher owner for the sidebar and the top bar, fed by the
+  // frame's own workspaces read rather than a second one of its own.
+  it("hands the Workspace switcher the frame's workspaces", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "ready" });
+
+    const { default: AuthenticatedAppFrame } = await import(
+      "../authenticated-app-frame"
+    );
+
+    render(await AuthenticatedAppFrame({ children: <div>app</div> }));
+
+    expect(workspaceSwitcherProviderMock).toHaveBeenCalledOnce();
+    const [props] = workspaceSwitcherProviderMock.mock.calls[0] ?? [];
+    expect(props).toMatchObject({
+      sessionUser: { id: "user-1" },
+      activeOrganizationId: null,
+    });
+    expect(props.workspaces.map(({ name }: { name: string }) => name)).toEqual([
+      "Personal",
+      "utxo",
+      "other",
+    ]);
+    expect(getMyWorkspacesMock).toHaveBeenCalled();
+  });
+
   /**
-   * Social is still beta-gated, and the sidebar is a client component, so the
+   * Ads is still beta-gated, and the sidebar is a client component, so the
    * frame is the only place that can answer for it. It resolves alongside the
    * seat gate rather than after it: nav paints once both are in.
    */
   it.each([true, false])(
-    "hands the sidebar the Social beta answer: %s",
+    "hands the sidebar the Ads beta answer: %s",
     async (enabled) => {
       hasSocialBetaAccessMock.mockResolvedValue(enabled);
       getWorkspaceAccessMock.mockResolvedValue({
@@ -230,6 +319,53 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
         socialBetaEnabled: enabled,
       });
+    },
+  );
+
+  it.each([true, false])(
+    "hands the sidebar the workspace Newsletter availability: %s",
+    async (enabled) => {
+      isNewsletterEnabledMock.mockResolvedValue(enabled);
+      getWorkspaceAccessMock.mockResolvedValue({ gate: "ready" });
+
+      const { default: AuthenticatedAppFrame } = await import(
+        "../authenticated-app-frame"
+      );
+      render(await AuthenticatedAppFrame({ children: <div>app</div> }));
+
+      expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
+        newsletterEnabled: enabled,
+        socialBetaEnabled: false,
+      });
+    },
+  );
+
+  it.each([
+    [null, SOCIAL_PUBLIC_PROVIDERS],
+    ["utxo", SOCIAL_PUBLIC_PROVIDERS],
+    ["other", SOCIAL_PUBLIC_PROVIDERS],
+  ] as const)(
+    "supplies the active workspace's Social providers: %s",
+    async (activeOrganizationId, enabledProviders) => {
+      getWorkspaceAccessMock.mockResolvedValue({ gate: "ready" });
+      readRouteSessionMock.mockResolvedValue({
+        status: "authenticated",
+        session: {
+          user: { id: "user-1", role: "user" },
+          session: { id: "session-1", activeOrganizationId },
+        },
+      });
+      const { default: AuthenticatedAppFrame } = await import(
+        "../authenticated-app-frame"
+      );
+
+      render(
+        await AuthenticatedAppFrame({ children: <SocialProviderProbe /> }),
+      );
+
+      expect(screen.getByTestId("social-providers").textContent).toBe(
+        enabledProviders.join(","),
+      );
     },
   );
 });

@@ -7,6 +7,15 @@
 /* Set before paint while a returning reader's Unreads filter is not yet
    rendered; see `CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE`. */
 @custom-variant chat-unreads-boot (html[data-chat-unreads-boot] &);
+/* While the sidebar is hidden, from anywhere inside the sidebar wrapper. CSS
+   rather than state: the boot script hides the sidebar before React hydrates,
+   and what follows its `data-state` must already be right on that frame. */
+@custom-variant sidebar-hidden (
+  :where(
+      .group\/sidebar-wrapper:has([data-slot="sidebar"][data-state="collapsed"])
+    )
+    &
+);
 
 @theme inline {
   /* Tailwind's own default is 150ms. The hover steps in this stack travel a
@@ -806,9 +815,13 @@
    taskboard's drag and drop and drag-to-scroll, the chat list's reverse
    column) keep working because nothing here swaps in a widget.
 
+   The sidebar is the exception: `SidebarContent` uses Radix's overlay
+   scrollbar, drawn to the same geometry and colors, so its rows keep their
+   width when the list stops overflowing and the scrollbar goes away.
+
    A utility, not a plain class, so Tailwind puts it in the utilities layer and
    a port that has to hide its scrollbar in one state can still win on
-   specificity (the sidebar's collapsed icon rail does exactly that).
+   specificity.
 
    High-contrast and forced-colors modes keep the platform's own scrollbar
    colors and geometry. */

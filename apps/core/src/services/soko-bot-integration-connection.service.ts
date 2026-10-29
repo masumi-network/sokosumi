@@ -4,6 +4,7 @@ import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
+import { socialProviderForToolkit } from "@/config/social-providers";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotIntegrationReplace } from "@/helpers/soko-bot-management";
@@ -59,7 +60,9 @@ export async function requireBot(
 
 /**
  * Ad toolkits use the auth config Project Ads uses (our own OAuth apps) and
- * are refused without it; others use a Composio-managed one, created on first use.
+ * are refused without it; others use a Composio-managed one, created on first
+ * use. Composio offers no managed auth for some social toolkits (X), so those
+ * fall back to the auth config Project socials use.
  */
 async function resolveAuthConfigId(toolkit: string): Promise<string> {
   const adProvider = adProviderForToolkit(toolkit);
@@ -80,6 +83,9 @@ async function resolveAuthConfigId(toolkit: string): Promise<string> {
       item.toolkit.slug.toLowerCase() === toolkit && item.isComposioManaged,
   );
   if (managed) return managed.id;
+  const social = socialProviderForToolkit(toolkit);
+  const socialAuthConfigId = social && getEnv()[social.authConfigEnv];
+  if (socialAuthConfigId) return socialAuthConfigId;
   const created = await composio.authConfigs.create(toolkit, {
     type: "use_composio_managed_auth",
     name: `sokosumi-${toolkit}`,

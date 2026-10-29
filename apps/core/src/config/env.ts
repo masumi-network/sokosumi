@@ -94,12 +94,20 @@ const baseEnvSchema = z.object({
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
   // Project newsletters use a separate sending domain from transactional email.
-  NEWSLETTER_ENABLED: z
-    .string()
-    .default("false")
-    .transform((value) => value.trim().toLowerCase() === "true"),
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
+  /**
+   * RSA private key (PEM) that signs Domain Connect apply URLs for the
+   * `sokosumi.com`/`newsletter` template. Its public half is published at
+   * `_dck1.sokosumi.com`. Unset hides one-click DNS setup.
+   */
+  DOMAIN_CONNECT_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const trimmed = value?.trim().replace(/\\n/g, "\n");
+      return trimmed ? trimmed : undefined;
+    }),
 
   /**
    * Credits under which a wallet is told it is running low (SOK-932).

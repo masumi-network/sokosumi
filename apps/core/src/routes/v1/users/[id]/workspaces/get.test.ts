@@ -106,12 +106,14 @@ describe("GET /users/{id}/workspaces", () => {
     workspaceFindUniqueMock.mockResolvedValue({ id: PERSONAL_WORKSPACE_ID });
     memberFindManyMock.mockResolvedValue([
       {
+        role: "owner",
         organization: {
           id: "org_1",
           name: "Acme",
           slug: "acme-x1y2z3",
           logo: "https://cdn.example/acme.png",
           metadata: JSON.stringify({ url: "https://acme.com" }),
+          _count: { members: 3 },
           workspace: { id: ORG_WORKSPACE_ID },
         },
       },
@@ -135,6 +137,9 @@ describe("GET /users/{id}/workspaces", () => {
           name: "Ada Lovelace",
           organizationId: null,
           slug: null,
+          role: null,
+          memberCount: null,
+          enabledSocialProviders: ["x", "youtube", "linkedin"],
           logo: null,
           websiteUrl: null,
           preferred: false,
@@ -145,13 +150,57 @@ describe("GET /users/{id}/workspaces", () => {
           name: "Acme",
           organizationId: "org_1",
           slug: "acme-x1y2z3",
+          role: "owner",
+          memberCount: 3,
           logo: "https://cdn.example/acme.png",
           websiteUrl: "https://acme.com",
+          enabledSocialProviders: ["x", "youtube", "linkedin"],
           preferred: true,
         },
       ],
       pendingInvitationCount: 0,
     });
+  });
+
+  it("returns the public providers for every workspace, including utxo", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ id: PERSONAL_WORKSPACE_ID });
+    memberFindManyMock.mockResolvedValue(
+      ["utxo", "other"].map((slug, index) => ({
+        role: "owner",
+        organization: {
+          id: `org_${index}`,
+          name: slug,
+          slug,
+          logo: null,
+          metadata: null,
+          _count: { members: 3 },
+          workspace: {
+            id:
+              index === 0
+                ? ORG_WORKSPACE_ID
+                : "33333333-3333-7333-8333-333333333333",
+          },
+        },
+      })),
+    );
+    const response = await createApp().request("/me/workspaces");
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.workspaces[0].enabledSocialProviders).toEqual([
+      "x",
+      "youtube",
+      "linkedin",
+    ]);
+    expect(data.workspaces[1].enabledSocialProviders).toEqual([
+      "x",
+      "youtube",
+      "linkedin",
+    ]);
+    expect(data.workspaces[2].enabledSocialProviders).toEqual([
+      "x",
+      "youtube",
+      "linkedin",
+    ]);
   });
 
   it("marks the personal workspace preferred when no organization resolves", async () => {
@@ -175,12 +224,14 @@ describe("GET /users/{id}/workspaces", () => {
     workspaceFindUniqueMock.mockResolvedValue({ id: PERSONAL_WORKSPACE_ID });
     memberFindManyMock.mockResolvedValue([
       {
+        role: "owner",
         organization: {
           id: "org_1",
           name: "Acme",
           slug: "acme-x1y2z3",
           logo: null,
           metadata: null,
+          _count: { members: 3 },
           workspace: { id: ORG_WORKSPACE_ID },
         },
       },
@@ -227,12 +278,14 @@ describe("GET /users/{id}/workspaces", () => {
       );
       memberFindManyMock.mockResolvedValue(
         Array.from({ length: organizationCount }, (_, index) => ({
+          role: "owner",
           organization: {
             id: `org_${index}`,
             name: `Org ${index}`,
             slug: `org-${index}`,
             logo: null,
             metadata: null,
+            _count: { members: 3 },
             workspace: { id: `3333333${index}-3333-7333-8333-333333333333` },
           },
         })),
@@ -260,15 +313,41 @@ describe("GET /users/{id}/workspaces", () => {
     );
   });
 
-  it("creates the missing workspace row of an organization membership", async () => {
+  it("lists a membership with an unknown stored role as having no role", async () => {
     memberFindManyMock.mockResolvedValue([
       {
+        role: "guest",
         organization: {
           id: "org_1",
           name: "Acme",
           slug: "acme-x1y2z3",
           logo: null,
           metadata: null,
+          _count: { members: 3 },
+          workspace: { id: ORG_WORKSPACE_ID },
+        },
+      },
+    ]);
+
+    const response = await createApp().request("/me/workspaces");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.workspaces).toEqual([
+      expect.objectContaining({ id: ORG_WORKSPACE_ID, role: null }),
+    ]);
+  });
+
+  it("creates the missing workspace row of an organization membership", async () => {
+    memberFindManyMock.mockResolvedValue([
+      {
+        role: "owner",
+        organization: {
+          id: "org_1",
+          name: "Acme",
+          slug: "acme-x1y2z3",
+          logo: null,
+          metadata: null,
+          _count: { members: 3 },
           workspace: null,
         },
       },

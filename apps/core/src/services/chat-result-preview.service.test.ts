@@ -31,7 +31,13 @@ const {
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    workspace: { findFirst: workspace },
+    workspace: {
+      findFirst: workspace,
+      findMany: async () => {
+        const row = await workspace();
+        return row ? [row] : [];
+      },
+    },
     project: { findMany: projects },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
@@ -46,7 +52,9 @@ vi.mock("@/helpers/access-control", () => ({
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: vi.fn(),
+  requireSocialBetaAccess: vi
+    .fn()
+    .mockRejectedValue(new Error("Outside Ads beta")),
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: projectAccess,
@@ -244,7 +252,7 @@ describe("authorized chat results", () => {
       await hydrateChatResultSnapshots([followUp], "someone-else"),
     ).toEqual([{ id: followUp.data.id, state: "unavailable" }]);
   });
-  it("reads scheduled posts through beta and project access", async () => {
+  it("reads scheduled posts through project access outside the Ads beta", async () => {
     socialPost.mockResolvedValue({
       text: "Our launch",
       status: "SCHEDULED",
@@ -279,11 +287,11 @@ describe("authorized chat results", () => {
       { ...actor, projectId: "project" },
       expect.anything(),
     );
-    projectAccess.mockRejectedValue(new Error("db offline"));
+    projects.mockRejectedValue(new Error("db offline"));
     await expect(
       hydrateChatResultSnapshots([snapshot], "owner"),
     ).rejects.toThrow("db offline");
-    projectAccess.mockReset();
+    projects.mockReset();
   });
   it.each(["FAILED", "CANCELLED", "QUEUED"])(
     "shows %s studio state without invented outputs",

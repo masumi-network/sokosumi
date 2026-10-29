@@ -8,7 +8,10 @@ import {
   ChatUnreadViewHeader,
 } from "@/app/chat/components/chat-unread-view-header";
 import { getChatCatchUpSummaryAction } from "@/app/chat/signal-actions";
-import { CatchUpSummaryBody } from "@/components/chat/signals/catch-up-summary-body";
+import {
+  CatchUpSummaryBody,
+  isCatchUpSummaryEmpty,
+} from "@/components/chat/signals/catch-up-summary-body";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -35,13 +38,7 @@ export function CatchUpView() {
     refetchOnWindowFocus: false,
     retry: false,
   });
-  const empty =
-    data != null &&
-    data.headline == null &&
-    data.needsYou.length === 0 &&
-    data.decisions.length === 0 &&
-    data.openLoops.length === 0 &&
-    data.highlights.length === 0;
+  const empty = data != null && isCatchUpSummaryEmpty(data);
 
   return (
     <div className="flex w-full flex-col gap-4 pb-4">

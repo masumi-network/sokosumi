@@ -150,6 +150,8 @@ describe("triageMail", () => {
     expect(questions.mail0.instructions).toMatch(/ownerPreferences/);
     expect(questions.mail0.instructions).toMatch(/alreadyFlaggedToday/);
     expect(MAIL_TRIAGE_CRITERIA.URGENT).toMatch(/DigitalOcean.*never urgent/);
+    expect(MAIL_TRIAGE_CRITERIA.BULK).toMatch(/Sentry.*are bulk/);
+    expect(MAIL_TRIAGE_CRITERIA.BULK).toMatch(/Cold pitches from strangers/);
   });
 
   it("marks mail a saved rule asks the bot to act on, only when Jev is sure", async () => {
@@ -234,6 +236,44 @@ describe("triageMail", () => {
       { message: inbox[0], tag: null, probability: null, matchesRule: false },
     ]);
     expect(logSetMock.mock.calls[0][0].mailTriage.failed).toBe(true);
+  });
+
+  it("asks a busy hour in batches of 25 and keeps the order", async () => {
+    evaluateMock.mockImplementation(async ({ questions }) => ({
+      answers: Object.fromEntries(
+        Object.keys(questions).map((key) => [key, choice(0, 0, 1)]),
+      ),
+    }));
+    const inbox = Array.from({ length: 60 }, (_, i) =>
+      mail(`m${i}`, `Newsletter ${i}`),
+    );
+    const { mail: tagged, failed } = await triage(inbox);
+    expect(evaluateMock).toHaveBeenCalledTimes(3);
+    expect(
+      evaluateMock.mock.calls.map(
+        ([call]) => Object.keys(call.questions).length,
+      ),
+    ).toEqual([25, 25, 10]);
+    expect(failed).toBe(false);
+    expect(tagged.map((item) => item.message.id)).toEqual(
+      inbox.map((message) => message.id),
+    );
+    expect(tagged.every((item) => item.tag === "BULK")).toBe(true);
+  });
+
+  it("leaves only a failed batch untagged", async () => {
+    evaluateMock
+      .mockResolvedValueOnce({
+        answers: Object.fromEntries(
+          Array.from({ length: 25 }, (_, i) => [`mail${i}`, choice(0, 0, 1)]),
+        ),
+      })
+      .mockRejectedValueOnce(new Error("timeout"));
+    const inbox = Array.from({ length: 30 }, (_, i) => mail(`m${i}`, "Hi"));
+    const { mail: tagged, failed } = await triage(inbox);
+    expect(failed).toBe(true);
+    expect(tagged.slice(0, 25).every((item) => item.tag === "BULK")).toBe(true);
+    expect(tagged.slice(25).every((item) => item.tag === null)).toBe(true);
   });
 
   it("asks nothing for an empty inbox", async () => {

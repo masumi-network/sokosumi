@@ -1,5 +1,18 @@
+import {
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialPostProviderLabel,
+  socialProvidersForWorkspace,
+  socialProviderUnavailableMessage,
+} from "@sokosumi/utils";
+import { createFormatter, createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
+import de from "@/../messages/de.json";
+import en from "@/../messages/en.json";
+import es from "@/../messages/es.json";
 import { publishFailureCopy } from "./social-post-publish-failure";
+
+const formatList = (values: string[]) =>
+  createFormatter({ locale: "en" }).list(values, { type: "conjunction" });
 
 const COPY: Record<string, string> = {
   "outcomes.authorizationRevoked":
@@ -42,6 +55,8 @@ describe("publishFailureCopy", () => {
       publishFailureCopy(
         { ...post({ errorKind: "text_limit" }), lastError: message },
         t,
+        formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
       ),
     ).toBe(message);
   });
@@ -60,6 +75,8 @@ describe("publishFailureCopy", () => {
           outcome,
         }),
         t,
+        formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
       ),
     ).toBe(copy);
   });
@@ -74,7 +91,14 @@ describe("publishFailureCopy", () => {
     ["media_missing", "A file is missing."],
     ["media_type_mismatch", "That file type is not allowed."],
   ] as const)("maps errorKind %s", (errorKind, copy) => {
-    expect(publishFailureCopy(post({ errorKind }), t)).toBe(copy);
+    expect(
+      publishFailureCopy(
+        post({ errorKind }),
+        t,
+        formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
+      ),
+    ).toBe(copy);
   });
 
   it("never returns a raw provider error", () => {
@@ -88,13 +112,124 @@ describe("publishFailureCopy", () => {
           },
         },
         t,
+        formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
       ),
     ).toBe("Couldn't publish. Open the post for details.");
   });
 
+  it.each([
+    [
+      "en",
+      en,
+      "We couldn't confirm the post. Check LinkedIn before retrying so it isn't posted twice.",
+    ],
+    [
+      "de",
+      de,
+      "Wir konnten den Beitrag nicht bestätigen. Prüfe LinkedIn, bevor du es erneut versuchst, damit er nicht doppelt erscheint.",
+    ],
+    [
+      "es",
+      es,
+      "No pudimos confirmar la publicación. Revisa LinkedIn antes de reintentar para no publicarla dos veces.",
+    ],
+  ] as const)(
+    "explains an unconfirmed publish in %s",
+    (locale, messages, expected) => {
+      const translate = createTranslator({
+        locale,
+        messages: messages.App.Projects.SocialPosts,
+      });
+      for (const lastError of [
+        "The publishing result could not be confirmed. Check LinkedIn before retrying to avoid a duplicate post.",
+        "The previous publishing attempt could not be confirmed. Check LinkedIn before retrying to avoid a duplicate post.",
+      ]) {
+        expect(
+          publishFailureCopy(
+            { ...post({ errorKind: "unknown" }), lastError },
+            (key, values) => translate(key, values),
+            formatList,
+            SOCIAL_PUBLIC_PROVIDERS,
+          ),
+        ).toBe(expected);
+      }
+    },
+  );
+
   it("falls back when there is no attempt", () => {
-    expect(publishFailureCopy({ status: "FAILED", lastAttempt: null }, t)).toBe(
-      "Couldn't publish. Open the post for details.",
-    );
+    expect(
+      publishFailureCopy(
+        { status: "FAILED", lastAttempt: null },
+        t,
+        formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
+      ),
+    ).toBe("Couldn't publish. Open the post for details.");
   });
+  it.each([
+    ["en", en, "TikTok is coming soon. Available now: {providers}."],
+    ["de", de, "TikTok ist bald verfügbar. Jetzt verfügbar: {providers}."],
+    [
+      "es",
+      es,
+      "TikTok estará disponible próximamente. Disponible ahora: {providers}.",
+    ],
+  ] as const)(
+    "translates stored availability failures in %s",
+    (locale, messages, expected) => {
+      const translate = createTranslator({
+        locale,
+        messages: messages.App.Projects.SocialPosts,
+      });
+      const formatter = createFormatter({ locale });
+      for (const source of [
+        {
+          ...post({ errorKind: "provider_coming_soon:tiktok" }),
+          provider: "x",
+        },
+        {
+          status: "FAILED" as const,
+          lastError: socialProviderUnavailableMessage("tiktok", {
+            organizationSlug: null,
+          }),
+        },
+      ]) {
+        for (const organizationSlug of [null, "utxo"]) {
+          const enabledProviders = socialProvidersForWorkspace({
+            organizationSlug,
+          });
+          expect(
+            publishFailureCopy(
+              source,
+              translate,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ),
+          ).toBe(
+            expected.replace(
+              "{providers}",
+              formatter.list(enabledProviders.map(socialPostProviderLabel), {
+                type: "conjunction",
+              }),
+            ),
+          );
+        }
+      }
+    },
+  );
+
+  it.each(["tiktok", "instagram", "facebook", "linkedin", "youtube"])(
+    "does not mislabel a non-availability %s failure as coming soon",
+    (provider) => {
+      expect(
+        publishFailureCopy(
+          { ...post({ errorKind: "rate_limited" }), provider },
+          t,
+          formatList,
+          SOCIAL_PUBLIC_PROVIDERS,
+        ),
+      ).toBe(COPY["failures.rateLimited"]);
+    },
+  );
 });

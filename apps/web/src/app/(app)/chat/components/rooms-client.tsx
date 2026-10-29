@@ -54,6 +54,7 @@ import {
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "@/app/chat/components/transcript-viewport";
+import { UnreadDivider } from "@/app/chat/components/unread-divider";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
@@ -158,7 +159,10 @@ import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-r
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
-import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
+import {
+  fetchRoomMessages,
+  type RoomMessagesPage,
+} from "@/components/chat/fetch-room-messages";
 import {
   getMembershipVisibleRooms,
   subscribeMembershipVisibleRooms,
@@ -167,7 +171,6 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
@@ -194,7 +197,6 @@ import {
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
 import {
-  canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
@@ -210,7 +212,6 @@ import {
   appendMessage,
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
-  getRoomDisplayName,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -254,12 +255,22 @@ import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
+import { useRoomDisplayName } from "./use-room-display-name";
+
+/** The active organization as a room reads it. */
+export interface RoomWorkspace {
+  id: Organization["id"];
+  slug: Organization["slug"] | null;
+}
 
 export interface RoomsClientProps {
   /** Channel history is owned by the client cache, not server navigation. */
   loadHistoryOnClient?: boolean;
-  /** Null in personal workspace. */
-  activeOrganization: Organization | null;
+  /**
+   * Null in personal workspace. Slug is null while a room paints from the
+   * sidebar before its page registers.
+   */
+  activeOrganization: RoomWorkspace | null;
   rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
@@ -292,6 +303,13 @@ export interface RoomsClientProps {
 
 /** Poll cadence for the open room while Ably or its channel is unavailable. */
 const ROOM_MESSAGE_FALLBACK_MS = 3_000;
+
+let roomVisits = 0;
+/** Tells one open of a room from the next, even of the same room. */
+function nextRoomVisit() {
+  roomVisits += 1;
+  return roomVisits;
+}
 
 function RoomMessageRealtimeBridge({
   currentUserId,
@@ -397,15 +415,45 @@ function visibleRoomLocation(
   };
 }
 
+/** Where the Unread divider sits; `at` keeps its place once its message goes. */
+interface UnreadDividerPlace {
+  id: string;
+  at: number | null;
+}
+
+/**
+ * The divider an answer names: undefined when it names none (an older page)
+ * or has not arrived, null for no Room unread or a failed read.
+ */
+function unreadDividerIn(
+  page: RoomTranscriptPage | null | undefined,
+): UnreadDividerPlace | null | undefined {
+  if (page === undefined) return undefined;
+  const id = page ? page.firstUnreadMessageId : null;
+  if (id === undefined) return undefined;
+  if (!id) return null;
+  const createdAt = page?.messages.find(
+    (message) => message.id === id,
+  )?.createdAt;
+  return { id, at: createdAt == null ? null : new Date(createdAt).getTime() };
+}
+
 interface RetainedTranscriptBinding {
   entry: RoomTranscriptEntry;
   position?: TranscriptPosition;
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
+  /** Merge a jump window into the cache alone, so a render may call it. */
+  joinWindow: (page: RoomTranscriptPage) => void;
   resolve: (page: RoomMessagePage) => void;
-  refresh: (isCurrent: () => boolean) => Promise<void>;
+  refresh: (
+    isCurrent: () => boolean,
+    onHead?: (head: RoomMessagesPage) => void,
+  ) => Promise<void>;
   positionChanged: (position: TranscriptPosition) => void;
   dirty: () => void;
   captureSnapshot: () => () => boolean;
+  /** The click's open-at-unread read, when that click opened this visit. */
+  takeUnreadWindow: () => Promise<RoomMessagesPage | null> | undefined;
 }
 
 export function RoomsClient(props: RoomsClientProps) {
@@ -477,6 +525,10 @@ function RetainedRoomsClient({
         return next;
       });
     },
+    joinWindow: (page) =>
+      cache.setTranscript(roomId, lifetime, (current) =>
+        mergeRoomJumpWindow(current, page),
+      ),
     resolve: (page) => {
       cache.update(roomId, lifetime, (current) =>
         page.failed
@@ -492,8 +544,10 @@ function RetainedRoomsClient({
             },
       );
     },
-    refresh: async (isCurrent) => {
-      if ((await cache.refresh(roomId, lifetime, isCurrent)) === "stale")
+    refresh: async (isCurrent, onHead) => {
+      if (
+        (await cache.refresh(roomId, lifetime, isCurrent, onHead)) === "stale"
+      )
         refreshRef.current();
     },
     positionChanged: (position) => {
@@ -510,6 +564,7 @@ function RetainedRoomsClient({
         refreshRef.current();
     },
     dirty: () => cache.markDirty(roomId),
+    takeUnreadWindow: () => cache.takeUnreadWindow(roomId),
     captureSnapshot: () => {
       const transcript = cache.get(roomId)?.transcript;
       return () => {
@@ -549,7 +604,7 @@ function RoomView({
   registerRefresh?: MutableRefObject<() => void>;
 }) {
   const t = useTranslations("App.Channels");
-  const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const roomDisplayName = useRoomDisplayName();
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -582,6 +637,25 @@ function RoomView({
     routeSearchParams,
     selectedPath,
   );
+  // A room with Room unread opens at its Unread divider unless something
+  // names a message to open on (SOK-1481). Decided once: this view is the
+  // visit. The sidebar's counts are live; the page's can be a visit old.
+  const [roomAtOpen] = useState(() => {
+    const room =
+      sidebarRooms.find((candidate) => candidate.id === selectedRoomId) ??
+      rooms.find((candidate) => candidate.id === selectedRoomId);
+    const hasRoomUnread =
+      room != null && (room.channelUnreadCount ?? room.unreadCount) > 0;
+    return {
+      hasRoomUnread,
+      opensAtUnread:
+        hasRoomUnread &&
+        !pendingMessageJump &&
+        !searchParams.has(CHAT_MESSAGE_PARAM),
+      visit: nextRoomVisit(),
+    };
+  });
+  const { opensAtUnread } = roomAtOpen;
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
@@ -653,6 +727,38 @@ function RoomView({
   const loadingBoundariesRef = useRef<Set<string>>(new Set());
   const boundaryLoadGenerationRef = useRef(0);
   const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
+  // Room last-read waits for the end of the transcript (SOK-1481). Keyed by
+  // room: this component outlives the viewport, which remounts per room.
+  const [transcriptEnd, setTranscriptEnd] = useState<{
+    roomId: string;
+    atEnd: boolean;
+  } | null>(null);
+  // The visit's Unread divider when a named message wins the open. The first
+  // answer that names it wins, so arrivals, own posts and later reads leave
+  // it where the room opened. Undefined until an answer has said; a room with
+  // no Room unread at open has none from the start.
+  const [latchedUnreadDivider, setLatchedUnreadDivider] = useState<
+    UnreadDividerPlace | null | undefined
+  >(roomAtOpen.hasRoomUnread ? undefined : null);
+  const noteUnreadDivider = useCallback((page: RoomTranscriptPage | null) => {
+    const place = unreadDividerIn(page);
+    if (place === undefined) return;
+    setLatchedUnreadDivider((current) =>
+      current !== undefined ? current : place,
+    );
+  }, []);
+  const [explicitJumps, setExplicitJumps] = useState(0);
+  const trackExplicitJump = useCallback((jump: Promise<void>) => {
+    setExplicitJumps((count) => count + 1);
+    void jump.finally(() => {
+      setExplicitJumps((count) => count - 1);
+      // The open has landed: what no answer named by now is no divider, so a
+      // later read cannot draw one under an arrival.
+      setLatchedUnreadDivider((current) =>
+        current === undefined ? null : current,
+      );
+    });
+  }, []);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
@@ -716,6 +822,67 @@ function RoomView({
       ? retained.entry.failed
       : messageLoadFailedState;
 
+  // Core's open-at-unread answer: the newest page, or a window on the
+  // divider when it is older than that. Undefined while in flight, null when
+  // the read failed and the room opens as it would have.
+  const { data: unreadWindow } = useQuery({
+    // One answer per visit, read once: the divider is the visit's, so a
+    // revisit asks Core again and nothing refetches it within one. Nothing
+    // else reads the key, so it goes when the visit does; unmounting then
+    // aborts a read still out, through the signal.
+    queryKey: ["room-open-at-unread", selectedRoomId, roomAtOpen.visit],
+    queryFn: ({ signal }) => {
+      const read = () =>
+        fetchRoomMessages(selectedRoomId ?? "", null, {
+          openAtUnread: true,
+          signal,
+        });
+      // Started by the click that opened this visit, alongside its head read.
+      // A failed or throttled one reads again from here.
+      const prefetched = retained?.takeUnreadWindow();
+      return prefetched ? prefetched.then((page) => page ?? read()) : read();
+    },
+    enabled: opensAtUnread && selectedRoomId != null,
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+  });
+  // A failed read (null) settles it too: that room opens as it would have.
+  const unreadWindowDivider = useMemo(
+    () => unreadDividerIn(unreadWindow),
+    [unreadWindow],
+  );
+  const unreadDivider = opensAtUnread
+    ? unreadWindowDivider
+    : latchedUnreadDivider;
+  // Joined to the newest page through the gap row, the way a search jump
+  // window joins, once both are in: a merge while the head read is still
+  // out would have it discarded as stale.
+  const [unreadWindowJoined, setUnreadWindowJoined] = useState(false);
+  if (!unreadWindowJoined && unreadWindow && !messagesPending) {
+    setUnreadWindowJoined(true);
+    // During render: the retained cache, never its parent's state.
+    if (retained) retained.joinWindow(unreadWindow);
+    else
+      setLocalTranscript((current) =>
+        mergeRoomJumpWindow(current, unreadWindow),
+      );
+  }
+  // The transcript waits for both, so it opens on the divider rather than
+  // jumping to it. Latched: nothing later puts the skeleton back.
+  const [openingAtUnread, setOpeningAtUnread] = useState(opensAtUnread);
+  if (
+    openingAtUnread &&
+    unreadWindow !== undefined &&
+    !messagesPending &&
+    (!unreadWindow?.messages.length ||
+      messagesState.some(
+        (message) => message.id === unreadWindow.messages[0]?.id,
+      ))
+  ) {
+    setOpeningAtUnread(false);
+  }
+
   const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
     if (retained) {
       if (!retained.entry.resolved) retained.resolve(page);
@@ -729,6 +896,7 @@ function RoomView({
     );
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
+    if (!page.failed) noteUnreadDivider(page);
   }, []);
 
   const handleDeferredRosterResolved = useCallback(
@@ -836,11 +1004,11 @@ function RoomView({
   useLayoutEffect(() => {
     const wasPending = wasHistoryPendingRef.current;
     wasHistoryPendingRef.current = messagesPending;
-    if (!wasPending || messagesPending) {
+    if (!wasPending || messagesPending || opensAtUnread) {
       return;
     }
     scrollToBottom();
-  }, [messagesPending, scrollToBottom]);
+  }, [messagesPending, opensAtUnread, scrollToBottom]);
   const syncedRoomIdRef = useRef<string | null>(null);
   // Async handlers must stop when their room surface is replaced.
   const selectedRoomIdRef = useRef(selectedRoomId);
@@ -1037,7 +1205,7 @@ function RoomView({
     return selectedRoomIdRef.current === roomId;
   }
   const selectedRoomDisplayName = selectedRoom
-    ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
+    ? roomDisplayName(selectedRoom, currentUserId)
     : "";
   const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 
@@ -1055,12 +1223,8 @@ function RoomView({
   if (rosterOpen && !showRoomRosterControl) {
     setRosterOpen(false);
   }
-  const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
-    kind: selectedRoom?.kind,
-    discoverability: selectedRoom?.discoverability,
-    myAccess: selectedRoom?.myAccess,
-    hasActiveOrganization: Boolean(activeOrganization),
-  });
+  // Message on a person works from any workspace; Core decides who is reachable.
+  const canOpenHumanDirect = true;
   // Name/topic/visibility and archive: organization owner/admin only. Everyone
   // else manages membership from the members panel instead.
   const canManageSelectedRoomSettings =
@@ -1418,6 +1582,24 @@ function RoomView({
     topLevelStreamOverlayMessages,
     unreadThreadReplyCounts,
   ]);
+  // The divider's message, or once that is deleted the next live one after
+  // it. Edits leave it alone; a message never loaded draws none.
+  const unreadDividerMessage = useMemo(() => {
+    if (!unreadDivider) return null;
+    const { id, at } = unreadDivider;
+    const index = displayMessages.findIndex((message) => message.id === id);
+    const from =
+      index >= 0 || at == null
+        ? index
+        : displayMessages.findIndex(
+            (message) => new Date(message.createdAt).getTime() > at,
+          );
+    return from < 0
+      ? null
+      : (displayMessages
+          .slice(from)
+          .find((message) => message.deletedAt == null) ?? null);
+  }, [displayMessages, unreadDivider]);
   // Message rows with a boundary row wherever history is missing. Day
   // separators still read across a gap; continuation chrome does not.
   const transcriptRows = useMemo(
@@ -1524,27 +1706,6 @@ function RoomView({
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
   // start lost the draft when the request failed after submit.
 
-  const breadcrumbOverride = useMemo(
-    () => ({
-      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/",
-      segments: [
-        {
-          label: tBreadcrumb("chat"),
-          href: "/",
-        },
-        ...(selectedRoom
-          ? [
-              {
-                label: selectedRoomDisplayName,
-                href: `/chat/rooms/${selectedRoom.id}`,
-              },
-            ]
-          : []),
-      ],
-    }),
-    [selectedRoom, selectedRoomDisplayName, tBreadcrumb],
-  );
-  useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
     return new Map(
       (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
@@ -1776,6 +1937,16 @@ function RoomView({
       openThreadParentId: threadParentMessage?.id ?? null,
       threadMessages: persistedThreadMessages,
       isThreadLoading,
+      // A named message (URL, notification, Message link) is still to be
+      // jumped to while the URL carries it or its jump is in flight; the
+      // viewport sits at the end until that jump moves it.
+      transcriptAtEnd:
+        transcriptEnd !== null &&
+        transcriptEnd.roomId === selectedRoom?.id &&
+        transcriptEnd.atEnd &&
+        !pendingMessageJump &&
+        !searchParams.has(CHAT_MESSAGE_PARAM) &&
+        explicitJumps === 0,
       onThreadLooked: handleThreadLooked,
     });
 
@@ -1798,7 +1969,7 @@ function RoomView({
       // newer messages and a failed room read never hides thread data.
       const [result, threadResult] = await Promise.all([
         retained
-          ? retained.refresh(isCurrent).then(() => null)
+          ? retained.refresh(isCurrent, noteUnreadDivider).then(() => null)
           : fetchRoomMessages(roomId),
         threadParentId
           ? fetchRoomMessages(roomId, threadParentId)
@@ -1808,6 +1979,7 @@ function RoomView({
         return;
       }
       if (result) {
+        noteUnreadDivider(result);
         setTranscript((current) => mergeRoomHeadPage(current, result));
         setThreadParentMessage((current) =>
           current
@@ -1828,7 +2000,7 @@ function RoomView({
         );
       }
     },
-    [retained, setTranscript],
+    [noteUnreadDivider, retained, setTranscript],
   );
   refreshLatestRef.current = useChatRefreshScheduler({
     key: selectedRoom?.id ?? null,
@@ -2061,9 +2233,13 @@ function RoomView({
     });
   }
 
-  const applyRoomJumpWindow = useCallback((page: RoomTranscriptPage) => {
-    setTranscript((current) => mergeRoomJumpWindow(current, page));
-  }, []);
+  const applyRoomJumpWindow = useCallback(
+    (page: RoomTranscriptPage) => {
+      noteUnreadDivider(page);
+      setTranscript((current) => mergeRoomJumpWindow(current, page));
+    },
+    [noteUnreadDivider],
+  );
 
   function replaceThreadWindow(
     messages: ChatRoomMessage[],
@@ -2186,6 +2362,7 @@ function RoomView({
     jumpInRoom: handleJumpToMessage,
     jumpInThread: (hit) =>
       handleSearchJump(hit, { quietWhenThreadIsGone: true }),
+    whileJumping: trackExplicitJump,
   });
 
   async function loadThreadMessages(
@@ -3036,7 +3213,8 @@ function RoomView({
     ) : null;
 
   if (selectedRoom) {
-    const showListSkeleton = messagesPending && displayMessages.length === 0;
+    const showListSkeleton =
+      (messagesPending && displayMessages.length === 0) || openingAtUnread;
     // Seen by rides the newest message only; scrollback stays quiet.
     const newestMessageId = displayMessages.at(-1)?.id ?? null;
     // Narrowed once here: the row renderer is a nested function, which
@@ -3091,7 +3269,15 @@ function RoomView({
         // inside the box the virtualizer measures. Collapsed through, they
         // land outside the item and the list ends up taller than it thinks.
         <div className="min-w-0 flow-root">
-          {showDaySeparator ? (
+          {message.id === unreadDividerMessage?.id ? (
+            <UnreadDivider
+              dayLabel={
+                showDaySeparator
+                  ? formatDaySeparator(new Date(message.createdAt))
+                  : null
+              }
+            />
+          ) : showDaySeparator ? (
             <DaySeparator
               date={new Date(message.createdAt)}
               formatDaySeparator={formatDaySeparator}
@@ -3250,12 +3436,28 @@ function RoomView({
             rows={transcriptRows}
             renderRow={renderTranscriptRow}
             holdOffBottom={searchHoldOffBottom}
+            // A named message, then the Unread divider a third of the way
+            // down, then the reader's own place.
             initialPosition={
               pendingMessageJump || searchParams.has(CHAT_MESSAGE_PARAM)
                 ? undefined
-                : retained?.position
+                : opensAtUnread && unreadDividerMessage
+                  ? {
+                      anchorId: unreadDividerMessage.id,
+                      anchorCreatedAt: new Date(
+                        unreadDividerMessage.createdAt,
+                      ).getTime(),
+                      offset: 0,
+                      viewportShare: 1 / 3,
+                      atLiveEdge: false,
+                      visibleMessageIds: [],
+                    }
+                  : retained?.position
             }
             onPositionChange={retained?.positionChanged}
+            onAtEndChange={(atEnd) =>
+              setTranscriptEnd({ roomId: selectedRoom.id, atEnd })
+            }
           />
         )}
       </>

@@ -6,6 +6,7 @@ import { X_COUNTRY_TLDS, X_GENERIC_TLDS } from "./x-tlds.js";
  */
 export const SOCIAL_POST_TEXT_LIMITS = {
   x: 280,
+  // LinkedIn counts the displayed text, not the little-text escapes Core adds.
   linkedin: 3000,
   facebook: 63206,
   instagram: 2200,
@@ -18,6 +19,43 @@ export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
 
+/** Add a provider id here to enable it in every workspace's Social scheduling. */
+export const SOCIAL_PUBLIC_PROVIDERS = [
+  "x",
+  "youtube",
+  "linkedin",
+] as const satisfies readonly SocialPostProvider[];
+
+export interface SocialProviderWorkspace {
+  organizationSlug: string | null;
+}
+
+/** Every workspace gets the public list; the workspace argument keeps call sites stable. */
+export function socialProvidersForWorkspace(
+  _workspace: SocialProviderWorkspace,
+): readonly SocialPostProvider[] {
+  return SOCIAL_PUBLIC_PROVIDERS;
+}
+
+export function isSocialProviderEnabled(
+  provider: string,
+  workspace: SocialProviderWorkspace,
+): boolean {
+  return (socialProvidersForWorkspace(workspace) as readonly string[]).includes(
+    provider,
+  );
+}
+
+/** User-facing reason retained on posts whose provider is unavailable. */
+export function socialProviderUnavailableMessage(
+  provider: SocialPostProvider,
+  workspace: SocialProviderWorkspace,
+): string | null {
+  return isSocialProviderEnabled(provider, workspace)
+    ? null
+    : `${socialPostProviderLabel(provider)} is coming soon. Available now: ${new Intl.ListFormat("en", { type: "conjunction" }).format(socialProvidersForWorkspace(workspace).map(socialPostProviderLabel))}.`;
+}
+
 export const X_PREMIUM_TEXT_LIMIT = 25_000;
 // Every Premium tier includes longer posts: https://help.x.com/en/using-x/x-premium
 export const X_LONG_POST_SUBSCRIPTION_TYPES = [
@@ -28,15 +66,26 @@ export const X_LONG_POST_SUBSCRIPTION_TYPES = [
 export type XLongPostSubscriptionType =
   (typeof X_LONG_POST_SUBSCRIPTION_TYPES)[number];
 
+/** True for the X tiers that allow long posts. */
+export function isXLongPostSubscription(
+  subscriptionType?: string | null,
+): boolean {
+  return X_LONG_POST_SUBSCRIPTION_TYPES.some(
+    (tier) => tier === subscriptionType,
+  );
+}
+
 export function socialPostTextLimit(
   provider: SocialPostProvider,
   subscriptionType?: string | null,
 ): number {
-  return provider === "x" &&
-    X_LONG_POST_SUBSCRIPTION_TYPES.some((tier) => tier === subscriptionType)
+  return provider === "x" && isXLongPostSubscription(subscriptionType)
     ? X_PREMIUM_TEXT_LIMIT
     : SOCIAL_POST_TEXT_LIMITS[provider];
 }
+
+/** Most posts in an X thread, including the main post. */
+export const SOCIAL_POST_THREAD_MAX_PARTS = 25;
 
 const X_GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
 const X_EMOJI = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F|[0-9#*]\uFE0F?\u20E3/u;

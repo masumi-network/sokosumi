@@ -19,7 +19,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { type Query, useQueries, useQuery } from "@tanstack/react-query";
-import { Check, ImagePlus, Plus, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -38,13 +38,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
@@ -74,7 +76,9 @@ import {
   readRememberedComposerAccounts,
   writeRememberedComposerAccounts,
 } from "./social-post-composer-accounts";
+import { SocialPostComposerMedia } from "./social-post-composer-media";
 import {
+  type SocialPostComposerIssue,
   socialPostComposerAccept,
   socialPostComposerDraftIssue,
   socialPostComposerFormat,
@@ -85,6 +89,7 @@ import {
 import {
   type SocialPostComposerText,
   socialPostTextFor,
+  socialPostTextMetrics,
   socialPostTextWrite,
 } from "./social-post-composer-text";
 import {
@@ -95,6 +100,8 @@ import {
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
 import { publishFailureCopy } from "./social-post-publish-failure";
+import { useReportMovedSocialPostQuotes } from "./social-post-quote";
+import { SocialPostQuotePicker } from "./social-post-quote-picker";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -102,8 +109,14 @@ import {
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
-  | { kind: "create"; media?: SocialPostMediaRef[]; text?: string }
-  | { kind: "edit"; post: SocialPost }
+  | {
+      kind: "create";
+      media?: SocialPostMediaRef[];
+      text?: string;
+      /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
+      scheduledAt?: string;
+    }
+  | { kind: "edit"; post: SocialPost; chooseQuote?: boolean }
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
@@ -118,6 +131,14 @@ interface SocialPostComposerDialogProps {
   open: boolean;
   projectId: string;
 }
+
+interface ComposerThreadPart {
+  id: string;
+  text: string;
+  media: SocialPostMediaRef[];
+}
+
+const MAX_THREAD_PARTS = 25;
 
 type PendingSubmit = "save" | "schedule" | "publish" | null;
 
@@ -140,11 +161,19 @@ export function SocialPostComposerDialog({
   onError,
   onOpenChange,
   onCloseAutoFocus,
-  onSaved,
+  onSaved: onPostSaved,
   open,
   projectId,
 }: SocialPostComposerDialogProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
+  function handleSaved(post: SocialPost) {
+    reportMovedQuotes(post);
+    onPostSaved(post);
+  }
   const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
@@ -155,13 +184,18 @@ export function SocialPostComposerDialog({
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
+  const quoteScheduleErrorId = useId();
   const tooLongId = useId();
+  const threadLimitId = useId();
   const publishHintId = useId();
   const saveHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const quoteButtonRef = useRef<HTMLButtonElement>(null);
+  const mediaTargetRef = useRef<string | null>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const revisionRef = useRef(post?.revision ?? 0);
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -194,6 +228,9 @@ export function SocialPostComposerDialog({
       null,
   }));
   const organizationId = session?.session.activeOrganizationId ?? null;
+  const enabledConnections = connections.filter((connection) =>
+    isProviderEnabled(connection.provider),
+  );
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [copy, setCopy] = useState<SocialPostComposerText>({
@@ -202,6 +239,23 @@ export function SocialPostComposerDialog({
     lastSharedEditId: null,
   });
   const [firstComment, setFirstComment] = useState(post?.firstComment ?? "");
+  const [quotedPostId, setQuotedPostId] = useState(post?.quotedPostId ?? null);
+  const [quotedPost, setQuotedPost] = useState(post?.quotedPost ?? null);
+  const [quotePickerOpen, setQuotePickerOpen] = useState(
+    mode.kind === "edit" && Boolean(mode.chooseQuote),
+  );
+  const quoteChanged = quotedPostId !== (post?.quotedPostId ?? null);
+  const quotePayload =
+    quotedPostId || post?.quotedPostId || post?.needsAttentionReason
+      ? { quotedPostId }
+      : {};
+  const quotePending = Boolean(
+    quotedPostId && !quotedPost?.publishedExternalId,
+  );
+  const quoteTime = quotedPost?.scheduledAt;
+  const quoteTimeLabel = quoteTime
+    ? `${formatter.dateTime(quoteTime, "dateTimeWithYear", { timeZone: viewerTimezone })} · ${formatTimezoneLabel(viewerTimezone, locale, quoteTime)}`
+    : null;
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
     mode.kind === "create"
       ? [...(mode.media ?? [])]
@@ -209,6 +263,32 @@ export function SocialPostComposerDialog({
         ? [...post.media]
         : [],
   );
+  const [threadParts, setThreadParts] = useState<ComposerThreadPart[]>(() =>
+    (post?.threadParts ?? []).map((part) => ({
+      id: part.id,
+      text: part.text,
+      media: [...part.media],
+    })),
+  );
+  const threadPayload =
+    threadParts.length > 0 || (post?.threadParts.length ?? 0) > 0
+      ? {
+          threadParts: threadParts.map((part) => ({
+            text: part.text.trim(),
+            media: part.media,
+          })),
+        }
+      : {};
+  const threadChanged =
+    threadParts.length !== (post?.threadParts.length ?? 0) ||
+    threadParts.some((part, index) => {
+      const saved = post?.threadParts[index];
+      return (
+        !saved ||
+        part.text !== saved.text ||
+        !sameSocialPostMedia(part.media, saved.media)
+      );
+    });
   // A new post may go to several accounts at once, one post each; an existing
   // post belongs to one account.
   const multiAccount = mode.kind === "create";
@@ -217,9 +297,14 @@ export function SocialPostComposerDialog({
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
+        enabledProviders,
       );
     }
-    const initial = post?.socialConnection?.id ?? connections[0]?.id;
+    const initial = post
+      ? isProviderEnabled(post.provider)
+        ? (post.socialConnection?.id ?? enabledConnections[0]?.id)
+        : undefined
+      : enabledConnections[0]?.id;
     return initial ? [initial] : [];
   });
   const xConnections = connections.filter(
@@ -260,8 +345,12 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
+  const prefilledScheduledAt =
+    mode.kind === "create" ? (mode.scheduledAt ?? "") : "";
   const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    post?.scheduledAt
+      ? toScheduleValue(post.scheduledAt)
+      : prefilledScheduledAt,
   );
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
@@ -299,12 +388,12 @@ export function SocialPostComposerDialog({
     text: post?.text ?? "",
     media: post?.media ?? [],
     scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+    connectionId: connectionIds[0] ?? "",
   }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnections = connections
+  const selectedConnections = enabledConnections
     .filter((connection) => connectionIds.includes(connection.id))
     .map((connection) => {
       const fresh = subscriptions.get(connection.id);
@@ -331,9 +420,11 @@ export function SocialPostComposerDialog({
       }
     : null;
   const providers = socialPostComposerProviders(
-    post?.provider,
+    post && isProviderEnabled(post.provider) ? post.provider : undefined,
     selectedConnections.map((connection) => connection.provider),
-    connections.map((connection) => connection.provider),
+    threadParts.length > 0
+      ? ["x"]
+      : enabledConnections.map((connection) => connection.provider),
   );
   const previewProvider =
     selectedConnections.find(
@@ -356,6 +447,11 @@ export function SocialPostComposerDialog({
     );
   }
   const displayedText = textFor(previewConnection?.id);
+  const isThread = threadParts.length > 0;
+  const threadAccountsInvalid =
+    isThread && providers.some((candidate) => candidate !== "x");
+  const canAddThread = providers.every((candidate) => candidate === "x");
+  const quoteAccountsInvalid = Boolean(quotedPostId) && !canAddThread;
   const accountTexts =
     selectedConnections.length > 0
       ? selectedConnections.map((connection) => ({
@@ -384,6 +480,14 @@ export function SocialPostComposerDialog({
     displayedText,
   );
   const displayedOverLimit = displayedLength > displayedLimit;
+  // Every part follows the main post's per-account X limit.
+  const threadSubscriptionType = previewConnection?.subscriptionType;
+  const threadPartsValid = threadParts.every(
+    (part) =>
+      accountTexts.every(
+        (account) => socialPostTextLength("x", part.text) <= account.limit,
+      ) && socialPostComposerDraftIssue("x", part.text, part.media) === null,
+  );
   const issueAccount =
     accountTexts.find(
       (account) =>
@@ -447,30 +551,58 @@ export function SocialPostComposerDialog({
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
   const textValid =
-    isScheduleOnly ||
-    (composerIssue === null && !overLimit && !overFirstComment);
+    !threadAccountsInvalid &&
+    !quoteAccountsInvalid &&
+    threadPartsValid &&
+    (isScheduleOnly ||
+      (composerIssue === null && !overLimit && !overFirstComment));
   const draftValid =
-    isScheduleOnly || (draftIssue === null && !overLimit && !overFirstComment);
+    !threadAccountsInvalid &&
+    !quoteAccountsInvalid &&
+    threadPartsValid &&
+    (isScheduleOnly ||
+      (draftIssue === null && !overLimit && !overFirstComment));
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
     scheduledDate !== null &&
     !Number.isNaN(scheduledDate.getTime()) &&
     scheduledDate.getTime() <= earliestScheduledAt;
+  const scheduledBeforeQuote =
+    quotePending &&
+    scheduledDate !== null &&
+    (!quoteTime || scheduledDate.getTime() <= quoteTime.getTime());
+  const quoteScheduleHint = !quoteTime
+    ? t("quote.scheduleTargetFirst")
+    : t("quote.scheduleAfter", { time: quoteTimeLabel! });
   const scheduledAtValid =
     scheduledDate !== null &&
     !Number.isNaN(scheduledDate.getTime()) &&
-    !scheduledAtTooSoon;
+    !scheduledAtTooSoon &&
+    !scheduledBeforeQuote;
   const canSchedule =
     textValid &&
     mediaValid &&
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = draftValid && !isBusy;
+  const canSave =
+    draftValid &&
+    !isBusy &&
+    (!post ||
+      isProviderEnabled(post.provider) ||
+      selectedConnections.length > 0) &&
+    !(
+      post?.status === "SCHEDULED" &&
+      quotePending &&
+      (!quoteTime ||
+        !post.scheduledAt ||
+        post.scheduledAt.getTime() <= quoteTime.getTime())
+    );
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
+    !quotePending &&
     textValid &&
     mediaValid &&
     selectedConnections.length > 0 &&
@@ -478,6 +610,7 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
+    if (!enabledConnections.some((connection) => connection.id === id)) return;
     setConnectionIds((current) => {
       if (!multiAccount) return [id];
       return current.includes(id)
@@ -512,28 +645,62 @@ export function SocialPostComposerDialog({
     });
   }
 
+  function partIssueText(issue: SocialPostComposerIssue, part: number): string {
+    if (issue === "text_or_media_required" || issue === "text_required")
+      return t("thread.empty", { part });
+    return t("thread.mediaInvalid", {
+      part,
+      error:
+        issue === "media_required" || issue === "video_required"
+          ? t(`composer.requirements.${issue}`, { provider: "X" })
+          : mediaErrorText(issue, "x"),
+    });
+  }
+
   /** The first selected provider that refuses this media, with its reason. */
   function mediaRejection(
     next: SocialPostMediaRef[],
+    partId: string | null = null,
   ): { reason: SocialPostMediaValidationReason; by: typeof provider } | null {
-    for (const candidate of providers) {
+    for (const candidate of partId ? ["x" as const] : providers) {
       const check = validateSocialPostMedia(candidate, next);
       if (!check.ok) return { reason: check.reason, by: candidate };
     }
     return null;
   }
 
+  function attachedMedia(partId: string | null): SocialPostMediaRef[] {
+    return partId
+      ? (threadParts.find((part) => part.id === partId)?.media ?? [])
+      : media;
+  }
+
+  function changeMedia(
+    partId: string | null,
+    change: (current: SocialPostMediaRef[]) => SocialPostMediaRef[],
+  ): void {
+    if (partId)
+      setThreadParts((parts) =>
+        parts.map((part) =>
+          part.id === partId ? { ...part, media: change(part.media) } : part,
+        ),
+      );
+    else setMedia(change);
+  }
+
   function attachMedia(ref: SocialPostMediaRef): void {
-    if (hasSocialPostMedia(media, ref.pathname)) {
+    const partId = mediaTargetRef.current;
+    const attached = attachedMedia(partId);
+    if (hasSocialPostMedia(attached, ref.pathname)) {
       toast.error(t("composer.media.alreadyAttached"));
       return;
     }
-    const rejection = mediaRejection([...media, ref]);
+    const rejection = mediaRejection([...attached, ref], partId);
     if (rejection) {
       toast.error(mediaErrorText(rejection.reason, rejection.by));
       return;
     }
-    setMedia((current) => [...current, ref]);
+    changeMedia(partId, (current) => [...current, ref]);
   }
 
   function handleSelectDriveFile(file: DriveFile): void {
@@ -549,13 +716,10 @@ export function SocialPostComposerDialog({
     attachMedia(ref);
   }
 
-  function handleRemoveMedia(pathname: string): void {
-    setMedia((current) => current.filter((ref) => ref.pathname !== pathname));
-  }
-
   async function uploadOne(
     file: File,
     attached: SocialPostMediaRef[],
+    partId: string | null,
   ): Promise<SocialPostMediaRef | null> {
     const candidate = buildSocialPostMediaRef({
       name: file.name,
@@ -571,7 +735,7 @@ export function SocialPostComposerDialog({
       );
       return null;
     }
-    const rejection = mediaRejection([...attached, candidate]);
+    const rejection = mediaRejection([...attached, candidate], partId);
     if (rejection) {
       toast.error(mediaErrorText(rejection.reason, rejection.by));
       return null;
@@ -588,7 +752,7 @@ export function SocialPostComposerDialog({
         toast.error(t("composer.media.uploadFailed"));
         return null;
       }
-      setMedia((current) => [...current, ref]);
+      changeMedia(partId, (current) => [...current, ref]);
       return ref;
     } catch (error) {
       toast.error(
@@ -600,14 +764,18 @@ export function SocialPostComposerDialog({
     }
   }
 
-  async function handleUploadFiles(files: readonly File[]): Promise<void> {
+  async function handleUploadFiles(
+    files: readonly File[],
+    partId: string | null = null,
+  ): Promise<void> {
     if (files.length === 0 || isBusy || uploadInFlightRef.current) return;
     uploadInFlightRef.current = true;
+    mediaTargetRef.current = partId;
     setUploadPending(true);
-    let attached = media;
+    let attached = attachedMedia(partId);
     try {
       for (const file of files) {
-        const ref = await uploadOne(file, attached);
+        const ref = await uploadOne(file, attached, partId);
         if (ref) attached = [...attached, ref];
       }
     } finally {
@@ -641,7 +809,7 @@ export function SocialPostComposerDialog({
           onError(result.error);
           return 0;
         }
-        onSaved(result.value);
+        handleSaved(result.value);
         if (socialConnectionId) saved.push(socialConnectionId);
         created += 1;
       }
@@ -687,6 +855,8 @@ export function SocialPostComposerDialog({
           text: textFor(connection.id).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
+          ...threadPayload,
+          ...quotePayload,
           socialConnectionId: connection.id,
         });
         if (!created.ok) {
@@ -706,7 +876,7 @@ export function SocialPostComposerDialog({
         });
         done.push(connection.id);
         if (!result.ok) {
-          onSaved(created.value);
+          handleSaved(created.value);
           onError({
             ...result.error,
             message: nameIfMany(
@@ -716,12 +886,17 @@ export function SocialPostComposerDialog({
           });
           return;
         }
-        onSaved(result.value);
+        handleSaved(result.value);
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
           const reason =
-            publishFailureCopy(result.value, t) ?? t("toasts.failed");
+            publishFailureCopy(
+              result.value,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ) ?? t("toasts.failed");
           failures.push(nameIfMany(connection, reason));
         }
       }
@@ -749,7 +924,7 @@ export function SocialPostComposerDialog({
    * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
    * time is all the schedule dialog does, so it never saves a new draft.
    */
-  const canPostNow = mode.kind === "create" && connections.length > 0;
+  const canPostNow = mode.kind === "create" && enabledConnections.length > 0;
   const primaryAction: Exclude<PendingSubmit, null> =
     scheduledAt !== "" || isScheduleOnly
       ? "schedule"
@@ -803,15 +978,17 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
+          ...threadPayload,
+          ...quotePayload,
           socialConnectionId: connectionId || null,
-          revision: mode.post.revision,
+          revision: revisionRef.current,
         });
         if (!result.ok) {
           onError(result.error);
           return;
         }
         toast.success(t("toasts.updated"));
-        onSaved(result.value);
+        handleSaved(result.value);
         onOpenChange(false);
         return;
       }
@@ -822,6 +999,8 @@ export function SocialPostComposerDialog({
           text: textFor(socialConnectionId).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
+          ...threadPayload,
+          ...quotePayload,
           socialConnectionId,
         }),
       );
@@ -851,6 +1030,8 @@ export function SocialPostComposerDialog({
               ? { firstComment: trimmedFirstComment }
               : {}),
             media,
+            ...threadPayload,
+            ...quotePayload,
             socialConnectionId,
             scheduledAt: scheduledAtIso,
             timezone,
@@ -863,11 +1044,44 @@ export function SocialPostComposerDialog({
         return;
       }
 
-      let revision = mode.post.revision;
+      const postId = mode.post.id;
+      async function persistSchedule(): Promise<SocialPost | null> {
+        const result = await scheduleProjectSocialPost({
+          projectId,
+          postId,
+          scheduledAt: scheduledAtIso,
+          timezone,
+          socialConnectionId: connectionId,
+          revision: revisionRef.current,
+        });
+        if (!result.ok) {
+          onError(result.error);
+          return null;
+        }
+        revisionRef.current = result.value.revision;
+        handleSaved(result.value);
+        return result.value;
+      }
+
+      // Core validates a new quote against the saved time, so move that time first when needed.
+      const scheduleFirst =
+        mode.kind === "edit" &&
+        quoteChanged &&
+        quotePending &&
+        mode.post.status === "SCHEDULED" &&
+        quoteTime &&
+        mode.post.scheduledAt &&
+        quoteTime.getTime() >= mode.post.scheduledAt.getTime();
+      if (scheduleFirst && !(await persistSchedule())) return;
+      const connectionChanged =
+        connectionId !== (mode.post.socialConnection?.id ?? "");
       const contentChanged =
         trimmedText !== mode.post.text ||
         trimmedFirstComment !== (mode.post.firstComment ?? "") ||
-        !sameSocialPostMedia(media, mode.post.media);
+        !sameSocialPostMedia(media, mode.post.media) ||
+        threadChanged ||
+        quoteChanged ||
+        connectionChanged;
       if (mode.kind === "edit" && contentChanged) {
         const updated = await updateProjectSocialPost({
           projectId,
@@ -875,29 +1089,23 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
-          revision,
+          ...threadPayload,
+          ...quotePayload,
+          ...(connectionChanged
+            ? { socialConnectionId: connectionId || null }
+            : {}),
+          revision: revisionRef.current,
         });
         if (!updated.ok) {
           onError(updated.error);
           return;
         }
-        revision = updated.value.revision;
+        revisionRef.current = updated.value.revision;
+        handleSaved(updated.value);
       }
 
-      const result = await scheduleProjectSocialPost({
-        projectId,
-        postId: mode.post.id,
-        scheduledAt: scheduledAtIso,
-        timezone,
-        socialConnectionId: connectionId,
-        revision,
-      });
-      if (!result.ok) {
-        onError(result.error);
-        return;
-      }
+      if (!scheduleFirst && !(await persistSchedule())) return;
       toast.success(t("toasts.scheduled", { count: 1 }));
-      onSaved(result.value);
       onOpenChange(false);
     } catch (error) {
       onError(toActionRejectionError(error));
@@ -906,45 +1114,106 @@ export function SocialPostComposerDialog({
     }
   }
 
-  const mediaStrip = (
-    <div
-      className="flex flex-wrap items-center gap-2"
-      data-testid="social-post-media"
-    >
-      {media.map((ref) => (
-        <FileChipMiniPreview
-          key={ref.pathname}
-          fileName={ref.name}
-          mediaType={ref.mimeType}
-          onRemove={
-            isScheduleOnly || isBusy
-              ? undefined
-              : () => handleRemoveMedia(ref.pathname)
-          }
-          removeLabel={t("composer.media.remove", { name: ref.name })}
-          size={ref.size}
-          sizeClass="size-16"
-          url={ref.fileUrl}
-        />
-      ))}
-    </div>
-  );
+  function renderCounter(
+    text: string,
+    countProvider: typeof provider,
+    subscriptionType: string | null | undefined,
+    part: number,
+    errorId: string,
+  ) {
+    const metrics = socialPostTextMetrics(
+      text,
+      countProvider,
+      subscriptionType,
+    );
+    return (
+      <span className="ms-auto flex flex-col items-end gap-0.5">
+        <span
+          aria-live="polite"
+          id={`${errorId}-count`}
+          className={cn(
+            "text-xs tabular-nums",
+            metrics.overLimit ? "text-destructive" : "text-muted-foreground",
+          )}
+          data-testid="social-post-character-count"
+        >
+          {t("composer.characters", {
+            count: metrics.count,
+            limit: metrics.limit,
+          })}
+        </span>
+        {metrics.overLimit ? (
+          <p
+            className="text-destructive text-xs"
+            data-testid="social-post-too-long"
+            id={errorId}
+          >
+            {isThread ? t("thread.tooLong", { part }) : t("composer.tooLong")}
+          </p>
+        ) : null}
+      </span>
+    );
+  }
+
+  function renderMediaControls(
+    attached: SocialPostMediaRef[],
+    partId: string | null,
+    counter: React.ReactNode,
+  ) {
+    return (
+      <SocialPostComposerMedia
+        media={attached}
+        disabled={isBusy || isScheduleOnly}
+        uploading={uploadPending && mediaTargetRef.current === partId}
+        onPick={() => {
+          mediaTargetRef.current = partId;
+          setPickerOpen(true);
+        }}
+        onUpload={() => {
+          mediaTargetRef.current = partId;
+          fileInputRef.current?.click();
+        }}
+        onRemove={(pathname) =>
+          changeMedia(partId, (current) =>
+            current.filter((ref) => ref.pathname !== pathname),
+          )
+        }
+      >
+        {counter}
+      </SocialPostComposerMedia>
+    );
+  }
+
+  function moveThreadPart(index: number, direction: -1 | 1): void {
+    setThreadParts((parts) => {
+      const next = [...parts];
+      const destination = index + direction;
+      if (destination < 0 || destination >= parts.length) return parts;
+      [next[index], next[destination]] = [next[destination], next[index]];
+      return next;
+    });
+  }
 
   const hasContent =
+    quotedPostId !== null ||
+    threadParts.length > 0 ||
     media.length > 0 ||
     accountTexts.some((account) => account.text.trim() !== "");
   const isDirty =
-    mode.kind === "create"
-      ? firstComment.trim() !== "" ||
+    quoteChanged ||
+    (mode.kind === "create"
+      ? threadChanged ||
+        firstComment.trim() !== "" ||
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== ""
-      : firstComment !== (post?.firstComment ?? "") ||
+        scheduledAt !== prefilledScheduledAt
+      : threadChanged ||
+        firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||
         scheduledAt !== initial.scheduledAt ||
-        (connectionIds[0] ?? "") !== initial.connectionId;
+        (connectionIds[0] ?? "") !== initial.connectionId);
 
   function handleComposerOpenChange(nextOpen: boolean): void {
     if (!nextOpen && isDirty) {
@@ -954,10 +1223,12 @@ export function SocialPostComposerDialog({
     onOpenChange(nextOpen);
   }
 
-  const footerMessage = scheduledAtTooSoon ? (
-    <p id={scheduledAtErrorId} className="text-destructive">
-      {t("composer.scheduledAtTooSoon")}
-    </p>
+  const footerMessage = scheduledBeforeQuote ? (
+    <p className="text-destructive">{quoteScheduleHint}</p>
+  ) : quotePending && primaryAction === "publish" ? (
+    <p id={`${publishHintId}-quote`}>{t("quote.postNowUnavailable")}</p>
+  ) : scheduledAtTooSoon ? (
+    <p className="text-destructive">{t("composer.scheduledAtTooSoon")}</p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
   ) : overFirstComment ? (
@@ -1014,7 +1285,13 @@ export function SocialPostComposerDialog({
       disabled={!primaryEnabled}
       loading={pending === primaryAction}
       onClick={runPrimary}
-      aria-describedby={showRequirementHint ? publishHintId : undefined}
+      aria-describedby={
+        quotePending && primaryAction === "publish"
+          ? `${publishHintId}-quote`
+          : showRequirementHint
+            ? publishHintId
+            : undefined
+      }
     >
       {primaryLabel}
       {primaryEnabled ? (
@@ -1142,7 +1419,9 @@ export function SocialPostComposerDialog({
                               ? "border-foreground text-foreground"
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
-                          disabled={isBusy}
+                          disabled={
+                            isBusy || !isProviderEnabled(connection.provider)
+                          }
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
                           type="button"
@@ -1152,6 +1431,11 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {!isProviderEnabled(connection.provider) ? (
+                            <Badge variant="secondary">
+                              {accountsT("comingSoon")}
+                            </Badge>
+                          ) : null}
                           {selected ? (
                             <Check className="size-3.5" aria-hidden />
                           ) : null}
@@ -1183,12 +1467,34 @@ export function SocialPostComposerDialog({
                       {t("composer.textForAccount")}
                     </p>
                   ) : null}
+                  {isThread ? (
+                    <span
+                      className="text-muted-foreground text-xs tabular-nums"
+                      aria-label={t("thread.positionLabel", {
+                        part: 1,
+                        total: threadParts.length + 1,
+                      })}
+                    >
+                      {t("thread.position", {
+                        part: 1,
+                        total: threadParts.length + 1,
+                      })}
+                    </span>
+                  ) : null}
                   <textarea
                     id={textId}
                     aria-describedby={
-                      displayedOverLimit ? tooLongId : undefined
+                      displayedOverLimit
+                        ? `${tooLongId}-count ${tooLongId}`
+                        : isThread && composerIssue
+                          ? `${tooLongId}-count ${textId}-empty`
+                          : `${tooLongId}-count`
                     }
-                    aria-invalid={displayedOverLimit || undefined}
+                    aria-invalid={
+                      displayedOverLimit ||
+                      (isThread && composerIssue !== null) ||
+                      undefined
+                    }
                     aria-label={t("composer.text")}
                     className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
                     disabled={isBusy}
@@ -1197,70 +1503,25 @@ export function SocialPostComposerDialog({
                     ref={textareaRef}
                     value={displayedText}
                   />
-                  {media.length > 0 ? mediaStrip : null}
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-11 md:h-8"
-                      disabled={isBusy}
-                      onClick={() => setPickerOpen(true)}
+                  {isThread && composerIssue ? (
+                    <p
+                      id={`${textId}-empty`}
+                      className="text-destructive text-xs"
                     >
-                      <ImagePlus className="size-4" aria-hidden />
-                      {t("composer.media.addFromDrive")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-11 md:h-8"
-                      disabled={isBusy}
-                      loading={uploadPending}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="size-4" aria-hidden />
-                      {t("composer.media.upload")}
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      accept={accept}
-                      className="hidden"
-                      multiple
-                      onChange={(event) => {
-                        const files = Array.from(event.target.files ?? []);
-                        event.target.value = "";
-                        void handleUploadFiles(files);
-                      }}
-                      type="file"
-                    />
-                    <span className="ms-auto flex flex-col items-end gap-0.5">
-                      <span
-                        aria-live="polite"
-                        className={cn(
-                          "text-xs tabular-nums",
-                          displayedOverLimit
-                            ? "text-destructive"
-                            : "text-muted-foreground",
-                        )}
-                        data-testid="social-post-character-count"
-                      >
-                        {t("composer.characters", {
-                          count: displayedLength,
-                          limit: displayedLimit,
-                        })}
-                      </span>
-                      {displayedOverLimit ? (
-                        <p
-                          className="text-destructive text-xs"
-                          data-testid="social-post-too-long"
-                          id={tooLongId}
-                        >
-                          {t("composer.tooLong")}
-                        </p>
-                      ) : null}
-                    </span>
-                  </div>
+                      {partIssueText(composerIssue, 1)}
+                    </p>
+                  ) : null}
+                  {renderMediaControls(
+                    media,
+                    null,
+                    renderCounter(
+                      displayedText,
+                      previewConnection ? previewProvider : provider,
+                      previewConnection?.subscriptionType,
+                      1,
+                      tooLongId,
+                    ),
+                  )}
                   {/* One platform: the count above already is its limit. */}
                   {accountTexts.length > 1 ? (
                     <ul
@@ -1307,6 +1568,215 @@ export function SocialPostComposerDialog({
                         );
                       })}
                     </ul>
+                  ) : null}
+                  {threadParts.map((part, index) => {
+                    const position = index + 2;
+                    const fieldId = `${textId}-${part.id}`;
+                    const errorId = `${fieldId}-error`;
+                    const emptyId = `${fieldId}-empty`;
+                    const metrics = socialPostTextMetrics(
+                      part.text,
+                      "x",
+                      threadSubscriptionType,
+                    );
+                    const issue = socialPostComposerDraftIssue(
+                      "x",
+                      part.text,
+                      part.media,
+                    );
+                    return (
+                      <section
+                        key={part.id}
+                        className="bg-background space-y-3 rounded-lg border p-4"
+                        aria-label={t("thread.part", { part: position })}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label
+                            htmlFor={fieldId}
+                            className="text-sm font-medium"
+                          >
+                            {t("thread.part", { part: position })}
+                          </label>
+                          <span
+                            className="text-muted-foreground text-xs tabular-nums"
+                            aria-label={t("thread.positionLabel", {
+                              part: position,
+                              total: threadParts.length + 1,
+                            })}
+                          >
+                            {t("thread.position", {
+                              part: position,
+                              total: threadParts.length + 1,
+                            })}
+                          </span>
+                          <div className="ms-auto flex flex-wrap items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-10 md:size-8"
+                              aria-label={t("thread.moveUp", {
+                                part: position,
+                              })}
+                              disabled={isBusy || index === 0}
+                              onClick={() => moveThreadPart(index, -1)}
+                            >
+                              <ArrowUp className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-10 md:size-8"
+                              aria-label={t("thread.moveDown", {
+                                part: position,
+                              })}
+                              disabled={
+                                isBusy || index === threadParts.length - 1
+                              }
+                              onClick={() => moveThreadPart(index, 1)}
+                            >
+                              <ArrowDown className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="min-h-10 md:min-h-8"
+                              disabled={isBusy}
+                              onClick={() =>
+                                setThreadParts((parts) =>
+                                  parts.filter(
+                                    (candidate) => candidate.id !== part.id,
+                                  ),
+                                )
+                              }
+                            >
+                              {t("thread.remove", { part: position })}
+                            </Button>
+                          </div>
+                        </div>
+                        <Textarea
+                          id={fieldId}
+                          aria-label={t("thread.text", { part: position })}
+                          value={part.text}
+                          disabled={isBusy}
+                          aria-invalid={
+                            metrics.overLimit || issue !== null || undefined
+                          }
+                          aria-describedby={
+                            metrics.overLimit
+                              ? `${errorId}-count ${errorId}`
+                              : issue
+                                ? `${errorId}-count ${emptyId}`
+                                : `${errorId}-count`
+                          }
+                          onChange={(event) =>
+                            setThreadParts((parts) =>
+                              parts.map((candidate) =>
+                                candidate.id === part.id
+                                  ? { ...candidate, text: event.target.value }
+                                  : candidate,
+                              ),
+                            )
+                          }
+                        />
+                        {issue ? (
+                          <p id={emptyId} className="text-destructive text-xs">
+                            {partIssueText(issue, position)}
+                          </p>
+                        ) : null}
+                        {renderMediaControls(
+                          part.media,
+                          part.id,
+                          renderCounter(
+                            part.text,
+                            "x",
+                            threadSubscriptionType,
+                            position,
+                            errorId,
+                          ),
+                        )}
+                      </section>
+                    );
+                  })}
+                  {canAddThread || isThread ? (
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                          isBusy ||
+                          !canAddThread ||
+                          threadParts.length + 1 >= MAX_THREAD_PARTS
+                        }
+                        aria-describedby={
+                          threadParts.length + 1 >= MAX_THREAD_PARTS
+                            ? threadLimitId
+                            : undefined
+                        }
+                        onClick={() =>
+                          setThreadParts((parts) => [
+                            ...parts,
+                            { id: crypto.randomUUID(), text: "", media: [] },
+                          ])
+                        }
+                      >
+                        <Plus className="size-4" />
+                        {t("thread.add")}
+                      </Button>
+                      {threadParts.length + 1 >= MAX_THREAD_PARTS ? (
+                        <p
+                          id={threadLimitId}
+                          className="text-muted-foreground text-xs"
+                        >
+                          {t("thread.limit", { max: MAX_THREAD_PARTS })}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {threadAccountsInvalid ? (
+                    <p className="text-destructive text-sm" role="alert">
+                      {t("thread.onlyX")}
+                    </p>
+                  ) : null}
+                  {canAddThread ||
+                  quotedPostId ||
+                  post?.needsAttentionReason ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isBusy || !canAddThread}
+                          ref={quoteButtonRef}
+                          onClick={() => setQuotePickerOpen(true)}
+                        >
+                          {t(quotedPostId ? "quote.change" : "quote.choose")}
+                        </Button>
+                        {quotedPostId || post?.needsAttentionReason ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={isBusy}
+                            onClick={() => {
+                              setQuotedPostId(null);
+                              setQuotedPost(null);
+                            }}
+                          >
+                            {t("quote.remove")}
+                          </Button>
+                        ) : null}
+                      </div>
+                      {quoteAccountsInvalid ? (
+                        <p className="text-destructive text-sm" role="alert">
+                          {t("quote.onlyX")}
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
                   {showFirstComment ? (
                     <div className="space-y-2">
@@ -1366,16 +1836,39 @@ export function SocialPostComposerDialog({
                 <SocialPostSchedulePicker
                   allowNow={canPostNow}
                   describedBy={
-                    scheduledAtTooSoon ? scheduledAtErrorId : undefined
+                    [
+                      scheduledAtTooSoon ? scheduledAtErrorId : null,
+                      scheduledBeforeQuote ? quoteScheduleErrorId : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || undefined
                   }
                   disabled={isBusy}
                   earliest={new Date(earliestScheduledAt)}
-                  invalid={scheduledAtTooSoon}
+                  invalid={scheduledAtTooSoon || scheduledBeforeQuote}
                   labelledBy={scheduledAtId}
                   onChange={setScheduledAt}
                   suggestedHours={suggestedTimes?.hours}
                   value={scheduledAt}
                 />
+                {quotePending ? (
+                  <div className="space-y-1 text-sm">
+                    <p className="text-muted-foreground">
+                      {quoteTimeLabel
+                        ? t("quote.publishesAfter", { time: quoteTimeLabel })
+                        : t("quote.scheduleTargetFirst")}
+                    </p>
+                    {scheduledBeforeQuote ? (
+                      <p
+                        className="text-destructive"
+                        id={quoteScheduleErrorId}
+                        role="alert"
+                      >
+                        {quoteScheduleHint}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {scheduledAtTooSoon ? (
                   <p
                     className="text-destructive text-sm"
@@ -1487,6 +1980,8 @@ export function SocialPostComposerDialog({
                   account={previewAccount}
                   className={cn(!hasContent && "opacity-60")}
                   media={media}
+                  threadParts={threadParts}
+                  quotedPost={quotedPost}
                   provider={previewProvider}
                   text={hasContent ? displayedText : t("composer.previewEmpty")}
                   timestamp={scheduledAtValid ? scheduledDate : null}
@@ -1553,11 +2048,52 @@ export function SocialPostComposerDialog({
         </div>
       </RoomFileDropZone>
 
+      <input
+        ref={fileInputRef}
+        accept={
+          mediaTargetRef.current ? socialPostComposerAccept(["x"]) : accept
+        }
+        className="hidden"
+        multiple
+        type="file"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          void handleUploadFiles(files, mediaTargetRef.current);
+        }}
+      />
       <DriveFilePicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onSelect={handleSelectDriveFile}
       />
+      {quotePickerOpen ? (
+        <SocialPostQuotePicker
+          projectId={projectId}
+          excludePostId={post?.id}
+          onOpenChange={setQuotePickerOpen}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            quoteButtonRef.current?.focus();
+          }}
+          onSelect={(selected) => {
+            setQuotedPostId(selected.id);
+            setQuotedPost({
+              id: selected.id,
+              provider: "x",
+              status: selected.status,
+              scheduledAt: selected.scheduledAt,
+              timezone: selected.timezone,
+              publishedExternalId: selected.publishedExternalId,
+              publishedUrl: selected.publishedUrl,
+              account: selected.socialConnection,
+              text: selected.text,
+              media: selected.media.slice(0, 1),
+            });
+            setQuotePickerOpen(false);
+          }}
+        />
+      ) : null}
 
       <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <AlertDialogContent data-task-form-portal="">

@@ -2,12 +2,21 @@
 
 import type { SocialPostCalendarItem } from "@sokosumi/core-client";
 import { socialPostProviderLabel } from "@sokosumi/utils";
-import { Paperclip, Play } from "lucide-react";
+import { CalendarClock, GripVertical, Paperclip, Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import { useId } from "react";
 import { publishFailureCopy } from "@/app/projects/components/social-posts/social-post-publish-failure";
-import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import {
+  SocialPostQuoteBadge,
+  socialPostQuoteAttentionCopy,
+} from "@/app/projects/components/social-posts/social-post-quote";
+import {
+  SocialPostStatusBadge,
+  socialPostStatusTone,
+} from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostStatusReasonTooltip } from "@/app/projects/components/social-posts/social-post-status-reason-tooltip";
+import { SocialPostThreadBadge } from "@/app/projects/components/social-posts/social-post-thread-badge";
 import { useSocialCalendarPreview } from "@/app/social/components/social-calendar-preview";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
@@ -16,8 +25,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { getToneStyle } from "@/components/ui/status-marker";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { cn } from "@/lib/utils";
+import { isChangeableSocialPost } from "./social-post-change";
 
 /** Failed, missed, canceled, and publishing posts need the word, not only a coloured mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
@@ -25,38 +37,97 @@ function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
     status === "FAILED" ||
     status === "MISSED" ||
     status === "CANCELED" ||
-    status === "PUBLISHING"
+    status === "PUBLISHING" ||
+    status === "NEEDS_APPROVAL"
+  );
+}
+
+/** A post's status in words, and why it failed when it did. */
+function useSocialPostStatusCopy(item: SocialPostCalendarItem) {
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
+  const copy = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
+  const { enabledProviders } = useSocialProviderAvailability();
+  const label = item.partiallyPublished
+    ? copy("thread.partlyPosted")
+    : item.waitingForQuotedPost
+      ? copy("quote.waiting")
+      : statuses(item.status);
+  const reason =
+    item.status !== "FAILED" && item.status !== "MISSED"
+      ? null
+      : item.needsAttentionReason
+        ? socialPostQuoteAttentionCopy(item.needsAttentionReason, copy)
+        : publishFailureCopy(
+            item,
+            copy,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
+          );
+  return { label, reason };
+}
+
+/**
+ * A post's status as a small mark in its hue. A post that waits on the
+ * reader (failed or missed) is a diamond, not only a red dot. Decorative:
+ * whatever carries it names the status in words.
+ */
+export function SocialPostStatusDot({
+  status,
+  className,
+}: {
+  status: SocialPostCalendarItem["status"];
+  /** Replaces the status hue, e.g. on a selected day. */
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "size-1.5 shrink-0",
+        status === "FAILED" || status === "MISSED"
+          ? "rotate-45 rounded-xs"
+          : "rounded-full",
+        className ?? getToneStyle(socialPostStatusTone(status)).dot,
+      )}
+      data-testid="calendar-social-post-dot"
+    />
   );
 }
 
 function CalendarSocialPostStatus({
   item,
   showLabel,
+  iconOnly = false,
   className,
 }: {
   item: SocialPostCalendarItem;
   /** Week chips stay icon-only so the word does not crowd the thumb. */
   showLabel?: boolean;
+  /** The month's one-line chip: the glyph alone, even while a quote waits. */
+  iconOnly?: boolean;
   className?: string;
 }) {
-  const statuses = useTranslations("App.Projects.SocialPosts.status");
-  const copy = useTranslations("App.Projects.SocialPosts");
-  const label = statuses(item.status);
-  const labeled = showLabel ?? needsStatusLabel(item.status);
+  const { label, reason } = useSocialPostStatusCopy(item);
+  const labeled =
+    !iconOnly &&
+    (item.waitingForQuotedPost || (showLabel ?? needsStatusLabel(item.status)));
   const badge = (
     <SocialPostStatusBadge
-      className={className}
+      className={cn(
+        item.waitingForQuotedPost && !iconOnly && "max-w-full min-w-0 shrink",
+        className,
+      )}
       status={item.status}
+      partiallyPublished={item.partiallyPublished}
+      waitingForQuotedPost={item.waitingForQuotedPost}
       label={label}
       showLabel={labeled}
     />
   );
-  if (item.status !== "FAILED" && item.status !== "MISSED") return badge;
+  if (!reason) return badge;
   return (
-    <SocialPostStatusReasonTooltip
-      label={label}
-      reason={publishFailureCopy(item, copy)}
-    >
+    <SocialPostStatusReasonTooltip label={label} reason={reason}>
       {badge}
     </SocialPostStatusReasonTooltip>
   );
@@ -82,22 +153,41 @@ function formatHandle(handle: string | null): string | null {
 /**
  * A Social post on a calendar.
  *
- * `preview` is the feed-like card Social's own calendar draws. `compact` is
- * the one line the workspace Calendar draws among task runs ("X post with
- * video"); pressing it expands the same preview card in a popover.
+ * `month` and `week` are the chips Social's own calendar draws: one shape in
+ * both views, a single line on the month and the same line with the post's
+ * words, account and media on the week. `preview` is the feed-like card.
+ * `compact` is the one line the workspace Calendar draws among task runs
+ * ("X post with video"); pressing it expands the preview card in a popover.
  */
 export function SocialPostCalendarEvent({
   item,
   timeZone,
   variant = "preview",
   showThumb = false,
+  showProject = true,
+  onReschedule,
 }: {
   item: SocialPostCalendarItem;
   timeZone: string;
-  variant?: "compact" | "preview";
-  /** Square media preview on Social's week chips. Workspace compact stays one line. */
+  variant?: "compact" | "preview" | "month" | "week";
+  /** Square media preview on a compact chip. Workspace compact stays one line. */
   showThumb?: boolean;
+  /** Off when the calendar is one project's: every chip would repeat it. */
+  showProject?: boolean;
+  /** Week chips of movable posts offer a Reschedule button: the drag without a pointer. */
+  onReschedule?: (item: SocialPostCalendarItem) => void;
 }) {
+  if (variant === "month" || variant === "week") {
+    return (
+      <SocialPostCalendarChip
+        density={variant}
+        item={item}
+        onReschedule={variant === "week" ? onReschedule : undefined}
+        showProject={showProject}
+        timeZone={timeZone}
+      />
+    );
+  }
   if (variant === "compact") {
     return (
       <CompactSocialPostCalendarEvent
@@ -120,6 +210,7 @@ function CompactSocialPostCalendarEvent({
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
+  const social = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const label = t("compactLabel", {
@@ -140,7 +231,7 @@ function CompactSocialPostCalendarEvent({
   );
   const status = (
     <CalendarSocialPostStatus
-      className={showThumb ? "size-4" : undefined}
+      className={showThumb && !item.waitingForQuotedPost ? "size-4" : undefined}
       item={item}
       showLabel={showThumb ? false : undefined}
     />
@@ -155,8 +246,18 @@ function CompactSocialPostCalendarEvent({
   const accessibleName = [
     formatter.dateTime(item.scheduledAt, "time", { timeZone }),
     label,
-    statuses(item.status),
-  ].join(", ");
+    item.partiallyPublished
+      ? social("thread.partlyPosted")
+      : item.waitingForQuotedPost
+        ? social("quote.waiting")
+        : statuses(item.status),
+    item.threadPartCount > 1
+      ? social("thread.positionLabel", { part: 1, total: item.threadPartCount })
+      : null,
+    item.quotedPostId ? social("quote.label") : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -168,6 +269,7 @@ function CompactSocialPostCalendarEvent({
             showThumb
               ? "@container items-center gap-1 px-1 py-1"
               : "items-center gap-1 px-1.5 py-1",
+            item.waitingForQuotedPost && "flex-wrap",
           )}
           data-testid="calendar-social-post"
         >
@@ -177,9 +279,14 @@ function CompactSocialPostCalendarEvent({
                 <span className="flex min-w-0 flex-nowrap items-center gap-0.5">
                   {logo}
                   {time}
-                  <span className="shrink-0">{status}</span>
+                  <SocialPostThreadBadge count={item.threadPartCount} />
+                  <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
+                  {!item.waitingForQuotedPost ? (
+                    <span className="shrink-0">{status}</span>
+                  ) : null}
                 </span>
                 <span className="w-full min-w-0 truncate">{label}</span>
+                {item.waitingForQuotedPost ? status : null}
               </span>
               {media ? <CompactSocialPostThumb media={media} /> : null}
             </>
@@ -188,7 +295,13 @@ function CompactSocialPostCalendarEvent({
               {logo}
               {time}
               <span className="min-w-0 flex-1 truncate">{label}</span>
-              {status}
+              <SocialPostThreadBadge count={item.threadPartCount} />
+              <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
+              {item.waitingForQuotedPost ? (
+                <span className="w-full">{status}</span>
+              ) : (
+                status
+              )}
             </>
           )}
         </button>
@@ -209,29 +322,11 @@ function SocialPostPreviewCard({
 }) {
   const t = useTranslations("App.Calendar.socialPost");
   const formatter = useFormatter();
-  const statuses = useTranslations("App.Projects.SocialPosts.status");
   const openPreview = useSocialCalendarPreview();
-  const scheduler = t("scheduledBy", {
-    name: item.scheduledByName ?? t("unknownScheduler"),
-  });
-  const providerLabel = socialPostProviderLabel(item.provider);
-  const handle = formatHandle(item.externalHandle);
-  const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
+  const { account, accessibleName, handle, providerLabel, scheduler } =
+    useSocialPostCalendarCopy(item, timeZone);
   const className =
     "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
-  const accessibleName = [
-    account,
-    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
-    t("project", { name: item.projectName }),
-    item.text || t("mediaOnly"),
-    statuses(item.status),
-    scheduler,
-    item.attachmentCount > 1
-      ? t("attachments", { count: item.attachmentCount })
-      : null,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(", ");
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -266,7 +361,14 @@ function SocialPostPreviewCard({
       <span className="line-clamp-2 w-full min-w-0 break-words font-normal">
         {item.text || t("mediaOnly")}
       </span>
-      <span className="flex w-full min-w-0 items-center gap-1">
+      <span
+        className={cn(
+          "flex w-full min-w-0 items-center gap-1",
+          item.waitingForQuotedPost && "flex-wrap",
+        )}
+      >
+        <SocialPostThreadBadge count={item.threadPartCount} />
+        <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
         <CalendarSocialPostStatus item={item} />
         <span aria-hidden className="flex shrink-0" title={scheduler}>
           <UserProfileAvatar
@@ -313,6 +415,265 @@ function SocialPostPreviewCard({
     >
       {content}
     </Link>
+  );
+}
+
+/** The words every Social calendar card says about a post, aloud and on screen. */
+function useSocialPostCalendarCopy(
+  item: SocialPostCalendarItem,
+  timeZone: string,
+  showProject = true,
+) {
+  const t = useTranslations("App.Calendar.socialPost");
+  const formatter = useFormatter();
+  const social = useTranslations("App.Projects.SocialPosts");
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
+  const scheduler = t("scheduledBy", {
+    name: item.scheduledByName ?? t("unknownScheduler"),
+  });
+  const providerLabel = socialPostProviderLabel(item.provider);
+  const handle = formatHandle(item.externalHandle);
+  const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
+  const accessibleName = [
+    account,
+    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
+    showProject ? t("project", { name: item.projectName }) : null,
+    item.text || t("mediaOnly"),
+    item.partiallyPublished
+      ? social("thread.partlyPosted")
+      : item.waitingForQuotedPost
+        ? social("quote.waiting")
+        : statuses(item.status),
+    item.threadPartCount > 1
+      ? social("thread.positionLabel", { part: 1, total: item.threadPartCount })
+      : null,
+    item.quotedPostId ? social("quote.label") : null,
+    scheduler,
+    item.attachmentCount > 1
+      ? t("attachments", { count: item.attachmentCount })
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(", ");
+  return { account, accessibleName, handle, providerLabel, scheduler };
+}
+
+/**
+ * How a chip says its status without leaning on hue: the glyph is always
+ * there, a post someone still has to finish has a dashed edge, a canceled one
+ * is struck through, and a post that needs the reader names its status in
+ * words on the week.
+ */
+const DASHED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "CANCELED",
+]);
+const WORDED_STATUSES: ReadonlySet<SocialPostCalendarItem["status"]> = new Set([
+  "FAILED",
+  "MISSED",
+  "NEEDS_APPROVAL",
+  "PUBLISHING",
+  "CANCELED",
+  "DRAFT",
+]);
+
+/**
+ * Social's calendar chip, one shape for the month and the week.
+ *
+ * A status rail and glyph lead, then the platform, the time and the post's
+ * first words. The week adds the account, a few lines of text, the media
+ * thumb and the status word. A post that can still move carries a grip and
+ * says so to assistive tech; the drag itself stays FullCalendar's.
+ */
+function SocialPostCalendarChip({
+  density,
+  item,
+  onReschedule,
+  showProject,
+  timeZone,
+}: {
+  density: "month" | "week";
+  item: SocialPostCalendarItem;
+  onReschedule?: (item: SocialPostCalendarItem) => void;
+  showProject: boolean;
+  timeZone: string;
+}) {
+  const t = useTranslations("App.Calendar.socialPost");
+  const formatter = useFormatter();
+  const openPreview = useSocialCalendarPreview();
+  const dragHintId = useId();
+  const { account, accessibleName, handle, providerLabel } =
+    useSocialPostCalendarCopy(item, timeZone, showProject);
+  const movable = isChangeableSocialPost(item);
+  const reschedule = movable ? onReschedule : undefined;
+  const tone = getToneStyle(socialPostStatusTone(item.status));
+  const week = density === "week";
+  const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
+  const className = cn(
+    "group/chip bg-background text-foreground press hover:bg-muted border-border relative flex w-full min-w-0 select-none overflow-hidden rounded-md border text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+    week
+      ? "@container flex-col gap-1 py-1.5 ps-2.5 pe-1.5"
+      : "items-center gap-1 py-0.5 ps-2 pe-1",
+    DASHED_STATUSES.has(item.status) && "border-dashed",
+    movable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+  );
+  const rail = (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute inset-y-1 start-0.5 w-0.5 rounded-full",
+        tone.dot,
+      )}
+      data-testid="calendar-social-post-rail"
+    />
+  );
+  const grip = movable ? (
+    <GripVertical
+      aria-hidden
+      className={cn(
+        "text-muted-foreground size-3 shrink-0",
+        // The month has no room to spare: the grip shows when it is wanted.
+        !week && "hidden group-hover/chip:block group-focus-visible/chip:block",
+      )}
+      data-testid="calendar-social-post-grip"
+    />
+  ) : null;
+  const text = (
+    <span
+      className={cn(
+        "min-w-0 font-normal",
+        week ? "line-clamp-3 break-words" : "flex-1 truncate",
+        item.status === "CANCELED" && "text-muted-foreground line-through",
+      )}
+    >
+      {item.text || t("mediaOnly")}
+    </span>
+  );
+  const content = week ? (
+    <>
+      {rail}
+      <span className="flex w-full min-w-0 items-center gap-1.5">
+        <AccountChipMark avatarUrl={item.avatarUrl} provider={item.provider} />
+        {/* A narrow column would cut the handle to a bare "@": the mark and
+            the accessible name still say whose post it is. */}
+        <span
+          className="min-w-0 flex-1 truncate @max-[8rem]:hidden"
+          title={account}
+        >
+          {handle ?? providerLabel}
+        </span>
+        <span className="text-muted-foreground ms-auto shrink-0 tabular-nums">
+          {time}
+        </span>
+      </span>
+      <span className="flex w-full min-w-0 items-start gap-1.5">
+        <span className="flex min-w-0 flex-1">{text}</span>
+        {item.previewMedia ? (
+          <CompactSocialPostThumb media={item.previewMedia} />
+        ) : null}
+      </span>
+      <span
+        className={cn(
+          "flex w-full min-w-0 items-center gap-1",
+          // Room for the Reschedule button laid over this row's end.
+          reschedule && "pe-7",
+        )}
+      >
+        <CalendarSocialPostStatus
+          className={
+            WORDED_STATUSES.has(item.status) || item.waitingForQuotedPost
+              ? "px-1.5 py-0.5"
+              : "size-5"
+          }
+          item={item}
+          showLabel={WORDED_STATUSES.has(item.status)}
+        />
+        <SocialPostThreadBadge count={item.threadPartCount} />
+        <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
+        <span
+          className="text-muted-foreground min-w-0 flex-1 truncate font-normal"
+          title={
+            showProject ? t("project", { name: item.projectName }) : undefined
+          }
+        >
+          {showProject ? item.projectName : null}
+        </span>
+        {grip}
+      </span>
+    </>
+  ) : (
+    <>
+      {rail}
+      <CalendarSocialPostStatus
+        className="size-4 rounded-full"
+        iconOnly
+        item={item}
+      />
+      <SocialPostProviderIcon
+        aria-hidden
+        className="size-3 shrink-0"
+        provider={item.provider}
+      />
+      <span className="text-muted-foreground shrink-0 tabular-nums">
+        {time}
+      </span>
+      {text}
+      {grip}
+    </>
+  );
+  const shared = {
+    "aria-describedby": movable ? dragHintId : undefined,
+    "aria-label": accessibleName,
+    className,
+    "data-density": density,
+    "data-movable": movable ? "true" : undefined,
+    "data-status": item.status,
+    "data-testid": "calendar-social-post",
+  };
+  const chip = (
+    <>
+      {openPreview ? (
+        <button
+          type="button"
+          {...shared}
+          onClick={(event) =>
+            openPreview(item.sourceProjectId, item.postId, event.currentTarget)
+          }
+        >
+          {content}
+        </button>
+      ) : (
+        <Link href={socialPostHref(item)} {...shared}>
+          {content}
+        </Link>
+      )}
+      {movable ? (
+        <span className="sr-only" id={dragHintId}>
+          {t("dragHint")}
+        </span>
+      ) : null}
+    </>
+  );
+  if (!reschedule) return chip;
+  // A sibling of the chip, not inside it: a button cannot hold a button.
+  return (
+    <div className="relative">
+      {chip}
+      <button
+        aria-label={t("rescheduleNamed", {
+          time,
+          text: item.text || t("mediaOnly"),
+        })}
+        className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo hit-area absolute end-1 bottom-1 flex size-6 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+        data-testid="calendar-social-post-reschedule"
+        onClick={() => reschedule(item)}
+        title={t("reschedule")}
+        type="button"
+      >
+        <CalendarClock aria-hidden className="size-4" />
+      </button>
+    </div>
   );
 }
 

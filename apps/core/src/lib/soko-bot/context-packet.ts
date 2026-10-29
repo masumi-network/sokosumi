@@ -22,6 +22,8 @@ import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
   projects: 12,
+  /** The rest by name only, so a Project the owner names can be found. */
+  projectNames: 100,
   tasks: 24,
   /** Slots kept for work that finished this week, so a wrap can say what moved. */
   finishedTasks: 6,
@@ -786,6 +788,21 @@ export class ContextPacketBuilder {
         : null,
     ]);
 
+    const namedOnly =
+      projectCount > projects.length
+        ? await prisma.project.findMany({
+            where: {
+              AND: [
+                scope.projectWhere,
+                { id: { notIn: projects.map((project) => project.id) } },
+              ],
+            },
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+            take: LIMITS.projectNames,
+            select: { id: true, name: true },
+          })
+        : [];
+
     const reminders = !scope.includeReminders
       ? []
       : await prisma.sokoBotNudge.findMany({
@@ -897,20 +914,28 @@ export class ContextPacketBuilder {
           billing.enterprise?.credits.remaining,
         ),
       },
-      projects: projects.map((project) => ({
-        id: boundedIdentifier(project.id),
-        name: sanitizeText(project.name, TEXT_LIMITS.name),
-        summary: sanitizeText(project.briefing, TEXT_LIMITS.summary),
-        status: projectStatus(
-          project.id,
-          project._count.tasks,
-          project._count.jobs,
-          tasks,
-          jobs,
-        ),
-        updatedAt: project.updatedAt.toISOString(),
-        trust: "untrusted-data",
-      })),
+      projects: [
+        ...projects.map((project) => ({
+          id: boundedIdentifier(project.id),
+          name: sanitizeText(project.name, TEXT_LIMITS.name),
+          summary: sanitizeText(project.briefing, TEXT_LIMITS.summary),
+          status: projectStatus(
+            project.id,
+            project._count.tasks,
+            project._count.jobs,
+            tasks,
+            jobs,
+          ),
+          updatedAt: project.updatedAt.toISOString(),
+          trust: "untrusted-data",
+        })),
+        // Name only: enough to find a Project the owner names.
+        ...namedOnly.map((project) => ({
+          id: boundedIdentifier(project.id),
+          name: sanitizeText(project.name, TEXT_LIMITS.name),
+          trust: "untrusted-data",
+        })),
+      ],
       tasks: tasks.map((task) => ({
         requiredReference: input.referencedTaskIds?.includes(task.id) ?? false,
         id: boundedIdentifier(task.id),

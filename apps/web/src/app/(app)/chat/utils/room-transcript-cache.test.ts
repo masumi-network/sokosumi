@@ -327,6 +327,93 @@ describe("room open prefetched on click", () => {
     expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
   });
 
+  function provisional() {
+    return vi.fn(() => ({
+      activeOrganization: { id: "workspace", slug: null },
+      rooms: [],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [],
+      messagesNextCursor: null,
+      loadHistoryOnClient: true,
+    }));
+  }
+
+  it("paints a room from the click's read before its page registers", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    const props = provisional();
+    cache.prefetch("room", props);
+    await vi.waitFor(() => expect(cache.get("room")).toBeDefined());
+    const entry = cache.get("room")!;
+    expect(entry.resolved).toBe(true);
+    expect(entry.transcript.messages).toEqual([message(90)]);
+    expect(entry.bootstrap.selectedRoomId).toBe("room");
+
+    // The room's mount read is the click's read, not a second request.
+    await cache.refresh("room", entry.lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not paint a room whose click read was refused", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(null);
+    const props = provisional();
+    cache.prefetch("room", props);
+    await vi.waitFor(() => expect(fetchRoomMessages).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(props).not.toHaveBeenCalled();
+    expect(cache.get("room")).toBeUndefined();
+  });
+
+  it("keeps the page's bootstrap when it registers before the click's read", async () => {
+    const { cache, seed } = opening();
+    let land: (page: typeof head) => void = () => {};
+    vi.mocked(fetchRoomMessages).mockReturnValue(
+      new Promise((resolve) => {
+        land = resolve;
+      }),
+    );
+    const props = provisional();
+    cache.prefetch("room", props);
+    seed();
+    land(head);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(props).not.toHaveBeenCalled();
+    expect(cache.get("room")?.bootstrap.activeOrganization).toBeNull();
+  });
+
+  it("hands the click's open-at-unread read to one visit", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetchUnreadWindow("room");
+    expect(vi.mocked(fetchRoomMessages).mock.calls[0]?.[2]).toEqual({
+      openAtUnread: true,
+    });
+
+    await expect(cache.takeUnreadWindow("room")).resolves.toEqual(head);
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
+  it("drops a click's open-at-unread read after the open window or an eviction", () => {
+    vi.useFakeTimers();
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetchUnreadWindow("room");
+    vi.advanceTimersByTime(10_001);
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+
+    cache.prefetchUnreadWindow("room");
+    cache.evict("room");
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
   it("does not hand an old click's read to a later open", async () => {
     vi.useFakeTimers();
     const { cache, seed } = opening();

@@ -8,7 +8,10 @@ import { type RenderOptions, render } from "@testing-library/react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { beforeEach, type Mock, vi } from "vitest";
 
+import { TestQueryProvider } from "@/test/query-provider";
+
 import { RoomsClient } from "../rooms-client";
+import { transcriptViewportEnd } from "./transcript-viewport-stub";
 
 /**
  * Shared RoomsClient test wiring. Mocks that every `rooms-client-*.tsx` file
@@ -143,6 +146,7 @@ vi.mock("next-intl", () => {
 
 vi.mock("@/app/chat/components/day-separator", () => ({
   default: () => null,
+  DayPill: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
 vi.mock("@/hooks/use-is-apple-platform", () => ({
@@ -156,10 +160,6 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
   useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
 }));
 
 vi.mock("@/contexts/lazy-ably-provider", () => ({
@@ -385,6 +385,7 @@ export function resetRoomsClientMocks() {
   sendStreamMessage.mockReset();
   sendStreamMessage.mockReturnValue(true);
   useChatRoomRealtimeMock.mockReset();
+  transcriptViewportEnd.openAtEnd = true;
 }
 
 beforeEach(() => {
@@ -397,11 +398,20 @@ export function createRoomsClient(
   return <RoomsClient {...roomsClientBaseProps(overrides)} />;
 }
 
+/**
+ * A room view reads through react-query, whose client the app layout gives
+ * it. A test that brings its own wrapper brings its own client.
+ */
+export function renderWithQueryClient(
+  ui: ReactElement,
+  options?: RenderOptions,
+) {
+  return render(ui, { wrapper: TestQueryProvider, ...options });
+}
+
 export function renderRoomsClient(
   overrides?: Partial<RoomsClientProps>,
-  options?: Omit<RenderOptions, "wrapper"> & {
-    wrapper?: RenderOptions["wrapper"];
-  },
+  options?: RenderOptions,
 ) {
-  return render(createRoomsClient(overrides), options);
+  return renderWithQueryClient(createRoomsClient(overrides), options);
 }

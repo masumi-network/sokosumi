@@ -408,7 +408,7 @@
     },
     "/chats/rooms": {
       "get": {
-        "description": "List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), org-less matched channels where the caller is a member, and external channels where the caller is a guest. With no active organization, lists personal Directs, matched-channel memberships, and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
+        "description": "List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, Personal Directs (all-human, `organizationId` null), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's org-less Directs: Personal Directs plus coworker and Soko Bot 1:1s of the personal workspace. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
         "tags": [
           "Chat Rooms"
         ],
@@ -817,7 +817,7 @@
         }
       },
       "post": {
-        "description": "Create a chat room. `kind: \"channel\"` requires an active organization and a user session. `kind: \"direct\"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Multi-human groups still require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: \"direct\", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.",
+        "description": "Create a chat room. `kind: \"channel\"` requires an active organization and a user session. `kind: \"direct\"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1s and groups are Personal Directs (`organizationId` null) in any workspace: every target must share an Organization or an External channel with the caller; `GET /chats/people` lists them. An existing Direct with the same participants is returned. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: \"direct\", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.",
         "tags": [
           "Chat Rooms"
         ],
@@ -1300,6 +1300,21 @@
             "description": "Reading-order window of top-level messages centred on this message, or on its parent if it is a reply. Cannot be combined with q or cursor.",
             "name": "around",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Open the room at the viewer's Unread divider. When the first unread message is on the newest page, returns that page; otherwise a reading-order window of 3 read messages above it and up to 30 from it, with the usual older-page cursor. Cannot be combined with q, cursor or around.",
+              "example": "true"
+            },
+            "required": false,
+            "description": "Open the room at the viewer's Unread divider. When the first unread message is on the newest page, returns that page; otherwise a reading-order window of 3 read messages above it and up to 30 from it, with the usual older-page cursor. Cannot be combined with q, cursor or around.",
+            "name": "openAtUnread",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1328,7 +1343,7 @@
                           "type": "string"
                         },
                         "pagination": {
-                          "$ref": "#/components/schemas/PaginationMetadata"
+                          "$ref": "#/components/schemas/ChatRoomMessagesPaginationMetadata"
                         }
                       },
                       "required": [
@@ -16197,6 +16212,317 @@
             }
           }
         }
+      },
+      "get": {
+        "description": "Get an organization chat room.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat room retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoom"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/chats/rooms/{id}/archive": {
@@ -29628,6 +29954,211 @@
           }
         }
       }
+    },
+    "/chats/people": {
+      "get": {
+        "operationId": "listChatPeople",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "description": "List everyone the signed-in user may start a Personal Direct with: members of any of their Organizations and co-members of any External channel they are on, each once, sorted by name, paginated. Independent of the active workspace.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Cursor for pagination (ID of the last item from previous page)",
+              "example": "cmi4gmksz000104l8wps8p7fp"
+            },
+            "required": false,
+            "description": "Cursor for pagination (ID of the last item from previous page)",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Number of items to return (max 100)",
+              "example": 20
+            },
+            "required": false,
+            "description": "Number of items to return (max 100)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "People",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatPerson"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "pagination"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -31049,7 +31580,7 @@
                 "enum": [
                   "direct"
                 ],
-                "description": "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs."
+                "description": "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs."
               },
               "memberUserIds": {
                 "type": "array",
@@ -34538,6 +35069,84 @@
           "archivedAt",
           "sharedRoomId",
           "viewerCanManage"
+        ]
+      },
+      "ChatRoomMessagesPaginationMetadata": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "cmg4zknxt0000l404yn4li0kp",
+            "description": "Cursor for the current page"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 20,
+            "description": "Number of items returned"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 100,
+            "description": "Total number of items"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "cmi4gmksz000104l8wps8p7fp",
+            "description": "Cursor for the next page"
+          },
+          "firstUnreadMessageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The top-level message the viewer's Unread divider sits above, or null when the room has no Room unread. Present on every response without cursor or q.",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          }
+        },
+        "required": [
+          "cursor",
+          "limit",
+          "total",
+          "nextCursor"
+        ]
+      },
+      "ChatPerson": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "user_123"
+          },
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "email": {
+            "type": "string",
+            "example": "jane@example.com"
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "https://example.com/avatar.png"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "image"
         ]
       }
     }

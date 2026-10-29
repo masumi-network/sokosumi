@@ -10,11 +10,77 @@ import {
   useEffectEvent,
   useState,
 } from "react";
+import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
 import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
+import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
+import { shouldUseCoworkerRoomStream } from "./room-helpers";
+import type { RoomsClientProps } from "./rooms-client";
+
+/** The sidebar's row for a room, when the sidebar shows this user and workspace. */
+function sidebarRoom(
+  roomId: string,
+  currentUserId: string,
+  workspaceId: string | null,
+) {
+  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+  if (
+    snapshot?.currentUserId !== currentUserId ||
+    snapshot.organizationId !== workspaceId
+  )
+    return null;
+  return snapshot.rooms.find((row) => row.id === roomId) ?? null;
+}
+
+/**
+ * Room chrome from the sidebar's row, until the room page registers its own.
+ * Roster and the caller's channel-admin role arrive with that page. Coworker
+ * stream rooms wait for it: their stream needs the organization slug.
+ */
+export function provisionalRoomBootstrap(
+  roomId: string,
+  currentUserId: string,
+  workspaceId: string | null,
+): RoomsClientProps | null {
+  const room = sidebarRoom(roomId, currentUserId, workspaceId);
+  if (!room || shouldUseCoworkerRoomStream(room)) return null;
+  return {
+    loadHistoryOnClient: true,
+    activeOrganization: workspaceId ? { id: workspaceId, slug: null } : null,
+    rooms: [room],
+    organizationMembers: [],
+    currentUserId,
+    isOrgOwnerOrAdmin: false,
+    coworkers: [],
+    selectedRoomId: roomId,
+    messageLoadFailed: false,
+    membersLoadFailed: false,
+    messages: [],
+    messagesNextCursor: null,
+  };
+}
+
+/**
+ * Whether a click opens the room at its Unread divider, the way the room
+ * decides it on mount: Room unread on the sidebar's row, and no named message.
+ */
+export function clickOpensAtUnread(
+  url: URL,
+  roomId: string,
+  currentUserId: string,
+  workspaceId: string | null,
+): boolean {
+  const room = sidebarRoom(roomId, currentUserId, workspaceId);
+  return (
+    room != null &&
+    (room.channelUnreadCount ?? room.unreadCount) > 0 &&
+    !url.searchParams.has(CHAT_MESSAGE_PARAM)
+  );
+}
 
 const RoomSelectionContext = createContext<string | null>(null);
 export function useRoomSelection() {
@@ -38,9 +104,11 @@ export function RoomCacheProvider({
   workspaceId: string | null;
   children: ReactNode;
 }) {
+  // A workspace switch swaps the cache, not the tree: a room shown in every
+  // workspace stays mounted with its draft.
   return (
     <RoomCacheSession
-      key={JSON.stringify([currentUserId, workspaceId])}
+      key={currentUserId}
       currentUserId={currentUserId}
       workspaceId={workspaceId}
     >
@@ -68,14 +136,21 @@ function RoomCacheSession({
     navigation.pathname === pathname ? navigation.target : pathname;
   const replace = useEffectEvent((href: string) => router.replace(href));
   const [generation, setGeneration] = useState(0);
-  const [cache] = useState(
+  const [cache, setCache] = useState(
     () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
+  if (!cache.matchesScope(currentUserId, workspaceId))
+    setCache(cache.forWorkspace(workspaceId, roomIdFromPath(pathname)));
   useEffect(() => {
     const select = (url: URL) => {
       setNavigation({ pathname, target: url.pathname + url.search });
-      const roomId = url.pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
-      if (roomId) cache.prefetch(roomId);
+      const roomId = roomIdFromPath(url.pathname);
+      if (!roomId) return;
+      cache.prefetch(roomId, () =>
+        provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
+      );
+      if (clickOpensAtUnread(url, roomId, currentUserId, workspaceId))
+        cache.prefetchUnreadWindow(roomId);
     };
     const clicked = (event: MouseEvent) => {
       if (
@@ -111,7 +186,7 @@ function RoomCacheSession({
       window.removeEventListener("click", clicked, true);
       window.removeEventListener("popstate", popped);
     };
-  }, [cache, pathname]);
+  }, [cache, currentUserId, pathname, workspaceId]);
   useEffect(() => {
     cache.activate();
     const ended = () => {

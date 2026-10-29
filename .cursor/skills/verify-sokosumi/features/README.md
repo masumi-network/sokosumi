@@ -14,6 +14,7 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 - Use the doctor `web_url=` (a `*.localhost` name), not `127.0.0.1`. Better Auth origin/cookies follow that host.
 - Confirm `apps/core/.env` does not set a production `BETTER_AUTH_COOKIE_DOMAIN`. Doctor allows `localhost` or `sokosumi.localhost`. Portless injects `sokosumi.localhost` in process env.
 - After doctor, authenticate with `.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in` (fixtures, then vault). Expect `fixture_auth=ok` only on agent Neon branches.
+- Tasks, Agents, Schedules, Projects, Files, and Credit history sit behind the organization-product layout. A user with no assigned seat sees **Assigned seat required** instead of the feature. Cloud-agent fixture Alice has a seat. That screen is a seat lock, not a missing route.
 - Never drive an instance that was not started by this verification run.
 - Put proof under `.cursor/verify-sokosumi-artifacts/<feature-id>/` (gitignored). Cleanup must keep those files.
 
@@ -48,11 +49,14 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 - [Sign in](./sign-in.md) — email/password session, Welcome `/` landing, persist on `/agents`.
 - [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
-- [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (not Ably messaging; `/chat` is adjacent).
+- [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (coworker greeting, or Soko Bot home when the user has a personal bot).
+- [Soko Bots](./soko-bots.md) — `/soko-bots` team assistants (top sidebar **Soko Bots**).
 - [Tasks board](./tasks-board.md) — `/tasks` task manager (Board / Calendar tabs; kanban or list).
 - [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
+- [Contacts](./contacts.md) — `/contacts` team contacts (All / My / Recently added), including the empty state.
 - [Calendar](./calendar.md) — Calendar tab on `/tasks` (`/calendar` redirects); Month / Week / Agenda. Not a sidebar row.
-- [Content Studio](./studio.md) — `/studio` image studio (curated styles with no `?projectId=`; picker only for a missing project).
+- [Content Studio](./studio.md) — `/studio` image studio (named styles with no `?projectId=`; picker only for a missing project).
+- [Social Scheduling](./social.md) — `/social` post calendar (always in the desktop sidebar).
 - [Projects](./projects.md) — `/projects` list or empty state (not a desktop sidebar row).
 - [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
 - [History](./history.md) — `/history` credit history ledger (account menu / You; not a sidebar row).

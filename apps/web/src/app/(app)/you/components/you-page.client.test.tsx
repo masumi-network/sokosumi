@@ -135,7 +135,7 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
-  it("links Social next to Content Studio for people in the Social beta", () => {
+  it("links public Social next to Content Studio", () => {
     renderYouPage({ socialBetaEnabled: true });
 
     const social = screen.getByTestId("you-social");
@@ -146,13 +146,13 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
-  it("leaves Social out for everyone else", () => {
+  it("shows Social outside the Ads beta", () => {
     renderYouPage();
 
-    expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
+    expect(screen.getByTestId("you-social")).toBeInTheDocument();
   });
 
-  it("links Ads after Social for people in the Social beta", () => {
+  it("links Ads after Social for members of the Ads beta", () => {
     renderYouPage({ socialBetaEnabled: true });
 
     const ads = screen.getByTestId("you-ads");
@@ -170,6 +170,37 @@ describe("YouPageClient", () => {
   it("leaves Ads out for everyone else", () => {
     renderYouPage();
 
+    expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
+  });
+
+  it("links Newsletter between Ads and Files when available", () => {
+    renderYouPage({ socialBetaEnabled: true, newsletterEnabled: true });
+
+    const newsletter = screen.getByTestId("you-newsletter");
+    expect(newsletter).toHaveAttribute("href", "/newsletter");
+    expect(
+      screen.getByTestId("you-ads").compareDocumentPosition(newsletter) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      newsletter.compareDocumentPosition(screen.getByTestId("you-files")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves Newsletter out until workspace availability is resolved", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-newsletter")).not.toBeInTheDocument();
+  });
+
+  it("shows Newsletter independently of the Ads beta", () => {
+    renderYouPage({ newsletterEnabled: true });
+
+    expect(screen.getByTestId("you-newsletter")).toHaveAttribute(
+      "href",
+      "/newsletter",
+    );
     expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
   });
 

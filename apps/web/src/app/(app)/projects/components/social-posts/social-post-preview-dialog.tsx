@@ -15,12 +15,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import { refreshProjectSocialPostStatistics } from "@/lib/actions/project/action";
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewFailure } from "./social-post-preview-failure";
+import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 export function SocialPostPreviewDialog({
   post,
@@ -37,6 +39,7 @@ export function SocialPostPreviewDialog({
   actions?: React.ReactNode;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
@@ -82,10 +85,26 @@ export function SocialPostPreviewDialog({
                 />
               </>
             ) : post ? (
-              t(`status.${post.status}`)
+              t(
+                post.waitingForQuotedPost
+                  ? "quote.waiting"
+                  : `status.${post.status}`,
+              )
             ) : null}
           </DialogDescription>
         </DialogHeader>
+        {post &&
+        (post.waitingForQuotedPost || post.status === "NEEDS_APPROVAL") ? (
+          <SocialPostStatusBadge
+            status={post.status}
+            label={t(
+              post.waitingForQuotedPost
+                ? "quote.waiting"
+                : "status.NEEDS_APPROVAL",
+            )}
+            waitingForQuotedPost={post.waitingForQuotedPost}
+          />
+        ) : null}
         {post?.connectionNeedsReconnect ? (
           <p
             className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
@@ -115,6 +134,11 @@ export function SocialPostPreviewDialog({
             }
             className="max-h-[70dvh] overflow-y-auto"
             media={post.media}
+            quotedPost={post.quotedPost}
+            threadParts={post.threadParts}
+            publishedExternalId={
+              post.threadPartCount > 1 ? post.publishedExternalId : undefined
+            }
             provider={post.provider}
             text={post.text}
             timestamp={post.publishedAt ?? post.scheduledAt}
@@ -171,7 +195,9 @@ export function SocialPostPreviewDialog({
                   </a>
                 </Button>
               ) : null}
-              {post.canSchedule ? (
+              {post.canSchedule &&
+              !post.canApprove &&
+              isProviderEnabled(post.provider) ? (
                 <Button
                   type="button"
                   className="min-h-11 md:min-h-10"

@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { badRequest } from "@/helpers/error";
 
 const {
   botFindFirstMock,
@@ -239,6 +242,7 @@ vi.mock("@/helpers/data-table", () => ({
 
 const social = vi.hoisted(() => ({
   listAccounts: vi.fn(),
+  project: vi.fn(),
   listStatistics: vi.fn(),
   listAccountStatistics: vi.fn(),
   refreshAccountStatistics: vi.fn(),
@@ -250,12 +254,14 @@ const social = vi.hoisted(() => ({
   schedule: vi.fn(),
   cancel: vi.fn(),
   publish: vi.fn(),
+  xTiers: vi.fn(),
   beta: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: social.listAccounts,
+  requireScopedProject: social.project,
 }));
 vi.mock("@/services/social-post-statistics.service", () => ({
   listSocialPostStatistics: social.listStatistics,
@@ -275,6 +281,9 @@ vi.mock("@/services/social-posts.service", () => ({
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
+}));
+vi.mock("@/services/x-subscription-tier.service", () => ({
+  resolveProjectXSubscriptionTypes: social.xTiers,
 }));
 vi.mock("@/helpers/social-beta-access", () => ({
   requireSocialBetaAccess: social.beta,
@@ -6348,6 +6357,15 @@ describe("Soko Bot project social tools", () => {
   const projectId = "01960001-0001-7001-8001-000000000011";
   const postId = "01960001-0001-7001-8001-000000000012";
   const accountId = "01960001-0001-7001-8001-000000000013";
+  const quotedId = "01960001-0001-7001-8001-000000000014";
+  const media = {
+    pathname: "drive/users/owner/launch.png",
+    fileUrl: "https://store.public.blob.vercel-storage.com/launch.png",
+    name: "launch.png",
+    size: 240000,
+    mimeType: "image/png",
+    kind: "image" as const,
+  };
   const capabilities = [
     "list_project_social_accounts",
     "list_social_posts",
@@ -6369,6 +6387,15 @@ describe("Soko Bot project social tools", () => {
     text: "Launch",
     firstComment: null,
     media: [],
+    threadParts: [],
+    quotedPostId: null,
+    quotedPost: null,
+    needsAttentionReason: null,
+    threadPartCount: 1,
+    publishedThreadPartCount: 0,
+    failedThreadPartPosition: null,
+    partiallyPublished: false,
+    publishingThreadPartPosition: null,
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,
@@ -6427,8 +6454,10 @@ describe("Soko Bot project social tools", () => {
     availabilityMock.mockResolvedValue({ disabled: false });
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
-    social.beta.mockResolvedValue(undefined);
+    social.beta.mockRejectedValue(new Error("Beta access required"));
     social.seat.mockResolvedValue(undefined);
+    social.project.mockResolvedValue({ workspace: { organization: null } });
+    social.xTiers.mockResolvedValue(new Map());
     social.listAccounts.mockResolvedValue([
       {
         id: accountId,
@@ -6515,28 +6544,250 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it("lists actual account metadata scoped to the authorized workspace", async () => {
+  it.each([null, "other", "utxo"])(
+    "lists account metadata and providers for Project workspace %s without beta membership",
+    async (organizationSlug) => {
+      social.project.mockResolvedValue({
+        workspace: {
+          organization: organizationSlug ? { slug: organizationSlug } : null,
+        },
+      });
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "accounts",
+        input: { projectId },
+      });
+      expect(social.listAccounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(social.project).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        enabledProviders: ["x", "youtube", "linkedin"],
+        writingGuides: {
+          youtube: expect.arrayContaining([
+            expect.stringMatching(/Plain text only/),
+          ]),
+        },
+        accounts: [
+          expect.objectContaining({
+            provider: "youtube",
+            externalHandle: "Launch channel",
+          }),
+        ],
+      });
+      expect(social.beta).not.toHaveBeenCalled();
+      expect(social.seat).toHaveBeenCalledWith(
+        SCOPE.userId,
+        "organization-one",
+        expect.anything(),
+      );
+    },
+  );
+
+  it("states each account's text limit from its current X tier", async () => {
+    const account = {
+      externalHandle: "launch",
+      displayName: null,
+      avatarUrl: null,
+      status: "active",
+      connectedAt: "2026-09-28T12:00:00Z",
+      disconnectedAt: null,
+    };
+    const premiumId = "01960001-0001-7001-8001-000000000021";
+    const basicId = "01960001-0001-7001-8001-000000000022";
+    const linkedinId = "01960001-0001-7001-8001-000000000023";
+    social.listAccounts.mockResolvedValue([
+      // Upgraded since it was connected: the fresh tier wins.
+      { ...account, id: premiumId, provider: "x", subscriptionType: "None" },
+      // Not looked up (lookup cap or failure): the stored tier stays.
+      { ...account, id: basicId, provider: "x", subscriptionType: null },
+      {
+        ...account,
+        id: linkedinId,
+        provider: "linkedin",
+        subscriptionType: null,
+      },
+    ]);
+    social.xTiers.mockResolvedValue(new Map([[premiumId, "Premium"]]));
+
     const result = await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
       capability: "list_project_social_accounts",
-      toolCallId: "accounts",
+      toolCallId: "limits",
       input: { projectId },
     });
-    expect(social.listAccounts).toHaveBeenCalledWith({
-      projectId,
-      workspaceId: SCOPE.workspaceId,
+
+    expect(social.xTiers).toHaveBeenCalledWith(projectId);
+    expect(result).toMatchObject({
+      accounts: [
+        {
+          id: premiumId,
+          subscriptionType: "Premium",
+          xPremium: true,
+          textLimit: 25_000,
+          firstCommentLimit: 25_000,
+        },
+        {
+          id: basicId,
+          subscriptionType: null,
+          xPremium: false,
+          textLimit: 280,
+          firstCommentLimit: 280,
+        },
+        {
+          id: linkedinId,
+          xPremium: false,
+          textLimit: 3000,
+          firstCommentLimit: 1250,
+        },
+      ],
     });
-    expect(result).toEqual([
+  });
+
+  it("passes X thread parts, a quote, and a first comment to the web's service paths", async () => {
+    const threadParts = [{ text: "Second" }, { text: "", media: [media] }];
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "create_social_post",
+      toolCallId: "thread",
+      input: {
+        projectId,
+        socialConnectionId: accountId,
+        text: "x".repeat(300),
+        firstComment: "#launch",
+        threadParts,
+        quotedPostId: quotedId,
+      },
+    });
+    expect(social.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "youtube",
-        externalHandle: "Launch channel",
+        text: "x".repeat(300),
+        firstComment: "#launch",
+        threadParts: [
+          { text: "Second", media: undefined },
+          { text: "", media: [media] },
+        ],
+        quotedPostId: quotedId,
+        sokoBotId: SCOPE.sokoBotId,
       }),
-    ]);
-    expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
-    expect(social.seat).toHaveBeenCalledWith(
-      SCOPE.userId,
-      "organization-one",
-      expect.anything(),
+      tx,
+    );
+
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_post",
+      toolCallId: "unthread",
+      input: {
+        projectId,
+        postId,
+        revision: 2,
+        threadParts: [],
+        quotedPostId: null,
+      },
+    });
+    expect(social.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId,
+        revision: 2,
+        threadParts: [],
+        quotedPostId: null,
+        media: undefined,
+      }),
+      tx,
+    );
+  });
+
+  it("resolves the post's and every thread part's Drive files in one lookup", async () => {
+    const service = new SokoBotRuntimeService();
+    const resolve = vi.fn(async (_authorized: unknown, items: unknown[]) =>
+      items.map((item) => ({
+        ...media,
+        name: (item as { fileId: string }).fileId,
+      })),
+    );
+    Object.assign(service, { resolveSocialMedia: resolve });
+    const result = await service["resolveSocialPostMedia"]({} as never, {
+      media: [{ fileId: "a" }],
+      threadParts: [
+        { text: "Two" },
+        { text: "Three", media: [{ fileId: "b" }, { fileId: "c" }] },
+      ],
+    });
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      media: [expect.objectContaining({ name: "a" })],
+      threadParts: [
+        { text: "Two", media: undefined },
+        {
+          text: "Three",
+          media: [
+            expect.objectContaining({ name: "b" }),
+            expect.objectContaining({ name: "c" }),
+          ],
+        },
+      ],
+    });
+  });
+
+  it("returns Core's account limit when a 300-character X post is over it", async () => {
+    social.create.mockRejectedValue(
+      badRequest("Text must be at most 280 characters for X"),
+    );
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "too-long",
+        input: {
+          projectId,
+          socialConnectionId: accountId,
+          text: "x".repeat(300),
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Text must be at most 280 characters for X",
+    });
+    expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown thread keys before reaching Core's service", async () => {
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "unknown-key",
+        input: { projectId, text: "Launch", thread: [{ text: "Two" }] },
+      }),
+    ).rejects.toThrow();
+    expect(social.create).not.toHaveBeenCalled();
+  });
+
+  it("forwards quote candidate filters to the listing", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_posts",
+      toolCallId: "candidates",
+      input: {
+        projectId,
+        quoteCandidates: true,
+        excludePostId: postId,
+        search: "launch",
+      },
+    });
+    expect(social.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+        quoteCandidates: true,
+        excludePostId: postId,
+        search: "launch",
+      }),
     );
   });
 
@@ -6677,7 +6928,7 @@ describe("Soko Bot project social tools", () => {
     "list_social_account_statistics",
     "refresh_social_account_statistics",
   ] as const)("rejects %s after access revocation", async (capability) => {
-    social.beta.mockRejectedValue(new Error("Access revoked"));
+    social.seat.mockRejectedValue(new Error("Access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6698,8 +6949,8 @@ describe("Soko Bot project social tools", () => {
   it.each([
     "list_social_post_statistics",
     "refresh_social_post_statistics",
-  ] as const)("rejects %s after beta revocation", async (capability) => {
-    social.beta.mockRejectedValue(new Error("Access revoked"));
+  ] as const)("rejects %s after seat revocation", async (capability) => {
+    social.seat.mockRejectedValue(new Error("Access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6788,21 +7039,18 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it.each(["beta", "seat"] as const)(
-    "rejects reads when %s access is revoked",
-    async (guard) => {
-      social[guard].mockRejectedValue(new Error("Access revoked"));
-      await expect(
-        new SokoBotRuntimeService().executeTool({
-          ...SCOPE,
-          capability: "list_project_social_accounts",
-          toolCallId: "denied",
-          input: { projectId },
-        }),
-      ).rejects.toThrow("Access revoked");
-      expect(social.listAccounts).not.toHaveBeenCalled();
-    },
-  );
+  it("rejects reads when seat access is revoked", async () => {
+    social.seat.mockRejectedValue(new Error("Access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "denied",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("Access revoked");
+    expect(social.listAccounts).not.toHaveBeenCalled();
+  });
 
   it("rejects banned owners before reading accounts", async () => {
     social.owner.mockResolvedValue({ banned: true, banExpires: null });
@@ -6829,7 +7077,7 @@ describe("Soko Bot project social tools", () => {
     expect(social.listAccounts).not.toHaveBeenCalled();
   });
 
-  it("records bot authorship and the receipt in the mutation transaction", async () => {
+  it("records bot authorship and the receipt without beta membership", async () => {
     await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
       capability: "create_social_post",
@@ -6864,6 +7112,7 @@ describe("Soko Bot project social tools", () => {
         }),
       }),
     );
+    expect(social.beta).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -6913,6 +7162,57 @@ describe("Soko Bot project social tools", () => {
     expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "create_social_post",
+      "create",
+      { projectId, socialConnectionId: accountId, text: "Launch" },
+    ],
+    [
+      "update_social_post",
+      "update",
+      { projectId, postId, text: "Changed", revision: 2 },
+    ],
+    [
+      "schedule_social_post",
+      "schedule",
+      { projectId, postId, scheduledAt: "2026-10-01T12:00:00Z", revision: 2 },
+    ],
+    ["publish_social_post", "publish", { projectId, postId, revision: 2 }],
+  ] as const)(
+    "%s propagates disabled-provider refusal without recording a completed mutation",
+    async (capability, mock, input) => {
+      const message = socialProviderUnavailableMessage("instagram", {
+        organizationSlug: null,
+      });
+      if (!message) throw new Error("Expected an unavailable provider");
+      social[mock].mockRejectedValue(badRequest(message));
+
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: "disabled-provider",
+          input,
+        }),
+      ).rejects.toMatchObject({ status: 400, message });
+
+      expect(social[mock]).toHaveBeenCalledOnce();
+      expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
+      expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "COMPLETED" }),
+        }),
+      );
+      expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
+      expect(social.beta).not.toHaveBeenCalled();
+    },
+  );
+
   it("rechecks cancellation before committing a social mutation", async () => {
     transactionTurnFindFirstMock.mockResolvedValue(null);
     await expect(
@@ -6959,7 +7259,7 @@ describe("Soko Bot project social tools", () => {
       status: "COMPLETED",
       result: [{ provider: "youtube", externalHandle: "Old channel" }],
     });
-    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    social.seat.mockRejectedValue(new Error("Social access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -7009,7 +7309,7 @@ describe("Soko Bot project social tools", () => {
       disposition: "APPLIED",
       result: post,
     });
-    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    social.seat.mockRejectedValue(new Error("Social access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -8203,7 +8503,7 @@ describe("create_task on an event turn", () => {
   it("follows up the batch's only Task when none is named", async () => {
     inbox.mockReset().mockResolvedValue([{ entityId: "task-1" }]);
     // The claim is then checked against that Task, as if it had been named.
-    await expect(create({})).rejects.toThrow("no current authority");
+    await expect(create({})).rejects.toThrow("may not change this one");
     expect(inbox).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ entityId: "task-1" }),

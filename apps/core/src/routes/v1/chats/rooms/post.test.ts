@@ -30,6 +30,8 @@ const {
   membershipFindManyMock,
   readStateFindManyMock,
   sokoBotMemberCreateManyMock,
+  userMemberCreateManyMock,
+  readStateUpsertMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -46,6 +48,8 @@ const {
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   sokoBotMemberCreateManyMock: vi.fn(),
+  userMemberCreateManyMock: vi.fn(),
+  readStateUpsertMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -82,6 +86,8 @@ const ORG_ID = "org_1";
 const GROUP_DIRECT_KEY = "direct:v2:user:user_123:user:user_456:user:user_789";
 
 const ORG_WORKSPACE_ID = "ws_org_1";
+/** People who share an Organization or External channel with USER_ID. */
+let reachableUserIds = new Set<string>();
 const PERSONAL_WORKSPACE_ID = "ws_user_123";
 
 const tx = {
@@ -112,6 +118,12 @@ const tx = {
   },
   chatRoomSokoBotMember: {
     createMany: sokoBotMemberCreateManyMock,
+  },
+  chatRoomUserMember: {
+    createMany: userMemberCreateManyMock,
+  },
+  chatRoomReadState: {
+    upsert: readStateUpsertMock,
   },
 };
 
@@ -162,6 +174,8 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 };
 
 const DIRECT_KEY = `${USER_ID}:${OTHER_USER_ID}`;
+const NOTHING_SHARED_MESSAGE =
+  "You can only message people you share an organization or external channel with.";
 
 function channelRoom(overrides: Record<string, unknown> = {}) {
   return {
@@ -180,6 +194,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     archivedAt: null,
     userMembers: [
       {
+        userId: USER_ID,
         user: {
           id: USER_ID,
           name: "Ada",
@@ -206,6 +221,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
     discoverability: null,
     userMembers: [
       {
+        userId: USER_ID,
         user: {
           id: USER_ID,
           name: "Ada",
@@ -215,6 +231,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
         },
       },
       {
+        userId: OTHER_USER_ID,
         user: {
           id: OTHER_USER_ID,
           name: "Bob",
@@ -237,6 +254,7 @@ function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
     createdByUserId: OTHER_USER_ID,
     userMembers: [
       {
+        userId: OTHER_USER_ID,
         user: {
           id: OTHER_USER_ID,
           name: "Bob",
@@ -292,9 +310,15 @@ beforeEach(() => {
       return null;
     },
   );
-  userFindManyMock.mockResolvedValue([
-    { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
-  ]);
+  reachableUserIds = new Set([OTHER_USER_ID, THIRD_USER_ID]);
+  userFindManyMock.mockImplementation(
+    async ({ where }: { where?: { id?: { in?: string[] }; OR?: unknown } }) =>
+      where?.OR
+        ? (where.id?.in ?? [])
+            .filter((id) => reachableUserIds.has(id))
+            .map((id) => ({ id }))
+        : [{ id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" }],
+  );
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
 });
@@ -768,8 +792,8 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("creates a direct room with 201, then returns existing with 200", async () => {
-    const created = directRoom();
+  it("creates a Personal Direct from an Organization workspace with 201, then returns it with 200", async () => {
+    const created = directRoom({ organizationId: null });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
 
@@ -787,14 +811,14 @@ describe("POST /chats/rooms", () => {
     const createdBody = await createResponse.json();
     expect(createdBody.data.kind).toBe("direct");
     expect(createdBody.data.id).toBe(ROOM_ID);
-    expect(createdBody.data.organizationId).toBe(ORG_ID);
+    expect(createdBody.data.organizationId).toBeNull();
     expect(userFindManyMock).toHaveBeenCalled();
     expect(coworkerFindManyMock).not.toHaveBeenCalled();
     expect(sokoBotFindManyMock).not.toHaveBeenCalled();
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          organizationId: ORG_ID,
+          organizationId: null,
           kind: "direct",
           slug: null,
         }),
@@ -828,6 +852,7 @@ describe("POST /chats/rooms", () => {
       groupName: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -895,6 +920,7 @@ describe("POST /chats/rooms", () => {
       groupName: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -948,8 +974,9 @@ describe("POST /chats/rooms", () => {
     );
   });
 
-  it("rejects human direct without an active organization or shared external channel with 400", async () => {
+  it("refuses a 1:1 from the personal workspace with someone who shares nothing", async () => {
     roomFindFirstMock.mockResolvedValue(null);
+    reachableUserIds = new Set();
     const app = createApp({
       ...userAuthContext,
       organizationId: null,
@@ -964,28 +991,15 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "You can only message people you share an external channel with.",
-    );
+    expect(await response.text()).toBe(NOTHING_SHARED_MESSAGE);
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("creates a personal 1:1 direct when callers share an external channel and have no org", async () => {
+  it("creates a 1:1 from the personal workspace with someone who shares an Organization or External channel", async () => {
     const created = directRoom({
       organizationId: null,
     });
-    roomFindFirstMock.mockImplementation(
-      async ({
-        where,
-      }: {
-        where?: { discoverability?: string; organizationId?: string | null };
-      }) => {
-        if (where?.discoverability === "external") {
-          return { id: "ext-room" };
-        }
-        return null;
-      },
-    );
+    roomFindFirstMock.mockResolvedValue(null);
     roomCreateMock.mockResolvedValueOnce(created);
 
     const app = createApp({
@@ -1014,66 +1028,11 @@ describe("POST /chats/rooms", () => {
         }),
       }),
     );
-    expect(roomFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          kind: "channel",
-          discoverability: "external",
-          archivedAt: null,
-          AND: [
-            { userMembers: { some: { userId: USER_ID } } },
-            { userMembers: { some: { userId: OTHER_USER_ID } } },
-          ],
-        },
-        select: { id: true },
-      }),
-    );
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("creates a personal 1:1 when the target is not an org member but shares an external channel", async () => {
-    const created = directRoom({
-      organizationId: null,
-    });
-    memberFindManyMock.mockResolvedValue([]);
-    roomFindFirstMock.mockImplementation(
-      async ({
-        where,
-      }: {
-        where?: { discoverability?: string; organizationId?: string | null };
-      }) => {
-        if (where?.discoverability === "external") {
-          return { id: "ext-room" };
-        }
-        return null;
-      },
-    );
-    roomCreateMock.mockResolvedValueOnce(created);
-
-    const app = createApp(userAuthContext);
-    const response = await app.request("/", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "direct",
-        memberUserIds: [OTHER_USER_ID],
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.organizationId).toBeNull();
-    expect(roomCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          organizationId: null,
-          kind: "direct",
-        }),
-      }),
-    );
-  });
-
-  it("returns an existing personal 1:1 after the pair no longer share an external channel", async () => {
+  it("returns an existing personal 1:1 after the pair no longer share anything", async () => {
+    reachableUserIds = new Set();
     const existingPersonal = directRoom({
       organizationId: null,
     });
@@ -1108,6 +1067,108 @@ describe("POST /chats/rooms", () => {
     expect(body.data.id).toBe(ROOM_ID);
     expect(body.data.organizationId).toBeNull();
     expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  describe("Former members of an existing Direct", () => {
+    const ada = {
+      userId: USER_ID,
+      user: {
+        id: USER_ID,
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        sessions: [],
+      },
+    };
+    const bob = {
+      userId: OTHER_USER_ID,
+      user: {
+        id: OTHER_USER_ID,
+        name: "Bob",
+        email: "bob@example.com",
+        image: null,
+        sessions: [],
+      },
+    };
+
+    async function openDirectWithBob(
+      remaining: Array<typeof ada>,
+    ): Promise<Response> {
+      const existing = directRoom({
+        organizationId: null,
+        userMembers: remaining,
+      });
+      const restored = directRoom({
+        organizationId: null,
+        userMembers: [ada, bob],
+      });
+      roomFindFirstMock.mockImplementation(
+        async ({ where }: { where?: { id?: string } }) =>
+          where?.id ? restored : existing,
+      );
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+      return await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+    }
+
+    it("puts the requester back in a Direct they were taken out of, read up to now", async () => {
+      reachableUserIds = new Set();
+
+      const response = await openDirectWithBob([bob]);
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateManyMock).toHaveBeenCalledWith({
+        data: [{ roomId: ROOM_ID, userId: USER_ID }],
+        skipDuplicates: true,
+      });
+      expect(readStateUpsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { roomId_userId: { roomId: ROOM_ID, userId: USER_ID } },
+          update: { lastReadAt: expect.any(Date), markedUnreadAt: null },
+        }),
+      );
+      const body = await response.json();
+      expect(body.data.isReadOnly).toBe(false);
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("puts a Former member the requester can still reach back in", async () => {
+      const response = await openDirectWithBob([ada]);
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateManyMock).toHaveBeenCalledWith({
+        data: [{ roomId: ROOM_ID, userId: OTHER_USER_ID }],
+        skipDuplicates: true,
+      });
+      expect(readStateUpsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            roomId_userId: { roomId: ROOM_ID, userId: OTHER_USER_ID },
+          },
+        }),
+      );
+    });
+
+    it("leaves a Former member the requester can no longer reach out", async () => {
+      reachableUserIds = new Set();
+
+      const response = await openDirectWithBob([ada]);
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateManyMock).not.toHaveBeenCalled();
+      expect(readStateUpsertMock).not.toHaveBeenCalled();
+    });
   });
 
   it("returns an existing personal 1:1 when org teammates message each other", async () => {
@@ -1140,9 +1201,9 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a non-teammate 1:1 without a shared external channel with 400", async () => {
-    memberFindManyMock.mockResolvedValue([]);
+  it("refuses a 1:1 from an Organization workspace with someone who shares nothing", async () => {
     roomFindFirstMock.mockResolvedValue(null);
+    reachableUserIds = new Set();
 
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
@@ -1155,9 +1216,7 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "You can only message people you share an external channel with.",
-    );
+    expect(await response.text()).toBe(NOTHING_SHARED_MESSAGE);
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1184,6 +1243,7 @@ describe("POST /chats/rooms", () => {
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1193,6 +1253,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: OTHER_USER_ID,
           user: {
             id: OTHER_USER_ID,
             name: "Bob",
@@ -1202,6 +1263,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: THIRD_USER_ID,
           user: {
             id: THIRD_USER_ID,
             name: "Carol",
@@ -1241,6 +1303,7 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          organizationId: null,
           kind: "direct",
           slug: null,
           directKey: GROUP_DIRECT_KEY,
@@ -1262,6 +1325,7 @@ describe("POST /chats/rooms", () => {
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1271,6 +1335,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: OTHER_USER_ID,
           user: {
             id: OTHER_USER_ID,
             name: "Bob",
@@ -1280,6 +1345,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: THIRD_USER_ID,
           user: {
             id: THIRD_USER_ID,
             name: "Carol",
@@ -1341,6 +1407,7 @@ describe("POST /chats/rooms", () => {
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -1350,6 +1417,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: OTHER_USER_ID,
           user: {
             id: OTHER_USER_ID,
             name: "Bob",
@@ -1359,6 +1427,7 @@ describe("POST /chats/rooms", () => {
           },
         },
         {
+          userId: THIRD_USER_ID,
           user: {
             id: THIRD_USER_ID,
             name: "Carol",
@@ -1396,11 +1465,39 @@ describe("POST /chats/rooms", () => {
     );
   });
 
-  it("rejects multi-human group direct without an active organization with 400", async () => {
-    const app = createApp({
-      ...userAuthContext,
-      organizationId: null,
+  it("creates a group Direct from the personal workspace with people from different Organizations", async () => {
+    roomFindFirstMock.mockResolvedValue(null);
+    roomCreateMock.mockResolvedValueOnce(
+      directRoom({ organizationId: null, directKey: GROUP_DIRECT_KEY }),
+    );
+    memberFindManyMock.mockResolvedValue([]);
+
+    const app = createApp({ ...userAuthContext, organizationId: null });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
+      }),
     });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: null,
+          directKey: GROUP_DIRECT_KEY,
+        }),
+      }),
+    );
+  });
+
+  it("refuses a group Direct when one person shares nothing with the requester", async () => {
+    roomFindFirstMock.mockResolvedValue(null);
+    reachableUserIds = new Set([OTHER_USER_ID]);
+
+    const app = createApp(userAuthContext);
     const response = await app.request("/", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1411,9 +1508,7 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "Switch to an organization to message a teammate.",
-    );
+    expect(await response.text()).toBe(NOTHING_SHARED_MESSAGE);
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1515,15 +1610,13 @@ describe("POST /chats/rooms", () => {
   });
 
   it("re-reads and returns 200 when a directKey unique race wins", async () => {
-    const existing = directRoom();
+    const existing = directRoom({ organizationId: null });
     roomFindFirstMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(existing);
     roomCreateMock.mockRejectedValue({
       code: "P2002",
-      meta: { target: ["organizationId", "directKey"] },
+      meta: { target: ["directKey"] },
     });
 
     const app = createApp(userAuthContext);
@@ -1539,11 +1632,11 @@ describe("POST /chats/rooms", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.id).toBe(ROOM_ID);
-    expect(roomFindFirstMock).toHaveBeenCalledTimes(4);
+    expect(roomFindFirstMock).toHaveBeenCalledTimes(2);
     expect(roomFindFirstMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          organizationId: ORG_ID,
+          organizationId: null,
           directKey: DIRECT_KEY,
         }),
       }),
@@ -1864,6 +1957,7 @@ describe("POST /chats/rooms", () => {
       discoverability: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",
@@ -2037,6 +2131,7 @@ describe("POST /chats/rooms", () => {
       discoverability: null,
       userMembers: [
         {
+          userId: USER_ID,
           user: {
             id: USER_ID,
             name: "Ada",

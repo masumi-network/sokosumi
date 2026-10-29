@@ -87,8 +87,11 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       name: "Ada Lovelace",
       organizationId: null,
       slug: null,
+      role: null,
+      memberCount: null,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -110,8 +113,11 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       name: "Acme",
       organizationId: "org_1",
       slug: "acme-x1y2z3",
+      role: "owner",
+      memberCount: 1,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: true,
     });
 

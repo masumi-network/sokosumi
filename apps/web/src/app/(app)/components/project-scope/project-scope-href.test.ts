@@ -66,7 +66,7 @@ describe("switchScopeHref", () => {
   it("shows the other version of a scoped page and resets its filters", () => {
     expect(switchScopeHref("/tasks", "p2")).toBe("/tasks?projectId=p2");
     expect(switchScopeHref("/tasks", null)).toBe("/tasks");
-    // The studio has no workspace version to show, so choosing "Everything"
+    // The studio has no workspace version to show, so choosing "All projects"
     // lands on the page that asks which project to work in.
     expect(switchScopeHref("/studio", "p2")).toBe("/studio?projectId=p2");
     expect(switchScopeHref("/studio", null)).toBe("/studio");
@@ -108,7 +108,7 @@ describe("switchScopeHref", () => {
 
   it("scopes Social the way the studio is scoped", () => {
     // Social's accounts belong to one project, so like the studio it has no
-    // workspace version: the switcher's "Everything" lands on the ask-for-one
+    // workspace version: the switcher's "All projects" lands on the ask-for-one
     // state rather than on a page that cannot exist.
     expect(scopedHref("/social", "p1")).toBe("/social?projectId=p1");
     expect(switchScopeHref("/social", "p2")).toBe("/social?projectId=p2");
@@ -124,6 +124,39 @@ describe("switchScopeHref", () => {
     expect(switchScopeHref("/ads", null)).toBe("/ads");
     expect(readProjectScope("/ads", new URLSearchParams("projectId=p1"))).toBe(
       "p1",
+    );
+  });
+
+  it("carries Newsletter's project scope like Social and the studio", () => {
+    expect(scopedHref("/newsletter", "p1")).toBe("/newsletter?projectId=p1");
+    expect(scopedHref("/newsletter", null)).toBe("/newsletter");
+    expect(switchScopeHref("/newsletter", "p2")).toBe(
+      "/newsletter?projectId=p2",
+    );
+    expect(switchScopeHref("/newsletter", null)).toBe("/newsletter");
+    expect(readProjectScope("/newsletter", params("projectId=p1"))).toBe("p1");
+    expect(readProjectScope("/newsletter", params())).toBeNull();
+  });
+
+  it("keeps the newsletter tab when switching project", () => {
+    for (const tab of [
+      "/newsletter/issues",
+      "/newsletter/subscribers",
+      "/newsletter/settings",
+    ]) {
+      expect(scopedHref(tab, "p1")).toBe(`${tab}?projectId=p1`);
+      expect(switchScopeHref(tab, "p2")).toBe(`${tab}?projectId=p2`);
+      expect(switchScopeHref(tab, null)).toBe(tab);
+      expect(readProjectScope(tab, params("projectId=p1"))).toBe("p1");
+    }
+  });
+
+  it("sends a newsletter issue back to the issues list of the next project", () => {
+    expect(switchScopeHref("/newsletter/issues/i1", "p2")).toBe(
+      "/newsletter/issues?projectId=p2",
+    );
+    expect(switchScopeHref("/newsletter/issues/i1", null)).toBe(
+      "/newsletter/issues",
     );
   });
 
@@ -147,6 +180,10 @@ describe("detailPageOf", () => {
       path: "/schedules/s1",
       list: "/schedules",
     });
+    expect(detailPageOf("/newsletter/issues/i1")).toEqual({
+      path: "/newsletter/issues/i1",
+      list: "/newsletter/issues",
+    });
   });
 
   it("is null on lists and other pages", () => {
@@ -154,5 +191,7 @@ describe("detailPageOf", () => {
     expect(detailPageOf("/schedules")).toBeNull();
     expect(detailPageOf("/tasksboard/t1")).toBeNull();
     expect(detailPageOf("/projects/p1")).toBeNull();
+    expect(detailPageOf("/newsletter/issues")).toBeNull();
+    expect(detailPageOf("/newsletter/subscribers")).toBeNull();
   });
 });

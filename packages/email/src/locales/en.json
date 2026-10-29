@@ -258,6 +258,7 @@
   "newsletter": {
     "why": "You received this email because you subscribed to {name}.",
     "unsubscribe": "Unsubscribe",
+    "subscribe": "Subscribe",
     "confirm": "Confirm unsubscribe",
     "unsubscribed": "You are unsubscribed",
     "confirmSubscription": "Confirm subscription",

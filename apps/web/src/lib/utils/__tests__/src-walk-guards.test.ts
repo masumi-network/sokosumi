@@ -1341,12 +1341,13 @@ function openingTags(
       if (quote) {
         if (char === "\\") i++;
         else if (char === quote) quote = null;
-      } else if (depth > 0 && text.startsWith("//", i)) {
-        // A comment in a prop (`section's`) would otherwise open a string.
+      } else if (text.startsWith("//", i)) {
+        // A comment in a prop (`section's`) or between props (`primitive's`)
+        // would otherwise open a string.
         const end = text.indexOf("\n", i);
         i = end === -1 ? text.length : end - 1;
         continue;
-      } else if (depth > 0 && text.startsWith("/*", i)) {
+      } else if (text.startsWith("/*", i)) {
         const end = text.indexOf("*/", i);
         i = end === -1 ? text.length : end + 1;
         continue;
@@ -1449,6 +1450,7 @@ describe("icon touch targets", () => {
       '<Button size="icon" className="size-6 after:absolute after:-inset-2">',
       '<Button size="sm" className="size-8">',
       '<Button size="icon"><X className="size-4" /></Button>',
+      '<SidebarMenuButton\n  asChild\n  // down to the primitive\'s floor\n  className={cn(subtitle && "h-auto")}\n>\n  <Button size="icon"><X className="size-4" /></Button>\n  {t(\'close\')}\n</SidebarMenuButton>',
     ];
     for (const fixture of fixtures) {
       expect(smallIconTargets("f.tsx", fixture), fixture).toEqual([]);
@@ -1788,6 +1790,90 @@ describe("instant navigation routes", () => {
     ];
     for (const line of nonMatches) {
       expect(URL_DATA_PROP.test(line), line).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// segmented controls
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Segmented controls: every one looks the same, and the look
+ * lives in `components/ui/segmented-control-classes.ts`, which `ToggleGroup`
+ * wears by default. A caller passes layout (width, wrap, overflow, padding
+ * for an icon-only item) and nothing that repaints the track or the pill: no
+ * fill, border, radius, shadow or text colour on `ToggleGroup` or
+ * `ToggleGroupItem`, and no `data-[state=on]:` class outside `components/ui`.
+ * Tabs are a different control and keep their own classes.
+ */
+const SEGMENTED_PRIMITIVE_TAG = /<(?:ToggleGroup|ToggleGroupItem)\b/g;
+const SEGMENTED_LOOK_CLASS =
+  /(?<![\w-])(?:[\w@\-[\]:]+:)?(?:bg-[^\s"'`]+|border(?:-[^\s"'`]+)?|rounded(?:-[^\s"'`]+)?|shadow(?:-[^\s"'`]+)?|text-(?!(?:2xs|xs|sm|base|lg|left|right|center|start|end|nowrap|wrap)\b)[^\s"'`]+)(?![\w-])/;
+const SEGMENTED_SELECTED_CLASS = /data-\[state=on\]:/;
+
+function segmentedLookOverrides(relSrc: string, text: string): string[] {
+  const hits: string[] = [];
+  const consts = constStrings(text);
+  const lineOf = (at: number) => text.slice(0, at).split("\n").length;
+
+  for (const { tag: opening, index } of openingTags(
+    text,
+    SEGMENTED_PRIMITIVE_TAG,
+  )) {
+    const attr = opening.match(/className=([{"])/);
+    if (!attr || attr.index === undefined) continue;
+    const start = attr.index + "className=".length;
+    const raw =
+      attr[1] === "{"
+        ? balanced(opening, start, "{", "}")
+        : opening.slice(start, opening.indexOf('"', start + 1) + 1);
+    const look = expandConsts(raw, consts).match(SEGMENTED_LOOK_CLASS);
+    if (look) hits.push(`${relSrc}:${lineOf(index)}: ${look[0]}`);
+  }
+
+  if (!relSrc.startsWith("components/ui/")) {
+    text.split("\n").forEach((line, index) => {
+      const selected = line.match(SEGMENTED_SELECTED_CLASS);
+      if (selected) hits.push(`${relSrc}:${index + 1}: ${selected[0]}`);
+    });
+  }
+  return hits;
+}
+
+describe("segmented controls", () => {
+  it("leaves the look to the shared segmented-control classes", () => {
+    const hits = SRC_FILES.filter(
+      (file) => file.ext === ".tsx" && !file.relSrc.includes(".test."),
+    ).flatMap((file) => segmentedLookOverrides(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<ToggleGroup className="bg-muted w-full">',
+      '<ToggleGroupItem value="a" className="bg-[Canvas] px-2">',
+      '<ToggleGroup aria-label="a > b" className="rounded-none">',
+      '<ToggleGroupItem value="a" className="data-[state=on]:bg-primary">',
+      '<ToggleGroup\n  type="single"\n  className={cn("rounded-md border", x)}\n>',
+      'const ITEM = "text-primary";\n<ToggleGroupItem value="a" className={ITEM}>',
+      'const ON = "data-[state=on]:font-semibold";',
+    ];
+    for (const fixture of fixtures) {
+      expect(segmentedLookOverrides("app/x.tsx", fixture), fixture).not.toEqual(
+        [],
+      );
+    }
+
+    const clean = [
+      '<ToggleGroup className="w-full overflow-x-auto">',
+      '<ToggleGroupItem value="a" className="h-full p-2 max-sm:text-xs">',
+      '<ToggleGroup type="single" onValueChange={(v) => v && set(v)} className="grid grid-cols-2">',
+      '<TabsList className="bg-card-background">',
+    ];
+    for (const line of clean) {
+      expect(segmentedLookOverrides("app/x.tsx", line), line).toEqual([]);
     }
   });
 });

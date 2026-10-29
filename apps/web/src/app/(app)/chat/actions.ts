@@ -2,6 +2,7 @@
 
 import type {
   AcceptChatRoomGuestInviteLink,
+  ChatPerson,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -34,6 +35,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
+  type ChatRoomMessagesPage,
   type ChatUnreadRoomRead,
   chatRoomService,
 } from "@/lib/services/chat-room.service";
@@ -106,10 +108,14 @@ export interface ChatComposeRoster {
   organizationName: string;
   hasOrganization: boolean;
   canCreateExternal: boolean;
+  /** Active Organization roster, for Channel pickers. */
   members: Member[];
+  /** Everyone the user may start a Direct with, in any workspace. */
+  people: ChatPerson[];
   coworkers: Coworker[];
   sokoBots: ChatComposeSokoBot[];
   membersLoadFailed: boolean;
+  peopleLoadFailed: boolean;
 }
 
 function cleanString(value: string | null | undefined): string {
@@ -162,12 +168,14 @@ export async function loadChatComposeRosterAction(): Promise<
     currentUserImage: session.user.image ?? null,
   };
   try {
-    const [activeOrganization, coworkers, bot, t] = await Promise.all([
+    const [activeOrganization, coworkers, bot, people, t] = await Promise.all([
       userService.getActiveOrganization(),
       coworkerService.listCoworkers("chat"),
       sokoBotService.getMine().catch(() => null),
+      chatRoomService.listPeople().catch(() => null),
       getTranslations("App.Chat"),
     ]);
+    const peopleFields = { people: people ?? [], peopleLoadFailed: !people };
     const sokoBots: ChatComposeSokoBot[] = bot
       ? [
           {
@@ -186,6 +194,7 @@ export async function loadChatComposeRosterAction(): Promise<
         hasOrganization: false,
         canCreateExternal: false,
         members: [],
+        ...peopleFields,
         coworkers,
         sokoBots,
         membersLoadFailed: false,
@@ -205,6 +214,7 @@ export async function loadChatComposeRosterAction(): Promise<
         currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
       ),
       members: membersPage.members,
+      ...peopleFields,
       coworkers,
       sokoBots,
       membersLoadFailed: membersPage.failed,
@@ -217,9 +227,11 @@ export async function loadChatComposeRosterAction(): Promise<
       hasOrganization: Boolean(session.session.activeOrganizationId),
       canCreateExternal: false,
       members: [],
+      people: [],
       coworkers: [],
       sokoBots: [],
       membersLoadFailed: true,
+      peopleLoadFailed: true,
     });
   }
 }
@@ -316,15 +328,6 @@ export async function createDirectRoomAction(
   );
   if (shapeError) {
     return roomFail(shapeError);
-  }
-
-  // Multi-human groups need an org (teammate roster). 1:1 humans may be a
-  // Personal Direct from a shared External channel; Core enforces eligibility.
-  if (memberUserIds.length > 1) {
-    const activeOrganization = await userService.getActiveOrganization();
-    if (!activeOrganization) {
-      return roomFail("Select an organization first.");
-    }
   }
 
   try {
@@ -887,12 +890,7 @@ export async function sendRoomMessageAction(
 export async function listRoomMessagesAction(
   roomId: string,
   options?: { cursor?: string; around?: string; limit?: number },
-): Promise<
-  RoomActionResult<{
-    messages: ChatRoomMessage[];
-    nextCursor: string | null;
-  }>
-> {
+): Promise<RoomActionResult<ChatRoomMessagesPage>> {
   try {
     const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,

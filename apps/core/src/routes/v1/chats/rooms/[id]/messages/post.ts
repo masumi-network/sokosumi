@@ -53,6 +53,7 @@ import {
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
+  withChatRoomReplyCount,
 } from "../../helpers";
 import { markChatRoomThreadRead } from "../../room-unread";
 import { requireWritableChatRoom } from "../../writable-chat-room";
@@ -240,7 +241,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return created(
         c,
-        chatRoomMessageSchema.parse(mapChatRoomMessage(message)),
+        chatRoomMessageSchema.parse(
+          mapChatRoomMessage(await withChatRoomReplyCount(prisma, message)),
+        ),
       );
     }
 
@@ -522,7 +525,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(
         c,
         chatRoomMessageSchema.parse(
-          mapChatRoomMessage(raced, userContext.userId),
+          mapChatRoomMessage(
+            await withChatRoomReplyCount(prisma, raced),
+            userContext.userId,
+          ),
         ),
       );
     }
@@ -613,7 +619,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return created(
       c,
       chatRoomMessageSchema.parse(
-        mapChatRoomMessage(message, userContext.userId),
+        mapChatRoomMessage(
+          await withChatRoomReplyCount(prisma, message),
+          userContext.userId,
+        ),
       ),
     );
   });

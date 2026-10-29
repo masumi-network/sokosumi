@@ -16,6 +16,7 @@ export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
 
 export const ACTION_LABELS: Record<string, string> = {
+  newsletter_draft_issue: "Drafted newsletter issue for review",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -171,6 +172,12 @@ function actionTarget(
   assignedTaskIds: ReadonlySet<string | null>,
 ): string {
   const id = call.targetId ?? "";
+  if (call.capability === "newsletter_draft_issue") {
+    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    return issue.success
+      ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
+      : "";
+  }
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
   if (CONTACT_CAPABILITIES.has(call.capability))
@@ -393,6 +400,8 @@ const socialAccountObservationSchema = z.object({
   status: z.string(),
   connectedAt: z.string().nullable(),
   disconnectedAt: z.string().nullable(),
+  // Absent from tool calls stored before accounts carried limits.
+  textLimit: z.number().int().optional(),
 });
 
 const socialPostObservationSchema = z.object({
@@ -408,21 +417,30 @@ const socialPostObservationSchema = z.object({
     .object({ externalHandle: z.string().nullable(), status: z.string() })
     .nullable()
     .optional(),
+  threadPartCount: z.number().int().optional(),
+  quotedPostId: z.string().nullable().optional(),
 });
 
 function describeSocialPost(read: z.infer<typeof socialPostObservationSchema>) {
-  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
+  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.threadPartCount && read.threadPartCount > 1 ? ` Thread of ${read.threadPartCount} posts.` : ""}${read.quotedPostId ? ` Quotes post ${quoteRead(read.quotedPostId)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
 }
 
 function describeRead(capability: string, value: unknown): string[] {
   if (capability === "list_project_social_accounts") {
-    const parsed = z.array(socialAccountObservationSchema).safeParse(value);
+    const accounts = z.array(socialAccountObservationSchema);
+    // Stored tool calls from before workspace availability contain the array directly.
+    const parsed = z
+      .union([
+        accounts,
+        z.object({ accounts }).transform((result) => result.accounts),
+      ])
+      .safeParse(value);
     if (!parsed.success) return [];
     return [
       `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,
       ...parsed.data.map(
         (read) =>
-          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.`,
+          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.${read.textLimit ? ` Text limit: ${read.textLimit} characters.` : ""}`,
       ),
     ];
   }

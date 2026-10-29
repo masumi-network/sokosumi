@@ -37,7 +37,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
     initialSelectedAssetId: string | null;
     projectId: string | null;
     initialState: { assets: unknown[] };
-    canScheduleSocial?: boolean;
   }) => (
     <div
       data-testid="image-studio"
@@ -45,7 +44,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-assets={props.initialState.assets.length}
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
-      data-can-schedule={String(props.canScheduleSocial ?? false)}
     />
   ),
 }));
@@ -164,8 +162,8 @@ describe("StudioPage", () => {
   /**
    * The identity row is gone, and the page outline is not.
    *
-   * The mark, the product name and the project name repeated the sidebar row,
-   * the breadcrumb and the project switcher, in the one band of the page the
+   * The mark, the product name and the project name repeated the sidebar row
+   * and the project selector, in the one band of the page the
    * composer wanted — so they went. What must not go with them is the page's
    * `h1`: everything the studio renders below it is a section *of* something,
    * and an outline that starts at `h2` leaves a screen-reader reader with no
@@ -240,8 +238,8 @@ describe("StudioPage", () => {
     expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
-  it("lets Social beta members schedule from the studio", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(true);
+  it("loads the public studio without an Ads beta lookup", async () => {
+    hasSocialBetaAccessMock.mockRejectedValue(new Error("Not in Ads beta"));
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(studioState());
 
@@ -253,10 +251,8 @@ describe("StudioPage", () => {
       }),
     );
 
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-can-schedule",
-      "true",
-    );
+    expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

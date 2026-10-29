@@ -11,10 +11,8 @@ import {
   buildDirectRoomName,
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
-  chatRoomInclude,
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
-  findLiveDirectByParticipantKey,
   getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
   loadFormerDirectUserMembers,
@@ -35,8 +33,8 @@ import {
   resolvePeerInActiveOrganization,
   resolveRoomQuoteSnapshot,
   resolveWorkspaceIdForChatRoom,
-  usersShareExternalChannel,
   validateChatCoworkerIds,
+  withChatRoomReplyCounts,
 } from "./helpers";
 import { formerDirectUserIds, isReadOnlyDirectRoom } from "./read-only-room";
 
@@ -619,7 +617,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toEqual(quote);
@@ -653,7 +651,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.metadata).toEqual({ client_message_id: "turn-1" });
@@ -691,7 +689,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toEqual(quote);
@@ -732,7 +730,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toEqual({
@@ -770,7 +768,7 @@ describe("mapChatRoomMessage quote", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.quote).toBeNull();
@@ -809,7 +807,7 @@ describe("mapChatRoomMessage quote", () => {
       ],
       replies: [],
       pins: [],
-      _count: { replies: 2 },
+      threadReplyCount: 2,
     });
 
     expect(mapped.content).toBe("");
@@ -824,15 +822,49 @@ describe("mapChatRoomMessage quote", () => {
 });
 
 describe("chatRoomMessageInclude thread reply aggregates", () => {
-  it("excludes soft-deleted replies from threadReplyCount and last-reply preview", () => {
-    // Soft-deleted replies must not inflate "N replies" on the parent
-    // (matches getChatRoomThreadAggregates reply."deletedAt" IS NULL).
-    expect(chatRoomMessageInclude._count.select.replies).toEqual({
-      where: { deletedAt: null },
-    });
+  it("excludes soft-deleted replies from the last-reply preview", () => {
     expect(chatRoomMessageInclude.replies.where).toEqual({
       deletedAt: null,
     });
+  });
+});
+
+describe("withChatRoomReplyCounts", () => {
+  it("counts live replies for these messages only", async () => {
+    const groupBy = vi
+      .fn()
+      .mockResolvedValue([{ parentMessageId: "parent", _count: { _all: 3 } }]);
+    const db = {
+      chatRoomMessage: { groupBy },
+    } as unknown as Prisma.TransactionClient;
+
+    const counted = await withChatRoomReplyCounts(db, [
+      { id: "parent" },
+      { id: "plain" },
+    ]);
+
+    // Soft-deleted replies must not inflate "N replies" on the parent
+    // (matches getChatRoomThreadAggregates reply."deletedAt" IS NULL), and
+    // the read is scoped to the page rather than every room's messages.
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ["parentMessageId"],
+      where: { parentMessageId: { in: ["parent", "plain"] }, deletedAt: null },
+      _count: { _all: true },
+    });
+    expect(counted).toEqual([
+      { id: "parent", threadReplyCount: 3 },
+      { id: "plain", threadReplyCount: 0 },
+    ]);
+  });
+
+  it("does not query for an empty page", async () => {
+    const groupBy = vi.fn();
+    const db = {
+      chatRoomMessage: { groupBy },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(withChatRoomReplyCounts(db, [])).resolves.toEqual([]);
+    expect(groupBy).not.toHaveBeenCalled();
   });
 });
 
@@ -863,7 +895,7 @@ describe("mapChatRoomMessage membership", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.membership).toEqual(membership);
@@ -898,7 +930,7 @@ describe("mapChatRoomMessage membership", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.membership).toBeNull();
@@ -942,7 +974,7 @@ describe("mapChatRoomMessage unfurls", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.unfurls).toEqual(unfurls);
@@ -985,7 +1017,7 @@ describe("mapChatRoomMessage unfurls", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.unfurls).toBeNull();
@@ -1036,7 +1068,7 @@ describe("mapChatRoomMessage unfurls", () => {
       reactions: [],
       replies: [],
       pins: [],
-      _count: { replies: 0 },
+      threadReplyCount: 0,
     });
 
     expect(mapped.unfurls).toEqual([
@@ -1307,91 +1339,6 @@ describe("mapChatRoom room read receipts", () => {
 
     expect(mapped.coworkerMembers[0]).not.toHaveProperty("lastReadAt");
     expect(mapped.sokoBotMembers[0]).not.toHaveProperty("lastReadAt");
-  });
-});
-
-describe("findLiveDirectByParticipantKey", () => {
-  const DIRECT_KEY = "direct:v2:user:member-1:user:guest-1";
-
-  it("returns the Personal Direct and skips the org lookup", async () => {
-    const personal = { id: "personal-dm", organizationId: null };
-    const findFirst = vi.fn().mockResolvedValueOnce(personal);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, ORG_ID),
-    ).resolves.toEqual(personal);
-    expect(findFirst).toHaveBeenCalledOnce();
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        organizationId: null,
-        directKey: DIRECT_KEY,
-        archivedAt: null,
-      },
-      include: chatRoomInclude,
-    });
-  });
-
-  it("returns null when neither Personal nor Org Direct exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, ORG_ID),
-    ).resolves.toBeNull();
-    expect(findFirst).toHaveBeenCalledTimes(2);
-  });
-
-  it("returns null without an org lookup when there is no Personal Direct and no org", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, null),
-    ).resolves.toBeNull();
-    expect(findFirst).toHaveBeenCalledOnce();
-  });
-});
-
-describe("usersShareExternalChannel", () => {
-  it("requires both humans on the same unarchived external channel", async () => {
-    const findFirst = vi.fn().mockResolvedValue({ id: ROOM_ID });
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
-    ).resolves.toBe(true);
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        kind: "channel",
-        discoverability: "external",
-        archivedAt: null,
-        AND: [
-          { userMembers: { some: { userId: MEMBER_ID } } },
-          { userMembers: { some: { userId: GUEST_ID } } },
-        ],
-      },
-      select: { id: true },
-    });
-  });
-
-  it("is false when no shared unarchived external channel exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
-    ).resolves.toBe(false);
   });
 });
 

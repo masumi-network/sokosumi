@@ -8,6 +8,7 @@ function snapshot() {
     messages: [{ id: "message-1", content: "Question" }],
     openThreadParentId: null as string | null,
     threadMessages: [] as { id: string; content: string }[],
+    transcriptAtEnd: true,
   };
 }
 
@@ -23,6 +24,12 @@ describe("sameRoomReadAttention", () => {
         openThreadParentId: "thread-1",
       }),
     ).toBe(false);
+  });
+
+  it("covers a read snapshot from above the end, but not reaching the end", () => {
+    const above = { ...snapshot(), transcriptAtEnd: false };
+    expect(sameRoomReadAttention(snapshot(), above)).toBe(true);
+    expect(sameRoomReadAttention(above, snapshot())).toBe(false);
   });
 
   it.each(["messages", "threadMessages"] as const)(

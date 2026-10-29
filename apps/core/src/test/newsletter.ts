@@ -3,6 +3,7 @@ import type {
   NewsletterIssue,
   NewsletterSubscriber,
 } from "@sokosumi/database";
+import { NEWSLETTER_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 
 export const NEWSLETTER_PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 export const NEWSLETTER_WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
@@ -11,10 +12,22 @@ export const NEWSLETTER_ISSUE_ID = "44444444-4444-4444-8444-444444444444";
 export const NEWSLETTER_SUBSCRIBER_ID = "55555555-5555-4555-8555-555555555555";
 export const NEWSLETTER_NOW = new Date("2026-10-23T10:00:00Z");
 
+export function newsletterWorkspace(
+  organizationSlug: string | null = NEWSLETTER_BETA_ORGANIZATION_SLUG,
+) {
+  return {
+    id: NEWSLETTER_WORKSPACE_ID,
+    userId: organizationSlug === null ? "user_1" : null,
+    organizationId: organizationSlug === null ? null : "organization_1",
+    organization: organizationSlug === null ? null : { slug: organizationSlug },
+  };
+}
+
 export const NEWSLETTER: Newsletter = {
   id: NEWSLETTER_ID,
   projectId: NEWSLETTER_PROJECT_ID,
   workspaceId: NEWSLETTER_WORKSPACE_ID,
+  contactListId: null,
   name: "Weekly News",
   senderName: "Ada",
   replyTo: "ada@example.com",
@@ -58,6 +71,7 @@ export const NEWSLETTER_ISSUE: NewsletterIssue = {
 export const NEWSLETTER_SUBSCRIBER: NewsletterSubscriber = {
   id: NEWSLETTER_SUBSCRIBER_ID,
   newsletterId: NEWSLETTER_ID,
+  contactId: null,
   email: "reader@example.com",
   name: null,
   status: "ACTIVE",

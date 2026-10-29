@@ -1,10 +1,14 @@
 import { membershipAgeOrderBy } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import {
+  getOrganizationMetadata,
+  socialProvidersForWorkspace,
+} from "@sokosumi/utils";
 
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
+import { memberRoleSchema } from "@/schemas/domain-enums.schema";
 import type {
   UserWorkspace,
   UserWorkspaces,
@@ -38,6 +42,7 @@ export async function listUserWorkspaces(
         where: { userId },
         orderBy: [...membershipAgeOrderBy],
         select: {
+          role: true,
           organization: {
             select: {
               id: true,
@@ -46,6 +51,7 @@ export async function listUserWorkspaces(
               logo: true,
               metadata: true,
               workspace: { select: { id: true } },
+              _count: { select: { members: true } },
             },
           },
         },
@@ -70,13 +76,18 @@ export async function listUserWorkspaces(
       name: user.name,
       organizationId: null,
       slug: null,
+      role: null,
+      memberCount: null,
+      enabledSocialProviders: [
+        ...socialProvidersForWorkspace({ organizationSlug: null }),
+      ],
       logo: null,
       websiteUrl: null,
       preferred: preferredOrganizationId === null,
     });
   }
 
-  for (const { organization } of memberships) {
+  for (const { role, organization } of memberships) {
     const workspace =
       organization.workspace ??
       (await workspaceRepository.upsertOrganizationWorkspace({
@@ -89,6 +100,12 @@ export async function listUserWorkspaces(
       name: organization.name,
       organizationId: organization.id,
       slug: organization.slug,
+      // An unknown stored role reads as no role, so one bad row cannot fail the list.
+      role: memberRoleSchema.safeParse(role).data ?? null,
+      memberCount: organization._count.members,
+      enabledSocialProviders: [
+        ...socialProvidersForWorkspace({ organizationSlug: organization.slug }),
+      ],
       logo: organization.logo,
       websiteUrl: getOrganizationMetadata(organization.metadata).url,
       preferred: organization.id === preferredOrganizationId,

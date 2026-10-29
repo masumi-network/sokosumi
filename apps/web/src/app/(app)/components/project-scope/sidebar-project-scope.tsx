@@ -1,116 +1,90 @@
 "use client";
 
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  SidebarGroup,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRowSlot,
-  SidebarSeparator,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import { useRef } from "react";
+import { SidebarGroup, useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 
-import { useCurrentScope } from "./sidebar-project-scope-mobile";
 import {
-  openScopeCreate,
+  ScopeClosedBadge,
+  useClearScope,
+  useCurrentScope,
+} from "./project-scope-trigger";
+import {
+  SCOPE_TITLE_ARROWS_CLASS,
+  SCOPE_TITLE_GROUP_CLASS,
+  SCOPE_TITLE_ROW_CLASS,
+} from "./sidebar-project-scope-shape";
+import {
   openScopeSheet,
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
+const SCOPE_TITLE_CLASS = cn(
+  SCOPE_TITLE_ROW_CLASS,
+  SIDEBAR_CONTROL_INTERACTION_CLASS,
+  "press text-sidebar-foreground transition-colors",
+);
+
 /**
- * The project scope row above the navigation links it scopes.
+ * The project scope as the title the phone sheet's nav sits under: the scope's
+ * name and chevrons, which hand off to the header's bottom sheet. From md the
+ * header's selector is the scope's control and this is hidden. A long name is
+ * shortened with "…"; the accessible name keeps it whole, as "Project: …".
+ * While a project is picked, an × beside it returns to All projects: in a chat
+ * room the header's chip, and its ×, give way to the room's toolbar.
  */
 export function SidebarProjectScope() {
-  const t = useTranslations("App.ProjectScope");
-  const { isMobile, state, setOpenMobile } = useSidebar();
+  const { setOpenMobile } = useSidebar();
   const sheetOpen = useScopeSheetOpen();
-  const [open, setOpen] = useState(false);
-  const { projectId, name, label, mark, select } = useCurrentScope();
-  const collapsed = state === "collapsed" && !isMobile;
+  const t = useTranslations("App.ProjectScope");
+  const { projectId, name, closed, label } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
-
-  const content = (
-    <>
-      <SidebarRowSlot aria-hidden>{mark}</SidebarRowSlot>
-      <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>{name}</span>
-      <ChevronsUpDown
-        className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden"
-        aria-hidden
-      />
-    </>
-  );
+  const titleRef = useRef<HTMLButtonElement>(null);
+  const clearScope = useClearScope(titleRef);
 
   return (
-    <>
-      <SidebarGroup className="w-full px-2 py-0">
-        <SidebarMenu className="py-2">
-          <SidebarMenuItem>
-            {isMobile ? (
-              // The mobile sidebar is a sheet. It closes and hands off to the
-              // header's bottom sheet, which outlives it.
-              <SidebarMenuButton
-                type="button"
-                aria-haspopup="dialog"
-                aria-expanded={sheetOpen}
-                aria-label={label}
-                data-testid="project-scope-sidebar-row"
-                className="font-medium data-[state=open]:bg-sidebar-accent"
-                onPointerDown={prefetch}
-                onClick={() => {
-                  setOpenMobile(false);
-                  openScopeSheet();
-                }}
-              >
-                {content}
-              </SidebarMenuButton>
-            ) : (
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <SidebarMenuButton
-                    type="button"
-                    aria-label={label}
-                    data-testid="project-scope-sidebar-row"
-                    className="font-medium data-[state=open]:bg-sidebar-accent"
-                    // Rail only, and not over its own open popover.
-                    tooltip={{ children: label, hidden: !collapsed || open }}
-                    onPointerEnter={prefetch}
-                    onFocus={prefetch}
-                  >
-                    {content}
-                  </SidebarMenuButton>
-                </PopoverTrigger>
-                <PopoverContent
-                  side={collapsed ? "right" : "bottom"}
-                  align="start"
-                  sideOffset={collapsed ? 8 : 4}
-                  aria-label={t("switchLabel")}
-                  className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
-                >
-                  <ProjectScopeMenu
-                    selectedProjectId={projectId}
-                    onSelect={select}
-                    onCreate={openScopeCreate}
-                    onDone={() => setOpen(false)}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroup>
-      <SidebarSeparator />
-    </>
+    <SidebarGroup
+      className={cn(SCOPE_TITLE_GROUP_CLASS, "flex-row items-center gap-1")}
+    >
+      {/* The mobile sidebar is a sheet. It closes and hands off to the
+          header's bottom sheet, which outlives it. */}
+      <button
+        ref={titleRef}
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={sheetOpen}
+        aria-label={label}
+        data-testid="project-scope-sidebar-title"
+        className={SCOPE_TITLE_CLASS}
+        onPointerDown={prefetch}
+        onClick={() => {
+          setOpenMobile(false);
+          openScopeSheet();
+        }}
+      >
+        <span className="min-w-0 truncate">{name}</span>
+        {closed ? <ScopeClosedBadge /> : null}
+        <ChevronsUpDown className={SCOPE_TITLE_ARROWS_CLASS} aria-hidden />
+      </button>
+      {projectId !== null && (
+        <button
+          type="button"
+          aria-label={t("clearProject")}
+          title={t("clearProject")}
+          data-testid="project-scope-title-clear"
+          onClick={clearScope}
+          className={cn(
+            SIDEBAR_CONTROL_INTERACTION_CLASS,
+            "text-muted-foreground hover:text-foreground press hit-area flex size-11 shrink-0 items-center justify-center rounded-md transition-colors",
+          )}
+        >
+          <X className="size-4" aria-hidden />
+        </button>
+      )}
+    </SidebarGroup>
   );
 }

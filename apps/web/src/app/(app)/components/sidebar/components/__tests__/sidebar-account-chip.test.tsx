@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     [key, ...Object.values(values ?? {})].join(" "),
+  useFormatter: () => ({
+    number: (value: number, options?: Intl.NumberFormatOptions) =>
+      new Intl.NumberFormat("en", options).format(value),
+  }),
 }));
 
 const pushMock = vi.fn();
@@ -20,11 +24,8 @@ vi.mock("@/components/modals/global-modals-context", () => ({
 
 const sidebarState = {
   isMobile: false,
-  state: "expanded",
 };
 
-// The real module under the override, so the chip's rail-square geometry is
-// the one the app ships rather than a constant this file invented.
 vi.mock("@/components/ui/sidebar", async () => ({
   ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
     "@/components/ui/sidebar",
@@ -99,7 +100,6 @@ describe("SidebarAccountChip", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarState.isMobile = false;
-    sidebarState.state = "expanded";
     resetAccountSummaryPopoverTestFlags();
   });
 
@@ -108,14 +108,33 @@ describe("SidebarAccountChip", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the plan and the credit balance next to the profile picture", () => {
-    renderChip();
+  it("shows the plan badge and compact credits next to the profile picture", () => {
+    renderChip({ totalCredits: 943_580.9 });
 
     expect(screen.getByText("Patrick Tobler")).toBeInTheDocument();
+    expect(screen.getByText("Pro")).toBeInTheDocument();
+    // Never rounds up past what the account holds.
     expect(
-      screen.getByText(/planAndCredits Pro balanceCreditsLabel 15750/),
+      screen.getByText("compactCredits 943580 943.5K"),
     ).toBeInTheDocument();
     expect(screen.getByText("PT")).toBeInTheDocument();
+  });
+
+  it("keeps the exact plan and balance in the chip's accessible name", () => {
+    renderChip();
+
+    expect(
+      screen.getByRole("button", {
+        name: /openSummary .*planAndCredits Pro balanceCreditsLabel 15750/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the badge out when the plan is unknown", () => {
+    renderChip({ planName: null });
+
+    expect(screen.queryByText("Pro")).toBeNull();
+    expect(screen.getByText("compactCredits 15750 15.7K")).toBeInTheDocument();
   });
 
   it("keeps name line-height above 1 so truncate does not clip descenders", () => {
@@ -135,9 +154,7 @@ describe("SidebarAccountChip", () => {
   it("flags a balance under the low-credits threshold", () => {
     renderChip({ totalCredits: 42 });
 
-    const summary = screen.getByText(
-      /planAndCredits Pro balanceCreditsLabel 42/,
-    );
+    const summary = screen.getByText("compactCredits 42 42");
 
     expect(summary.parentElement?.className).toContain("text-semantic-warning");
   });
@@ -409,40 +426,6 @@ describe("SidebarAccountChip", () => {
       configurable: true,
       value: true,
     });
-  });
-
-  it("collapses to an avatar-only trigger that still opens the summary", () => {
-    sidebarState.state = "collapsed";
-    renderChip();
-
-    expect(screen.getByText("PT")).toBeInTheDocument();
-    expect(screen.queryByText("Patrick Tobler")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/planAndCredits Pro balanceCreditsLabel 15750/),
-    ).not.toBeInTheDocument();
-
-    openChip();
-
-    expect(screen.getByText("Patrick Tobler")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
-    expect(screen.queryByText(/collapsedSummary/)).not.toBeInTheDocument();
-  });
-
-  it("keeps rail size and hover on the collapsible group so the face does not morph", () => {
-    renderChip();
-
-    const trigger = screen.getByRole("button", { name: /openSummary/ });
-    expect(trigger.className).toContain("hover:bg-sidebar-accent");
-    expect(trigger.className).toContain(
-      "group-data-[collapsible=icon]:hover:ring-1",
-    );
-    expect(trigger.className).toContain(
-      "group-data-[collapsible=icon]:data-[state=open]:ring-2",
-    );
-
-    const avatar = trigger.querySelector("[data-slot=avatar]");
-    expect(avatar?.className).toContain("rounded-md");
-    expect(avatar?.className).toContain("group-data-[collapsible=icon]:size-6");
   });
 
   it("shows additional credits in the overview without the old extra-credits row", () => {

@@ -8,6 +8,7 @@ import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
+import { PerformanceDateRange } from "@/components/performance/performance-date-range";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
@@ -19,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,8 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   recycleProjectSocialAccountPost,
@@ -148,15 +150,20 @@ function accountName(account: Account) {
 function RecycleAccountPost({
   projectId,
   accountPostId,
+  provider,
 }: {
   projectId: string;
   accountPostId: string;
+  provider: string;
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function recycle(delayDays?: 7 | 14 | 30) {
+    if (!isProviderEnabled(provider)) return;
     if (pending) return;
     setPending(true);
     try {
@@ -185,9 +192,13 @@ function RecycleAccountPost({
         size="sm"
         className="h-11 md:h-8"
         variant="outline"
+        disabled={!isProviderEnabled(provider)}
         onClick={() => setOpen(true)}
       >
         {t("recycle.action")}
+        {!isProviderEnabled(provider) ? (
+          <Badge variant="secondary">{accountsT("comingSoon")}</Badge>
+        ) : null}
       </Button>
       <AlertDialog
         open={open}
@@ -643,25 +654,24 @@ export function SocialPostStatistics(
       ) : null}
       {query.isPending ? null : (
         <>
-          <div className="flex flex-wrap gap-2">
+          {/* Custom dates under More filters leave no preset selected. */}
+          <ToggleGroup
+            type="single"
+            aria-label={t("performance.rangeLabel")}
+            value={preset ?? ""}
+            onValueChange={(value) => {
+              // Clicking the selected preset again would clear it; keep it.
+              if (value === "7" || value === "30" || value === "90") {
+                handlePreset(value);
+              }
+            }}
+          >
             {(["7", "30", "90"] as const).map((days) => (
-              <Button
-                key={days}
-                size="sm"
-                type="button"
-                className={
-                  preset === days
-                    ? "h-11 md:h-8"
-                    : "text-foreground h-11 md:h-8"
-                }
-                variant={preset === days ? "default" : "outline"}
-                aria-pressed={preset === days}
-                onClick={() => handlePreset(days)}
-              >
+              <ToggleGroupItem key={days} value={days} className="h-11 md:h-8">
                 {t("performance.lastDays", { days: Number(days) })}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           <details className="group">
             <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
               {t("performance.moreFilters")}
@@ -674,36 +684,27 @@ export function SocialPostStatistics(
               ) : null}
             </summary>
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
-                <Input
-                  id="statistics-from"
-                  type="date"
-                  value={filters.publishedFrom ?? (publishedFrom || "")}
-                  onChange={(event) =>
-                    void setFilters({
-                      publishedFrom: event.target.value || null,
-                      performanceRange: null,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
-                <Input
-                  id="statistics-until"
-                  type="date"
-                  value={filters.publishedUntil ?? (publishedUntil || "")}
-                  min={filters.publishedFrom ?? undefined}
-                  aria-invalid={!validRange}
-                  onChange={(event) =>
-                    void setFilters({
-                      publishedUntil: event.target.value || null,
-                      performanceRange: null,
-                    })
-                  }
-                />
-              </div>
+              <PerformanceDateRange
+                idPrefix="statistics"
+                fromLabel={t("publishedFrom")}
+                untilLabel={t("publishedUntil")}
+                from={filters.publishedFrom ?? (publishedFrom || "")}
+                until={filters.publishedUntil ?? (publishedUntil || "")}
+                minUntil={filters.publishedFrom ?? undefined}
+                invalid={!validRange}
+                onFromChange={(value) =>
+                  void setFilters({
+                    publishedFrom: value || null,
+                    performanceRange: null,
+                  })
+                }
+                onUntilChange={(value) =>
+                  void setFilters({
+                    publishedUntil: value || null,
+                    performanceRange: null,
+                  })
+                }
+              />
               <Button
                 type="button"
                 variant="outline"
@@ -774,6 +775,7 @@ export function SocialPostStatistics(
                       <RecycleAccountPost
                         projectId={projectId}
                         accountPostId={post.id}
+                        provider={post.provider}
                       />
                     ) : null
                   }

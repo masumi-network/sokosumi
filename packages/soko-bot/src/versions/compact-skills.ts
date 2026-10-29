@@ -105,14 +105,14 @@ When a job repeats one tool call many times (months of mail, every row of a tabl
     id: "social",
     name: "Social posts and performance",
     description:
-      "Drafts, schedules, and publishes approved Social posts on every provider, and analyses account performance from complete, fresh data.",
+      "Drafts, schedules, and publishes approved Social posts on enabled providers, and analyses account performance from complete, fresh data.",
     content: `# Social posts
 
-You can run a Project's social posts yourself; a simple post needs no Coworker.
+You can run a Project's social posts yourself; a simple post needs no Coworker. Social scheduling is public.
 - Reads on every turn: \`list_project_social_accounts\`, \`list_social_posts\`, \`get_social_post\`. The write tools (\`create_social_post\`, \`update_social_post\`, \`schedule_social_post\`, \`cancel_social_post\`, \`publish_social_post\`) arrive when the owner asks for a change in their own message.
 - Draft by default; include \`scheduledAt\` only when asked to schedule. Posts you create land as Needs approval and never publish until a person approves them in Project Social: say so, and never call \`publish_social_post\` while approval is pending.
 - Before an edit, schedule, cancel, or publish, read the post with \`get_social_post\` and pass its current revision; on a conflict, reload and retry rather than overwrite.
-- Every connected provider works, and the account sets the rules: Instagram requires an image or video, TikTok and YouTube a video, LinkedIn and YouTube text; media is at most four images or one video, never mixed. Connecting accounts is a human action in Project Social; never ask for or handle credentials.
+- Use \`enabledProviders\` from \`list_project_social_accounts\` for the Project's workspace before creating, editing, scheduling, or publishing; other platforms are Coming soon. The account sets the rules: Instagram requires an image or video, TikTok and YouTube a video, LinkedIn and YouTube text; media is at most four images or one video, never mixed. Connecting accounts is a human action in Project Social; never ask for or handle credentials.
 - Images or videos sent in chat: save each with \`upload_file\` (its link as \`attachmentUrl\`) and use the returned id as media. Never ask the owner to upload what they already sent.
 - Reads alone do not mean the capability is read-only. On a turn without the write tools, say "ask me to create the post and I will" rather than that you cannot; never promise post work for a later turn.
 
