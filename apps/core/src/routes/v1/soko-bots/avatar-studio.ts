@@ -5,10 +5,12 @@ import { notFound } from "@/helpers/error";
 import {
   createAvatarDraftBody,
   createAvatarDraftResponses,
+  discardAvatarDraftsResponses,
   getAvatarStudioResponses,
   keepAvatarDraftResponses,
   respondWithAvatarDraft,
   respondWithAvatarStudio,
+  respondWithDiscardedDrafts,
   respondWithKeptAvatar,
 } from "@/helpers/soko-bot-avatar-studio-api";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
@@ -66,6 +68,25 @@ const keepMeRoute = withOrganizationSlugHeaderParameter(
     responses: keepAvatarDraftResponses,
   }),
 );
+const discardMeRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "delete",
+    path: "/me/avatar/drafts/{draftId}",
+    operationId: "discardMySokoBotAvatarDraft",
+    tags,
+    request: { params: keepSokoBotAvatarDraftParamsSchema },
+    responses: discardAvatarDraftsResponses,
+  }),
+);
+const discardAllMeRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "delete",
+    path: "/me/avatar/drafts",
+    operationId: "discardMySokoBotAvatarDrafts",
+    tags,
+    responses: discardAvatarDraftsResponses,
+  }),
+);
 const getByIdRoute = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
@@ -96,6 +117,28 @@ const keepByIdRoute = withOrganizationSlugHeaderParameter(
       params: sokoBotIdParams.merge(keepSokoBotAvatarDraftParamsSchema),
     },
     responses: keepAvatarDraftResponses,
+  }),
+);
+const discardByIdRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "delete",
+    path: "/{sokoBotId}/avatar/drafts/{draftId}",
+    operationId: "discardSokoBotAvatarDraft",
+    tags,
+    request: {
+      params: sokoBotIdParams.merge(keepSokoBotAvatarDraftParamsSchema),
+    },
+    responses: discardAvatarDraftsResponses,
+  }),
+);
+const discardAllByIdRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "delete",
+    path: "/{sokoBotId}/avatar/drafts",
+    operationId: "discardSokoBotAvatarDrafts",
+    tags,
+    request: { params: sokoBotIdParams },
+    responses: discardAvatarDraftsResponses,
   }),
 );
 
@@ -136,6 +179,17 @@ export function mountSokoBotAvatarStudioMeRoutes(app: OpenAPIHonoWithAuth) {
       draftId: c.req.valid("param").draftId,
     });
   });
+  app.openapi(discardMeRoute, async (c) => {
+    const { sokoBotId } = await managedBot(c, ME_SOKO_BOT);
+    return await respondWithDiscardedDrafts(c, {
+      sokoBotId,
+      draftId: c.req.valid("param").draftId,
+    });
+  });
+  app.openapi(discardAllMeRoute, async (c) => {
+    const { sokoBotId } = await managedBot(c, ME_SOKO_BOT);
+    return await respondWithDiscardedDrafts(c, { sokoBotId });
+  });
 }
 
 /** `/{sokoBotId}` routes: mounted after every static `/me` and `/team` route. */
@@ -170,5 +224,22 @@ export function mountSokoBotAvatarStudioByIdRoutes(app: OpenAPIHonoWithAuth) {
       userId,
       draftId: c.req.valid("param").draftId,
     });
+  });
+  app.openapi(discardByIdRoute, async (c) => {
+    const { sokoBotId } = await managedBot(
+      c,
+      sokoBotIdSelector(c.req.valid("param")),
+    );
+    return await respondWithDiscardedDrafts(c, {
+      sokoBotId,
+      draftId: c.req.valid("param").draftId,
+    });
+  });
+  app.openapi(discardAllByIdRoute, async (c) => {
+    const { sokoBotId } = await managedBot(
+      c,
+      sokoBotIdSelector(c.req.valid("param")),
+    );
+    return await respondWithDiscardedDrafts(c, { sokoBotId });
   });
 }

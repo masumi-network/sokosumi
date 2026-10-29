@@ -4,10 +4,12 @@ import { notFound } from "@/helpers/error";
 import {
   createAvatarDraftBody,
   createAvatarDraftResponses,
+  discardAvatarDraftsResponses,
   getAvatarStudioResponses,
   keepAvatarDraftResponses,
   respondWithAvatarDraft,
   respondWithAvatarStudio,
+  respondWithDiscardedDrafts,
   respondWithKeptAvatar,
 } from "@/helpers/soko-bot-avatar-studio-api";
 import prisma from "@/lib/db/prisma";
@@ -43,6 +45,24 @@ const keepDraftRoute = createRoute({
   tags,
   request: { params: botParams.merge(keepSokoBotAvatarDraftParamsSchema) },
   responses: keepAvatarDraftResponses,
+});
+
+const discardDraftRoute = createRoute({
+  method: "delete",
+  path: "/{sokoBotId}/avatar/drafts/{draftId}",
+  operationId: "discardAdminSokoBotAvatarDraft",
+  tags,
+  request: { params: botParams.merge(keepSokoBotAvatarDraftParamsSchema) },
+  responses: discardAvatarDraftsResponses,
+});
+
+const discardDraftsRoute = createRoute({
+  method: "delete",
+  path: "/{sokoBotId}/avatar/drafts",
+  operationId: "discardAdminSokoBotAvatarDrafts",
+  tags,
+  request: { params: botParams },
+  responses: discardAvatarDraftsResponses,
 });
 
 async function requireBot(sokoBotId: string): Promise<string> {
@@ -84,5 +104,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       draftId: params.draftId,
       userId: null,
     });
+  });
+  app.openapi(discardDraftRoute, async (c) => {
+    requireAdminAuthContext(c.var.authContext);
+    const params = c.req.valid("param");
+    const sokoBotId = await requireBot(params.sokoBotId);
+    return await respondWithDiscardedDrafts(c, {
+      sokoBotId,
+      draftId: params.draftId,
+    });
+  });
+  app.openapi(discardDraftsRoute, async (c) => {
+    requireAdminAuthContext(c.var.authContext);
+    const sokoBotId = await requireBot(c.req.valid("param").sokoBotId);
+    return await respondWithDiscardedDrafts(c, { sokoBotId });
   });
 }

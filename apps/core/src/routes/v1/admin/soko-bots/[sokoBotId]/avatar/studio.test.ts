@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   botFindFirstMock,
   createDraftMock,
+  discardMock,
   getStudioMock,
   keepDraftMock,
   roleMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   createDraftMock: vi.fn(),
+  discardMock: vi.fn(),
   getStudioMock: vi.fn(),
   keepDraftMock: vi.fn(),
   roleMock: { value: "admin" },
@@ -43,6 +45,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
   createAvatarDraft: createDraftMock,
+  discardAvatarDrafts: discardMock,
   getAvatarStudio: getStudioMock,
   keepAvatarDraft: keepDraftMock,
 }));
@@ -64,7 +67,7 @@ const STUDIO = {
   options: { creatures: [], accessories: [] },
 };
 
-function send(method: "GET" | "POST", path: string, body?: unknown) {
+function send(method: "GET" | "POST" | "DELETE", path: string, body?: unknown) {
   return app.request(`http://localhost${path}`, {
     method,
     headers: { "content-type": "application/json" },
@@ -80,6 +83,20 @@ describe("admin avatar studio routes", () => {
     getStudioMock.mockResolvedValue(STUDIO);
     createDraftMock.mockResolvedValue({ draft: null, note: "" });
     keepDraftMock.mockResolvedValue(undefined);
+    discardMock.mockResolvedValue(undefined);
+  });
+
+  it("cancels one draft or all of a bot's drafts", async () => {
+    const one = await send("DELETE", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`);
+    const all = await send("DELETE", `/${BOT_ID}/avatar/drafts`);
+
+    expect([one.status, all.status]).toEqual([200, 200]);
+    expect(discardMock).toHaveBeenNthCalledWith(1, {
+      sokoBotId: BOT_ID,
+      draftId: DRAFT_ID,
+    });
+    expect(discardMock).toHaveBeenNthCalledWith(2, { sokoBotId: BOT_ID });
+    expect((await all.json()).data).toEqual(STUDIO);
   });
 
   it("lets staff draft for any bot, spending their own hourly allowance", async () => {
@@ -126,12 +143,15 @@ describe("admin avatar studio routes", () => {
         change: { kind: "shuffle" },
       }),
       send("POST", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}/keep`),
+      send("DELETE", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`),
+      send("DELETE", `/${BOT_ID}/avatar/drafts`),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403,
+      403, 403, 403, 403, 403,
     ]);
     expect(createDraftMock).not.toHaveBeenCalled();
+    expect(discardMock).not.toHaveBeenCalled();
   });
 
   it("answers 404 for a bot that is gone", async () => {

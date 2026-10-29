@@ -145,9 +145,12 @@ class Table {
     private readonly clashes: (a: Row, b: Row) => boolean = () => false,
   ) {}
   /** What Postgres does with a unique index: refuse, as Prisma's P2002. */
-  private assertUnique(candidate: Row) {
+  private assertUnique(candidate: Row, self?: Row) {
     if (
-      this.rows.some((row) => row !== candidate && this.clashes(row, candidate))
+      this.rows.some(
+        (row) =>
+          row !== self && row !== candidate && this.clashes(row, candidate),
+      )
     ) {
       throw Object.assign(new Error("Unique constraint failed"), {
         code: "P2002",
@@ -221,7 +224,7 @@ class Table {
   async updateMany({ where, data }: { where: Row; data: Row }) {
     const found = this.rows.filter((row) => matches(this.visible(row), where));
     for (const row of found) {
-      this.assertUnique({ ...row, ...data });
+      this.assertUnique({ ...row, ...data }, row);
       apply(row, data);
       row.updatedAt = tick();
     }
@@ -326,6 +329,7 @@ import {
 } from "@/services/soko-bot-avatar-render.service";
 import {
   createAvatarDraft,
+  discardAvatarDrafts,
   keepAvatarDraft,
 } from "@/services/soko-bot-avatar-studio.service";
 
@@ -1264,6 +1268,144 @@ describe("reconciling renders", () => {
   });
 });
 
+describe("cancelling drafts", () => {
+  const draftOf = async (sokoBotId: string, creature = "frog") =>
+    (
+      await createAvatarDraft({
+        sokoBotId,
+        userId: USER,
+        change: { kind: "creature", creature },
+      })
+    ).draft!;
+
+  function poolDraft(sokoBotId: string) {
+    return avatars.create({
+      data: {
+        subject: "x",
+        background: `b-${sokoBotId}`,
+        seed: Math.floor(Math.random() * 1e9),
+        model: "m",
+        imageUrl: "https://blob.test/pool.webp",
+        styleId: "crafted-desk",
+        styleVersion: 1,
+        fromPool: true,
+        traitKey: `key-${sokoBotId}`,
+        draftForSokoBotId: sokoBotId,
+        draftExpiresAt: new Date(Date.now() + 60_000),
+        look: { creature: "frog", accessories: [], typed: [] },
+      },
+    });
+  }
+
+  it("deletes a draft drawn for the bot and leaves the kept look and its renders alone", async () => {
+    const kept = await keptLook({ kind: "creature", creature: "otter" });
+    const draft = await draftOf(BOT);
+    const rendersBefore = renders.rows.length;
+
+    await discardAvatarDrafts({ sokoBotId: BOT, draftId: draft.id });
+
+    expect(avatars.rows.map((row) => row.id)).toEqual([kept.id]);
+    expect(avatars.rows[0]).toMatchObject({ claimedBySokoBotId: BOT });
+    expect(renders.rows).toHaveLength(rendersBefore);
+    expect(bots.avatarImageUrl).toBe(kept.imageUrl);
+  });
+
+  it("sends a pool look back to the pool instead of deleting it", async () => {
+    const pooled = await poolDraft(BOT);
+
+    await discardAvatarDrafts({ sokoBotId: BOT, draftId: pooled.id as string });
+
+    expect(avatars.rows).toContain(pooled);
+    expect(pooled).toMatchObject({
+      draftForSokoBotId: null,
+      draftExpiresAt: null,
+      fromPool: true,
+    });
+  });
+
+  it("clears a whole chain of edits in one go, pool and drawn alike", async () => {
+    const kept = await keptLook({ kind: "creature", creature: "otter" });
+    const pooled = await poolDraft(BOT);
+    const first = await draftOf(BOT);
+    await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "accessory", accessory: "scarf", enabled: true },
+      draftId: first.id,
+    });
+
+    await discardAvatarDrafts({ sokoBotId: BOT });
+
+    expect(avatars.rows.map((row) => row.id).sort()).toEqual(
+      [kept.id, pooled.id].sort(),
+    );
+    expect(pooled).toMatchObject({ draftForSokoBotId: null });
+    expect((await getOpenDrafts(BOT)).length).toBe(0);
+  });
+
+  it("never touches another bot's drafts, nor a named draft that is not this bot's", async () => {
+    const mine = await draftOf(BOT);
+    const theirs = await draftOf("bot-2", "penguin");
+
+    await discardAvatarDrafts({ sokoBotId: BOT, draftId: theirs.id });
+    expect(avatars.rows.map((row) => row.id)).toContain(theirs.id);
+
+    await discardAvatarDrafts({ sokoBotId: BOT });
+
+    expect(avatars.rows.map((row) => row.id)).toEqual([theirs.id]);
+    expect(avatars.rows.some((row) => row.id === mine.id)).toBe(false);
+  });
+
+  it("leaves the tombstone of a replaced look and a draft still being drawn", async () => {
+    const old = await keptLook({ kind: "creature", creature: "frog" });
+    await keptLook({ kind: "creature", creature: "otter" });
+    const drawing = await avatars.create({
+      data: {
+        subject: "x",
+        background: "drawing",
+        seed: 1,
+        model: "m",
+        imageUrl: "",
+        styleId: "crafted-desk",
+        styleVersion: 1,
+        draftForSokoBotId: BOT,
+        draftExpiresAt: new Date(Date.now() + 60_000),
+        reservedAt: new Date(),
+      },
+    });
+
+    await discardAvatarDrafts({ sokoBotId: BOT });
+
+    const ids = avatars.rows.map((row) => row.id);
+    expect(ids).toContain(old.id);
+    expect(ids).toContain(drawing.id);
+  });
+
+  it("is a no-op the second time, and for a draft that never existed", async () => {
+    const draft = await draftOf(BOT);
+
+    await discardAvatarDrafts({ sokoBotId: BOT, draftId: draft.id });
+    await expect(
+      discardAvatarDrafts({ sokoBotId: BOT, draftId: draft.id }),
+    ).resolves.toBeUndefined();
+    await expect(
+      discardAvatarDrafts({ sokoBotId: BOT, draftId: "no-such-draft" }),
+    ).resolves.toBeUndefined();
+    await expect(
+      discardAvatarDrafts({ sokoBotId: BOT }),
+    ).resolves.toBeUndefined();
+  });
+
+  async function getOpenDrafts(sokoBotId: string) {
+    return avatars.rows.filter(
+      (row) =>
+        row.draftForSokoBotId === sokoBotId &&
+        row.claimedBySokoBotId === null &&
+        row.keptAt === null,
+    );
+  }
+});
+
 describe("one of a kind", () => {
   const OTTER_KEY = "otter|chocolate|round-leaf|none|green-brown|none";
 
@@ -1434,7 +1576,14 @@ describe("one of a kind", () => {
     const third = await createAvatarDraft({
       sokoBotId: BOT,
       userId: USER,
-      change: { kind: "accessory", accessory: "scarf", enabled: true },
+      // One it is not already wearing, whatever the shuffle drew.
+      change: {
+        kind: "accessory",
+        accessory: first.draft?.look.accessories.includes("scarf")
+          ? "glasses"
+          : "scarf",
+        enabled: true,
+      },
       draftId: second.draft?.id,
     });
 

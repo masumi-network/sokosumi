@@ -10,6 +10,7 @@ import {
 } from "@/schemas/soko-bot-avatar.schema";
 import {
   createAvatarDraft,
+  discardAvatarDrafts,
   getAvatarStudio,
   keepAvatarDraft,
 } from "@/services/soko-bot-avatar-studio.service";
@@ -51,6 +52,9 @@ export const createAvatarDraftResponses = {
   503: jsonErrorResponse("Service Unavailable"),
 };
 
+/** What discarding answers: the studio as it is after, so `draft` is null. */
+export const discardAvatarDraftsResponses = getAvatarStudioResponses;
+
 export const keepAvatarDraftResponses = {
   200: jsonSuccessResponse(
     sokoBotAvatarStudioSchema,
@@ -90,5 +94,14 @@ export async function respondWithKeptAvatar(
   input: Parameters<typeof keepAvatarDraft>[0],
 ) {
   await keepAvatarDraft(input);
+  return await respondWithAvatarStudio(c, input.sokoBotId);
+}
+
+/** Discards open drafts (all of the bot's, or one), then answers with the studio. */
+export async function respondWithDiscardedDrafts(
+  c: Context<EnvVariables>,
+  input: Parameters<typeof discardAvatarDrafts>[0],
+) {
+  await discardAvatarDrafts(input);
   return await respondWithAvatarStudio(c, input.sokoBotId);
 }

@@ -280,6 +280,34 @@ export async function createAvatarDraft(input: {
 }
 
 /**
+ * Cancel: discard the bot's open drafts, or just `draftId`. A look the pool
+ * drew goes back to the pool; one drawn for the bot is deleted. Only drafts of
+ * this bot are touched (never its kept look, its renders, or another bot's
+ * drafts), and one that is already gone is not an error.
+ */
+export async function discardAvatarDrafts(input: {
+  sokoBotId: string;
+  draftId?: string;
+}): Promise<void> {
+  const open = {
+    draftForSokoBotId: input.sokoBotId,
+    claimedBySokoBotId: null,
+    // A kept look that was replaced is a tombstone, not a draft.
+    keptAt: null,
+    // One still being drawn is not open yet; its own run deals with it.
+    reservedAt: null,
+    ...(input.draftId ? { id: input.draftId } : {}),
+  };
+  await prisma.sokoBotAvatar.updateMany({
+    where: { ...open, fromPool: true },
+    data: { draftForSokoBotId: null, draftExpiresAt: null },
+  });
+  await prisma.sokoBotAvatar.deleteMany({
+    where: { ...open, fromPool: false },
+  });
+}
+
+/**
  * Keep a draft: the bot claims it and its state renders begin. `userId` is
  * whose daily keep allowance this spends; staff pass null.
  */

@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createDraftMock,
+  discardMock,
   getStudioMock,
   keepDraftMock,
   memberFindFirstMock,
   resolveMock,
 } = vi.hoisted(() => ({
   createDraftMock: vi.fn(),
+  discardMock: vi.fn(),
   getStudioMock: vi.fn(),
   keepDraftMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -81,6 +83,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
   createAvatarDraft: createDraftMock,
+  discardAvatarDrafts: discardMock,
   getAvatarStudio: getStudioMock,
   keepAvatarDraft: keepDraftMock,
 }));
@@ -134,7 +137,7 @@ const DRAFT = {
 
 const CHANGE = { change: { kind: "creature", creature: "otter" } };
 
-function send(method: "GET" | "POST", path: string, body?: unknown) {
+function send(method: "GET" | "POST" | "DELETE", path: string, body?: unknown) {
   return createApp().request(`http://localhost${path}`, {
     method,
     headers: { "content-type": "application/json" },
@@ -148,6 +151,7 @@ describe("avatar studio routes", () => {
     getStudioMock.mockResolvedValue(STUDIO);
     createDraftMock.mockResolvedValue({ draft: DRAFT, note: "" });
     keepDraftMock.mockResolvedValue(undefined);
+    discardMock.mockResolvedValue(undefined);
   });
 
   describe("for your own bot", () => {
@@ -235,6 +239,33 @@ describe("avatar studio routes", () => {
       );
     });
 
+    it("cancels one draft and answers with the studio as it stands", async () => {
+      const response = await send("DELETE", `/me/avatar/drafts/${DRAFT_ID}`);
+
+      expect(response.status).toBe(200);
+      expect(discardMock).toHaveBeenCalledWith({
+        sokoBotId: BOT_ID,
+        draftId: DRAFT_ID,
+      });
+      expect((await response.json()).data).toEqual(STUDIO);
+    });
+
+    it("cancels all open drafts with no id", async () => {
+      const response = await send("DELETE", "/me/avatar/drafts");
+
+      expect(response.status).toBe(200);
+      expect(discardMock).toHaveBeenCalledWith({ sokoBotId: BOT_ID });
+      expect((await response.json()).data.draft).toBeNull();
+    });
+
+    it("answers 200 again for a repeat, since the service treats a gone draft as done", async () => {
+      await send("DELETE", `/me/avatar/drafts/${DRAFT_ID}`);
+      const again = await send("DELETE", `/me/avatar/drafts/${DRAFT_ID}`);
+
+      expect(again.status).toBe(200);
+      expect(discardMock).toHaveBeenCalledTimes(2);
+    });
+
     it("keeps a draft for the caller's allowance and returns the studio", async () => {
       const response = await send("POST", `/me/avatar/drafts/${DRAFT_ID}/keep`);
 
@@ -288,10 +319,23 @@ describe("avatar studio routes", () => {
           `/${BOT_ID}/avatar/drafts/${DRAFT_ID}/keep`,
         );
         const read = await send("GET", `/${BOT_ID}/avatar`);
+        const discard = await send(
+          "DELETE",
+          `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`,
+        );
+        const discardAll = await send("DELETE", `/${BOT_ID}/avatar/drafts`);
 
-        expect([draft.status, keep.status, read.status]).toEqual([
-          200, 200, 200,
-        ]);
+        expect([
+          draft.status,
+          keep.status,
+          read.status,
+          discard.status,
+          discardAll.status,
+        ]).toEqual([200, 200, 200, 200, 200]);
+        expect(discardMock).toHaveBeenCalledWith({
+          sokoBotId: BOT_ID,
+          draftId: DRAFT_ID,
+        });
         expect(createDraftMock).toHaveBeenCalledWith(
           expect.objectContaining({ sokoBotId: BOT_ID, userId: USER_ID }),
         );
@@ -305,12 +349,15 @@ describe("avatar studio routes", () => {
         send("POST", `/${BOT_ID}/avatar/drafts`, CHANGE),
         send("POST", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}/keep`),
         send("GET", `/${BOT_ID}/avatar`),
+        send("DELETE", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`),
+        send("DELETE", `/${BOT_ID}/avatar/drafts`),
       ]);
 
       expect(responses.map((response) => response.status)).toEqual([
-        403, 403, 403,
+        403, 403, 403, 403, 403,
       ]);
       expect(createDraftMock).not.toHaveBeenCalled();
+      expect(discardMock).not.toHaveBeenCalled();
       expect(keepDraftMock).not.toHaveBeenCalled();
     });
 
