@@ -2289,7 +2289,22 @@
             "dispute_pending": "Disputa",
             "dispute_resolved": "Resuelto"
           }
-        }
+        },
+        "emptyClosed": {
+          "title": "No hay proyectos cerrados",
+          "description": "Un proyecto que cierras pasa aquí y conserva su historial."
+        },
+        "onlyClosed": {
+          "title": "Todos los proyectos están cerrados",
+          "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
+          "action": "Ver proyectos cerrados"
+        },
+        "state": {
+          "label": "Mostrar proyectos",
+          "open": "Abiertos",
+          "closed": "Cerrados"
+        },
+        "closed": "Cerrado"
       },
       "Briefing": {
         "label": "Briefing",
