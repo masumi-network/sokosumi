@@ -2778,6 +2778,7 @@
           },
           "performance": {
             "lastDays": "Letzte {days} Tage",
+            "rangeLabel": "Zeitraum",
             "moreFilters": "Weitere Filter",
             "activeFilters": "{count} aktiv",
             "posts": "Beiträge",
@@ -8934,6 +8935,7 @@
       "today": "Heute",
       "weekNumber": "Kalenderwoche {week}",
       "view": {
+        "label": "Ansicht",
         "month": "Monat",
         "week": "Woche",
         "agenda": "Agenda"
