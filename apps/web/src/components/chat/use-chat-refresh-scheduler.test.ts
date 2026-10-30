@@ -41,6 +41,7 @@ function mount(
     healthy: boolean;
     refreshOnMount: boolean;
     refreshOnRecovery: boolean;
+    refreshOnForeground: boolean;
   }> = {},
 ) {
   return renderHook(
@@ -52,6 +53,7 @@ function mount(
         fallbackIntervalMs: FALLBACK_MS,
         refreshOnMount: overrides.refreshOnMount ?? false,
         refreshOnRecovery: overrides.refreshOnRecovery ?? false,
+        refreshOnForeground: overrides.refreshOnForeground ?? false,
       }),
     {
       initialProps: {
@@ -191,6 +193,16 @@ describe("useChatRefreshScheduler", () => {
 
     await act(async () => goForeground());
     expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads on every return to the foreground when asked to, stale or not", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    mount(refresh, { refreshOnForeground: true });
+
+    await act(async () => goBackground("blur"));
+    await act(async () => goForeground());
+
+    expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("treats a visible but unfocused window as background", async () => {

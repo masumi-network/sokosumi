@@ -7,7 +7,10 @@ import {
   type RoomReadAttentionSnapshot,
   sameRoomReadAttention,
 } from "@/app/chat/utils/room-read-attention";
-import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import {
+  notifyOrganizationChatRoomsChanged,
+  ORGANIZATION_CHAT_ROOM_READ_EVENT,
+} from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { roomAttentionAfterRead } from "@/components/chat/room-attention";
 import {
@@ -41,7 +44,7 @@ interface RoomReadAttentionOptions {
 
 function dispatchRoomRead(roomId: string, room: ChatRoom): void {
   window.dispatchEvent(
-    new CustomEvent("organization-chat-room-read", {
+    new CustomEvent(ORGANIZATION_CHAT_ROOM_READ_EVENT, {
       detail: { room, roomId },
     }),
   );

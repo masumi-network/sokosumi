@@ -3,8 +3,12 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notifyOrganizationChatRoomsChanged } from "../organization-chat-events";
-import { clearRoomReadOverlays } from "../room-read-overlay";
+import {
+  notifyOrganizationChatRoomsChanged,
+  ORGANIZATION_CHAT_ROOM_READ_EVENT,
+} from "@/components/chat/organization-chat-events";
+import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
+
 import {
   createOrganizationChatList,
   emptyListResult,
@@ -67,7 +71,7 @@ function rowProps(id: string) {
 function readRoom(detail: { roomId: string; room?: ChatRoom }) {
   act(() => {
     window.dispatchEvent(
-      new CustomEvent("organization-chat-room-read", { detail }),
+      new CustomEvent(ORGANIZATION_CHAT_ROOM_READ_EVENT, { detail }),
     );
   });
 }
@@ -79,6 +83,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("OrganizationChatList Elsewhere rows", () => {
@@ -383,6 +388,26 @@ describe("OrganizationChatList Elsewhere rows", () => {
       expect(elsewhereList()).toBeNull();
     });
 
+    // A read in another tab or on another device sends no event.
+    it("reads again when the reader comes back to the window", async () => {
+      const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      hasFocus.mockReturnValue(false);
+      act(() => {
+        window.dispatchEvent(new Event("blur"));
+      });
+      listElsewhereMock.mockResolvedValue([]);
+      hasFocus.mockReturnValue(true);
+      act(() => {
+        window.dispatchEvent(new Event("focus"));
+      });
+
+      await waitFor(() => expect(elsewhereList()).toBeNull());
+    });
+
     it("starts over in a new workspace, without the old one's rows", async () => {
       listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
       const view = renderOrganizationChatList();
@@ -457,6 +482,34 @@ describe("OrganizationChatList Elsewhere rows", () => {
       view.rerender(createOrganizationChatList());
 
       expect(rowNames()).toEqual(["design"]);
+    });
+
+    it("does not come back once read and left, when the reader returns", async () => {
+      const view = await renderOpenRow();
+      readRoom({
+        roomId: "launch",
+        room: elsewhereRoom("launch", {
+          unreadCount: 0,
+          channelUnreadCount: 0,
+          unreadMentionCount: 0,
+        }),
+      });
+
+      harnessPathname.current = "/tasks";
+      view.rerender(createOrganizationChatList());
+      harnessPathname.current = "/chat/rooms/launch";
+      view.rerender(createOrganizationChatList());
+
+      expect(rowNames()).toEqual(["design"]);
+    });
+
+    it("stays for the room still unread when the reader moves on", async () => {
+      const view = await renderOpenRow();
+
+      harnessPathname.current = "/tasks";
+      view.rerender(createOrganizationChatList());
+
+      expect(rowNames()).toEqual(["launch", "design"]);
     });
 
     it("keeps its row past the cap while it is open", async () => {

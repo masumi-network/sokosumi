@@ -23,6 +23,11 @@ import { cn } from "@/lib/utils";
 
 import { CatchUpElsewhereRooms } from "./catch-up-elsewhere-rooms";
 
+interface CatchUpViewProps {
+  currentUserId: string;
+  organizationId: string | null;
+}
+
 /**
  * The reader's "while you were away" across every room they have not muted:
  * what waits on them first, then decisions, open loops and highlights, with
@@ -34,17 +39,14 @@ import { CatchUpElsewhereRooms } from "./catch-up-elsewhere-rooms";
 export function CatchUpView({
   currentUserId,
   organizationId,
-}: {
-  currentUserId: string;
-  organizationId: string | null;
-}) {
+}: CatchUpViewProps) {
   const t = useTranslations("App.Channels.Signals");
   const { rooms: elsewhereRooms, answered: elsewhereAnswered } =
     useElsewhereRooms({
       currentUserId,
       organizationId,
       activeRoomId: null,
-      paintOnly: false,
+      mayRead: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
     queryKey: ["chat-catch-up-summary"],

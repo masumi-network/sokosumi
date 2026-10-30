@@ -152,6 +152,7 @@ export interface ChatRoomSidebarRowProps {
   /**
    * False leaves Pin out of the menu: an Elsewhere row, where pinning would
    * seem to do nothing, because Pinned lists the active workspace's rooms.
+   * Unpin stays on a pinned room: Mute waits on it.
    */
   pinnable?: boolean;
 }
@@ -541,7 +542,7 @@ export function ChatRoomSidebarRow({
                     <MessageSquare className="size-4" aria-hidden />
                     {tActions("markUnread")}
                   </DropdownMenuItem>
-                  {pinnable ? (
+                  {pinnable || isPinned ? (
                     <DropdownMenuItem
                       disabled={isPending || isMuted}
                       onSelect={() => {

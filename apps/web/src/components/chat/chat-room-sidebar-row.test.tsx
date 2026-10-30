@@ -1622,6 +1622,19 @@ describe("ChatRoomSidebarRow as an Elsewhere row", () => {
     expect(screen.queryByRole("menuitem", { name: "Unpin" })).toBeNull();
   });
 
+  // A pinned room cannot be muted until it is unpinned, so hiding this too would
+  // leave the row's reader with neither.
+  it("offers Unpin on a room already pinned, and still no Pin", async () => {
+    renderElsewhereRow(
+      makeRoom({ starredAt: new Date("2026-01-03T00:00:00.000Z") }),
+    );
+
+    await openRoomMenu();
+
+    expect(screen.getByRole("menuitem", { name: "Unpin" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+  });
+
   it("announces the room, its workspace and its mentions in one link", () => {
     renderElsewhereRow(makeRoom({ unreadMentionCount: 2 }));
 

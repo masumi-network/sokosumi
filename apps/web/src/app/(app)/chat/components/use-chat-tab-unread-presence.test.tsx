@@ -156,9 +156,20 @@ function SidebarList() {
     currentUserId: "user-1",
     organizationId: "org-1",
     activeRoomId: null,
-    paintOnly: false,
+    mayRead: true,
   });
   useEffect(() => registerMembershipVisibleRoomsPublisher(), []);
+  return null;
+}
+
+/** Stands in for Catch up's page, which lists the rooms whoever reads them. */
+function CatchUpPage() {
+  useElsewhereRooms({
+    currentUserId: "user-1",
+    organizationId: "org-1",
+    activeRoomId: null,
+    mayRead: true,
+  });
   return null;
 }
 
@@ -314,6 +325,64 @@ describe("Elsewhere rooms in the unread signals", () => {
     expect(listElsewhereMock).toHaveBeenCalledOnce();
   });
 
+  describe("one reader at a time", () => {
+    async function aMessageArrives() {
+      listElsewhereMock.mockClear();
+      await act(async () => {
+        window.dispatchEvent(new Event("organization-chat-rooms-changed"));
+      });
+    }
+
+    it("reads once per event with Catch up beside the phone's chrome", async () => {
+      render(
+        <>
+          <Harness />
+          <CatchUpPage />
+        </>,
+      );
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+      await act(async () => {});
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+
+      await aMessageArrives();
+
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+    });
+
+    it("reads once per event with Catch up beside the sidebar", async () => {
+      window.innerWidth = 1280;
+      render(
+        <>
+          <SidebarList />
+          <CatchUpPage />
+        </>,
+      );
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+      await act(async () => {});
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+
+      await aMessageArrives();
+
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+    });
+
+    it("hands the reads over when the reader unmounts", async () => {
+      const view = render(
+        <>
+          <CatchUpPage />
+          <Harness />
+        </>,
+      );
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+
+      view.rerender(<Harness />);
+      await act(async () => {});
+      await aMessageArrives();
+
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalled());
+    });
+  });
+
   it("waits for a desktop sidebar rather than reading first", async () => {
     window.innerWidth = 1280;
     render(<Harness />);
@@ -366,6 +435,32 @@ describe("Elsewhere rooms in the unread signals", () => {
     view.rerender(<Harness />);
     await act(async () => {});
 
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+  });
+
+  it("shows another user nothing the last one held", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+    const view = render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+
+    mockUserId = "";
+    view.rerender(<Harness />);
+    await act(async () => {});
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+
+    mockUserId = "user-2";
+    listElsewhereMock.mockImplementation(() => new Promise(() => {}));
+    view.rerender(<Harness />);
+    await act(async () => {});
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
   });
 

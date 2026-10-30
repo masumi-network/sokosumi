@@ -1,3 +1,4 @@
+import type { Coworker } from "@sokosumi/core-client";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -13,10 +14,23 @@ import {
   renderRoomsClient,
 } from "./rooms-client-harness";
 
-const handleSelectWorkspace = vi.hoisted(() => vi.fn(async () => undefined));
+const { handleSelectWorkspace, switcher } = vi.hoisted(() => ({
+  handleSelectWorkspace: vi.fn(async () => undefined),
+  switcher: { isPending: false },
+}));
 
 vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
-  useWorkspaceSwitcher: () => ({ handleSelectWorkspace, isPending: false }),
+  useWorkspaceSwitcher: () => ({
+    handleSelectWorkspace,
+    isPending: switcher.isPending,
+  }),
+}));
+vi.mock("@/app/chat/components/room-members-panel", () => ({
+  RoomMembersPanel: ({ coworkers }: { coworkers: Coworker[] }) => (
+    <div data-testid="picker-coworkers">
+      {coworkers.map((coworker) => coworker.name).join(",")}
+    </div>
+  ),
 }));
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
@@ -24,26 +38,33 @@ vi.mock("@/app/chat/components/room-search-panel", () => ({
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
 }));
-vi.mock("../room-file-drop-zone", () => ({
+vi.mock("@/app/chat/components/room-file-drop-zone", () => ({
   RoomFileDropZone: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
 }));
-vi.mock("../room-session-composer", () => ({
+vi.mock("@/app/chat/components/room-session-composer", () => ({
   RoomSessionComposer: ({ channels }: { channels: { slug: string }[] }) => (
     <div data-testid="composer-channels">
       {channels.map((channel) => channel.slug).join(",")}
     </div>
   ),
 }));
-vi.mock("../room-message-row", () => ({ ChatMessageRow: () => null }));
-vi.mock("../thread-panel", () => ({ ThreadPanel: () => null }));
+vi.mock("@/app/chat/components/room-message-row", () => ({
+  ChatMessageRow: () => null,
+}));
+vi.mock("@/app/chat/components/thread-panel", () => ({
+  ThreadPanel: () => null,
+}));
 
 const OTHER_WORKSPACE = { id: "org-2", name: "Other", slug: "other" };
 const SWITCH_LABEL = "headerVisitSwitch";
 
 describe("a Room visit's header", () => {
-  beforeEach(() => handleSelectWorkspace.mockClear());
+  beforeEach(() => {
+    handleSelectWorkspace.mockClear();
+    switcher.isPending = false;
+  });
 
   it("names the room's workspace", () => {
     renderRoomsClient({ activeOrganization: OTHER_WORKSPACE });
@@ -93,6 +114,22 @@ describe("a Room visit's header", () => {
     expect(handleSelectWorkspace).toHaveBeenCalledWith(null);
   });
 
+  it("shows the switch running, keeps focus on it, and starts no second one", async () => {
+    switcher.isPending = true;
+    const user = userEvent.setup();
+    renderRoomsClient({ activeOrganization: OTHER_WORKSPACE });
+
+    const name = screen.getByRole("button", { name: SWITCH_LABEL });
+    await user.click(name);
+
+    expect(name).toHaveAttribute("aria-busy", "true");
+    expect(name).not.toBeDisabled();
+    expect(
+      name.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeInTheDocument();
+    expect(handleSelectWorkspace).not.toHaveBeenCalled();
+  });
+
   it("names nothing in the reader's own workspace", () => {
     renderRoomsClient({ activeOrganization: organization });
 
@@ -106,6 +143,28 @@ describe("a Room visit's header", () => {
     });
 
     expect(screen.queryByRole("button", { name: SWITCH_LABEL })).toBeNull();
+  });
+});
+
+describe("a Room visit's add-member picker", () => {
+  const coworkers = [{ id: "cow-1", name: "Elena" } as Coworker];
+
+  it("offers no Coworkers, which Core would refuse", async () => {
+    const user = userEvent.setup();
+    renderRoomsClient({ activeOrganization: OTHER_WORKSPACE, coworkers });
+
+    await user.click(screen.getByTestId("room-roster-trigger"));
+
+    expect(screen.getByTestId("picker-coworkers")).toBeEmptyDOMElement();
+  });
+
+  it("offers them in the reader's own workspace", async () => {
+    const user = userEvent.setup();
+    renderRoomsClient({ activeOrganization: organization, coworkers });
+
+    await user.click(screen.getByTestId("room-roster-trigger"));
+
+    expect(screen.getByTestId("picker-coworkers")).toHaveTextContent("Elena");
   });
 });
 

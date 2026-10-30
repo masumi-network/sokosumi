@@ -35,6 +35,11 @@ interface UseChatRefreshSchedulerOptions {
    * gets that from its channel instead.
    */
   refreshOnRecovery?: boolean;
+  /**
+   * Read each time the window returns to the foreground, stale or not. For a
+   * data set another tab or device can change with no event to say so.
+   */
+  refreshOnForeground?: boolean;
 }
 
 /**
@@ -72,6 +77,7 @@ export function useChatRefreshScheduler({
   fallbackIntervalMs,
   refreshOnMount = false,
   refreshOnRecovery = false,
+  refreshOnForeground = false,
 }: UseChatRefreshSchedulerOptions): () => void {
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -176,7 +182,7 @@ export function useChatRefreshScheduler({
       wasForeground = true;
       // Focus and visibility arriving together collapse into this one
       // transition; only recorded staleness turns it into a read.
-      if (!needed) return;
+      if (!needed && !refreshOnForeground) return;
       needed = false;
       void run();
     }
@@ -215,7 +221,7 @@ export function useChatRefreshScheduler({
       requestRef.current = () => {};
       rescheduleRef.current = () => {};
     };
-  }, [key, fallbackIntervalMs, refreshOnMount]);
+  }, [key, fallbackIntervalMs, refreshOnMount, refreshOnForeground]);
 
   // A health flip re-arms the pending timer with the new cadence. A
   // recovery read is only for a drop after this instance has already

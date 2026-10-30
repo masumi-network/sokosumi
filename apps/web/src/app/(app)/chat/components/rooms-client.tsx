@@ -3757,7 +3757,8 @@ function RoomView({
                 currentUserId={currentUserId}
                 isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
                 organizationMembers={organizationMembers}
-                coworkers={coworkers}
+                // shortcut: a Room visit's picker offers no Coworkers because this list is the active workspace's and Core refuses them, read them by room once someone needs to add a Coworker during a visit
+                coworkers={isRoomVisit ? [] : coworkers}
                 sokoBots={sokoBots}
                 membersLoadFailed={membersLoadFailed}
                 readStateFor={readReceipts.readStateFor}

@@ -32,7 +32,10 @@ import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dial
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
-import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
+import {
+  useRoomDisplayName,
+  useRoomWorkspaceName,
+} from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   AlertDialog,
@@ -220,7 +223,7 @@ export function OrganizationChatList({
   const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
-  const tTask = useTranslations("App.Tasks.Detail");
+  const roomWorkspaceName = useRoomWorkspaceName();
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
   const router = useRouter();
@@ -375,13 +378,14 @@ export function OrganizationChatList({
   const activeRoomId = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath)
     : getActiveRoomIdFromPathname(pathname);
-  const { rooms: elsewhereRooms, replaceRoom: replaceElsewhereRoom } =
+  const { rooms: heldElsewhereRooms, replaceRoom: replaceElsewhereRoom } =
     useElsewhereRooms({
       currentUserId,
       organizationId,
       activeRoomId,
-      paintOnly,
+      mayRead: !paintOnly,
     });
+  const elsewhereRooms = paintOnly ? [] : heldElsewhereRooms;
   const { rows: elsewhereRows, overflowCount: elsewhereOverflowCount } =
     selectElsewhereRows(elsewhereRooms, activeRoomId);
   // All unreads (SOK-1159): the rooms a read would still change, newest
@@ -583,11 +587,7 @@ export function OrganizationChatList({
             <ChatRoomSidebarRow
               key={room.id}
               {...roomRowProps(room)}
-              subtitle={
-                room.organizationId === null
-                  ? tTask("personalWorkspace")
-                  : (room.organizationName ?? undefined)
-              }
+              subtitle={roomWorkspaceName(room) ?? undefined}
               onRoomUpdated={replaceElsewhereRoom}
               // The active workspace's role says nothing about this room. The
               // room works out its own once it opens (ADR-0061).

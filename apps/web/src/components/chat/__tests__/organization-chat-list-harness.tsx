@@ -8,13 +8,12 @@ import {
   use,
 } from "react";
 import { vi } from "vitest";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import { clearElsewhereRooms } from "@/components/chat/use-elsewhere-rooms";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
   serializeChatUnreadsFilterCookie,
 } from "@/lib/ui-preferences/chat-unreads-filter";
-
-import { OrganizationChatList } from "../organization-chat-list.client";
-import { clearElsewhereRooms } from "../use-elsewhere-rooms";
 
 /** The route the list reads, so a test can open a room. Reset per test.
  *  Selection is the optimistic highlight, which moves before the route. */
@@ -136,7 +135,7 @@ vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
   };
 });
 
-vi.mock("../chat-room-sidebar-row", () => ({
+vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     subtitle,
@@ -184,8 +183,11 @@ function UnreadsToggleMarker({
   );
 }
 
-vi.mock("../chat-unread-nav-rows", async (importActual) => {
-  const actual = await importActual<typeof import("../chat-unread-nav-rows")>();
+vi.mock("@/components/chat/chat-unread-nav-rows", async (importActual) => {
+  const actual =
+    await importActual<
+      typeof import("@/components/chat/chat-unread-nav-rows")
+    >();
   return {
     ChatUnreadNavRows: (
       props: ComponentProps<typeof actual.ChatUnreadNavRows>,
@@ -216,11 +218,11 @@ vi.mock("../chat-unread-nav-rows", async (importActual) => {
   };
 });
 
-vi.mock("../direct-room-avatar-stack", () => ({
+vi.mock("@/components/chat/direct-room-avatar-stack", () => ({
   DirectRoomAvatarStack: () => null,
 }));
 
-vi.mock("../organization-chat-list.actions", () => ({
+vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: (
     ...args: Parameters<typeof listRoomsMock>
   ) => listRoomsMock(...args),
@@ -229,7 +231,7 @@ vi.mock("../organization-chat-list.actions", () => ({
   ) => reorderPinnedMock(...args),
 }));
 
-vi.mock("../fetch-sidebar-room-collection", () => ({
+vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async (collection: string) => {
     if (collection === "elsewhere") {
       return listElsewhereMock();

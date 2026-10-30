@@ -3,6 +3,7 @@
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRoomWorkspaceName } from "@/app/chat/components/use-room-display-name";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -14,6 +15,7 @@ import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stac
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -144,10 +146,9 @@ function RoomVisitWorkspaceName({
   organizationName,
 }: Pick<ChatRoom, "organizationId" | "organizationName">) {
   const t = useTranslations("App.Channels");
-  const tTask = useTranslations("App.Tasks.Detail");
+  const workspaceName = useRoomWorkspaceName();
   const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
-  const name =
-    organizationId === null ? tTask("personalWorkspace") : organizationName;
+  const name = workspaceName({ organizationId, organizationName });
   if (!name) return null;
   const label = t("headerVisitSwitch", { workspace: name });
 
@@ -155,16 +156,25 @@ function RoomVisitWorkspaceName({
     <>
       <button
         type="button"
-        className="inline cursor-pointer outline-none focus-visible:text-foreground focus-visible:underline [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:underline"
+        // Inset, because the line's own truncation clips an outer ring. A bar
+        // needs a box to sweep inside, so only a running switch leaves `inline`.
+        className={cn(
+          "relative inline cursor-pointer rounded-sm outline-none focus-visible:text-foreground focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:underline",
+          isPending &&
+            "inline-block max-w-full cursor-progress truncate align-bottom",
+        )}
         aria-label={label}
         title={label}
-        disabled={isPending}
+        aria-busy={isPending || undefined}
+        aria-disabled={isPending || undefined}
         onClick={() => {
+          if (isPending) return;
           // The switcher logs a failure; the reader stays on the visit.
           handleSelectWorkspace(organizationId).catch(() => undefined);
         }}
       >
         {name}
+        {isPending ? <ButtonLoadingBar label={label} /> : null}
       </button>
       {" · "}
     </>
