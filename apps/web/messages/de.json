@@ -6170,7 +6170,8 @@
           "label": "Vorschau-Theme",
           "light": "Hell",
           "dark": "Dunkel",
-          "darkNote": "Die Dunkelwerte sind in der Richtlinie noch offen. Diese Vorschau folgt ihrer Rollentabelle."
+          "darkNote": "Die Dunkelwerte sind in der Richtlinie noch offen. Diese Vorschau folgt ihrer Rollentabelle.",
+          "limitsNote": "Dialog- und Toast-Beispiele sind statisch: Portale liegen außerhalb der Tokens dieser Seite. Beurteile die helle Vorschau mit der App im hellen Modus — dark:-Styles folgen jedem .dark-Vorfahren."
         },
         "Color": {
           "title": "Farbe",
@@ -6206,7 +6207,8 @@
           "gradients": "Verläufe",
           "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI.",
           "alpha": "Alpha-Töne",
-          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen."
+          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen.",
+          "alphaStep": "Alpha {step}"
         },
         "Type": {
           "title": "Typografie",
@@ -6220,6 +6222,13 @@
             "label": "Label",
             "caption": "Bildunterschrift",
             "micro": "Mikro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
           }
         },
         "Shape": {

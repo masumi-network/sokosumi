@@ -45,10 +45,13 @@ export const NEUTRALS: Swatch[] = [
   { name: "White", hex: "#FFFFFF", cssVar: "--ds-white" },
 ];
 
-/** Black at reduced opacity, for overlays and scrims only (guide 5.2). */
+/**
+ * Black at reduced opacity, for overlays and scrims only (guide 5.2).
+ * The step number plus opacity percent add up to 100 (Alpha 20 → 80% black).
+ */
 export const ALPHA_TONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95].map(
   (step) => ({
-    name: `Alpha ${step}`,
+    step,
     cssVar: `--ds-alpha-${step}` as const,
     value: `rgb(0 0 0 / ${(100 - step) / 100})`,
   }),
@@ -112,10 +115,10 @@ export const RADII = [
 
 /** Inter weights (guide 5.3). Light is display only, never body. */
 export const WEIGHTS = [
-  { name: "Light", value: 300, className: "font-light" },
-  { name: "Regular", value: 400, className: "font-normal" },
-  { name: "Medium", value: 500, className: "font-medium" },
-  { name: "Semibold", value: 600, className: "font-semibold" },
+  { key: "light", value: 300, className: "font-light" },
+  { key: "regular", value: 400, className: "font-normal" },
+  { key: "medium", value: 500, className: "font-medium" },
+  { key: "semibold", value: 600, className: "font-semibold" },
 ] as const;
 
 /** Product UI type roles (guide 5.3, Proposed). */
