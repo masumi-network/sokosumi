@@ -593,7 +593,7 @@ export function OrganizationChatList({
               // The active workspace's role says nothing about this room. The
               // room works out its own once it opens (ADR-0061).
               canManageSettings={false}
-              pinnable={false}
+              elsewhere
             />
           ))}
           {elsewhereOverflowCount > 0 ? (

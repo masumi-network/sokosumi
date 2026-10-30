@@ -10,10 +10,20 @@ import {
 import { ROOM_COUNT_CAP } from "./room-count-label";
 import { useShowRoomUnreadCount } from "./use-show-room-unread-count";
 
-/** What a room's row draws, by the reader's own preference for the count. */
-export function useRoomRowAttention(room: ChatRoom) {
+/**
+ * What a room's row draws, by the reader's own preference for the count.
+ *
+ * `elsewhere` is the one rule for the two surfaces listing Elsewhere rooms: they
+ * draw no inset Thread rows, so a room whose only unread is a Thread reply says
+ * it with the plain number those rows would have drawn. Thread numbers do not
+ * follow the preference, which is about Room unread, and do not bold (ADR-0037).
+ */
+export function useRoomRowAttention(
+  room: ChatRoom,
+  { elsewhere = false }: { elsewhere?: boolean } = {},
+) {
   const showUnreadCount = useShowRoomUnreadCount();
-  return resolveRoomAttention({
+  const attention = resolveRoomAttention({
     unreadCount: room.unreadCount,
     channelUnreadCount: room.channelUnreadCount,
     unreadMentionCount: room.unreadMentionCount,
@@ -23,6 +33,15 @@ export function useRoomRowAttention(room: ChatRoom) {
     showUnreadCount,
     badgeCountsMentions: roomBadgeCountsMentions(room),
   });
+  const onlyThreadsToCount =
+    elsewhere &&
+    room.mutedAt == null &&
+    attention.mentionCount === 0 &&
+    attention.needsYouCount === 0 &&
+    (room.channelUnreadCount ?? room.unreadCount) === 0;
+  return onlyThreadsToCount
+    ? { ...attention, unreadTextCount: room.threadUnreadCount ?? 0 }
+    : attention;
 }
 
 /**

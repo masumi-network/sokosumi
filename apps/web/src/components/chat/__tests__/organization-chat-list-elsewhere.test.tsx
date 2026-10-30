@@ -62,7 +62,7 @@ function rowProps(id: string) {
   return harnessRowProps.get(id) as {
     room: ChatRoom;
     href: string;
-    pinnable?: boolean;
+    elsewhere?: boolean;
     canManageSettings?: boolean;
     onRoomUpdated: (room: ChatRoom) => void;
   };
@@ -143,7 +143,7 @@ describe("OrganizationChatList Elsewhere rows", () => {
     renderOrganizationChatList();
     await findElsewhereRow("launch");
 
-    expect(rowProps("launch").pinnable).toBe(false);
+    expect(rowProps("launch").elsewhere).toBe(true);
     expect(rowProps("launch").canManageSettings).toBe(false);
   });
 

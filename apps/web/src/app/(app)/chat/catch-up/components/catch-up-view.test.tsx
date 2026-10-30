@@ -8,10 +8,12 @@ import { clearElsewhereRooms } from "@/components/chat/use-elsewhere-rooms";
 
 import { CatchUpView } from "./catch-up-view";
 
-const { listElsewhereMock, summaryActionMock } = vi.hoisted(() => ({
-  listElsewhereMock: vi.fn(),
-  summaryActionMock: vi.fn(),
-}));
+const { listElsewhereMock, showRoomUnreadCountMock, summaryActionMock } =
+  vi.hoisted(() => ({
+    listElsewhereMock: vi.fn(),
+    showRoomUnreadCountMock: vi.fn(),
+    summaryActionMock: vi.fn(),
+  }));
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -39,7 +41,7 @@ vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
 }));
 
 vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => true,
+  useShowRoomUnreadCount: () => showRoomUnreadCountMock(),
 }));
 
 const LIST_LABEL = "App.Channels.UnreadNav.elsewhereLabel";
@@ -123,6 +125,7 @@ beforeEach(() => {
   clearElsewhereRooms();
   listElsewhereMock.mockReset();
   summaryActionMock.mockReset();
+  showRoomUnreadCountMock.mockReturnValue(true);
   listElsewhereMock.mockResolvedValue([]);
   summaryAnswers();
 });
@@ -193,7 +196,8 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     },
   );
 
-  it("bolds a room as its row would, and leaves a Thread-only room unmarked", async () => {
+  it("bolds a room as its row would, and gives a Thread-only room its plain number", async () => {
+    showRoomUnreadCountMock.mockReturnValue(false);
     listElsewhereMock.mockResolvedValue([
       elsewhereRoom("launch"),
       elsewhereRoom("threads", {
@@ -205,12 +209,18 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     ]);
 
     renderCatchUp();
-    await findElsewhereList();
+    const list = await findElsewhereList();
 
     expect(screen.getByText("launch").className).toContain("font-semibold");
     expect(screen.getByText("threads").className).not.toContain(
       "font-semibold",
     );
+    const [launch, threads] = within(list).getAllByRole("link");
+    expect(launch.textContent).toBe("launch");
+    expect(threads.textContent).toContain(
+      "App.Channels.RoomUnread.unreadMessages 2",
+    );
+    expect(threads.querySelector("[aria-hidden]")?.textContent).toBe("2");
   });
 
   it("is absent while nothing is unread elsewhere", async () => {

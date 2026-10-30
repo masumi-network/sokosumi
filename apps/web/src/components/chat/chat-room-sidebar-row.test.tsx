@@ -1604,7 +1604,7 @@ describe("ChatRoomSidebarRow as an Elsewhere row", () => {
         isActive={false}
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
-        pinnable={false}
+        elsewhere
       />,
     );
   }
@@ -1633,6 +1633,64 @@ describe("ChatRoomSidebarRow as an Elsewhere row", () => {
 
     expect(screen.getByRole("menuitem", { name: "Unpin" })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+  });
+
+  describe("for a room whose only unread is a Thread reply", () => {
+    const threadOnly = {
+      unreadCount: 2,
+      channelUnreadCount: 0,
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [
+        {
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+        },
+      ],
+    };
+
+    // The preference is off here: it hides a Room unread, and this is not one.
+    it("draws its plain number and no inset Thread rows", () => {
+      renderElsewhereRow(makeRoom(threadOnly));
+
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]')?.textContent,
+      ).toBe("2");
+      expect(
+        document.querySelector('[data-slot="room-thread-rows"]'),
+      ).toBeNull();
+      expect(screen.queryByText("Vendor-wide rollout")).toBeNull();
+      expect(screen.getByText("general").className).not.toContain(
+        "font-semibold",
+      );
+      expect(
+        screen.getByRole("link", { name: /general/ }).textContent,
+      ).toContain("2 unread messages");
+    });
+
+    it("draws the pill instead where a Thread names the reader", () => {
+      renderElsewhereRow(makeRoom({ ...threadOnly, unreadMentionCount: 1 }));
+
+      expect(
+        document.querySelector('[data-slot="room-mention-badge"]'),
+      ).not.toBeNull();
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]'),
+      ).toBeNull();
+    });
+
+    it("draws no number while the channel holds something too", () => {
+      renderElsewhereRow(
+        makeRoom({ ...threadOnly, unreadCount: 5, channelUnreadCount: 3 }),
+      );
+
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]'),
+      ).toBeNull();
+      expect(screen.getByText("general").className).toContain("font-semibold");
+    });
   });
 
   it("announces the room, its workspace and its mentions in one link", () => {

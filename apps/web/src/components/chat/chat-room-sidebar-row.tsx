@@ -150,11 +150,12 @@ export interface ChatRoomSidebarRowProps {
    */
   canManageSettings?: boolean;
   /**
-   * False leaves Pin out of the menu: an Elsewhere row, where pinning would
-   * seem to do nothing, because Pinned lists the active workspace's rooms.
-   * Unpin stays on a pinned room: Mute waits on it.
+   * An Elsewhere row. Leaves Pin out of the menu, where pinning would seem to
+   * do nothing, because Pinned lists the active workspace's rooms. Unpin stays
+   * on a pinned room: Mute waits on it. Draws what `useRoomRowAttention` says
+   * of an Elsewhere room, with no inset Thread rows.
    */
-  pinnable?: boolean;
+  elsewhere?: boolean;
 }
 
 /**
@@ -249,7 +250,7 @@ export function ChatRoomSidebarRow({
   itemMotion,
   reorderHandle,
   canManageSettings = false,
-  pinnable = true,
+  elsewhere = false,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
@@ -271,7 +272,7 @@ export function ChatRoomSidebarRow({
   const isChannel = room.kind === "channel";
   const canLeave = canLeaveChannel(room);
   const { bold, mentionCount, needsYouCount, unreadTextCount } =
-    useRoomRowAttention(room);
+    useRoomRowAttention(room, { elsewhere });
   // The row's one number, whichever it is, stands in the badge's slot, so
   // the hole that keeps the name clear of it has to be held open for either.
   const hasRowCount =
@@ -542,7 +543,7 @@ export function ChatRoomSidebarRow({
                     <MessageSquare className="size-4" aria-hidden />
                     {tActions("markUnread")}
                   </DropdownMenuItem>
-                  {pinnable || isPinned ? (
+                  {!elsewhere || isPinned ? (
                     <DropdownMenuItem
                       disabled={isPending || isMuted}
                       onSelect={() => {
@@ -620,8 +621,9 @@ export function ChatRoomSidebarRow({
 
       {/* Room mute outranks everything a room can hold, so a muted room lists
           nothing. Reorder mode moves rows, and rows of differing height under
-          the pointer would make that harder to aim. */}
-      {isMuted || reorderHandle ? null : (
+          the pointer would make that harder to aim. An Elsewhere row says it
+          with a number. */}
+      {isMuted || reorderHandle || elsewhere ? null : (
         <ChatRoomThreadRows
           room={room}
           roomLabel={label}

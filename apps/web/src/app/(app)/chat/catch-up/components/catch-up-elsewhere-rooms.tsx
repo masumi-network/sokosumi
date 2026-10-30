@@ -121,7 +121,7 @@ function CatchUpElsewhereRow({
 }: CatchUpElsewhereRowProps) {
   const roomDisplayName = useRoomDisplayName();
   const { bold, mentionCount, needsYouCount, unreadTextCount } =
-    useRoomRowAttention(room);
+    useRoomRowAttention(room, { elsewhere: true });
   return (
     <Link
       href={chatRoomHref(room.id)}
