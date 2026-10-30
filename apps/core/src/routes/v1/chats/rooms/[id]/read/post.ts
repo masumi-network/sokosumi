@@ -15,7 +15,6 @@ import {
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -133,14 +132,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
     // The reader is in the room, so the email about it is no longer needed.
     waitUntil(cancelNotificationEmails(clearedRows));
-    // The reader's other tabs: an Elsewhere row has no poll to drop it by.
-    waitUntil(
-      publishChatRoomsChanged({
-        userIds: [userContext.userId],
-        collections: ["active"],
-        roomId: room.id,
-      }),
-    );
     // Seen by: the room hears about this reader within a moment, so the other
     // side is not left waiting on a poll. Best effort — the publisher swallows
     // its own failures and the next room payload carries the same mark.

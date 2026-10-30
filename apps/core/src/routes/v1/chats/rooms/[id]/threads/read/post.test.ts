@@ -26,7 +26,6 @@ const {
   notificationFindManyMock,
   notificationUpdateManyAndReturnMock,
   publishClearedNotificationsMock,
-  publishChatRoomsChangedMock,
   cancelNotificationEmailsMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
@@ -40,7 +39,6 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyAndReturnMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
-  publishChatRoomsChangedMock: vi.fn(),
   cancelNotificationEmailsMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -62,11 +60,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: prismaTransactionMock,
   },
-}));
-
-vi.mock("@/lib/ably/publish", () => ({
-  publishChatRoomsChanged: (...args: unknown[]) =>
-    publishChatRoomsChangedMock(...args),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -315,22 +308,6 @@ describe("POST /chats/rooms/{id}/threads/read", () => {
     );
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["n-looked"]);
     expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
-  });
-
-  it("tells the reader's other tabs, and only the reader's", async () => {
-    answerThreadReplies([]);
-
-    const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/threads/read`,
-      { method: "POST" },
-    );
-
-    expect(response.status).toBe(200);
-    expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
-      userIds: [USER_ID],
-      collections: ["active"],
-      roomId: ROOM_ID,
-    });
   });
 
   it("returns markedCount 0 when no unread threads exist", async () => {

@@ -9,6 +9,7 @@ import {
 } from "@/helpers/calendar-membership-fence";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
+import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import { resendRoomMessageEmail } from "@/helpers/notification-email-dispatch";
 import {
   notificationPublishFields,
@@ -18,6 +19,7 @@ import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import { createNotification, resolveDelivery } from "@/helpers/notifications";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 export interface FanOutChatNotificationsParams {
@@ -517,6 +519,16 @@ export async function fanOutChatNotifications(
         },
       });
     }
+  }
+
+  // The message's own rooms-changed went out beside this fan-out, so a list read
+  // on it can land before these rows and miss the reader's mention mark.
+  if (CHAT_ROOM_BADGE_MESSAGE_KEYS.includes(params.messageKey)) {
+    await publishChatRoomsChanged({
+      userIds: notifyUserIds,
+      collections: ["active"],
+      roomId: params.roomId,
+    });
   }
 
   if (!messagePreview) {

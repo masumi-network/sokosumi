@@ -397,6 +397,15 @@ describe("GET /chats/rooms/elsewhere", () => {
     expect(await listElsewhere()).toEqual([]);
   });
 
+  // Postgres answers `NOT (discoverability = 'external')` over a null column
+  // with null, not true, and the room would silently never get a row.
+  it("gives a row to a channel with no discoverability", async () => {
+    const channel = roomRow({ discoverability: null });
+    arrange({ rooms: [channel], unread: [{ roomId: channel.id, channel: 1 }] });
+
+    expect((await listElsewhere()).map((row) => row.id)).toEqual([channel.id]);
+  });
+
   it("gives no row to what the active workspace already lists", async () => {
     const own = roomRow({ organizationId: ACTIVE_ORG });
     const external = roomRow({ discoverability: "external" });

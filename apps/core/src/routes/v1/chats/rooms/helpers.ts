@@ -131,7 +131,14 @@ export function elsewhereActiveRoomWhere(
       organizationId
         ? { OR: [{ organizationId: null }, { NOT: { organizationId } }] }
         : { NOT: { organizationId: null, kind: "direct" as const } },
-      { NOT: { OR: ROOMS_SHOWN_EVERYWHERE } },
+      // The same trap: a channel's `discoverability` is nullable, and a NULL one
+      // would answer the `NOT` below with NULL and lose the room.
+      {
+        OR: [
+          { kind: "channel" as const, discoverability: null },
+          { NOT: { OR: ROOMS_SHOWN_EVERYWHERE } },
+        ],
+      },
     ],
   };
 }

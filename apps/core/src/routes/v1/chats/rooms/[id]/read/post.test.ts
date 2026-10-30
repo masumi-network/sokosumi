@@ -25,7 +25,6 @@ const {
   notificationFindManyMock,
   messageFindManyMock,
   publishClearedNotificationsMock,
-  publishChatRoomsChangedMock,
   publishChatRoomReadRealtimeMock,
   cancelNotificationEmailsMock,
   membershipFindManyMock,
@@ -44,7 +43,6 @@ const {
   notificationFindManyMock: vi.fn(),
   messageFindManyMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
-  publishChatRoomsChangedMock: vi.fn(),
   publishChatRoomReadRealtimeMock: vi.fn(),
   cancelNotificationEmailsMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -64,11 +62,6 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomReadState: { findMany: readStateFindManyMock },
     chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
-}));
-
-vi.mock("@/lib/ably/publish", () => ({
-  publishChatRoomsChanged: (...args: unknown[]) =>
-    publishChatRoomsChangedMock(...args),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -229,20 +222,6 @@ beforeEach(() => {
 });
 
 describe("POST /chats/rooms/{id}/read", () => {
-  it("tells the reader's other tabs, and only the reader's", async () => {
-    const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/read`,
-      { method: "POST" },
-    );
-
-    expect(response.status).toBe(200);
-    expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
-      userIds: [USER_ID],
-      collections: ["active"],
-      roomId: ROOM_ID,
-    });
-  });
-
   it("upserts lastReadAt, clears markedUnreadAt, and marks unread CHAT notifications for the room", async () => {
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,
