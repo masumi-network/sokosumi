@@ -382,17 +382,25 @@ describe("ProjectScopeMenu", () => {
     ).toBeNull();
   });
 
-  it("keeps the pin on the trailing edge, with no hidden check beside it", async () => {
+  it("shows one trailing icon per row, with no hidden check", async () => {
+    setup({ selectedProjectId: "active-1" });
+
+    const pinned = await screen.findByTestId("project-scope-item-pinned-1");
+    expect(pinned.querySelectorAll("svg")).toHaveLength(1);
+    expect(pinned.querySelector(".lucide-pin")).not.toBeNull();
+
+    const current = screen.getByTestId("project-scope-item-active-1");
+    expect(current.querySelectorAll("svg")).toHaveLength(1);
+    expect(current.querySelector(".lucide-check")).not.toBeNull();
+  });
+
+  it("shows only the check on a pinned current row, and still says pinned", async () => {
     setup({ selectedProjectId: "pinned-1" });
 
-    const current = await screen.findByTestId("project-scope-item-pinned-1");
-    expect(current.querySelector("svg:last-of-type")).toHaveClass("lucide-pin");
-    expect(current.querySelector(".lucide-check")).not.toBeNull();
-    expect(
-      screen
-        .getByTestId("project-scope-item-active-1")
-        .querySelector(".lucide-check"),
-    ).toBeNull();
+    const row = await screen.findByTestId("project-scope-item-pinned-1");
+    expect(row.querySelectorAll("svg")).toHaveLength(1);
+    expect(row.querySelector(".lucide-check")).not.toBeNull();
+    expect(isPinnedRow("pinned-1")).toBe(true);
   });
 
   it("marks no row current in the workspace view", async () => {

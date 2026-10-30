@@ -92,16 +92,16 @@ export function ProjectScopeMenu({
         <span className="min-w-0 flex-1 break-words leading-normal">
           {project.name}
         </span>
-        {project.id === selectedProjectId ? <CurrentMark /> : null}
-        {pinned ? (
-          <>
-            <Pin
-              className="text-muted-foreground size-3.5 shrink-0"
-              aria-hidden
-            />
-            <span className="sr-only">{t("pinned")}</span>
-          </>
+        {/* One trailing icon per row, so neither mark moves off the edge. */}
+        {project.id === selectedProjectId ? (
+          <CurrentMark />
+        ) : pinned ? (
+          <Pin
+            className="text-muted-foreground size-3.5 shrink-0"
+            aria-hidden
+          />
         ) : null}
+        {pinned ? <span className="sr-only">{t("pinned")}</span> : null}
       </CommandItem>
     );
   }
