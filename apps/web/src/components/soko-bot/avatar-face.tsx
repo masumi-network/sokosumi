@@ -11,6 +11,8 @@ interface AvatarFaceProps {
   /** The state's loop, played while `playing`. */
   loopSrc?: string | null;
   playing?: boolean;
+  /** Repeat while `playing`, instead of once. */
+  loop?: boolean;
   onEnded?: () => void;
 }
 
@@ -26,6 +28,7 @@ export function AvatarFace({
   className,
   loopSrc = null,
   playing = false,
+  loop = false,
   onEnded,
 }: AvatarFaceProps) {
   const media = (mediaClass: string) => (
@@ -33,6 +36,7 @@ export function AvatarFace({
       poster={src}
       src={loopSrc}
       playing={playing}
+      loop={loop}
       onEnded={onEnded}
       alt={alt}
       className={mediaClass}

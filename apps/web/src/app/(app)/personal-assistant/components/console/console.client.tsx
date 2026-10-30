@@ -41,7 +41,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
-import { isCraftedAvatar } from "@/lib/soko-bot/avatar";
+import { avatarSources } from "@/lib/soko-bot/avatar";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import {
   sokoBotAvatarStudioRoute,
@@ -257,6 +257,12 @@ export function SokoBotConsole({
     });
   }
 
+  const stateSources = avatarSources(
+    bot.avatar,
+    bot.avatarState,
+    bot.avatarImageUrl,
+  );
+
   return (
     <SokoBotTargetContext.Provider value={botId}>
       <AssistantSeedContext.Provider value={seed}>
@@ -265,8 +271,10 @@ export function SokoBotConsole({
             bot.avatarImageUrl
               ? {
                   url: bot.avatarImageUrl,
-                  crafted: isCraftedAvatar(bot.avatar),
+                  crafted: stateSources.crafted,
                   alt: stateAlt(botName, bot.avatarState),
+                  stateStill: stateSources.still ?? bot.avatarImageUrl,
+                  stateLoop: stateSources.loop,
                 }
               : null
           }

@@ -16,6 +16,9 @@ interface AssistantImage {
   crafted: boolean;
   /** Names the bot and its current state. */
   alt: string;
+  /** The current state's still and loop, for the row of a running turn. */
+  stateStill: string;
+  stateLoop: string | null;
 }
 
 /** The bot's picture; when set it replaces the orb everywhere. */

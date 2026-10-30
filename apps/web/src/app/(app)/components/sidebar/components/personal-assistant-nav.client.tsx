@@ -57,6 +57,8 @@ import {
   SidebarFeatureLabel,
 } from "./sidebar-feature-label";
 
+import { useLiveSokoBot } from "./use-live-soko-bot";
+
 /**
  * Soko Bots entry at the top of the sidebar: the team chart of everyone's
  * assistants, and where a person creates their own. Set apart from the rest
@@ -149,7 +151,8 @@ function StaticSokoBotsRow() {
  * Face with a status dot, the bot's name, and what it is doing. Opens your
  * bot; the people icon at the end opens the team's Soko Bots.
  */
-function LiveSokoBotRow({ bot }: { bot: SidebarSokoBotLive }) {
+function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
+  const bot = useLiveSokoBot(rendered);
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const pathname = usePathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);

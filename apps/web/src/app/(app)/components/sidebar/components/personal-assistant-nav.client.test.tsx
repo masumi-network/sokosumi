@@ -509,3 +509,147 @@ describe("PersonalAssistantNav crafted avatar", () => {
     });
   });
 });
+
+describe("PersonalAssistantNav live status", () => {
+  const activity = (
+    avatarState: string,
+    status: string = SokoBotStatus.RUNNING,
+  ) =>
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ activity: { status, avatarState } }),
+    }));
+
+  function setVisibility(state: "visible" | "hidden") {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: state,
+    });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setVisibility("visible");
+    pathnameRef.current = "/";
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    setVisibility("visible");
+  });
+
+  const flush = (ms = 0) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  it("picks up the bot's state as soon as it is on screen, then keeps asking", async () => {
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav({ bot });
+
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/personal-assistant/activity",
+      expect.objectContaining({ cache: "no-store" }),
+    );
+    expect(screen.getByText("label.working")).toBeInTheDocument();
+
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({
+        activity: { status: SokoBotStatus.IDLE, avatarState: "done" },
+      }),
+    }));
+    await flush(5_000);
+    expect(screen.getByText("label.done")).toBeInTheDocument();
+  });
+
+  it("plays the new state once when it changes", async () => {
+    vi.stubGlobal("fetch", activity("working"));
+    renderNav({
+      bot: {
+        ...bot,
+        avatar: {
+          styleId: "crafted-desk",
+          styleVersion: 1,
+          stillUrl: "https://blob/idle.png",
+          states: {
+            idle: null,
+            thinking: null,
+            working: {
+              stillUrl: "https://blob/working.png",
+              loopUrl: "https://blob/working-480.mp4",
+              loopLargeUrl: "https://blob/working-960.mp4",
+            },
+            done: null,
+            needs_you: null,
+            offline: null,
+          },
+        },
+      },
+    });
+    expect(document.querySelector("video")).toBeNull();
+
+    await flush();
+
+    expect(document.querySelector("video")).toHaveAttribute(
+      "src",
+      "https://blob/working-480.mp4",
+    );
+  });
+
+  it("does not ask while the tab is hidden, and asks on coming back", async () => {
+    setVisibility("hidden");
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav({ bot });
+
+    await flush(20_000);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("stays on what it knows when an answer is bad or the request fails", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ activity: { avatarState: "dancing" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav({ bot: { ...bot, avatarState: "working" } });
+
+    await flush();
+    expect(screen.getByText("label.working")).toBeInTheDocument();
+
+    fetchMock.mockRejectedValue(new Error("offline"));
+    await flush(5_000);
+    expect(screen.getByText("label.working")).toBeInTheDocument();
+  });
+
+  it("stops asking when it goes away", async () => {
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    const { unmount } = renderNav({ bot });
+    await flush();
+    fetchMock.mockClear();
+
+    unmount();
+    await flush(20_000);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not ask without a bot", async () => {
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav();
+
+    await flush(5_000);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

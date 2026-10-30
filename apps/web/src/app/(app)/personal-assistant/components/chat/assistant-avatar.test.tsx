@@ -13,6 +13,8 @@ describe("AssistantAvatar", () => {
           url: "https://blob/idle.png",
           crafted: true,
           alt: "Ops, Done",
+          stateStill: "https://blob/idle.png",
+          stateLoop: null,
         }}
       >
         <AssistantAvatar />
@@ -26,7 +28,13 @@ describe("AssistantAvatar", () => {
   it("leaves a mascot uncropped", () => {
     render(
       <AssistantImageContext.Provider
-        value={{ url: "https://blob/m.png", crafted: false, alt: "Ops, Idle" }}
+        value={{
+          url: "https://blob/m.png",
+          crafted: false,
+          alt: "Ops, Idle",
+          stateStill: "https://blob/m.png",
+          stateLoop: null,
+        }}
       >
         <AssistantAvatar />
       </AssistantImageContext.Provider>,
