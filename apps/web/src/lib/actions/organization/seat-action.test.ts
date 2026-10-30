@@ -75,6 +75,29 @@ describe("assignOrganizationSeat", () => {
     });
   });
 
+  it("keeps the kind so the UI can link to billing when seats run out", async () => {
+    assignSeatMock.mockRejectedValue(
+      new APIError("BAD_REQUEST", {
+        kind: "seat_capacity_exceeded",
+        message: "No unused seats available.",
+      }),
+    );
+
+    const { assignOrganizationSeat } = await import("./seat-action");
+    const result = await assignOrganizationSeat({
+      session,
+      memberId: "member-1",
+      organizationId: "org-1",
+    });
+
+    expect(result).toMatchObject({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        kind: "seat_capacity_exceeded",
+      },
+    });
+  });
+
   it("maps a FORBIDDEN to UNAUTHORIZED", async () => {
     assignSeatMock.mockRejectedValue(
       new APIError("FORBIDDEN", { message: "Not an owner or admin" }),

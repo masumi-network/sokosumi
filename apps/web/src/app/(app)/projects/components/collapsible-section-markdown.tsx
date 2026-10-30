@@ -50,7 +50,7 @@ export function CollapsibleSectionMarkdown({
           type="button"
           aria-expanded={expanded}
           aria-controls={id}
-          className="text-muted-foreground hover:text-foreground press rounded-sm text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring"
+          className="text-muted-foreground hover:text-foreground press rounded-sm text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring"
           onClick={() => setExpanded((current) => !current)}
         >
           {expanded ? showLessLabel : showMoreLabel}

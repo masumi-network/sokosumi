@@ -1,4 +1,5 @@
 import { MemberRole } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Ellipsis } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -73,7 +74,17 @@ export default function MemberActionsDropdown({
       });
       if (!result.ok) {
         cancelSeatAssign(member.id);
-        toast.error(result.error.message ?? t("Modal.Error.assignSeat"));
+        toast.error(
+          result.error.message ?? t("Modal.Error.assignSeat"),
+          result.error.kind === CORE_API_ERROR_KINDS.SEAT_CAPACITY_EXCEEDED
+            ? {
+                action: {
+                  label: t("Modal.Error.manageSeats"),
+                  onClick: () => router.push("/billing"),
+                },
+              }
+            : undefined,
+        );
         return;
       }
 

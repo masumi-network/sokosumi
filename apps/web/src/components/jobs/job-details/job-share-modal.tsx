@@ -184,7 +184,7 @@ export default function JobShareModal({
             <div className="divide-y rounded-md border">
               <div
                 className={cn(
-                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-[background-color,opacity,transform]",
+                  "press hover:bg-accent flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-[background-color,opacity,transform]",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -199,12 +199,12 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {jobShare && jobShare.token !== null && (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 )}
               </div>
               <div
                 className={cn(
-                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-[background-color,opacity,transform]",
+                  "press hover:bg-accent flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-[background-color,opacity,transform]",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -219,7 +219,7 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {(!jobShare || jobShare.token === null) && (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 )}
               </div>
             </div>

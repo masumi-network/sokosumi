@@ -48,7 +48,7 @@ export function StudioFailedSubmission({
           {request.settings.resolution}
         </p>
         <details>
-          <summary className="focus-visible:ring-ring-halo w-fit cursor-pointer rounded outline-none focus-visible:ring-[3px]">
+          <summary className="focus-visible:ring-ring w-fit cursor-pointer rounded outline-none focus-visible:ring-2">
             {t("viewSavedBrief")}
           </summary>
           <p className="mt-2 whitespace-pre-wrap break-words">

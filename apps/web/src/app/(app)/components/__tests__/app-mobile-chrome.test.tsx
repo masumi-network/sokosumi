@@ -1,5 +1,7 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render as renderInTest, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
@@ -65,6 +67,10 @@ import {
 } from "@/app/chat/components/chat-mobile-tab-registry";
 
 import { AppMobileChrome } from "../app-mobile-chrome.client";
+
+function render(ui: ReactElement) {
+  return renderInTest(ui, { wrapper: TestQueryProvider });
+}
 
 function getTabBarSpacer(container: HTMLElement): Element | null {
   return container.querySelector("[data-mobile-bottom-nav-spacer]");

@@ -148,7 +148,7 @@ export function TaskMetadata({
             icon={
               <StatusMarker
                 spec={statusMarker}
-                tone={getToneStyle(statusMarker.tone).labelOnSurface}
+                tone={getToneStyle(statusMarker.tone).onSurface}
               />
             }
           >
@@ -216,7 +216,7 @@ export function TaskMetadata({
           {project ? (
             <Link
               href={`/projects/${project.id}`}
-              className="hover:text-primary truncate transition-colors"
+              className="hover:text-foreground truncate transition-colors"
             >
               {project.name}
             </Link>

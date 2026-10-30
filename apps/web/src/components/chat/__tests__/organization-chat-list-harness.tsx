@@ -1,4 +1,5 @@
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import {
   type ComponentProps,
@@ -8,12 +9,12 @@ import {
   use,
 } from "react";
 import { vi } from "vitest";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import { ElsewhereRoomsLive } from "@/components/chat/use-elsewhere-rooms";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
   serializeChatUnreadsFilterCookie,
 } from "@/lib/ui-preferences/chat-unreads-filter";
-
-import { OrganizationChatList } from "../organization-chat-list.client";
 
 /** The route the list reads, so a test can open a room. Reset per test.
  *  Selection is the optimistic highlight, which moves before the route. */
@@ -26,23 +27,37 @@ const {
   acceptInvitationMock,
   listRoomsMock,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
+  markAllReadMock,
   reorderPinnedMock,
+  harnessRealCatchUp,
+  harnessRowProps,
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
+  listElsewhereMock: vi.fn(),
   listPendingMock: vi.fn(),
+  markAllReadMock: vi.fn(),
   reorderPinnedMock: vi.fn(),
+  /** On, Catch up and Mark all as read are the real ones, not markers. */
+  harnessRealCatchUp: { current: false },
+  /** What each room row last received, by room id. */
+  harnessRowProps: new Map<string, Record<string, unknown>>(),
 }));
 
 export {
   acceptInvitationMock,
   harnessPathname,
+  harnessRealCatchUp,
+  harnessRowProps,
   harnessSelection,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
   listRoomsMock,
+  markAllReadMock,
   reorderPinnedMock,
 };
 
@@ -85,6 +100,8 @@ vi.mock("@/app/chat/actions", () => ({
   ) => acceptInvitationMock(...args),
   declineChatRoomInvitationAction: vi.fn(),
   deleteRoomAction: vi.fn(),
+  markAllChatUnreadReadAction: (...args: Parameters<typeof markAllReadMock>) =>
+    markAllReadMock(...args),
   restoreRoomAction: vi.fn(),
 }));
 
@@ -119,21 +136,29 @@ vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
   };
 });
 
-vi.mock("../chat-room-sidebar-row", () => ({
+vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
+    subtitle,
     reorderHandle,
     itemProps,
+    ...props
   }: {
+    room: ChatRoom;
     label: string;
+    subtitle?: string;
     reorderHandle?: ReactNode;
     itemProps?: ComponentProps<"li">;
-  }) => (
-    <li {...itemProps} data-testid="room-row">
-      <span>{label}</span>
-      {reorderHandle}
-    </li>
-  ),
+  }) => {
+    harnessRowProps.set(props.room.id, props);
+    return (
+      <li {...itemProps} data-testid="room-row">
+        <span>{label}</span>
+        {subtitle ? <span>{subtitle}</span> : null}
+        {reorderHandle}
+      </li>
+    );
+  },
 }));
 
 // A marker, not the rows: what they count belongs to
@@ -159,35 +184,46 @@ function UnreadsToggleMarker({
   );
 }
 
-vi.mock("../chat-unread-nav-rows", () => ({
-  ChatUnreadNavRows: ({
-    unreadOnly,
-    onUnreadOnlyChange,
-  }: {
-    unreadOnly: boolean;
-    onUnreadOnlyChange?: (unreadOnly: boolean) => void;
-  }) => (
-    <li data-testid="chat-unread-nav-rows">
-      {onUnreadOnlyChange ? (
-        <UnreadsToggleMarker
-          unreadOnly={unreadOnly}
-          onUnreadOnlyChange={onUnreadOnlyChange}
-        />
-      ) : null}
-    </li>
-  ),
-  ChatUnreadsFilterChip: UnreadsToggleMarker,
-  // When it shows past the filter is the row's test's; the list decides only
-  // where it stands.
-  ChatMarkAllReadButton: ({ unreadOnly }: { unreadOnly: boolean }) =>
-    unreadOnly ? <button type="button">Mark all as read</button> : null,
-}));
+vi.mock("@/components/chat/chat-unread-nav-rows", async (importActual) => {
+  const actual =
+    await importActual<
+      typeof import("@/components/chat/chat-unread-nav-rows")
+    >();
+  return {
+    ChatUnreadNavRows: (
+      props: ComponentProps<typeof actual.ChatUnreadNavRows>,
+    ) =>
+      harnessRealCatchUp.current ? (
+        <actual.ChatUnreadNavRows {...props} />
+      ) : (
+        <li data-testid="chat-unread-nav-rows">
+          {props.onUnreadOnlyChange ? (
+            <UnreadsToggleMarker
+              unreadOnly={props.unreadOnly}
+              onUnreadOnlyChange={props.onUnreadOnlyChange}
+            />
+          ) : null}
+        </li>
+      ),
+    ChatUnreadsFilterChip: UnreadsToggleMarker,
+    // When it shows past the filter is the row's test's; the list decides only
+    // where it stands.
+    ChatMarkAllReadButton: (
+      props: ComponentProps<typeof actual.ChatMarkAllReadButton>,
+    ) =>
+      harnessRealCatchUp.current ? (
+        <actual.ChatMarkAllReadButton {...props} />
+      ) : props.unreadOnly ? (
+        <button type="button">Mark all as read</button>
+      ) : null,
+  };
+});
 
-vi.mock("../direct-room-avatar-stack", () => ({
+vi.mock("@/components/chat/direct-room-avatar-stack", () => ({
   DirectRoomAvatarStack: () => null,
 }));
 
-vi.mock("../organization-chat-list.actions", () => ({
+vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: (
     ...args: Parameters<typeof listRoomsMock>
   ) => listRoomsMock(...args),
@@ -196,8 +232,11 @@ vi.mock("../organization-chat-list.actions", () => ({
   ) => reorderPinnedMock(...args),
 }));
 
-vi.mock("../fetch-sidebar-room-collection", () => ({
+vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async (collection: string) => {
+    if (collection === "elsewhere") {
+      return listElsewhereMock();
+    }
     const result =
       collection === "active"
         ? await listRoomsMock()
@@ -334,6 +373,13 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 
 export const emptyRooms: ChatRoom[] = [];
 
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+/** One per test, as the app has one per tab, so a test's rooms stay its own. */
+let harnessQueryClient = makeQueryClient();
+
 export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
   archivedRooms?: ChatRoom[];
@@ -407,11 +453,18 @@ export function resetOrganizationChatListMocks() {
   document.documentElement.removeAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE);
   harnessPathname.current = "/chat";
   harnessSelection.current = null;
+  harnessRealCatchUp.current = false;
+  markAllReadMock.mockReset();
+  markAllReadMock.mockResolvedValue({ ok: true, value: null });
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
   listPendingMock.mockReset();
+  listElsewhereMock.mockReset();
   reorderPinnedMock.mockReset();
+  harnessRowProps.clear();
+  harnessQueryClient = makeQueryClient();
+  listElsewhereMock.mockResolvedValue([]);
   listRoomsMock.mockResolvedValue(emptyListResult());
   listArchivedMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });
@@ -430,17 +483,20 @@ export function createOrganizationChatList({
   withChatsHeading = false,
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
-    <OrganizationChatList
-      rooms={rooms}
-      archivedRooms={archivedRooms}
-      {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
-      currentUserId="user-1"
-      organizationId={organizationId}
-      isOrgOwnerOrAdmin={false}
-      dismissSheetOnNavigate={false}
-      paintOnly={paintOnly}
-      withChatsHeading={withChatsHeading}
-    />
+    <QueryClientProvider client={harnessQueryClient}>
+      <ElsewhereRoomsLive />
+      <OrganizationChatList
+        rooms={rooms}
+        archivedRooms={archivedRooms}
+        {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
+        currentUserId="user-1"
+        organizationId={organizationId}
+        isOrgOwnerOrAdmin={false}
+        dismissSheetOnNavigate={false}
+        paintOnly={paintOnly}
+        withChatsHeading={withChatsHeading}
+      />
+    </QueryClientProvider>
   );
 }
 

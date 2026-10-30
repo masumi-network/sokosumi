@@ -6121,6 +6121,42 @@ export type OrganizationSubscriptionSeats = {
      * Purchased seat count on the active subscription
      */
     seats: number;
+    /**
+     * Null when no reduction is pending
+     */
+    scheduledReduction: {
+        /**
+         * When the reduction takes effect: the next renewal
+         */
+        effectiveAt: Date;
+        /**
+         * Seat count the subscription drops to
+         */
+        seats: number;
+    } | null;
+};
+
+export type OrganizationSubscriptionSeatsPreview = {
+    /**
+     * Charged to the payment method right away, including tax. Zero unless seats are added
+     */
+    amountDue: number;
+    /**
+     * Lowercase ISO currency code
+     */
+    currency: string;
+    /**
+     * When a reduction takes effect: the next renewal. Null when the change applies right away
+     */
+    effectiveAt: Date | null;
+    /**
+     * Next regular invoice at the new seat count, including tax and discounts
+     */
+    newMonthlyAmount: number;
+    /**
+     * The seat count this preview is for
+     */
+    seats: number;
 };
 
 export type UpdateOrganizationSubscriptionSeats = {
@@ -6861,6 +6897,7 @@ export type NewsletterSendingDomain = {
     lastCheckedAt: Date | null;
     failureReason: string | null;
     createdAt: Date;
+    warmup: NewsletterSendingDomainWarmup;
 };
 
 export const NewsletterSendingDomainStatus = {
@@ -6879,6 +6916,15 @@ export type NewsletterDnsRecord = {
     ttl: string;
     priority: number | null;
     status: string;
+};
+
+export type NewsletterSendingDomainWarmup = {
+    startedAt: Date | null;
+    day: number | null;
+    dailyCap: number | null;
+    sentToday: number;
+    pausedAt: Date | null;
+    pauseReason: 'BOUNCE_RATE' | 'COMPLAINT_RATE' | null;
 };
 
 export type PutNewsletterSendingDomainRequest = {
@@ -20039,6 +20085,85 @@ export type GetChatsRoomsDiscoverableResponses = {
 };
 
 export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
+
+export type GetChatsRoomsElsewhereData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/rooms/elsewhere';
+};
+
+export type GetChatsRoomsElsewhereErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsElsewhereError = GetChatsRoomsElsewhereErrors[keyof GetChatsRoomsElsewhereErrors];
+
+export type GetChatsRoomsElsewhereResponses = {
+    /**
+     * Unread rooms of the user's other workspaces
+     */
+    200: {
+        data: Array<ChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsElsewhereResponse = GetChatsRoomsElsewhereResponses[keyof GetChatsRoomsElsewhereResponses];
 
 export type GetChatsRoomsChannelSlugAvailabilityData = {
     body?: never;
@@ -45289,6 +45414,114 @@ export type GetOrganizationsByIdSubscriptionResponses = {
 
 export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
 
+export type GetOrganizationsByIdSubscriptionSeatsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription/seats';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsErrors = {
+    /**
+     * Bad Request - No active subscription
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsError = GetOrganizationsByIdSubscriptionSeatsErrors[keyof GetOrganizationsByIdSubscriptionSeatsErrors];
+
+export type GetOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seats and the pending reduction
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsResponse = GetOrganizationsByIdSubscriptionSeatsResponses[keyof GetOrganizationsByIdSubscriptionSeatsResponses];
+
 export type PutOrganizationsByIdSubscriptionSeatsData = {
     body?: UpdateOrganizationSubscriptionSeats;
     path: {
@@ -45303,7 +45536,135 @@ export type PutOrganizationsByIdSubscriptionSeatsData = {
 
 export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     /**
-     * Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity
+     * Bad Request - No active subscription, invalid seat count, enterprise contract exclusivity, or a reduction while the plan is ending or another change is scheduled
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payment Required - Stripe could not collect the payment; the seat count is unchanged
+     */
+    402: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+
+export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seat count after the update
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query: {
+        /**
+         * Desired purchased seat count
+         */
+        seats: number;
+    };
+    url: '/organizations/{id}/subscription/seats/preview';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewErrors = {
+    /**
+     * Bad Request - No active Stripe subscription, or enterprise contract exclusivity
      */
     400: {
         error: string;
@@ -45363,21 +45724,6 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         };
     };
     /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Internal Server Error
      */
     500: {
@@ -45394,14 +45740,14 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     };
 };
 
-export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+export type GetOrganizationsByIdSubscriptionSeatsPreviewError = GetOrganizationsByIdSubscriptionSeatsPreviewErrors[keyof GetOrganizationsByIdSubscriptionSeatsPreviewErrors];
 
-export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponses = {
     /**
-     * The purchased seat count after the update
+     * What the seat change would cost
      */
     200: {
-        data: OrganizationSubscriptionSeats;
+        data: OrganizationSubscriptionSeatsPreview;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -45410,7 +45756,7 @@ export type PutOrganizationsByIdSubscriptionSeatsResponses = {
     };
 };
 
-export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponse = GetOrganizationsByIdSubscriptionSeatsPreviewResponses[keyof GetOrganizationsByIdSubscriptionSeatsPreviewResponses];
 
 export type PutOrganizationsByIdDesignMdData = {
     body?: DesignMdWrite;
@@ -50847,6 +51193,140 @@ export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponses = {
 };
 
 export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponse = GetProjectsByIdNewsletterSendingDomainDomainConnectResponses[keyof GetProjectsByIdNewsletterSendingDomainDomainConnectResponses];
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/warmup/resume';
+};
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeError = PostProjectsByIdNewsletterSendingDomainWarmupResumeErrors[keyof PostProjectsByIdNewsletterSendingDomainWarmupResumeErrors];
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeResponses = {
+    /**
+     * Sending domain warm-up resumed
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeResponse = PostProjectsByIdNewsletterSendingDomainWarmupResumeResponses[keyof PostProjectsByIdNewsletterSendingDomainWarmupResumeResponses];
 
 export type GetProjectsByIdNewsletterSubscribersData = {
     body?: never;

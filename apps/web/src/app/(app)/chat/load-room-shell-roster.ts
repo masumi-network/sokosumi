@@ -26,7 +26,7 @@ export async function loadRoomShellRoster(
     loadOrganizationMembers(organizationId),
     coworkerService.listCoworkers("chat"),
     sokoBotService.getMine().catch(() => null),
-    getTranslations("App.Chat"),
+    getTranslations("App.Channels"),
   ]);
 
   return {

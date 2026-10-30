@@ -245,7 +245,7 @@ export function IssueActions({
         ) : null}
       </div>
       {error && !dialog ? (
-        <p role="alert" className="text-semantic-destructive-label text-sm">
+        <p role="alert" className="text-foreground text-sm">
           {error}
         </p>
       ) : null}
@@ -289,11 +289,7 @@ export function IssueActions({
               {t("timezone", { timezone })}
             </p>
             {error ? (
-              <p
-                id={errorId}
-                role="alert"
-                className="text-semantic-destructive-label text-sm"
-              >
+              <p id={errorId} role="alert" className="text-foreground text-sm">
                 {error}
               </p>
             ) : null}
@@ -349,7 +345,7 @@ export function IssueActions({
             />
           ) : null}
           {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
+            <p role="alert" className="text-foreground text-sm">
               {error}
             </p>
           ) : null}

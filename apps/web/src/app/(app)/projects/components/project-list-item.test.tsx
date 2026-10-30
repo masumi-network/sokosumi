@@ -129,17 +129,14 @@ describe("ProjectListItem", () => {
     // Two lines of briefing, not one: a card has the height a row did not.
     expect(screen.getByText("Goals")).toHaveClass("line-clamp-2");
     // The card is a --background card inside the --card-background list
-    // card; its hover steps to --card-background-hover, as task rows do. Pinned
-    // exactly: "hover:bg-card-background" is a substring of the correct
-    // class, so a toContain on the shorter name passes either way.
+    // card; its hover fills with --accent, as task rows do. Pinned exactly: the
+    // class list is split, so a longer class that holds this name fails it.
     //
     // The fill lives on the card, not the link: the menu button sits outside
     // the link, so a link-scoped fill would leave its corner unlit while the
     // pointer is over it.
     const row = link.closest("article");
-    expect(row?.className.split(/\s+/)).toContain(
-      "hover:bg-card-background-hover",
-    );
+    expect(row?.className.split(/\s+/)).toContain("hover:bg-accent");
     // The card is bordered, as task rows are. The link rounds too, so the
     // forced-colors outline that `outline-hidden` keeps follows the card's
     // corners; the menu button sits outside the link.

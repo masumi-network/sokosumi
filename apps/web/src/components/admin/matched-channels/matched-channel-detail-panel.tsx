@@ -310,7 +310,7 @@ export function MatchedChannelDetailPanel({
                     </AlertDialogCancel>
                     <AlertDialogAction
                       loading={isDeleting}
-                      className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+                      className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
                       onClick={(event) => {
                         event.preventDefault();
                         void handleDelete();
@@ -348,7 +348,7 @@ export function MatchedChannelDetailPanel({
                   </AlertDialogCancel>
                   <AlertDialogAction
                     loading={isArchiving}
-                    className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+                    className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
                     onClick={(event) => {
                       event.preventDefault();
                       void handleArchive();

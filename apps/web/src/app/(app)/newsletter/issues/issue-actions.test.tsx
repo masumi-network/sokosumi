@@ -129,6 +129,14 @@ describe("newsletter issue actions", () => {
             lastCheckedAt: null,
             failureReason: null,
             createdAt: new Date("2026-10-01T00:00:00Z"),
+            warmup: {
+              startedAt: null,
+              day: null,
+              dailyCap: null,
+              sentToday: 0,
+              pausedAt: null,
+              pauseReason: null,
+            },
           },
         },
       });
