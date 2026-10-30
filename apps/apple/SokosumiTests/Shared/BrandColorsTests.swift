@@ -61,8 +61,12 @@
           for column in bitmap.pixelsWide / 5 ..< bitmap.pixelsWide * 4 / 5 {
             guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
             let channels = [color.redComponent, color.greenComponent, color.blueComponent]
-            if channels.allSatisfy({ $0 < 0.2 }) { darkPixels += 1 }
-            if channels.allSatisfy({ $0 > 0.9 }) { whitePixels += 1 }
+            if channels.allSatisfy({ $0 < 0.2 }) {
+              darkPixels += 1
+            }
+            if channels.allSatisfy({ $0 > 0.9 }) {
+              whitePixels += 1
+            }
           }
         }
         #expect(darkPixels > 20, "The label is dark (\(darkPixels) pixels).")
