@@ -46,6 +46,13 @@ const STATES = Object.values(SokoBotAvatarState);
 /** Original ideas only: a typed change that names a brand or a character is refused. */
 const IDEAS = ["wizard", "coffee", "snow", "sleepy", "beach"] as const;
 const PREVIEW_SIZES = ["size-20", "size-12", "size-8", "size-6"] as const;
+/**
+ * Preview column width in rem. The `@3xl` grid track and the preview `max-w`
+ * must both use this value — the layout contract test locks them together.
+ * Keep the rem literal in those class strings too so the Tailwind scanner sees
+ * complete class names.
+ */
+export const AVATAR_STUDIO_PREVIEW_COLUMN_REM = 35;
 const POLL_ENDPOINT = "/api/personal-assistant/avatar";
 const POLL_MS = 5_000;
 
@@ -340,7 +347,7 @@ export function AvatarStudio({
         : t("statesPlay");
 
   return (
-    <div className="flex w-full flex-col gap-8 py-2">
+    <div className="@container flex w-full flex-col gap-8 py-2">
       <header className="flex flex-col gap-3">
         <Link
           href={consoleHref}
@@ -357,8 +364,8 @@ export function AvatarStudio({
         </p>
       </header>
 
-      <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,35rem)_minmax(0,1fr)] lg:gap-16">
-        <div className="flex min-w-0 flex-col gap-6">
+      <div className="grid w-full gap-8 @3xl:grid-cols-[minmax(0,35rem)_minmax(24rem,1fr)] @5xl:gap-16">
+        <div className="flex w-full max-w-[35rem] min-w-0 flex-col gap-6">
           <div
             aria-busy={isDrafting}
             className="bg-muted relative aspect-square w-full overflow-hidden rounded-2xl"
@@ -533,7 +540,7 @@ export function AvatarStudio({
                 </p>
               </form>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   variant="primary"
@@ -569,7 +576,12 @@ export function AvatarStudio({
           </div>
 
           <div className={HOLDER_CLASS}>
-            <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col gap-4 p-4")}>
+            <div
+              className={cn(
+                HOLDER_ITEM_CLASS,
+                "@container flex flex-col gap-4 p-4",
+              )}
+            >
               <div className="flex items-baseline gap-3">
                 <h2 className="text-sm font-semibold">{t("states")}</h2>
                 <p
@@ -579,7 +591,7 @@ export function AvatarStudio({
                   {statesHint}
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+              <div className="grid grid-cols-3 gap-3 @md:grid-cols-6">
                 {STATES.map((state) => {
                   const still = studio.avatar?.states[state]?.stillUrl ?? null;
                   const selected = !draft && pick.state === state;
