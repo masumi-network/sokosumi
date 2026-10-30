@@ -16,6 +16,7 @@ import {
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription/action";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import { cn } from "@/lib/utils";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -256,7 +257,13 @@ export function OrganizationSubscriptionSection({
             {showEnterprisePostTermUi ? (
               <SubscriptionEnterprisePlanCard isCurrent />
             ) : null}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div
+              className={cn(
+                "grid gap-4 md:grid-cols-2",
+                // Enterprise contracts drop the Enterprise card, leaving 3.
+                isEnterpriseContract ? "2xl:grid-cols-3" : "2xl:grid-cols-4",
+              )}
+            >
               {paidPlans.map((plan) => {
                 const planPresentationProps = getPlanPresentationProps(plan);
 
