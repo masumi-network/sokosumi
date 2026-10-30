@@ -5,7 +5,10 @@ import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
-import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
+import {
+  CHAT_TITLE_MARK_CLASS,
+  ChannelDiscoverabilityIcon,
+} from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
@@ -22,11 +25,26 @@ import { RoomSearchPanel } from "./room-search-panel";
 import { UnreadThreadsPanel } from "./unread-threads-panel";
 
 /**
+ * A 1:1 or self Direct's title is not a button, but keeps the button's box,
+ * so every room's title text starts at one x.
+ */
+const ROOM_TITLE_STATIC_CLASS =
+  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm md:gap-2";
+
+/**
  * The room title as the way into its settings: a Channel's (its members panel
  * for anyone who cannot change them), or a group Direct's name.
  */
-const ROOM_TITLE_BUTTON_CLASS =
-  "text-foreground press [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2";
+const ROOM_TITLE_BUTTON_CLASS = cn(
+  ROOM_TITLE_STATIC_CLASS,
+  "press [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+);
+
+const DIRECT_ICON = (
+  <span className={cn("text-muted-foreground", CHAT_TITLE_MARK_CLASS)}>
+    <MessageCircle />
+  </span>
+);
 
 function RoomParticipantStack({
   room,
@@ -168,6 +186,17 @@ export function RoomHeaderChrome({
   const t = useTranslations("App.Channels");
   const trimmedTopic = room.topic?.trim() ?? "";
   const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
+  // Every room has a second line, so the title sits at one height in all of
+  // them: the Channel's topic, else a plain fact about the room.
+  const subtitle =
+    channelTopic ??
+    (room.isSelfDirect
+      ? t("headerSelfDirect")
+      : isDirectRoom && !room.isGroupDirect
+        ? t("headerDirect")
+        : t("Browse.memberCount", {
+            count: getRoomParticipantPreviews(room).length,
+          }));
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -180,89 +209,76 @@ export function RoomHeaderChrome({
 
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
-        {isDirectRoom ? (
-          <>
+      <div className="flex min-w-0 flex-1 flex-col items-start justify-center overflow-hidden">
+        {isDirectRoom && room.isGroupDirect ? (
+          <NameGroupDialog
+            room={room}
+            open={editOpen}
+            onOpenChange={onEditOpenChange}
+          >
+            <button
+              type="button"
+              className={ROOM_TITLE_BUTTON_CLASS}
+              title={t("GroupName.rename")}
+              data-testid="room-open-title"
+            >
+              {DIRECT_ICON}
+              <span className="min-w-0 truncate">{displayName}</span>
+            </button>
+          </NameGroupDialog>
+        ) : isDirectRoom ? (
+          <div className={ROOM_TITLE_STATIC_CLASS}>
             {room.isSelfDirect ? (
-              <DirectRoomAvatarStack
-                room={room}
-                currentUserId={currentUserId}
-              />
-            ) : room.isGroupDirect ? null : (
-              <MessageCircle className="text-muted-foreground size-4 shrink-0" />
-            )}
-            {room.isGroupDirect ? (
-              <NameGroupDialog
-                room={room}
-                open={editOpen}
-                onOpenChange={onEditOpenChange}
-              >
-                <button
-                  type="button"
-                  className={ROOM_TITLE_BUTTON_CLASS}
-                  title={t("GroupName.rename")}
-                  data-testid="room-open-title"
-                >
-                  <MessageCircle className="text-muted-foreground size-4 shrink-0" />
-                  <span className="min-w-0 truncate">{displayName}</span>
-                </button>
-              </NameGroupDialog>
+              <span className={CHAT_TITLE_MARK_CLASS}>
+                <DirectRoomAvatarStack
+                  room={room}
+                  currentUserId={currentUserId}
+                />
+              </span>
             ) : (
-              <p
-                className="text-foreground min-w-0 truncate text-sm"
-                data-testid="room-open-title"
-              >
-                {displayName}
-              </p>
+              DIRECT_ICON
             )}
-          </>
+            <p className="min-w-0 truncate" data-testid="room-open-title">
+              {displayName}
+            </p>
+          </div>
+        ) : canManageSettings ? (
+          <EditChannelDialog
+            channel={room}
+            open={editOpen}
+            onOpenChange={onEditOpenChange}
+          >
+            <button
+              type="button"
+              className={ROOM_TITLE_BUTTON_CLASS}
+              title={t("editChannel")}
+              data-testid="room-open-title"
+            >
+              {channelTitle}
+            </button>
+          </EditChannelDialog>
         ) : (
-          <>
-            {canManageSettings ? (
-              <EditChannelDialog
-                channel={room}
-                open={editOpen}
-                onOpenChange={onEditOpenChange}
-              >
-                <button
-                  type="button"
-                  className={cn(
-                    ROOM_TITLE_BUTTON_CLASS,
-                    channelTopic && "shrink-0",
-                  )}
-                  title={t("editChannel")}
-                  data-testid="room-open-title"
-                >
-                  {channelTitle}
-                </button>
-              </EditChannelDialog>
-            ) : (
-              <button
-                type="button"
-                className={cn(
-                  ROOM_TITLE_BUTTON_CLASS,
-                  channelTopic && "shrink-0",
-                )}
-                title={t("RoomRoster.open")}
-                aria-expanded={rosterOpen}
-                aria-controls={ROOM_ROSTER_PANEL_ID}
-                data-testid="room-open-title"
-                onClick={onOpenRoster}
-              >
-                {channelTitle}
-              </button>
-            )}
-            {channelTopic ? (
-              <p
-                className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
-                title={channelTopic}
-                data-testid="room-open-topic"
-              >
-                {channelTopic}
-              </p>
-            ) : null}
-          </>
+          <button
+            type="button"
+            className={ROOM_TITLE_BUTTON_CLASS}
+            title={t("RoomRoster.open")}
+            aria-expanded={rosterOpen}
+            aria-controls={ROOM_ROSTER_PANEL_ID}
+            data-testid="room-open-title"
+            onClick={onOpenRoster}
+          >
+            {channelTitle}
+          </button>
         )}
+        <p
+          // Starts under the title text: the title's px-1.5, its mark's box
+          // and the gap after it.
+          className="text-muted-foreground max-w-full truncate ps-10 pe-1.5 text-xs md:ps-8.5"
+          title={subtitle}
+          data-testid="room-open-subtitle"
+        >
+          {subtitle}
+        </p>
       </div>
       {/* The row above clips at its padding edge. The threads badge hangs
           4px past the icon button (border, offset, and ring), and the last
