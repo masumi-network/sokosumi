@@ -258,7 +258,8 @@
             "changeRole": "Rolle konnte nicht geändert werden",
             "remove": "Mitglied konnte nicht entfernt werden",
             "assignSeat": "Seat konnte nicht zugewiesen werden",
-            "unassignSeat": "Seat konnte nicht entfernt werden"
+            "unassignSeat": "Seat konnte nicht entfernt werden",
+            "manageSeats": "Seats verwalten"
           },
           "Errors": {
             "unauthorizedAction": "Anmelden"
@@ -7046,12 +7047,12 @@
           "currentSeatsLabel": "Aktuelle Seats",
           "membersLabel": "Aktive Mitglieder",
           "seatsInputLabel": "Gekaufte Seats",
-          "seatsInputHint": "Das Minimum ist {minimum}, um genutzte bezahlte Seats abzudecken. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
+          "seatsInputHint": "Wähle, wie viele Seats du mit einem bezahlten Plan kaufst. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
-          "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
+          "seatsUpdatedSuccess": "Seats aktualisiert.",
+          "seatsScheduledSuccess": "Seat-Entfernung für die nächste Verlängerung geplant.",
           "currentPlanCta": "Aktueller Plan",
-          "updateSeatsCta": "Seats aktualisieren",
           "choosePlanCta": "Plan auswählen",
           "Errors": {
             "unauthenticated": "Bitte melde dich an, um fortzufahren",
@@ -7059,8 +7060,42 @@
             "unauthorized": "Nur Eigentümer und Admins der Organisation können Abonnements verwalten",
             "badInput": "Bitte gültige Plan- und Seat-Werte angeben",
             "general": "Organisations-Abonnement konnte nicht verwaltet werden",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
-          }
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "Die Zahlung ist fehlgeschlagen, deine Seats wurden nicht geändert. Aktualisiere deine Zahlungsmethode und versuche es erneut.",
+            "paymentFailedAction": "Zahlungsmethode aktualisieren"
+          },
+          "seatsCard": {
+            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Hinzugefügte Seats werden sofort abgerechnet. Entfernte Seats enden bei der Verlängerung.",
+            "scheduledNote": "{count, plural, =1 {# Seat wird} other {# Seats werden}} am {date} entfernt. Ein Planwechsel bricht das ab.",
+            "removeBlocked": "Dein Plan endet am {date}, und alle Seats enden damit. Reaktiviere deinen Plan, um Seats zu entfernen.",
+            "keepCta": "{count, plural, =1 {# Seat behalten} other {# Seats behalten}}",
+            "addIdleCta": "Seats hinzufügen",
+            "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
+            "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
+            "decrease": "Einen Seat entfernen",
+            "increase": "Einen Seat hinzufügen",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
+              "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
+              "keepTitle": "{count, plural, =1 {# Seat behalten?} other {# Seats behalten?}}",
+              "addDescription": "Diese Änderung gilt sofort.",
+              "removeDescription": "Du behältst alle Seats bis zur nächsten Verlängerung, und es wird nichts erstattet.",
+              "keepDescription": "Damit wird die geplante Seat-Entfernung abgebrochen. Deine Rechnung bleibt gleich.",
+              "addCancelsReduction": "Damit wird auch die geplante Seat-Entfernung abgebrochen.",
+              "loading": "Preis wird abgerufen…",
+              "previewError": "Der Preis konnte nicht abgerufen werden, deine Seats können daher noch nicht geändert werden.",
+              "previewRetry": "Erneut versuchen",
+              "dueNow": "Jetzt fällig",
+              "effectiveAt": "Gilt ab",
+              "approximate": "Etwa {amount}",
+              "newMonthly": "Neuer Monatspreis",
+              "newMonthlyHint": "Inklusive Steuern und Rabatten",
+              "seatsLost": "{count, plural, =1 {Bei der Verlängerung verliert das zuletzt beigetretene Mitglied seinen Seat.} other {Bei der Verlängerung verlieren die # zuletzt beigetretenen Mitglieder ihren Seat.}}",
+              "cancellationNote": "Dein Plan endet am {date}, und diese Seats enden damit.",
+              "cancel": "Abbrechen"
+            }
+          },
+          "seatsCheckoutLabel": "Zu kaufende Seats"
         },
         "Seats": {
           "title": "Seat Übersicht",

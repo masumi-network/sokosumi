@@ -262,7 +262,8 @@
             "assignSeat": "Failed to assign seat",
             "changeRole": "Failed to change role",
             "remove": "Failed to remove member",
-            "unassignSeat": "Failed to remove seat"
+            "unassignSeat": "Failed to remove seat",
+            "manageSeats": "Manage seats"
           },
           "Errors": {
             "unauthorizedAction": "Log in"
@@ -7082,12 +7083,12 @@
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover paid seats in use. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
+          "seatsInputHint": "Choose how many seats to buy with a paid plan. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
-          "seatsUpdatedSuccess": "Seats updated successfully.",
+          "seatsUpdatedSuccess": "Seats updated.",
+          "seatsScheduledSuccess": "Seat removal scheduled for your next renewal.",
           "currentPlanCta": "Current plan",
-          "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
           "Errors": {
             "unauthenticated": "Please log in to continue",
@@ -7095,8 +7096,42 @@
             "unauthorized": "Only organization owners and admins can manage subscriptions",
             "badInput": "Please provide valid plan and seat values",
             "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
-            "general": "Failed to manage organization subscription"
-          }
+            "general": "Failed to manage organization subscription",
+            "paymentFailed": "The payment didn't go through, so your seats haven't changed. Update your payment method and try again.",
+            "paymentFailedAction": "Update payment method"
+          },
+          "seatsCard": {
+            "summary": "{assigned} of {purchased, plural, =1 {# seat} other {# seats}} assigned, {unused} unused. Added seats are billed right away. Removed seats end at renewal.",
+            "scheduledNote": "{count, plural, =1 {Removing # seat} other {Removing # seats}} on {date}. Changing plans cancels this.",
+            "removeBlocked": "Your plan ends on {date}, and all seats end with it. Reactivate your plan to remove seats.",
+            "keepCta": "{count, plural, =1 {Keep # seat} other {Keep # seats}}",
+            "addIdleCta": "Add seats",
+            "addCta": "{count, plural, =1 {Add # seat} other {Add # seats}}",
+            "removeCta": "{count, plural, =1 {Remove # seat} other {Remove # seats}}",
+            "decrease": "Remove one seat",
+            "increase": "Add one seat",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {Add # seat?} other {Add # seats?}}",
+              "removeTitle": "{count, plural, =1 {Remove # seat?} other {Remove # seats?}}",
+              "keepTitle": "{count, plural, =1 {Keep # seat?} other {Keep # seats?}}",
+              "addDescription": "This change applies right away.",
+              "removeDescription": "You keep every seat until your next renewal, and nothing is refunded.",
+              "keepDescription": "This cancels the scheduled seat removal. Your bill stays the same.",
+              "addCancelsReduction": "This also cancels the scheduled seat removal.",
+              "loading": "Getting the price…",
+              "previewError": "Unable to get the price, so your seats can't be changed yet.",
+              "previewRetry": "Try again",
+              "dueNow": "Due now",
+              "effectiveAt": "Takes effect",
+              "approximate": "About {amount}",
+              "newMonthly": "New monthly price",
+              "newMonthlyHint": "Including tax and discounts",
+              "seatsLost": "{count, plural, =1 {At renewal, the most recently joined member loses their seat.} other {At renewal, the # most recently joined members lose their seat.}}",
+              "cancellationNote": "Your plan ends on {date}, and these seats end with it.",
+              "cancel": "Cancel"
+            }
+          },
+          "seatsCheckoutLabel": "Seats to purchase"
         },
         "Seats": {
           "title": "Seats overview",

@@ -6121,6 +6121,42 @@ export type OrganizationSubscriptionSeats = {
      * Purchased seat count on the active subscription
      */
     seats: number;
+    /**
+     * Null when no reduction is pending
+     */
+    scheduledReduction: {
+        /**
+         * When the reduction takes effect: the next renewal
+         */
+        effectiveAt: Date;
+        /**
+         * Seat count the subscription drops to
+         */
+        seats: number;
+    } | null;
+};
+
+export type OrganizationSubscriptionSeatsPreview = {
+    /**
+     * Charged to the payment method right away, including tax. Zero unless seats are added
+     */
+    amountDue: number;
+    /**
+     * Lowercase ISO currency code
+     */
+    currency: string;
+    /**
+     * When a reduction takes effect: the next renewal. Null when the change applies right away
+     */
+    effectiveAt: Date | null;
+    /**
+     * Next regular invoice at the new seat count, including tax and discounts
+     */
+    newMonthlyAmount: number;
+    /**
+     * The seat count this preview is for
+     */
+    seats: number;
 };
 
 export type UpdateOrganizationSubscriptionSeats = {
@@ -45289,6 +45325,114 @@ export type GetOrganizationsByIdSubscriptionResponses = {
 
 export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
 
+export type GetOrganizationsByIdSubscriptionSeatsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription/seats';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsErrors = {
+    /**
+     * Bad Request - No active subscription
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsError = GetOrganizationsByIdSubscriptionSeatsErrors[keyof GetOrganizationsByIdSubscriptionSeatsErrors];
+
+export type GetOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seats and the pending reduction
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsResponse = GetOrganizationsByIdSubscriptionSeatsResponses[keyof GetOrganizationsByIdSubscriptionSeatsResponses];
+
 export type PutOrganizationsByIdSubscriptionSeatsData = {
     body?: UpdateOrganizationSubscriptionSeats;
     path: {
@@ -45303,7 +45447,135 @@ export type PutOrganizationsByIdSubscriptionSeatsData = {
 
 export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     /**
-     * Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity
+     * Bad Request - No active subscription, invalid seat count, enterprise contract exclusivity, or a reduction while the plan is ending or another change is scheduled
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payment Required - Stripe could not collect the payment; the seat count is unchanged
+     */
+    402: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+
+export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seat count after the update
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query: {
+        /**
+         * Desired purchased seat count
+         */
+        seats: number;
+    };
+    url: '/organizations/{id}/subscription/seats/preview';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewErrors = {
+    /**
+     * Bad Request - No active Stripe subscription, or enterprise contract exclusivity
      */
     400: {
         error: string;
@@ -45363,21 +45635,6 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         };
     };
     /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Internal Server Error
      */
     500: {
@@ -45394,14 +45651,14 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     };
 };
 
-export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+export type GetOrganizationsByIdSubscriptionSeatsPreviewError = GetOrganizationsByIdSubscriptionSeatsPreviewErrors[keyof GetOrganizationsByIdSubscriptionSeatsPreviewErrors];
 
-export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponses = {
     /**
-     * The purchased seat count after the update
+     * What the seat change would cost
      */
     200: {
-        data: OrganizationSubscriptionSeats;
+        data: OrganizationSubscriptionSeatsPreview;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -45410,7 +45667,7 @@ export type PutOrganizationsByIdSubscriptionSeatsResponses = {
     };
 };
 
-export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponse = GetOrganizationsByIdSubscriptionSeatsPreviewResponses[keyof GetOrganizationsByIdSubscriptionSeatsPreviewResponses];
 
 export type PutOrganizationsByIdDesignMdData = {
     body?: DesignMdWrite;

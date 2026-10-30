@@ -3,6 +3,7 @@ import {
   buildUserInvoiceCreditReferenceId,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserByStripeCustomerIdMock = vi.fn();
@@ -243,6 +244,7 @@ function expectPermanentUnknownCapture(params: {
 
 function createInvoice(params: {
   amountPaid?: number;
+  total?: number;
   billingReason:
     | "manual"
     | "subscription_create"
@@ -261,6 +263,7 @@ function createInvoice(params: {
 }) {
   return {
     amount_paid: params.amountPaid ?? 1000,
+    total: params.total ?? params.amountPaid ?? 1000,
     billing_reason: params.billingReason,
     created: params.created ?? DEFAULT_INVOICE_CREATED_UNIX,
     customer: "cus_1",
@@ -662,6 +665,57 @@ describe("handleInvoicePaidEvent", () => {
       { userId: "user-1", organizationId: null },
       { invoiceId: "in_sub_update", topUpCredits: 0, creditsGranted: false },
     );
+  });
+
+  it("grants credits for seats the customer balance paid for in full", async () => {
+    mockSubscriptionCatalog();
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    // Sandbox invoice for 1 -> 4 seats: 86.02 total, all from the balance.
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        total: 8602,
+        billingReason: "subscription_update",
+        id: "in_balance_paid",
+        lines: [
+          { amount: -2410, productId: "prod_starter", quantity: 1 },
+          { amount: 9639, productId: "prod_starter", quantity: 4 },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const createCall = createTransactionMock.mock
+      .calls[0][0] as CreatedTransactionCall;
+    // 7229 / 2500 of a seat at this catalog's 1750 credits per seat.
+    expect(createCall.data.amount).toBe(convertCreditsToCents(5060));
+  });
+
+  it("grants nothing for a reduction invoice that adds to the balance", async () => {
+    mockSubscriptionCatalog();
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        total: -11516,
+        billingReason: "subscription_update",
+        id: "in_reduction",
+        lines: [
+          { amount: -12097, productId: "prod_starter", quantity: 5 },
+          { amount: 2419, productId: "prod_starter", quantity: 1 },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
   it("does not grant subscription credits for legacy Stripe free product lines on personal subscription_update", async () => {
