@@ -5240,6 +5240,17 @@ Mirrors web [#6636](https://github.com/masumi-network/sokosumi/pull/6636) (open 
 
 From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1338 tests) passed. After the re-check the workspace scheme ran 2138 tests (3046 runs): 2137 passed, and `RoomOlderPageTests.anOlderPageWaitsForTheScrollToRest` failed in the full run only (text-only rows that never overflow; the first cut's full run failed it and `anOlderPageKeepsTheReadingPosition` the same way) and passed 3 of 3 alone (`-test-iterations 3`). SwiftFormat and strict SwiftLint clean. Recorded screenshots: `message-body-photo-alone.png` and `message-body-photo-caption.png` show the whole photo and no control; `message-body-photo-two-paragraphs.png` shows both paragraphs, the photo fading out above its bottom and Show more; `message-body-table-collapsed.png` and `message-body-code-collapsed.png` show the first rows fading into Show more; `message-body-image-collapsed.png` shows sixteen lines and Show more. Unverified: the running app against a real Core, and the image's focus ring under the clamp.
 
+## "New" moves to the end of the Unread divider (04b follow-up), 2026-10-30
+
+`——— Today New ———` read as one phrase. User decision: "New" sits at the line's trailing end and a day pill stays centered on the line, on web and here in the same PR; not a `/apple-parity-next` row. Draft [#6734](https://github.com/masumi-network/sokosumi/pull/6734), branch `claude/yesterday-new-looks-8e2459`, started on `origin/main` `5670e429b`.
+
+### Behaviour
+
+- `UnreadDividerRow` draws `——— Today ——— New`, and `———————— New` when no day changes at the message. The hairline and "New" share a stack as wide as the leading hairline, so "New" does not push the pill off center. The VoiceOver separator is unchanged.
+
+### Verification
+
+From `apps/apple`: `-only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests` passed; SwiftFormat and strict SwiftLint clean on the changed file. A throwaway window test rendered the three states at 669 pt and 320 pt, and light and dark at 669 pt: the gap around the pill centers at 668.5 of 1338 and 319.5 of 640 backing pixels, and the room capture (`unread-divider.png`) shows the row in the transcript. The full workspace scheme did not run. Web's `unread-divider.test.tsx` pins the order and failed on the old layout; no Mac test pins it, as `apps/apple/AGENTS.md` keeps SwiftUI layout out of the required suite. Unverified: the running app against a real Core.
 ## Masumi Family colours (SOKD-121 follow-up), 2026-10-30
 
 Moves the app's interior off the old blue, to match web's Masumi Family stack ([#6681](https://github.com/masumi-network/sokosumi/pull/6681), `apps/web/DESIGN.md`) and the Iris app icon. Audited web on `sokd-121-4-no-blur` at `3df4b6d0f`.
