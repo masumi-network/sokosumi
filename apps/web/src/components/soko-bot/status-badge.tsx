@@ -11,36 +11,17 @@ export type StatusTone =
   | "accent";
 
 /**
- * Fills are the -quaternary step, not -quinary. The quinary steps sit at 93
- * to 95 percent lightness, where no hue has room to separate from any other:
- * all 15 pairs measured under OKLab dE 6.0 and the worst under 1.0. At
- * -quaternary that falls to 1 pair of 15, and the one that stays close is
- * neutral against accent, which never competed as a category.
- *
- * `working` reads the --status-working ramp, the same one the task status
- * badge paints. It used to have its own --semantic-info ramp, but every
- * consumer of that meant "in flight right now" rather than "here is
- * information", so the two were one role under two names.
+ * The chip is neutral for every tone and colour lives on the dot alone (the
+ * Masumi Family guide, 5.2): the green, yellow and Iris marks measure 2.00,
+ * 1.44 and 2.67:1 on white, so the word carries the status and is plain text.
+ * `working` paints --status-working, the colour the task status badge uses.
  */
-const SURFACE_CLASSES: Record<StatusTone, string> = {
-  neutral: "border-border bg-muted",
-  working: "border-status-working-tertiary bg-status-working-quaternary",
-  success: "border-semantic-success-tertiary bg-semantic-success-quaternary",
-  warning: "border-semantic-warning-tertiary bg-semantic-warning-quaternary",
-  danger:
-    "border-semantic-destructive-tertiary bg-semantic-destructive-quaternary",
-  accent: "border-primary-tertiary bg-primary-quaternary",
-};
+const SURFACE_CLASS = "border-border bg-muted";
 
 /** A tone's text, for a status said in words outside a badge too. */
-export const STATUS_TONE_TEXT_CLASS: Record<StatusTone, string> = {
-  neutral: "text-muted-foreground",
-  working: "text-status-working-label",
-  success: "text-semantic-success",
-  warning: "text-semantic-warning",
-  danger: "text-semantic-destructive-label",
-  accent: "text-foreground",
-};
+export function statusToneTextClass(tone: StatusTone): string {
+  return tone === "neutral" ? "text-muted-foreground" : "text-foreground";
+}
 
 /** A tone's dot, for a status drawn as a dot outside a badge too. */
 export const STATUS_TONE_DOT_CLASS: Record<StatusTone, string> = {
@@ -61,7 +42,7 @@ interface StatusBadgeProps {
 }
 
 /**
- * Compact, bordered status pill on the semantic palette. Server-safe.
+ * Compact, bordered status pill; colour lives on the dot. Server-safe.
  */
 export function StatusBadge({
   tone,
@@ -73,8 +54,8 @@ export function StatusBadge({
     <span
       className={cn(
         "inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded border px-1.5 text-xs font-medium leading-none",
-        SURFACE_CLASSES[tone],
-        STATUS_TONE_TEXT_CLASS[tone],
+        SURFACE_CLASS,
+        statusToneTextClass(tone),
         className,
       )}
     >

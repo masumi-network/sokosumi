@@ -78,7 +78,7 @@ export function MergeContactsDialog({
                 className={cn(
                   "has-focus-visible:ring-ring flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors has-focus-visible:ring-2",
                   winnerId === contact.id
-                    ? "border-primary-tertiary bg-primary-quinary"
+                    ? "border-border bg-muted"
                     : "hover:bg-quinary",
                 )}
               >
@@ -120,7 +120,7 @@ export function MergeContactsDialog({
             ))}
           </fieldset>
           {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
+            <p role="alert" className="text-foreground text-sm">
               {error}
             </p>
           ) : null}

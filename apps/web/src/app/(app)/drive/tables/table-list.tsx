@@ -102,7 +102,7 @@ export function TableList({
               <div
                 className={cn(
                   driveItemIconWellClass("list"),
-                  "bg-primary-quinary rounded-lg",
+                  "bg-muted rounded-lg",
                 )}
               >
                 <Users aria-hidden className="text-foreground size-5" />

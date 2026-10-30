@@ -9,11 +9,11 @@ function mark() {
 describe("ThreadIconCircle", () => {
   it("tints the circle for an attention mark and leaves a read one bare", () => {
     const { rerender } = render(<ThreadIconCircle tone="attention" />);
-    expect(mark().className).toContain("bg-primary-quaternary");
+    expect(mark().className).toContain("bg-quinary");
     expect(mark().className).toContain("text-foreground");
 
     rerender(<ThreadIconCircle tone="read" />);
-    expect(mark().className).not.toContain("bg-primary-quaternary");
+    expect(mark().className).not.toContain("bg-quinary");
     expect(mark().className).toContain("text-muted-foreground");
   });
 

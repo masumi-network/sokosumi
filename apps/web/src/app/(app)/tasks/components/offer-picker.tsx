@@ -27,7 +27,7 @@ interface OfferPickerProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 // Mirrors OfferCard's outer shell so "Start from scratch" is the exact same size.
 const CARD_SHELL =
   "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-[border-color,transform] duration-200 hover:border-foreground hover:shadow-sm press";
@@ -57,7 +57,7 @@ export function OfferPicker({
           className={cn(CARD_SHELL, FOCUS_RING)}
         >
           <div className="bg-card-background relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b">
-            <span className="bg-surface-glass text-muted-foreground group-hover:text-foreground flex size-10 items-center justify-center rounded-full shadow-sm transition-colors">
+            <span className="bg-popover text-muted-foreground group-hover:text-foreground flex size-10 items-center justify-center rounded-full border shadow-sm transition-colors">
               <PenLine className="size-5" />
             </span>
           </div>
@@ -88,7 +88,7 @@ export function OfferPicker({
               title={labels.previewExample}
               onClick={() => onPreviewOffer(offer)}
               className={cn(
-                "bg-surface-glass text-muted-foreground press hover:text-foreground hit-area absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
+                "bg-popover text-muted-foreground press hover:text-foreground hit-area absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full border shadow-sm transition-colors",
                 FOCUS_RING,
               )}
             >

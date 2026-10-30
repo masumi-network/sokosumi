@@ -199,7 +199,7 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {jobShare && jobShare.token !== null && (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 )}
               </div>
               <div
@@ -219,7 +219,7 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {(!jobShare || jobShare.token === null) && (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 )}
               </div>
             </div>

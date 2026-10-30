@@ -129,7 +129,7 @@ interface CategoryColor {
   ring: string;
 }
 const NEUTRAL_COLOR: CategoryColor = {
-  chip: "bg-surface-glass",
+  chip: "bg-popover",
   accent: "bg-tertiary",
   ring: "border-input",
 };
@@ -312,7 +312,7 @@ function OfferMock({
       <div className="flex h-full items-center justify-center">
         <div className="ring-border bg-quinary relative h-[82%] w-[34%] overflow-hidden rounded-lg shadow-sm ring-1">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-surface-glass flex size-7 items-center justify-center rounded-full">
+            <div className="bg-popover flex size-7 items-center justify-center rounded-full border">
               <Play
                 aria-hidden
                 className="text-foreground ml-0.5 size-3 fill-current"
@@ -399,7 +399,7 @@ function OfferThumb({
       ) : (
         <OfferMock kind={mock} accent={color.accent} ring={color.ring} />
       )}
-      <div className="bg-surface-glass text-foreground absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur">
+      <div className="bg-popover text-foreground absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
         <Icon aria-hidden className="size-3" />
         {chipLabel}
       </div>
@@ -408,7 +408,7 @@ function OfferThumb({
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 interface OfferCardProps {
   offer: CoworkerOffer;
@@ -441,7 +441,7 @@ export function OfferCard({
         {offer.category ? (
           <span
             className={cn(
-              "text-foreground absolute top-3 left-3 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium backdrop-blur",
+              "text-foreground absolute top-3 left-3 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium",
               categoryColor(offer.category).chip,
             )}
           >
@@ -630,7 +630,7 @@ function OfferDetailBody({
       {/* Preview */}
       <div className="bg-card-background md:border-border flex flex-col md:min-h-0 md:border-r">
         {outputs.length > 1 ? (
-          <div className="app-scrollbar border-border bg-surface-glass flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
+          <div className="app-scrollbar border-border bg-popover flex gap-1.5 overflow-x-auto border-b p-2.5">
             {outputs.map((output, index) => (
               <button
                 key={output.url ?? output.label ?? output.type}

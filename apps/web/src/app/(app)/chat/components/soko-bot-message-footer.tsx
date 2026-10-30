@@ -250,7 +250,7 @@ export function SokoBotMessageFooter({
       {pending > 0 ? (
         <Link
           href={`${sokoBotConsoleRoute(sharedBotId)}?turn=${encodeURIComponent(info.turn_id)}`}
-          className={`${chip} border-primary-tertiary text-foreground`}
+          className={`${chip} border-border text-foreground`}
         >
           <ShieldCheck aria-hidden className="text-foreground size-3.5" />
           <span className="font-medium">

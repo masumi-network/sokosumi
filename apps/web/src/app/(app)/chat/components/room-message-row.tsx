@@ -414,7 +414,7 @@ function MessageQuoteBlock({
   const attachment = quote.attachment ?? null;
 
   return (
-    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-1.5">
+    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-border px-2.5 py-1.5">
       <button
         type="button"
         className="press hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
@@ -543,7 +543,7 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-border px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
@@ -1077,7 +1077,7 @@ function MessageActionControls({
                 size="icon"
                 className={cn(
                   "group/quick-reaction size-10 rounded-full text-sm md:size-8",
-                  reacted && "bg-primary-quinary hover:bg-primary-quaternary",
+                  reacted && "bg-muted hover:bg-quinary",
                 )}
                 title={
                   shortcode
@@ -1676,8 +1676,7 @@ function TouchMessageActionsSheet({
                   size="icon"
                   className={cn(
                     "size-11 rounded-full text-xl",
-                    reactedEmojis.has(emoji) &&
-                      "bg-primary-quinary hover:bg-primary-quaternary",
+                    reactedEmojis.has(emoji) && "bg-muted hover:bg-quinary",
                   )}
                   aria-label={t("Reactions.toggle", { emoji })}
                   aria-pressed={reactedEmojis.has(emoji)}
@@ -2219,7 +2218,7 @@ function ThreadReplyBar({
         // message; on a painted bar it pushes the rule and the rounded edge
         // into the content column's `overflow-x-clip`, which cuts them off.
         unreadReplyCount > 0 &&
-          "bg-primary-quaternary text-foreground mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+          "bg-quinary text-foreground mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
       )}
       onClick={() => onOpenThread(message)}
     >
@@ -2311,7 +2310,7 @@ function MessageMetaFooter({
                       "border-border bg-background inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       onToggleReaction && "press hover:bg-muted",
                       reaction.reactedByCurrentUser &&
-                        "border-primary-tertiary bg-primary-quinary text-foreground",
+                        "border-border bg-muted text-foreground",
                     )}
                     aria-label={t("Reactions.toggle", {
                       emoji: reaction.emoji,

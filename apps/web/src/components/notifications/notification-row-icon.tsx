@@ -33,8 +33,8 @@ export function NotificationRowIcon({
         // would sharpen the disc and drop that glyph to 2.28:1 in dark, under
         // the 3:1 floor, which is the worse trade.
         notification.isRead
-          ? "bg-quinary text-muted-foreground"
-          : "bg-primary-quaternary text-foreground",
+          ? "bg-muted text-muted-foreground"
+          : "bg-quinary text-foreground",
       )}
       aria-hidden
     >

@@ -37,9 +37,7 @@ export function PerformanceMetric({
           <span
             className={cn(
               "flex items-center gap-0.5 text-xs font-medium whitespace-nowrap tabular-nums sm:gap-1 sm:text-base",
-              delta >= 0
-                ? "text-semantic-success"
-                : "text-semantic-destructive",
+              delta >= 0 ? "text-foreground" : "text-semantic-destructive",
             )}
             title={deltaTitle}
           >

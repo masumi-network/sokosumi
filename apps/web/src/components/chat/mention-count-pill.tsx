@@ -29,7 +29,7 @@ export function MentionCountPill({ count }: { count: number }) {
   return (
     <span
       data-slot="mention-pill"
-      className="bg-primary-quaternary text-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center gap-px rounded-full px-[0.1875rem] text-2xs leading-4 font-semibold tabular-nums"
+      className="bg-quinary text-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center gap-px rounded-full px-[0.1875rem] text-2xs leading-4 font-semibold tabular-nums"
     >
       <AtSign
         data-slot="mention-glyph"
@@ -52,7 +52,7 @@ export function NeedsYouPill({ count }: { count: number }) {
   return (
     <span
       data-slot="needs-you-pill"
-      className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-2xs leading-4 font-semibold tabular-nums"
+      className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-2xs leading-4 font-semibold tabular-nums"
     >
       {count > MENTION_COUNT_CAP ? `${MENTION_COUNT_CAP}+` : count}
     </span>

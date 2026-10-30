@@ -14,7 +14,7 @@
 
   extension NativeWindowTests {
     /// Row 24h: the reply bar under a thread parent in the real message row, as web's `ThreadReplyBar` draws
-    /// it — the repliers' faces, the count or the new count on the accent bar, and the last reply's age. The
+    /// it — the repliers' faces, the count or the new count on the unread bar, and the last reply's age. The
     /// test host builds no accessibility tree, so the tests click by position and compare pixels.
     @MainActor struct ThreadReplyBarViewTests {
       private static let base = Date(timeIntervalSince1970: 1_790_251_200)
@@ -122,9 +122,9 @@
         return try fittedBitmap(of: host, in: window)
       }
 
-      /// Unread reads as a bar: the same bar with no unread replies draws without the tint.
+      /// Unread reads as a bar: the same bar with no unread replies draws without the wash.
       @Test(arguments: [false, true])
-      func unreadDrawsTheTintedBar(dark: Bool) throws {
+      func unreadDrawsTheWashedBar(dark: Bool) throws {
         let unread = try Self.renderBar(Self.parent("Release checklist", replies: 5, unread: 2, repliers: [], minutes: 0), dark: dark)
         let read = try Self.renderBar(Self.parent("Release checklist", replies: 5, unread: 0, repliers: [], minutes: 0), dark: dark)
         let readAgain = try Self.renderBar(Self.parent("Release checklist", replies: 5, unread: 0, repliers: [], minutes: 0), dark: dark)

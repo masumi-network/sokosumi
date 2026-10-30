@@ -63,7 +63,7 @@ const CHIP_ICONS: Record<ChatSignalChip, typeof Gavel> = {
 
 /** Only these two draw in colour: one is the reader, one is a customer. */
 function chipTone(chip: ChatSignalChip): string {
-  if (chip === "needsYou") return "bg-primary-quaternary text-foreground";
+  if (chip === "needsYou") return "bg-quinary text-foreground";
   if (chip === "escalation" || chip === "urgent")
     return "bg-muted text-destructive";
   return "bg-muted text-muted-foreground";

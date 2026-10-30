@@ -88,7 +88,7 @@ struct ChatRootView: View {
           .font(.callout)
           .foregroundStyle(.secondary)
         HStack {
-          Link("Open setup", destination: CoreSettings.setupURL)
+          Link("Open setup", destination: CoreSettings.setupURL).foregroundStyle(.primary).underline()
           Button("Check again") {
             workspaces.retry()
           }
@@ -107,7 +107,7 @@ struct ChatRootView: View {
           .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
         HStack {
-          Link("Download Update", destination: latestDownloadURL)
+          Link("Download Update", destination: latestDownloadURL).foregroundStyle(.primary).underline()
           Button("Sign out") {
             auth.signOut()
           }

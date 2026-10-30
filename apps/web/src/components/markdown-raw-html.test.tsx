@@ -94,7 +94,7 @@ describe("Markdown raw HTML", () => {
     const { container } = render(
       <Markdown highlightTerm="found">
         {
-          '<p>\n```\n<mark class="bg-primary-tertiary">authored</mark>\n```\n\nfound it'
+          '<p>\n```\n<mark class="bg-quaternary">authored</mark>\n```\n\nfound it'
         }
       </Markdown>,
     );
@@ -102,7 +102,7 @@ describe("Markdown raw HTML", () => {
 
     expect(marks).toHaveLength(1);
     expect(marks[0]).toHaveTextContent("found");
-    expect(marks[0]).toHaveClass("bg-primary-tertiary");
+    expect(marks[0]).toHaveClass("bg-quaternary");
     expect(container).toHaveTextContent("authored");
   });
 

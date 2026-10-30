@@ -43,7 +43,7 @@ interface AgentSpotlightProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();

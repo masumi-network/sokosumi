@@ -34,7 +34,7 @@ import SwiftUI
     }
   }
 
-  /// The Unread divider above the first unread message (spec SOK-1481): a full-width accent hairline broken in the
+  /// The Unread divider above the first unread message (spec SOK-1481): a full-width foreground hairline broken in the
   /// middle by "New", no count. Above the same message as a day pill, the pill comes first in the middle, so the two
   /// share one row: `——— Today New ———`. VoiceOver finds it as a separator named "New messages".
   struct UnreadDividerRow: View {
@@ -49,7 +49,7 @@ import SwiftUI
         Text("New", tableName: "ChatUnreadDivider", comment: "Label in the middle of the line above the first unread message in a room.")
           .font(.caption)
           .fontWeight(.semibold)
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(.primary)
           .accessibilityHidden(true)
         hairline
       }
@@ -61,7 +61,7 @@ import SwiftUI
 
     private var hairline: some View {
       Rectangle()
-        .fill(Color.accentColor)
+        .fill(.primary)
         .frame(height: 1)
         .accessibilityHidden(true)
     }

@@ -116,7 +116,7 @@ export function AdsDailyChart({
                 className={
                   active === null || active === index
                     ? "fill-foreground"
-                    : "fill-primary-tertiary"
+                    : "fill-quaternary"
                 }
                 height={height}
                 width={BAR}

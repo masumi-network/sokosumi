@@ -148,7 +148,7 @@ export function TaskMetadata({
             icon={
               <StatusMarker
                 spec={statusMarker}
-                tone={getToneStyle(statusMarker.tone).labelOnSurface}
+                tone={getToneStyle(statusMarker.tone).onSurface}
               />
             }
           >

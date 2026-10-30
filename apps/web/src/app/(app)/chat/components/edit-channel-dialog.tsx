@@ -215,7 +215,7 @@ export function EditChannelDialog({
                       className={cn(
                         "flex items-start gap-3 rounded-lg border p-3 font-normal",
                         value === discoverability
-                          ? "border-foreground bg-primary-quinary"
+                          ? "border-foreground bg-muted"
                           : "border-border",
                         locked
                           ? "cursor-not-allowed opacity-60"
@@ -236,7 +236,7 @@ export function EditChannelDialog({
                             {t(`Visibility.${value}`)}
                           </span>
                           {locked ? (
-                            <span className="bg-semantic-warning-quinary text-semantic-warning-label rounded-full px-2 py-0.5 text-xs font-medium">
+                            <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-xs font-medium">
                               {t("Visibility.hasGuests")}
                             </span>
                           ) : null}
@@ -288,7 +288,7 @@ export function EditChannelDialog({
               hides the channel for everyone, so it never sits beside Save. */}
           <section
             aria-labelledby="edit-channel-archive-title"
-            className="border-semantic-destructive-tertiary mt-6 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+            className="border-border mt-6 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0 space-y-0.5">
               <h3
@@ -304,7 +304,7 @@ export function EditChannelDialog({
             <Button
               type="button"
               variant="outline"
-              className="text-semantic-destructive hover:text-semantic-destructive border-semantic-destructive-tertiary shrink-0 gap-2"
+              className="text-semantic-destructive hover:text-semantic-destructive border-border shrink-0 gap-2"
               onClick={handleRequestArchive}
             >
               <ArchiveIcon className="size-4" aria-hidden />
