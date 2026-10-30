@@ -5,6 +5,7 @@ import {
   NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
+  NEWSLETTER_SENDING_DOMAIN_STATE,
   PUBLIC_NEWSLETTER_SLUG,
 } from "@/test/newsletter";
 
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   marker: vi.fn(),
   subscribers: vi.fn(),
   analytics: vi.fn(),
+  sendingDomain: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -39,6 +41,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     getSettings: mocks.settings,
     listSubscribers: mocks.subscribers,
     getIssueAnalytics: mocks.analytics,
+    getSendingDomain: mocks.sendingDomain,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -76,9 +79,11 @@ beforeEach(() => {
   mocks.settings.mockResolvedValue({
     id: "n1",
     publicSlug: PUBLIC_NEWSLETTER_SLUG,
+    senderName: "Ada",
   });
   mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
+  mocks.sendingDomain.mockResolvedValue(NEWSLETTER_SENDING_DOMAIN_STATE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 describe("newsletter issue page", () => {
@@ -102,11 +107,14 @@ describe("newsletter issue page", () => {
       NEWSLETTER_PROJECT_ID,
       NEWSLETTER_ISSUE.id,
     );
+    expect(mocks.sendingDomain).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID);
     expect(mocks.editor).toHaveBeenCalledWith(
       expect.objectContaining({
         issue: NEWSLETTER_ISSUE,
         projectId: NEWSLETTER_PROJECT_ID,
         newsletterSlug: PUBLIC_NEWSLETTER_SLUG,
+        senderName: "Ada",
+        sendingDomain: NEWSLETTER_SENDING_DOMAIN_STATE,
       }),
     );
     expect(mocks.marker).toHaveBeenCalledWith({
