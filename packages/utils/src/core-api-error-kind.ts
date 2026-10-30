@@ -35,6 +35,8 @@ export const CORE_API_ERROR_KINDS = {
   SEAT_CAPACITY_EXCEEDED: "seat_capacity_exceeded",
   SUBSCRIPTION_CHANGE_NOT_ALLOWED: "subscription_change_not_allowed",
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",
+  /** Stripe could not collect the payment, so the subscription was left unchanged. */
+  SUBSCRIPTION_PAYMENT_FAILED: "subscription_payment_failed",
   SUBSCRIPTION_SEATS_BELOW_ASSIGNED: "subscription_seats_below_assigned",
   FREE_CREDIT_INVALID: "free_credit_invalid",
   LAST_WORKSPACE: "last_workspace",

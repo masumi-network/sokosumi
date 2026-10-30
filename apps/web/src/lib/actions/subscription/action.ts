@@ -1,5 +1,6 @@
 "use server";
 
+import type { OrganizationSubscriptionSeatsPreview } from "@sokosumi/core-client";
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
@@ -61,6 +62,34 @@ interface UpdateOrganizationSubscriptionSeatsParameters
   organizationId: string;
   seats: number;
 }
+
+export const previewOrganizationSubscriptionSeats = withSession<
+  UpdateOrganizationSubscriptionSeatsParameters,
+  ActionResultDto<OrganizationSubscriptionSeatsPreview, ActionError>
+>(async ({ organizationId, seats }) => {
+  const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
+    organizationId,
+    seats,
+  });
+  if (!parsed.success) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+      }),
+    );
+  }
+
+  try {
+    const { data } = await coreClient.getOrganizationSubscriptionSeatsPreview(
+      parsed.data.organizationId,
+      parsed.data.seats,
+    );
+
+    return toActionResult(ok(data));
+  } catch (error) {
+    return toActionResult(err(toSubscriptionSeatsActionError(error)));
+  }
+});
 
 export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,

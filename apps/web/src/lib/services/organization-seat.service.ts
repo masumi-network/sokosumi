@@ -66,6 +66,7 @@ function mapCoreSeatWriteError(error: unknown): never {
     error.status === 400
   ) {
     throw new APIError("BAD_REQUEST", {
+      kind: error.kind,
       message: error.message,
     });
   }

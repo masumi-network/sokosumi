@@ -314,6 +314,31 @@ export const stripeClient = {
     );
   },
 
+  /** Stripe's invoice for `updateSubscriptionItemQuantity`, without applying it. */
+  async previewSubscriptionItemQuantity(
+    subscriptionId: string,
+    itemId: string,
+    quantity: number,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Invoice> {
+    return await stripe.invoices.createPreview(
+      {
+        automatic_tax: { enabled: true },
+        subscription: subscriptionId,
+        subscription_details: {
+          items: [
+            {
+              id: itemId,
+              quantity,
+            },
+          ],
+          proration_behavior: "always_invoice",
+        },
+      },
+      requestOptions,
+    );
+  },
+
   async updateSubscriptionItemQuantity(
     subscriptionId: string,
     itemId: string,

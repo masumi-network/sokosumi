@@ -6167,6 +6167,29 @@ export type EnterpriseContractBillingSummary = {
     purchasedSeats: number;
 };
 
+export type OrganizationSubscriptionSeatsPreview = {
+    /**
+     * Charged to the payment method right away, including tax
+     */
+    amountDue: number;
+    /**
+     * Unused amount added to the Stripe customer balance when seats are removed
+     */
+    creditAmount: number;
+    /**
+     * Lowercase ISO currency code
+     */
+    currency: string;
+    /**
+     * Monthly price for the new seat count, before tax and discounts
+     */
+    newMonthlyAmount: number;
+    /**
+     * The seat count this preview is for
+     */
+    seats: number;
+};
+
 export type OrganizationSubscriptionSeats = {
     /**
      * Purchased seat count on the active subscription
@@ -45841,6 +45864,119 @@ export type GetOrganizationsByIdSubscriptionResponses = {
 
 export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
 
+export type GetOrganizationsByIdSubscriptionSeatsPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query: {
+        /**
+         * Desired purchased seat count
+         */
+        seats: number;
+    };
+    url: '/organizations/{id}/subscription/seats/preview';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewErrors = {
+    /**
+     * Bad Request - No active Stripe subscription, or enterprise contract exclusivity
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewError = GetOrganizationsByIdSubscriptionSeatsPreviewErrors[keyof GetOrganizationsByIdSubscriptionSeatsPreviewErrors];
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponses = {
+    /**
+     * What the seat change would cost
+     */
+    200: {
+        data: OrganizationSubscriptionSeatsPreview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponse = GetOrganizationsByIdSubscriptionSeatsPreviewResponses[keyof GetOrganizationsByIdSubscriptionSeatsPreviewResponses];
+
 export type PutOrganizationsByIdSubscriptionSeatsData = {
     body?: UpdateOrganizationSubscriptionSeats;
     path: {
@@ -45873,6 +46009,21 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payment Required - Stripe could not collect the payment; the seat count is unchanged
+     */
+    402: {
         error: string;
         message: string;
         kind?: string;

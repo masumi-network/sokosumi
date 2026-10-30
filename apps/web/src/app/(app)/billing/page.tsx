@@ -268,7 +268,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
-                currentPlan={currentPlan}
+                assignedCount={seatCounts.assignedCount}
                 currentSeats={currentSeats}
                 isEnterpriseConsumable={isEnterpriseConsumable}
                 isEnterpriseContract={isEnterpriseContract}

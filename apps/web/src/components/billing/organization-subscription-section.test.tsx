@@ -1,10 +1,10 @@
 import { render, waitFor } from "@testing-library/react";
-import { toast } from "sonner";
+import { type Action, toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
 const pushMock = vi.fn();
-const updateOrganizationSubscriptionSeatsMock = vi.fn();
+const organizationSeatsCardMock = vi.fn();
 const upgradeOrganizationSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionEnterprisePlanCardMock = vi.fn();
@@ -34,8 +34,6 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/actions/subscription/action", () => ({
-  updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
-    updateOrganizationSubscriptionSeatsMock(...args),
   upgradeOrganizationSubscription: (...args: unknown[]) =>
     upgradeOrganizationSubscriptionMock(...args),
 }));
@@ -43,6 +41,13 @@ vi.mock("@/lib/actions/subscription/action", () => ({
 vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {
     beginCheckout: (...args: unknown[]) => beginCheckoutMock(...args),
+  },
+}));
+
+vi.mock("./organization-seats-card", () => ({
+  OrganizationSeatsCard: (props: unknown) => {
+    organizationSeatsCardMock(props);
+    return <div data-testid="organization-seats-card" />;
   },
 }));
 
@@ -98,10 +103,6 @@ function createPlans() {
 describe("OrganizationSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
-      value: { seats: 3 },
-      ok: true,
-    });
     upgradeOrganizationSubscriptionMock.mockResolvedValue({
       value: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
@@ -111,7 +112,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows only the enterprise card when the org has a consumable contract", () => {
     render(
       <OrganizationSubscriptionSection
-        currentPlan="enterprise"
+        assignedCount={1}
         scheduledCancelDate={null}
         currentSeats={5}
         isEnterpriseConsumable
@@ -135,7 +136,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows self-serve plans after the enterprise commercial term ends", () => {
     render(
       <OrganizationSubscriptionSection
-        currentPlan="enterprise"
+        assignedCount={1}
         scheduledCancelDate={null}
         currentSeats={5}
         isEnterpriseConsumable={false}
@@ -164,7 +165,7 @@ describe("OrganizationSubscriptionSection", () => {
     ({ cards, columns, isEnterpriseContract }) => {
       const { getAllByTestId } = render(
         <OrganizationSubscriptionSection
-          currentPlan="starter"
+          assignedCount={1}
           isEnterpriseConsumable={false}
           isEnterpriseContract={isEnterpriseContract}
           scheduledCancelDate={null}
@@ -194,7 +195,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <OrganizationSubscriptionSection
-        currentPlan="starter"
+        assignedCount={1}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
@@ -227,7 +228,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <OrganizationSubscriptionSection
-        currentPlan="starter"
+        assignedCount={1}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={new Date("2026-04-01T00:00:00.000Z")}
@@ -251,7 +252,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("does not force purchased seats up to the assigned member count", () => {
     render(
       <OrganizationSubscriptionSection
-        currentPlan="starter"
+        assignedCount={1}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
@@ -272,10 +273,122 @@ describe("OrganizationSubscriptionSection", () => {
     );
   });
 
+  it("gives a current paid plan the seats card instead of the checkout seat field", () => {
+    const { queryByRole } = render(
+      <OrganizationSubscriptionSection
+        assignedCount={1}
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        scheduledCancelDate={null}
+        currentSeats={2}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    expect(organizationSeatsCardMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignedCount: 1,
+        currentSeats: 2,
+        organizationId: "org-1",
+        scheduledCancelDate: null,
+      }),
+    );
+    expect(queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("keeps the checkout seat field when no paid plan is current", () => {
+    const { getByRole } = render(
+      <OrganizationSubscriptionSection
+        assignedCount={0}
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        scheduledCancelDate={null}
+        currentSeats={1}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans().map((plan) => ({
+          ...plan,
+          isCurrent: plan.name === "free",
+        }))}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    expect(organizationSeatsCardMock).not.toHaveBeenCalled();
+    expect(getByRole("spinbutton")).toHaveValue(1);
+  });
+
+  it("hides the seats card during a consumable enterprise contract", () => {
+    render(
+      <OrganizationSubscriptionSection
+        assignedCount={3}
+        scheduledCancelDate={null}
+        currentSeats={5}
+        isEnterpriseConsumable
+        isEnterpriseContract
+        memberCount={3}
+        organizationId="org-enterprise"
+        plans={createPlans().map((plan) => ({ ...plan, isCurrent: false }))}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    expect(organizationSeatsCardMock).not.toHaveBeenCalled();
+  });
+
+  it("offers the Stripe portal when a seat change fails on payment", () => {
+    const assignSpy = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+
+    render(
+      <OrganizationSubscriptionSection
+        assignedCount={1}
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        scheduledCancelDate={null}
+        currentSeats={2}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    organizationSeatsCardMock.mock.calls[0][0].onError({
+      code: "BAD_INPUT",
+      kind: "subscription_payment_failed",
+      message: "Core wording",
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Errors.paymentFailed",
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: "Errors.paymentFailedAction",
+        }),
+      }),
+    );
+
+    const [, options] = vi.mocked(toast.error).mock.calls[0];
+    const action = options?.action as Action;
+    action.onClick({} as never);
+
+    expect(assignSpy).toHaveBeenCalledWith(
+      `/api/billing/portal?${new URLSearchParams({
+        returnPath: "/billing?tab=subscription",
+        organizationId: "org-1",
+      })}`,
+    );
+    vi.unstubAllGlobals();
+  });
+
   it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <OrganizationSubscriptionSection
-        currentPlan="starter"
+        assignedCount={1}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
@@ -321,7 +434,7 @@ describe("OrganizationSubscriptionSection", () => {
 
     render(
       <OrganizationSubscriptionSection
-        currentPlan="starter"
+        assignedCount={1}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}

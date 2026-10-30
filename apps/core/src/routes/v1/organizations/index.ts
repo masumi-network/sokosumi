@@ -23,6 +23,7 @@ import mountGetOrganizationSeatSummary from "./[id]/seat-summary/get.js";
 import mountGetOrganizationStripeCustomer from "./[id]/stripe-customer/get.js";
 import mountPostOrganizationStripeCustomer from "./[id]/stripe-customer/post.js";
 import mountGetOrganizationSubscription from "./[id]/subscription/get.js";
+import mountGetOrganizationSubscriptionSeatsPreview from "./[id]/subscription/seats/preview/get.js";
 import mountPutOrganizationSubscriptionSeats from "./[id]/subscription/seats/put.js";
 import mountApproveOrganizationVendorGrant from "./[id]/vendor-grants/[grantId]/approve/post.js";
 import mountDenyOrganizationVendorGrant from "./[id]/vendor-grants/[grantId]/deny/post.js";
@@ -62,6 +63,7 @@ mountGetOrganizationStripeCustomer(app);
 mountPostOrganizationStripeCustomer(app);
 mountGetOrganizationBillingDetails(app);
 mountGetOrganizationSubscription(app);
+mountGetOrganizationSubscriptionSeatsPreview(app);
 mountPutOrganizationSubscriptionSeats(app);
 mountPutOrganizationDesignMd(app);
 // Static `/{id}/files/cleanup` before `/{id}/files` is fine; both are exact paths.

@@ -71,3 +71,43 @@ export const organizationSubscriptionSeatsSchema = z
     }),
   })
   .openapi("OrganizationSubscriptionSeats");
+
+export const organizationSubscriptionSeatsPreviewQuerySchema = z.object({
+  seats: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .openapi({
+      param: { name: "seats", in: "query" },
+      description: "Desired purchased seat count",
+      example: 5,
+    }),
+});
+
+/** What a seat change would cost. Amounts are in the currency's minor units. */
+export const organizationSubscriptionSeatsPreviewSchema = z
+  .object({
+    amountDue: z.number().int().openapi({
+      description: "Charged to the payment method right away, including tax",
+      example: 1234,
+    }),
+    creditAmount: z.number().int().openapi({
+      description:
+        "Unused amount added to the Stripe customer balance when seats are removed",
+      example: 0,
+    }),
+    currency: z.string().openapi({
+      description: "Lowercase ISO currency code",
+      example: "eur",
+    }),
+    newMonthlyAmount: z.number().int().openapi({
+      description:
+        "Monthly price for the new seat count, before tax and discounts",
+      example: 12500,
+    }),
+    seats: z.number().int().openapi({
+      description: "The seat count this preview is for",
+      example: 5,
+    }),
+  })
+  .openapi("OrganizationSubscriptionSeatsPreview");

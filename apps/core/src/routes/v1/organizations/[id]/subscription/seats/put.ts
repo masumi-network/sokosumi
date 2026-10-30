@@ -1,22 +1,21 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { MemberRole } from "@sokosumi/database";
 import {
-  assertOrganizationSubscriptionChangeAllowed,
   ensurePurchasedSeatsSufficient,
-  OrganizationSubscriptionExclusivityError,
   resolvePurchasedSeats,
   unassignSeatsOverPurchasedCapacity,
 } from "@sokosumi/database/helpers";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { badRequest, internalServerError } from "@/helpers/error";
+import { badRequest, paymentRequired } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { resolveMemberOrganizationById } from "@/helpers/organization";
+import {
+  resolveSubscriptionForSeatChange,
+  retrieveStripeSeatItem,
+} from "@/helpers/organization-subscription-seats";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -68,6 +67,9 @@ const route = createRoute({
       "Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity",
     ),
     401: jsonErrorResponse("Unauthorized"),
+    402: jsonErrorResponse(
+      "Payment Required - Stripe could not collect the payment; the seat count is unchanged",
+    ),
     403: jsonErrorResponse(
       "Forbidden - You must be an organization owner or admin",
     ),
@@ -81,26 +83,34 @@ const route = createRoute({
  * Pushes the new quantity to the first Stripe subscription item, invoicing
  * the proration immediately. Runs outside any Prisma transaction — Stripe
  * calls must never run inside an interactive transaction.
+ *
+ * `error_if_incomplete` makes Stripe answer 402 and leave the subscription
+ * unchanged when it cannot collect the payment, so retrying is safe.
  */
-async function increaseStripeSubscriptionSeats(
+async function updateStripeSubscriptionSeats(
   stripeSubscriptionId: string,
   seats: number,
 ): Promise<void> {
-  const stripeSubscription =
-    await stripeClient.retrieveSubscriptionWithItems(stripeSubscriptionId);
+  const seatItem = await retrieveStripeSeatItem(stripeSubscriptionId);
 
-  const firstItem = stripeSubscription.items.data[0];
-  if (!firstItem) {
-    throw internalServerError(
-      "Unable to update organization subscription seats: missing Stripe subscription item",
+  try {
+    await stripeClient.updateSubscriptionItemQuantity(
+      stripeSubscriptionId,
+      seatItem.id,
+      seats,
     );
+  } catch (error) {
+    if (
+      error instanceof Stripe.errors.StripeError &&
+      error.statusCode === 402
+    ) {
+      throw paymentRequired(
+        "The payment could not be collected. Update your payment method and try again.",
+        { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_PAYMENT_FAILED },
+      );
+    }
+    throw error;
   }
-
-  await stripeClient.updateSubscriptionItemQuantity(
-    stripeSubscriptionId,
-    firstItem.id,
-    seats,
-  );
 }
 
 /**
@@ -132,38 +142,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { seats } = c.req.valid("json");
 
-    const { organization } = await resolveMemberOrganizationById({
-      id,
-      userId: userContext.userId,
-      tx: prisma,
-      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-    });
-
-    try {
-      await assertOrganizationSubscriptionChangeAllowed(
-        organization.id,
-        prisma,
-      );
-    } catch (error) {
-      if (error instanceof OrganizationSubscriptionExclusivityError) {
-        throw badRequest(error.message, {
-          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
-        });
-      }
-      throw error;
-    }
-
-    const subscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        organization.id,
-        prisma,
-      );
-    if (!subscription) {
-      throw badRequest(
-        "An active organization subscription is required before updating seats.",
-        { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
-      );
-    }
+    const { organization, subscription } =
+      await resolveSubscriptionForSeatChange({
+        organizationId: id,
+        userId: userContext.userId,
+      });
 
     try {
       ensurePurchasedSeatsSufficient(seats);
@@ -195,7 +178,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    await increaseStripeSubscriptionSeats(
+    await updateStripeSubscriptionSeats(
       subscription.stripeSubscriptionId,
       seats,
     );

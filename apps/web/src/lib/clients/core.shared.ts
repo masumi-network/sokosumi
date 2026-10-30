@@ -289,6 +289,7 @@ import {
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
+  getOrganizationsByIdSubscriptionSeatsPreview as coreGetOrganizationsByIdSubscriptionSeatsPreview,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsActivity as coreGetProjectsActivity,
@@ -3581,6 +3582,27 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /**
+   * What changing the purchased seat count would cost, from Stripe. Changes
+   * nothing; `updateOrganizationSubscriptionSeats` applies it.
+   */
+  async function getOrganizationSubscriptionSeatsPreview(
+    organizationId: string,
+    seats: number,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionSeatsPreview({
+          client,
+          path: { id: organizationId },
+          query: { seats },
+          cache: "no-store",
+        }),
+      "Failed to preview organization subscription seats",
+    );
+  }
+
   async function getInvitationById(id: string) {
     return executeCoreOperation(
       getClient,
@@ -6822,6 +6844,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskScheduleRun,
     changeTaskScheduleRun,
     unassignOrganizationSeat,
+    getOrganizationSubscriptionSeatsPreview,
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),

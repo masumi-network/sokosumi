@@ -6,6 +6,7 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
+const getOrganizationSubscriptionSeatsPreviewMock = vi.fn();
 
 vi.mock("@/lib/auth/subscription.server", () => ({
   upgradeOrganizationSubscriptionServer: vi.fn(),
@@ -20,6 +21,8 @@ vi.mock("@/lib/clients/core.client", async (importOriginal) => {
     ...actual,
     coreClient: {
       ...actual.coreClient,
+      getOrganizationSubscriptionSeatsPreview: (...args: unknown[]) =>
+        getOrganizationSubscriptionSeatsPreviewMock(...args),
       updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
         updateOrganizationSubscriptionSeatsMock(...args),
     },
@@ -99,6 +102,69 @@ describe("subscription actions", () => {
     expect(invalidatePrivateSidebarChromeMock).toHaveBeenCalledWith({
       userId: "user-1",
       organizationId: "org-1",
+    });
+  });
+
+  it("returns the Core seat preview", async () => {
+    const preview = {
+      amountDue: 1234,
+      creditAmount: 0,
+      currency: "eur",
+      newMonthlyAmount: 12500,
+      seats: 5,
+    };
+    getOrganizationSubscriptionSeatsPreviewMock.mockResolvedValue({
+      data: preview,
+    });
+
+    const { previewOrganizationSubscriptionSeats } = await import("./action");
+
+    const result = await previewOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({ ok: true, value: preview });
+    expect(getOrganizationSubscriptionSeatsPreviewMock).toHaveBeenCalledWith(
+      "org-1",
+      5,
+    );
+  });
+
+  it("rejects an invalid seat count before asking Core for a preview", async () => {
+    const { previewOrganizationSubscriptionSeats } = await import("./action");
+
+    const result = await previewOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 0,
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+    expect(getOrganizationSubscriptionSeatsPreviewMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the payment-failed kind so the UI can offer the billing portal", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("The payment could not be collected.", {
+        kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_PAYMENT_FAILED,
+        status: 402,
+      }),
+    );
+
+    const { updateOrganizationSubscriptionSeats } = await import("./action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 9,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: "subscription_payment_failed" },
     });
   });
 

@@ -258,7 +258,8 @@
             "changeRole": "No se pudo cambiar el rol",
             "remove": "No se pudo eliminar al miembro",
             "assignSeat": "No se pudo asignar el Seat",
-            "unassignSeat": "No se pudo quitar el Seat"
+            "unassignSeat": "No se pudo quitar el Seat",
+            "manageSeats": "Gestionar Seats"
           },
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
@@ -7050,9 +7051,8 @@
           "seatsInputHint": "El mínimo es {minimum} para cubrir los Seats de pago en uso. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sin plan activo",
-          "seatsUpdatedSuccess": "Seats actualizados correctamente.",
+          "seatsUpdatedSuccess": "Seats actualizados.",
           "currentPlanCta": "Plan actual",
-          "updateSeatsCta": "Actualizar Seats",
           "choosePlanCta": "Elegir plan",
           "Errors": {
             "unauthenticated": "Por favor, inicia sesión para continuar",
@@ -7060,7 +7060,34 @@
             "unauthorized": "Solo los propietarios y admins pueden gestionar las suscripciones",
             "badInput": "Proporciona valores válidos de plan y Seats",
             "general": "No se pudo gestionar la suscripción de la organización",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "El pago no se completó, así que tus Seats no han cambiado. Actualiza tu método de pago e inténtalo de nuevo.",
+            "paymentFailedAction": "Actualizar método de pago"
+          },
+          "seatsCard": {
+            "summary": "{assigned} de {purchased, plural, =1 {# Seat} other {# Seats}} asignados. Los cambios se facturan de inmediato.",
+            "addIdleCta": "Añadir Seats",
+            "addCta": "{count, plural, =1 {Añadir # Seat} other {Añadir # Seats}}",
+            "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
+            "decrease": "Quitar un Seat",
+            "increase": "Añadir un Seat",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
+              "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
+              "description": "Este cambio se aplica de inmediato.",
+              "loading": "Obteniendo el precio…",
+              "previewError": "No se pudo obtener el precio, así que aún no se pueden cambiar tus Seats.",
+              "previewRetry": "Intentar de nuevo",
+              "dueNow": "A pagar ahora",
+              "credit": "Crédito en tu saldo de facturación",
+              "approximate": "Aproximadamente {amount}",
+              "newMonthly": "Nuevo precio mensual",
+              "newMonthlyHint": "Antes de impuestos y descuentos",
+              "seatsLost": "{count, plural, =1 {El miembro que se unió más recientemente pierde su Seat.} other {Los # miembros que se unieron más recientemente pierden su Seat.}}",
+              "creditNote": "El importe no utilizado pasa a tu saldo de facturación, no vuelve a tu tarjeta.",
+              "cancellationNote": "Tu plan termina el {date}, y estos Seats terminan con él.",
+              "cancel": "Cancelar"
+            }
           }
         },
         "Seats": {

@@ -1,6 +1,8 @@
 import { HTTPException } from "hono/http-exception";
+import Stripe from "stripe";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -509,6 +511,51 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       where: { id: "sub-row-1" },
       data: { seats: 6 },
     });
+  });
+
+  it("returns 402 and keeps the seat count when Stripe cannot collect payment", async () => {
+    setMembership("owner");
+    updateSubscriptionItemQuantityMock.mockRejectedValue(
+      new Stripe.errors.StripeCardError({
+        code: "card_declined",
+        message: "Your card was declined.",
+        statusCode: 402,
+        type: "card_error",
+      }),
+    );
+
+    const app = createApp();
+    app.onError(errorHandler);
+    const response = await app.request(
+      "http://localhost/org_123/subscription/seats",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ seats: 6 }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(402);
+    expect(body.kind).toBe("subscription_payment_failed");
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps other Stripe failures as server errors", async () => {
+    setMembership("owner");
+    updateSubscriptionItemQuantityMock.mockRejectedValue(
+      new Stripe.errors.StripeAPIError({
+        message: "Stripe is unavailable.",
+        statusCode: 500,
+        type: "api_error",
+      }),
+    );
+
+    const response = await updateSeats("org_123", 6);
+
+    expect(response.status).toBe(500);
+    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 500 when the Stripe subscription has no items", async () => {

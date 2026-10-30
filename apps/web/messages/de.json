@@ -258,7 +258,8 @@
             "changeRole": "Rolle konnte nicht geändert werden",
             "remove": "Mitglied konnte nicht entfernt werden",
             "assignSeat": "Seat konnte nicht zugewiesen werden",
-            "unassignSeat": "Seat konnte nicht entfernt werden"
+            "unassignSeat": "Seat konnte nicht entfernt werden",
+            "manageSeats": "Seats verwalten"
           },
           "Errors": {
             "unauthorizedAction": "Anmelden"
@@ -7050,9 +7051,8 @@
           "seatsInputHint": "Das Minimum ist {minimum}, um genutzte bezahlte Seats abzudecken. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
-          "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
+          "seatsUpdatedSuccess": "Seats aktualisiert.",
           "currentPlanCta": "Aktueller Plan",
-          "updateSeatsCta": "Seats aktualisieren",
           "choosePlanCta": "Plan auswählen",
           "Errors": {
             "unauthenticated": "Bitte melde dich an, um fortzufahren",
@@ -7060,7 +7060,34 @@
             "unauthorized": "Nur Eigentümer und Admins der Organisation können Abonnements verwalten",
             "badInput": "Bitte gültige Plan- und Seat-Werte angeben",
             "general": "Organisations-Abonnement konnte nicht verwaltet werden",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "Die Zahlung ist fehlgeschlagen, deine Seats wurden nicht geändert. Aktualisiere deine Zahlungsmethode und versuche es erneut.",
+            "paymentFailedAction": "Zahlungsmethode aktualisieren"
+          },
+          "seatsCard": {
+            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen. Änderungen werden sofort abgerechnet.",
+            "addIdleCta": "Seats hinzufügen",
+            "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
+            "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
+            "decrease": "Einen Seat entfernen",
+            "increase": "Einen Seat hinzufügen",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
+              "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
+              "description": "Diese Änderung gilt sofort.",
+              "loading": "Preis wird abgerufen…",
+              "previewError": "Der Preis konnte nicht abgerufen werden, deine Seats können daher noch nicht geändert werden.",
+              "previewRetry": "Erneut versuchen",
+              "dueNow": "Jetzt fällig",
+              "credit": "Gutschrift auf dein Abrechnungsguthaben",
+              "approximate": "Etwa {amount}",
+              "newMonthly": "Neuer Monatspreis",
+              "newMonthlyHint": "Vor Steuern und Rabatten",
+              "seatsLost": "{count, plural, =1 {Das zuletzt beigetretene Mitglied verliert seinen Seat.} other {Die # zuletzt beigetretenen Mitglieder verlieren ihren Seat.}}",
+              "creditNote": "Der ungenutzte Betrag geht auf dein Abrechnungsguthaben, nicht zurück auf deine Karte.",
+              "cancellationNote": "Dein Plan endet am {date}, und diese Seats enden damit.",
+              "cancel": "Abbrechen"
+            }
           }
         },
         "Seats": {

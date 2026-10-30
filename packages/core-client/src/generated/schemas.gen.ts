@@ -21003,6 +21003,44 @@ export const EnterpriseContractBillingSummarySchema = {
     ]
 } as const;
 
+export const OrganizationSubscriptionSeatsPreviewSchema = {
+    type: 'object',
+    properties: {
+        amountDue: {
+            type: 'integer',
+            description: 'Charged to the payment method right away, including tax',
+            example: 1234
+        },
+        creditAmount: {
+            type: 'integer',
+            description: 'Unused amount added to the Stripe customer balance when seats are removed',
+            example: 0
+        },
+        currency: {
+            type: 'string',
+            description: 'Lowercase ISO currency code',
+            example: 'eur'
+        },
+        newMonthlyAmount: {
+            type: 'integer',
+            description: 'Monthly price for the new seat count, before tax and discounts',
+            example: 12500
+        },
+        seats: {
+            type: 'integer',
+            description: 'The seat count this preview is for',
+            example: 5
+        }
+    },
+    required: [
+        'amountDue',
+        'creditAmount',
+        'currency',
+        'newMonthlyAmount',
+        'seats'
+    ]
+} as const;
+
 export const OrganizationSubscriptionSeatsSchema = {
     type: 'object',
     properties: {

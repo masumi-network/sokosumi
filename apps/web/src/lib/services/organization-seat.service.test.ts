@@ -4,9 +4,11 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("better-auth/api", () => ({
   APIError: class APIError extends Error {
+    body?: { kind?: string; message?: string };
     status?: string;
-    constructor(code: string, options?: { message?: string }) {
+    constructor(code: string, options?: { kind?: string; message?: string }) {
       super(options?.message ?? "API error");
+      this.body = options;
       this.name = "APIError";
       this.status = code;
     }
@@ -252,6 +254,7 @@ describe("organizationSeatService", () => {
       status: "BAD_REQUEST",
       message:
         "No unused seats available. Purchase more seats or unassign another member.",
+      body: { kind: "seat_capacity_exceeded" },
     });
   });
 

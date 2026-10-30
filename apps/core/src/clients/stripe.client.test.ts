@@ -10,6 +10,7 @@ const {
   stripeCustomersRetrieveMock,
   stripeInvoiceItemsCreateMock,
   stripeInvoicesCreateMock,
+  stripeInvoicesCreatePreviewMock,
   stripeInvoicesFinalizeMock,
   stripePricesListMock,
   stripeProductsRetrieveMock,
@@ -24,6 +25,7 @@ const {
   stripeCustomersRetrieveMock: vi.fn(),
   stripeInvoiceItemsCreateMock: vi.fn(),
   stripeInvoicesCreateMock: vi.fn(),
+  stripeInvoicesCreatePreviewMock: vi.fn(),
   stripeInvoicesFinalizeMock: vi.fn(),
   stripePricesListMock: vi.fn(),
   stripeProductsRetrieveMock: vi.fn(),
@@ -65,6 +67,8 @@ vi.mock("stripe", () => ({
 
     invoices = {
       create: (...args: unknown[]) => stripeInvoicesCreateMock(...args),
+      createPreview: (...args: unknown[]) =>
+        stripeInvoicesCreatePreviewMock(...args),
       finalizeInvoice: (...args: unknown[]) =>
         stripeInvoicesFinalizeMock(...args),
     };
@@ -193,6 +197,27 @@ describe("stripeClient", () => {
     const { stripeClient } = await import("./stripe.client");
 
     await expect(stripeClient.getCouponById("coupon_gone")).resolves.toBeNull();
+  });
+
+  it("previews a quantity change with the same tax and proration as applying it", async () => {
+    stripeInvoicesCreatePreviewMock.mockResolvedValue({ amount_due: 1234 });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.previewSubscriptionItemQuantity("sub_1", "si_1", 3),
+    ).resolves.toEqual({ amount_due: 1234 });
+
+    expect(stripeInvoicesCreatePreviewMock).toHaveBeenCalledWith(
+      {
+        automatic_tax: { enabled: true },
+        subscription: "sub_1",
+        subscription_details: {
+          items: [{ id: "si_1", quantity: 3 }],
+          proration_behavior: "always_invoice",
+        },
+      },
+      undefined,
+    );
   });
 
   it("enables automatic tax when updating subscription item quantity", async () => {

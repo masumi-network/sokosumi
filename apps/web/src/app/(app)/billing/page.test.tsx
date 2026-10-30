@@ -633,7 +633,7 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        currentPlan: "free",
+        assignedCount: 2,
         currentSeats: 5,
         isEnterpriseConsumable: false,
         isEnterpriseContract: false,
