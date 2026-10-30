@@ -6240,7 +6240,8 @@
           "gradients": "Gradients",
           "gradientRule": "To be decided. Backgrounds and hero areas only, never behind dense UI.",
           "alpha": "Alpha tones",
-          "alphaRule": "Black at reduced opacity. Overlays and scrims over imagery only, never UI surfaces."
+          "alphaRule": "Black at reduced opacity. Overlays and scrims over imagery only, never UI surfaces.",
+          "alphaStep": "Alpha {step}"
         },
         "Type": {
           "title": "Typography",
@@ -6254,6 +6255,13 @@
             "label": "Label",
             "caption": "Caption",
             "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
           }
         },
         "Shape": {

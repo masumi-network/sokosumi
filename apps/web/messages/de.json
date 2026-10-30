@@ -6204,7 +6204,8 @@
           "gradients": "Verläufe",
           "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI.",
           "alpha": "Alpha-Töne",
-          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen."
+          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen.",
+          "alphaStep": "Alpha {step}"
         },
         "Type": {
           "title": "Typografie",
@@ -6218,6 +6219,13 @@
             "label": "Label",
             "caption": "Bildunterschrift",
             "micro": "Mikro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
           }
         },
         "Shape": {

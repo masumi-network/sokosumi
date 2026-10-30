@@ -6204,7 +6204,8 @@
           "gradients": "Degradados",
           "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa.",
           "alpha": "Tonos alfa",
-          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz."
+          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz.",
+          "alphaStep": "Alfa {step}"
         },
         "Type": {
           "title": "Tipografía",
@@ -6218,6 +6219,13 @@
             "label": "Etiqueta",
             "caption": "Leyenda",
             "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
           }
         },
         "Shape": {

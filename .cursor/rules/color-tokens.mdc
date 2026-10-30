@@ -172,8 +172,11 @@ file, the line number, and the offending line:
    `status-working`, `risk-high`) used as text or an edge.
 7. A `backdrop-blur` or `blur-*` utility anywhere in `src`. The guide bans glow
    and blur (5.5); an overlay is the `--overlay` scrim, nothing more.
-8. The primary (`text-`, `border-`, `ring-`, `fill-`, `stroke-`, `decoration-`,
-   `outline-` and kin) as text or an edge. Iris Flower is a fill only.
+8. A text or edge use of the primary (`text-` / `border-` / `ring-` / `fill-` /
+   `stroke-` / `decoration-` / `outline-` / `caret-` / `divide-primary…`). Iris
+   Flower is fill-only; thin marks and labels take a foreground role. Fill-side
+   steps (`text-primary-foreground`, `border-primary-tertiary`,
+   `bg-primary-solid`) stay legal.
 
 A hex counts only when it is quote-delimited or sits inside an arbitrary
 Tailwind value, so an issue number in a comment is not a color. The allowlist
