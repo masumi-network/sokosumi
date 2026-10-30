@@ -301,6 +301,7 @@ const reader: AuthenticationContext = {
   userId: USER_ID,
   organizationId: ACTIVE_ORG,
   role: "user",
+  authenticationMethod: "session",
 };
 
 async function listElsewhere(authContext = reader) {
@@ -491,6 +492,7 @@ describe("GET /chats/rooms/elsewhere", () => {
       userId: USER_ID,
       organizationId: null,
       role: "user",
+      authenticationMethod: "session",
     });
 
     expect(rooms.map((row) => row.id)).toEqual([orgRoom.id]);
@@ -547,6 +549,8 @@ describe("GET /chats/rooms/elsewhere", () => {
         organizationId: ACTIVE_ORG,
       },
     ],
+    ["API key", { ...reader, authenticationMethod: "api_key" }],
+    ["OAuth", { ...reader, authenticationMethod: "oauth" }],
   ])("refuses %s credentials", async (_name, authContext) => {
     arrange({ rooms: [roomRow()] });
 
