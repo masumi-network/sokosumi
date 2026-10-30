@@ -5242,7 +5242,7 @@ From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1338 tests
 
 ## "New" moves to the end of the Unread divider (04b follow-up), 2026-10-30
 
-`——— Today New ———` read as one phrase. User decision: "New" sits at the line's trailing end and a day pill stays centered on the line, on web and here in the same PR; not a `/apple-parity-next` row. Branch `claude/yesterday-new-looks-8e2459`, started on `origin/main` `5670e429b`.
+`——— Today New ———` read as one phrase. User decision: "New" sits at the line's trailing end and a day pill stays centered on the line, on web and here in the same PR; not a `/apple-parity-next` row. Draft [#6734](https://github.com/masumi-network/sokosumi/pull/6734), branch `claude/yesterday-new-looks-8e2459`, started on `origin/main` `5670e429b`.
 
 ### Behaviour
 
@@ -5250,4 +5250,4 @@ From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1338 tests
 
 ### Verification
 
-From `apps/apple`: `-only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests` passed; SwiftFormat and strict SwiftLint clean on the changed file. A throwaway window test rendered the three states at 669 pt and 320 pt, and light and dark at 669 pt: the gap around the pill centers at 668.5 of 1338 and 319.5 of 640 backing pixels, and the room capture (`unread-divider.png`) shows the row in the transcript. The full workspace scheme did not run. Unverified: the running app against a real Core.
+From `apps/apple`: `-only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests` passed; SwiftFormat and strict SwiftLint clean on the changed file. A throwaway window test rendered the three states at 669 pt and 320 pt, and light and dark at 669 pt: the gap around the pill centers at 668.5 of 1338 and 319.5 of 640 backing pixels, and the room capture (`unread-divider.png`) shows the row in the transcript. The full workspace scheme did not run. Web's `unread-divider.test.tsx` pins the order and failed on the old layout; no Mac test pins it, as `apps/apple/AGENTS.md` keeps SwiftUI layout out of the required suite. Unverified: the running app against a real Core.
