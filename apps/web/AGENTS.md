@@ -355,7 +355,7 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ### Styling
 
-- **Brand direction**: The [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide) is the target design system (Iris Flower primary, shared neutrals). Preview it at `/admin/design-system`; its tokens are scoped to that page in `src/app/(app)/admin/design-system/design-system.css` and must not leak into product code until `globals.css` migrates. See [Web UI conventions](../../docs/agents/web-ui.md).
+- **Brand direction**: The [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide) is the target design system (Iris Flower primary, shared neutrals). Preview it at `/admin/design-system`; its tokens are scoped to that page in `src/app/(app)/admin/design-system/design-system.css` and must not leak into product code until `globals.css` migrates. Known preview limits: portaled dialogs/toasts are static specimens; judge the light preview with the app in light mode (`dark:` utilities follow any `.dark` ancestor). See [Web UI conventions](../../docs/agents/web-ui.md).
 - Use semantic tokens from `globals.css`. No raw Tailwind palette colors, no hex/rgb/hsl
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
   (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme

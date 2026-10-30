@@ -238,7 +238,9 @@ export default async function DesignSystemPage() {
                         className="h-10 rounded-lg border"
                         style={backgroundFrom(tone.cssVar)}
                       />
-                      <div className="text-xs">{tone.name}</div>
+                      <div className="text-xs">
+                        {t("Color.alphaStep", { step: tone.step })}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -314,10 +316,12 @@ export default async function DesignSystemPage() {
           <Section title={t("Type.title")} lead={t("Type.lead")}>
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
               {WEIGHTS.map((weight) => (
-                <div key={weight.value} className="space-y-1">
-                  <div className={cn("text-4xl", weight.className)}>Aa</div>
+                <div key={weight.key} className="space-y-1">
+                  <div className={cn("text-4xl", weight.className)}>
+                    {t("Type.specimenGlyph")}
+                  </div>
                   <div className="text-sm font-medium">
-                    {weight.name} · {weight.value}
+                    {t(`Type.Weights.${weight.key}`)} · {weight.value}
                   </div>
                 </div>
               ))}

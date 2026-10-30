@@ -6170,7 +6170,8 @@
           "label": "Tema de la vista previa",
           "light": "Claro",
           "dark": "Oscuro",
-          "darkNote": "Los valores oscuros siguen abiertos en la guía. Esta vista sigue su tabla de roles."
+          "darkNote": "Los valores oscuros siguen abiertos en la guía. Esta vista sigue su tabla de roles.",
+          "limitsNote": "Los ejemplares de diálogo y toast son estáticos: los portales salen de los tokens de esta página. Evalúa la vista clara con la app en modo claro: los estilos dark: siguen cualquier ancestro .dark."
         },
         "Color": {
           "title": "Color",
@@ -6206,7 +6207,8 @@
           "gradients": "Degradados",
           "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa.",
           "alpha": "Tonos alfa",
-          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz."
+          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz.",
+          "alphaStep": "Alfa {step}"
         },
         "Type": {
           "title": "Tipografía",
@@ -6220,6 +6222,13 @@
             "label": "Etiqueta",
             "caption": "Leyenda",
             "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
           }
         },
         "Shape": {

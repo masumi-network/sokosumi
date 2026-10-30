@@ -21,11 +21,11 @@ interface DesignSystemPreviewProps {
  * Scopes the Masumi Family tokens to its children and lets the viewer flip
  * them between light and dark, independent of the app's own theme.
  *
- * Components style dark mode through `dark:` utilities, which match any
- * descendant of `.dark`. The wrapper adds that class in the dark preview so
- * they follow the toggle. The reverse cannot be scoped: with the app itself in
- * dark mode, those utilities still fire inside the light preview, so judge the
- * light preview with the app in light mode.
+ * Limits (also on Theme.limitsNote and in docs/agents/web-ui.md): dialogs and
+ * toasts portal outside this wrapper, so the page shows static specimens;
+ * components' `dark:` utilities match any `.dark` ancestor, so the light
+ * preview is only reliable when the app itself is in light mode. The dark
+ * preview adds `.dark` so those utilities follow the toggle.
  */
 export function DesignSystemPreview({ children }: DesignSystemPreviewProps) {
   const t = useTranslations("App.Admin.DesignSystem.Theme");
@@ -45,6 +45,7 @@ export function DesignSystemPreview({ children }: DesignSystemPreviewProps) {
             <TabsTrigger value="dark">{t("dark")}</TabsTrigger>
           </TabsList>
         </Tabs>
+        <p className="text-muted-foreground text-sm">{t("limitsNote")}</p>
         {theme === "dark" ? (
           <p className="text-muted-foreground text-sm">{t("darkNote")}</p>
         ) : null}
