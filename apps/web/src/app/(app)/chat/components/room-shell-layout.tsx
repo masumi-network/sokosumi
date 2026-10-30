@@ -27,8 +27,19 @@ export const ROOM_SHELL_SECTION_CLASSNAME =
 export const ROOM_SHELL_COLUMN_CLASSNAME =
   "flex min-h-0 min-w-0 flex-1 flex-col";
 
+/** The rule spans the pane; its contents ride the reading column. */
 export const ROOM_SHELL_DESKTOP_HEADER_CLASSNAME =
-  "flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6";
+  "flex h-16 shrink-0 border-b";
+
+/**
+ * The header's row, in `ROOM_CONTENT_COLUMN_CLASSNAME`. px-3.5 is the list's
+ * px-5 less the title's own px-1.5: the title's mark starts at the avatars'
+ * left edge.
+ */
+export const ROOM_SHELL_DESKTOP_HEADER_ROW_CLASSNAME = cn(
+  ROOM_CONTENT_COLUMN_CLASSNAME,
+  "flex min-w-0 flex-1 items-center justify-between gap-4 px-3.5",
+);
 
 /** Empty desktop header slot (Instant). Same outer box as live header. */
 export const ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME =
@@ -80,11 +91,17 @@ export function RoomShellLayout({
   composer,
   mainEnd = null,
 }: RoomShellLayoutProps): React.ReactElement {
-  const { mainRef, sectionRef, listRef, composerRef } = useRoomColumnSlide();
+  const { mainRef, sectionRef, headerRef, listRef, composerRef } =
+    useRoomColumnSlide();
   const header =
     desktopHeader != null ? (
       <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
-        {desktopHeader}
+        <div
+          ref={headerRef}
+          className={ROOM_SHELL_DESKTOP_HEADER_ROW_CLASSNAME}
+        >
+          {desktopHeader}
+        </div>
       </header>
     ) : reserveDesktopHeader ? (
       <div className={ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME} aria-hidden />
