@@ -46,6 +46,13 @@ const STATES = Object.values(SokoBotAvatarState);
 /** Original ideas only: a typed change that names a brand or a character is refused. */
 const IDEAS = ["wizard", "coffee", "snow", "sleepy", "beach"] as const;
 const PREVIEW_SIZES = ["size-20", "size-12", "size-8", "size-6"] as const;
+/**
+ * Preview column width in rem. The `@3xl` grid track and the preview `max-w`
+ * must both use this value — the layout contract test locks them together.
+ * Keep the rem literal in those class strings too so the Tailwind scanner sees
+ * complete class names.
+ */
+export const AVATAR_STUDIO_PREVIEW_COLUMN_REM = 35;
 const POLL_ENDPOINT = "/api/personal-assistant/avatar";
 const POLL_MS = 5_000;
 
