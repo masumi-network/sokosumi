@@ -1694,17 +1694,33 @@ describe("ChatRoomSidebarRow Workspace tile", () => {
     expect(trailing?.firstElementChild).toBe(tile);
   });
 
+  it("lets the pointer through to the row's link, and keeps the menu reachable", () => {
+    const { trailing } = renderRow(
+      makeRoom({ ...pinned, unreadMentionCount: 2 }),
+    );
+
+    expect(trailing?.className.split(" ")).toContain("pointer-events-none");
+    expect(
+      screen
+        .getByRole("button", { name: "Chat actions for general" })
+        .closest(".pointer-events-auto"),
+    ).not.toBeNull();
+  });
+
   it("stands left of the handle in reorder mode", () => {
     const { tile, spacer, trailing } = renderRow(makeRoom(pinned), {
       reorderHandle: <button type="button">grip</button>,
     });
 
-    expect(tile?.className.split(" ")).not.toContain(
-      "[@media(hover:hover)]:absolute",
+    const classes = tile?.className.split(" ") ?? [];
+    expect(classes).not.toContain("[@media(hover:hover)]:absolute");
+    // No count to stand beside, so it stays muted under the pointer.
+    expect(classes).not.toContain(
+      "[@media(hover:hover)]:group-hover/room-row:grayscale-0",
     );
     expect(spacer?.className.split(" ")).toContain("[@media(hover:hover)]:w-8");
     expect(trailing?.firstElementChild).toBe(tile);
-    expect(trailing?.lastElementChild).toBe(
+    expect(trailing?.lastElementChild).toContainElement(
       screen.getByRole("button", { name: "grip" }),
     );
   });

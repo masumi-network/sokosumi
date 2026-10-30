@@ -1,4 +1,4 @@
-import type { ChatRoomMessage } from "@sokosumi/core-client";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import type { QueryClient } from "@tanstack/react-query";
 import type { RoomsClientProps } from "@/app/chat/components/rooms-client";
 import type { TranscriptPosition } from "@/app/chat/components/transcript-viewport";
@@ -7,6 +7,7 @@ import {
   type RoomMessagesPage,
 } from "@/components/chat/fetch-room-messages";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { getRememberedPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
 import { isOutboundLocalMessage } from "./outbound-room-message";
@@ -117,17 +118,24 @@ export class RoomTranscriptCache {
    * Room visit is kept the same way on a switch to the room's own workspace
    * (ADR-0061), and a Pinned room on a switch to any (ADR-0062).
    */
-  // shortcut: the bootstrap's pin is as old as the open, so a room pinned since then repaints from its page on a switch, read the live rooms if that shows
   forWorkspace(workspaceId: string | null, openRoomId: string | undefined) {
     const next = new RoomTranscriptCache(this.client, this.userId, workspaceId);
     const entry = openRoomId ? this.get(openRoomId) : undefined;
     const room = entry?.bootstrap.rooms.find(({ id }) => id === openRoomId);
-    if (openRoomId && entry && room && isListedInWorkspace(room, workspaceId)) {
+    if (openRoomId && entry && room && this.staysListed(room, workspaceId)) {
       this.client.setQueryData(next.key(openRoomId), entry);
       const position = this.positions.get(entry.lifetime);
       if (position) next.positions.set(entry.lifetime, position);
     }
     return next;
+  }
+
+  /** The bootstrap's pin is as old as the open, and the room may be pinned since. */
+  private staysListed(room: ChatRoom, workspaceId: string | null) {
+    return (
+      isListedInWorkspace(room, workspaceId) ||
+      getRememberedPinnedRooms(this.userId).some(({ id }) => id === room.id)
+    );
   }
 
   key(roomId: string) {

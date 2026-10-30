@@ -187,6 +187,53 @@ describe("Pinned rooms of other workspaces", () => {
     expect(screen.queryByText(/elsewhereMore/)).toBeNull();
   });
 
+  it("holds every row's place on a switch, until the new workspace's read lands", async () => {
+    const mine = myRoom("mine", { starredAt: day(1) });
+    const theirs = otherRoom("theirs", { starredAt: day(2) });
+    const third = otherRoom("third", {
+      starredAt: day(3),
+      organizationId: "org-3",
+      organizationName: "Third Org",
+    });
+    const view = await renderWithPins([mine], [theirs, third]);
+    await waitFor(() =>
+      expect(pinnedRows()).toEqual(["mine", "theirs", "third"]),
+    );
+
+    listElsewhereMock.mockImplementation(() => new Promise(() => {}));
+    listRoomsMock.mockResolvedValue(emptyListResult([theirs]));
+    // The sidebar is keyed by workspace, so a switch remounts it.
+    view.unmount();
+    renderOrganizationChatList({ organizationId: "org-2", rooms: [theirs] });
+
+    await waitFor(() =>
+      expect(pinnedRows()).toEqual(["mine", "theirs", "third"]),
+    );
+    expect(rowProps("mine").workspaceName).toBe("Acme");
+    expect(rowProps("theirs").workspaceName).toBeUndefined();
+    expect(rowProps("third").workspaceName).toBe("Third Org");
+  });
+
+  it("leaves a placeholder out of Elsewhere rows, and keeps its row", async () => {
+    const theirs = otherRoom("theirs", {
+      starredAt: day(1),
+      unreadCount: 1,
+      channelUnreadCount: 1,
+    });
+    const view = await renderWithPins([], [theirs], { withChatsHeading: true });
+
+    listElsewhereMock.mockImplementation(() => new Promise(() => {}));
+    view.unmount();
+    renderOrganizationChatList({
+      organizationId: "org-2",
+      rooms: [],
+      withChatsHeading: true,
+    });
+
+    await waitFor(() => expect(pinnedRows()).toEqual(["theirs"]));
+    expect(elsewhereRows()).toEqual([]);
+  });
+
   it("paints what a read already brought without reading for an instant paint", async () => {
     const view = await renderWithPins(
       [],
@@ -253,6 +300,39 @@ describe("Pinned rooms of other workspaces", () => {
       expect(elsewhereRows()).toEqual(["design"]);
     });
 
+    it("puts a held row back when the Pin fails", async () => {
+      const room = otherRoom("launch", {
+        unreadCount: 1,
+        channelUnreadCount: 1,
+      });
+      const design = otherRoom("design", {
+        unreadCount: 1,
+        channelUnreadCount: 1,
+      });
+      const view = await renderWithPins([], [room, design]);
+      harnessPathname.current = "/chat/rooms/launch";
+      view.rerender(createOrganizationChatList());
+      await waitFor(() =>
+        expect(elsewhereRows()).toEqual(["launch", "design"]),
+      );
+      readRoom("launch");
+      await waitFor(() => expect(rowProps("launch").room.unreadCount).toBe(0));
+      const held = rowProps("launch").room;
+
+      act(() => {
+        rowProps("launch").onRoomUpdated({ ...held, starredAt: day(1) });
+      });
+      await waitFor(() => expect(pinnedRows()).toEqual(["launch"]));
+      act(() => {
+        rowProps("launch").onRoomUpdated(held);
+      });
+
+      await waitFor(() =>
+        expect(elsewhereRows()).toEqual(["launch", "design"]),
+      );
+      expect(screen.queryByText("App.Channels.pinned")).toBeNull();
+    });
+
     it("does not bring a held row back once it is pinned, read and unpinned", async () => {
       const room = otherRoom("launch", {
         unreadCount: 1,
@@ -267,6 +347,10 @@ describe("Pinned rooms of other workspaces", () => {
         rowProps("launch").onRoomUpdated({ ...room, starredAt: day(1) });
       });
       await waitFor(() => expect(pinnedRows()).toEqual(["launch"]));
+      // The Pin's answer.
+      act(() => {
+        rowProps("launch").onRoomUpdated({ ...room, starredAt: day(1) });
+      });
       readRoom("launch");
       await waitFor(() => expect(rowProps("launch").room.unreadCount).toBe(0));
 

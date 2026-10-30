@@ -10,7 +10,8 @@ import {
 } from "react";
 import { vi } from "vitest";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
-import { ElsewhereRoomsLive } from "@/components/chat/use-elsewhere-rooms";
+import { rememberPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
+import { OtherWorkspaceRoomsLive } from "@/components/chat/use-other-workspace-rooms";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
   serializeChatUnreadsFilterCookie,
@@ -463,6 +464,7 @@ export function resetOrganizationChatListMocks() {
   listElsewhereMock.mockReset();
   reorderPinnedMock.mockReset();
   harnessRowProps.clear();
+  rememberPinnedRooms("", []);
   harnessQueryClient = makeQueryClient();
   listElsewhereMock.mockResolvedValue([]);
   listRoomsMock.mockResolvedValue(emptyListResult());
@@ -484,7 +486,7 @@ export function createOrganizationChatList({
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
     <QueryClientProvider client={harnessQueryClient}>
-      <ElsewhereRoomsLive />
+      <OtherWorkspaceRoomsLive />
       <OrganizationChatList
         rooms={rooms}
         archivedRooms={archivedRooms}

@@ -36,6 +36,7 @@ function renderTile(
       room={makeRoom({ organizationId: "org-2", ...overrides })}
       workspaceName={workspaceName}
       takesMenuColumn
+      recolorsOnHover={false}
     />,
   );
   return container.querySelector('[data-slot="workspace-tile"]') as HTMLElement;

@@ -95,9 +95,9 @@ import {
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
 import {
-  ElsewhereRoomsLive,
-  useElsewhereRooms,
-} from "@/components/chat/use-elsewhere-rooms";
+  OtherWorkspaceRoomsLive,
+  useOtherWorkspaceRooms,
+} from "@/components/chat/use-other-workspace-rooms";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -109,7 +109,7 @@ let hasFocus: ReturnType<typeof vi.spyOn>;
 function AppFrame({ children }: { children: ReactNode }) {
   return (
     <TestQueryProvider>
-      <ElsewhereRoomsLive />
+      <OtherWorkspaceRoomsLive />
       {children}
     </TestQueryProvider>
   );
@@ -171,7 +171,7 @@ function elsewhereRoom(partial: Partial<ChatRoom> & Pick<ChatRoom, "id">) {
 
 /** Stands in for the sidebar's list: it shows the Elsewhere rooms too. */
 function SidebarList() {
-  useElsewhereRooms({
+  useOtherWorkspaceRooms({
     currentUserId: "user-1",
     organizationId: "org-1",
     enabled: true,
@@ -182,7 +182,7 @@ function SidebarList() {
 
 /** Stands in for Catch up's page, which lists the rooms too. */
 function CatchUpPage() {
-  useElsewhereRooms({
+  useOtherWorkspaceRooms({
     currentUserId: "user-1",
     organizationId: "org-1",
     enabled: true,

@@ -11,10 +11,12 @@ interface RoomWorkspaceTileProps {
   workspaceName: string;
   /**
    * Stands in the room menu's column and fades as the menu appears. Otherwise,
-   * beside a count or a reorder handle, it stands just left of that column and
-   * returns to full colour on hover. Touch has no hover, so it is always in flow.
+   * beside a count or a reorder handle, it stands just left of that column.
+   * Touch has no hover, so it is always in flow.
    */
   takesMenuColumn: boolean;
+  /** Beside a count, it returns to full colour on hover. */
+  recolorsOnHover: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export function RoomWorkspaceTile({
   room,
   workspaceName,
   takesMenuColumn,
+  recolorsOnHover,
 }: RoomWorkspaceTileProps) {
   const { data: session } = useSession();
   if (!session) {
@@ -41,12 +44,12 @@ export function RoomWorkspaceTile({
       className={cn(
         "pointer-events-none flex shrink-0 items-center justify-center opacity-70 grayscale",
         "motion-safe:transition-[opacity,filter] motion-safe:duration-150",
-        takesMenuColumn
-          ? [
-              "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:size-7 [@media(hover:hover)]:-translate-y-1/2",
-              "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
-            ]
-          : "[@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:grayscale-0",
+        takesMenuColumn && [
+          "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:size-7 [@media(hover:hover)]:-translate-y-1/2",
+          "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
+        ],
+        recolorsOnHover &&
+          "[@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:grayscale-0",
       )}
     >
       <WorkspaceAvatar

@@ -2,6 +2,7 @@ import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
+import { rememberPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
@@ -426,6 +427,10 @@ describe("room open prefetched on click", () => {
 });
 
 describe("RoomTranscriptCache.forWorkspace", () => {
+  beforeEach(() => {
+    rememberPinnedRooms("", []);
+  });
+
   function cacheWithOpenRoom(starredAt: Date | null) {
     const cache = new RoomTranscriptCache(new QueryClient(), "reader", "org-2");
     const entry = cache.seed({
@@ -460,6 +465,13 @@ describe("RoomTranscriptCache.forWorkspace", () => {
     const { cache, entry } = cacheWithOpenRoom(
       new Date("2026-08-01T00:00:00.000Z"),
     );
+
+    expect(cache.forWorkspace("org-3", "room").get("room")).toBe(entry);
+  });
+
+  it("keeps a room pinned since it opened painted on a switch", () => {
+    const { cache, entry } = cacheWithOpenRoom(null);
+    rememberPinnedRooms("reader", [{ id: "room" } as ChatRoom]);
 
     expect(cache.forWorkspace("org-3", "room").get("room")).toBe(entry);
   });

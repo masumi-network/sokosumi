@@ -17,6 +17,7 @@ import {
   subscribeOrganizationChatRoomRead,
   subscribeOrganizationChatRoomsChanged,
 } from "./organization-chat-events";
+import { getRememberedPinnedRooms } from "./remembered-pinned-rooms";
 import { roomHasUnread } from "./room-attention";
 import {
   applyRoomReadOverlays,
@@ -27,7 +28,7 @@ import {
 import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 /** At most one read per window, so a busy room costs less than its messages. */
-const ELSEWHERE_READ_WINDOW_MS = 2_000;
+const OTHER_WORKSPACE_READ_WINDOW_MS = 2_000;
 
 const NOTHING_UNREAD = {
   unreadCount: 0,
@@ -43,12 +44,12 @@ const NOTHING_UNREAD = {
 
 const NO_ROOMS: ChatRoom[] = [];
 
-const ELSEWHERE_ROOMS_KEY = ["chat-elsewhere-rooms"] as const;
+const OTHER_WORKSPACE_ROOMS_KEY = ["chat-other-workspace-rooms"] as const;
 
 /** When the reader last pinned, unpinned or reordered here. */
 let pinsChangedAtRevision = 0;
 
-async function readElsewhereRooms({
+async function readOtherWorkspaceRooms({
   client,
   queryKey,
 }: QueryFunctionContext): Promise<ChatRoom[]> {
@@ -76,12 +77,12 @@ async function readElsewhereRooms({
  * connection comes back. The window is how a read in another tab or on another
  * device arrives, because it sends no event; a read in this tab clears locally.
  */
-export function ElsewhereRoomsLive(): null {
+export function OtherWorkspaceRoomsLive(): null {
   const queryClient = useQueryClient();
   const requestRead = useChatRefreshScheduler({
     key: "elsewhere",
     refresh: () =>
-      queryClient.invalidateQueries({ queryKey: ELSEWHERE_ROOMS_KEY }),
+      queryClient.invalidateQueries({ queryKey: OTHER_WORKSPACE_ROOMS_KEY }),
     healthy: useAblyConnectionHealthy(),
     refreshOnRecovery: true,
     refreshOnForeground: true,
@@ -99,7 +100,7 @@ export function ElsewhereRoomsLive(): null {
 
     function updateRooms(update: (current: ChatRoom[]) => ChatRoom[]) {
       queryClient.setQueriesData<ChatRoom[]>(
-        { queryKey: ELSEWHERE_ROOMS_KEY },
+        { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
         (current) => current && update(current),
       );
     }
@@ -118,7 +119,7 @@ export function ElsewhereRoomsLive(): null {
         }
         if (timer !== undefined) return;
         // The first message of a quiet spell reads at once; a burst waits.
-        const wait = lastReadAt + ELSEWHERE_READ_WINDOW_MS - Date.now();
+        const wait = lastReadAt + OTHER_WORKSPACE_READ_WINDOW_MS - Date.now();
         if (wait <= 0) {
           read();
         } else {
@@ -145,9 +146,9 @@ export function ElsewhereRoomsLive(): null {
  * what is unread, so none of them holds a read row for the open room, and a read
  * pin adds nothing.
  */
-export function useLiveElsewhereRooms(): ChatRoom[] {
+export function useLiveOtherWorkspaceRooms(): ChatRoom[] {
   const { data: session } = useSession();
-  const { rooms } = useElsewhereRooms({
+  const { rooms } = useOtherWorkspaceRooms({
     currentUserId: session?.user.id ?? null,
     organizationId: session?.session.activeOrganizationId ?? null,
     enabled: true,
@@ -155,7 +156,7 @@ export function useLiveElsewhereRooms(): ChatRoom[] {
   return rooms;
 }
 
-interface UseElsewhereRoomsOptions {
+interface UseOtherWorkspaceRoomsOptions {
   currentUserId: string | null;
   organizationId: string | null;
   /** The open room, whose row stays if it was showing when the room opened. */
@@ -170,6 +171,8 @@ interface OpenRoomHold {
   room: ChatRoom | null;
   /** Where it stood, for when Core stops listing it. */
   index: number;
+  /** Its row while a Pin is unanswered, which a failed Pin puts back. */
+  pinning?: ChatRoom | null;
 }
 
 /**
@@ -194,7 +197,7 @@ function keepHeldRow(
 /**
  * The reader's rooms of other workspaces that hold something unread or are
  * pinned, in Core's order: one shared query, read on mount and kept current by
- * `ElsewhereRoomsLive`. `pinnedRooms` go to Pinned (ADR-0062). `rooms` is what is
+ * `OtherWorkspaceRoomsLive`. `pinnedRooms` go to Pinned (ADR-0062). `rooms` is what is
  * unread, pinned or not, for Catch up's page and the signals, and
  * `selectElsewhereRows` takes the Elsewhere rows from it (ADR-0061).
  *
@@ -206,21 +209,34 @@ function keepHeldRow(
  * `answered` turns true once the first read has come back, listed or failed, so
  * a caller can tell "nothing unread" from "not asked yet".
  */
-export function useElsewhereRooms({
+export function useOtherWorkspaceRooms({
   currentUserId,
   organizationId,
   activeRoomId = null,
   enabled,
-}: UseElsewhereRoomsOptions) {
+}: UseOtherWorkspaceRoomsOptions) {
   const queryClient = useQueryClient();
   // A room of the workspace just left is not "elsewhere" any more, and one of
   // the workspace just entered must not show twice.
-  const queryKey = [...ELSEWHERE_ROOMS_KEY, currentUserId, organizationId];
-  const { data: listed = NO_ROOMS, isFetched: answered } = useQuery({
+  const queryKey = [
+    ...OTHER_WORKSPACE_ROOMS_KEY,
+    currentUserId,
+    organizationId,
+  ];
+  const {
+    data: listed = NO_ROOMS,
+    isFetched: answered,
+    isPlaceholderData,
+  } = useQuery({
     queryKey,
-    queryFn: readElsewhereRooms,
+    queryFn: readOtherWorkspaceRooms,
+    // Pinned keeps its rows while a new workspace's first read is on its way.
+    placeholderData: () => {
+      const pins = getRememberedPinnedRooms(currentUserId);
+      return pins.length > 0 ? [...pins] : undefined;
+    },
     enabled: enabled && currentUserId !== null,
-    // `ElsewhereRoomsLive` decides when to read, and asks by invalidating.
+    // `OtherWorkspaceRoomsLive` decides when to read, and asks by invalidating.
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -277,18 +293,25 @@ export function useElsewhereRooms({
               ),
         ),
     );
-    setHold((current) =>
-      current?.room?.id === updated.id
-        ? {
-            ...current,
-            // Pinned, it has its row there. Unpinned later and read, it has none.
-            room:
-              updated.starredAt == null
-                ? withWorkspaceOf(current.room, updated)
-                : null,
-          }
-        : current,
-    );
+    setHold((current) => {
+      // The Pin's answer: its row stays gone, or a failed Pin gets it back.
+      if (current?.pinning?.id === updated.id) {
+        return updated.starredAt == null
+          ? {
+              ...current,
+              room: withWorkspaceOf(current.pinning, updated),
+              pinning: null,
+            }
+          : { ...current, pinning: null };
+      }
+      if (current?.room?.id !== updated.id) {
+        return current;
+      }
+      // Pinned, it has its row there. Unpinned later and read, it has none.
+      return updated.starredAt == null
+        ? { ...current, room: withWorkspaceOf(current.room, updated) }
+        : { ...current, room: null, pinning: current.room };
+    });
   }
 
   /**
@@ -298,18 +321,22 @@ export function useElsewhereRooms({
   function applyPinnedOrder(order: StarredChatRoomOrder[]) {
     pinsChangedAtRevision = beginRoomAttentionRefresh();
     queryClient.setQueriesData<ChatRoom[]>(
-      { queryKey: ELSEWHERE_ROOMS_KEY },
+      { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
       (current) => current && withPinnedOrder(current, order),
     );
   }
 
   function readAgain() {
-    void queryClient.invalidateQueries({ queryKey: ELSEWHERE_ROOMS_KEY });
+    void queryClient.invalidateQueries({ queryKey: OTHER_WORKSPACE_ROOMS_KEY });
   }
 
-  const rooms = keepHeldRow(listed, held).filter(
-    (room) => roomHasUnread(room) || room.id === held?.room?.id,
-  );
+  // What a placeholder holds is only for Pinned: the new workspace's active list
+  // may hold the same rooms, and the signals would count them twice.
+  const rooms = isPlaceholderData
+    ? NO_ROOMS
+    : keepHeldRow(listed, held).filter(
+        (room) => roomHasUnread(room) || room.id === held?.room?.id,
+      );
   const pinnedRooms = listed.filter((room) => room.starredAt != null);
 
   return {

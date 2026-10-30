@@ -53,10 +53,6 @@ export interface PinnedChatRoomSortKey {
 }
 
 /**
- * The reader's own order: oldest `starredAt` first, which a reorder rewrites
- * (Core `PUT /chats/rooms/starred`). Activity never moves a pinned room.
- */
-/**
  * A reorder's new sort keys on the rooms they name. A room unpinned meanwhile
  * stays unpinned.
  */
@@ -73,6 +69,10 @@ export function withPinnedOrder(
   });
 }
 
+/**
+ * The reader's own order: oldest `starredAt` first, which a reorder rewrites
+ * (Core `PUT /chats/rooms/starred`). Activity never moves a pinned room.
+ */
 export function comparePinnedChatRooms(
   a: PinnedChatRoomSortKey,
   b: PinnedChatRoomSortKey,
