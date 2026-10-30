@@ -57,6 +57,7 @@ import mountDeleteSendingDomain from "./[id]/newsletter/sending-domain/delete.js
 import mountGetSendingDomainConnect from "./[id]/newsletter/sending-domain/domain-connect/get.js";
 import mountGetSendingDomain from "./[id]/newsletter/sending-domain/get.js";
 import mountPutSendingDomain from "./[id]/newsletter/sending-domain/put.js";
+import mountPostSendingDomainWarmupResume from "./[id]/newsletter/sending-domain/warmup/resume/post.js";
 import mountDeleteNewsletterSubscriber from "./[id]/newsletter/subscribers/[subscriberId]/delete.js";
 import mountPatchNewsletterSubscriber from "./[id]/newsletter/subscribers/[subscriberId]/patch.js";
 import mountAddNewsletterSubscribersFromContacts from "./[id]/newsletter/subscribers/from-contacts/post.js";
@@ -140,6 +141,7 @@ mountDeleteSendingDomain(app);
 mountPostSendingDomainCheck(app);
 mountPostSendingDomainCloudflare(app);
 mountGetSendingDomainConnect(app);
+mountPostSendingDomainWarmupResume(app);
 
 mountListNewsletterSubscribers(app);
 mountAddNewsletterSubscriber(app);

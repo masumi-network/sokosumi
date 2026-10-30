@@ -3676,7 +3676,20 @@
             "domainRejected": "This domain can’t be used. Check the address and try again.",
             "providerFailed": "The email provider didn’t respond. Try again in a minute.",
             "cloudflareRejected": "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain’s zone.",
-            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute."
+            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute.",
+            "resumeUnavailable": "Verify this sending domain before resuming. Check its DNS records and try again."
+          },
+          "warmup": {
+            "title": "Domain warm-up",
+            "progress": "Day {day} · {used} of {cap} sent today (UTC)",
+            "unlimited": "Day {day} · {used} sent today (UTC) · Unlimited",
+            "description": "Recipients beyond today’s limit stay queued and send automatically when capacity returns. The daily limit resets at 00:00 UTC.",
+            "paused": "Sending paused",
+            "bounceReason": "Too many emails permanently bounced.",
+            "complaintReason": "Too many recipients marked emails as spam.",
+            "pausedDescription": "Queued recipients stay queued until a project member resumes sending. Review the subscriber list before resuming.",
+            "resume": "Resume sending",
+            "resumed": "Sending resumed. Queued recipients continue within the daily limit."
           }
         }
       }
