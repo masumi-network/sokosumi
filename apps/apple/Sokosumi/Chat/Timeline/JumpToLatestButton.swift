@@ -12,11 +12,11 @@ import SwiftUI
       Button(action: action) {
         Label("Jump to latest", systemImage: "arrow.down")
           .font(.callout.weight(.medium))
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(.primary)
           .padding(.horizontal, 12)
           .padding(.vertical, 6)
           .background(.background, in: .capsule)
-          .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.3)))
+          .overlay(Capsule().strokeBorder(Color.primary.opacity(0.12)))
           .contentShape(.capsule)
       }
       .buttonStyle(.plain)
