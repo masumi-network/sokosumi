@@ -12,7 +12,6 @@
   "hostRequired": false,
   "syncPubKeyDomain": "sokosumi.com",
   "syncRedirectDomain": "app.sokosumi.com",
-  "warnPhishing": true,
   "records": [
     {
       "groupId": "mail",
@@ -32,12 +31,10 @@
     },
     {
       "groupId": "mail",
-      "type": "TXT",
+      "type": "SPFM",
       "host": "send",
-      "data": "v=spf1 include:amazonses.com ~all",
-      "ttl": 3600,
-      "txtConflictMatchingMode": "Prefix",
-      "txtConflictMatchingPrefix": "v=spf1"
+      "spfRules": "include:amazonses.com",
+      "ttl": 3600
     },
     {
       "groupId": "dmarc",
@@ -46,7 +43,8 @@
       "data": "v=DMARC1; p=none;",
       "ttl": 3600,
       "txtConflictMatchingMode": "Prefix",
-      "txtConflictMatchingPrefix": "v=DMARC1"
+      "txtConflictMatchingPrefix": "v=DMARC1",
+      "essential": "OnApply"
     }
   ]
 }

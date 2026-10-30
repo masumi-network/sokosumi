@@ -472,6 +472,7 @@ import {
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSendingDomainCheck as corePostProjectsByIdNewsletterSendingDomainCheck,
   postProjectsByIdNewsletterSendingDomainCloudflare as corePostProjectsByIdNewsletterSendingDomainCloudflare,
+  postProjectsByIdNewsletterSendingDomainWarmupResume as corePostProjectsByIdNewsletterSendingDomainWarmupResume,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersFromContacts as corePostProjectsByIdNewsletterSubscribersFromContacts,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
@@ -1012,6 +1013,20 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to check the newsletter sending domain",
+    );
+  }
+
+  async function postProjectsByIdNewsletterSendingDomainWarmupResume(
+    id: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterSendingDomainWarmupResume({
+          client,
+          path: { id },
+        }),
+      "Failed to resume the newsletter sending domain",
     );
   }
 
@@ -6910,6 +6925,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteProjectsByIdNewsletterSendingDomain,
     postProjectsByIdNewsletterSendingDomainCheck,
     postProjectsByIdNewsletterSendingDomainCloudflare,
+    postProjectsByIdNewsletterSendingDomainWarmupResume,
     getProjectsByIdNewsletterSendingDomainDomainConnect,
     getProjectsByIdNewsletterAnalytics,
     getProjectsByIdNewsletterIssuesByIssueIdAnalytics,

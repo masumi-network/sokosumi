@@ -13,6 +13,7 @@ import mountDelete from "./delete";
 import mountDomainConnect from "./domain-connect/get";
 import mountGet from "./get";
 import mountPut from "./put";
+import mountResume from "./warmup/resume/post";
 
 const WORKSPACE_ID = "019a0000-0000-7000-8000-000000000001";
 const PROJECT_ID = "019a0000-0000-7000-8000-000000000003";
@@ -28,6 +29,14 @@ const DOMAIN = {
   lastCheckedAt: null,
   failureReason: null,
   createdAt: new Date(NOW),
+  warmup: {
+    startedAt: null,
+    day: null,
+    dailyCap: null,
+    sentToday: 0,
+    pausedAt: null,
+    pauseReason: null,
+  },
 };
 
 const m = vi.hoisted(() => ({
@@ -40,6 +49,7 @@ const m = vi.hoisted(() => ({
   remove: vi.fn(),
   cloudflare: vi.fn(),
   connect: vi.fn(),
+  resume: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -61,6 +71,7 @@ vi.mock("@/services/newsletter-sending-domain.service", async (original) => ({
   removeNewsletterSendingDomain: m.remove,
   connectNewsletterSendingDomainWithCloudflare: m.cloudflare,
   getNewsletterSendingDomainConnect: m.connect,
+  resumeNewsletterSendingDomainWarmup: m.resume,
 }));
 
 const USER: AuthenticationContext = {
@@ -107,6 +118,7 @@ function createApp(auth: AuthenticationContext = USER) {
     mountCheck,
     mountCloudflare,
     mountDomainConnect,
+    mountResume,
   ]) {
     mount(app);
   }
@@ -118,6 +130,7 @@ const MUTATIONS = [
   ["PUT", DOMAIN_PATH, { fromAddress: "news@brand.example" }],
   ["DELETE", DOMAIN_PATH, undefined],
   ["POST", `${DOMAIN_PATH}/check`, undefined],
+  ["POST", `${DOMAIN_PATH}/warmup/resume`, undefined],
   ["POST", `${DOMAIN_PATH}/cloudflare`, { apiToken: TOKEN }],
   ["GET", `${DOMAIN_PATH}/domain-connect`, undefined],
 ] as const;
@@ -145,6 +158,7 @@ beforeEach(() => {
   m.get.mockResolvedValue(DOMAIN);
   m.put.mockResolvedValue(DOMAIN);
   m.check.mockResolvedValue(DOMAIN);
+  m.resume.mockResolvedValue(DOMAIN);
   m.cloudflare.mockResolvedValue(DOMAIN);
   m.connect.mockResolvedValue(null);
 });
@@ -204,7 +218,7 @@ describe("GET /v1/projects/{id}/newsletter/sending-domain", () => {
 });
 
 describe("sending domain mutations", () => {
-  it("allows a plain project member to connect, remove, check and configure DNS", async () => {
+  it("allows a plain project member to connect, remove, check, resume and configure DNS", async () => {
     for (const mutation of MUTATIONS) {
       const response = await send(createApp(), mutation);
       expect(response.status, mutation.join(" ")).toBeLessThan(300);
@@ -214,6 +228,7 @@ describe("sending domain mutations", () => {
     expect(m.remove).toHaveBeenCalledWith(PROJECT_ID);
     expect(m.check).toHaveBeenCalledWith(PROJECT_ID);
     expect(m.connect).toHaveBeenCalledWith(PROJECT_ID);
+    expect(m.resume).toHaveBeenCalledWith(PROJECT_ID);
   });
 
   it.each(MUTATIONS)(
@@ -227,6 +242,7 @@ describe("sending domain mutations", () => {
       expect(m.cloudflare).not.toHaveBeenCalled();
       expect(m.connect).not.toHaveBeenCalled();
       expect(m.remove).not.toHaveBeenCalled();
+      expect(m.resume).not.toHaveBeenCalled();
     },
   );
 
@@ -243,6 +259,7 @@ describe("sending domain mutations", () => {
     expect(m.put).not.toHaveBeenCalled();
     expect(m.cloudflare).not.toHaveBeenCalled();
     expect(m.remove).not.toHaveBeenCalled();
+    expect(m.resume).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid From address before calling the service", async () => {
@@ -283,6 +300,7 @@ describe("sending domain API contract", () => {
       expect(m.cloudflare).not.toHaveBeenCalled();
       expect(m.connect).not.toHaveBeenCalled();
       expect(m.remove).not.toHaveBeenCalled();
+      expect(m.resume).not.toHaveBeenCalled();
     },
   );
 
@@ -296,6 +314,36 @@ describe("sending domain API contract", () => {
       "/{id}/newsletter/sending-domain/check",
       "/{id}/newsletter/sending-domain/cloudflare",
       "/{id}/newsletter/sending-domain/domain-connect",
+      "/{id}/newsletter/sending-domain/warmup/resume",
     ]);
+  });
+});
+
+it("returns warm-up status for ordinary project members", async () => {
+  m.get.mockResolvedValue({
+    ...DOMAIN,
+    status: "VERIFIED",
+    warmup: {
+      startedAt: new Date(NOW),
+      day: 0,
+      dailyCap: 50,
+      sentToday: 17,
+      pausedAt: new Date(NOW),
+      pauseReason: "BOUNCE_RATE",
+    },
+  });
+  const response = await createApp().request(DOMAIN_PATH);
+  expect(response.status).toBe(200);
+  expect((await response.json()).data).toMatchObject({
+    canManage: true,
+    sendingDomain: {
+      warmup: {
+        day: 0,
+        dailyCap: 50,
+        sentToday: 17,
+        pausedAt: NOW,
+        pauseReason: "BOUNCE_RATE",
+      },
+    },
   });
 });
