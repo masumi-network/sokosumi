@@ -1,12 +1,18 @@
 import type {
   NewsletterAnalytics,
   NewsletterIssue,
+  NewsletterSendingDomainState,
   PublicNewsletter,
   PublicNewsletterIssue,
   PublicNewsletterIssueSummary,
 } from "@sokosumi/core-client";
 
 export const NEWSLETTER_PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+export const NEWSLETTER_SENDING_DOMAIN_STATE: NewsletterSendingDomainState = {
+  sendingDomain: null,
+  fallbackAvailable: true,
+  canManage: true,
+};
 export const NEWSLETTER_ANALYTICS: NewsletterAnalytics = {
   from: "2026-10-01",
   to: "2026-10-02",
