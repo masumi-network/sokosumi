@@ -136,6 +136,11 @@ function RoomParticipantStack({
   );
 }
 
+interface RoomVisitWorkspaceNameProps {
+  organizationId: ChatRoom["organizationId"];
+  organizationName: ChatRoom["organizationName"];
+}
+
 /**
  * A Room visit's workspace, on the line under the title (ADR-0061). Inline so
  * it truncates with that line. Choosing it switches there, and the room stays
@@ -144,7 +149,7 @@ function RoomParticipantStack({
 function RoomVisitWorkspaceName({
   organizationId,
   organizationName,
-}: Pick<ChatRoom, "organizationId" | "organizationName">) {
+}: RoomVisitWorkspaceNameProps) {
   const t = useTranslations("App.Channels");
   const workspaceName = useRoomWorkspaceName();
   const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
