@@ -239,7 +239,7 @@ export default function SignUpForm({
               href={signInHref}
               // Sign-in ignores it when an invitation locks the address.
               onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
-              className="text-primary font-medium hover:underline"
+              className="text-foreground font-medium underline underline-offset-4"
             >
               {t("AccountExists.logIn")}
             </Link>

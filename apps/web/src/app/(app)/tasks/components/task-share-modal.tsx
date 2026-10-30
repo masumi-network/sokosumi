@@ -189,7 +189,7 @@ export function TaskShareModal({
                   </p>
                 </div>
                 {taskShare?.token ? (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 ) : null}
               </div>
               <div
@@ -209,7 +209,7 @@ export function TaskShareModal({
                   </p>
                 </div>
                 {!taskShare?.token ? (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 ) : null}
               </div>
             </div>

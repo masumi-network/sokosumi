@@ -31,7 +31,7 @@ export function DocumentTextPreview({
       <article className="bg-background border-border mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
         {showLetterhead ? (
           <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
-            <span className="bg-primary-quinary text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
+            <span className="bg-muted text-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
               <FileText className="size-4" aria-hidden />
             </span>
             <p className="text-foreground truncate text-sm font-medium">

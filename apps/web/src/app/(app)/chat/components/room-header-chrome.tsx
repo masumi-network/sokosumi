@@ -102,7 +102,7 @@ function RoomParticipantStack({
                 "text-2xs",
                 participant.kind === "coworker" ||
                   participant.kind === "sokoBot"
-                  ? "bg-primary-quinary text-primary"
+                  ? "bg-muted text-foreground"
                   : "bg-muted text-muted-foreground",
               )}
             >
@@ -164,7 +164,7 @@ function RoomVisitWorkspaceName({
         // Inset, because the line's own truncation clips an outer ring. A bar
         // needs a box to sweep inside, so only a running switch leaves `inline`.
         className={cn(
-          "relative inline cursor-pointer rounded-sm outline-none focus-visible:text-foreground focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:underline",
+          "relative inline cursor-pointer rounded-sm outline-none focus-visible:text-foreground focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:underline",
           isPending &&
             "inline-block max-w-full cursor-progress truncate align-bottom",
         )}

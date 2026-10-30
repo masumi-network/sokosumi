@@ -28,7 +28,7 @@ struct PendingInvitationRow: View {
           .lineLimit(1)
         HStack(spacing: 6) {
           Button(responding == .accept ? "Loading…" : "Accept") { respond(.accept) }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.brandPrimary)
           Button(responding == .decline ? "Loading…" : "Decline") { respond(.decline) }
             .buttonStyle(.bordered)
         }

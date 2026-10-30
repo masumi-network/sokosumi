@@ -11,7 +11,7 @@ import { publishPersonalAssistantChromeVisible } from "@/components/chat/persona
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
 import {
   STATUS_TONE_DOT_CLASS,
-  STATUS_TONE_TEXT_CLASS,
+  statusToneTextClass,
 } from "@/components/soko-bot/status-badge";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -217,7 +217,7 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
       data-slot="soko-bot-status-line"
       className={cn(
         "truncate text-xs leading-tight",
-        STATUS_TONE_TEXT_CLASS[SOKO_BOT_STATUS_TONE[bot.status]],
+        statusToneTextClass(SOKO_BOT_STATUS_TONE[bot.status]),
       )}
     >
       {text[bot.status]}
@@ -251,7 +251,7 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
         <span
           aria-hidden
           data-testid="soko-bot-pulse"
-          className="border-status-working absolute inset-0 rounded-full border-2 motion-safe:animate-ping"
+          className="bg-status-working absolute inset-0 rounded-full motion-safe:animate-ping"
         />
       ) : null}
       {bot.imageUrl ? (

@@ -44,7 +44,7 @@ struct NotificationSettingsSection: View {
       if bannersBlocked {
         LabeledContent {
           if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-            Link("Open System Settings", destination: url)
+            Link("Open System Settings", destination: url).foregroundStyle(.primary).underline()
           }
         } label: {
           Text("Banners are turned off for Sokosumi")

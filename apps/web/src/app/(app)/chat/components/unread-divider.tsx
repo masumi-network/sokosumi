@@ -10,7 +10,7 @@ interface UnreadDividerProps {
 }
 
 /**
- * The Unread divider (SOK-1481): a primary hairline across the transcript
+ * The Unread divider (SOK-1481): a foreground hairline across the transcript
  * with "New" at its trailing end, above the first unread message. When the
  * day changes at the same message, the day label sits in the middle of the
  * line, where a row of its own would center it.
@@ -21,7 +21,7 @@ export function UnreadDivider({ dayLabel }: UnreadDividerProps) {
     <div className="flex items-center gap-2 pt-2 pb-1">
       {dayLabel ? (
         <>
-          <span aria-hidden className="bg-primary h-px flex-1" />
+          <span aria-hidden className="bg-foreground h-px flex-1" />
           <DayPill>{dayLabel}</DayPill>
         </>
       ) : null}
@@ -31,9 +31,9 @@ export function UnreadDivider({ dayLabel }: UnreadDividerProps) {
         <span
           role="separator"
           aria-label={t("UnreadDivider.accessibleName")}
-          className="bg-primary h-px flex-1"
+          className="bg-foreground h-px flex-1"
         />
-        <span aria-hidden className="text-primary text-xs font-semibold">
+        <span aria-hidden className="text-foreground text-xs font-semibold">
           {t("UnreadDivider.label")}
         </span>
       </div>
