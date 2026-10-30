@@ -523,7 +523,6 @@ describe("RoomsClient room header chrome", () => {
     expect(title.parentElement).not.toContainElement(search);
     expect(screen.getByRole("button", { name: "general" })).toBe(title);
     expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
-    expect(screen.queryByTestId("room-open-topic")).toBeNull();
   });
 
   it("opens the members panel from a plain member's channel title", async () => {
@@ -542,22 +541,19 @@ describe("RoomsClient room header chrome", () => {
     expect(title).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("shows a Channel topic beside the title, not inside the edit trigger", () => {
+  it("shows a Channel topic on the line under the title, not inside the edit trigger", () => {
     renderRoom({ ...channelRoom(), topic: "Weekly launch planning" }, AS_ADMIN);
 
     const title = screen.getByTestId("room-open-title");
-    const topic = screen.getByTestId("room-open-topic");
+    const subtitle = screen.getByTestId("room-open-subtitle");
 
-    expect(topic).toHaveTextContent("Weekly launch planning");
-    expect(title).not.toContainElement(topic);
+    expect(subtitle).toHaveTextContent("Weekly launch planning");
+    expect(title).not.toContainElement(subtitle);
     expect(title).toHaveAccessibleName("general");
     expect(title).toHaveAttribute("title", "editChannel");
-    expect(topic).toHaveAttribute("title", "Weekly launch planning");
-    expect(title.parentElement).toContainElement(topic);
-    expect(title).toHaveClass("shrink-0");
-    expect(topic).not.toHaveClass("hidden");
-    expect(topic).toHaveClass("min-w-0");
-    expect(topic.tagName).not.toBe("BUTTON");
+    expect(subtitle).toHaveAttribute("title", "Weekly launch planning");
+    expect(title.parentElement).toContainElement(subtitle);
+    expect(subtitle.tagName).not.toBe("BUTTON");
     expect(
       screen.queryByRole("button", { name: "Weekly launch planning" }),
     ).toBeNull();
@@ -570,37 +566,54 @@ describe("RoomsClient room header chrome", () => {
       topic: "General discussions & updates",
     });
 
-    const title = screen.getByTestId("room-open-title");
-    const topic = screen.getByTestId("room-open-topic");
-
-    expect(title).toHaveAccessibleName("Everyone");
-    expect(title).toHaveClass("shrink-0");
-    expect(topic.className.split(/\s+/)).not.toContain("min-w-16");
-    expect(topic).toHaveClass("min-w-0");
+    expect(screen.getByTestId("room-open-title")).toHaveAccessibleName(
+      "Everyone",
+    );
+    expect(screen.getByTestId("room-open-subtitle")).toHaveTextContent(
+      "General discussions & updates",
+    );
   });
 
   it("trims a Channel topic for display", () => {
     renderRoom({ ...channelRoom(), topic: "  Weekly launch planning  " });
 
-    const topic = screen.getByTestId("room-open-topic");
-    expect(topic).toHaveTextContent("Weekly launch planning");
-    expect(topic).toHaveAttribute("title", "Weekly launch planning");
+    const subtitle = screen.getByTestId("room-open-subtitle");
+    expect(subtitle).toHaveTextContent("Weekly launch planning");
+    expect(subtitle).toHaveAttribute("title", "Weekly launch planning");
   });
 
-  it("hides a blank Channel topic", () => {
-    renderRoom({ ...channelRoom(), topic: "   " });
+  it.each([
+    ["a Channel without a topic", { ...channelRoom(), topic: null }],
+    ["a Channel with a blank topic", { ...channelRoom(), topic: "   " }],
+    ["a group Direct", { ...groupDirectRoom(), isGroupDirect: true }],
+  ])("counts the members of %s on the second line", (_name, room) => {
+    renderRoom(room);
 
-    expect(screen.queryByTestId("room-open-topic")).toBeNull();
-    expect(screen.getByTestId("room-open-title")).toHaveAccessibleName(
-      "general",
+    expect(screen.getByTestId("room-open-subtitle")).toHaveTextContent(
+      "headerMemberCount",
     );
   });
 
-  it("does not show a topic on Directs", () => {
+  it("names a 1:1 Direct on the second line, never a topic", () => {
     renderRoom({ ...humanDirectRoom(), topic: "Should stay hidden" });
 
-    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-subtitle")).toHaveTextContent(
+      "headerDirect",
+    );
+    expect(screen.queryByText("Should stay hidden")).toBeNull();
     expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
+  });
+
+  it("names a self Direct on the second line", () => {
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      userMembers: [participant("user-1", "Ada")],
+    });
+
+    expect(screen.getByTestId("room-open-subtitle")).toHaveTextContent(
+      "headerSelfDirect",
+    );
   });
 
   it("keeps Direct titles static and still puts search with the right actions", () => {

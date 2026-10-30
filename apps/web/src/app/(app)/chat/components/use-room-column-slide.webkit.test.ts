@@ -1,6 +1,6 @@
 /**
  * Opening a docked side panel (thread, threads, pinned, members) moves the
- * room's 56rem content column as little as it can: it keeps its left edge
+ * room's 56rem content column (header row, transcript, composer) as little as it can: it keeps its left edge
  * while it fits beside the panel, moves left only as far as it must, narrows
  * only at the pane edge, and slides there instead of jumping. Needs real
  * layout. Run with `pnpm --filter web test:webkit` (Chromium + WebKit
@@ -94,22 +94,24 @@ describe.each([
       const { page, errors } = await openRoom(pane);
       const closed = await page.evaluate(() => window.columns());
       const want = expected(pane, panel, closed.maxWidth);
-      for (const column of [closed.list, closed.composer]) {
+      for (const column of [closed.header, closed.list, closed.composer]) {
         expectPx(column.left, want.centred);
         expectPx(column.width, closed.maxWidth);
       }
 
       await page.evaluate((width) => window.setPanel(width), panel);
       const open = await page.evaluate(() => window.columns());
-      for (const column of [open.list, open.composer]) {
+      for (const column of [open.header, open.list, open.composer]) {
         expectPx(column.left, want.left);
         expectPx(column.width, want.width);
       }
-      // Transcript and composer slide together, from where they were.
+      // Header row, transcript and composer slide together, from where they
+      // were.
       const moved = closed.composer.left - open.composer.left;
       const slide = moved === 0 ? null : `translateX(${moved}px)`;
       expect(open.composer.slideFrom).toBe(slide);
       expect(open.list.slideFrom).toBe(slide);
+      expect(open.header.slideFrom).toBe(slide);
 
       await page.evaluate(() => window.setPanel(null));
       const reopened = await page.evaluate(() => window.columns());

@@ -28,8 +28,13 @@ declare global {
     setPanel: (width: number | null) => Promise<void>;
     /** Add or drop a second child beside the column body, as the drop zone does. */
     setOverlay: (shown: boolean) => Promise<void>;
-    /** The transcript and composer columns, and the column's max width. */
-    columns: () => { list: ColumnBox; composer: ColumnBox; maxWidth: number };
+    /** The header row, transcript and composer columns, and the column's max width. */
+    columns: () => {
+      header: ColumnBox;
+      list: ColumnBox;
+      composer: ColumnBox;
+      maxWidth: number;
+    };
     /** The composer column node, to tell a remount from an update. */
     composerNode: () => Element | null;
   }
@@ -113,6 +118,7 @@ export function renderRoomColumnSlidePage(): void {
   window.columns = () => {
     const list = document.querySelector("[data-chat-message-list]");
     return {
+      header: box(document.querySelector("header")?.firstElementChild),
       list: box(list),
       composer: box(window.composerNode()),
       // 56rem in px: WebKit's root tracks Dynamic Type, so not always 896.
