@@ -32,6 +32,11 @@ export const chatRoomSokoBotParticipantSchema = z
         "The style of the bot's claimed avatar, null when it has none. Always sent; optional so clients written before it compile.",
       example: "crafted-desk",
     }),
+    workingLoopUrl: z.string().nullable().optional().openapi({
+      description:
+        "The bot's Working loop (silent MP4), played on its face while a reply is in progress. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.",
+      example: "https://example.com/working-480.mp4",
+    }),
     ownerUserId: z.string().nullable().openapi({
       description:
         "The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.",

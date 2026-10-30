@@ -4,6 +4,7 @@ import { chatRoomSokoBotParticipantSchema } from "@/schemas/chat-room-participan
 
 import {
   type ChatRoomSokoBotRow,
+  chatRoomSokoBotSelect,
   mapChatRoomSokoBotParticipant,
 } from "./soko-bot-participant";
 
@@ -36,6 +37,7 @@ describe("mapChatRoomSokoBotParticipant", () => {
       image: null,
       avatarSeed: "orb:user_ana",
       avatarStyleId: null,
+      workingLoopUrl: null,
       ownerUserId: "user_ana",
       scope: "personal",
       sharedRoomId: null,
@@ -49,9 +51,33 @@ describe("mapChatRoomSokoBotParticipant", () => {
   it("names the style of a claimed avatar", () => {
     expect(
       mapChatRoomSokoBotParticipant(
-        row({ avatar: { styleId: "crafted-desk" } }),
+        row({ avatar: { styleId: "crafted-desk", renders: [] } }),
       ).avatarStyleId,
     ).toBe("crafted-desk");
+  });
+
+  it("carries the loop a busy face plays, once it is rendered", () => {
+    expect(chatRoomSokoBotSelect.avatar.select.renders.where).toEqual({
+      state: "WORKING",
+    });
+    expect(
+      mapChatRoomSokoBotParticipant(
+        row({
+          avatar: {
+            styleId: "crafted-desk",
+            renders: [{ loopUrl: "https://blob/working-480.mp4" }],
+          },
+        }),
+      ).workingLoopUrl,
+    ).toBe("https://blob/working-480.mp4");
+    expect(
+      mapChatRoomSokoBotParticipant(
+        row({
+          avatar: { styleId: "crafted-desk", renders: [{ loopUrl: null }] },
+        }),
+      ).workingLoopUrl,
+    ).toBeNull();
+    expect(mapChatRoomSokoBotParticipant(row()).workingLoopUrl).toBeNull();
   });
 
   it.each([

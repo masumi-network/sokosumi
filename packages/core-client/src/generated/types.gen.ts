@@ -599,6 +599,10 @@ export type ChatRoomSokoBotParticipant = {
      */
     avatarStyleId?: string | null;
     /**
+     * The bot's Working loop (silent MP4), played on its face while a reply is in progress. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.
+     */
+    workingLoopUrl?: string | null;
+    /**
      * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
     ownerUserId: string | null;

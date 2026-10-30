@@ -8,7 +8,12 @@ export const chatRoomSokoBotSelect = {
   id: true,
   name: true,
   avatarImageUrl: true,
-  avatar: { select: { styleId: true } },
+  avatar: {
+    select: {
+      styleId: true,
+      renders: { where: { state: "WORKING" }, select: { loopUrl: true } },
+    },
+  },
   avatarSeed: true,
   userId: true,
   projectId: true,
@@ -21,7 +26,7 @@ export interface ChatRoomSokoBotRow {
   id: string;
   name: string | null;
   avatarImageUrl: string | null;
-  avatar: { styleId: string } | null;
+  avatar: { styleId: string; renders: { loopUrl: string | null }[] } | null;
   avatarSeed: string | null;
   userId: string | null;
   projectId: string | null;
@@ -67,6 +72,7 @@ export function mapChatRoomSokoBotParticipant(
     image: bot.avatarImageUrl ?? null,
     avatarSeed: sokoBotAvatarSeedFor(bot),
     avatarStyleId: bot.avatar?.styleId ?? null,
+    workingLoopUrl: bot.avatar?.renders[0]?.loopUrl ?? null,
     ownerUserId: owner.kind === "personal" ? owner.userId : null,
     scope: owner.kind === "personal" ? "personal" : owner.scope,
     sharedRoomId: bot.sharedRoomId,
