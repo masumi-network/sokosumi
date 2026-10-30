@@ -6505,7 +6505,7 @@ export type ProjectDesignMdWrite = {
 export type WorkspaceCalendarEntry = {
     scheduledAt: Date;
     originalScheduledAt?: Date | null;
-} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem);
+} & (WorkspaceCalendarItem | SocialPostCalendarItem);
 
 export type WorkspaceCalendarItem = {
     /**
@@ -6624,19 +6624,6 @@ export type SocialPostCalendarItem = {
         outcome: string | null;
         errorKind: string | null;
     } | null;
-    sourceId: string;
-    sourceProjectId: string;
-    sourceWorkspaceId: string;
-    sourceType: 'PROJECT';
-};
-
-export type NewsletterIssueCalendarItem = {
-    kind: 'newsletter_issue';
-    id: string;
-    issueId: string;
-    subject: string;
-    status: 'SCHEDULED' | 'SENDING' | 'SENT';
-    scheduledAt: Date;
     sourceId: string;
     sourceProjectId: string;
     sourceWorkspaceId: string;
@@ -10476,7 +10463,6 @@ export type WorkspaceCalendarSource = {
      * Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.
      */
     latestScheduledSocialPostAt?: Date | null;
-    latestScheduledNewsletterIssueAt?: Date | null;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;

@@ -339,23 +339,6 @@ describe("loadWorkspaceCalendarPage", () => {
 
     afterEach(() => vi.useRealTimers());
 
-    it("extends the calendar to a scheduled newsletter beyond the Social post horizon", async () => {
-      getWorkspaceCalendarSourcesMock.mockResolvedValue([
-        { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
-        {
-          sourceId: "project:project-1",
-          sourceType: "PROJECT",
-          latestScheduledSocialPostAt: new Date("2027-02-15T12:00:00Z"),
-          latestScheduledNewsletterIssueAt: new Date("2027-09-15T12:00:00Z"),
-        },
-      ]);
-      const result = await loadWorkspaceCalendarPage({
-        searchParams: Promise.resolve({ date: "2027-10-15" }),
-      });
-      expect(result.latestDate).toBe("2027-09-01");
-      expect(result.initialDate).toBe("2027-09-01");
-    });
-
     it("extends the workspace limit to the latest post across projects and clamps later URLs", async () => {
       const result = await loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({ date: "2027-03-15" }),
