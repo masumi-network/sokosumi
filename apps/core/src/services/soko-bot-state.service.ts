@@ -2,6 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import {
   avatarFields,
   avatarStateRelations,
+  deriveAvatarState,
 } from "@/helpers/soko-bot-avatar-state";
 import { canManageSokoBot } from "@/helpers/soko-bot-management";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/helpers/soko-bot-resolver";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
+import { type AvatarState } from "@/lib/soko-bot-avatar/style";
 import {
   ACTIVE_TURN_STATUSES,
   FOREGROUND_TURN,
@@ -41,7 +43,8 @@ async function stateWhere(
  * The console watches turns it did not start, so it has to poll often enough
  * to catch one that runs for a few seconds. Polling the full chat state that
  * often is not affordable, so this carries only what tells the client
- * whether to go and fetch it.
+ * whether to go and fetch it, and the avatar state for a surface that shows
+ * nothing else (the sidebar).
  */
 export async function getSokoBotActivity(
   viewerUserId: string,
@@ -51,18 +54,23 @@ export async function getSokoBotActivity(
   status: string;
   activeTurnId: string | null;
   lastTurnAt: Date | null;
+  avatarState: AvatarState;
 } | null> {
   const where = await stateWhere(viewerUserId, workspaceId, selector);
   if (!where) return null;
   // One Prisma call, though not one SQL statement: the generator does not
-  // enable `relationJoins`. Both predicates are indexed and the payload is
-  // three columns, which is what makes it affordable to ask every couple of
+  // enable `relationJoins`. The predicates are indexed and the payload is a
+  // few columns, which is what makes it affordable to ask every couple of
   // seconds.
   const bot = await prisma.sokoBot.findFirst({
     where,
     select: {
+      id: true,
       status: true,
       lastTurnAt: true,
+      archivedAt: true,
+      adminPausedAt: true,
+      pendingDecisions: avatarStateRelations().pendingDecisions,
       turns: {
         where: {
           ...FOREGROUND_TURN,
@@ -70,15 +78,31 @@ export async function getSokoBotActivity(
         },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { id: true },
+        select: { id: true, status: true, completedAt: true },
       },
     },
   });
   if (!bot) return null;
+  const activeTurn = bot.turns[0] ?? null;
+  // With nothing running, "done" and "idle" turn on the latest settled turn.
+  const latestTurn =
+    activeTurn ??
+    (await prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId: bot.id, ...FOREGROUND_TURN },
+      orderBy: { createdAt: "desc" },
+      select: { status: true, completedAt: true },
+    }));
   return {
     status: bot.status,
-    activeTurnId: bot.turns[0]?.id ?? null,
+    activeTurnId: activeTurn?.id ?? null,
     lastTurnAt: bot.lastTurnAt,
+    avatarState: deriveAvatarState({
+      status: bot.status,
+      archivedAt: bot.archivedAt,
+      adminPausedAt: bot.adminPausedAt,
+      latestTurn,
+      hasOpenDecision: bot.pendingDecisions.length > 0,
+    }),
   };
 }
 

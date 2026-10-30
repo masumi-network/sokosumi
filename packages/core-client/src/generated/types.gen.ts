@@ -8921,6 +8921,7 @@ export type SokoBotActivity = {
     status: SokoBotStatus;
     activeTurnId: string | null;
     lastTurnAt: Date | null;
+    avatarState: SokoBotAvatarState;
 };
 
 export type CreateSokoBotRequest = {

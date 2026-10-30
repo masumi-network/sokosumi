@@ -31045,12 +31045,16 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        avatarState: {
+            $ref: '#/components/schemas/SokoBotAvatarState'
         }
     },
     required: [
         'status',
         'activeTurnId',
-        'lastTurnAt'
+        'lastTurnAt',
+        'avatarState'
     ]
 } as const;
 

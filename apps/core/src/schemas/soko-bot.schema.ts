@@ -355,6 +355,8 @@ export const sokoBotActivitySchema = z
     /** The turn to watch, when one is running. */
     activeTurnId: z.string().uuid().nullable(),
     lastTurnAt: dateTimeSchema.nullable(),
+    /** What the bot's face shows, for a surface that reads nothing else. */
+    avatarState: sokoBotAvatarStateSchema,
   })
   .openapi("SokoBotActivity");
 

@@ -6,12 +6,14 @@ const {
   botFindUniqueMock,
   memberFindFirstMock,
   resolveMock,
+  turnFindFirstMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindManyMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   resolveMock: vi.fn(),
+  turnFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -22,6 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: botFindUniqueMock,
     },
     member: { findFirst: memberFindFirstMock },
+    sokoBotTurn: { findFirst: turnFindFirstMock },
   },
 }));
 
@@ -344,6 +347,7 @@ describe("getSokoBotActivity", () => {
       status: "RUNNING",
       lastTurnAt: null,
       turns: [],
+      pendingDecisions: [],
     });
 
     await getSokoBotActivity(VIEWER, WORKSPACE_ID);
@@ -362,5 +366,80 @@ describe("getSokoBotActivity", () => {
         }),
       }),
     );
+  });
+
+  describe("the avatar state, for a surface that only watches this", () => {
+    const BOT = {
+      id: "bot-1",
+      status: "ACTIVE",
+      lastTurnAt: null,
+      archivedAt: null,
+      adminPausedAt: null,
+      turns: [],
+      pendingDecisions: [],
+    };
+
+    it("is working while a turn runs, without a second read", async () => {
+      botFindFirstMock.mockResolvedValue({
+        ...BOT,
+        turns: [{ id: "turn-1", status: "RUNNING", completedAt: null }],
+      });
+
+      const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
+
+      expect(activity).toMatchObject({
+        activeTurnId: "turn-1",
+        avatarState: "working",
+      });
+      expect(turnFindFirstMock).not.toHaveBeenCalled();
+    });
+
+    it("is done shortly after the latest turn completed", async () => {
+      botFindFirstMock.mockResolvedValue(BOT);
+      turnFindFirstMock.mockResolvedValue({
+        status: "COMPLETED",
+        completedAt: new Date(),
+      });
+
+      const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
+
+      expect(turnFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { sokoBotId: "bot-1", parentTurnId: null },
+          orderBy: { createdAt: "desc" },
+        }),
+      );
+      expect(activity?.avatarState).toBe("done");
+    });
+
+    it("is idle with no turn at all", async () => {
+      botFindFirstMock.mockResolvedValue(BOT);
+      turnFindFirstMock.mockResolvedValue(null);
+
+      const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
+
+      expect(activity?.avatarState).toBe("idle");
+    });
+
+    it("needs you while a decision is open, even with a turn running", async () => {
+      botFindFirstMock.mockResolvedValue({
+        ...BOT,
+        turns: [{ id: "turn-1", status: "RUNNING", completedAt: null }],
+        pendingDecisions: [{ id: "decision-1" }],
+      });
+
+      const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
+
+      expect(activity?.avatarState).toBe("needs_you");
+    });
+
+    it("is offline when the bot is paused", async () => {
+      botFindFirstMock.mockResolvedValue({ ...BOT, status: "PAUSED" });
+      turnFindFirstMock.mockResolvedValue(null);
+
+      const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
+
+      expect(activity?.avatarState).toBe("offline");
+    });
   });
 });
