@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   persistHumanMentions: vi.fn(),
   emitHumanMentions: vi.fn(),
+  emitMessageNotifications: vi.fn(),
   humanMentions: vi.fn(),
   claim: vi.fn(),
   find: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/services/chat-result-preview.service", () => ({
 }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: mocks.persistHumanMentions,
+  emitChatMessageNotifications: mocks.emitMessageNotifications,
   emitChatHumanMentionNotifications: mocks.emitHumanMentions,
 }));
 vi.mock("@/helpers/calendar-invalidation", () => ({
@@ -167,6 +169,15 @@ beforeEach(() => {
 });
 
 describe("durable delivery", () => {
+  it("notifies the room for a final bot reply without mentions", async () => {
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.emitMessageNotifications).toHaveBeenCalledWith({
+      messageId: "message",
+      mentionedUserIds: [],
+      throwOnError: true,
+    });
+  });
+
   it("kicks committed turn delivery and effects without waiting for cron", async () => {
     mocks.findMany.mockResolvedValue([
       { id: "delivery" },

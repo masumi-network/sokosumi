@@ -49,7 +49,10 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomUserMember: { findMany: membershipFindManyMock },
     user: { findMany: userFindManyMock },
     // The fan-out looks for a row to count onto before it writes one.
-    notification: { findFirst: notificationFindFirstMock },
+    notification: {
+      findFirst: notificationFindFirstMock,
+      findUnique: async () => null,
+    },
     // It reads the message too, so a body deleted while it ran is not
     // written back onto the notifications.
     chatRoomMessage: {
@@ -128,7 +131,10 @@ beforeEach(() => {
     callback({
       $executeRaw: executeRawMock,
       $queryRaw: queryRawMock,
-      notification: { findFirst: notificationFindFirstMock },
+      notification: {
+        findFirst: notificationFindFirstMock,
+        findUnique: async () => null,
+      },
       workspace: { findFirst: workspaceFindFirstAccessMock },
     }),
   );

@@ -330,9 +330,8 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           content: message.content,
           authorUserId: null,
           authorName: message.senderSokoBot.name ?? "Assistant",
-          recipientUserIds: payload.userIds.filter(
-            (userId) => !mentionedUserIds.includes(userId),
-          ),
+          recipientUserIds: payload.userIds,
+          mentionedUserIds,
           throwOnError: true,
         });
       }

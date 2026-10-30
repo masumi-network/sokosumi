@@ -15,6 +15,7 @@ import {
   deletePendingVendorGrantNotifications,
   publishClearedNotifications,
   publishNotificationRow,
+  resolveDelivery,
 } from "./notifications";
 
 const {
@@ -404,6 +405,58 @@ describe("createNotification push gating", () => {
       metadata: JSON.stringify(chatInput.metadata),
     });
   }
+
+  it.each([false, true])(
+    "keeps enabled direct channels missing from mention delivery (mention toast: %s)",
+    async (mentionToast) => {
+      mockReader({
+        preferences: [
+          {
+            category: "CHAT_MENTION",
+            channel: "IN_APP",
+            enabled: mentionToast,
+          },
+          { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+          { category: "CHAT_MENTION", channel: "EMAIL", enabled: false },
+          { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
+          {
+            category: "CHAT_DIRECT_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: true,
+          },
+          { category: "CHAT_DIRECT_MESSAGE", channel: "EMAIL", enabled: true },
+        ],
+      });
+      expect(
+        await resolveDelivery({
+          ...chatInput,
+          messageKey: "Notifications.Chat.directMessage",
+          suppressMentionDelivery: true,
+        }),
+      ).toEqual({ inApp: !mentionToast, osBanner: true, email: true });
+    },
+  );
+
+  it("does not duplicate direct channels already delivered by a mention", async () => {
+    mockReader({
+      preferences: [
+        ...["CHAT_MENTION", "CHAT_DIRECT_MESSAGE"].flatMap((category) =>
+          ["IN_APP", "OS_BANNER", "EMAIL"].map((channel) => ({
+            category,
+            channel,
+            enabled: true,
+          })),
+        ),
+      ],
+    });
+    expect(
+      await resolveDelivery({
+        ...chatInput,
+        messageKey: "Notifications.Chat.directMessage",
+        suppressMentionDelivery: true,
+      }),
+    ).toEqual({ inApp: false, osBanner: false, email: false });
+  });
 
   it("queues push for a chat notification when the user opted in", async () => {
     const prismaMock = createPrismaMock();
@@ -1090,12 +1143,14 @@ describe("chat room arrival count", () => {
     notificationFindManyMock.mockResolvedValue([
       {
         id: "counted_row",
+        eventId: "first-message",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ roomName: "General", count: 4 }),
       },
       {
         id: "uncounted_row",
+        eventId: "another-message",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ authorName: "Alice" }),
@@ -1121,6 +1176,7 @@ describe("chat room arrival count", () => {
       select: {
         id: true,
         messageKey: true,
+        eventId: true,
         messageParams: true,
         inApp: true,
         metadata: true,

@@ -331,6 +331,7 @@ function toFollowUpInput(
 interface PendingFollowUpEmail {
   notificationId: string;
   email: SendEmailInput;
+  chatMessage?: { id: string; roomId: string };
 }
 
 /**
@@ -369,9 +370,34 @@ async function flushFollowUpEmails(
   let accepted = 0;
 
   for (let offset = 0; offset < batch.length; offset += RESEND_BATCH_MAX_SIZE) {
-    const chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+    let chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+    let droppedIds: string[] = [];
 
     try {
+      const chatMessages = chunk.flatMap((item) =>
+        item.chatMessage ? [item.chatMessage] : [],
+      );
+      if (chatMessages.length > 0) {
+        // A source can disappear while this page is being prepared.
+        const liveMessages = await prisma.chatRoomMessage.findMany({
+          where: { deletedAt: null, OR: chatMessages },
+          select: { id: true, roomId: true },
+        });
+        const liveRooms = new Map(
+          liveMessages.map((message) => [message.id, message.roomId]),
+        );
+        const dropped = chunk.filter(
+          (item) =>
+            item.chatMessage &&
+            liveRooms.get(item.chatMessage.id) !== item.chatMessage.roomId,
+        );
+        if (dropped.length > 0) {
+          droppedIds = dropped.map((item) => item.notificationId);
+          const droppedSet = new Set(droppedIds);
+          chunk = chunk.filter((item) => !droppedSet.has(item.notificationId));
+        }
+      }
+      if (chunk.length === 0) continue;
       const ids = await sendEmails(chunk.map((item) => item.email));
 
       await recordFollowUpEmails(chunk, ids);
@@ -384,6 +410,22 @@ async function flushFollowUpEmails(
           notificationType: "notification-follow-up-email",
         },
       });
+    } finally {
+      if (droppedIds.length > 0) {
+        // Email-only reminders have no publish revision to release this daily key.
+        try {
+          await prisma.notification.deleteMany({
+            where: { id: { in: droppedIds }, emailId: null },
+          });
+        } catch (error) {
+          Sentry.captureException(error, {
+            extra: {
+              batchSize: droppedIds.length,
+              notificationType: "notification-follow-up-email-release",
+            },
+          });
+        }
+      }
     }
   }
 
@@ -556,7 +598,14 @@ export async function sendFollowUps(
         // reminder reaches nobody and would still be there to explain later.
         // The one exception is a reader who kept the email: that row is what
         // makes the email the only one, so it is worth storing unseen.
-        const delivery = await resolveDelivery(input);
+        const resolvedDelivery = await resolveDelivery(input);
+        // An unverifiable email must not claim an email-only daily reminder.
+        const delivery =
+          input.kind === NotificationKind.CHAT &&
+          typeof messageId !== "string" &&
+          resolvedDelivery.email
+            ? { ...resolvedDelivery, email: false }
+            : resolvedDelivery;
 
         // Asked again. The read above is itself an await, so it can be the
         // thing that crosses the deadline, and the check at the top of the
@@ -627,7 +676,14 @@ export async function sendFollowUps(
         });
 
         if (email) {
-          pendingEmails.push({ notificationId: notification.id, email });
+          pendingEmails.push({
+            notificationId: notification.id,
+            email,
+            ...(input.kind === NotificationKind.CHAT &&
+            typeof messageId === "string"
+              ? { chatMessage: { id: messageId, roomId: input.referenceId } }
+              : {}),
+          });
         }
       } catch (error) {
         Sentry.captureException(error, {

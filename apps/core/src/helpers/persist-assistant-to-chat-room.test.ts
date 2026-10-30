@@ -25,13 +25,18 @@ vi.mock("@/lib/ably/publish", () => ({
 const { waitUntilMock } = vi.hoisted(() => ({ waitUntilMock: vi.fn() }));
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
-  vi.hoisted(() => ({
-    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
-  }));
+const {
+  persistChatHumanMentionsMock,
+  emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotificationsMock,
+} = vi.hoisted(() => ({
+  persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+  emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
   emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
 
@@ -81,13 +86,25 @@ describe("persistAssistantToChatRoom", () => {
       roomId: "room_1",
       content: "@user_1 please check",
     });
-    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
       messageId: "msg_assistant",
       mentionedUserIds: ["user_1"],
     });
     expect(waitUntilMock).toHaveBeenCalledWith(
-      emitChatHumanMentionNotificationsMock.mock.results[0]?.value,
+      emitChatMessageNotificationsMock.mock.results[0]?.value,
     );
+  });
+
+  it("notifies the room when an assistant reply names nobody", async () => {
+    await persistAssistantToChatRoom({
+      roomId: "room_1",
+      senderCoworkerId: "coworker_1",
+      contentText: "Your analysis is ready",
+    });
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
+      messageId: "msg_assistant",
+      mentionedUserIds: [],
+    });
   });
 
   it("notifies nobody of a mention when the reply names no member", async () => {

@@ -134,13 +134,18 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
-  vi.hoisted(() => ({
-    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
-  }));
+const {
+  persistChatHumanMentionsMock,
+  emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotificationsMock,
+} = vi.hoisted(() => ({
+  persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+  emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
   emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
 
@@ -977,11 +982,21 @@ describe("dispatchChatRoomMention claim", () => {
       expect.anything(),
       { messageId: "reply_1", roomId: "room_1", content: "Hello back" },
     );
-    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
       messageId: "reply_1",
       mentionedUserIds: ["user_alice"],
     });
     expect(publishRealtimeMock).toHaveBeenCalledWith("msg_1", "mention_status");
+  });
+
+  it("notifies the room when a dispatched reply names nobody", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    await dispatchChatRoomMention(MENTION_ID);
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
+      messageId: "reply_1",
+      mentionedUserIds: [],
+    });
   });
 
   it("notifies nobody of a mention when the reply names no member", async () => {

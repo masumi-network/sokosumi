@@ -5,6 +5,8 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   isFollowUpMessageKey,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
@@ -45,6 +47,8 @@ export interface CreateNotificationInput {
   messageKey: string;
   messageParams: Record<string, unknown>;
   metadata?: Record<string, unknown> | null;
+  /** Deliver a Direct only on channels its mention does not already cover. */
+  suppressMentionDelivery?: boolean;
 }
 
 export interface CreateNotificationResult {
@@ -89,11 +93,22 @@ export async function resolveDelivery(
       return { inApp: true, osBanner: false, email: false };
     }
 
-    return resolveNotificationDelivery({
+    const delivery = resolveNotificationDelivery({
       category: toNotificationCategory(input.kind, input.messageKey),
       preferences: user.notificationPreferences,
       pushOptIn: user.pushOptIn,
     });
+    if (!input.suppressMentionDelivery) return delivery;
+    const mention = resolveNotificationDelivery({
+      category: "CHAT_MENTION",
+      preferences: user.notificationPreferences,
+      pushOptIn: user.pushOptIn,
+    });
+    return {
+      inApp: delivery.inApp && !mention.inApp,
+      osBanner: delivery.osBanner && !mention.osBanner,
+      email: delivery.email && !mention.email,
+    };
   } catch (error) {
     console.error(
       "Failed to read the notification preferences; skipping push:",
@@ -171,6 +186,7 @@ async function chatRoomArrivals(
       select: {
         id: true,
         messageKey: true,
+        eventId: true,
         messageParams: true,
         inApp: true,
         metadata: true,
@@ -195,6 +211,7 @@ async function chatRoomArrivals(
       : new Set<string>();
 
     let count = 0;
+    const countedMessages = new Map<string, string>();
     for (const row of waiting) {
       // Reminders refer to existing messages, so they add no arrivals.
       if (isFollowUpMessageKey(row.messageKey) || passedIds.has(row.id)) {
@@ -223,6 +240,16 @@ async function chatRoomArrivals(
           continue;
         }
       }
+      // One message can carry a mention toast and a Direct banner on separate rows.
+      const previous = countedMessages.get(row.eventId);
+      if (
+        (row.messageKey === CHAT_MENTION_MESSAGE_KEY &&
+          previous === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) ||
+        (row.messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY &&
+          previous === CHAT_MENTION_MESSAGE_KEY)
+      )
+        continue;
+      countedMessages.set(row.eventId, row.messageKey);
       count += arrivalsOn(row);
     }
     return count > 0 ? count : undefined;

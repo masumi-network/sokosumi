@@ -154,7 +154,7 @@ describe("committed effect outbox", () => {
     );
     expect(mocks.update.mock.calls.at(-1)?.[0].data.status).toBe("PUBLISHED");
   });
-  it("notifies mentioned owner once and sends direct notification only to unmentioned reader", async () => {
+  it("retains mentioned owner for Direct channels not covered by the mention", async () => {
     const record = effect();
     mocks.find.mockResolvedValue({
       ...record,
@@ -167,7 +167,8 @@ describe("committed effect outbox", () => {
     expect(await deliverSokoBotEffect("effect")).toBe(true);
     expect(mocks.notify).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipientUserIds: ["reader"],
+        recipientUserIds: ["owner", "reader"],
+        mentionedUserIds: ["owner"],
         throwOnError: true,
       }),
     );

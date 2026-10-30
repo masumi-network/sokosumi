@@ -40,6 +40,7 @@ function arrives(reader: Reader, category: NotificationCategory): boolean {
 }
 
 export interface ChatRoomMessageCreatedEffectsParams {
+  throwOnError?: boolean;
   roomId: string;
   roomName: string;
   /** Decides whether the direct-message row already covers this room. */
@@ -171,7 +172,7 @@ export async function invalidateChatRoomMessageReaders(
   }
 }
 
-async function emitChatRoomMessageNotifications(
+export async function emitChatRoomMessageNotifications(
   params: ChatRoomMessageCreatedEffectsParams,
   memberUserIds: readonly string[],
 ): Promise<void> {
@@ -218,6 +219,7 @@ async function emitChatRoomMessageNotifications(
   }
 
   await fanOutChatNotifications({
+    ...(params.throwOnError ? { throwOnError: true } : {}),
     roomId: params.roomId,
     roomName: params.roomName,
     organizationId: params.organizationId,

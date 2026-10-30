@@ -30,6 +30,7 @@ const {
   notificationUpdateManyMock,
   userFindUniqueMock,
   transactionState,
+  storedNotifications,
 } = vi.hoisted(() => ({
   transactionCommitMock: vi.fn(),
   lockCalendarWorkspaceMembershipMock: vi.fn(),
@@ -47,6 +48,7 @@ const {
     open: false,
     sendEmailWhileOpen: false,
   },
+  storedNotifications: new Map<string, Notification>(),
 }));
 
 vi.mock("@/helpers/calendar-membership-fence", () => ({
@@ -71,11 +73,26 @@ vi.mock("@/lib/ably/channel-occupancy", () => ({
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     notification: {
-      findUnique: notificationFindUniqueMock,
+      findUnique: async (query: { where: { id: string } }) => {
+        const read = await notificationFindUniqueMock(query);
+        if (read === null) return null;
+        const stored = storedNotifications.get(query.where.id);
+        return stored ? { ...stored, ...read } : read;
+      },
       findMany: notificationFindManyMock,
-      updateMany: notificationUpdateManyMock,
+      updateMany: async (query: {
+        where: { id: string };
+        data: Partial<Notification>;
+      }) => {
+        const result = await notificationUpdateManyMock(query);
+        const stored = storedNotifications.get(query.where.id);
+        if (result.count > 0 && stored) Object.assign(stored, query.data);
+        return result;
+      },
     },
     user: { findUnique: userFindUniqueMock },
+    chatRoomMessage: { findFirst: async () => ({ id: "message_1" }) },
+    $queryRaw: async () => [],
   };
   return {
     default: {
@@ -103,6 +120,8 @@ vi.mock("@/lib/db/prisma", () => {
     },
   };
 });
+
+beforeEach(() => storedNotifications.clear());
 
 const NOW = new Date("2026-09-19T10:00:00.000Z");
 const TEN_MINUTES_LATER = new Date("2026-09-19T10:10:00.000Z");
@@ -175,7 +194,7 @@ async function flushUntil(isReady: () => boolean): Promise<void> {
 }
 
 function mention(overrides: Partial<Notification> = {}): Notification {
-  return {
+  const notification: Notification = {
     id: "notification_1",
     userId: "user_1",
     workspaceId: null,
@@ -203,6 +222,8 @@ function mention(overrides: Partial<Notification> = {}): Notification {
     publishNextAttemptAt: null,
     ...overrides,
   };
+  storedNotifications.set(notification.id, notification);
+  return notification;
 }
 
 /** A finished task, for the reader who started it. */
@@ -294,7 +315,9 @@ describe("resendRoomMessageEmail", () => {
       expect.objectContaining({
         subject: "Sokosumi - 3 unread messages in Design",
         scheduledAt: TEN_MINUTES_LATER.toISOString(),
-        idempotencyKey: "notification-email/notification_1/3",
+        idempotencyKey: expect.stringMatching(
+          /^notification-email\/notification_1\/3\/[a-f0-9]{64}$/,
+        ),
       }),
     );
   });
@@ -527,12 +550,14 @@ describe("dispatchNotificationEmail", () => {
         to: "reader@example.com",
         subject: "Sokosumi - Ada mentioned you in Design",
         tag: "notification",
-        idempotencyKey: "notification-email/notification_1/1",
+        idempotencyKey: expect.stringMatching(
+          /^notification-email\/notification_1\/1\/[a-f0-9]{64}$/,
+        ),
       }),
     );
     expect(sendEmailMock.mock.calls[0]?.[0]).not.toHaveProperty("scheduledAt");
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "notification_1", isRead: false },
+      where: expect.objectContaining({ id: "notification_1", isRead: false }),
       data: { emailId: "email_1", emailScheduledAt: null },
     });
     expect(cancelEmailMock).not.toHaveBeenCalled();
@@ -551,7 +576,7 @@ describe("dispatchNotificationEmail", () => {
       }),
     );
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "notification_1", isRead: false },
+      where: expect.objectContaining({ id: "notification_1", isRead: false }),
       data: { emailId: "email_1", emailScheduledAt: TEN_MINUTES_LATER },
     });
     // The write took the row, so the email waits. Cancelling it here would
@@ -627,7 +652,8 @@ describe("dispatchNotificationEmail", () => {
 
     // Two reads that found nothing, the one that found the row, then the
     // one at this row's turn in the queue.
-    expect(notificationFindUniqueMock).toHaveBeenCalledTimes(4);
+    // The final read protects the post-provider persistence from an edit.
+    expect(notificationFindUniqueMock).toHaveBeenCalledTimes(5);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
 
@@ -1002,7 +1028,7 @@ describe("cancelNotificationEmails", () => {
     expect(cancelEmailMock).toHaveBeenCalledWith("e_future");
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "n_future" },
+      where: { id: "n_future", emailId: "e_future" },
       data: { emailId: null, emailScheduledAt: null },
     });
     // A row with no send time is passed over, not tripped over and swallowed.
@@ -1045,7 +1071,7 @@ describe("cancelNotificationEmails", () => {
     expect(cancelEmailMock).toHaveBeenCalledTimes(2);
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(notificationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "n2" } }),
+      expect.objectContaining({ where: { id: "n2", emailId: "e2" } }),
     );
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),

@@ -15,6 +15,11 @@ import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
 } from "@/helpers/calendar-membership-fence";
+import {
+  hasLiveNotificationEmailSource,
+  lockNotificationEmailSource,
+  notificationEmailContentRevision,
+} from "@/helpers/notification-chat-email-source";
 import { toNotificationCategory } from "@/helpers/notification-delivery";
 import {
   buildNotificationEmail,
@@ -22,6 +27,7 @@ import {
   roomUnreadCountOf,
 } from "@/helpers/notification-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
+import { resolveDelivery } from "@/helpers/notifications";
 import { hasAppInFront } from "@/lib/ably/channel-occupancy";
 import prisma from "@/lib/db/prisma";
 
@@ -71,6 +77,7 @@ const RESEND_REQUEST_GAP_MS = 500;
  */
 const COMMIT_WAIT_ATTEMPTS = 5;
 const COMMIT_WAIT_MS = 1_000;
+const EMAIL_CONTENT_REFRESH_ATTEMPTS = 3;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,7 +104,7 @@ function withResendGap<T>(request: () => Promise<T>): Promise<T> {
  * report, or one slower than the wait, which is: that email is dropped, and
  * the wait is the number to raise.
  */
-async function committedRow(id: string): Promise<null | { isRead: boolean }> {
+async function committedRow(id: string): Promise<Notification | null> {
   for (let attempt = 0; attempt < COMMIT_WAIT_ATTEMPTS; attempt += 1) {
     if (attempt > 0) {
       await sleep(COMMIT_WAIT_MS);
@@ -105,7 +112,6 @@ async function committedRow(id: string): Promise<null | { isRead: boolean }> {
 
     const row = await prisma.notification.findUnique({
       where: { id },
-      select: { isRead: true },
     });
 
     if (row) {
@@ -268,26 +274,59 @@ export interface DispatchNotificationEmailOptions {
  *
  * Does nothing for a row whose email has already left, or never had one:
  * there is nothing left to say it differently (SOK-1142).
+ * A new counted arrival can recover an interrupted first send after checking consent.
  *
  * Never throws, and meant for `waitUntil`.
  */
 export async function resendRoomMessageEmail(
   notificationId: string,
+  options: { allowInitialSend?: boolean } = {},
 ): Promise<void> {
   try {
     const row = await prisma.notification.findUnique({
       where: { id: notificationId },
     });
 
-    if (
-      !row ||
-      row.isRead ||
-      row.emailId === null ||
-      row.emailScheduledAt === null ||
-      row.emailScheduledAt.getTime() <= Date.now()
-    ) {
+    if (!row) {
       return;
     }
+    if (
+      row.emailId !== null &&
+      row.emailScheduledAt !== null &&
+      row.emailScheduledAt.getTime() > Date.now() &&
+      !(await hasLiveNotificationEmailSource(row))
+    ) {
+      await cancelNotificationEmails([row]);
+      return;
+    }
+    if (row.isRead) return;
+    if (row.emailId === null) {
+      if (!options.allowInitialSend) return;
+      const messageParams = readNotificationRowJson(
+        row.messageParams,
+        row.id,
+        "messageParams",
+      );
+      const metadata =
+        row.metadata === null
+          ? null
+          : readNotificationRowJson(row.metadata, row.id, "metadata");
+      if (!messageParams || (row.metadata !== null && metadata === null))
+        return;
+      const delivery = await resolveDelivery({
+        ...row,
+        workspaceId: row.workspaceId ?? undefined,
+        messageParams,
+        metadata,
+      });
+      if (delivery.email) await dispatchNotificationEmail(row);
+      return;
+    }
+    if (
+      row.emailScheduledAt === null ||
+      row.emailScheduledAt.getTime() <= Date.now()
+    )
+      return;
 
     const stale = row.emailId;
 
@@ -326,7 +365,20 @@ export async function dispatchNotificationEmail(
   notification: Notification,
   options: DispatchNotificationEmailOptions = {},
 ): Promise<void> {
+  return dispatchNotificationEmailRevision(
+    notification,
+    options,
+    EMAIL_CONTENT_REFRESH_ATTEMPTS,
+  );
+}
+
+async function dispatchNotificationEmailRevision(
+  notification: Notification,
+  options: DispatchNotificationEmailOptions,
+  remainingRefreshes: number,
+): Promise<void> {
   let unpersistedScheduledEmailId: string | null = null;
+  let refresh: Notification | null = null;
   try {
     if (isFollowUpMessageKey(notification.messageKey)) {
       return;
@@ -346,6 +398,10 @@ export async function dispatchNotificationEmail(
 
     if (!row || row.isRead) {
       return;
+    }
+    if (notification.kind === NotificationKind.CHAT) {
+      notification = row;
+      if (!(await hasLiveNotificationEmailSource(notification))) return;
     }
 
     const reader = await prisma.user.findUnique({
@@ -415,10 +471,17 @@ export async function dispatchNotificationEmail(
       // something nobody is asking any more.
       const live = await client.notification.findUnique({
         where: { id: notification.id },
-        select: { isRead: true },
       });
 
       if (!live || live.isRead) {
+        return false;
+      }
+      if (
+        notification.kind === NotificationKind.CHAT &&
+        (live.messageParams !== notification.messageParams ||
+          live.metadata !== notification.metadata)
+      ) {
+        refresh = live;
         return false;
       }
 
@@ -440,6 +503,22 @@ export async function dispatchNotificationEmail(
       client: Prisma.TransactionClient | typeof prisma,
       emailId: string,
     ) => {
+      await lockNotificationEmailSource(notification, client);
+      if (notification.kind === NotificationKind.CHAT) {
+        const live = await client.notification.findUnique({
+          where: { id: notification.id },
+        });
+        if (!live || live.isRead) return { emailId, count: 0 };
+        if (
+          live.messageParams !== notification.messageParams ||
+          live.metadata !== notification.metadata
+        ) {
+          refresh = live;
+          return { emailId, count: 0 };
+        }
+      }
+      if (!(await hasLiveNotificationEmailSource(notification, client)))
+        return { emailId, count: 0 };
       if (
         notification.workspaceId &&
         !(await hasCalendarWorkspaceAccess(
@@ -455,9 +534,31 @@ export async function dispatchNotificationEmail(
       // email was being handed over has nothing to cancel it by, so it is
       // cancelled below instead; an email already on its way is left alone.
       const { count } = await client.notification.updateMany({
-        where: { id: notification.id, isRead: false },
+        where: {
+          id: notification.id,
+          isRead: false,
+          ...(notification.kind === NotificationKind.CHAT
+            ? {
+                messageParams: notification.messageParams,
+                metadata: notification.metadata,
+              }
+            : {}),
+        },
         data: { emailId, emailScheduledAt: scheduledAt },
       });
+
+      if (count === 0 && notification.kind === NotificationKind.CHAT) {
+        const latest = await client.notification.findUnique({
+          where: { id: notification.id },
+        });
+        if (
+          latest &&
+          !latest.isRead &&
+          (latest.messageParams !== notification.messageParams ||
+            latest.metadata !== notification.metadata)
+        )
+          refresh = latest;
+      }
 
       return { emailId, count };
     };
@@ -472,12 +573,13 @@ export async function dispatchNotificationEmail(
       });
 
     const sent = await withResendGap(async () => {
+      if (await alreadyEmailed(notification, category)) return null;
       const workspaceId = notification.workspaceId;
       const allowed = workspaceId
         ? await withWorkspaceMembershipFence(workspaceId, liveUnreadRecipient)
         : await liveUnreadRecipient(prisma);
 
-      if (!allowed || (await alreadyEmailed(notification, category))) {
+      if (!allowed || !(await hasLiveNotificationEmailSource(notification))) {
         return null;
       }
 
@@ -500,7 +602,7 @@ export async function dispatchNotificationEmail(
         // another message joins the row it stands for: that send is a
         // different email about a different number of messages, and the
         // first send's key would have Resend replay the old one (SOK-1142).
-        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}`,
+        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}${notification.kind === NotificationKind.CHAT ? `/${notificationEmailContentRevision(notification)}` : ""}`,
       });
 
       if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;
@@ -513,13 +615,26 @@ export async function dispatchNotificationEmail(
         ? withWorkspaceMembershipFence(workspaceId, (tx) =>
             persistSentEmail(tx, emailId),
           )
-        : persistSentEmail(prisma, emailId);
+        : notification.kind === NotificationKind.CHAT
+          ? prisma.$transaction((tx) => persistSentEmail(tx, emailId))
+          : persistSentEmail(prisma, emailId);
     });
 
     if (sent !== null && sent.count === 0 && scheduledAt !== null) {
       await withResendGap(() => cancelEmail(sent.emailId));
     }
     unpersistedScheduledEmailId = null;
+    if (
+      refresh &&
+      remainingRefreshes > 0 &&
+      (sent === null || scheduledAt !== null)
+    ) {
+      await dispatchNotificationEmailRevision(
+        refresh,
+        { scheduledAt },
+        remainingRefreshes - 1,
+      );
+    }
   } catch (error) {
     if (unpersistedScheduledEmailId) {
       const emailId = unpersistedScheduledEmailId;
@@ -597,7 +712,7 @@ export async function cancelNotificationEmails(
 
       if (cancelled) {
         await prisma.notification.updateMany({
-          where: { id: row.id },
+          where: { id: row.id, emailId },
           data: { emailId: null, emailScheduledAt: null },
         });
       }
