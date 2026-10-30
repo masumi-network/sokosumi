@@ -75,15 +75,20 @@ export const DESIGN_SYSTEM_VARS: Record<`--ds-${string}`, string> = {
   ...PROPOSED_VALUES,
 };
 
-/** Section 5.2 of the guide: one role, a light step and a dark step. */
+/**
+ * Theme roles as `globals.css` ships them. Two light/dark steps leave the
+ * guide's 5.2 table so each pair clears AA (5.11): muted text Neutral 600
+ * (not 500) and field border Neutral 500 both themes (not 300/700). Dark
+ * primary is Dark Iris (Proposed), not Iris Flower.
+ */
 export const THEME_ROLES = [
   { key: "page", light: "--ds-white", dark: "--ds-neutral-950" },
   { key: "panel", light: "--ds-neutral-100", dark: "--ds-neutral-900" },
   { key: "component", light: "--ds-white", dark: "--ds-neutral-950" },
   { key: "border", light: "--ds-neutral-200", dark: "--ds-neutral-800" },
-  { key: "fieldBorder", light: "--ds-neutral-300", dark: "--ds-neutral-700" },
+  { key: "fieldBorder", light: "--ds-neutral-500", dark: "--ds-neutral-500" },
   { key: "text", light: "--ds-neutral-900", dark: "--ds-neutral-50" },
-  { key: "mutedText", light: "--ds-neutral-500", dark: "--ds-neutral-400" },
+  { key: "mutedText", light: "--ds-neutral-600", dark: "--ds-neutral-400" },
   { key: "disabledText", light: "--ds-neutral-400", dark: "--ds-neutral-600" },
   { key: "primary", light: "--ds-iris-flower", dark: "--ds-dark-iris" },
   {
