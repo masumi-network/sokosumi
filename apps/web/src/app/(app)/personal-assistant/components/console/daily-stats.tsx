@@ -112,7 +112,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
               })}
             </span>
             <span className="flex items-center gap-3">
-              <Legend className="bg-primary" label={t("messages")} />
+              <Legend className="bg-foreground" label={t("messages")} />
               <Legend className="bg-primary-tertiary" label={t("background")} />
             </span>
             <span>{t("today")}</span>

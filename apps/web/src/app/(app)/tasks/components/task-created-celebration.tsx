@@ -12,7 +12,7 @@ type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";
 type CelebrationColumnId = "backlog" | "todo" | "celebration-scheduled";
 
 /** Matches removed kanban `scheduled` column dot color for unchanged celebration UI. */
-const CELEBRATION_SCHEDULED_DOT = "bg-primary";
+const CELEBRATION_SCHEDULED_DOT = "bg-foreground";
 
 interface TaskCreatedCelebrationProps {
   name: string;

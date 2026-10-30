@@ -54,7 +54,7 @@ export function CatchUpLine({
                 type="button"
                 className={cn(
                   tone,
-                  "rounded-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none",
+                  "rounded-sm underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
                 data-bucket={entry.bucket}
                 onClick={() => onSelect(entry.bucket)}
