@@ -5,10 +5,12 @@ import { Bot, Search, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon, MembersRosterLoadFailed } from "./room-draft-shared";
@@ -270,12 +272,24 @@ export function ParticipantCheckboxes({
                         checked ? "bg-senary" : "press hover:bg-accent",
                       )}
                     >
-                      <Avatar className="size-8 shrink-0">
-                        <AvatarImage src={sokoBot.image ?? undefined} alt="" />
-                        <AvatarFallback className="text-xs">
-                          {getInitials(sokoBot.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      {sokoBot.image &&
+                      isCraftedStyle(sokoBot.avatarStyleId) ? (
+                        <AvatarFace
+                          src={sokoBot.image}
+                          crafted
+                          className="size-8"
+                        />
+                      ) : (
+                        <Avatar className="size-8 shrink-0">
+                          <AvatarImage
+                            src={sokoBot.image ?? undefined}
+                            alt=""
+                          />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(sokoBot.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">

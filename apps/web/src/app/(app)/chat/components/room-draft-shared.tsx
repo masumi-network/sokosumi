@@ -9,6 +9,7 @@ import { Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -121,6 +123,7 @@ export interface DirectDraftTarget {
   slug?: string;
   caption?: string | null;
   avatarSeed?: string | null;
+  avatarStyleId?: string | null;
   presence?: ChatRoomPresence;
 }
 
@@ -162,6 +165,7 @@ export function buildDirectDraftTargets(
       image: sokoBot.image,
       kind: "sokoBot" as const,
       avatarSeed: sokoBot.avatarSeed,
+      avatarStyleId: sokoBot.avatarStyleId,
       presence: "online" as const,
     })),
   ];
@@ -184,6 +188,37 @@ export function filterDraftTargets(
         .toLowerCase()
         .includes(normalizedQuery);
     });
+}
+
+/** A draft target's face; a crafted Soko Bot is cropped to its face. */
+export function DraftTargetFace({
+  target,
+  className,
+}: {
+  target: DirectDraftTarget;
+  className: string;
+}) {
+  if (
+    target.kind === "sokoBot" &&
+    target.image &&
+    isCraftedStyle(target.avatarStyleId)
+  ) {
+    return (
+      <AvatarFace
+        src={target.image}
+        crafted
+        className={cn("shrink-0", className)}
+      />
+    );
+  }
+  return (
+    <Avatar className={cn("shrink-0", className)}>
+      <AvatarImage src={target.image ?? undefined} alt="" />
+      <AvatarFallback className="text-2xs">
+        {getInitials(target.name)}
+      </AvatarFallback>
+    </Avatar>
+  );
 }
 
 export function DirectDraftTargetRow({
@@ -215,12 +250,7 @@ export function DirectDraftTargetRow({
       }}
       onClick={() => onSelect(target)}
     >
-      <Avatar className="size-7 shrink-0">
-        <AvatarImage src={target.image ?? undefined} alt="" />
-        <AvatarFallback className="text-2xs">
-          {getInitials(target.name)}
-        </AvatarFallback>
-      </Avatar>
+      <DraftTargetFace target={target} className="size-7" />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-sm font-medium">{target.name}</span>

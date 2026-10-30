@@ -2,12 +2,14 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import type { OrbState } from "thinking-orbs";
 
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
+import { AssistantImageContext } from "./assistant-avatar";
 import { RotatingMessages } from "./rotating-messages";
 import { ThinkingOrb } from "./thinking-orb";
 import type { ProgressChip } from "./timeline";
@@ -58,6 +60,7 @@ export function TurnProgress({
 }) {
   const t = useTranslations("App.SokoBot.Chat");
   const toolLabel = useToolLabel();
+  const image = useContext(AssistantImageContext);
   const thinkingMessages = orderedMessageList(
     t.raw("thinkingMessages") as Record<string, string>,
   );
@@ -80,7 +83,20 @@ export function TurnProgress({
 
   return (
     <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
-      <ThinkingOrb size={32} state={cancelRequested ? "solving" : orbState} />
+      {/* A crafted avatar has a loop per state; the only one that repeats. */}
+      {image?.crafted ? (
+        <AvatarFace
+          src={image.stateStill}
+          crafted
+          alt={image.alt}
+          loopSrc={image.stateLoop}
+          playing
+          loop
+          className="ring-border size-8 ring-1"
+        />
+      ) : (
+        <ThinkingOrb size={32} state={cancelRequested ? "solving" : orbState} />
+      )}
       <div className="flex min-w-0 flex-col gap-1.5 pt-1">
         {chips.length === 0 ? (
           <div className="flex min-h-5 items-center gap-1.5 pt-1">
