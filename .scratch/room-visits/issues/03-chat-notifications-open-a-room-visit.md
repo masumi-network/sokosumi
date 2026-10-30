@@ -4,9 +4,9 @@
 
 **Blocked by:** 01: Room visit
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] A chat notification for another workspace's room opens the room, and the active workspace does not change
-- [ ] No workspace-switch notice shows for it
-- [ ] Task and job notifications still switch, with the usual notice
-- [ ] A chat notification for a room the reader has left behaves as it does today
+- [x] A chat notification for another workspace's room opens the room, and the active workspace does not change
+- [x] No workspace-switch notice shows for it
+- [x] Task and job notifications still switch, with the usual notice
+- [x] A chat notification for a room the reader has left behaves as it does today
