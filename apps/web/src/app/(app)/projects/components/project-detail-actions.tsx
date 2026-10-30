@@ -268,7 +268,7 @@ export function ProjectDetailActions({
               {labels.closeDialog.cancel}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               loading={isClosing}
               onClick={(event) => {
                 event.preventDefault();

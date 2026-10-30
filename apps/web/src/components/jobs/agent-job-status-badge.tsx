@@ -3,6 +3,7 @@
 import { AgentJobStatus } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 
+import { getToneStyle, type StatusTone } from "@/components/ui/status-marker";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusBadgeProps {
@@ -43,27 +44,32 @@ export function AgentJobStatusBadge({
   );
 }
 
-export function getAgentStatusDotColorClass(status: AgentJobStatus) {
+/**
+ * Agent job dots use the same hue table as `StatusMarker`, so a retune of
+ * green / yellow / Iris / the X moves this badge with the rest of the app.
+ *
+ * Both waiting states sit on `blocked`. The label is what separates them —
+ * they must not pull `--risk-high`, which belongs to the EU risk ladder.
+ */
+function agentStatusTone(status: AgentJobStatus): StatusTone {
   switch (status) {
     case AgentJobStatus.COMPLETED:
-      return "bg-semantic-success";
+      return { hue: "resolved", weight: "filled" };
     case AgentJobStatus.FAILED:
-      return "bg-semantic-destructive";
+      return { hue: "fault", weight: "filled" };
     case AgentJobStatus.AWAITING_INPUT:
-      return "bg-semantic-warning";
-    // Both waiting states sit on the warning ramp, and the label is what
-    // separates them. The dot used to read --risk-high while the border read
-    // the warning ramp, so one state drew from two hues. --risk-high also
-    // belongs to the ordered EU risk ladder, where a future retune of the
-    // tiers would have silently moved a payment badge.
     case AgentJobStatus.AWAITING_PAYMENT:
-      return "bg-semantic-warning";
+      return { hue: "blocked", weight: "filled" };
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
-      return "bg-status-working";
+      return { hue: "active", weight: "filled" };
     default:
-      return "bg-status-done";
+      return { hue: "dormant", weight: "filled" };
   }
+}
+
+export function getAgentStatusDotColorClass(status: AgentJobStatus) {
+  return getToneStyle(agentStatusTone(status)).dot;
 }
 
 function statusToLabelKey(status: AgentJobStatus) {

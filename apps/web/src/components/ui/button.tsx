@@ -19,9 +19,11 @@ const buttonVariants = cva(
         // mark. Its own ring measured 1.41:1 in light and 1.70:1 in dark,
         // against 7.04 and 5.07 for the shared one.
         //
-        // The fill is the guide's X, Neutral 950 (Neutral 50 in dark).
+        // The fill is the guide's X, Neutral 950 (Neutral 50 in dark). It is
+        // not the bordered default: the solid X is what marks danger; the
+        // confirmation copy still names the irreversible step.
         destructive:
-          "bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover",
+          "bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover",
         outline:
           "border-control-border hover:bg-accent hover:text-accent-foreground bg-background",
         secondary: "bg-quinary text-foreground hover:bg-quaternary",

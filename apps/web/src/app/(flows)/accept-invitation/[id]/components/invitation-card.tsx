@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusOutcomeDisc } from "@/components/ui/status-outcome-disc";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { PendingInvitationErrorCode } from "@/lib/services/organization.service";
 
@@ -53,9 +54,7 @@ export default function InvitationCard({
       <CardContent>
         {status === "accepted" && (
           <div className="space-y-4">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-success">
-              <CheckIcon className="size-8 text-semantic-success-foreground" />
-            </div>
+            <StatusOutcomeDisc kind="success" icon={CheckIcon} />
             <h1 className="text-center text-2xl font-light text-balance tracking-tight">
               {t("acceptedTitle", {
                 organizationName: organization.name,
@@ -77,9 +76,7 @@ export default function InvitationCard({
         )}
         {status === "rejected" && (
           <div className="space-y-4">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-quinary">
-              <XIcon className="size-8 text-semantic-destructive" />
-            </div>
+            <StatusOutcomeDisc kind="fault" icon={XIcon} />
             <h1 className="text-center text-2xl font-light text-balance tracking-tight">
               {t("declinedTitle")}
             </h1>
