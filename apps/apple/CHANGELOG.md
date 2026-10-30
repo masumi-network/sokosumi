@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.2.0...macos-v1.3.0) (2026-10-30)
+
+
+### Features
+
+* **chat:** open chat rooms at the Unread divider ([#6573](https://github.com/masumi-network/sokosumi/issues/6573)) ([d61644d](https://github.com/masumi-network/sokosumi/commit/d61644d8223940c9c7c7ac0300257759bf44bdb0))
+* **chat:** scope chat rooms by who is in them ([#6675](https://github.com/masumi-network/sokosumi/issues/6675)) ([4a4be69](https://github.com/masumi-network/sokosumi/commit/4a4be692e13363c7fb1bc6d194eef989e78f4d8f))
+* **web:** add design system preview to admin ([#6676](https://github.com/masumi-network/sokosumi/issues/6676)) ([384b721](https://github.com/masumi-network/sokosumi/commit/384b721dba6d1610506ae7bfa64a7f35db2c8813))
+
+
+### Bug Fixes
+
+* **apple:** collapse long bodies with a large image behind Show more ([#6638](https://github.com/masumi-network/sokosumi/issues/6638)) ([ed2c1b3](https://github.com/masumi-network/sokosumi/commit/ed2c1b304803eeb36d5e4dff5fd6707bd830ec05))
+* **chat:** move New to the end of the Unread divider ([#6734](https://github.com/masumi-network/sokosumi/issues/6734)) ([c7b3a6e](https://github.com/masumi-network/sokosumi/commit/c7b3a6e58f8cc59744f089816c3a3667b81f07c7))
+* **chat:** stop the typing line blinking during short pauses ([#6591](https://github.com/masumi-network/sokosumi/issues/6591)) ([1bd8484](https://github.com/masumi-network/sokosumi/commit/1bd8484ed1802c10a8e2f401c6956844050fa9a8))
+
 ## [1.2.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.1...macos-v1.2.0) (2026-10-19)
 
 
