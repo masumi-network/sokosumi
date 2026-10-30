@@ -26,6 +26,12 @@ const core = vi.hoisted(() => ({
   getNewsletterAvailability: vi.fn(),
   getProjectsByIdNewsletter: vi.fn(),
   putProjectsByIdNewsletter: vi.fn(),
+  getProjectsByIdNewsletterSendingDomain: vi.fn(),
+  putProjectsByIdNewsletterSendingDomain: vi.fn(),
+  deleteProjectsByIdNewsletterSendingDomain: vi.fn(),
+  postProjectsByIdNewsletterSendingDomainCheck: vi.fn(),
+  postProjectsByIdNewsletterSendingDomainCloudflare: vi.fn(),
+  getProjectsByIdNewsletterSendingDomainDomainConnect: vi.fn(),
   getProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribersImport: vi.fn(),
@@ -388,6 +394,110 @@ describe("newsletterService", () => {
         welcomeEmailEnabled: false,
       }),
     ).rejects.toThrow("Save failed");
+  });
+
+  it("keeps every sending-domain operation scoped to the selected project", async () => {
+    const domain = { id: "domain-1" };
+    const state = {
+      sendingDomain: domain,
+      canManage: true,
+      fallbackAvailable: true,
+    };
+    const connect = {
+      providerName: "Cloudflare",
+      applyUrl: "https://example.com/apply",
+    };
+    core.getProjectsByIdNewsletterSendingDomain.mockResolvedValue({
+      data: state,
+    });
+    core.putProjectsByIdNewsletterSendingDomain.mockResolvedValue({
+      data: domain,
+    });
+    core.postProjectsByIdNewsletterSendingDomainCheck.mockResolvedValue({
+      data: domain,
+    });
+    core.postProjectsByIdNewsletterSendingDomainCloudflare.mockResolvedValue({
+      data: domain,
+    });
+    core.getProjectsByIdNewsletterSendingDomainDomainConnect.mockResolvedValue({
+      data: connect,
+    });
+
+    expect(await newsletterService.getSendingDomain("project-2")).toBe(state);
+    expect(core.getProjectsByIdNewsletterSendingDomain).toHaveBeenCalledWith(
+      "project-2",
+    );
+    expect(
+      await newsletterService.saveSendingDomain(
+        "project-2",
+        "news@brand.example",
+      ),
+    ).toBe(domain);
+    expect(core.putProjectsByIdNewsletterSendingDomain).toHaveBeenCalledWith(
+      "project-2",
+      { fromAddress: "news@brand.example" },
+    );
+    expect(await newsletterService.checkSendingDomain("project-2")).toBe(
+      domain,
+    );
+    expect(
+      core.postProjectsByIdNewsletterSendingDomainCheck,
+    ).toHaveBeenCalledWith("project-2");
+    expect(
+      await newsletterService.connectSendingDomainWithCloudflare(
+        "project-2",
+        "one-time-token",
+      ),
+    ).toBe(domain);
+    expect(
+      core.postProjectsByIdNewsletterSendingDomainCloudflare,
+    ).toHaveBeenCalledWith("project-2", "one-time-token");
+    expect(await newsletterService.getSendingDomainConnect("project-2")).toBe(
+      connect,
+    );
+    expect(
+      core.getProjectsByIdNewsletterSendingDomainDomainConnect,
+    ).toHaveBeenCalledWith("project-2");
+    await newsletterService.removeSendingDomain("project-2");
+    expect(core.deleteProjectsByIdNewsletterSendingDomain).toHaveBeenCalledWith(
+      "project-2",
+    );
+  });
+
+  it("propagates sending-domain access failures", async () => {
+    const error = new CoreApiRequestError("Forbidden", { status: 403 });
+    core.getProjectsByIdNewsletterSendingDomain.mockRejectedValue(error);
+    core.putProjectsByIdNewsletterSendingDomain.mockRejectedValue(error);
+    core.deleteProjectsByIdNewsletterSendingDomain.mockRejectedValue(error);
+    core.postProjectsByIdNewsletterSendingDomainCheck.mockRejectedValue(error);
+    core.postProjectsByIdNewsletterSendingDomainCloudflare.mockRejectedValue(
+      error,
+    );
+    core.getProjectsByIdNewsletterSendingDomainDomainConnect.mockRejectedValue(
+      error,
+    );
+
+    await expect(newsletterService.getSendingDomain("project-2")).rejects.toBe(
+      error,
+    );
+    await expect(
+      newsletterService.saveSendingDomain("project-2", "news@brand.example"),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.removeSendingDomain("project-2"),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.checkSendingDomain("project-2"),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.connectSendingDomainWithCloudflare(
+        "project-2",
+        "one-time-token",
+      ),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.getSendingDomainConnect("project-2"),
+    ).rejects.toBe(error);
   });
 
   it("preserves subscriber counts and cursor metadata from Core", async () => {

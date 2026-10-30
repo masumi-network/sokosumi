@@ -1,13 +1,20 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
 
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import {
+  NeedsYouPanel,
+  panelFeed,
+} from "@/app/projects/components/workspace-column";
+import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { notificationService } from "@/lib/services/notification.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
@@ -63,6 +70,20 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
   const userId = session?.user.id;
+  // What waits on the reader, as the quiet list under either welcome. One
+  // promise of the rendered panel, so the two breakpoint compositions share
+  // its reads instead of each loading the rows and their projects again.
+  const needsYou = (
+    <Suspense fallback={null}>
+      {NeedsYouPanel({
+        feed: panelFeed(
+          notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
+        ),
+        projects: {},
+        quiet: true,
+      })}
+    </Suspense>
+  );
 
   if (sokoBot && userId) {
     // In an org the day is the team's; in a personal workspace, the user's.
@@ -93,6 +114,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
           teamTasks={toTeamDay(recent.tasks, new Date())}
+          needsYou={needsYou}
         />
       </>
     );
@@ -121,6 +143,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
           userName={greetingName}
+          needsYou={needsYou}
         />
       </div>
       {/*
@@ -135,6 +158,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
           userName={greetingName}
+          needsYou={needsYou}
         />
       </div>
     </>

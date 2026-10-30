@@ -124,6 +124,16 @@ function ScopedMenuItems({
   const markFeatureSeen = useMarkFeatureSeen();
 
   const allDestinations: NavDestination[] = [
+    // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
+    {
+      key: "home",
+      href: "/",
+      label: t("home"),
+      Icon: House,
+      group: "work",
+      desktopOnly: true,
+    },
+    // Under Home: Home answers what needs you, Projects browses the work.
     // One row for the scope: the Projects list, or the selected project's
     // own page. The nav never shows both.
     !hasProjectPage
@@ -148,15 +158,6 @@ function ScopedMenuItems({
           ) : undefined,
           group: "work",
         },
-    // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
-    {
-      key: "home",
-      href: "/",
-      label: t("home"),
-      Icon: House,
-      group: "work",
-      desktopOnly: true,
-    },
     {
       key: "explore-agents",
       href: "/agents",
