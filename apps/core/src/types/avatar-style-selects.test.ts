@@ -17,8 +17,7 @@ describe("Soko Bot summaries load the avatar style with the bot", () => {
     expect(select.avatar).toEqual({ select: { styleId: true } });
   });
 
-  // Chat rooms also need the Idle and Working loops for the participant chip.
-  it("chat room bots", () => {
+  it("chat room bots load Idle and Working loops for the participant chip", () => {
     expect(chatRoomSokoBotSelect.avatar).toEqual({
       select: {
         styleId: true,

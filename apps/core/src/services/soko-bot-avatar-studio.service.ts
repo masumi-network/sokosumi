@@ -171,7 +171,6 @@ async function spendDraftAllowance(
   });
 }
 
-/** Give the slot back when planning or drawing fails before a usable draft. */
 async function refundDraftAllowance(userId: string): Promise<void> {
   await serializableTransaction(async (tx) => {
     const key = `soko-bot-avatar-draft:${userId}`;
@@ -258,8 +257,6 @@ export async function createAvatarDraft(input: {
       plan = await planChange(style, base.look, input.change);
     }
     if (plan.kind === "unchanged") {
-      // Typed already bought the rewriter. A no-op creature or accessory swap
-      // did not, so give the slot back.
       if (input.change.kind !== "typed") {
         await refundDraftAllowance(input.userId).catch(() => undefined);
       }
@@ -272,11 +269,7 @@ export async function createAvatarDraft(input: {
       ? await downloadAvatarAsset(source.url)
       : await loadHouseScene(style);
   } catch (error) {
-    // A client error before the rewriter, or a rewriter/blob failure, left
-    // nothing usable. A typed refusal is not this path: it returns unchanged.
     await refundDraftAllowance(input.userId).catch(() => undefined);
-    // A bad request is the caller's; anything else is the rewriter or the
-    // blob store being down.
     if (error instanceof HTTPException) throw error;
     console.warn("Soko Bot avatar draft could not be planned", {
       kind: DRAW_FAILED,
@@ -343,13 +336,10 @@ export async function createAvatarDraft(input: {
       note: plan.note,
     };
   } catch (error) {
-    // Nothing usable was made, so give the hourly slot back. Discard and keep
-    // do not: those looks were drawn.
     await prisma.sokoBotAvatar
       .deleteMany({ where: { id: reservation.id } })
       .catch(() => undefined);
     await refundDraftAllowance(input.userId).catch(() => undefined);
-    // A stall upstream is not our fault and a retry usually works: say so.
     const kind =
       error instanceof ImageTimeoutError ? DRAW_TIMED_OUT : DRAW_FAILED;
     console.warn("Soko Bot avatar draft failed", {
