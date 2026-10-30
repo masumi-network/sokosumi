@@ -13,8 +13,20 @@ describe("Soko Bot summaries load the avatar style with the bot", () => {
       "work creators (task, schedule, job)",
       workCreatorInclude.creatorSokoBot.select,
     ],
-    ["chat room bots", chatRoomSokoBotSelect],
   ])("%s", (_name, select) => {
     expect(select.avatar).toEqual({ select: { styleId: true } });
+  });
+
+  // Chat rooms also need the Idle and Working loops for the participant chip.
+  it("chat room bots", () => {
+    expect(chatRoomSokoBotSelect.avatar).toEqual({
+      select: {
+        styleId: true,
+        renders: {
+          where: { state: { in: ["IDLE", "WORKING"] } },
+          select: { state: true, loopUrl: true },
+        },
+      },
+    });
   });
 });

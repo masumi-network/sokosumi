@@ -318,7 +318,7 @@ const renders = new Table(
 );
 const bots: Row = { id: "bot-1", avatarImageUrl: null };
 const deletedBots = new Set<string>();
-// Better Auth's rate-limit table, where the regeneration allowance is counted.
+// Better Auth's rate-limit table: regeneration and draft allowances.
 const rateLimits = new Table(() => ({
   key: null,
   count: null,
@@ -780,6 +780,7 @@ describe("drafting", () => {
     warn.mockRestore();
     expect(providerMock.editImage).not.toHaveBeenCalled();
     expect(avatars.rows).toHaveLength(0);
+    expect(rateLimits.rows[0]).toMatchObject({ count: 0 });
   });
 
   it("shuffles from the house scene whatever the bot looks like now", async () => {
@@ -831,6 +832,7 @@ describe("drafting", () => {
       });
       expect(providerMock.editImage).not.toHaveBeenCalled();
       expect(providerMock.rewrite).not.toHaveBeenCalled();
+      expect(rateLimits.rows).toHaveLength(0);
       expect(pooled).toMatchObject({
         draftForSokoBotId: BOT,
         draftExpiresAt: expect.any(Date),
@@ -904,18 +906,37 @@ describe("drafting", () => {
   });
 
   it("stops at the hourly draft cap before spending", async () => {
+    await rateLimits.create({
+      data: {
+        key: `soko-bot-avatar-draft:${USER}`,
+        count: LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR,
+        lastRequest: BigInt(Date.now() - 60_000),
+      },
+    });
+
+    await expect(
+      createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "creature", creature: "frog" },
+      }),
+    ).rejects.toMatchObject({
+      status: 429,
+      cause: { kind: "avatar_draft_rate_limited" },
+    });
+
+    expect(providerMock.editImage).not.toHaveBeenCalled();
+    expect(avatars.rows).toHaveLength(0);
+  });
+
+  it("keeps the hourly spend after a draft is discarded", async () => {
     for (let i = 0; i < LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR; i += 1) {
-      await avatars.create({
-        data: {
-          subject: "owl",
-          background: "x",
-          seed: i,
-          model: "m",
-          imageUrl: "u",
-          requestedByUserId: USER,
-          draftForSokoBotId: BOT,
-        },
+      const { draft } = await createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "creature", creature: "frog" },
       });
+      await discardAvatarDrafts({ sokoBotId: BOT, draftId: draft!.id });
     }
 
     await expect(
@@ -924,10 +945,71 @@ describe("drafting", () => {
         userId: USER,
         change: { kind: "creature", creature: "frog" },
       }),
-    ).rejects.toMatchObject({ status: 429 });
+    ).rejects.toMatchObject({
+      status: 429,
+      cause: { kind: "avatar_draft_rate_limited" },
+    });
+    expect(providerMock.editImage).toHaveBeenCalledTimes(
+      LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR,
+    );
+  });
 
-    expect(providerMock.editImage).not.toHaveBeenCalled();
-    expect(avatars.rows).toHaveLength(LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR);
+  it("rate-limits a typed change before the rewriter runs", async () => {
+    await rateLimits.create({
+      data: {
+        key: `soko-bot-avatar-draft:${USER}`,
+        count: LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR,
+        lastRequest: BigInt(Date.now() - 60_000),
+      },
+    });
+
+    await expect(
+      createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "typed", text: "a wizard hat" },
+      }),
+    ).rejects.toMatchObject({
+      status: 429,
+      cause: { kind: "avatar_draft_rate_limited" },
+    });
+
+    expect(providerMock.rewrite).not.toHaveBeenCalled();
+  });
+
+  it("spends a slot when the rewriter refuses without drawing", async () => {
+    await rateLimits.create({
+      data: {
+        key: `soko-bot-avatar-draft:${USER}`,
+        count: LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR - 1,
+        lastRequest: BigInt(Date.now() - 60_000),
+      },
+    });
+    providerMock.rewrite.mockResolvedValue({
+      edit: "",
+      note: "I can't draw that.",
+    });
+
+    const result = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: { kind: "typed", text: "a famous logo" },
+    });
+
+    expect(result.draft).toBeNull();
+    expect(avatars.rows).toHaveLength(0);
+
+    await expect(
+      createAvatarDraft({
+        sokoBotId: BOT,
+        userId: USER,
+        change: { kind: "typed", text: "a wizard hat" },
+      }),
+    ).rejects.toMatchObject({
+      status: 429,
+      cause: { kind: "avatar_draft_rate_limited" },
+    });
+    expect(providerMock.rewrite).toHaveBeenCalledTimes(1);
   });
 
   it("gives the slot back when the provider fails", async () => {
@@ -944,6 +1026,7 @@ describe("drafting", () => {
 
     warn.mockRestore();
     expect(avatars.rows).toHaveLength(0);
+    expect(rateLimits.rows[0]).toMatchObject({ count: 0 });
   });
 
   it("treats a creature the style does not have as a bad request", async () => {
@@ -955,6 +1038,7 @@ describe("drafting", () => {
       }),
     ).rejects.toMatchObject({ status: 422 });
     expect(providerMock.editImage).not.toHaveBeenCalled();
+    expect(rateLimits.rows[0]).toMatchObject({ count: 0 });
   });
 });
 
@@ -1901,7 +1985,11 @@ describe("regenerating one animation", () => {
       });
 
       expect(rowOf("working").status).toBe(status);
-      expect(rateLimits.rows).toHaveLength(0);
+      expect(
+        rateLimits.rows.filter((row) =>
+          String(row.key).startsWith("soko-bot-avatar-regenerate:"),
+        ),
+      ).toHaveLength(0);
     },
   );
 
@@ -1954,12 +2042,11 @@ describe("regenerating one animation", () => {
       rowOf("working").status = "READY";
       await regenerate("working");
 
-      expect(rateLimits.rows).toEqual([
-        expect.objectContaining({
-          key: `soko-bot-avatar-regenerate:${USER}`,
-          count: 2,
-        }),
-      ]);
+      expect(
+        rateLimits.rows.find(
+          (row) => row.key === `soko-bot-avatar-regenerate:${USER}`,
+        ),
+      ).toMatchObject({ count: 2 });
     });
 
     it("answers 429 once the day's twelve are spent, and leaves the state alone", async () => {
@@ -2013,7 +2100,11 @@ describe("regenerating one animation", () => {
 
       await regenerate("working", null);
 
-      expect(rateLimits.rows).toHaveLength(0);
+      expect(
+        rateLimits.rows.filter((row) =>
+          String(row.key).startsWith("soko-bot-avatar-regenerate:"),
+        ),
+      ).toHaveLength(0);
       expect(rowOf("working").status).toBe("STILL_READY");
     });
   });
