@@ -51,6 +51,18 @@ describe("HeaderLeadingControl", () => {
     routerPushMock.mockClear();
   });
 
+  it("keeps the newsletter project when returning from an issue", () => {
+    mockPathname = "/newsletter/issues/issue-1";
+    mockSearchParams = new URLSearchParams(
+      "projectId=project%2Fone&draftedBySokoBot=true",
+    );
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/newsletter/issues?projectId=project%2Fone",
+    );
+  });
+
   it("shows brand link to home on Welcome", () => {
     render(<HeaderLeadingControl />);
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();

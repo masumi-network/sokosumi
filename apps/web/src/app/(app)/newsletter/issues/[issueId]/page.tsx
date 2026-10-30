@@ -51,10 +51,13 @@ export default async function NewsletterIssuePage({
   ]);
   if (!issue) notFound();
   // After the issue check, so a missing project shows not found, not an error.
-  const subscribers = await newsletterService.listSubscribers(project.id, {
-    limit: 1,
-    status: "ACTIVE",
-  });
+  const [subscribers, sendingDomain] = await Promise.all([
+    newsletterService.listSubscribers(project.id, {
+      limit: 1,
+      status: "ACTIVE",
+    }),
+    newsletterService.getSendingDomain(project.id),
+  ]);
   const analytics =
     issue.status === "SENT"
       ? await newsletterService
@@ -82,6 +85,8 @@ export default async function NewsletterIssuePage({
         issue={issue}
         projectId={project.id}
         activeSubscribers={subscribers.data.counts.ACTIVE}
+        senderName={newsletter.senderName}
+        sendingDomain={sendingDomain}
         newsletterSlug={newsletter.publicSlug}
         analytics={analytics}
         draftedBySokoBot={draftedBySokoBot}
