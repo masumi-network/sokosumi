@@ -409,6 +409,8 @@ export async function reconcileAvatarRenders(
     shouldContinue?: () => boolean;
     /** Time left in this run (the sync context's `msRemaining`). Unset: no limit. */
     msRemaining?: () => number;
+    /** Work only this bot's look. Unset: every bot's, oldest first. */
+    sokoBotId?: string;
   } = {},
 ): Promise<RenderRunResult> {
   const result: RenderRunResult = {
@@ -435,7 +437,7 @@ export async function reconcileAvatarRenders(
       status: { in: [...LIVE_STATUSES] },
       // A look a live bot holds. A deleted bot keeps its claim as a tombstone.
       avatar: {
-        claimedBySokoBotId: { not: null },
+        claimedBySokoBotId: options.sokoBotId ?? { not: null },
         claimedBySokoBot: { deletedAt: null },
       },
       ...leaseFree(now),

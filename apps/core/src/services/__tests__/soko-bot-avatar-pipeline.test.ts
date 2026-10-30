@@ -1468,6 +1468,17 @@ describe("reconciling renders", () => {
     expect(providerMock.startVideo).not.toHaveBeenCalled();
   });
 
+  it("works only one bot's renders when asked for that bot", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+
+    await reconcileAvatarRenders({ sokoBotId: "bot-other" });
+    expect(providerMock.editImage).not.toHaveBeenCalled();
+
+    await reconcileAvatarRenders({ sokoBotId: BOT });
+    expect(providerMock.editImage).toHaveBeenCalledTimes(5);
+  });
+
   it("keeps collecting a loop whose download fails, without resubmitting it", async () => {
     await keptLook({ kind: "creature", creature: "otter" });
     await reconcileAvatarRenders();

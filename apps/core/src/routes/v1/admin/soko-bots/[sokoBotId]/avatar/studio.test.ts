@@ -53,6 +53,14 @@ vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
   regenerateAvatarState: regenerateMock,
 }));
 
+vi.mock("@/services/soko-bot-avatar-render.service", () => ({
+  reconcileAvatarRenders: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => promise,
+}));
+
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 

@@ -9,6 +9,7 @@ const {
   getStudioMock,
   keepDraftMock,
   memberFindFirstMock,
+  reconcileMock,
   regenerateMock,
   resolveMock,
 } = vi.hoisted(() => ({
@@ -17,6 +18,7 @@ const {
   getStudioMock: vi.fn(),
   keepDraftMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
+  reconcileMock: vi.fn(),
   regenerateMock: vi.fn(),
   resolveMock: vi.fn(),
 }));
@@ -92,6 +94,14 @@ vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
   regenerateAvatarState: regenerateMock,
 }));
 
+vi.mock("@/services/soko-bot-avatar-render.service", () => ({
+  reconcileAvatarRenders: reconcileMock,
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => promise,
+}));
+
 import { tooManyRequests } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
@@ -157,6 +167,7 @@ describe("avatar studio routes", () => {
     keepDraftMock.mockResolvedValue(undefined);
     discardMock.mockResolvedValue(undefined);
     regenerateMock.mockResolvedValue(undefined);
+    reconcileMock.mockResolvedValue(undefined);
   });
 
   describe("for your own bot", () => {
@@ -284,6 +295,10 @@ describe("avatar studio routes", () => {
         state: "working",
       });
       expect((await response.json()).data).toEqual(STUDIO);
+      // The new loop starts now, not at the next cron tick.
+      expect(reconcileMock).toHaveBeenCalledWith(
+        expect.objectContaining({ sokoBotId: BOT_ID }),
+      );
     });
 
     it("rejects a state that is not one of the six, before anything runs", async () => {
@@ -314,6 +329,7 @@ describe("avatar studio routes", () => {
 
         expect(response.status).toBe(status);
         expect(JSON.stringify(await response.json())).toContain(message);
+        expect(reconcileMock).not.toHaveBeenCalled();
       },
     );
 
@@ -327,6 +343,10 @@ describe("avatar studio routes", () => {
         draftId: DRAFT_ID,
       });
       expect((await response.json()).data).toEqual(STUDIO);
+      // Its stills start now, not at the next cron tick.
+      expect(reconcileMock).toHaveBeenCalledWith(
+        expect.objectContaining({ sokoBotId: BOT_ID }),
+      );
     });
 
     it.each([

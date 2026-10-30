@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import type { Context } from "hono";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -8,6 +9,7 @@ import {
   sokoBotAvatarDraftResultSchema,
   sokoBotAvatarStudioSchema,
 } from "@/schemas/soko-bot-avatar.schema";
+import { reconcileAvatarRenders } from "@/services/soko-bot-avatar-render.service";
 import {
   createAvatarDraft,
   discardAvatarDrafts,
@@ -75,6 +77,29 @@ export const keepAvatarDraftResponses = {
   429: jsonErrorResponse("Too Many Requests"),
 };
 
+/** The function runs 300 s; the run must end well inside what is left of it. */
+const EARLY_RENDER_RUN_MS = 240_000;
+
+/**
+ * Starts the bot's renders now instead of at the next cron tick, after the
+ * response. Leases keep it apart from the cron, which picks up whatever this
+ * run leaves.
+ */
+function renderNow(sokoBotId: string) {
+  const deadline = Date.now() + EARLY_RENDER_RUN_MS;
+  waitUntil(
+    reconcileAvatarRenders({
+      sokoBotId,
+      msRemaining: () => Math.max(0, deadline - Date.now()),
+    }).catch((error: unknown) => {
+      console.error("Soko Bot avatar early render run failed", {
+        sokoBotId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }),
+  );
+}
+
 export async function respondWithAvatarStudio(
   c: Context<EnvVariables>,
   sokoBotId: string,
@@ -101,6 +126,7 @@ export async function respondWithKeptAvatar(
   input: Parameters<typeof keepAvatarDraft>[0],
 ) {
   await keepAvatarDraft(input);
+  renderNow(input.sokoBotId);
   return await respondWithAvatarStudio(c, input.sokoBotId);
 }
 
@@ -119,5 +145,6 @@ export async function respondWithRegeneratedState(
   input: Parameters<typeof regenerateAvatarState>[0],
 ) {
   await regenerateAvatarState(input);
+  renderNow(input.sokoBotId);
   return await respondWithAvatarStudio(c, input.sokoBotId);
 }
