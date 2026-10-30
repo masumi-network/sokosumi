@@ -168,7 +168,6 @@ model Workspace {
   tasks                    Task[]
   socialPosts              SocialPost[]
   newsletters              Newsletter[]
-  newsletterSendingDomain  NewsletterSendingDomain?
   newsletterIssues         NewsletterIssue[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
@@ -488,8 +487,9 @@ model Project {
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
-  newsletter       Newsletter?
-  newsletterIssues NewsletterIssue[]
+  newsletter              Newsletter?
+  newsletterSendingDomain NewsletterSendingDomain?
+  newsletterIssues        NewsletterIssue[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]

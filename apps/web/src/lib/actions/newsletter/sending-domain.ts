@@ -56,14 +56,18 @@ function revalidate() {
   revalidatePath("/newsletter/settings");
 }
 
-interface SaveSendingDomainParameters extends AuthenticatedRequest {
+interface ProjectSendingDomainParameters extends AuthenticatedRequest {
+  projectId: string;
+}
+
+interface SaveSendingDomainParameters extends ProjectSendingDomainParameters {
   fromAddress: string;
 }
 
 export const saveNewsletterSendingDomain = withSession<
   SaveSendingDomainParameters,
   ActionResultDto<NewsletterSendingDomain, SendingDomainError>
->(async ({ fromAddress }) => {
+>(async ({ projectId, fromAddress }) => {
   const parsed = z
     .email()
     .max(254)
@@ -73,7 +77,10 @@ export const saveNewsletterSendingDomain = withSession<
     return toActionResult(err({ message: t("errors.invalidAddress") }));
   }
   try {
-    const domain = await newsletterService.saveSendingDomain(parsed.data);
+    const domain = await newsletterService.saveSendingDomain(
+      projectId,
+      parsed.data,
+    );
     revalidate();
     return toActionResult(ok(domain));
   } catch (error) {
@@ -82,11 +89,11 @@ export const saveNewsletterSendingDomain = withSession<
 });
 
 export const checkNewsletterSendingDomain = withSession<
-  AuthenticatedRequest,
+  ProjectSendingDomainParameters,
   ActionResultDto<NewsletterSendingDomain, SendingDomainError>
->(async () => {
+>(async ({ projectId }) => {
   try {
-    const domain = await newsletterService.checkSendingDomain();
+    const domain = await newsletterService.checkSendingDomain(projectId);
     revalidate();
     return toActionResult(ok(domain));
   } catch (error) {
@@ -95,11 +102,11 @@ export const checkNewsletterSendingDomain = withSession<
 });
 
 export const removeNewsletterSendingDomain = withSession<
-  AuthenticatedRequest,
+  ProjectSendingDomainParameters,
   ActionResultDto<null, SendingDomainError>
->(async () => {
+>(async ({ projectId }) => {
   try {
-    await newsletterService.removeSendingDomain();
+    await newsletterService.removeSendingDomain(projectId);
     revalidate();
     return toActionResult(ok(null));
   } catch (error) {
@@ -109,7 +116,7 @@ export const removeNewsletterSendingDomain = withSession<
   }
 });
 
-interface ConnectCloudflareParameters extends AuthenticatedRequest {
+interface ConnectCloudflareParameters extends ProjectSendingDomainParameters {
   apiToken: string;
 }
 
@@ -117,15 +124,17 @@ interface ConnectCloudflareParameters extends AuthenticatedRequest {
 export const connectNewsletterSendingDomainWithCloudflare = withSession<
   ConnectCloudflareParameters,
   ActionResultDto<NewsletterSendingDomain, SendingDomainError>
->(async ({ apiToken }) => {
+>(async ({ projectId, apiToken }) => {
   const token = String(apiToken ?? "").trim();
   if (token.length < 20 || token.length > 256) {
     const t = await getTranslations("App.Projects.Newsletter.SendingDomain");
     return toActionResult(err({ message: t("errors.cloudflareRejected") }));
   }
   try {
-    const domain =
-      await newsletterService.connectSendingDomainWithCloudflare(token);
+    const domain = await newsletterService.connectSendingDomainWithCloudflare(
+      projectId,
+      token,
+    );
     revalidate();
     return toActionResult(ok(domain));
   } catch (error) {
@@ -135,21 +144,13 @@ export const connectNewsletterSendingDomainWithCloudflare = withSession<
   }
 });
 
-interface DomainConnectParameters extends AuthenticatedRequest {
-  projectId?: string;
-}
-
 export const getNewsletterSendingDomainConnect = withSession<
-  DomainConnectParameters,
+  ProjectSendingDomainParameters,
   ActionResultDto<NewsletterSendingDomainConnect, SendingDomainError>
 >(async ({ projectId }) => {
   try {
     return toActionResult(
-      ok(
-        await newsletterService.getSendingDomainConnect(
-          z.uuid().safeParse(projectId).success ? projectId : undefined,
-        ),
-      ),
+      ok(await newsletterService.getSendingDomainConnect(projectId)),
     );
   } catch (error) {
     return toActionResult(err({ message: await errorMessage(error, "check") }));

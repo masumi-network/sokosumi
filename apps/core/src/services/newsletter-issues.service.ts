@@ -363,7 +363,7 @@ export function scheduleNewsletterIssue(
           kind: CORE_API_ERROR_KINDS.NEWSLETTER_APPROVAL_REQUIRED,
         });
       }
-      await assertNewsletterSenderConfigured(issue.workspaceId, tx);
+      await assertNewsletterSenderConfigured(issue.projectId, tx);
       const subscribers = await tx.newsletterSubscriber.count({
         where: { newsletterId: issue.newsletterId, status: "ACTIVE" },
       });

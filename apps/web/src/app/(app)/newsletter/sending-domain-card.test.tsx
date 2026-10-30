@@ -83,7 +83,7 @@ beforeEach(() => {
 });
 
 describe("SendingDomainCard", () => {
-  it("lets an admin add a From address", async () => {
+  it("lets a project member add a From address", async () => {
     const user = userEvent.setup();
     mocks.save.mockResolvedValue({ ok: true, value: DOMAIN });
     renderCard();
@@ -101,6 +101,7 @@ describe("SendingDomainCard", () => {
 
     await waitFor(() =>
       expect(mocks.save).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
         fromAddress: "news@brand.example",
       }),
     );
@@ -124,13 +125,30 @@ describe("SendingDomainCard", () => {
     );
   });
 
-  it("tells a member who manages it, with no controls", () => {
+  it("shows the fallback without controls when the actor cannot manage the project", () => {
     renderCard({ canManage: false });
-    expect(screen.getByText(T.managedByAdmins)).toBeInTheDocument();
+    expect(screen.getByText(T.fallback)).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("explains each DNS record and offers every way to connect while pending", () => {
+  it("keeps DNS records readable without exposing management to agent actors", () => {
+    renderCard({ sendingDomain: DOMAIN, canManage: false });
+    expect(
+      screen.getByRole("region", { name: T.records.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: T.oneClick.lookup }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(T.cloudflare.title)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: T.checkNow }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: T.remove.action }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers project members DNS records and every way to connect while pending", () => {
     renderCard({ sendingDomain: DOMAIN });
 
     expect(screen.getByText(T.status.PENDING)).toBeInTheDocument();
@@ -158,6 +176,16 @@ describe("SendingDomainCard", () => {
     expect(
       screen.getByRole("button", { name: T.checkNow }),
     ).toBeInTheDocument();
+  });
+
+  it("checks the current project’s domain", async () => {
+    const user = userEvent.setup();
+    mocks.check.mockResolvedValue({ ok: true, value: DOMAIN });
+    renderCard({ sendingDomain: DOMAIN });
+    await user.click(screen.getByRole("button", { name: T.checkNow }));
+    await waitFor(() =>
+      expect(mocks.check).toHaveBeenCalledWith({ projectId: PROJECT_ID }),
+    );
   });
 
   it("finds a Domain Connect provider and links to its apply URL", async () => {
@@ -200,6 +228,7 @@ describe("SendingDomainCard", () => {
     await user.click(screen.getByRole("button", { name: T.cloudflare.submit }));
     await waitFor(() =>
       expect(mocks.cloudflare).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
         apiToken: "cf-secret-token-0123456789abcdef",
       }),
     );
@@ -292,6 +321,8 @@ describe("SendingDomainCard", () => {
     await user.click(
       within(dialog).getByRole("button", { name: T.remove.action }),
     );
-    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({}));
+    await waitFor(() =>
+      expect(mocks.remove).toHaveBeenCalledWith({ projectId: PROJECT_ID }),
+    );
   });
 });
