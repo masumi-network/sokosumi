@@ -158,11 +158,13 @@ describe("buildDomainConnectApplyUrl", () => {
       key: "_dck1",
     });
 
-    // The signature covers the query exactly as sent, before sig and key.
+    expect([...url.searchParams.keys()].slice(-2)).toEqual(["key", "sig"]);
+
+    // The signature covers the query exactly as sent, before key and sig.
     const query = url.search.slice(1);
-    const signed = query.slice(0, query.indexOf("&sig="));
+    const unsigned = query.slice(0, query.indexOf("&key="));
     const verifier = createVerify("RSA-SHA256");
-    verifier.update(signed);
+    verifier.update(unsigned);
     expect(
       verifier.verify(publicKey, url.searchParams.get("sig")!, "base64"),
     ).toBe(true);
