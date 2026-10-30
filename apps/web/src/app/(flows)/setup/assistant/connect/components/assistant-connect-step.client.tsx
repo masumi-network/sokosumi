@@ -66,7 +66,7 @@ export function AssistantConnectStep({
                 ? tConnect("connectConnected", { name })
                 : tConnect("connectProvider", { name })}
               {connected ? (
-                <Check aria-hidden className="text-semantic-success size-4" />
+                <Check aria-hidden className="text-foreground size-4" />
               ) : null}
             </Button>
           );

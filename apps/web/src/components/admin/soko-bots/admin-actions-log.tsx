@@ -94,7 +94,7 @@ export async function AdminActionsLog({ actions }: AdminActionsLogProps) {
                 </div>
                 <p>{operation.reason}</p>
                 {operation.outcome === "ATTEMPTED" ? (
-                  <p role="status" className="text-semantic-warning text-xs">
+                  <p role="status" className="text-foreground text-xs">
                     {t("orphanHint")}
                   </p>
                 ) : null}

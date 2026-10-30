@@ -89,7 +89,7 @@ export function NewsletterConsentChoice({
       <p id={`${id}-note`} className="text-muted-foreground text-sm">
         {t("note", { newsletterName })}
       </p>
-      <p id={`${id}-error`} className="text-semantic-destructive-label text-sm">
+      <p id={`${id}-error`} className="text-foreground text-sm">
         {error}
       </p>
     </fieldset>

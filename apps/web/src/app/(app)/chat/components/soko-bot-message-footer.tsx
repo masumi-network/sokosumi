@@ -250,9 +250,9 @@ export function SokoBotMessageFooter({
       {pending > 0 ? (
         <Link
           href={`${sokoBotConsoleRoute(sharedBotId)}?turn=${encodeURIComponent(info.turn_id)}`}
-          className={`${chip} border-primary-tertiary text-foreground`}
+          className={`${chip} border-border text-foreground`}
         >
-          <ShieldCheck aria-hidden className="text-primary size-3.5" />
+          <ShieldCheck aria-hidden className="text-foreground size-3.5" />
           <span className="font-medium">
             {t("approvals", { count: pending })}
           </span>
@@ -266,7 +266,7 @@ export function SokoBotMessageFooter({
           href={`/tasks/${encodeURIComponent(taskId)}`}
           className={chip}
         >
-          <span className="bg-primary size-1.5 rounded-full" aria-hidden />
+          <span className="bg-foreground size-1.5 rounded-full" aria-hidden />
           <span className="font-medium">{t("task")}</span>
           <ArrowUpRight aria-hidden className="size-3" />
         </Link>

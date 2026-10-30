@@ -248,6 +248,7 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -1350,6 +1351,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { token },
         }),
       "Failed to accept room invite link",
+    );
+  }
+
+  async function getElsewhereChatRooms() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsElsewhere({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch unread chat rooms of other workspaces",
     );
   }
 
@@ -6598,6 +6611,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,
+    getElsewhereChatRooms,
     markChatRoomRead,
     markChatRoomThreadsRead,
     markChatRoomThreadRead,

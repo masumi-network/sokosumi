@@ -4789,7 +4789,8 @@
           "accounts": "Cuentas",
           "billing": "Facturación y comercial",
           "catalog": "Catálogo del marketplace",
-          "operations": "Operaciones"
+          "operations": "Operaciones",
+          "reference": "Referencia"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4843,6 +4844,10 @@
           "badgeCampaigns": {
             "title": "Insignias de funciones",
             "description": "Muestra una insignia Nuevo en una función de la barra lateral a los usuarios existentes durante un tiempo fijo."
+          },
+          "designSystem": {
+            "title": "Sistema de diseño",
+            "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales."
           }
         }
       },
@@ -6154,6 +6159,141 @@
           "saveFailed": "No se pudo guardar la campaña",
           "deleteFailed": "No se pudo eliminar la campaña",
           "started": "Campaña iniciada"
+        }
+      },
+      "DesignSystem": {
+        "title": "Sistema de diseño",
+        "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales y los tokens de la app. Cambia el tema de la app para ver el modo oscuro.",
+        "guideLink": "Guía de marca",
+        "backToAdmin": "Volver al admin",
+        "Theme": {
+          "light": "Claro",
+          "dark": "Oscuro"
+        },
+        "Color": {
+          "title": "Color",
+          "lead": "Superficies neutras. Un rosa por vista.",
+          "primaryName": "Iris Flower · principal",
+          "primaryRuleTitle": "El texto sobre Iris Flower siempre es Neutral 950",
+          "primaryRule": "El blanco sobre Iris Flower no tiene contraste suficiente. Nunca uses Iris Flower como color de texto sobre una página blanca. Úsalo para rellenos, acentos y estados activos.",
+          "palette": "Paleta Masumi",
+          "paletteRule": "Compartida por todas las marcas. Todo salvo Iris Flower es secundario. Nunca uses Scarlet ni Persimmon para estados.",
+          "neutrals": "Neutros",
+          "roles": "Roles del tema",
+          "Roles": {
+            "page": "Página",
+            "panel": "Panel",
+            "border": "Borde",
+            "fieldBorder": "Borde de campo",
+            "text": "Texto",
+            "mutedText": "Texto atenuado",
+            "primary": "Principal",
+            "component": "Componente sobre un panel",
+            "disabledText": "Texto deshabilitado",
+            "textOnPrimary": "Texto sobre el principal",
+            "scrim": "Oscurecimiento de capa"
+          },
+          "darkPrimaryRule": "En modo oscuro, el color primario reposa en Dark Iris (#D141D1, propuesta). Iris Flower se ve tres veces más intenso sobre casi negro. Al pasar el cursor vuelve Iris Flower.",
+          "status": "Estado",
+          "Status": {
+            "done": "Positivo",
+            "needsInput": "Advertencia",
+            "failed": "Destructivo"
+          },
+          "statusRule": "Cada estado combina color con un símbolo y una etiqueta. Nunca solo color.",
+          "gradients": "Degradados",
+          "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa.",
+          "alpha": "Tonos alfa",
+          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz.",
+          "alphaStep": "Alfa {step}"
+        },
+        "Type": {
+          "title": "Tipografía",
+          "lead": "Solo Inter. Light desde 20px, para titulares.",
+          "sample": "Agentes trabajando",
+          "Roles": {
+            "display": "Titular",
+            "heading": "Encabezado",
+            "subheading": "Subencabezado",
+            "body": "Cuerpo",
+            "label": "Etiqueta",
+            "caption": "Leyenda",
+            "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Forma y profundidad",
+          "lead": "Primero bordes. Sombras solo en capas flotantes. Sin brillo ni desenfoque.",
+          "border": "Borde",
+          "overlay": "Capa flotante"
+        },
+        "Components": {
+          "title": "Componentes",
+          "lead": "Un botón principal relleno por vista. El verbo primero.",
+          "schedule": "Programar publicación",
+          "duplicate": "Duplicar",
+          "cancel": "Cancelar",
+          "delete": "Eliminar",
+          "showAll": "Ver todo",
+          "small": "Pequeño",
+          "addTask": "Añadir tarea",
+          "saving": "Guardando",
+          "postTitle": "Título de la publicación",
+          "postTitlePlaceholder": "p. ej. Tres lecciones de nuestro lanzamiento",
+          "budget": "Presupuesto diario",
+          "budgetError": "Introduce un importe mayor que 0, como 25.",
+          "notify": "Avisarme cuando una tarea necesite datos",
+          "review": "Revisar las publicaciones antes de que salgan",
+          "calendar": "Calendario",
+          "drafts": "Borradores",
+          "cardTitle": "Panorama de la competencia",
+          "cardBody": "Para alinearnos mejor: ¿en qué región vendes?",
+          "answer": "Responder",
+          "openTask": "Abrir tarea",
+          "toast": "Publicación programada",
+          "undo": "Deshacer",
+          "dialogTitle": "¿Eliminar 3 borradores?",
+          "dialogBody": "No se publicarán y no se podrán recuperar.",
+          "deleteDrafts": "Eliminar borradores"
+        },
+        "Motion": {
+          "title": "Movimiento",
+          "lead": "El movimiento explica un cambio. Nada más.",
+          "rules": "Anima transform y opacidad, nunca el diseño. Nombra las propiedades que animas. Sin bucles decorativos. El movimiento reducido elimina lo que no es esencial.",
+          "feedback": {
+            "title": "Respuesta",
+            "body": "Pulsar y pasar el cursor en cada control, ease-out."
+          },
+          "enter": {
+            "title": "Entrada",
+            "body": "Listas, páginas, diálogos y menús que aparecen."
+          }
+        },
+        "States": {
+          "title": "Estado",
+          "lead": "Cada estado está diseñado, no es un resto.",
+          "todo": "Pendiente",
+          "inProgress": "En curso",
+          "needsInput": "Necesita datos",
+          "done": "Hecho",
+          "failed": "Fallido",
+          "loading": "Redactando tus publicaciones",
+          "emptyTitle": "Borradores",
+          "emptyBody": "Las publicaciones que empiezas pero no programas esperan aquí.",
+          "emptyAction": "Escribir una publicación",
+          "errorTitle": "LinkedIn no aceptó la publicación",
+          "errorBody": "La imagen supera los 5 MB. Elige una más pequeña y vuelve a intentarlo.",
+          "errorAction": "Cambiar imagen",
+          "doneTitle": "5 publicaciones programadas",
+          "doneBody": "La primera sale el jueves a las 09:00 en tu zona horaria.",
+          "doneAction": "Abrir calendario"
         }
       }
     },
@@ -7663,6 +7803,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Mensaje directo",
       "headerSelfDirect": "Solo tú",
+      "headerVisitSwitch": "Cambiar a {workspace}",
       "participantOverflowCount": "{count} participantes más",
       "chats": "Chats",
       "directMessages": "Mensajes directos",
@@ -7680,7 +7821,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "Convertir a archivo",
       "NoOrganization": {
-        "title": "Canales próximamente",
         "description": "Los canales están en fase de prueba para espacios de organización. El uso personal llegará pronto."
       },
       "Empty": {
@@ -7828,7 +7968,9 @@
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "justRead": "Recién leídos"
+        "justRead": "Recién leídos",
+        "elsewhereLabel": "Sin leer en otros espacios de trabajo",
+        "elsewhereMore": "{count} más en otros espacios de trabajo"
       },
       "ThreadsView": {
         "title": "Hilos",

@@ -4789,7 +4789,8 @@
           "accounts": "Konten",
           "billing": "Abrechnung & Vertrieb",
           "catalog": "Marketplace-Katalog",
-          "operations": "Betrieb"
+          "operations": "Betrieb",
+          "reference": "Referenz"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4843,6 +4844,10 @@
           "badgeCampaigns": {
             "title": "Feature-Badges",
             "description": "Zeigt bestehenden Nutzern für eine feste Zeit ein Neu-Badge an einer Funktion in der Seitenleiste."
+          },
+          "designSystem": {
+            "title": "Designsystem",
+            "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
           }
         }
       },
@@ -6154,6 +6159,141 @@
           "saveFailed": "Kampagne konnte nicht gespeichert werden",
           "deleteFailed": "Kampagne konnte nicht gelöscht werden",
           "started": "Kampagne gestartet"
+        }
+      },
+      "DesignSystem": {
+        "title": "Designsystem",
+        "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten und den Tokens der App. Für den Dunkelmodus das Theme der App umstellen.",
+        "guideLink": "Markenrichtlinie",
+        "backToAdmin": "Zurück zum Admin",
+        "Theme": {
+          "light": "Hell",
+          "dark": "Dunkel"
+        },
+        "Color": {
+          "title": "Farbe",
+          "lead": "Neutrale Flächen. Ein Pink pro Ansicht.",
+          "primaryName": "Iris Flower · Primärfarbe",
+          "primaryRuleTitle": "Text auf Iris Flower ist immer Neutral 950",
+          "primaryRule": "Weiß auf Iris Flower hat zu wenig Kontrast. Setze Iris Flower nie als Textfarbe auf einer weißen Seite. Nutze sie für Flächen, Akzente und aktive Zustände.",
+          "palette": "Masumi-Palette",
+          "paletteRule": "Für alle Marken gleich. Alles außer Iris Flower ist sekundär. Scarlet und Persimmon nie für Status verwenden.",
+          "neutrals": "Neutraltöne",
+          "roles": "Theme-Rollen",
+          "Roles": {
+            "page": "Seite",
+            "panel": "Panel",
+            "border": "Rahmen",
+            "fieldBorder": "Feldrahmen",
+            "text": "Text",
+            "mutedText": "Gedämpfter Text",
+            "primary": "Primär",
+            "component": "Komponente auf einem Panel",
+            "disabledText": "Deaktivierter Text",
+            "textOnPrimary": "Text auf Primärfarbe",
+            "scrim": "Overlay-Abdunklung"
+          },
+          "darkPrimaryRule": "Im Dark Mode ruht die Primärfarbe auf Dark Iris (#D141D1, Vorschlag). Iris Flower wirkt auf fast Schwarz dreimal so laut. Beim Hover kehrt Iris Flower zurück.",
+          "status": "Status",
+          "Status": {
+            "done": "Positiv",
+            "needsInput": "Warnung",
+            "failed": "Destruktiv"
+          },
+          "statusRule": "Jeder Status kombiniert Farbe mit Symbol und Text. Nie nur Farbe.",
+          "gradients": "Verläufe",
+          "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI.",
+          "alpha": "Alpha-Töne",
+          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen.",
+          "alphaStep": "Alpha {step}"
+        },
+        "Type": {
+          "title": "Typografie",
+          "lead": "Nur Inter. Light ab 20px, für Display.",
+          "sample": "Agenten bei der Arbeit",
+          "Roles": {
+            "display": "Display",
+            "heading": "Überschrift",
+            "subheading": "Zwischenüberschrift",
+            "body": "Fließtext",
+            "label": "Label",
+            "caption": "Bildunterschrift",
+            "micro": "Mikro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Form und Tiefe",
+          "lead": "Zuerst Rahmen. Schatten nur bei schwebenden Overlays. Kein Glow, kein Blur.",
+          "border": "Rahmen",
+          "overlay": "Overlay"
+        },
+        "Components": {
+          "title": "Komponenten",
+          "lead": "Ein gefüllter Primärbutton pro Ansicht. Verb zuerst.",
+          "schedule": "Post planen",
+          "duplicate": "Duplizieren",
+          "cancel": "Abbrechen",
+          "delete": "Löschen",
+          "showAll": "Alle anzeigen",
+          "small": "Klein",
+          "addTask": "Aufgabe hinzufügen",
+          "saving": "Wird gespeichert",
+          "postTitle": "Titel des Posts",
+          "postTitlePlaceholder": "z. B. Drei Erkenntnisse aus unserem Launch",
+          "budget": "Tagesbudget",
+          "budgetError": "Gib einen Betrag über 0 ein, etwa 25.",
+          "notify": "Benachrichtige mich, wenn eine Aufgabe Eingaben braucht",
+          "review": "Posts vor der Veröffentlichung prüfen",
+          "calendar": "Kalender",
+          "drafts": "Entwürfe",
+          "cardTitle": "Wettbewerbsanalyse",
+          "cardBody": "Damit wir besser abgestimmt sind: In welcher Region verkaufst du?",
+          "answer": "Antworten",
+          "openTask": "Aufgabe öffnen",
+          "toast": "Post geplant",
+          "undo": "Rückgängig",
+          "dialogTitle": "3 Entwürfe löschen?",
+          "dialogBody": "Sie werden nicht veröffentlicht und lassen sich nicht wiederherstellen.",
+          "deleteDrafts": "Entwürfe löschen"
+        },
+        "Motion": {
+          "title": "Bewegung",
+          "lead": "Bewegung erklärt eine Änderung. Mehr nicht.",
+          "rules": "Animiere Transform und Deckkraft, nie das Layout. Benenne die animierten Eigenschaften. Keine dekorativen Schleifen. Reduzierte Bewegung entfernt alles Unnötige.",
+          "feedback": {
+            "title": "Feedback",
+            "body": "Drücken und Hovern bei jedem Bedienelement, ease-out."
+          },
+          "enter": {
+            "title": "Einblenden",
+            "body": "Listen, Seiten, Dialoge und Menüs erscheinen."
+          }
+        },
+        "States": {
+          "title": "Zustand",
+          "lead": "Jeder Zustand ist gestaltet, nicht übrig geblieben.",
+          "todo": "Zu erledigen",
+          "inProgress": "In Arbeit",
+          "needsInput": "Eingabe nötig",
+          "done": "Erledigt",
+          "failed": "Fehlgeschlagen",
+          "loading": "Deine Posts werden entworfen",
+          "emptyTitle": "Entwürfe",
+          "emptyBody": "Posts, die du beginnst, aber nicht planst, warten hier.",
+          "emptyAction": "Post schreiben",
+          "errorTitle": "LinkedIn hat den Post nicht angenommen",
+          "errorBody": "Das Bild ist größer als 5 MB. Wähle ein kleineres und versuche es erneut.",
+          "errorAction": "Bild ersetzen",
+          "doneTitle": "5 Posts geplant",
+          "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
+          "doneAction": "Kalender öffnen"
         }
       }
     },
@@ -7663,6 +7803,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
+      "headerVisitSwitch": "Zu {workspace} wechseln",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
@@ -7680,7 +7821,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "In Datei umwandeln",
       "NoOrganization": {
-        "title": "Channels kommen bald",
         "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."
       },
       "Empty": {
@@ -7828,7 +7968,9 @@
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "justRead": "Gerade gelesen"
+        "justRead": "Gerade gelesen",
+        "elsewhereLabel": "Ungelesen in anderen Arbeitsbereichen",
+        "elsewhereMore": "{count} weitere in anderen Arbeitsbereichen"
       },
       "ThreadsView": {
         "title": "Threads",

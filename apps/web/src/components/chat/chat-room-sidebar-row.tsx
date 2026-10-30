@@ -46,16 +46,16 @@ import {
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import {
-  resolveRoomAttention,
-  roomBadgeCountsMentions,
-} from "@/components/chat/room-attention";
-import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
-import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
-import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
+import {
+  MentionAnnouncement,
+  NeedsYouAnnouncement,
+  RoomUnreadCount,
+  useRoomRowAttention,
+} from "@/components/chat/room-row-attention";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -149,70 +149,13 @@ export interface ChatRoomSidebarRowProps {
    * Anyone else's opens the members panel.
    */
   canManageSettings?: boolean;
-}
-
-/**
- * The reader's opt-in Room unread count, as the link announces it.
- *
- * The number itself is drawn by `MentionBadge`, in the trailing cluster,
- * outside the link and `aria-hidden`. This span is what carries it into the
- * link's accessible name beside the room name, the way `MentionAnnouncement`
- * carries the badge.
- *
- * A bare `span` is role `generic`, which prohibits an accessible name, so an
- * `aria-label` here can be dropped. Real text carries it instead.
- */
-function RoomUnreadCount({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.RoomUnread");
-
-  if (count <= 0) {
-    return null;
-  }
-
-  return (
-    <span className="sr-only">
-      {count > ROOM_COUNT_CAP
-        ? t("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
-        : t("unreadMessages", { count })}
-    </span>
-  );
-}
-
-/**
- * Unread @mentions and directs, never messages: the part the reader hears.
- *
- * `MentionBadge` draws the number in the trailing cluster, outside the link
- * and `aria-hidden`, so this span is what carries the mention into the link's
- * accessible name beside the room name. A translated string in its own
- * `sr-only` span, for the same reason the count carries one: `aria-label` on a
- * role `generic` span may be dropped, and an English literal would reach a
- * German or Spanish reader untranslated either way.
- */
-function MentionAnnouncement({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.RoomMentions");
-
-  if (count <= 0) {
-    return null;
-  }
-
-  return (
-    <span className="sr-only">
-      {count > ROOM_COUNT_CAP
-        ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
-        : t("mentions", { count })}
-    </span>
-  );
-}
-
-/** The needs-you pill in words, for the same reason the mention has some. */
-function NeedsYouAnnouncement({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.Signals");
-
-  if (count <= 0) {
-    return null;
-  }
-
-  return <span className="sr-only">{t("needsYouCount", { count })}</span>;
+  /**
+   * An Elsewhere row. Leaves Pin out of the menu, where pinning would seem to
+   * do nothing, because Pinned lists the active workspace's rooms. Unpin stays
+   * on a pinned room: Mute waits on it. Draws what `useRoomRowAttention` says
+   * of an Elsewhere room, with no inset Thread rows.
+   */
+  elsewhere?: boolean;
 }
 
 /**
@@ -307,6 +250,7 @@ export function ChatRoomSidebarRow({
   itemMotion,
   reorderHandle,
   canManageSettings = false,
+  elsewhere = false,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
@@ -327,19 +271,8 @@ export function ChatRoomSidebarRow({
   const isMuted = room.mutedAt != null;
   const isChannel = room.kind === "channel";
   const canLeave = canLeaveChannel(room);
-  const badgeCountsMentions = roomBadgeCountsMentions(room);
-  const showUnreadCount = useShowRoomUnreadCount();
   const { bold, mentionCount, needsYouCount, unreadTextCount } =
-    resolveRoomAttention({
-      unreadCount: room.unreadCount,
-      channelUnreadCount: room.channelUnreadCount,
-      unreadMentionCount: room.unreadMentionCount,
-      unreadNeedsYouCount: room.unreadNeedsYouCount,
-      markedUnread: room.markedUnread,
-      isMuted,
-      showUnreadCount,
-      badgeCountsMentions,
-    });
+    useRoomRowAttention(room, { elsewhere });
   // The row's one number, whichever it is, stands in the badge's slot, so
   // the hole that keeps the name clear of it has to be held open for either.
   const hasRowCount =
@@ -539,6 +472,7 @@ export function ChatRoomSidebarRow({
       // "Sidebar row"): its host organisation line is one a 28px row has no
       // room for, so this row alone releases the height to hold it, down to
       // the floor the primitive keeps. Its mark still sits in the shared slot.
+      // An Elsewhere row's workspace line is the same.
       lines={subtitle ? 2 : 1}
     >
       {dismissSheetOnNavigate ? (
@@ -609,29 +543,31 @@ export function ChatRoomSidebarRow({
                     <MessageSquare className="size-4" aria-hidden />
                     {tActions("markUnread")}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={isPending || isMuted}
-                    onSelect={() => {
-                      if (isPinned) {
-                        runRoomAction(unpinOrganizationChatRoomAction, {
+                  {!elsewhere || isPinned ? (
+                    <DropdownMenuItem
+                      disabled={isPending || isMuted}
+                      onSelect={() => {
+                        if (isPinned) {
+                          runRoomAction(unpinOrganizationChatRoomAction, {
+                            ...room,
+                            starredAt: null,
+                          });
+                          return;
+                        }
+                        runRoomAction(pinOrganizationChatRoomAction, {
                           ...room,
-                          starredAt: null,
+                          starredAt: new Date(),
                         });
-                        return;
-                      }
-                      runRoomAction(pinOrganizationChatRoomAction, {
-                        ...room,
-                        starredAt: new Date(),
-                      });
-                    }}
-                  >
-                    {isPinned ? (
-                      <PinOff className="size-4" aria-hidden />
-                    ) : (
-                      <Pin className="size-4" aria-hidden />
-                    )}
-                    {isPinned ? tActions("unpin") : tActions("pin")}
-                  </DropdownMenuItem>
+                      }}
+                    >
+                      {isPinned ? (
+                        <PinOff className="size-4" aria-hidden />
+                      ) : (
+                        <Pin className="size-4" aria-hidden />
+                      )}
+                      {isPinned ? tActions("unpin") : tActions("pin")}
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem
                     disabled={isPending || isPinned}
                     onSelect={() => {
@@ -685,8 +621,9 @@ export function ChatRoomSidebarRow({
 
       {/* Room mute outranks everything a room can hold, so a muted room lists
           nothing. Reorder mode moves rows, and rows of differing height under
-          the pointer would make that harder to aim. */}
-      {isMuted || reorderHandle ? null : (
+          the pointer would make that harder to aim. An Elsewhere row says it
+          with a number. */}
+      {isMuted || reorderHandle || elsewhere ? null : (
         <ChatRoomThreadRows
           room={room}
           roomLabel={label}
