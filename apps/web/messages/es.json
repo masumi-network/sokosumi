@@ -7663,6 +7663,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Mensaje directo",
       "headerSelfDirect": "Solo tú",
+      "headerVisitSwitch": "Cambiar a {workspace}",
       "participantOverflowCount": "{count} participantes más",
       "chats": "Chats",
       "directMessages": "Mensajes directos",
@@ -7680,7 +7681,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "Convertir a archivo",
       "NoOrganization": {
-        "title": "Canales próximamente",
         "description": "Los canales están en fase de prueba para espacios de organización. El uso personal llegará pronto."
       },
       "Empty": {
@@ -7828,7 +7828,9 @@
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "justRead": "Recién leídos"
+        "justRead": "Recién leídos",
+        "elsewhereLabel": "Sin leer en otros espacios de trabajo",
+        "elsewhereMore": "{count} más en otros espacios de trabajo"
       },
       "ThreadsView": {
         "title": "Hilos",

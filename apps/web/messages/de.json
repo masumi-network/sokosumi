@@ -7663,6 +7663,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
+      "headerVisitSwitch": "Zu {workspace} wechseln",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
@@ -7680,7 +7681,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "In Datei umwandeln",
       "NoOrganization": {
-        "title": "Channels kommen bald",
         "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."
       },
       "Empty": {
@@ -7828,7 +7828,9 @@
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "justRead": "Gerade gelesen"
+        "justRead": "Gerade gelesen",
+        "elsewhereLabel": "Ungelesen in anderen Arbeitsbereichen",
+        "elsewhereMore": "{count} weitere in anderen Arbeitsbereichen"
       },
       "ThreadsView": {
         "title": "Threads",

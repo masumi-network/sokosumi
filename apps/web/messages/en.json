@@ -7663,6 +7663,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Direct message",
       "headerSelfDirect": "Only you",
+      "headerVisitSwitch": "Switch to {workspace}",
       "participantOverflowCount": "{count} more participants",
       "chats": "Chats",
       "directMessages": "Direct messages",
@@ -7680,7 +7681,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "Convert to file",
       "NoOrganization": {
-        "title": "Channels coming soon",
         "description": "Channels are in testing for organization workspaces. Support for personal use is coming soon."
       },
       "Empty": {
@@ -7828,7 +7828,9 @@
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
-        "justRead": "Read just now"
+        "justRead": "Read just now",
+        "elsewhereLabel": "Unread in other workspaces",
+        "elsewhereMore": "{count} more in other workspaces"
       },
       "ThreadsView": {
         "title": "Threads",

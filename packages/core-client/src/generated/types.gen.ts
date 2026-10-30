@@ -20076,6 +20076,85 @@ export type GetChatsRoomsDiscoverableResponses = {
 
 export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
 
+export type GetChatsRoomsElsewhereData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/rooms/elsewhere';
+};
+
+export type GetChatsRoomsElsewhereErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsElsewhereError = GetChatsRoomsElsewhereErrors[keyof GetChatsRoomsElsewhereErrors];
+
+export type GetChatsRoomsElsewhereResponses = {
+    /**
+     * Unread rooms of the user's other workspaces
+     */
+    200: {
+        data: Array<ChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsElsewhereResponse = GetChatsRoomsElsewhereResponses[keyof GetChatsRoomsElsewhereResponses];
+
 export type GetChatsRoomsChannelSlugAvailabilityData = {
     body?: never;
     headers?: {
