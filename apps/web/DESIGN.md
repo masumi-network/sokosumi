@@ -196,18 +196,19 @@ Beyond the above, `globals.css` exposes:
   `--status-working`.
 - **Status:** `--status-working`, `--status-external`, `--status-done` (with ramp steps),
   `--presence-offline`, `--risk-high`.
-- **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
-  `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
+- **Overlay / surfaces:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
+  `--scrim`, `--scrim-soft`, `--scrim-strong`. Overlay is Alpha 50; glass and sticky are opaque
+  page ground. Scrim alpha lives in the token, not at the call site.
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
   `--media-ground`.
 - **Surfaces and states:** `--background-muted`, `--card-background-hover`,
-  `--disabled-foreground`, `--scrollbar-thumb`, `--destructive-halo`, and `*-hover` steps
-  for filled controls.
+  `--disabled-foreground`, `--scrollbar-thumb`, and `*-hover` steps for filled controls.
+  `--ring-halo` and `--destructive-halo` stay bridged but are transparent (guide 5.5 bans glow).
 - The **sidebar-** set, the **social-** link colours, and
-  `card/popover/border/input/ring/ring-halo`.
+  `card/popover/border/input/ring`.
 
 Use semantic tokens
-(`bg-primary`, `text-muted-foreground`, `border-input`, `bg-primary-solid`, `ring-ring-halo`) —
+(`bg-primary`, `text-muted-foreground`, `border-input`, `bg-primary-solid`, `ring-ring`) —
 never hardcoded hex, never an opacity modifier on a colour utility.
 
 ## Typography
@@ -294,17 +295,17 @@ inside a full-width panel.
 
 ## Elevation & Depth
 
-Borders-first, then soft glow. Shadows stop at `shadow-lg`.
+Borders-first. The Masumi Family guide (5.5) bans glow and blur: no soft focus halos, no
+`backdrop-blur` for product chrome. Shadows stop at `shadow-lg`.
 
 - Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
-- **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
-  brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
-  `shadow-2xl` and a hand-written `shadow-[…]` drop shadow are out under any variant; an
-  arbitrary `shadow-[inset_…]` hairline is a border and stays. No shadow **token scale**
-  exists — use Tailwind `shadow-*` defaults. Guard:
+- **Lift:** subtle shadows (`shadow-sm` → `shadow-md` on hover); `shadow-lg` is the ceiling,
+  for floating overlays only. `shadow-xl`, `shadow-2xl` and a hand-written `shadow-[…]` drop
+  shadow are out under any variant; an arbitrary `shadow-[inset_…]` hairline is a border and
+  stays. No shadow **token scale** exists — use Tailwind `shadow-*` defaults. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
-- **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
-  backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
+- **Overlay:** dialogs and sheets sit on `bg-overlay` (Alpha 50) with an opaque panel. Do not
+  frost the page with `backdrop-blur`; mobile chrome is opaque `bg-background`.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
   modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
   takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
@@ -362,7 +363,7 @@ prop/state-driven.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
-  `bg-overlay backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
+  `bg-overlay` (Alpha 50, no blur); built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
@@ -406,8 +407,7 @@ prop/state-driven.
   input border, and others). Add new keyframes there.
 - **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
   arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
-  transform only. Under reduced motion overlays cross-fade in place and `prefers-reduced-transparency`
-  drops the blur on scrims and glass chrome.
+  transform only. Under reduced motion overlays cross-fade in place.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
@@ -425,10 +425,11 @@ prop/state-driven.
 ## Imagery & Visuals
 
 - **Ink** represents the movement/flow of AI agents — fluid, 2D, shaping figures; layering adds
-  depth, soft blur contrasts with sharp edges ("frosted glass"). Used in place of icons/stock for
-  abstract concepts; brand-color gradients add vibrancy in imagery. In the UI, gradients are
-  fades, scrims and masks, plus two brand rings (the hero search and the chat input border).
-- **Blur & glow** are core: soft drop shadows for depth; blur for legibility on busy backgrounds.
+  depth against sharp edges. Used in place of icons/stock for abstract concepts; brand-color
+  gradients add vibrancy in imagery. In the UI, gradients are fades, scrims and masks, plus two
+  brand rings (the hero search and the chat input border).
+- **Borders first, no glow:** soft drop shadows for lift only; product chrome stays opaque.
+  Guide 5.5 bans glow and blur on the UI surface.
 - **Generative art** is on-brand (agents create visuals from words). **Photography** is organic
   and natural — abstract macro, grain, brand-tinted, depth-of-field softness; avoid harsh stock.
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
@@ -456,8 +457,8 @@ prop/state-driven.
   `ring-ring` alone sets only its colour and, next to `outline-none`, leaves no focus mark at
   all. Never animate the ring: a ring is a `box-shadow`, so keep `box-shadow` out of the
   transition (no `transition`, `transition-all` or `transition-shadow` on a focusable
-  element). Never fade it with a modifier: `--ring-halo` is the soft wide glow, and it carries
-  its own alpha so the class does not have to. Guard:
+  element). Never fade it with a modifier: `--ring-halo` and `--destructive-halo` are
+  transparent (guide 5.5 bans glow); the visible edge is `--ring` / `--destructive`. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
   accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
@@ -524,7 +525,7 @@ primary on a neutral background. Brand names are always lowercase.
 - Keep neutrals as the base and Iris Flower as the one accent fill; let other palette
   colours (charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
-- Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
+- Separate sections with full-bleed segmented lines; lean on borders and soft lift shadows.
 - Build pages from the three layers: white page, borderless light-gray panel, white bordered
   components. Fill the width of `main`.
 - Reuse the documented focus rings; give every icon-only control an `aria-label`.
@@ -540,7 +541,8 @@ primary on a neutral background. Brand names are always lowercase.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
   `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
-  `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
+  `-quaternary` / `-quinary`) or a named alpha token (`--overlay`, `--scrim`).
+- Glow or `backdrop-blur` on product chrome (guide 5.5).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
 - A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
   directly on the white page.

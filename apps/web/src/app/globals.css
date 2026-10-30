@@ -314,9 +314,9 @@
    yellow ! and Neutral 950 X together with `status-marker.tsx`, whose tests
    measure them (SOKD-121).
 
-   No glow (5.5): the focus halo is transparent. The only translucent
-   values are the guide's alpha tones, black at (100 - N)% for Alpha N, and
-   the white on-media steps over user media. */
+   No glow (5.5): --ring-halo and --destructive-halo are transparent. The
+   only translucent values are the guide's alpha tones, black at
+   (100 - N)% for Alpha N, and the white on-media steps over user media. */
 :root {
   --radius: 0.625rem;
   --background: #ffffff; /* White */
@@ -380,7 +380,7 @@
   --primary-hover: #ff51ff; /* Iris Flower */
   --secondary-hover: #262626; /* Neutral 800 */
   --destructive-hover: hsla(0, 74%, 36%, 1);
-  --destructive-halo: hsla(0, 74.0%, 42.0%, 0.22);
+  --destructive-halo: transparent;
   /* Category palette, Proposed until guide 6.6 sets chart rules. Each
      -quinary is its base at .09 over the page, frozen. */
   --chart-1: #ff51ff; /* Iris Flower */
@@ -501,7 +501,7 @@
   --primary-hover: #ff51ff; /* Iris Flower */
   --secondary-hover: #e5e5e5; /* Neutral 200 */
   --destructive-hover: hsla(0, 74%, 39%, 1);
-  --destructive-halo: hsla(0, 84.0%, 60.0%, 0.26);
+  --destructive-halo: transparent;
 
   --chart-1: #ff51ff; /* Iris Flower */
   --chart-2: #ff6400; /* Persimmon */

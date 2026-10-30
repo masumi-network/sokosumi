@@ -55,15 +55,11 @@ export const ALPHA_TONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95].map(
 );
 
 /**
- * Values outside the palette, both Proposed. The positive mark is the one
- * status color: warning is Golden Yellow and the X is Neutral 950. Dark Iris
- * is the dark-theme primary at rest: Iris Flower measures 7.3:1 on Neutral
- * 950 against 2.7:1 on white, so it reads far louder in dark. Dark Iris keeps
- * Neutral 950 text at 5:1.
+ * Values outside the palette, Proposed. The positive mark is the one status
+ * color: warning is Golden Yellow and the X is Neutral 950.
  */
 const PROPOSED_VALUES = {
   "--ds-positive": "#00D43B",
-  "--ds-dark-iris": "#D141D1",
 } as const;
 
 /** Every `--ds-*` value, ready to spread into the preview wrapper's style. */
@@ -75,17 +71,22 @@ export const DESIGN_SYSTEM_VARS: Record<`--ds-${string}`, string> = {
   ...PROPOSED_VALUES,
 };
 
-/** Section 5.2 of the guide: one role, a light step and a dark step. */
+/**
+ * Theme roles as `globals.css` ships them. Three light/dark steps leave the
+ * guide's 5.2 table so each pair clears AA (5.11): muted text Neutral 600
+ * (not 500), field border Neutral 500 both themes (not 300/700), and primary
+ * stays Iris Flower in dark (not a dimmer pink).
+ */
 export const THEME_ROLES = [
   { key: "page", light: "--ds-white", dark: "--ds-neutral-950" },
   { key: "panel", light: "--ds-neutral-100", dark: "--ds-neutral-900" },
   { key: "component", light: "--ds-white", dark: "--ds-neutral-950" },
   { key: "border", light: "--ds-neutral-200", dark: "--ds-neutral-800" },
-  { key: "fieldBorder", light: "--ds-neutral-300", dark: "--ds-neutral-700" },
+  { key: "fieldBorder", light: "--ds-neutral-500", dark: "--ds-neutral-500" },
   { key: "text", light: "--ds-neutral-900", dark: "--ds-neutral-50" },
-  { key: "mutedText", light: "--ds-neutral-500", dark: "--ds-neutral-400" },
+  { key: "mutedText", light: "--ds-neutral-600", dark: "--ds-neutral-400" },
   { key: "disabledText", light: "--ds-neutral-400", dark: "--ds-neutral-600" },
-  { key: "primary", light: "--ds-iris-flower", dark: "--ds-dark-iris" },
+  { key: "primary", light: "--ds-iris-flower", dark: "--ds-iris-flower" },
   {
     key: "textOnPrimary",
     light: "--ds-neutral-950",

@@ -6193,7 +6193,7 @@
             "textOnPrimary": "Text auf Primärfarbe",
             "scrim": "Overlay-Abdunklung"
           },
-          "darkPrimaryRule": "Im Dark Mode ruht die Primärfarbe auf Dark Iris (#D141D1, Vorschlag). Iris Flower wirkt auf fast Schwarz dreimal so laut. Beim Hover kehrt Iris Flower zurück.",
+          "darkPrimaryRule": "Die Primärfarbe ist Iris Flower in Hell und Dunkel. Gedämpfter Text ist Neutral 600 im Hellmodus und der Feldrahmen Neutral 500 in beiden Themes, damit jedes Paar AA erreicht.",
           "status": "Status",
           "Status": {
             "done": "Positiv",

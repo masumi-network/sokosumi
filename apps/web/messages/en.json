@@ -6229,7 +6229,7 @@
             "textOnPrimary": "Text on primary",
             "scrim": "Overlay scrim"
           },
-          "darkPrimaryRule": "In dark, the primary rests on Dark Iris (#D141D1, proposed). Iris Flower reads three times louder on near-black. Hover returns to Iris Flower.",
+          "darkPrimaryRule": "Primary is Iris Flower in light and dark. Muted text is Neutral 600 in light and the field border is Neutral 500 in both themes so each pair clears AA.",
           "status": "Status",
           "Status": {
             "done": "Positive",
