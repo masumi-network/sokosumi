@@ -56,7 +56,7 @@ export default async function NewsletterIssuePage({
       limit: 1,
       status: "ACTIVE",
     }),
-    newsletterService.getSendingDomain(),
+    newsletterService.getSendingDomain(project.id),
   ]);
   const analytics =
     issue.status === "SENT"

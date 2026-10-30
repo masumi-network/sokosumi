@@ -107,6 +107,7 @@ describe("newsletter issue page", () => {
       NEWSLETTER_PROJECT_ID,
       NEWSLETTER_ISSUE.id,
     );
+    expect(mocks.sendingDomain).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID);
     expect(mocks.editor).toHaveBeenCalledWith(
       expect.objectContaining({
         issue: NEWSLETTER_ISSUE,
