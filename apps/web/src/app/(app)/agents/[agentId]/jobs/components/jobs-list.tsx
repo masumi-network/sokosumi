@@ -303,7 +303,7 @@ export function JobRow({
       onClick={() => onClick(job)}
       className={cn(
         "press hover:bg-muted bg-card-background w-full rounded-md px-2 py-2 text-left transition-colors",
-        selected && "bg-primary text-primary-foreground",
+        selected && "bg-primary text-primary-foreground hover:bg-primary-hover",
       )}
     >
       <div className="flex items-center gap-2">

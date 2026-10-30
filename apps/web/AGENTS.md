@@ -96,6 +96,7 @@ Prefer `toActionResult` over inventing another Ok/Err helper.
 ### Component Patterns
 
 - Use Shadcn UI components from `src/components/ui/`
+- Adding a shadcn component or block: load [shadcn-add](.agents/skills/shadcn-add/SKILL.md); upstream classes break our guards until adapted
 - Implement responsive design with Tailwind CSS
 - Follow the established component structure pattern
 
