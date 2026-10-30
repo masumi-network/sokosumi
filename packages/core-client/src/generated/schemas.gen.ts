@@ -2414,6 +2414,14 @@ export const ChatRoomSokoBotParticipantSchema = {
             description: 'The style of the bot\'s claimed avatar, null when it has none. Always sent; optional so clients written before it compile.',
             example: 'crafted-desk'
         },
+        idleLoopUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The bot\'s Idle loop (silent MP4), played on its face while its hover card is open. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.',
+            example: 'https://example.com/idle-480.mp4'
+        },
         workingLoopUrl: {
             type: [
                 'string',

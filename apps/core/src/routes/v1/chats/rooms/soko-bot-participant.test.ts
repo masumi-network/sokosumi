@@ -37,6 +37,7 @@ describe("mapChatRoomSokoBotParticipant", () => {
       image: null,
       avatarSeed: "orb:user_ana",
       avatarStyleId: null,
+      idleLoopUrl: null,
       workingLoopUrl: null,
       ownerUserId: "user_ana",
       scope: "personal",
@@ -56,28 +57,37 @@ describe("mapChatRoomSokoBotParticipant", () => {
     ).toBe("crafted-desk");
   });
 
-  it("carries the loop a busy face plays, once it is rendered", () => {
+  it("carries the loops a face plays, once they are rendered", () => {
     expect(chatRoomSokoBotSelect.avatar.select.renders.where).toEqual({
-      state: "WORKING",
+      state: { in: ["IDLE", "WORKING"] },
     });
-    expect(
-      mapChatRoomSokoBotParticipant(
-        row({
-          avatar: {
-            styleId: "crafted-desk",
-            renders: [{ loopUrl: "https://blob/working-480.mp4" }],
-          },
-        }),
-      ).workingLoopUrl,
-    ).toBe("https://blob/working-480.mp4");
-    expect(
-      mapChatRoomSokoBotParticipant(
-        row({
-          avatar: { styleId: "crafted-desk", renders: [{ loopUrl: null }] },
-        }),
-      ).workingLoopUrl,
-    ).toBeNull();
-    expect(mapChatRoomSokoBotParticipant(row()).workingLoopUrl).toBeNull();
+    const participant = mapChatRoomSokoBotParticipant(
+      row({
+        avatar: {
+          styleId: "crafted-desk",
+          renders: [
+            { state: "WORKING", loopUrl: "https://blob/working-480.mp4" },
+            { state: "IDLE", loopUrl: "https://blob/idle-480.mp4" },
+          ],
+        },
+      }),
+    );
+    expect(participant.workingLoopUrl).toBe("https://blob/working-480.mp4");
+    expect(participant.idleLoopUrl).toBe("https://blob/idle-480.mp4");
+  });
+
+  it("has no loop before it is rendered, and none for a bot with no avatar", () => {
+    const rendering = mapChatRoomSokoBotParticipant(
+      row({
+        avatar: {
+          styleId: "crafted-desk",
+          renders: [{ state: "IDLE", loopUrl: null }],
+        },
+      }),
+    );
+    expect(rendering.idleLoopUrl).toBeNull();
+    expect(rendering.workingLoopUrl).toBeNull();
+    expect(mapChatRoomSokoBotParticipant(row()).idleLoopUrl).toBeNull();
   });
 
   it.each([

@@ -599,6 +599,10 @@ export type ChatRoomSokoBotParticipant = {
      */
     avatarStyleId?: string | null;
     /**
+     * The bot's Idle loop (silent MP4), played on its face while its hover card is open. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.
+     */
+    idleLoopUrl?: string | null;
+    /**
      * The bot's Working loop (silent MP4), played on its face while a reply is in progress. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.
      */
     workingLoopUrl?: string | null;
