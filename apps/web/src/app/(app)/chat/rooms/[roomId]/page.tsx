@@ -1,14 +1,12 @@
 import type { ChatRoom, Organization } from "@sokosumi/core-client";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { RoomRouteBootstrap } from "@/app/chat/components/persistent-room-view";
 import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import { isShownInEveryWorkspace } from "@/lib/chat/room-workspace-scope";
+import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { userService } from "@/lib/services/user.service";
@@ -43,27 +41,18 @@ interface ChatRoomShellProps {
 
 const ROOM_UNAVAILABLE_HREF = "/?notice=room-unavailable";
 
-function NoOrganizationCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="min-h-full w-full py-6">
-      <div className="mx-auto max-w-3xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">{description}</p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+/** The caller's own membership; the personal workspace has none. */
+async function readMyMember(organizationId: string | null) {
+  if (!organizationId) return null;
+  return userService
+    .getMyMemberInOrganization(organizationId)
+    .catch((error: unknown) => {
+      console.error("Failed to load organization membership", {
+        organizationId,
+        error,
+      });
+      return null;
+    });
 }
 
 /**
@@ -107,9 +96,8 @@ function progressiveRoomOpen(shell: ChatRoomShellProps) {
 export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   await connection();
 
-  const [{ roomId }, t, activeOrganization, session] = await Promise.all([
+  const [{ roomId }, activeOrganization, session] = await Promise.all([
     params,
-    getTranslations("App.Channels"),
     userService.getActiveOrganization(),
     getSession(),
   ]);
@@ -123,61 +111,30 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 
-  if (!activeOrganization) {
-    const selectedRoom = await chatRoomService.getRoom(roomId);
-
-    if (!selectedRoom) {
-      redirect(ROOM_UNAVAILABLE_HREF);
-    }
-
-    // Personal AI 1:1s belong to the personal workspace.
-    const isPersonalWorkspaceDirect =
-      selectedRoom.organizationId === null && selectedRoom.kind === "direct";
-
-    if (!isPersonalWorkspaceDirect && !isShownInEveryWorkspace(selectedRoom)) {
-      return (
-        <NoOrganizationCard
-          title={t("NoOrganization.title")}
-          description={t("NoOrganization.description")}
-        />
-      );
-    }
-
-    return progressiveRoomOpen({
-      activeOrganization: null,
-      rooms: [selectedRoom],
-      currentUserId,
-      isOrgOwnerOrAdmin: false,
-      selectedRoomId: selectedRoom.id,
-      organizationIdForRoster: null,
-    });
-  }
-
+  const activeOrganizationId = activeOrganization?.id ?? null;
   // Channel settings gate on the caller's own membership, never on the org
   // roster: that list streams in after the shell paints and soft-fails to [].
-  const [selectedRoom, currentMember] = await Promise.all([
+  const [selectedRoom, activeMember] = await Promise.all([
     chatRoomService.getRoom(roomId),
-    userService
-      .getMyMemberInOrganization(activeOrganization.id)
-      .catch((error: unknown) => {
-        console.error("Failed to load organization membership", {
-          organizationId: activeOrganization.id,
-          error,
-        });
-        return null;
-      }),
+    readMyMember(activeOrganizationId),
   ]);
 
   if (!selectedRoom) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 
-  if (
-    selectedRoom.organizationId !== activeOrganization.id &&
-    !isShownInEveryWorkspace(selectedRoom)
-  ) {
-    redirect(ROOM_UNAVAILABLE_HREF);
-  }
+  // A room of another workspace opens as a Room visit (ADR-0061): the active
+  // workspace stays, and the room's own Organization decides roster and role.
+  const organizationIdForRoster = isRoomOfWorkspace(
+    selectedRoom,
+    activeOrganizationId,
+  )
+    ? activeOrganizationId
+    : selectedRoom.organizationId;
+  const currentMember =
+    organizationIdForRoster === activeOrganizationId
+      ? activeMember
+      : await readMyMember(organizationIdForRoster);
 
   return progressiveRoomOpen({
     activeOrganization,
@@ -187,7 +144,7 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
     ),
     selectedRoomId: selectedRoom.id,
-    organizationIdForRoster: activeOrganization.id,
+    organizationIdForRoster,
   });
 }
 

@@ -278,7 +278,7 @@ describe("sanitizeComposerHtml", () => {
   it("keeps the attributes htmlToMarkdown reads back", () => {
     const html =
       '<span data-mention-key="user_1" data-mention-slug="alice" ' +
-      'class="text-primary" contenteditable="false">@Alice</span>' +
+      'class="text-foreground" contenteditable="false">@Alice</span>' +
       '<span data-channel-label="general" contenteditable="false">#general</span>' +
       '<pre><code data-language="ts">x</code></pre>' +
       '<a href="https://a.test/">link</a>';
@@ -288,7 +288,7 @@ describe("sanitizeComposerHtml", () => {
     const mention = root.querySelector("[data-mention-key]");
     expect(mention?.getAttribute("data-mention-slug")).toBe("alice");
     expect(mention?.getAttribute("contenteditable")).toBe("false");
-    expect(mention?.getAttribute("class")).toBe("text-primary");
+    expect(mention?.getAttribute("class")).toBe("text-foreground");
     expect(
       root
         .querySelector("[data-channel-label]")

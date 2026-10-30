@@ -43,22 +43,11 @@ import {
   saveNewsletterSendingDomain,
 } from "@/lib/actions/newsletter/sending-domain";
 
-const STATUS_STYLE = {
-  PENDING: {
-    icon: Clock,
-    className:
-      "border-transparent bg-semantic-warning-quaternary text-semantic-warning-label",
-  },
-  VERIFIED: {
-    icon: CircleCheck,
-    className:
-      "border-transparent bg-semantic-success-quaternary text-semantic-success-label",
-  },
-  FAILED: {
-    icon: CircleAlert,
-    className:
-      "border-transparent bg-semantic-destructive-quaternary text-semantic-destructive-label",
-  },
+// Status chips are neutral; the glyph and the word carry the state.
+const STATUS_ICON = {
+  PENDING: Clock,
+  VERIFIED: CircleCheck,
+  FAILED: CircleAlert,
 } as const;
 
 type RecordPurpose = "dkim" | "spf" | "bounce" | "dmarc" | "other";
@@ -76,8 +65,8 @@ interface SendingDomainCardProps {
 }
 
 /**
- * The workspace's own From address. It belongs to the workspace, so every
- * project's newsletter settings show the same card.
+ * This project's own From address. Project members can connect and manage
+ * its sending domain from the newsletter settings.
  */
 export function SendingDomainCard({
   state,
@@ -104,11 +93,12 @@ export function SendingDomainCard({
               projectId={projectId}
             />
           ) : canManage ? (
-            <AddDomainForm fallbackAvailable={fallbackAvailable} />
+            <AddDomainForm
+              fallbackAvailable={fallbackAvailable}
+              projectId={projectId}
+            />
           ) : (
-            <p className="text-muted-foreground text-sm text-pretty">
-              {t("managedByAdmins")}
-            </p>
+            <FallbackNote fallbackAvailable={fallbackAvailable} />
           )}
         </CardContent>
       </Card>
@@ -125,7 +115,13 @@ function FallbackNote({ fallbackAvailable }: { fallbackAvailable: boolean }) {
   );
 }
 
-function AddDomainForm({ fallbackAvailable }: { fallbackAvailable: boolean }) {
+function AddDomainForm({
+  fallbackAvailable,
+  projectId,
+}: {
+  fallbackAvailable: boolean;
+  projectId: string;
+}) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const router = useRouter();
   const [fromAddress, setFromAddress] = useState("");
@@ -137,7 +133,10 @@ function AddDomainForm({ fallbackAvailable }: { fallbackAvailable: boolean }) {
     setPending(true);
     setError("");
     try {
-      const result = await saveNewsletterSendingDomain({ fromAddress });
+      const result = await saveNewsletterSendingDomain({
+        projectId,
+        fromAddress,
+      });
       if (!result.ok) {
         setError(result.error.message);
         return;
@@ -181,7 +180,7 @@ function AddDomainForm({ fallbackAvailable }: { fallbackAvailable: boolean }) {
           <p
             id="newsletter-from-address-error"
             role="alert"
-            className="text-semantic-destructive-label text-sm"
+            className="text-semantic-destructive text-sm"
           >
             {error}
           </p>
@@ -216,8 +215,7 @@ function ConnectedDomain({
   const format = useFormatter();
   const router = useRouter();
   const [checking, setChecking] = useState(false);
-  const { icon: StatusIcon, className: statusClassName } =
-    STATUS_STYLE[domain.status];
+  const StatusIcon = STATUS_ICON[domain.status];
   const verified = domain.status === "VERIFIED";
   // Core lists a suggested DMARC record only while the domain lacks a policy.
   const dmarcMissing = domain.dnsRecords.some(
@@ -228,7 +226,7 @@ function ConnectedDomain({
   async function handleCheck() {
     setChecking(true);
     try {
-      const result = await checkNewsletterSendingDomain({});
+      const result = await checkNewsletterSendingDomain({ projectId });
       if (!result.ok) {
         toast.error(result.error.message);
         return;
@@ -251,7 +249,7 @@ function ConnectedDomain({
           <span className="min-w-0 font-mono text-sm font-medium wrap-anywhere">
             {domain.fromAddress}
           </span>
-          <Badge className={statusClassName}>
+          <Badge className="border-border bg-muted text-foreground">
             <StatusIcon aria-hidden />
             {t(`status.${domain.status}`)}
           </Badge>
@@ -269,7 +267,7 @@ function ConnectedDomain({
         {domain.status === "FAILED" && domain.failureReason ? (
           <p
             role="status"
-            className="text-semantic-destructive-label text-sm wrap-anywhere"
+            className="text-semantic-destructive text-sm wrap-anywhere"
           >
             {domain.failureReason}
           </p>
@@ -286,11 +284,11 @@ function ConnectedDomain({
       {dmarcMissing ? (
         <div
           role="status"
-          className="bg-semantic-warning-quinary border-semantic-warning-tertiary flex min-w-0 gap-2 rounded-md border p-3"
+          className="bg-muted border-border flex min-w-0 gap-2 rounded-md border p-3"
         >
           <CircleAlert
             aria-hidden
-            className="text-semantic-warning-label mt-0.5 size-4 shrink-0"
+            className="text-foreground mt-0.5 size-4 shrink-0"
           />
           <div className="min-w-0 space-y-1 text-sm">
             <p className="font-medium">{t("dmarc.title")}</p>
@@ -305,7 +303,7 @@ function ConnectedDomain({
         <div className="min-w-0 space-y-4">
           <h4 className="text-sm font-medium">{t("connectTitle")}</h4>
           <DomainConnectOption projectId={projectId} />
-          <CloudflareOption />
+          <CloudflareOption projectId={projectId} />
         </div>
       ) : null}
 
@@ -323,7 +321,7 @@ function ConnectedDomain({
               {t("checkNow")}
             </Button>
           ) : null}
-          <RemoveDomainButton domain={domain.domain} />
+          <RemoveDomainButton domain={domain.domain} projectId={projectId} />
         </div>
       ) : null}
     </div>
@@ -395,7 +393,7 @@ function DomainConnectOption({ projectId }: { projectId: string }) {
         </>
       )}
       {error ? (
-        <p role="alert" className="text-semantic-destructive-label text-sm">
+        <p role="alert" className="text-semantic-destructive text-sm">
           {error}
         </p>
       ) : null}
@@ -403,7 +401,7 @@ function DomainConnectOption({ projectId }: { projectId: string }) {
   );
 }
 
-function CloudflareOption() {
+function CloudflareOption({ projectId }: { projectId: string }) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const router = useRouter();
   const [apiToken, setApiToken] = useState("");
@@ -416,6 +414,7 @@ function CloudflareOption() {
     setError("");
     try {
       const result = await connectNewsletterSendingDomainWithCloudflare({
+        projectId,
         apiToken,
       });
       if (!result.ok) {
@@ -472,7 +471,7 @@ function CloudflareOption() {
         <p
           id="newsletter-cloudflare-token-error"
           role="alert"
-          className="text-semantic-destructive-label text-sm"
+          className="text-semantic-destructive text-sm"
         >
           {error}
         </p>
@@ -513,7 +512,7 @@ function DnsRecords({ records }: { records: NewsletterDnsRecord[] }) {
               {record.status === "verified" ? (
                 <CircleCheck
                   aria-label={t("records.found")}
-                  className="text-semantic-success size-4"
+                  className="text-foreground size-4"
                 />
               ) : null}
             </div>
@@ -555,7 +554,13 @@ function RecordField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RemoveDomainButton({ domain }: { domain: string }) {
+function RemoveDomainButton({
+  domain,
+  projectId,
+}: {
+  domain: string;
+  projectId: string;
+}) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -566,7 +571,7 @@ function RemoveDomainButton({ domain }: { domain: string }) {
     setPending(true);
     setError("");
     try {
-      const result = await removeNewsletterSendingDomain({});
+      const result = await removeNewsletterSendingDomain({ projectId });
       if (!result.ok) {
         setError(result.error.message);
         return;
@@ -604,7 +609,7 @@ function RemoveDomainButton({ domain }: { domain: string }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (
-          <p role="alert" className="text-semantic-destructive-label text-sm">
+          <p role="alert" className="text-semantic-destructive text-sm">
             {error}
           </p>
         ) : null}
@@ -614,7 +619,7 @@ function RemoveDomainButton({ domain }: { domain: string }) {
           </AlertDialogCancel>
           <AlertDialogAction
             loading={pending}
-            className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+            className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
             onClick={(event) => {
               event.preventDefault();
               void handleRemove();

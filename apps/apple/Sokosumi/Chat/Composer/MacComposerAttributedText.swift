@@ -10,11 +10,11 @@
 
     private static func referenceAttachment(name: String, font: NSFont) -> NSTextAttachment {
       let label = NSAttributedString(string: name, attributes: [
-        .font: font, .foregroundColor: NSColor.controlAccentColor
+        .font: font, .foregroundColor: NSColor.labelColor
       ])
       let size = NSSize(width: ceil(label.size().width) + 8, height: ceil(label.size().height) + 2)
       let image = NSImage(size: size, flipped: false) { bounds in
-        NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
+        NSColor.labelColor.withAlphaComponent(0.1).setFill()
         NSBezierPath(roundedRect: bounds, xRadius: 3, yRadius: 3).fill()
         label.draw(at: NSPoint(x: 4, y: 1))
         return true

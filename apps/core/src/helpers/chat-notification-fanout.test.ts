@@ -1,4 +1,9 @@
 import { NotificationKind } from "@sokosumi/database";
+import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { schedulePublishMock } = vi.hoisted(() => ({
@@ -96,6 +101,15 @@ vi.mock("@/helpers/chat-direct-room-names", () => ({
 vi.mock("@/helpers/chat-mention-names", () => ({
   loadChatMentionNames: (...args: unknown[]) =>
     loadChatMentionNamesMock(...args),
+}));
+
+const { publishChatRoomsChangedMock } = vi.hoisted(() => ({
+  publishChatRoomsChangedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: (...args: unknown[]) =>
+    publishChatRoomsChangedMock(...args),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -808,6 +822,61 @@ describe("fanOutChatNotifications", () => {
 
     expect(messageFindUniqueMock).toHaveBeenCalledTimes(1);
     expect(notificationFindManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("fanOutChatNotifications, telling readers about the badge it wrote", () => {
+  const mention = (
+    overrides: Partial<Parameters<typeof fanOutChatNotifications>[0]> = {},
+  ) => params({ messageKey: CHAT_MENTION_MESSAGE_KEY, ...overrides });
+
+  it("tells the people notified once their rows exist, so a list read counts them", async () => {
+    let rowsWhenTold = 0;
+    publishChatRoomsChangedMock.mockImplementation(async () => {
+      rowsWhenTold = createNotificationMock.mock.calls.length;
+    });
+
+    await fanOutChatNotifications(
+      mention({ recipientUserIds: [ALICE_ID, BOB_ID] }),
+    );
+
+    expect(rowsWhenTold).toBe(2);
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+      userIds: [ALICE_ID, BOB_ID],
+      collections: ["active"],
+      roomId: ROOM_ID,
+    });
+  });
+
+  it("does the same for a direct message, whose row is the room's number", async () => {
+    await fanOutChatNotifications(
+      mention({ messageKey: CHAT_DIRECT_MESSAGE_MESSAGE_KEY }),
+    );
+
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledOnce();
+  });
+
+  it("leaves out a reader who muted the room", async () => {
+    membershipFindManyMock.mockResolvedValue([
+      { userId: ALICE_ID, access: "member", mutedAt: null },
+      { userId: BOB_ID, access: "member", mutedAt: new Date() },
+    ]);
+
+    await fanOutChatNotifications(
+      mention({ recipientUserIds: [ALICE_ID, BOB_ID] }),
+    );
+
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ userIds: [ALICE_ID] }),
+    );
+  });
+
+  it("tells nobody about a room-message row, which no count reads", async () => {
+    await fanOutChatNotifications(
+      mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }),
+    );
+
+    expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
   });
 });
 

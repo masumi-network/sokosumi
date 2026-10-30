@@ -41,10 +41,10 @@ describe("All unreads filter under the pointer", () => {
     const classes = screen
       .getByRole("button", { name: "Unreads" })
       .className.split(/\s+/);
-    expect(classes).toContain("hover:bg-primary-quaternary");
-    expect(classes).toContain("active:bg-primary-quaternary");
+    expect(classes).toContain("hover:bg-quinary");
+    expect(classes).toContain("active:bg-quinary");
     expect(classes.filter((c) => c.startsWith("hover:bg-"))).toEqual([
-      "hover:bg-primary-quaternary",
+      "hover:bg-quinary",
     ]);
   });
 });

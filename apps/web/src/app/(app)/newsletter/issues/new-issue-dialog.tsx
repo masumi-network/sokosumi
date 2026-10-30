@@ -84,7 +84,7 @@ export function NewIssueDialog({
               disabled={!!pending}
               aria-busy={pending === template}
               onClick={() => void handleCreate(template)}
-              className="focus-visible:ring-ring-halo focus-visible:inset-ring-ring relative min-w-0 space-y-3 overflow-hidden rounded-xl border p-4 text-start outline-none hover:bg-accent focus-visible:ring-2 focus-visible:inset-ring-1 disabled:opacity-50"
+              className="focus-visible:ring-ring focus-visible:inset-ring-ring relative min-w-0 space-y-3 overflow-hidden rounded-xl border p-4 text-start outline-none hover:bg-accent focus-visible:ring-2 focus-visible:inset-ring-1 disabled:opacity-50"
             >
               <div
                 aria-hidden
@@ -99,7 +99,7 @@ export function NewIssueDialog({
                 <div className="bg-quaternary h-1 w-full rounded-xs" />
                 <div className="bg-quaternary h-1 w-4/5 rounded-xs" />
                 {template === NewsletterTemplate.BUTTONS ? (
-                  <div className="bg-primary-solid h-5 w-1/2 rounded-xs" />
+                  <div className="bg-primary h-5 w-1/2 rounded-xs" />
                 ) : (
                   <div className="bg-quaternary h-1 w-3/4 rounded-xs" />
                 )}
@@ -122,7 +122,7 @@ export function NewIssueDialog({
           ))}
         </div>
         {error ? (
-          <p role="alert" className="text-semantic-destructive-label text-sm">
+          <p role="alert" className="text-foreground text-sm">
             {error}
           </p>
         ) : null}

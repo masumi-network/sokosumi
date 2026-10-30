@@ -302,7 +302,7 @@ function PanelBody({
             <div className="-ms-2 flex min-w-0 items-center">
               <a
                 href={`mailto:${email}`}
-                className="hover:bg-quinary flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm"
+                className="hover:bg-accent transition-colors flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm"
               >
                 <Mail
                   aria-hidden
@@ -436,7 +436,7 @@ function PanelBody({
                 aria-label={t("panel.changeStage", {
                   stage: t(`stages.${contact.stage}`),
                 })}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
               >
                 <StageChip stage={contact.stage} />
               </button>
@@ -462,7 +462,7 @@ function PanelBody({
               <button
                 type="button"
                 aria-label={t("importance.change")}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
               >
                 <ScoreMeter
                   value={importance}
@@ -518,7 +518,7 @@ function PanelBody({
               <button
                 type="button"
                 aria-label={t("panel.changeLists")}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
               >
                 {contact.lists.length ? (
                   contact.lists.map((list) => (
@@ -628,16 +628,13 @@ function PanelBody({
                     : undefined
                 }
                 placeholder={t("panel.noFollowUp")}
-                displayClassName={cn(
-                  "tabular-nums",
-                  due && "text-semantic-destructive-label",
-                )}
+                displayClassName={cn("tabular-nums", due && "text-foreground")}
                 onSave={(followUpAt) =>
                   save({ followUpAt: followUpAt || null })
                 }
               />
               {due ? (
-                <span className="text-semantic-destructive-label shrink-0 text-xs">
+                <span className="text-foreground shrink-0 text-xs">
                   {t("grid.due")}
                 </span>
               ) : null}
@@ -707,7 +704,7 @@ function MergeBanner({
   if (!group || !others.length) return null;
   return (
     <div className="px-6 pb-5">
-      <Alert className="border-primary-tertiary bg-primary-quinary">
+      <Alert className="border-border bg-muted">
         <GitMerge aria-hidden className="size-4" />
         <AlertDescription className="grid gap-2">
           <p className="text-foreground text-sm">
@@ -827,7 +824,7 @@ function ChannelsSection({
           return (
             <li
               key={channel.id}
-              className="group/channel hover:bg-quinary flex min-h-10 items-center gap-3 rounded-md px-2"
+              className="group/channel hover:bg-accent transition-colors flex min-h-10 items-center gap-3 rounded-md px-2"
             >
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -934,7 +931,7 @@ function ChannelsSection({
           </div>
           {error ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <p role="alert" className="text-semantic-destructive-label">
+              <p role="alert" className="text-foreground">
                 {error}
               </p>
               {takenBy ? (

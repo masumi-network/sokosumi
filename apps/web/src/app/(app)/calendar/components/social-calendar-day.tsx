@@ -107,7 +107,7 @@ export function SocialDayAddButton({
     <button
       aria-label={label}
       className={cn(
-        "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo hit-area flex size-6 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+        "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring hit-area flex size-6 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
         className,
       )}
       data-testid="calendar-day-add"
@@ -239,7 +239,7 @@ function SocialDayList({
         <h3
           className={cn(
             "text-sm font-semibold",
-            dayKey === todayKey && "text-primary",
+            dayKey === todayKey && "text-foreground",
           )}
         >
           {heading}
@@ -380,8 +380,8 @@ export function SocialMobileCalendar({
                   .join(", ")}
                 aria-pressed={isSelected}
                 className={cn(
-                  "press focus-visible:ring-ring-halo flex min-h-12 cursor-pointer flex-col items-center gap-1 rounded-md py-1 text-xs tabular-nums outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
-                  isSelected ? "bg-primary-quinary" : "hover:bg-muted",
+                  "press focus-visible:ring-ring flex min-h-12 cursor-pointer flex-col items-center gap-1 rounded-md py-1 text-xs tabular-nums outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+                  isSelected ? "bg-muted" : "hover:bg-muted",
                   !inMonth && "text-muted-foreground",
                 )}
                 data-testid="calendar-mobile-day"

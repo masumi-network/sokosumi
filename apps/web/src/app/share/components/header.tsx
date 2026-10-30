@@ -15,7 +15,7 @@ export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid bg-surface-sticky fixed top-0 z-50 w-full border-b md:sticky md:pl-0 md:pr-0",
+        "border-grid bg-background fixed top-0 z-50 w-full border-b md:sticky md:pl-0 md:pr-0",
         APP_HEADER_SAFE_AREA_PADDING_CLASS,
       )}
     >

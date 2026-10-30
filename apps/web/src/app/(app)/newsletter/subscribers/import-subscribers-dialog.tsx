@@ -216,7 +216,7 @@ export function ImportSubscribersDialog({
                 </p>
                 <p
                   id="newsletter-csv-error"
-                  className="text-semantic-destructive-label text-sm"
+                  className="text-foreground text-sm"
                 >
                   {fileError}
                 </p>
@@ -241,7 +241,7 @@ export function ImportSubscribersDialog({
             ) : null}
           </p>
           {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
+            <p role="alert" className="text-foreground text-sm">
               {error}
             </p>
           ) : null}

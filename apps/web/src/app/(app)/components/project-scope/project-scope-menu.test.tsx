@@ -382,6 +382,27 @@ describe("ProjectScopeMenu", () => {
     ).toBeNull();
   });
 
+  it("shows one trailing icon per row, with no hidden check", async () => {
+    setup({ selectedProjectId: "active-1" });
+
+    const pinned = await screen.findByTestId("project-scope-item-pinned-1");
+    expect(pinned.querySelectorAll("svg")).toHaveLength(1);
+    expect(pinned.querySelector(".lucide-pin")).not.toBeNull();
+
+    const current = screen.getByTestId("project-scope-item-active-1");
+    expect(current.querySelectorAll("svg")).toHaveLength(1);
+    expect(current.querySelector(".lucide-check")).not.toBeNull();
+  });
+
+  it("shows only the check on a pinned current row, and still says pinned", async () => {
+    setup({ selectedProjectId: "pinned-1" });
+
+    const row = await screen.findByTestId("project-scope-item-pinned-1");
+    expect(row.querySelectorAll("svg")).toHaveLength(1);
+    expect(row.querySelector(".lucide-check")).not.toBeNull();
+    expect(isPinnedRow("pinned-1")).toBe(true);
+  });
+
   it("marks no row current in the workspace view", async () => {
     setup({ selectedProjectId: null });
 

@@ -1,0 +1,259 @@
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { errorHandler } from "@/helpers/error-handler";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
+
+const {
+  organizationFindUniqueMock,
+  memberFindUniqueMock,
+  assertOrganizationSubscriptionChangeAllowedMock,
+  resolveActiveSubscriptionByReferenceIdMock,
+  retrieveSubscriptionWithItemsMock,
+  previewSubscriptionItemQuantityMock,
+  previewSubscriptionRenewalAtQuantityMock,
+  updateSubscriptionItemQuantityMock,
+} = vi.hoisted(() => ({
+  organizationFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
+  assertOrganizationSubscriptionChangeAllowedMock: vi.fn(),
+  resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
+  retrieveSubscriptionWithItemsMock: vi.fn(),
+  previewSubscriptionItemQuantityMock: vi.fn(),
+  previewSubscriptionRenewalAtQuantityMock: vi.fn(),
+  updateSubscriptionItemQuantityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
+  },
+}));
+
+vi.mock("@/clients/stripe.client", () => ({
+  stripeClient: {
+    retrieveSubscriptionWithItems: (...args: unknown[]) =>
+      retrieveSubscriptionWithItemsMock(...args),
+    previewSubscriptionItemQuantity: (...args: unknown[]) =>
+      previewSubscriptionItemQuantityMock(...args),
+    previewSubscriptionRenewalAtQuantity: (...args: unknown[]) =>
+      previewSubscriptionRenewalAtQuantityMock(...args),
+    updateSubscriptionItemQuantity: (...args: unknown[]) =>
+      updateSubscriptionItemQuantityMock(...args),
+  },
+}));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    assertOrganizationSubscriptionChangeAllowed: (...args: unknown[]) =>
+      assertOrganizationSubscriptionChangeAllowedMock(...args),
+  };
+});
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  subscriptionRepository: {
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
+  },
+}));
+
+const USER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: null,
+  role: "user",
+};
+
+let mountRoute: (app: OpenAPIHonoWithAuth) => void;
+
+function previewSeats(id: string, seats: number | string) {
+  const app = new OpenAPIHonoWithAuth();
+  app.onError(errorHandler);
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
+    c.set("isAuthenticated", true);
+    c.set("authContext", USER_AUTH_CONTEXT);
+    return await next();
+  });
+  mountRoute(app);
+
+  return app.request(
+    `http://localhost/${id}/subscription/seats/preview?seats=${seats}`,
+  );
+}
+
+function setMembership(role: string | null) {
+  organizationFindUniqueMock.mockResolvedValue({ id: "org_123" });
+  memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
+}
+
+beforeAll(async () => {
+  const module = await import("./get");
+  mountRoute = module.default;
+});
+
+describe("GET /organizations/{id}/subscription/seats/preview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
+      undefined,
+    );
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      id: "sub-row-1",
+      plan: "starter",
+      seats: 2,
+      stripeSubscriptionId: "sub_stripe_1",
+    });
+    retrieveSubscriptionWithItemsMock.mockResolvedValue({
+      id: "sub_stripe_1",
+      items: {
+        data: [{ current_period_end: 1_767_225_600, id: "si_1" }],
+      },
+      schedule: null,
+    });
+    previewSubscriptionItemQuantityMock.mockResolvedValue({ amount_due: 1234 });
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      currency: "eur",
+      total: 14875,
+    });
+  });
+
+  it("returns what adding seats costs without changing the subscription", async () => {
+    setMembership("admin");
+
+    const response = await previewSeats("org_123", 5);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      amountDue: 1234,
+      currency: "eur",
+      effectiveAt: null,
+      newMonthlyAmount: 14875,
+      seats: 5,
+    });
+    expect(previewSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      5,
+    );
+    expect(previewSubscriptionRenewalAtQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      5,
+    );
+    expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("charges and refunds nothing when removing seats, and says when it applies", async () => {
+    setMembership("owner");
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      currency: "eur",
+      total: 2975,
+    });
+
+    const response = await previewSeats("org_123", 1);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      amountDue: 0,
+      currency: "eur",
+      effectiveAt: "2026-01-01T00:00:00.000Z",
+      newMonthlyAmount: 2975,
+      seats: 1,
+    });
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("costs nothing to keep the current seats", async () => {
+    setMembership("owner");
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      currency: "eur",
+      total: 5950,
+    });
+
+    const response = await previewSeats("org_123", 2);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      amountDue: 0,
+      currency: "eur",
+      effectiveAt: null,
+      newMonthlyAmount: 5950,
+      seats: 2,
+    });
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for a member who is not an owner or admin", async () => {
+    setMembership("member");
+
+    const response = await previewSeats("org_123", 5);
+
+    expect(response.status).toBe(403);
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when an enterprise contract blocks self-serve changes", async () => {
+    setMembership("owner");
+    const { OrganizationSubscriptionExclusivityError } = await import(
+      "@sokosumi/database/helpers"
+    );
+    assertOrganizationSubscriptionChangeAllowedMock.mockRejectedValue(
+      new OrganizationSubscriptionExclusivityError(
+        "Active enterprise contract",
+      ),
+    );
+
+    const response = await previewSeats("org_123", 5);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.kind).toBe("subscription_change_not_allowed");
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when there is no Stripe subscription to preview", async () => {
+    setMembership("owner");
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      id: "sub-row-1",
+      plan: "free",
+      seats: 1,
+      stripeSubscriptionId: null,
+    });
+
+    const response = await previewSeats("org_123", 5);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.kind).toBe("subscription_not_active");
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 for a seat count below 1", async () => {
+    setMembership("owner");
+
+    const response = await previewSeats("org_123", 0);
+
+    expect(response.status).toBe(422);
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+});

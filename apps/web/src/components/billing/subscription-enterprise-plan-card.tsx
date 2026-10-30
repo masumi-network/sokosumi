@@ -41,14 +41,14 @@ export function SubscriptionEnterprisePlanCard({
     <Card
       className={cn(
         "flex h-full flex-col",
-        isCurrent ? "border-primary" : undefined,
+        isCurrent ? "border-foreground" : undefined,
       )}
     >
       <CardHeader className="space-y-2">
         <CardTitle className="flex items-center justify-between">
           <span>{t("Plans.enterprise.name")}</span>
           {isCurrent ? (
-            <span className="text-primary text-xs font-medium">
+            <span className="text-foreground text-xs font-medium">
               {t("currentPlanBadge")}
             </span>
           ) : null}
