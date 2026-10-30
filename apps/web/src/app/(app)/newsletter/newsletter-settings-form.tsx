@@ -9,7 +9,7 @@ import {
 import { ImageIcon, Mail, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -77,6 +77,8 @@ interface NewsletterSettingsFormProps {
   projectName: string;
   projectLogo: string | null;
   newsletter: Newsletter | null;
+  /** The project's sending domain card, shown below these settings. */
+  sendingDomain?: ReactNode;
 }
 
 export function NewsletterSettingsForm({
@@ -84,6 +86,7 @@ export function NewsletterSettingsForm({
   projectName,
   projectLogo,
   newsletter,
+  sendingDomain,
 }: NewsletterSettingsFormProps) {
   const t = useTranslations("App.Projects.Newsletter");
   const validationT = useTranslations("App.Projects.Newsletter.Validation");
@@ -185,322 +188,340 @@ export function NewsletterSettingsForm({
 
   return (
     <Form {...form}>
-      <form
-        noValidate
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]"
-      >
-        <div className={cn(HOLDER_CLASS, "min-w-0 space-y-3 p-3")}>
-          {!newsletter && !publicSlug ? (
-            <section
-              aria-labelledby="newsletter-setup"
-              className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 gap-3 p-4")}
-            >
-              <span
-                aria-hidden
-                className="bg-quinary text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full"
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <div className="min-w-0 space-y-4">
+          <form
+            noValidate
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className={cn(HOLDER_CLASS, "min-w-0 space-y-3 p-3")}
+          >
+            {!newsletter && !publicSlug ? (
+              <section
+                aria-labelledby="newsletter-setup"
+                className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 gap-3 p-4")}
               >
-                <Mail className="size-5" />
-              </span>
-              <div className="min-w-0 space-y-1">
-                <h3
-                  id="newsletter-setup"
-                  className="text-base font-semibold text-balance"
+                <span
+                  aria-hidden
+                  className="bg-quinary text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full"
                 >
-                  {t("emptyTitle")}
-                </h3>
-                <p className="text-muted-foreground text-sm text-pretty">
-                  {t("emptyDescription")}
-                </p>
-              </div>
-            </section>
-          ) : null}
-          {publicSlug ? <NewsletterSignupCard publicSlug={publicSlug} /> : null}
-          <fieldset disabled={isSubmitting} className="min-w-0 space-y-3">
-            <section aria-labelledby="newsletter-general">
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    <h3 id="newsletter-general">{t("general")}</h3>
-                  </CardTitle>
-                  <CardDescription>{t("generalDescription")}</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  {(["name", "senderName", "replyTo"] as const).map((name) => (
-                    <FormField
-                      key={name}
-                      control={form.control}
-                      name={name}
-                      render={({ field }) => (
-                        <FormItem
-                          className={
-                            name === "replyTo" ? "md:col-span-2" : undefined
-                          }
-                        >
-                          <FormLabel>{t(`fields.${name}`)}</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type={name === "replyTo" ? "email" : "text"}
-                              autoComplete={
-                                name === "replyTo" ? "email" : "off"
+                  <Mail className="size-5" />
+                </span>
+                <div className="min-w-0 space-y-1">
+                  <h3
+                    id="newsletter-setup"
+                    className="text-base font-semibold text-balance"
+                  >
+                    {t("emptyTitle")}
+                  </h3>
+                  <p className="text-muted-foreground text-sm text-pretty">
+                    {t("emptyDescription")}
+                  </p>
+                </div>
+              </section>
+            ) : null}
+            {publicSlug ? (
+              <NewsletterSignupCard publicSlug={publicSlug} />
+            ) : null}
+            <fieldset disabled={isSubmitting} className="min-w-0 space-y-3">
+              <section aria-labelledby="newsletter-general">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      <h3 id="newsletter-general">{t("general")}</h3>
+                    </CardTitle>
+                    <CardDescription>{t("generalDescription")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 md:grid-cols-2">
+                    {(["name", "senderName", "replyTo"] as const).map(
+                      (name) => (
+                        <FormField
+                          key={name}
+                          control={form.control}
+                          name={name}
+                          render={({ field }) => (
+                            <FormItem
+                              className={
+                                name === "replyTo" ? "md:col-span-2" : undefined
                               }
-                            />
+                            >
+                              <FormLabel>{t(`fields.${name}`)}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type={name === "replyTo" ? "email" : "text"}
+                                  autoComplete={
+                                    name === "replyTo" ? "email" : "off"
+                                  }
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ),
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
+
+              <section aria-labelledby="newsletter-brand">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      <h3 id="newsletter-brand">{t("brand")}</h3>
+                    </CardTitle>
+                    <CardDescription>{t("brandDescription")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="logoUrl"
+                      render={() => (
+                        <FormItem>
+                          <FormLabel>{t("fields.logoUrl")}</FormLabel>
+                          <div className="flex min-w-0 flex-wrap items-center gap-4">
+                            <FormControl>
+                              <OrganizationLogoUploadField
+                                disabled={isSubmitting || isUploadingLogo}
+                                fallbackIcon={<ImageIcon className="size-8" />}
+                                isUploading={isUploadingLogo}
+                                labels={logoLabels}
+                                logoValue={logoUrl}
+                                onPendingLogoFilesChange={setPendingLogoFiles}
+                                onRemove={() =>
+                                  form.setValue("logoUrl", "", {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }
+                                onUpload={handleLogoUpload}
+                                pendingLogoFiles={pendingLogoFiles}
+                              />
+                            </FormControl>
+                            <FormDescription className="min-w-0 flex-1 basis-48">
+                              {logoT("description", {
+                                maxSize: formatBytes(
+                                  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+                                ),
+                              })}
+                            </FormDescription>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {(["primaryColor", "accentColor"] as const).map(
+                        (name) => (
+                          <FormField
+                            key={name}
+                            control={form.control}
+                            name={name}
+                            render={({ field }) => (
+                              <FormItem className="min-w-0">
+                                <FormLabel>{t(`fields.${name}`)}</FormLabel>
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <FormControl>
+                                    <ColorPicker
+                                      ref={field.ref}
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      onBlur={field.onBlur}
+                                      disabled={isSubmitting}
+                                      placeholder={t("colorPlaceholder")}
+                                      presetsLabel={t("presetColors")}
+                                      className="min-w-0 flex-1"
+                                    />
+                                  </FormControl>
+                                  {field.value ? (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      aria-label={t(`clearColor.${name}`)}
+                                      onClick={() =>
+                                        form.setValue(name, "", {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        })
+                                      }
+                                    >
+                                      <X />
+                                    </Button>
+                                  ) : null}
+                                </div>
+                                <FormDescription>
+                                  {t("colorHint")}
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ),
+                      )}
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="fontFamily"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("fields.fontFamily")}</FormLabel>
+                          <Select
+                            name={field.name}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={isSubmitting}
+                          >
+                            <FormControl>
+                              <SelectTrigger
+                                ref={field.ref}
+                                onBlur={field.onBlur}
+                                className="w-full"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {FONTS.map((font) => (
+                                <SelectItem key={font.value} value={font.value}>
+                                  {t(`fonts.${font.label}`)}
+                                </SelectItem>
+                              ))}
+                              {!FONTS.some(
+                                (font) => font.value === selectedFont,
+                              ) ? (
+                                <SelectItem value={selectedFont}>
+                                  {selectedFont}
+                                </SelectItem>
+                              ) : null}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="footerText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("fields.footerText")}</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={3} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  ))}
-                </CardContent>
-              </Card>
-            </section>
+                  </CardContent>
+                </Card>
+              </section>
 
-            <section aria-labelledby="newsletter-brand">
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    <h3 id="newsletter-brand">{t("brand")}</h3>
-                  </CardTitle>
-                  <CardDescription>{t("brandDescription")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="logoUrl"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel>{t("fields.logoUrl")}</FormLabel>
-                        <div className="flex min-w-0 flex-wrap items-center gap-4">
+              <section aria-labelledby="newsletter-welcome">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      <h3 id="newsletter-welcome">{t("welcome")}</h3>
+                    </CardTitle>
+                    <CardDescription>
+                      {t("welcomeCardDescription")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="welcomeEmailEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between gap-4">
+                          <div className="min-w-0 space-y-1">
+                            <FormLabel>
+                              {t("fields.welcomeEmailEnabled")}
+                            </FormLabel>
+                            <FormDescription>
+                              {t("welcomeDescription")}
+                            </FormDescription>
+                          </div>
                           <FormControl>
-                            <OrganizationLogoUploadField
-                              disabled={isSubmitting || isUploadingLogo}
-                              fallbackIcon={<ImageIcon className="size-8" />}
-                              isUploading={isUploadingLogo}
-                              labels={logoLabels}
-                              logoValue={logoUrl}
-                              onPendingLogoFilesChange={setPendingLogoFiles}
-                              onRemove={() =>
-                                form.setValue("logoUrl", "", {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                })
-                              }
-                              onUpload={handleLogoUpload}
-                              pendingLogoFiles={pendingLogoFiles}
+                            <Switch
+                              name={field.name}
+                              ref={field.ref}
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              onBlur={field.onBlur}
+                              disabled={isSubmitting}
                             />
                           </FormControl>
-                          <FormDescription className="min-w-0 flex-1 basis-48">
-                            {logoT("description", {
-                              maxSize: formatBytes(
-                                ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-                              ),
-                            })}
-                          </FormDescription>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {(["primaryColor", "accentColor"] as const).map((name) => (
-                      <FormField
-                        key={name}
-                        control={form.control}
-                        name={name}
-                        render={({ field }) => (
-                          <FormItem className="min-w-0">
-                            <FormLabel>{t(`fields.${name}`)}</FormLabel>
-                            <div className="flex min-w-0 items-center gap-2">
+                        </FormItem>
+                      )}
+                    />
+                    {welcomeEnabled ? (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="welcomeSubject"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("fields.welcomeSubject")}
+                              </FormLabel>
                               <FormControl>
-                                <ColorPicker
-                                  ref={field.ref}
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  onBlur={field.onBlur}
-                                  disabled={isSubmitting}
-                                  placeholder={t("colorPlaceholder")}
-                                  presetsLabel={t("presetColors")}
-                                  className="min-w-0 flex-1"
-                                />
+                                <Input {...field} />
                               </FormControl>
-                              {field.value ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  aria-label={t(`clearColor.${name}`)}
-                                  onClick={() =>
-                                    form.setValue(name, "", {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    })
-                                  }
-                                >
-                                  <X />
-                                </Button>
-                              ) : null}
-                            </div>
-                            <FormDescription>{t("colorHint")}</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="fontFamily"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("fields.fontFamily")}</FormLabel>
-                        <Select
-                          name={field.name}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={isSubmitting}
-                        >
-                          <FormControl>
-                            <SelectTrigger
-                              ref={field.ref}
-                              onBlur={field.onBlur}
-                              className="w-full"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {FONTS.map((font) => (
-                              <SelectItem key={font.value} value={font.value}>
-                                {t(`fonts.${font.label}`)}
-                              </SelectItem>
-                            ))}
-                            {!FONTS.some(
-                              (font) => font.value === selectedFont,
-                            ) ? (
-                              <SelectItem value={selectedFont}>
-                                {selectedFont}
-                              </SelectItem>
-                            ) : null}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="footerText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("fields.footerText")}</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} rows={3} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-            </section>
-
-            <section aria-labelledby="newsletter-welcome">
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    <h3 id="newsletter-welcome">{t("welcome")}</h3>
-                  </CardTitle>
-                  <CardDescription>
-                    {t("welcomeCardDescription")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="welcomeEmailEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between gap-4">
-                        <div className="min-w-0 space-y-1">
-                          <FormLabel>
-                            {t("fields.welcomeEmailEnabled")}
-                          </FormLabel>
-                          <FormDescription>
-                            {t("welcomeDescription")}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            name={field.name}
-                            ref={field.ref}
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            onBlur={field.onBlur}
-                            disabled={isSubmitting}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  {welcomeEnabled ? (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="welcomeSubject"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("fields.welcomeSubject")}</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="welcomeBody"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("fields.welcomeBody")}</FormLabel>
-                            <FormControl>
-                              <Textarea {...field} rows={6} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  ) : null}
-                </CardContent>
-              </Card>
-            </section>
-          </fieldset>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-1 pb-1">
-            <Button
-              type="submit"
-              variant="primary"
-              loading={isSubmitting}
-              disabled={isUploadingLogo}
-            >
-              {t("save")}
-            </Button>
-            {isDirty && !isSubmitting ? (
-              <p className="text-muted-foreground text-sm">
-                {t("unsavedChanges")}
-              </p>
-            ) : null}
-            {form.formState.errors.root?.message ? (
-              <p role="alert" className="text-destructive basis-full text-sm">
-                {form.formState.errors.root.message}
-              </p>
-            ) : null}
-          </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="welcomeBody"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("fields.welcomeBody")}</FormLabel>
+                              <FormControl>
+                                <Textarea {...field} rows={6} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </section>
+            </fieldset>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-1 pb-1">
+              <Button
+                type="submit"
+                variant="primary"
+                loading={isSubmitting}
+                disabled={isUploadingLogo}
+              >
+                {t("save")}
+              </Button>
+              {isDirty && !isSubmitting ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("unsavedChanges")}
+                </p>
+              ) : null}
+              {form.formState.errors.root?.message ? (
+                <p role="alert" className="text-destructive basis-full text-sm">
+                  {form.formState.errors.root.message}
+                </p>
+              ) : null}
+            </div>
+          </form>
+          {/* Its own forms sit outside the settings form: forms don't nest. */}
+          {sendingDomain ? (
+            <div className={cn(HOLDER_CLASS, "min-w-0 p-3")}>
+              {sendingDomain}
+            </div>
+          ) : null}
         </div>
         <aside className="min-w-0 lg:sticky lg:top-4">
           <NewsletterBrandPreview control={form.control} />
         </aside>
-      </form>
+      </div>
     </Form>
   );
 }

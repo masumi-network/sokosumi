@@ -8,7 +8,6 @@ import {
 import { CORE_API_ERROR_KINDS, canArchiveTaskStatus } from "@sokosumi/utils";
 import slugify from "slugify";
 
-import { getEnv } from "@/config/env";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   createPaginationMeta,
@@ -26,6 +25,7 @@ import {
   getNewsletter,
   type NewsletterScope,
 } from "@/services/newsletter.service";
+import { assertNewsletterSenderConfigured } from "@/services/newsletter-sending-domain.service";
 import {
   archiveTaskRecord,
   createTaskForActor,
@@ -363,12 +363,7 @@ export function scheduleNewsletterIssue(
           kind: CORE_API_ERROR_KINDS.NEWSLETTER_APPROVAL_REQUIRED,
         });
       }
-      if (!getEnv().NEWSLETTER_FROM_DOMAIN) {
-        throw conflict(
-          "NEWSLETTER_FROM_DOMAIN is required to send newsletters",
-          { kind: CORE_API_ERROR_KINDS.NEWSLETTER_SENDER_NOT_CONFIGURED },
-        );
-      }
+      await assertNewsletterSenderConfigured(issue.projectId, tx);
       const subscribers = await tx.newsletterSubscriber.count({
         where: { newsletterId: issue.newsletterId, status: "ACTIVE" },
       });

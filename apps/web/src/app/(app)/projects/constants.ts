@@ -1,6 +1,33 @@
-import type { GetJobsData, GetTasksData } from "@sokosumi/core-client";
+import type {
+  GetJobsData,
+  GetProjectsData,
+  GetTasksData,
+} from "@sokosumi/core-client";
 
 export const PROJECTS_PAGE_LIMIT = 20;
+
+/**
+ * The Projects list shows one state at a time, in `?state=`. Open is the
+ * default and covers closing and close-failed projects; only a finished close
+ * (`closedAt`) moves a project to Closed. Hidden is the reader's own Hidden
+ * projects (ADR 0036); one both Closed and Hidden lists under Closed.
+ */
+export const PROJECTS_LIST_STATES = [
+  "open",
+  "hidden",
+  "closed",
+] as const satisfies ReadonlyArray<
+  NonNullable<NonNullable<GetProjectsData["query"]>["state"]>
+>;
+export type ProjectsListState = (typeof PROJECTS_LIST_STATES)[number];
+
+/**
+ * Pinned projects lead the Open view. A Closed card has no Pin to sort by,
+ * and a Hidden project has none: hiding unpins it.
+ */
+export function projectsListStateQuery(state: ProjectsListState) {
+  return { state, pinnedFirst: state === "open" };
+}
 
 /**
  * Projects index + Instant shell. Keep app-main `p-4` with no extra page
@@ -26,36 +53,53 @@ export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
  */
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
-/** Toolbar shared by the Projects index and its loading shell. */
-export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
-  "flex items-center justify-end gap-3";
+/**
+ * Toolbar shared by the Projects index and its loading shell: search takes
+ * what the Open/Closed control and New project leave.
+ */
+export const PROJECTS_BROWSE_HEADER_ROW_CLASS = "flex items-center gap-3";
 
 /**
- * Card around the browse rows. Shared by live list and Instant skeleton.
- * Same `p-2` inset as the task list, Files and Transactions cards.
+ * Card around the browse grid. Shared by live list and Instant skeleton.
+ * Same `p-2` inset as the task list, Files and Transactions cards. It is the
+ * grid's size container, so columns follow the room the sidebar leaves.
  */
 export const PROJECTS_BROWSE_CARD_CLASS =
-  "bg-card-background overflow-hidden rounded-xl p-2";
+  "bg-card-background @container overflow-hidden rounded-xl p-2";
 
 /**
- * Stack of browse rows inside the card: separate row cards with a `gap-2`,
- * as the task list, Files and Transactions draw them.
+ * Grid of project cards inside the panel: one column on a phone, two from
+ * 36rem of panel, three from 56rem, so a card never drops below ~280px.
  */
-export const PROJECTS_BROWSE_LIST_CLASS = "flex flex-col gap-2";
+export const PROJECTS_BROWSE_LIST_CLASS =
+  "grid grid-cols-1 gap-2 @xl:grid-cols-2 @4xl:grid-cols-3";
 
 /**
- * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
- * (72px intrinsic).
+ * Card geometry shared by live `ProjectListItem` and the Instant skeleton
+ * (136px intrinsic: avatar row, two lines of briefing, footer).
  */
-export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
-  "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
+export const PROJECTS_CARD_LAYOUT_CLASS =
+  "[content-visibility:auto] [contain-intrinsic-size:auto_136px]";
 
 /**
- * Bordered row card shared by live `ProjectListItem` and the Instant skeleton,
+ * Bordered card shared by live `ProjectListItem` and the Instant skeleton,
  * as the task list draws its rows.
  */
-export const PROJECTS_LIST_ROW_CARD_CLASS =
+export const PROJECTS_CARD_CLASS =
   "bg-background border-border rounded-lg border";
+
+/** Rows each Workspace column panel loads, and shows beside the grid (`xl`). */
+export const WORKSPACE_COLUMN_ROWS = 5;
+
+/** Rows each panel shows while the column stacks above the grid (under `xl`). */
+export const WORKSPACE_COLUMN_STACKED_ROWS = 3;
+
+/**
+ * Workspace column beside the Open grid: stacked above it under `xl`, a
+ * 20rem column on its leading side from `xl`. Shared with the Instant shell.
+ */
+export const PROJECTS_OPEN_LAYOUT_CLASS =
+  "flex flex-col gap-5 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

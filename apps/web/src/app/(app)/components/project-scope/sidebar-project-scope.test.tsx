@@ -47,6 +47,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
 
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 import { SidebarProjectScope as SidebarTop } from "./sidebar-project-scope";
 import { SidebarScopeMobileChip as HeaderMobile } from "./sidebar-project-scope-mobile";
 
@@ -221,6 +222,40 @@ describe("sidebar project scope", () => {
     const { container } = renderHarness();
 
     expect(container.querySelector('[data-sidebar="separator"]')).toBeNull();
+  });
+
+  it("badges a Closed project on the title", async () => {
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() =>
+      expect(title()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(
+      within(title()).getByTestId("project-scope-closed-badge"),
+    ).toHaveTextContent("closed");
+  });
+
+  // In a chat room the chip, and its ×, give way to the room's toolbar.
+  it("clears the picked project with the title's ×, even in a chat room", async () => {
+    const user = userEvent.setup();
+    mocks.pathname = "/chat/room-1";
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    const clear = screen.getByTestId("project-scope-title-clear");
+    expect(clear).toHaveAccessibleName("clearProject");
+    await user.click(clear);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/chat/room-1");
+    expect(title()).toHaveFocus();
+  });
+
+  it("shows no × on the title in the workspace view", () => {
+    renderHarness();
+
+    expect(screen.queryByTestId("project-scope-title-clear")).toBeNull();
   });
 
   it("names the mobile title with the full scope label", async () => {

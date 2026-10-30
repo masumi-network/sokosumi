@@ -481,13 +481,15 @@ model Project {
   closeOperation   ProjectCloseOperation?
   events           ProjectEvent[]
   stars            ProjectStar[]
+  hides            ProjectHide[]
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
-  newsletter       Newsletter?
-  newsletterIssues NewsletterIssue[]
+  newsletter              Newsletter?
+  newsletterSendingDomain NewsletterSendingDomain?
+  newsletterIssues        NewsletterIssue[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -560,6 +562,29 @@ model ProjectStar {
   // non-leading FK.
   @@index([projectId])
   @@map("project_star")
+}
+
+/// One user's Hide on one project: the per-user opposite of a ProjectStar,
+/// personal and never shared, and membership does not change (ADR 0036).
+/// Hiding deletes the user's star on the project and starring deletes the
+/// hide, so the two never coexist. Reads drop a Hidden project from the
+/// Projects list's Open view, the Project switcher and Recent activity;
+/// Needs you ignores it.
+model ProjectHide {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  hiddenAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  // Same reason as ProjectStar: the unique key leads with userId.
+  @@index([projectId])
+  @@map("project_hide")
 }
 
 model ProjectSocialConnection {

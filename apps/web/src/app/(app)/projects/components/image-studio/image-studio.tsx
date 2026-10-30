@@ -878,11 +878,10 @@ export function ImageStudio({
             {t("pickForGeneration")}
           </p>
           <ProjectScopeMenu
-            includeWorkspace={false}
             onCreate={() => setCreatingProjectFor(awaitingProject)}
             onDone={() => setAwaitingProject(null)}
             onSelect={(picked) => {
-              if (picked && awaitingProject) {
+              if (awaitingProject) {
                 setPickedProjectId(picked);
                 sendTo(picked, awaitingProject);
               }

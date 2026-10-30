@@ -59,6 +59,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: m.update,
     },
     newsletterEvent: { create: m.eventCreate },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
 }));
@@ -205,7 +206,7 @@ describe("public newsletter signup", () => {
     const [email] = m.send.mock.calls[0]!;
     expect(email).toMatchObject({
       to: "reader@example.com",
-      from: '"Ada" <newsletter@news.example.com>',
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
       replyTo: "ada@example.com",
       subject: "Confirm your subscription to Weekly News",
       headers: { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
@@ -216,7 +217,7 @@ describe("public newsletter signup", () => {
       "https://core.example.com/v1/public/newsletter/unsubscribe?token=",
     );
     const link = email.html.match(
-      /href="(https:\/\/core.example.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
+      /href="(https:\/\/core\.example\.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
     )?.[1];
     expect(link).toBeDefined();
     const token = new globalThis.URL(link!).searchParams.get("token")!;

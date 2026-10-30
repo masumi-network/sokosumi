@@ -29,6 +29,12 @@ enum NewsletterSendStatus {
   FAILED
 }
 
+enum NewsletterSendingDomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
 enum NewsletterEventType {
   DELIVERED
   OPENED
@@ -216,4 +222,26 @@ model NewsletterEvent {
   @@index([subscriberId], map: "newsletter_event_subscriberId_idx")
   @@index([sendId], map: "newsletter_event_sendId_idx")
   @@map("newsletter_event")
+}
+
+/// The Project's own From address. Only this Project's newsletter sends from it once Resend verifies its domain.
+model NewsletterSendingDomain {
+  id        String   @id(map: "newsletter_sending_domain_pkey") @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @unique(map: "newsletter_sending_domain_projectId_key") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "newsletter_sending_domain_projectId_fkey")
+
+  /// Lowercased. Unique because one Resend account holds a domain only once.
+  domain         String                        @unique(map: "newsletter_sending_domain_domain_key")
+  fromAddress    String
+  resendDomainId String                        @unique(map: "newsletter_sending_domain_resendDomainId_key")
+  status         NewsletterSendingDomainStatus @default(PENDING)
+  /// The DNS records Resend asks for: record, type, name, value, ttl, priority, status.
+  dnsRecords     Json                          @default("[]")
+  lastCheckedAt  DateTime?
+  failureReason  String?
+
+  @@map("newsletter_sending_domain")
 }
