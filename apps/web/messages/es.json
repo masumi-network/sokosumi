@@ -9032,6 +9032,8 @@
           "redo": "Rehacer animación",
           "retry": "Intentar de nuevo",
           "redoing": "Creándola…",
+          "drawing": "Dibujando…",
+          "animating": "Animando…",
           "redoError": "No se pudo rehacer esta animación. Inténtalo de nuevo.",
           "redoLimit": "Hoy has rehecho muchas animaciones. Inténtalo de nuevo mañana.",
           "redoBusy": "Esa animación aún se está creando.",

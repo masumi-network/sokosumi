@@ -293,12 +293,14 @@ export function AvatarStudio({
     }
   }
   const pickedAssets = studio.avatar?.states[pick.state] ?? null;
+  const pickedMaking = isMaking(pick.state);
+  // A first loop still on its way has nothing to redo yet; its tile says so.
   const canRedo =
     draft === null &&
     isCraftedAvatar(studio.avatar) &&
     studio.progress.total > 0 &&
-    pickedAssets !== null;
-  const pickedMaking = isMaking(pick.state);
+    pickedAssets !== null &&
+    (!pickedMaking || pick.state in redoing);
 
   const crafted = draft !== null || isCraftedAvatar(studio.avatar);
   const sources = avatarSources(
@@ -566,6 +568,13 @@ export function AvatarStudio({
                 {STATES.map((state) => {
                   const still = studio.avatar?.states[state]?.stillUrl ?? null;
                   const selected = !draft && pick.state === state;
+                  // While the look renders: no still yet, or a still whose loop is on its way.
+                  const progress =
+                    draft || !isMaking(state)
+                      ? null
+                      : still
+                        ? t("animating")
+                        : t("drawing");
                   return (
                     <button
                       key={state}
@@ -575,11 +584,15 @@ export function AvatarStudio({
                       onClick={() =>
                         setPick((prev) => ({ state, n: prev.n + 1 }))
                       }
-                      className="focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2 disabled:opacity-40"
+                      className={cn(
+                        "focus-visible:ring-ring flex flex-col items-center gap-1.5 rounded-lg outline-none focus-visible:ring-2",
+                        !progress && "disabled:opacity-40",
+                      )}
                     >
                       <span
                         className={cn(
                           "bg-muted border-border block aspect-square w-full overflow-hidden rounded-lg border",
+                          !still && progress && "motion-safe:animate-pulse",
                           selected &&
                             "ring-foreground ring-offset-background ring-2 ring-offset-2",
                         )}
@@ -588,7 +601,10 @@ export function AvatarStudio({
                           <img
                             src={still}
                             alt=""
-                            className="size-full object-cover"
+                            className={cn(
+                              "size-full object-cover transition-opacity duration-200",
+                              progress && "opacity-60",
+                            )}
                           />
                         ) : null}
                       </span>
@@ -600,9 +616,9 @@ export function AvatarStudio({
                       >
                         {stateLabel(state)}
                       </span>
-                      {state in redoing && isMaking(state) ? (
+                      {progress ? (
                         <span className="text-muted-foreground text-2xs">
-                          {t("redoing")}
+                          {progress}
                         </span>
                       ) : null}
                     </button>

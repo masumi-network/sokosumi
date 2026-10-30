@@ -335,6 +335,61 @@ describe("AvatarStudio", () => {
     expect(screen.getByRole("button", { name: "label.done" })).toBeDisabled();
   });
 
+  it("shows which states are being drawn and which animated while a look renders", () => {
+    renderStudio({
+      ...studio,
+      avatar: {
+        ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+        states: {
+          ...NO_STATES,
+          idle: assets("idle"),
+          working: {
+            stillUrl: "https://blob/working.png",
+            loopUrl: null,
+            loopLargeUrl: null,
+          },
+        },
+      },
+      progress: { ready: 1, failed: 0, total: 6 },
+    });
+
+    const tile = (state: string) =>
+      screen.getByRole("button", { name: new RegExp(`label\\.${state}`) });
+    // Its still is in: it can be picked while its loop is made.
+    expect(tile("working")).toBeEnabled();
+    expect(tile("working")).toHaveTextContent("animating");
+    // No still yet: nothing to pick.
+    expect(tile("done")).toBeDisabled();
+    expect(tile("done")).toHaveTextContent("drawing");
+    expect(tile("idle")).not.toHaveTextContent(/drawing|animating/);
+  });
+
+  it("offers no redo for a state making its first loop", () => {
+    renderStudio({
+      ...studio,
+      avatar: {
+        ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+        states: {
+          ...NO_STATES,
+          idle: {
+            stillUrl: "https://blob/idle.png",
+            loopUrl: null,
+            loopLargeUrl: null,
+          },
+        },
+      },
+      progress: { ready: 0, failed: 0, total: 6 },
+    });
+    expect(
+      screen.queryByRole("button", { name: /redo|retry|redoing/ }),
+    ).toBeNull();
+  });
+
+  it("says nothing is being made once every state is in", () => {
+    renderStudio();
+    expect(screen.queryByText(/drawing|animating/)).toBeNull();
+  });
+
   describe("a picked state", () => {
     const video = () => document.querySelector("video");
 
@@ -466,7 +521,9 @@ describe("AvatarStudio", () => {
         state: "working",
       });
       // The tile and the button both say so; the old loop is not touched.
-      expect(screen.getAllByText("redoing")).toHaveLength(2);
+      expect(
+        screen.getByRole("button", { name: /label\.working/ }),
+      ).toHaveTextContent("animating");
       expect(screen.getByRole("button", { name: "redoing" })).toBeDisabled();
     });
 
@@ -508,7 +565,7 @@ describe("AvatarStudio", () => {
       });
 
       expect(fetchMock).toHaveBeenCalledOnce();
-      expect(screen.queryByText("redoing")).toBeNull();
+      expect(screen.queryByText(/redoing|animating/)).toBeNull();
       expect(video()).toHaveAttribute(
         "src",
         "https://blob/working-new-960.mp4",

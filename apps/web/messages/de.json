@@ -9032,6 +9032,8 @@
           "redo": "Animation neu erstellen",
           "retry": "Erneut versuchen",
           "redoing": "Wird erstellt…",
+          "drawing": "Wird gezeichnet…",
+          "animating": "Wird animiert…",
           "redoError": "Die Animation konnte nicht neu erstellt werden. Versuch es erneut.",
           "redoLimit": "Du hast heute schon viele Animationen neu erstellt. Versuch es morgen wieder.",
           "redoBusy": "Diese Animation wird noch erstellt.",

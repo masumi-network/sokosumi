@@ -9032,6 +9032,8 @@
           "redo": "Redo animation",
           "retry": "Try again",
           "redoing": "Making…",
+          "drawing": "Drawing…",
+          "animating": "Animating…",
           "redoError": "Could not redo this animation. Try again.",
           "redoLimit": "You have redone a lot of animations today. Try again tomorrow.",
           "redoBusy": "That animation is still being made.",
