@@ -144,14 +144,6 @@ export function getTaskStatusDotColorClass(status: TaskStatus): string {
   return getToneStyle(getTaskStatusMarker(status).tone).dot;
 }
 
-export function getTaskStatusBorderColorClass(status: TaskStatus): string {
-  if (status === TaskStatus.COMPLETED) {
-    return "border-semantic-success-tertiary";
-  }
-
-  return "border-border";
-}
-
 function getTaskStatusLabel(status: TaskStatus): string {
   return STATUS_LABELS[status] ?? "Unknown";
 }
@@ -228,7 +220,7 @@ export function TaskStatusInline({
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium transition-colors duration-200",
-        style.labelOnSurface,
+        "text-foreground",
         className,
       )}
     >

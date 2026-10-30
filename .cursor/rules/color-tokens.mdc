@@ -10,12 +10,12 @@ Every color in `apps/web` product UI comes from a token in
 `apps/web/src/app/globals.css`. Components name a role. They never name a
 value.
 
-One exception, and it is not product UI: the staff-only design system preview
-at `/admin/design-system` (SOKD-120). It previews the Masumi Family brand
-guide before `globals.css` migrates, so it redefines the role tokens inside
-its own wrapper in `src/app/(app)/admin/design-system/design-system.css`, and
-its brand values live once in `tokens.ts` beside it. Never copy either into
-product code. When the app migrates, those files are deleted.
+The values follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide)
+(section 5.2). Iris Flower `--primary` is a fill that carries Neutral 950
+text; it is never text, a border or a thin mark on the page, where it
+measures 2.67:1. The staff-only preview at `/admin/design-system` paints the
+guide's raw swatches from `tokens.ts` beside it; that table is not product UI
+and its values are never copied into components.
 
 Three things are banned. Each has one replacement.
 
@@ -31,27 +31,35 @@ same class produces a different rendered color on a card than on the page.
 
 Use the step token instead. Each step is the base color composited once
 against the page ground and then frozen as an opaque value, so it renders the
-same shade on a card as on the page:
+same shade on a card as on the page. The neutral ramps carry the steps:
 
 | Step | Role |
 | --- | --- |
-| `-tertiary` | border or divider tint |
-| `-quaternary` | hover or pressed fill |
-| `-quinary` | resting fill, badge background |
+| `--border` | border or divider |
+| `--quaternary` | hover or pressed fill |
+| `--quinary` | resting fill, badge background |
+| `--muted` | quiet tint, the lightest step |
 
-The four semantic ramps carry all three plus a `-foreground` for a label on the
-solid fill. The `status-*` ramps carry the base and `-quaternary`, which is what
-a badge needs: a vivid glyph and a tinted pill.
+The status colours carry no steps. Done green (`--semantic-success`), input
+required Golden Yellow (`--semantic-warning`, `--risk-high`) and in progress
+Iris (`--status-working`) measure 2.00, 1.44 and 2.67:1 on white, so they are
+**fills only**: a small disc or bar, with a `-foreground` glyph or label on it
+(`--semantic-success-foreground`, `--semantic-warning-foreground`, Neutral
+950), the way `StatusMarker` draws them. They are never text, an icon colour or
+a border. The chip around a status is neutral (`bg-quinary`, `bg-muted`,
+`border-border`), and its words are `text-foreground`; the word or the glyph
+shape carries the meaning, so colour never does alone.
 
-Six ramps carry one more step, `-label`, for the status badge. The base of a
-ramp is tuned to 3:1, which is what a glyph needs. Badge text is `text-xs`, so
-it is normal text and needs 4.5:1 on the same tint, and on several roles the
-base misses it. `-label` is the same hue at the lightness that clears it.
+A fault and every destructive role is the X: `--semantic-destructive` is
+Neutral 950 (Neutral 50 in dark), so `text-semantic-destructive` is legal and
+reads as plain foreground text. `--semantic-destructive-solid` is the matching
+fill under a `--semantic-destructive-foreground` label.
 
-`--semantic-destructive` splits in two. `--semantic-destructive-solid` is the
-fill that carries a near-white label, and `--semantic-destructive` is the red
-that reads as text on the page. In dark mode those pull opposite ways, so one
-token cannot do both: white on the text red measures 3.43, under the 4.5 floor.
+`src-walk-guards.test.ts` enforces this: it fails on `text-`, `border-`,
+`ring-`, `fill-`, `stroke-`, `decoration-`, `outline-` or `divide-` followed by
+`semantic-success`, `semantic-warning`, `status-working` or `risk-high`, with
+any variant prefix. `bg-semantic-success` and `text-semantic-success-foreground`
+stay legal. The design system preview is exempt.
 
 The rule is absolute. A modifier on any colour utility is a bug, including on
 the neutrals, and `src-walk-guards.test.ts` fails on it.
@@ -61,17 +69,14 @@ the token, not at the call site:
 
 | Token | Role |
 | --- | --- |
-| `--overlay` | scrim behind a dialog, or under the mobile chrome; always with a backdrop blur |
+| `--overlay` | Alpha 50 scrim behind a dialog; pair with an opaque panel, not a blur |
 | `--overlay-primary` | drop-target wash over content that must stay readable |
-| `--surface-glass` | floating chip or control over content |
-| `--surface-sticky` | header that sits on the page |
 | `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
 | `--on-media`, `--on-media-muted` | label riding on a scrim |
 | `--on-media-tertiary` | hairline, ring or border drawn on media |
 | `--on-media-quaternary` | hover wash under a control on media |
 | `--media-ground` | the opaque ground behind media, and ink on light media |
 | `--background-muted` | quieter label on an inverted (`bg-foreground`) surface |
-| `--ring-halo`, `--destructive-halo` | the soft glow outside a focus ring |
 
 The `on-media` family is the one place a name has tripped people up. `-muted`
 is a *label*, at 85% white. The hairline and the wash are `-tertiary` and
@@ -83,7 +88,7 @@ pill and swallows the white icon on top of it.
 <div className="border-semantic-success/20 bg-semantic-success/5" />
 
 // Do
-<div className="border-semantic-success-tertiary bg-semantic-success-quinary" />
+<div className="border-border bg-muted" />
 ```
 
 If no step fits the role, add one to `globals.css` in **both** theme blocks and
@@ -102,17 +107,19 @@ The palette is a second color system running beside the tokens. It produced
 two different greens for "succeeded" on adjacent screens, because one badge
 reached for `emerald` and another for `green`.
 
-Map the meaning to a semantic ramp: `--semantic-success`,
-`--semantic-warning`, `--semantic-destructive`, `--semantic-info`. Map neutrals
-to `--foreground`, `--muted-foreground`, `--border`, `--background`, `--card`.
+Map a status to its fill (`--semantic-success`, `--semantic-warning`,
+`--semantic-destructive-solid`, `--status-working`) and its `-foreground`. Map
+text, icons and edges to the neutrals: `--foreground`, `--muted-foreground`,
+`--border`, `--background`, `--card`.
 
 `bg-black` and `text-white` count as raw palette too. A literal cannot follow
 the theme, and for media UI, where the ground really is theme-independent, the
 `--media-ground` and `--on-media` tokens say so by name.
 
 `--border` and `--input` are two roles, not one value. `--border` is the quiet
-divider at 1.61 against the page. `--input` is the control boundary at 3.0,
-which is what WCAG 2.2 SC 1.4.11 asks of a non-text control.
+divider (Neutral 200). `--input` is the field boundary at Neutral 500, 4.74:1
+on the page, past the 3:1 WCAG 2.2 SC 1.4.11 asks of a non-text control; the
+guide's Neutral 300 measures 1.48.
 That 3:1 is for fields, whose edge is the only thing that marks them. A
 labelled control (outline button, toggle, trigger, option card) is named by its
 label or icon, so it takes the soft `--control-border` instead, the brand's
@@ -136,7 +143,7 @@ pickers are data, not UI color. Those keep their literals.
 
 ### Adding a token
 
-1. Check an existing ramp does not already serve the role. Nine greens at hue
+1. Check an existing role does not already serve it. Nine greens at hue
    142 all meant "good" before this rule existed.
 2. Declare it in **both** `:root` and `.dark`. A token declared in `@theme`
    cannot be themed.
@@ -151,7 +158,7 @@ pickers are data, not UI color. Those keep their literals.
 ### Guard
 
 `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails the build on
-five things. Each is its own test case, and a call-site failure prints the
+eight things. Each is its own test case, and a call-site failure prints the
 file, the line number, and the offending line:
 
 1. A raw Tailwind palette class on any colour utility, `ring-offset` included.
@@ -161,6 +168,15 @@ file, the line number, and the offending line:
 3. A colour literal in a component.
 4. A bridged token that nothing defines.
 5. A token defined in one theme block but not the other.
+6. A fill-only status colour (`semantic-success`, `semantic-warning`,
+   `status-working`, `risk-high`) used as text or an edge.
+7. A `backdrop-blur` or `blur-*` utility anywhere in `src`. The guide bans glow
+   and blur (5.5); an overlay is the `--overlay` scrim, nothing more.
+8. A text or edge use of the primary (`text-` / `border-` / `ring-` / `fill-` /
+   `stroke-` / `decoration-` / `outline-` / `caret-` / `divide-primary…`). Iris
+   Flower is fill-only; thin marks and labels take a foreground role. Fill-side
+   steps (`text-primary-foreground`, `border-primary-tertiary`,
+   `bg-primary-solid`) stay legal.
 
 A hex counts only when it is quote-delimited or sits inside an arbitrary
 Tailwind value, so an issue number in a comment is not a color. The allowlist

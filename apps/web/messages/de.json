@@ -6163,15 +6163,12 @@
       },
       "DesignSystem": {
         "title": "Designsystem",
-        "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten. Nur Vorschau: Die App nutzt weiterhin ihre aktuellen Tokens.",
+        "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten und den Tokens der App. Für den Dunkelmodus das Theme der App umstellen.",
         "guideLink": "Markenrichtlinie",
         "backToAdmin": "Zurück zum Admin",
         "Theme": {
-          "label": "Vorschau-Theme",
           "light": "Hell",
-          "dark": "Dunkel",
-          "darkNote": "Die Dunkelwerte sind in der Richtlinie noch offen. Diese Vorschau folgt ihrer Rollentabelle.",
-          "limitsNote": "Dialog- und Toast-Beispiele sind statisch: Portale liegen außerhalb der Tokens dieser Seite. Beurteile die helle Vorschau mit der App im hellen Modus — dark:-Styles folgen jedem .dark-Vorfahren."
+          "dark": "Dunkel"
         },
         "Color": {
           "title": "Farbe",

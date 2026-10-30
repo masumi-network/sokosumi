@@ -73,7 +73,7 @@ function SearchPreview({
           </p>
         </div>
       </div>
-      <p className="text-primary mt-2 text-lg leading-snug text-pretty">
+      <p className="text-foreground mt-2 text-lg leading-snug text-pretty">
         {ad.headline}
       </p>
       <p className="text-muted-foreground text-sm text-pretty">
@@ -87,7 +87,7 @@ function SearchPreview({
       {ad.sitelinks.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
           {ad.sitelinks.map((text, index) => (
-            <li key={`${index}:${text}`} className="text-primary text-sm">
+            <li key={`${index}:${text}`} className="text-foreground text-sm">
               {text}
             </li>
           ))}
@@ -159,7 +159,7 @@ function DisplayPreview({
               <span className="text-muted-foreground truncate text-xs">
                 {ad.businessName || ad.domain}
               </span>
-              <span className="text-primary text-sm font-medium">
+              <span className="text-foreground text-sm font-medium">
                 {t("open")}
               </span>
             </div>

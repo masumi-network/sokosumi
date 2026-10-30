@@ -63,7 +63,7 @@ export function SokoBotKillSwitch({
 
   if (availability.disabled) {
     return (
-      <div className="border-semantic-destructive-tertiary bg-semantic-destructive-quinary flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+      <div className="border-border bg-muted flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
         <div className="space-y-1">
           <p className="text-sm font-medium">{t("offTitle")}</p>
           <p className="text-muted-foreground text-xs">

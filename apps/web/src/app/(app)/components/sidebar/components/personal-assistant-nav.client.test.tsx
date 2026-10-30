@@ -221,11 +221,11 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
   // the sidebar as on its console: paused waits on someone (warning), not
   // muted, and an idle bot is at rest, not a success.
   it.each([
-    [SokoBotStatus.RUNNING, "status-working"],
-    [SokoBotStatus.PAUSED, "semantic-warning"],
-    [SokoBotStatus.ERROR, "semantic-destructive"],
-    [SokoBotStatus.IDLE, "muted-foreground"],
-  ])("paints a %s bot's dot and line in the badge's tone", (status, hue) => {
+    [SokoBotStatus.RUNNING, "status-working", "foreground"],
+    [SokoBotStatus.PAUSED, "semantic-warning", "foreground"],
+    [SokoBotStatus.ERROR, "semantic-destructive", "foreground"],
+    [SokoBotStatus.IDLE, "muted-foreground", "muted-foreground"],
+  ])("paints a %s bot's dot in the badge's tone", (status, hue, text) => {
     const { container } = renderNav({ bot: { ...bot, status } });
 
     expect(
@@ -233,7 +233,7 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     ).toHaveClass(`bg-${hue}`);
     expect(
       container.querySelector('[data-slot="soko-bot-status-line"]')?.className,
-    ).toMatch(new RegExp(`\\btext-${hue}(-label)?\\b`));
+    ).toMatch(new RegExp(`(^|\\s)text-${text}(\\s|$)`));
   });
 
   it("says when an idle bot was last active, in the reader's locale", () => {

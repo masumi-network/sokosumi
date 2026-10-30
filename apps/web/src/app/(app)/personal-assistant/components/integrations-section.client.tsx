@@ -193,10 +193,10 @@ function Tile({
       className={cn(
         "group focus-visible:ring-ring relative flex size-full flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
         broken
-          ? "border-semantic-destructive-tertiary bg-semantic-destructive-quinary hover:bg-semantic-destructive-quaternary"
+          ? "border-border bg-muted hover:bg-quinary"
           : active
-            ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
-            : "press hover:border-primary-tertiary hover:bg-primary-quinary",
+            ? "border-border bg-muted hover:bg-quinary"
+            : "press hover:border-border hover:bg-muted",
       )}
     >
       <StatusDot
@@ -206,7 +206,7 @@ function Tile({
       {logoUrl ? (
         <img src={logoUrl} alt="" className="size-8 rounded object-contain" />
       ) : (
-        <span className="bg-primary-quinary text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
+        <span className="bg-muted text-foreground inline-flex size-8 items-center justify-center rounded text-sm font-medium">
           {name.slice(0, 1).toUpperCase()}
         </span>
       )}
@@ -214,7 +214,7 @@ function Tile({
       <span className="text-muted-foreground line-clamp-1 w-full text-2xs group-hover:hidden group-focus-visible:hidden">
         {caption ?? "\u00a0"}
       </span>
-      <span className="text-primary hidden w-full truncate text-2xs group-hover:block group-focus-visible:block">
+      <span className="text-foreground hidden w-full truncate text-2xs group-hover:block group-focus-visible:block">
         {actionLabel}
       </span>
     </button>

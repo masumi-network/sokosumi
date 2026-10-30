@@ -6199,15 +6199,12 @@
       },
       "DesignSystem": {
         "title": "Design system",
-        "description": "Masumi Family brand and UI rules, rendered with our real components. Preview only: the app still uses its current tokens.",
+        "description": "Masumi Family brand and UI rules, rendered with our real components and the app's own tokens. Switch the app theme to see dark.",
         "guideLink": "Brand guide",
         "backToAdmin": "Back to admin",
         "Theme": {
-          "label": "Preview theme",
           "light": "Light",
-          "dark": "Dark",
-          "darkNote": "Dark values are still open in the guide. This follows its best-case role table.",
-          "limitsNote": "Dialog and toast specimens are static: portals escape this page's tokens. Judge the light preview with the app in light mode — components' dark: styles follow any .dark ancestor."
+          "dark": "Dark"
         },
         "Color": {
           "title": "Color",

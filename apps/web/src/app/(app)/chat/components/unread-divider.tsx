@@ -19,16 +19,16 @@ export function UnreadDivider({ dayLabel }: UnreadDividerProps) {
   const t = useTranslations("App.Channels");
   return (
     <div className="flex items-center gap-2 pt-2 pb-1">
-      <span aria-hidden className="bg-primary h-px flex-1" />
+      <span aria-hidden className="bg-foreground h-px flex-1" />
       {dayLabel ? <DayPill>{dayLabel}</DayPill> : null}
-      <span aria-hidden className="text-primary text-xs font-semibold">
+      <span aria-hidden className="text-foreground text-xs font-semibold">
         {t("UnreadDivider.label")}
       </span>
       {/* The separator is the line itself, so the day label stays readable. */}
       <span
         role="separator"
         aria-label={t("UnreadDivider.accessibleName")}
-        className="bg-primary h-px flex-1"
+        className="bg-foreground h-px flex-1"
       />
     </div>
   );

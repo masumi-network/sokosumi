@@ -63,7 +63,7 @@ const CHIP_ICONS: Record<ChatSignalChip, typeof Gavel> = {
 
 /** Only these two draw in colour: one is the reader, one is a customer. */
 function chipTone(chip: ChatSignalChip): string {
-  if (chip === "needsYou") return "bg-primary-quaternary text-primary-variant";
+  if (chip === "needsYou") return "bg-quinary text-foreground";
   if (chip === "escalation" || chip === "urgent")
     return "bg-muted text-destructive";
   return "bg-muted text-muted-foreground";
@@ -265,7 +265,7 @@ function TextAction({
     <button
       type="button"
       onClick={onClick}
-      className="text-primary-variant h-6 rounded-md px-1.5 text-xs font-medium hover:underline"
+      className="text-foreground h-6 rounded-md px-1.5 text-xs font-medium underline underline-offset-4"
     >
       {children}
     </button>
@@ -363,7 +363,7 @@ function HandOffPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="text-primary-variant h-6 rounded-md px-1.5 text-xs font-medium hover:underline"
+          className="text-foreground h-6 rounded-md px-1.5 text-xs font-medium underline underline-offset-4"
           data-testid="message-signal-hand-off"
         >
           {t("handOff")}
@@ -416,7 +416,7 @@ function HandOffPopover({
             <li>
               <button
                 type="button"
-                className="hover:bg-muted text-primary-variant w-full rounded-md px-2 py-1.5 text-start text-sm font-medium"
+                className="hover:bg-muted text-foreground w-full rounded-md px-2 py-1.5 text-start text-sm font-medium"
                 onClick={() => {
                   setOpen(false);
                   onPick();
