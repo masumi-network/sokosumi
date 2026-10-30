@@ -25,6 +25,9 @@ const m = vi.hoisted(() => {
   return {
     state,
     findSend: vi.fn(),
+    findDomain: vi.fn(),
+    countSends: vi.fn(),
+    updateDomain: vi.fn(),
     createEvents: vi.fn(),
     updateSubscriber: vi.fn(),
     transaction: vi.fn(),
@@ -46,7 +49,11 @@ vi.mock("@/lib/auth", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    newsletterSend: { findUnique: m.findSend },
+    newsletterSend: { findUnique: m.findSend, count: m.countSends },
+    newsletterSendingDomain: {
+      findUnique: m.findDomain,
+      updateMany: m.updateDomain,
+    },
     $transaction: m.transaction,
   },
 }));
@@ -117,8 +124,11 @@ beforeEach(() => {
     id: SEND_ID,
     issueId: NEWSLETTER_ISSUE_ID,
     subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+    sendingDomainId: null,
     issue: { newsletterId: NEWSLETTER_ID },
   });
+  m.findDomain.mockResolvedValue(null);
+  m.countSends.mockResolvedValue(0);
   m.createEvents.mockImplementation(
     ({ data }: { data: Prisma.NewsletterEventCreateManyInput }) => {
       if (
@@ -314,6 +324,7 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
           sendId: SEND_ID,
           type,
           url: type === "CLICKED" ? link : undefined,
+          bounceType: undefined,
           occurredAt: new Date(OCCURRED_AT),
           providerEventId: "msg_newsletter_event",
         },
@@ -562,5 +573,144 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
         "503": expect.any(Object),
       },
     });
+  });
+});
+
+describe("newsletter sending-domain webhook health", () => {
+  function customDomainSend() {
+    m.findSend.mockResolvedValue({
+      id: SEND_ID,
+      issueId: NEWSLETTER_ISSUE_ID,
+      subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+      sendingDomainId: "domain_1",
+      issue: { newsletterId: NEWSLETTER_ID },
+    });
+    m.findDomain.mockResolvedValue({
+      id: "domain_1",
+      status: "VERIFIED",
+      warmupStartedAt: new Date("2026-10-22T00:00:00Z"),
+      warmupPausedAt: null,
+    });
+  }
+
+  it("pauses an attributed custom domain after a real hard bounce crosses the rate", async () => {
+    customDomainSend();
+    m.countSends
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(0);
+    const response = await app().request(
+      URL,
+      signedRequest(
+        JSON.stringify(
+          payload("email.bounced", { bounce: { type: " Permanent " } }),
+        ),
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(m.state.events[0]?.bounceType).toBe("permanent");
+    expect(m.updateDomain).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          warmupPausedAt: NEWSLETTER_NOW,
+          warmupPauseReason: "BOUNCE_RATE",
+        },
+      }),
+    );
+  });
+
+  it("pauses on a complaint and retries health after a duplicate webhook", async () => {
+    customDomainSend();
+    m.countSends.mockImplementation(({ where }) =>
+      where.events?.some.type === "COMPLAINED" ? 1 : where.events ? 0 : 50,
+    );
+    m.updateDomain
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({ count: 1 });
+    const server = app();
+    const request = () =>
+      signedRequest(JSON.stringify(payload("email.complained")));
+    expect((await server.request(URL, request())).status).toBe(500);
+    expect((await server.request(URL, request())).status).toBe(200);
+    expect(m.state.events).toHaveLength(1);
+    expect(m.updateSubscriber).toHaveBeenCalledOnce();
+    expect(m.updateDomain).toHaveBeenCalledTimes(2);
+    expect(m.updateDomain.mock.lastCall?.[0].data.warmupPauseReason).toBe(
+      "COMPLAINT_RATE",
+    );
+  });
+
+  it("reassesses an early complaint when deliveries grow the attempt sample to fifty", async () => {
+    customDomainSend();
+    m.countSends
+      .mockResolvedValueOnce(20)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+    const server = app();
+    expect(
+      (
+        await server.request(
+          URL,
+          signedRequest(JSON.stringify(payload("email.complained")), {
+            id: "early-complaint",
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.updateDomain).not.toHaveBeenCalled();
+    expect(
+      (
+        await server.request(
+          URL,
+          signedRequest(JSON.stringify(payload("email.delivered")), {
+            id: "later-delivery",
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.updateDomain.mock.lastCall?.[0].data.warmupPauseReason).toBe(
+      "COMPLAINT_RATE",
+    );
+  });
+
+  it("preserves a soft bounce without counting it as a permanent bounce", async () => {
+    customDomainSend();
+    m.countSends
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    expect(
+      (
+        await app().request(
+          URL,
+          signedRequest(
+            JSON.stringify(
+              payload("email.bounced", { bounce: { type: "Soft" } }),
+            ),
+          ),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.state.events[0]?.bounceType).toBe("soft");
+    expect(m.updateDomain).not.toHaveBeenCalled();
+    expect(
+      m.countSends.mock.calls[1]?.[0].where.events.some.bounceType,
+    ).toEqual({ in: ["permanent", "hard"] });
+  });
+
+  it("skips shared fallback sends even if the workspace now has a custom domain", async () => {
+    expect(
+      (
+        await app().request(
+          URL,
+          signedRequest(JSON.stringify(payload("email.complained"))),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.findDomain).not.toHaveBeenCalled();
+    expect(m.countSends).not.toHaveBeenCalled();
   });
 });

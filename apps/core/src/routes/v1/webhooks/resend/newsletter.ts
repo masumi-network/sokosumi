@@ -13,6 +13,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook } from "@/lib/hono";
 import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
+import { pauseNewsletterSendingDomainIfUnhealthy } from "@/services/newsletter-sending-domain-warmup.service";
 
 const EVENT_TYPES = new Map<string, NewsletterEventType>([
   ["email.delivered", "DELIVERED"],
@@ -91,6 +92,7 @@ app.openapi(route, async (c) => {
       id: true,
       issueId: true,
       subscriberId: true,
+      sendingDomainId: true,
       issue: { select: { newsletterId: true } },
     },
   });
@@ -109,6 +111,7 @@ app.openapi(route, async (c) => {
     return ok(c, { received: true });
   }
 
+  const bounceType = data.bounce?.type?.trim().toLowerCase();
   await prisma.$transaction(async (tx) => {
     // Insert first so a duplicate never repeats subscriber side effects.
     const { count } = await tx.newsletterEvent.createMany({
@@ -119,6 +122,7 @@ app.openapi(route, async (c) => {
         sendId: send.id,
         type,
         url: type === "CLICKED" ? data.click?.link : undefined,
+        bounceType: type === "BOUNCED" ? bounceType : undefined,
         occurredAt,
         providerEventId: id,
       },
@@ -126,7 +130,6 @@ app.openapi(route, async (c) => {
     });
     if (!count) return;
 
-    const bounceType = data.bounce?.type?.trim().toLowerCase();
     const permanentBounce =
       type === "BOUNCED" &&
       (bounceType === undefined ||
@@ -148,6 +151,13 @@ app.openapi(route, async (c) => {
       });
     }
   });
+  if (
+    send.sendingDomainId &&
+    ["BOUNCED", "COMPLAINED", "DELIVERED"].includes(type)
+  ) {
+    // Re-evaluate duplicates too, so a failed assessment is retried by Resend.
+    await pauseNewsletterSendingDomainIfUnhealthy(send.sendingDomainId);
+  }
   return ok(c, { received: true });
 });
 
