@@ -88,27 +88,50 @@ type ChatRoomPresence = "online" | "afk" | "offline";
 export function membershipVisibleActiveRoomWhere(
   organizationId: string | null | undefined,
 ) {
-  const shownEverywhere = [
-    { kind: "channel" as const, discoverability: "external" as const },
-    {
-      organizationId: null,
-      kind: "channel" as const,
-      discoverability: "matched" as const,
-    },
-    {
-      organizationId: null,
-      kind: "direct" as const,
-      coworkerMembers: { none: {} },
-      sokoBotMembers: { none: {} },
-    },
-  ];
   return {
     archivedAt: null,
     OR: [
       organizationId
         ? { organizationId }
         : { organizationId: null, kind: "direct" as const },
-      ...shownEverywhere,
+      ...ROOMS_SHOWN_EVERYWHERE,
+    ],
+  };
+}
+
+const ROOMS_SHOWN_EVERYWHERE = [
+  { kind: "channel" as const, discoverability: "external" as const },
+  {
+    organizationId: null,
+    kind: "channel" as const,
+    discoverability: "matched" as const,
+  },
+  {
+    organizationId: null,
+    kind: "direct" as const,
+    coworkerMembers: { none: {} },
+    sokoBotMembers: { none: {} },
+  },
+];
+
+/**
+ * The live rooms another workspace shows and this one's sidebar does not: the
+ * complement of `membershipVisibleActiveRoomWhere` (ADR-0061). The caller adds
+ * the membership check.
+ *
+ * Not a `NOT` over that filter's `OR`: `organizationId` is nullable, and SQL's
+ * `NOT (NULL = 'org')` is not true, so it would drop every personal room.
+ */
+export function elsewhereActiveRoomWhere(
+  organizationId: string | null | undefined,
+) {
+  return {
+    archivedAt: null,
+    AND: [
+      organizationId
+        ? { OR: [{ organizationId: null }, { NOT: { organizationId } }] }
+        : { NOT: { organizationId: null, kind: "direct" as const } },
+      { NOT: { OR: ROOMS_SHOWN_EVERYWHERE } },
     ],
   };
 }

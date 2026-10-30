@@ -18,8 +18,12 @@ interface UseChatRefreshSchedulerOptions {
   refresh: (isCurrent: () => boolean) => Promise<void>;
   /** Realtime is delivering for this data set; picks the recovery cadence. */
   healthy: boolean;
-  /** Poll cadence while unhealthy (the pre-SOK-986 interval). */
-  fallbackIntervalMs: number;
+  /**
+   * Poll cadence while unhealthy (the pre-SOK-986 interval). Left out, the data
+   * set has no timer at all and reads only when asked: on mount, on recovery,
+   * on `requestRefresh`.
+   */
+  fallbackIntervalMs?: number;
   /**
    * Read at once on mount and on key change, not only after an interval.
    * This read runs in the background too, like an explicit request.
@@ -92,7 +96,7 @@ export function useChatRefreshScheduler({
 
     function schedule() {
       window.clearTimeout(timer);
-      if (cancelled) return;
+      if (cancelled || fallbackIntervalMs === undefined) return;
       timer = window.setTimeout(
         onTimer,
         healthyRef.current ? CHAT_HEALTHY_REFRESH_MS : fallbackIntervalMs,

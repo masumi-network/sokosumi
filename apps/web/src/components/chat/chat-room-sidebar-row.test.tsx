@@ -1593,6 +1593,45 @@ describe("ChatRoomSidebarRow unread message count", () => {
   });
 });
 
+describe("ChatRoomSidebarRow as an Elsewhere row", () => {
+  function renderElsewhereRow(room = makeRoom()) {
+    render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label="general"
+        subtitle="Other Org"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        pinnable={false}
+      />,
+    );
+  }
+
+  it("offers the normal room actions without Pin", async () => {
+    renderElsewhereRow();
+
+    await openRoomMenu();
+
+    expect(
+      screen.getByRole("menuitem", { name: "Mark as unread" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Mute" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Unpin" })).toBeNull();
+  });
+
+  it("announces the room, its workspace and its mentions in one link", () => {
+    renderElsewhereRow(makeRoom({ unreadMentionCount: 2 }));
+
+    const link = screen.getByRole("link", { name: /general/ });
+
+    expect(link.textContent).toContain("Other Org");
+    expect(link.textContent).toContain("2 mentions");
+  });
+});
+
 describe("ChatRoomSidebarRow Mark unread", () => {
   beforeEach(() => {
     clearRoomReadOverlays();

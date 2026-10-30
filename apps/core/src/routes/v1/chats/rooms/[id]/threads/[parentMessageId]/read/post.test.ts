@@ -26,6 +26,7 @@ const {
   notificationFindManyMock,
   notificationUpdateManyAndReturnMock,
   publishClearedNotificationsMock,
+  publishChatRoomsChangedMock,
   cancelNotificationEmailsMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -38,6 +39,7 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyAndReturnMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
+  publishChatRoomsChangedMock: vi.fn(),
   cancelNotificationEmailsMock: vi.fn(),
 }));
 
@@ -67,6 +69,11 @@ vi.mock("@/lib/db/prisma", () => ({
       updateManyAndReturn: notificationUpdateManyAndReturnMock,
     },
   },
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: (...args: unknown[]) =>
+    publishChatRoomsChangedMock(...args),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -277,6 +284,20 @@ describe("POST /chats/rooms/{id}/threads/{parentMessageId}/read", () => {
     );
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["n-reply"]);
     expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
+  });
+
+  it("tells the reader's other tabs, and only the reader's", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/${PARENT_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
+      userIds: [USER_ID],
+      collections: ["active"],
+      roomId: ROOM_ID,
+    });
   });
 
   it("returns 404 when the parent message is missing", async () => {

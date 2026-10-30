@@ -1,0 +1,408 @@
+import type { ChatRoom } from "@sokosumi/core-client";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { notifyOrganizationChatRoomsChanged } from "../organization-chat-events";
+import { clearRoomReadOverlays } from "../room-read-overlay";
+import {
+  createOrganizationChatList,
+  harnessPathname,
+  harnessRowProps,
+  listElsewhereMock,
+  makeRoom,
+  renderOrganizationChatList,
+  resetOrganizationChatListMocks,
+} from "./organization-chat-list-harness";
+
+const PERSONAL_LABEL = "App.Tasks.Detail.personalWorkspace";
+
+function elsewhereRoom(
+  id: string,
+  overrides: Partial<ChatRoom> = {},
+): ChatRoom {
+  return makeRoom({
+    id,
+    kind: "channel",
+    myAccess: "member",
+    organizationId: "org-2",
+    organizationName: "Other Org",
+    unreadCount: 1,
+    channelUnreadCount: 1,
+    ...overrides,
+  });
+}
+
+function elsewhereList() {
+  return document.querySelector<HTMLElement>('[data-slot="elsewhere-rows"]');
+}
+
+function rowNames() {
+  const list = elsewhereList();
+  return list
+    ? within(list)
+        .queryAllByTestId("room-row")
+        .map((row) => row.firstElementChild?.textContent)
+    : [];
+}
+
+async function findElsewhereRow(name: string) {
+  await screen.findByText(name);
+}
+
+function rowProps(id: string) {
+  return harnessRowProps.get(id) as {
+    room: ChatRoom;
+    href: string;
+    pinnable?: boolean;
+    canManageSettings?: boolean;
+    onRoomUpdated: (room: ChatRoom) => void;
+  };
+}
+
+function readRoom(detail: { roomId: string; room?: ChatRoom }) {
+  act(() => {
+    window.dispatchEvent(
+      new CustomEvent("organization-chat-room-read", { detail }),
+    );
+  });
+}
+
+beforeEach(() => {
+  resetOrganizationChatListMocks();
+  clearRoomReadOverlays();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("OrganizationChatList Elsewhere rows", () => {
+  it("adds nothing while the reader's other workspaces hold nothing unread", async () => {
+    renderOrganizationChatList({ withChatsHeading: true });
+
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+    expect(elsewhereList()).toBeNull();
+    expect(screen.queryByText(/elsewhereMore/)).toBeNull();
+  });
+
+  it.each([
+    ["the sidebar", true],
+    ["the phone's Chats page", false],
+  ])("shows a row under Catch up on %s", async (_name, withChatsHeading) => {
+    listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+
+    renderOrganizationChatList({ withChatsHeading });
+
+    await findElsewhereRow("launch");
+    const catchUp = screen.getByTestId("chat-unread-nav-rows");
+    const list = elsewhereList() as HTMLElement;
+    expect(catchUp.compareDocumentPosition(list)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(list.getAttribute("aria-label")).toBe(
+      "App.Channels.UnreadNav.elsewhereLabel",
+    );
+    expect(rowProps("launch").href).toBe("/chat/rooms/launch");
+  });
+
+  it("names the room's workspace on its second line", async () => {
+    listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+
+    renderOrganizationChatList();
+
+    expect(await screen.findByText("Other Org")).toBeTruthy();
+  });
+
+  it("labels a room of the personal workspace Personal", async () => {
+    listElsewhereMock.mockResolvedValue([
+      elsewhereRoom("assistant", {
+        kind: "direct",
+        organizationId: null,
+        organizationName: null,
+      }),
+    ]);
+
+    renderOrganizationChatList();
+
+    expect(await screen.findByText(PERSONAL_LABEL)).toBeTruthy();
+  });
+
+  it("offers no Pin, and leaves who may manage the room to the room", async () => {
+    listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+
+    renderOrganizationChatList();
+    await findElsewhereRow("launch");
+
+    expect(rowProps("launch").pinnable).toBe(false);
+    expect(rowProps("launch").canManageSettings).toBe(false);
+  });
+
+  it("keeps Core's order, and shares what is past five in one row into Catch up", async () => {
+    listElsewhereMock.mockResolvedValue(
+      ["a", "b", "c", "d", "e", "f", "g"].map((id) => elsewhereRoom(id)),
+    );
+
+    renderOrganizationChatList();
+    await findElsewhereRow("a");
+
+    expect(rowNames()).toEqual(["a", "b", "c", "d", "e"]);
+    const overflow = screen.getByRole("link", {
+      name: "App.Channels.UnreadNav.elsewhereMore 2",
+    });
+    expect(overflow.getAttribute("href")).toBe("/chat/catch-up");
+  });
+
+  it("always gives a room naming the reader a row, past five", async () => {
+    listElsewhereMock.mockResolvedValue([
+      ...["a", "b", "c", "d", "e", "f", "g"].map((id) =>
+        elsewhereRoom(id, { unreadMentionCount: 1 }),
+      ),
+      elsewhereRoom("plain"),
+    ]);
+
+    renderOrganizationChatList();
+    await findElsewhereRow("a");
+
+    expect(rowNames()).toEqual(["a", "b", "c", "d", "e", "f", "g"]);
+    expect(
+      screen.getByRole("link", {
+        name: "App.Channels.UnreadNav.elsewhereMore 1",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("gives a room whose only unread is a Thread reply a row", async () => {
+    listElsewhereMock.mockResolvedValue([
+      elsewhereRoom("threads", {
+        unreadCount: 2,
+        channelUnreadCount: 0,
+        threadUnreadCount: 2,
+        unreadThreadCount: 1,
+      }),
+    ]);
+
+    renderOrganizationChatList();
+
+    await findElsewhereRow("threads");
+    expect(rowProps("threads").room.threadUnreadCount).toBe(2);
+  });
+
+  it("keeps the rows with the Unreads filter on", async () => {
+    listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+
+    renderOrganizationChatList();
+    await findElsewhereRow("launch");
+
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+
+    expect(rowNames()).toEqual(["launch"]);
+  });
+
+  it("reads nothing for an instant paint", async () => {
+    listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+
+    renderOrganizationChatList({ paintOnly: true });
+    await act(async () => {});
+
+    expect(listElsewhereMock).not.toHaveBeenCalled();
+    expect(elsewhereList()).toBeNull();
+  });
+
+  describe("live", () => {
+    async function settle(ms = 0) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    }
+
+    it("adds a row when a message arrives, with no reload and no polling", async () => {
+      vi.useFakeTimers();
+      renderOrganizationChatList();
+      await settle();
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+
+      // Nothing happened, so nothing is read, however long the reader waits.
+      await settle(10 * 60_000);
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      act(() => {
+        notifyOrganizationChatRoomsChanged({
+          collections: ["active"],
+          roomId: "launch",
+        });
+      });
+      await settle();
+
+      expect(listElsewhereMock).toHaveBeenCalledTimes(2);
+      expect(rowNames()).toEqual(["launch"]);
+    });
+
+    it("costs a busy room far fewer reads than messages", async () => {
+      vi.useFakeTimers();
+      renderOrganizationChatList();
+      await settle();
+      listElsewhereMock.mockClear();
+
+      for (let message = 0; message < 20; message += 1) {
+        act(() => {
+          notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+        });
+        await settle(100);
+      }
+      await settle(5_000);
+
+      expect(listElsewhereMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("ignores a change to another collection", async () => {
+      vi.useFakeTimers();
+      renderOrganizationChatList();
+      await settle();
+      listElsewhereMock.mockClear();
+
+      act(() => {
+        notifyOrganizationChatRoomsChanged({ collections: ["archived"] });
+      });
+      await settle(5_000);
+
+      expect(listElsewhereMock).not.toHaveBeenCalled();
+    });
+
+    it("drops a row the reader left or was removed from at once", async () => {
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      act(() => {
+        notifyOrganizationChatRoomsChanged({ removedRoomId: "launch" });
+      });
+
+      expect(elsewhereList()).toBeNull();
+    });
+
+    it("starts over in a new workspace, without the old one's rows", async () => {
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      const view = renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      listElsewhereMock.mockReturnValue(new Promise(() => {}));
+      view.rerender(createOrganizationChatList({ organizationId: "org-2" }));
+
+      expect(elsewhereList()).toBeNull();
+    });
+  });
+
+  describe("the open room", () => {
+    async function renderOpenRow() {
+      harnessPathname.current = "/chat/rooms/launch";
+      listElsewhereMock.mockResolvedValue([
+        elsewhereRoom("launch", { unreadMentionCount: 1 }),
+        elsewhereRoom("design"),
+      ]);
+      const view = renderOrganizationChatList();
+      await findElsewhereRow("launch");
+      return view;
+    }
+
+    it("clears the mark when the room is read, and keeps the workspace", async () => {
+      await renderOpenRow();
+
+      // A read's answer does not load the Organization's name.
+      readRoom({
+        roomId: "launch",
+        room: elsewhereRoom("launch", {
+          unreadCount: 0,
+          channelUnreadCount: 0,
+          unreadMentionCount: 0,
+          organizationName: null,
+        }),
+      });
+
+      expect(rowProps("launch").room.unreadCount).toBe(0);
+      expect(rowProps("launch").room.unreadMentionCount).toBe(0);
+      expect(rowProps("launch").room.organizationName).toBe("Other Org");
+      expect(rowNames()).toEqual(["launch", "design"]);
+    });
+
+    it("stays when Core stops listing it, where it stood, with its mark cleared", async () => {
+      await renderOpenRow();
+
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("design")]);
+      act(() => {
+        notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+      });
+
+      await waitFor(() =>
+        expect(rowProps("launch").room.unreadMentionCount).toBe(0),
+      );
+      expect(rowProps("launch").room.unreadCount).toBe(0);
+      expect(rowNames()).toEqual(["launch", "design"]);
+    });
+
+    it("leaves once the reader moves on", async () => {
+      const view = await renderOpenRow();
+      readRoom({
+        roomId: "launch",
+        room: elsewhereRoom("launch", {
+          unreadCount: 0,
+          channelUnreadCount: 0,
+          unreadMentionCount: 0,
+        }),
+      });
+
+      harnessPathname.current = "/chat/rooms/other";
+      view.rerender(createOrganizationChatList());
+
+      expect(rowNames()).toEqual(["design"]);
+    });
+
+    it("keeps its row past the cap while it is open", async () => {
+      harnessPathname.current = "/chat/rooms/g";
+      listElsewhereMock.mockResolvedValue(
+        ["a", "b", "c", "d", "e", "f", "g"].map((id) => elsewhereRoom(id)),
+      );
+
+      renderOrganizationChatList();
+      await findElsewhereRow("a");
+
+      expect(rowNames()).toEqual(["a", "b", "c", "d", "e", "g"]);
+    });
+  });
+
+  describe("the row's own actions", () => {
+    it("takes a muted row away, and puts it back if the mute fails", async () => {
+      const room = elsewhereRoom("launch");
+      listElsewhereMock.mockResolvedValue([room]);
+      renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      act(() => {
+        rowProps("launch").onRoomUpdated({
+          ...room,
+          mutedAt: new Date("2026-01-03T00:00:00.000Z"),
+        });
+      });
+      expect(rowNames()).toEqual([]);
+
+      act(() => {
+        rowProps("launch").onRoomUpdated(room);
+      });
+      expect(rowNames()).toEqual(["launch"]);
+    });
+
+    it("keeps the workspace on an answer that carries no Organization name", async () => {
+      const room = elsewhereRoom("launch");
+      listElsewhereMock.mockResolvedValue([room]);
+      renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      act(() => {
+        rowProps("launch").onRoomUpdated({ ...room, organizationName: null });
+      });
+
+      expect(screen.getByText("Other Org")).toBeTruthy();
+    });
+  });
+});

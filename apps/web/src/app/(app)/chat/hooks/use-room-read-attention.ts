@@ -117,8 +117,9 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         const result = await markThreadReadAction(roomId, parentMessageId);
         if (result.ok) {
           snapshotRef.current.onThreadLooked?.(parentMessageId);
-          // Core announces no Look, and above the end no room read follows
-          // to carry the fresh room, so the sidebar's Thread row would stay.
+          // Core announces a Look only over the control channel, which this
+          // tab may not have, and above the end no room read follows to carry
+          // the fresh room, so the sidebar's Thread row would stay.
           notifyOrganizationChatRoomsChanged({
             collections: ["active"],
             roomId,

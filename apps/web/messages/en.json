@@ -7828,7 +7828,9 @@
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
-        "justRead": "Read just now"
+        "justRead": "Read just now",
+        "elsewhereLabel": "Unread in other workspaces",
+        "elsewhereMore": "{count} more in other workspaces"
       },
       "ThreadsView": {
         "title": "Threads",

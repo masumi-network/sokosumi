@@ -113,6 +113,30 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(3);
   });
 
+  it("never reads on a timer without a fallback cadence, only when asked", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const { result, rerender } = renderHook(
+      (props: { healthy: boolean }) =>
+        useChatRefreshScheduler({
+          key: "elsewhere",
+          refresh,
+          healthy: props.healthy,
+        }),
+      { initialProps: { healthy: true } },
+    );
+
+    await tick(CHAT_HEALTHY_REFRESH_MS * 3);
+    rerender({ healthy: false });
+    await tick(CHAT_HEALTHY_REFRESH_MS * 3);
+    expect(refresh).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current();
+    });
+    await tick(CHAT_HEALTHY_REFRESH_MS * 3);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("starts no timer read while hidden and reads once on return", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     mount(refresh, { healthy: false });

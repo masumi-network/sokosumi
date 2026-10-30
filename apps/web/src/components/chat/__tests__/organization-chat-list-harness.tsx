@@ -26,21 +26,28 @@ const {
   acceptInvitationMock,
   listRoomsMock,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
   reorderPinnedMock,
+  harnessRowProps,
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
+  listElsewhereMock: vi.fn(),
   listPendingMock: vi.fn(),
   reorderPinnedMock: vi.fn(),
+  /** What each room row last received, by room id. */
+  harnessRowProps: new Map<string, Record<string, unknown>>(),
 }));
 
 export {
   acceptInvitationMock,
   harnessPathname,
+  harnessRowProps,
   harnessSelection,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
   listRoomsMock,
   reorderPinnedMock,
@@ -122,18 +129,26 @@ vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
 vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
+    subtitle,
     reorderHandle,
     itemProps,
+    ...props
   }: {
+    room: ChatRoom;
     label: string;
+    subtitle?: string;
     reorderHandle?: ReactNode;
     itemProps?: ComponentProps<"li">;
-  }) => (
-    <li {...itemProps} data-testid="room-row">
-      <span>{label}</span>
-      {reorderHandle}
-    </li>
-  ),
+  }) => {
+    harnessRowProps.set(props.room.id, props);
+    return (
+      <li {...itemProps} data-testid="room-row">
+        <span>{label}</span>
+        {subtitle ? <span>{subtitle}</span> : null}
+        {reorderHandle}
+      </li>
+    );
+  },
 }));
 
 // A marker, not the rows: what they count belongs to
@@ -198,6 +213,9 @@ vi.mock("../organization-chat-list.actions", () => ({
 
 vi.mock("../fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async (collection: string) => {
+    if (collection === "elsewhere") {
+      return listElsewhereMock();
+    }
     const result =
       collection === "active"
         ? await listRoomsMock()
@@ -411,7 +429,10 @@ export function resetOrganizationChatListMocks() {
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
   listPendingMock.mockReset();
+  listElsewhereMock.mockReset();
   reorderPinnedMock.mockReset();
+  harnessRowProps.clear();
+  listElsewhereMock.mockResolvedValue([]);
   listRoomsMock.mockResolvedValue(emptyListResult());
   listArchivedMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });

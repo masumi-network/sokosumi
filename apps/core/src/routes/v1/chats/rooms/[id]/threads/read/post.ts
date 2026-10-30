@@ -6,6 +6,7 @@ import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch"
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -80,6 +81,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
     waitUntil(cancelNotificationEmails(clearedRows));
+    // The reader's other tabs: an Elsewhere row has no poll to drop it by.
+    waitUntil(
+      publishChatRoomsChanged({
+        userIds: [userContext.userId],
+        collections: ["active"],
+        roomId: room.id,
+      }),
+    );
 
     return ok(c, chatRoomThreadsMarkAllSchema.parse({ markedCount }));
   });

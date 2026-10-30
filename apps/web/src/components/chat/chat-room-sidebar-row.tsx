@@ -149,6 +149,11 @@ export interface ChatRoomSidebarRowProps {
    * Anyone else's opens the members panel.
    */
   canManageSettings?: boolean;
+  /**
+   * False leaves Pin out of the menu: an Elsewhere row, where pinning would
+   * seem to do nothing, because Pinned lists the active workspace's rooms.
+   */
+  pinnable?: boolean;
 }
 
 /**
@@ -307,6 +312,7 @@ export function ChatRoomSidebarRow({
   itemMotion,
   reorderHandle,
   canManageSettings = false,
+  pinnable = true,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
@@ -539,6 +545,7 @@ export function ChatRoomSidebarRow({
       // "Sidebar row"): its host organisation line is one a 28px row has no
       // room for, so this row alone releases the height to hold it, down to
       // the floor the primitive keeps. Its mark still sits in the shared slot.
+      // An Elsewhere row's workspace line is the same.
       lines={subtitle ? 2 : 1}
     >
       {dismissSheetOnNavigate ? (
@@ -609,29 +616,31 @@ export function ChatRoomSidebarRow({
                     <MessageSquare className="size-4" aria-hidden />
                     {tActions("markUnread")}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={isPending || isMuted}
-                    onSelect={() => {
-                      if (isPinned) {
-                        runRoomAction(unpinOrganizationChatRoomAction, {
+                  {pinnable ? (
+                    <DropdownMenuItem
+                      disabled={isPending || isMuted}
+                      onSelect={() => {
+                        if (isPinned) {
+                          runRoomAction(unpinOrganizationChatRoomAction, {
+                            ...room,
+                            starredAt: null,
+                          });
+                          return;
+                        }
+                        runRoomAction(pinOrganizationChatRoomAction, {
                           ...room,
-                          starredAt: null,
+                          starredAt: new Date(),
                         });
-                        return;
-                      }
-                      runRoomAction(pinOrganizationChatRoomAction, {
-                        ...room,
-                        starredAt: new Date(),
-                      });
-                    }}
-                  >
-                    {isPinned ? (
-                      <PinOff className="size-4" aria-hidden />
-                    ) : (
-                      <Pin className="size-4" aria-hidden />
-                    )}
-                    {isPinned ? tActions("unpin") : tActions("pin")}
-                  </DropdownMenuItem>
+                      }}
+                    >
+                      {isPinned ? (
+                        <PinOff className="size-4" aria-hidden />
+                      ) : (
+                        <Pin className="size-4" aria-hidden />
+                      )}
+                      {isPinned ? tActions("unpin") : tActions("pin")}
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem
                     disabled={isPending || isPinned}
                     onSelect={() => {

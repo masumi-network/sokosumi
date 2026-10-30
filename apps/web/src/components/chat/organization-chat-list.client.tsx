@@ -72,6 +72,7 @@ import {
   getActiveRoomIdFromSelection,
 } from "./active-room-id";
 import { ChannelKindGlyph } from "./channel-discoverability-icon";
+import { ChatElsewhereOverflowRow } from "./chat-elsewhere-overflow-row";
 import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
@@ -99,12 +100,14 @@ import {
   roomUnreadReads,
 } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
+import { selectElsewhereRows } from "./select-elsewhere-rows";
 import { SidebarSectionShowMoreRow } from "./sidebar-section-show-more-row";
 import {
   advanceUnreadFilterPass,
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
 import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
+import { useElsewhereRooms } from "./use-elsewhere-rooms";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
 
@@ -217,6 +220,7 @@ export function OrganizationChatList({
   const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
+  const tTask = useTranslations("App.Tasks.Detail");
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
   const router = useRouter();
@@ -371,6 +375,15 @@ export function OrganizationChatList({
   const activeRoomId = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath)
     : getActiveRoomIdFromPathname(pathname);
+  const { rooms: elsewhereRooms, replaceRoom: replaceElsewhereRoom } =
+    useElsewhereRooms({
+      currentUserId,
+      organizationId,
+      activeRoomId,
+      paintOnly,
+    });
+  const { rows: elsewhereRows, overflowCount: elsewhereOverflowCount } =
+    selectElsewhereRows(elsewhereRooms, activeRoomId);
   // All unreads (SOK-1159): the rooms a read would still change, newest
   // activity first. One answer for what the filter lists and whether the
   // reader is caught up, so the two cannot disagree.
@@ -558,6 +571,38 @@ export function OrganizationChatList({
           withChatsHeading ? undefined : handleUnreadOnlyChange
         }
       />
+      {/* Outside the keyed list below: the Unreads filter does not touch them,
+          because hiding what is unread is the last thing it should do. */}
+      {elsewhereRows.length > 0 ? (
+        <SidebarMenu
+          data-slot="elsewhere-rows"
+          aria-label={t("UnreadNav.elsewhereLabel")}
+          className="gap-0"
+        >
+          {elsewhereRows.map((room) => (
+            <ChatRoomSidebarRow
+              key={room.id}
+              {...roomRowProps(room)}
+              subtitle={
+                room.organizationId === null
+                  ? tTask("personalWorkspace")
+                  : (room.organizationName ?? undefined)
+              }
+              onRoomUpdated={replaceElsewhereRoom}
+              // The active workspace's role says nothing about this room. The
+              // room works out its own once it opens (ADR-0061).
+              canManageSettings={false}
+              pinnable={false}
+            />
+          ))}
+          {elsewhereOverflowCount > 0 ? (
+            <ChatElsewhereOverflowRow
+              count={elsewhereOverflowCount}
+              dismissSheetOnNavigate={dismissSheetOnNavigate}
+            />
+          ) : null}
+        </SidebarMenu>
+      ) : null}
       {/* One list per mode, so switching fades the new one in instead of
         swapping rows under the pointer. Not on first render: the sidebar
         does not fade in on every load. A reader who left the filter on
