@@ -13,13 +13,13 @@
   extension NativeWindowTests {
     /// Row 24f1: the real `CrossRoomThreadsView` (web `/chat/threads`) and the sidebar's Threads row. The test
     /// host builds no accessibility tree, so text is read back with Vision (nil on the CI runner, where only
-    /// the pixel checks run) and the tint is found by colour.
+    /// the pixel checks run) and an unread row is found by its neutral wash.
     @MainActor struct CrossRoomThreadsViewTests {
       private static let general = "550e8400-e29b-41d4-a716-446655440a01"
       private static let design = "550e8400-e29b-41d4-a716-446655440b02"
       private static let width: CGFloat = 440
 
-      /// Both groups, each row naming its room: unread rows tinted with "N new · #room", the one naming the
+      /// Both groups, each row naming its room: unread rows washed with "N new · #room", the one naming the
       /// reader with its `@` pill, then Earlier with "#room · N replies".
       @Test(arguments: [false, true])
       func rendersBothGroupsWithTheirRooms(dark: Bool) async throws {
@@ -31,8 +31,9 @@
         #expect(threads.unreadState(rooms: rooms, roomsLive: true) == .rows && threads.showsEarlier(rooms: rooms))
         let bitmap = try await Self.render(threads: threads, rooms: rooms, dark: dark, name: "cross-room-threads-\(dark ? "dark" : "light").png")
         let scale = CGFloat(bitmap.pixelsWide) / Self.width
-        let tinted = RoomThreadOverviewGroupsViewTests.coloredPixels(in: bitmap, columns: 0 ..< Int(52 * scale))
-        #expect(tinted.count > 40, "Both unread rows lead with a tinted mark.")
+        #expect(RoomThreadOverviewGroupsViewTests.coloredPixels(in: bitmap, columns: 0 ..< bitmap.pixelsWide).isEmpty, "Nothing here draws in a colour.")
+        let washed = RoomThreadOverviewGroupsViewTests.washedPixels(in: bitmap, columns: 0 ..< Int(52 * scale))
+        #expect(washed.count > Int(1200 * scale * scale), "Both unread rows sit on a wash (\(washed.count) pixels).")
 
         guard let lines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: bitmap) else { return }
         let texts = lines.map(\.text)
@@ -49,11 +50,11 @@
         #expect(texts.contains { $0.contains("1 new") && $0.contains("#design") }, "\(texts)")
         #expect(texts.contains { $0.contains("#design") && $0.contains("4 replies") }, "\(texts)")
         #expect(!texts.contains { $0.contains("Started by") || $0.contains("All caught up") }, "\(texts)")
-        #expect(tinted.allSatisfy { CGFloat($0.y) < earlier }, "Only the rows under Unread are tinted.")
+        #expect(washed.filter { CGFloat($0.y) >= earlier }.count < Int(300 * scale * scale), "Only the rows under Unread are washed.")
       }
 
       /// Live rooms counting no unread Thread say "All caught up" under Unread, with Earlier below it and
-      /// no tint anywhere.
+      /// no colour anywhere.
       @Test(arguments: [false, true])
       func aCaughtUpReaderSeesAllCaughtUpOverEarlier(dark: Bool) async throws {
         let rooms = [Self.room(Self.general, "general"), Self.room(Self.design, "design")]
@@ -63,7 +64,7 @@
         ])
         let bitmap = try await Self.render(threads: threads, rooms: rooms, dark: dark, name: "cross-room-threads-caught-up-\(dark ? "dark" : "light").png")
         #expect(RoomThreadOverviewGroupsViewTests.coloredPixels(in: bitmap, columns: 0 ..< bitmap.pixelsWide).isEmpty,
-                "Nothing is tinted with nothing unread.")
+                "Nothing draws in a colour with nothing unread.")
         guard let lines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: bitmap) else { return }
         let texts = lines.map(\.text)
         func top(_ fragment: String) -> CGFloat? {

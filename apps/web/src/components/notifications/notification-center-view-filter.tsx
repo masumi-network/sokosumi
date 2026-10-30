@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 // The focus ring is inset for the same reason.
 const TRIGGER_CLASS_NAME = cn(
   "text-muted-foreground hover:text-foreground focus-visible:ring-inset h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-1 pt-2 pb-2.5 text-sm font-medium shadow-none",
-  "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
-  "dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent",
+  "data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
+  "dark:data-[state=active]:border-foreground dark:data-[state=active]:bg-transparent",
 );
 
 const COUNT_CLASS_NAME =
-  "bg-primary-quinary text-primary rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums";
+  "bg-muted text-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums";
 
 interface NotificationCenterViewFilterProps {
   className?: string;

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Row 24h: web's `ThreadReplyBar` under a thread parent in the room transcript. The repliers' faces, the
 /// count ("3 replies", or "2 new replies" while this reader has unread ones) and the last reply's age, which
-/// ticks every minute. Unread reads as a bar: the accent tint with a rule down its leading edge. It stays a
+/// ticks every minute. Unread reads as a bar: a neutral wash with a rule down its leading edge. It stays a
 /// native button — hover, the link pointer and keyboard focus — whose name is the count alone; the age is
 /// its hint and the faces are decoration.
 struct ThreadReplyBarButton: View {
@@ -42,7 +42,7 @@ struct ThreadReplyBarButton: View {
       }
       Text(bar.label)
         .fontWeight(bar.isUnread ? .semibold : .medium)
-        .foregroundStyle(.tint)
+        .foregroundStyle(.primary)
       if let age {
         Text(verbatim: "·").foregroundStyle(.secondary)
         Text(age).foregroundStyle(.secondary).monospacedDigit()
@@ -74,14 +74,14 @@ struct ThreadReplyBarButton: View {
   private var background: some View {
     if bar.isUnread {
       ZStack(alignment: .leading) {
-        Rectangle().fill(Color.accentColor.opacity(isHovered ? 0.22 : 0.15))
-        Rectangle().fill(.tint).frame(width: 2)
+        Rectangle().fill(Color.primary.opacity(isHovered ? 0.12 : 0.08))
+        Rectangle().fill(.primary).frame(width: 2)
       }
       .clipShape(.rect(cornerRadius: 8))
     } else if isHovered {
       // Web only deepens the text; a Mac control also answers the pointer with a highlight behind it.
       RoundedRectangle(cornerRadius: 6)
-        .fill(Color.accentColor.opacity(0.08))
+        .fill(Color.primary.opacity(0.08))
         .padding(.horizontal, -4)
         .padding(.vertical, -2)
     }

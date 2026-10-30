@@ -43,7 +43,7 @@ struct ChatJoinView: View {
       HStack {
         Spacer()
         Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
-        Button("Retry") { retry += 1 }.keyboardShortcut(.defaultAction)
+        Button("Retry") { retry += 1 }.buttonStyle(.brandPrimary).keyboardShortcut(.defaultAction)
       }
     } else if let room = model.room {
       preview(room)
@@ -95,7 +95,7 @@ struct ChatJoinView: View {
             Text(model.joining ? "Joining…" : "Join #\(room.name)")
           }
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
       }
     }

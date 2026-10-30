@@ -52,9 +52,9 @@ struct ParticipantAvatar: View {
       Text(initials(for: name))
         .font(size >= 24 ? .caption : .caption2)
         .fontWeight(.semibold)
-        .foregroundStyle(.white)
+        .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Circle().fill(Color.accentColor))
+        .background(Circle().fill(.quaternary).background(.background, in: .circle))
     }
   }
 }

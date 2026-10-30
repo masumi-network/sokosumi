@@ -76,6 +76,7 @@ struct StartDirectView: View {
             Text(picker.creating ? "Opening…" : "New chat")
           }
         }
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
         .disabled(picker.creating || picker.loading || picker.errorMessage != nil || picker.selectedTargets.isEmpty)
       }
