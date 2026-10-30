@@ -3388,16 +3388,11 @@
             "notice": "Borrador de Soko Bot — revísalo antes de enviarlo para su aprobación"
           },
           "emptyTitle": "Aún no hay ediciones",
-          "emptyDescription": "Elige una plantilla para empezar tu primera edición del boletín.",
+          "emptyDescription": "Empieza en blanco o elige una plantilla para tu primera edición del boletín.",
           "subject": "Asunto",
           "previewText": "Texto de vista previa",
           "status": "Estado",
-          "deliveryDate": "Programada / enviada",
-          "updatedAt": "Actualizada",
-          "actions": "Acciones",
           "sentAt": "Enviada el {date}",
-          "scheduledAt": "Programada para el {date}",
-          "noDate": "Sin programar",
           "firstPage": "Primera página",
           "nextPage": "Página siguiente",
           "results": "{count, plural, one {# edición} other {# ediciones}}",
@@ -3410,7 +3405,7 @@
             "FAILED": "Fallida",
             "CANCELED": "Cancelada"
           },
-          "createError": "No se pudo crear la edición. Vuelve a elegir la plantilla.",
+          "createError": "No se pudo crear la edición. Inténtalo de nuevo.",
           "saveError": "No se pudo guardar la edición. Conserva los cambios e inténtalo de nuevo.",
           "conflict": "Esta edición ha cambiado o ya no se puede editar. Copia tus cambios, recarga la página e inténtalo de nuevo.",
           "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
@@ -3449,8 +3444,8 @@
             "content": "Revisa este bloque. Usa URL HTTPS y respeta los límites de los campos de texto."
           },
           "Templates": {
-            "title": "Elige una plantilla",
-            "description": "Empieza con un diseño y después edita cada bloque.",
+            "title": "Empezar una edición",
+            "description": "Escribe desde cero o usa una plantilla que puedas editar.",
             "subject": "Edición sin título",
             "heading": "Lo más destacado de la semana",
             "text": "Comparte las últimas novedades, una idea útil o una actualización con tus suscriptores.",
@@ -3469,7 +3464,10 @@
             "BUTTONS": {
               "title": "Botones",
               "description": "Un encabezado, texto, un botón, un separador y un texto de cierre."
-            }
+            },
+            "blank": "Empezar en blanco",
+            "blankDescription": "Usa tus propios textos y añade solo los bloques que necesites.",
+            "templateHeading": "O empieza con una plantilla"
           },
           "Preview": {
             "title": "Vista previa",
@@ -3503,9 +3501,9 @@
             "when": "Cuándo",
             "timezone": "Zona horaria: {timezone}",
             "scheduleTitle": "Programar boletín",
-            "scheduleDescription": "Elige una fecha entre un minuto y un año a partir de ahora.",
+            "scheduleDescription": "Elige cuándo debe comenzar el envío, entre un minuto y un año a partir de ahora.",
             "sendTitle": "¿Enviar este boletín ahora?",
-            "sendDescription": "{count, plural, one {Esta edición se enviará a # suscriptor activo. El envío no se puede deshacer.} other {Esta edición se enviará a # suscriptores activos. El envío no se puede deshacer.}}",
+            "sendDescription": "{count, plural, one {¿Iniciar el envío de esta edición a la audiencia actual de # suscriptor activo? El envío puede ser gradual y no se puede deshacer.} other {¿Iniciar el envío de esta edición a la audiencia actual de # suscriptores activos? El envío puede ser gradual y no se puede deshacer.}}",
             "cancelTitle": "¿Cancelar la programación de este boletín?",
             "cancelDescription": "Esta edición volverá a ser un borrador. Vuelve a enviarla para aprobación antes de programarla o enviarla.",
             "saveFirst": "Guarda los cambios antes de enviar para aprobación, aprobar, programar o enviar.",
@@ -3518,7 +3516,52 @@
             "noSender": "Conecta un dominio de envío en la configuración del boletín, en «Dominio de envío», antes de programar o enviar.",
             "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
           },
-          "viewOnWeb": "Ver en la web"
+          "viewOnWeb": "Ver en la web",
+          "updated": "Actualizado el {date}",
+          "nextActions": {
+            "DRAFT": "Seguir escribiendo",
+            "NEEDS_APPROVAL": "Revisar y aprobar",
+            "APPROVED": "Programar o enviar",
+            "SCHEDULED": "Ver programación",
+            "SENDING": "Ver progreso",
+            "SENT": "Ver resultados",
+            "FAILED": "Revisar envío",
+            "CANCELED": "Ver edición"
+          },
+          "Readiness": {
+            "title": "Antes del envío",
+            "sender": "Remitente",
+            "fallbackSender": "{name} via Sokosumi",
+            "fallbackHint": "Se usa el dominio de envío compartido de Sokosumi.",
+            "noSender": "Se requiere un dominio de envío",
+            "senderSettings": "Revisar ajustes del remitente",
+            "audience": "Audiencia actual",
+            "audienceCount": "{count, plural, one {# suscriptor activo} other {# suscriptores activos}}",
+            "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
+            "manageSubscribers": "Gestionar suscriptores",
+            "approval": "Aprobación",
+            "approved": "Aprobado",
+            "approvalRequired": "Se requiere aprobación de una persona",
+            "timing": "Inicio del envío",
+            "afterConfirmation": "Después de confirmar",
+            "chooseTiming": "Elige enviar ahora o programar",
+            "scheduled": "{date} ({timezone})",
+            "deliveryHint": "El envío puede ser gradual mientras se prepara tu dominio de envío. La audiencia activa se comprueba de nuevo al comenzar el envío.",
+            "selectedTime": "A la hora elegida"
+          },
+          "Delivery": {
+            "partial": "Enviado con problemas de entrega",
+            "details": "Último error:",
+            "partialHelp": "Algunos correos no se pudieron enviar o confirmar. Revisa el error antes de planificar otra edición; un nuevo envío podría llegar dos veces a las mismas personas.",
+            "failedHelp": "El envío ha fallado. Revisa el error y los ajustes del remitente antes de planificar otra edición. Algunos intentos pueden no estar confirmados, por lo que un nuevo envío podría llegar dos veces a las mismas personas.",
+            "reviewSettings": "Revisar ajustes de envío",
+            "sending": "El envío está en curso. La preparación del dominio puede distribuir el envío a lo largo del tiempo. Vuelve más tarde para ver el resultado."
+          },
+          "details": "Detalles de la edición",
+          "saving": "Guardando edición…",
+          "undo": "Deshacer eliminación",
+          "removedBlocks": "{count, plural, one {# bloque eliminado} other {# bloques eliminados}}",
+          "undoLimit": "Esta edición tiene 200 bloques. Elimina un bloque para dejar espacio antes de restaurar otro."
         },
         "publicArchive": "Archivo público",
         "SignupForm": {

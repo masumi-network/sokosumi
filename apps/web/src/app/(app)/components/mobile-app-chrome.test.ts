@@ -8,6 +8,43 @@ import {
 } from "./mobile-app-chrome";
 
 describe("mobile-app-chrome", () => {
+  it.each([
+    "/newsletter",
+    "/newsletter/issues",
+    "/newsletter/subscribers",
+    "/newsletter/calendar",
+    "/newsletter/analytics",
+    "/newsletter/settings",
+  ])("uses Social-style list chrome on %s", (pathname) => {
+    expect(isMainAppMobileChromePathname(pathname)).toBe(true);
+    expect(shouldShowMobileBottomNav(pathname)).toBe(true);
+    expect(shouldShowMobileBrandLeading(pathname)).toBe(false);
+    expect(resolveMobileAppBackTarget(pathname)).toEqual({
+      href: "/",
+      labelKey: "back",
+    });
+  });
+
+  it("returns from a newsletter issue to its project-scoped list", () => {
+    const pathname = "/newsletter/issues/issue-1";
+    expect(isMainAppMobileChromePathname(pathname)).toBe(false);
+    expect(shouldShowMobileBottomNav(pathname)).toBe(false);
+    expect(shouldShowMobileBrandLeading(pathname)).toBe(false);
+    expect(
+      resolveMobileAppBackTarget(
+        pathname,
+        new URLSearchParams("projectId=project%2Fone&cursor=old"),
+      ),
+    ).toEqual({
+      href: "/newsletter/issues?projectId=project%2Fone",
+      labelKey: "back",
+    });
+    expect(resolveMobileAppBackTarget(pathname)).toEqual({
+      href: "/newsletter/issues",
+      labelKey: "back",
+    });
+  });
+
   describe("isMainAppMobileChromePathname", () => {
     it("matches exact main list routes only", () => {
       expect(isMainAppMobileChromePathname("/tasks")).toBe(true);
