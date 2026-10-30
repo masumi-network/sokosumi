@@ -55,7 +55,7 @@ export function HistoryListItem({
     showOwner
       ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_130px] sm:items-center sm:gap-4"
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_130px] sm:items-center sm:gap-4",
-    href ? "hover:bg-card-background-hover press content-in" : "cursor-default",
+    href ? "hover:bg-accent press content-in" : "cursor-default",
   );
   const content = (
     <HistoryListItemContent

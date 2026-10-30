@@ -84,7 +84,7 @@ function HistoryEntry({ version }: { version: ProjectMemoryVersion }) {
         type="button"
         aria-controls={contentId}
         aria-expanded={open}
-        className="press hover:bg-card-background focus-visible:ring-ring-halo flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]"
+        className="press hover:bg-accent focus-visible:ring-ring-halo flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]"
         onClick={() => setOpen((current) => !current)}
       >
         <ChevronRight
