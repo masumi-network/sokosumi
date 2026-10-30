@@ -15,4 +15,5 @@ Rejected: taking credits back on removal, because credits already spent cannot b
 - Seated members keep their Seat until the renewal. The newest lose it then, through the existing reconciliation on the subscription update.
 - Seats added to an invoice are worth their credits whether the card or the customer balance paid. Grants look at the invoice total, not `amount_paid`. A balance left by an earlier reduction can still be spent this way, once.
 - A reduction is refused while the plan is set to end, because the Seats end with it, and while another schedule manages the subscription, such as a plan change from Stripe's portal.
+- Cancelling in Stripe's portal still works with a reduction pending. Stripe releases the schedule and ends the plan at the period end, so the reduction is gone: a customer who resumes the plan renews at the higher count unless they remove Seats again.
 - A schedule manages the subscription until released. Core releases it when the lower count starts, and the Better Auth plugin releases it before a plan switch, which drops the pending reduction. Stripe's portal cannot update a subscription with a scheduled change.
