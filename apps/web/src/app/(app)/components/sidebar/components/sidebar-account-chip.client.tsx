@@ -166,7 +166,7 @@ function SidebarAccountChipDesktop({
         <span
           className={cn(
             "flex w-full items-center gap-1 text-xs leading-tight",
-            isLowCredits ? "text-semantic-warning" : "text-muted-foreground",
+            isLowCredits ? "text-foreground" : "text-muted-foreground",
           )}
         >
           {isLowCredits ? (

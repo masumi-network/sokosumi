@@ -16,12 +16,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import {
-  DesignSystemPreview,
-  LoadingButtonDemo,
-} from "./design-system-preview";
+import { LoadingButtonDemo } from "./loading-button-demo";
 import {
   ALPHA_TONES,
+  DESIGN_SYSTEM_VARS,
   GRADIENTS,
   IRIS_FLOWER,
   MOTION_TOKENS,
@@ -103,7 +101,7 @@ interface StatusDiscProps {
 }
 
 /** Status ink on a colored disc is always Neutral 950, the guide's X color. */
-const ON_STATUS = { color: "var(--ds-on-status)" };
+const ON_STATUS = { color: "var(--ds-neutral-950)" };
 
 function StatusDisc({ tone }: StatusDiscProps) {
   const base =
@@ -122,7 +120,7 @@ function StatusDisc({ tone }: StatusDiscProps) {
     return (
       <span
         className={cn(base, "text-2xs font-semibold")}
-        style={{ ...backgroundFrom("--ds-warning"), ...ON_STATUS }}
+        style={{ ...backgroundFrom("--ds-golden-yellow"), ...ON_STATUS }}
         aria-hidden
       >
         !
@@ -181,7 +179,7 @@ export default async function DesignSystemPage() {
           </div>
         </div>
 
-        <DesignSystemPreview>
+        <div style={{ ...DESIGN_SYSTEM_VARS }} className="space-y-16">
           <Section title={t("Color.title")} lead={t("Color.lead")}>
             <div className="grid gap-6 md:grid-cols-[2fr_3fr]">
               <div
@@ -302,7 +300,7 @@ export default async function DesignSystemPage() {
                     <div
                       key={gradient.key}
                       className="h-24 rounded-xl"
-                      style={backgroundFrom(gradient.cssVar)}
+                      style={{ background: gradient.value }}
                     />
                   ))}
                 </div>
@@ -586,7 +584,7 @@ export default async function DesignSystemPage() {
               </div>
             </Panel>
           </Section>
-        </DesignSystemPreview>
+        </div>
       </div>
     </div>
   );

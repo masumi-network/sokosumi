@@ -337,7 +337,7 @@ function JobDetailsInputsInner({
                   <Button
                     type="button"
                     variant="outline"
-                    className="bg-surface-glass hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
+                    className="bg-popover hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold"
                   >
                     {t("expand")}
                   </Button>
@@ -388,7 +388,7 @@ function JobDetailsInputsError() {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
 
   return (
-    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-semantic-destructive-tertiary bg-semantic-destructive-quinary p-4">
+    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-border bg-muted p-4">
       <span className="text-lg text-semantic-destructive">
         {t("failedToParseInput")}
       </span>

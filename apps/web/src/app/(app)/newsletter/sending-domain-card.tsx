@@ -43,22 +43,11 @@ import {
   saveNewsletterSendingDomain,
 } from "@/lib/actions/newsletter/sending-domain";
 
-const STATUS_STYLE = {
-  PENDING: {
-    icon: Clock,
-    className:
-      "border-transparent bg-semantic-warning-quaternary text-semantic-warning-label",
-  },
-  VERIFIED: {
-    icon: CircleCheck,
-    className:
-      "border-transparent bg-semantic-success-quaternary text-semantic-success-label",
-  },
-  FAILED: {
-    icon: CircleAlert,
-    className:
-      "border-transparent bg-semantic-destructive-quaternary text-semantic-destructive-label",
-  },
+// Status chips are neutral; the glyph and the word carry the state.
+const STATUS_ICON = {
+  PENDING: Clock,
+  VERIFIED: CircleCheck,
+  FAILED: CircleAlert,
 } as const;
 
 type RecordPurpose = "dkim" | "spf" | "bounce" | "dmarc" | "other";
@@ -181,7 +170,7 @@ function AddDomainForm({ fallbackAvailable }: { fallbackAvailable: boolean }) {
           <p
             id="newsletter-from-address-error"
             role="alert"
-            className="text-semantic-destructive-label text-sm"
+            className="text-semantic-destructive text-sm"
           >
             {error}
           </p>
@@ -216,8 +205,7 @@ function ConnectedDomain({
   const format = useFormatter();
   const router = useRouter();
   const [checking, setChecking] = useState(false);
-  const { icon: StatusIcon, className: statusClassName } =
-    STATUS_STYLE[domain.status];
+  const StatusIcon = STATUS_ICON[domain.status];
   const verified = domain.status === "VERIFIED";
   // Core lists a suggested DMARC record only while the domain lacks a policy.
   const dmarcMissing = domain.dnsRecords.some(
@@ -251,7 +239,7 @@ function ConnectedDomain({
           <span className="min-w-0 font-mono text-sm font-medium wrap-anywhere">
             {domain.fromAddress}
           </span>
-          <Badge className={statusClassName}>
+          <Badge className="border-border bg-muted text-foreground">
             <StatusIcon aria-hidden />
             {t(`status.${domain.status}`)}
           </Badge>
@@ -269,7 +257,7 @@ function ConnectedDomain({
         {domain.status === "FAILED" && domain.failureReason ? (
           <p
             role="status"
-            className="text-semantic-destructive-label text-sm wrap-anywhere"
+            className="text-semantic-destructive text-sm wrap-anywhere"
           >
             {domain.failureReason}
           </p>
@@ -286,11 +274,11 @@ function ConnectedDomain({
       {dmarcMissing ? (
         <div
           role="status"
-          className="bg-semantic-warning-quinary border-semantic-warning-tertiary flex min-w-0 gap-2 rounded-md border p-3"
+          className="bg-muted border-border flex min-w-0 gap-2 rounded-md border p-3"
         >
           <CircleAlert
             aria-hidden
-            className="text-semantic-warning-label mt-0.5 size-4 shrink-0"
+            className="text-foreground mt-0.5 size-4 shrink-0"
           />
           <div className="min-w-0 space-y-1 text-sm">
             <p className="font-medium">{t("dmarc.title")}</p>
@@ -395,7 +383,7 @@ function DomainConnectOption({ projectId }: { projectId: string }) {
         </>
       )}
       {error ? (
-        <p role="alert" className="text-semantic-destructive-label text-sm">
+        <p role="alert" className="text-semantic-destructive text-sm">
           {error}
         </p>
       ) : null}
@@ -472,7 +460,7 @@ function CloudflareOption() {
         <p
           id="newsletter-cloudflare-token-error"
           role="alert"
-          className="text-semantic-destructive-label text-sm"
+          className="text-semantic-destructive text-sm"
         >
           {error}
         </p>
@@ -513,7 +501,7 @@ function DnsRecords({ records }: { records: NewsletterDnsRecord[] }) {
               {record.status === "verified" ? (
                 <CircleCheck
                   aria-label={t("records.found")}
-                  className="text-semantic-success size-4"
+                  className="text-foreground size-4"
                 />
               ) : null}
             </div>
@@ -604,7 +592,7 @@ function RemoveDomainButton({ domain }: { domain: string }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (
-          <p role="alert" className="text-semantic-destructive-label text-sm">
+          <p role="alert" className="text-semantic-destructive text-sm">
             {error}
           </p>
         ) : null}
@@ -614,7 +602,7 @@ function RemoveDomainButton({ domain }: { domain: string }) {
           </AlertDialogCancel>
           <AlertDialogAction
             loading={pending}
-            className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+            className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
             onClick={(event) => {
               event.preventDefault();
               void handleRemove();

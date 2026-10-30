@@ -11,10 +11,7 @@ const PLOT_LEFT = 28;
 const PLOT_RIGHT = 608;
 
 function scoreTone(score: number | null): string {
-  if (score === null) return "text-muted-foreground";
-  if (score >= 4) return "text-semantic-success";
-  if (score >= 3) return "text-semantic-warning";
-  return "text-semantic-destructive";
+  return score === null ? "text-muted-foreground" : "text-foreground";
 }
 
 interface ScoreChartLabels {
@@ -96,7 +93,7 @@ function ScoreChart({
         {showThumbs ? (
           <>
             <span className="inline-flex items-center gap-2">
-              <span aria-hidden className="bg-semantic-success h-px w-4" />
+              <span aria-hidden className="bg-muted-foreground h-px w-4" />
               {labels.thumbsUpLegend}
             </span>
             <span className="inline-flex items-center gap-2">
@@ -169,7 +166,7 @@ function ScoreChart({
               data-series="thumbs-up"
               points={thumbsUpPoints}
               fill="none"
-              className="stroke-semantic-success"
+              className="stroke-muted-foreground"
               strokeWidth={1.5}
               strokeLinejoin="round"
             />
@@ -204,7 +201,7 @@ function ScoreChart({
                   cx={x(index)}
                   cy={thumbsY(day.thumbsUp)}
                   r={2}
-                  className="fill-semantic-success"
+                  className="fill-muted-foreground"
                 >
                   <title>{labels.thumbsUpPoint(date, day.thumbsUp)}</title>
                 </circle>

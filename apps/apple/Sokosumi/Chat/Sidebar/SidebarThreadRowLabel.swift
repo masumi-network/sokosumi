@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One of a room's unread Threads inset under its sidebar row (row 24g2, web `ChatRoomThreadRows`): the thread
 /// mark, the parent as one line and one number. The mark is quiet, a neutral circle, unless a reply names the
-/// reader: then the accent circle with an `@`, and the row's mention badge instead of the reply count.
+/// reader: then the attention circle with an `@`, and the row's mention badge instead of the reply count.
 ///
 /// Equatable, and used with `.equatable()`, so the preview (a run of regular expressions) is built again only
 /// when the row changes, not on every sidebar update.

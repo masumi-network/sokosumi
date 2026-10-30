@@ -19,7 +19,7 @@ const TRIGGER_CLASS_NAME = cn(
 );
 
 const COUNT_CLASS_NAME =
-  "bg-primary-quinary text-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums";
+  "bg-muted text-foreground rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums";
 
 interface NotificationCenterViewFilterProps {
   className?: string;

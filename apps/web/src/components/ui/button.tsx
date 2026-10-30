@@ -10,20 +10,20 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary-solid text-primary-solid-foreground hover:bg-primary-solid-hover",
-        default:
-          "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
+        primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        // The guide's default is the bordered button: one filled primary per
+        // view, and Neutral 950 fill belongs to the X alone.
+        default: "border-border bg-background text-foreground hover:bg-accent",
         // No private focus ring. Every variant wears the one shared ring, so
         // the most dangerous button is not the one with the faintest focus
         // mark. Its own ring measured 1.41:1 in light and 1.70:1 in dark,
         // against 7.04 and 5.07 for the shared one.
         //
-        // The fill is the solid red, not the text red. A red that carries a
-        // near-white label must be darker than a red that reads as text on the
-        // page: white on the dark-mode text red measures 3.43, under the 4.5
-        // floor, while white on the solid measures 4.91.
+        // The fill is the guide's X, Neutral 950 (Neutral 50 in dark). It is
+        // not the bordered default: the solid X is what marks danger; the
+        // confirmation copy still names the irreversible step.
         destructive:
-          "bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover",
+          "bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover",
         outline:
           "border-control-border hover:bg-accent hover:text-accent-foreground bg-background",
         secondary: "bg-quinary text-foreground hover:bg-quaternary",

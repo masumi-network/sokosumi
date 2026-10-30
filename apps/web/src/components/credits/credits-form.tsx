@@ -315,7 +315,7 @@ export default function CreditsForm({
                         className={cn(
                           "h-auto min-h-36 w-full flex-col items-start justify-between gap-6 whitespace-normal rounded-xl px-4 py-4 text-left",
                           isSelected
-                            ? "border-foreground ring-ring bg-primary-quinary border shadow-sm ring-1 hover:bg-primary-quinary"
+                            ? "border-foreground ring-ring bg-muted border shadow-sm ring-1 hover:bg-muted"
                             : "hover:bg-card-background",
                         )}
                       >

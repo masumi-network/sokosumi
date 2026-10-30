@@ -43,7 +43,7 @@ struct ResultTaskCardView: View {
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.background, in: .rect(cornerRadius: 8))
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isHovered ? AnyShapeStyle(.tint) : AnyShapeStyle(Color.primary.opacity(0.12))))
+    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(isHovered ? 0.3 : 0.12)))
     .shadow(color: .black.opacity(isHovered ? 0.08 : 0), radius: 2, y: 1)
     .contentShape(.rect(cornerRadius: 8))
     // Web stretches the name's link over the card; its controls take their own clicks.

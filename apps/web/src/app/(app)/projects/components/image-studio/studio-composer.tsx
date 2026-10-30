@@ -88,8 +88,8 @@ function chipClass(active: boolean, disabled = false): string {
     // still has to say which value is in force.
     active
       ? "border-foreground bg-primary text-primary-foreground"
-      : "border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary",
-    disabled && "cursor-not-allowed opacity-60 hover:border-border",
+      : "border-border text-muted-foreground hover:text-foreground",
+    disabled && "cursor-not-allowed opacity-60",
   );
 }
 
@@ -691,7 +691,7 @@ export function StudioComposer({
                         }
                         aria-disabled={unavailable || undefined}
                         className={cn(
-                          "hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]",
+                          "hover:bg-accent focus-visible:ring-ring flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-2",
                           unavailable && "cursor-not-allowed opacity-60",
                         )}
                         key={model.id}
@@ -970,7 +970,7 @@ export function StudioComposer({
                               })}
                             </p>
                             <a
-                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
+                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-2"
                               href={model.price.sourceUrl}
                               rel="noreferrer"
                               target="_blank"

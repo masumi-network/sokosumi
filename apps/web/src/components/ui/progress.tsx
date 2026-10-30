@@ -20,7 +20,7 @@ function Progress({
     <ProgressPrimitive.Root
       data-slot="progress"
       className={cn(
-        "bg-primary-quaternary relative h-2 w-full overflow-hidden rounded-full",
+        "bg-quinary relative h-2 w-full overflow-hidden rounded-full",
         className,
       )}
       value={value}

@@ -262,7 +262,7 @@ function WizardFrame({
               >
                 {reachable ? (
                   <button
-                    className="focus-visible:ring-ring-halo block w-full rounded-sm text-left outline-none focus-visible:ring-[3px] [&>span:last-child]:hover:text-foreground"
+                    className="focus-visible:ring-ring block w-full rounded-sm text-left outline-none focus-visible:ring-2 [&>span:last-child]:hover:text-foreground"
                     disabled={submitting}
                     onClick={() => onJump(index)}
                     type="button"
@@ -387,7 +387,7 @@ function GoogleTypeStep() {
           return (
             <label
               key={type}
-              className="group bg-card has-[[data-state=checked]]:border-foreground has-[:focus-visible]:ring-ring-halo hover:bg-card-background-hover flex cursor-pointer flex-col gap-5 rounded-xl border p-5 transition-colors has-[:focus-visible]:ring-[3px]"
+              className="group bg-card has-[[data-state=checked]]:border-foreground has-[:focus-visible]:ring-ring hover:bg-card-background-hover flex cursor-pointer flex-col gap-5 rounded-xl border p-5 transition-colors has-[:focus-visible]:ring-2"
               htmlFor={`${id}-${type}`}
             >
               <div className="flex items-start justify-between gap-3">

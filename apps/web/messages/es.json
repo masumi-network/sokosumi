@@ -6163,15 +6163,12 @@
       },
       "DesignSystem": {
         "title": "Sistema de diseño",
-        "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales. Solo vista previa: la app sigue usando sus tokens actuales.",
+        "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales y los tokens de la app. Cambia el tema de la app para ver el modo oscuro.",
         "guideLink": "Guía de marca",
         "backToAdmin": "Volver al admin",
         "Theme": {
-          "label": "Tema de la vista previa",
           "light": "Claro",
-          "dark": "Oscuro",
-          "darkNote": "Los valores oscuros siguen abiertos en la guía. Esta vista sigue su tabla de roles.",
-          "limitsNote": "Los ejemplares de diálogo y toast son estáticos: los portales salen de los tokens de esta página. Evalúa la vista clara con la app en modo claro: los estilos dark: siguen cualquier ancestro .dark."
+          "dark": "Oscuro"
         },
         "Color": {
           "title": "Color",

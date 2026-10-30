@@ -1087,7 +1087,7 @@ export function ProjectSocialPosts({
     if (!post.connectionNeedsReconnect) return null;
     return (
       <p
-        className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+        className="text-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
         data-testid="social-post-needs-reconnect"
         role="status"
       >
