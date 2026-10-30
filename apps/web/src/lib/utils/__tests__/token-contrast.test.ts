@@ -21,6 +21,7 @@ const PAIRS: [string, string, number][] = [
   ["muted-foreground", "quaternary", TEXT],
   ["primary-foreground", "primary", TEXT],
   ["primary-foreground", "primary-hover", TEXT],
+  ["sidebar-primary-foreground", "sidebar-primary", TEXT],
   ["secondary-foreground", "secondary", TEXT],
   ["background-muted", "foreground", TEXT],
   ["input", "background", NON_TEXT],
