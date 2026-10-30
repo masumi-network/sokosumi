@@ -608,6 +608,12 @@ async function keptLook(
 async function reconcileUntilSettled(maxTicks = 12) {
   for (let i = 0; i < maxTicks; i += 1) {
     await reconcileAvatarRenders();
+    // Ticks are a minute apart: a failed step's retry wait is over by the next.
+    for (const row of renders.rows) {
+      if (row.status === "PENDING" || row.status === "STILL_READY") {
+        row.leaseUntil = null;
+      }
+    }
     const live = renders.rows.filter((row) =>
       [
         "PENDING",
@@ -1498,6 +1504,21 @@ describe("reconciling renders", () => {
   });
 });
 
+/** Kept look whose six loops are all submitted and none ready yet. */
+async function allSubmitted() {
+  pollsBeforeDone = 1_000_000;
+  await keptLook({ kind: "creature", creature: "otter" });
+  for (let tick = 0; tick < 6; tick += 1) {
+    await reconcileAvatarRenders();
+    if (renders.rows.every((row) => row.status === "VIDEO_SUBMITTED")) break;
+  }
+  expect(renders.rows.map((row) => row.status)).toEqual(
+    Array(6).fill("VIDEO_SUBMITTED"),
+  );
+  pollsBeforeDone = 0;
+  providerMock.pollVideo.mockClear();
+}
+
 describe("the run Keep and Redo start", () => {
   const plenty = () => 240_000;
 
@@ -1546,24 +1567,93 @@ describe("the run Keep and Redo start", () => {
 
     expect(pause).not.toHaveBeenCalled();
   });
+
+  it("starts nothing queued once its time is up, submits included", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    for (const row of renders.rows) {
+      Object.assign(row, {
+        status: "STILL_READY",
+        stillUrl: "https://blob.test/still.webp",
+      });
+    }
+    let left = 240_000;
+    providerMock.startVideo.mockImplementation(async () => {
+      left = 0;
+      return { job: "op-late" };
+    });
+
+    await renderAvatarNow(BOT, {
+      msRemaining: () => left,
+      pause: async () => {},
+    });
+
+    // Three were already running; the rest wait for the cron, whole.
+    expect(providerMock.startVideo).toHaveBeenCalledTimes(3);
+    expect(renders.rows.filter((row) => row.status === "STILL_READY")).toEqual(
+      Array(3).fill(expect.objectContaining({ attempts: 0, leaseUntil: null })),
+    );
+  });
+
+  it("waits a minute before a failed step's next paid try, whoever runs it", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    providerMock.editImage.mockClear();
+    providerMock.editImage.mockRejectedValue(new Error("provider down"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let left = 240_000;
+
+    // Runs 15 s apart, as the real pause leaves them.
+    await renderAvatarNow(BOT, {
+      msRemaining: () => left,
+      pause: async () => {
+        left = left > 195_000 ? left - 15_000 : 0;
+      },
+    });
+
+    // A short outage has not used up the row's three tries.
+    const pending = renders.rows.filter((row) => row.status === "PENDING");
+    expect(pending).toHaveLength(5);
+    expect(providerMock.editImage).toHaveBeenCalledTimes(5);
+
+    // Only the clock moves; ffmpeg and timers stay real.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(Date.now() + 61_000);
+      await reconcileAvatarRenders();
+      expect(providerMock.editImage).toHaveBeenCalledTimes(10);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves a row submitted again since this run read it", async () => {
+    await allSubmitted();
+    pollsBeforeDone = 1_000_000;
+    const stale = renders.rows[1]!;
+    const { operation: oldOperation } = stale.providerOperation as {
+      operation: unknown;
+    };
+    const newSubmission = {
+      submissionKey: "new",
+      operation: { job: "op-new" },
+    };
+    // While this run works its first collect, another run sees the second
+    // row's job fail and buys a new one.
+    providerMock.pollVideo.mockImplementationOnce(async () => {
+      Object.assign(stale, {
+        providerOperation: newSubmission,
+        submittedAt: new Date(Date.now() + 1_000),
+      });
+      return { status: "pending" };
+    });
+
+    await reconcileAvatarRenders();
+
+    expect(providerMock.pollVideo).not.toHaveBeenCalledWith(oldOperation);
+    expect(stale.providerOperation).toEqual(newSubmission);
+  });
 });
 
 describe("keeping a run inside the function's time limit", () => {
-  /** Kept look whose six loops are all submitted and none ready yet. */
-  async function allSubmitted() {
-    pollsBeforeDone = 1_000_000;
-    await keptLook({ kind: "creature", creature: "otter" });
-    for (let tick = 0; tick < 6; tick += 1) {
-      await reconcileAvatarRenders();
-      if (renders.rows.every((row) => row.status === "VIDEO_SUBMITTED")) break;
-    }
-    expect(renders.rows.map((row) => row.status)).toEqual(
-      Array(6).fill("VIDEO_SUBMITTED"),
-    );
-    pollsBeforeDone = 0;
-    providerMock.pollVideo.mockClear();
-  }
-
   it("starts no collect with too little time left, and leaves the row untouched", async () => {
     await allSubmitted();
     const before = renders.rows.map((row) => ({ ...row }));

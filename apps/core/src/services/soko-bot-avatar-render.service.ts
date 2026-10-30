@@ -68,6 +68,8 @@ const LEASE_MS = 10 * 60 * 1000;
 export const UNCERTAIN_WAIT_MS = 30 * 60 * 1000;
 /** Paid attempts per step before the render gives up and the still alone shows. */
 export const MAX_RENDER_ATTEMPTS = 3;
+/** How long a step that failed waits before its next try, whoever runs it. */
+const RETRY_WAIT_MS = 60_000;
 /** A video that has not finished by now never will. */
 const VIDEO_MAX_AGE_MS = 30 * 60 * 1000;
 const RUN_BATCH = 9;
@@ -123,8 +125,9 @@ function creatureFor(style: SokoBotAvatarStyle, look: unknown) {
 }
 
 /**
- * Give up on a row, or hand it back for the next tick: a step that threw
- * releases its lease, and the attempt it spent stays counted.
+ * Give up on a row, or hand it back: a step that threw leaves its lease to run
+ * out after {@link RETRY_WAIT_MS}, so a short outage cannot use up every attempt
+ * however often runs come, and the attempt it spent stays counted.
  */
 async function settleFailure(
   row: RenderRow,
@@ -137,7 +140,7 @@ async function settleFailure(
     where: { id: row.id },
     data: {
       status: exhausted ? "FAILED" : retryStatus,
-      leaseUntil: null,
+      leaseUntil: exhausted ? null : new Date(Date.now() + RETRY_WAIT_MS),
       lastError: errorText(error),
       // A definite outcome: the next submit is a new job under a new key.
       providerOperation: Prisma.DbNull,
@@ -311,9 +314,15 @@ async function collectLoop(
     return "failed";
   }
   // Polling is free; the lease only keeps two ticks from downloading and
-  // encoding the same video.
+  // encoding the same video. `submittedAt` makes sure the job this run read is
+  // still the row's: another run may have submitted a new one since.
   const claim = await prisma.sokoBotAvatarRender.updateMany({
-    where: { id: row.id, status: "VIDEO_SUBMITTED", ...leaseFree(new Date()) },
+    where: {
+      id: row.id,
+      status: "VIDEO_SUBMITTED",
+      submittedAt: row.submittedAt,
+      ...leaseFree(new Date()),
+    },
     data: { leaseUntil: new Date(Date.now() + LEASE_MS) },
   });
   if (claim.count === 0) return "pending";
@@ -553,6 +562,7 @@ export async function renderAvatarNow(
     await reconcileAvatarRenders({
       sokoBotId,
       msRemaining: options.msRemaining,
+      shouldContinue: () => options.msRemaining() > 0,
     });
     const moving = await prisma.sokoBotAvatarRender.count({
       where: {
