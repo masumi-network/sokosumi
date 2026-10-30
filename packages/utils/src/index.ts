@@ -326,6 +326,7 @@ export {
   newsletterBlockSchema,
   newsletterContentSchema,
   newsletterDraftInputSchema,
+  newsletterSignupLinks,
 } from "./newsletter.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,

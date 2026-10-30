@@ -21,6 +21,7 @@ import {
   sokoBotGetImageInputSchema as getImageInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
+  isSokoBotNewsletterCapability,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotListTasksInputSchema as listTasksInputSchema,
@@ -31,6 +32,7 @@ import {
   renderSokoBotMemory,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
@@ -234,6 +236,7 @@ import {
   mailSendRefusal,
   ownerAskedToSend,
 } from "@/lib/soko-bot/mail-send-guard";
+import { runNewsletterReadTool } from "@/lib/soko-bot/newsletter-tools";
 import {
   persistedToolResult,
   sanitizePersistedValue,
@@ -4896,11 +4899,16 @@ export class SokoBotRuntimeService {
 
   async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
     const authorized = await this.authorize(input);
-    if (input.capability === "newsletter_draft_issue") {
-      const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(
+    if (isSokoBotNewsletterCapability(input.capability)) {
+      // Before any receipt lookup, so a replay is refused like a first call.
+      const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
         input.input,
       );
-      await this.requireNewsletterDraftScope(authorized, params.projectId);
+      await this.requireNewsletterScope(
+        authorized,
+        input.capability,
+        projectId,
+      );
     }
     assertEvaluationActor({
       ...authorized.turn,
@@ -6071,14 +6079,29 @@ export class SokoBotRuntimeService {
     return input;
   }
 
-  private async requireNewsletterDraftScope(
+  /**
+   * The checks every newsletter tool shares with the Newsletter UI: the bot's
+   * own Project, the acting member's access to it, the beta gate, and an
+   * existing newsletter. Subscriber emails are personal data, so only the
+   * owner of a personal bot may have them read.
+   */
+  private async requireNewsletterScope(
     authorized: AuthorizedSokoBotRuntime,
+    capability: (typeof SOKO_BOT_NEWSLETTER_CAPABILITIES)[number],
     projectId: string,
   ) {
     const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
       projectId,
     ]);
     if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
+    if (
+      capability === "list_newsletter_subscribers" &&
+      (authorized.reader.sharedScope || authorized.askedByKind !== "OWNER")
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Newsletter subscribers are personal data, read only on your owner's request. Point them to the Newsletter's Subscribers page instead.",
+      );
+    }
     const scope = await requireProjectAccess({
       projectId,
       workspaceId: authorized.turn.workspaceId,
@@ -6108,8 +6131,9 @@ export class SokoBotRuntimeService {
       case "newsletter_draft_issue": {
         const { projectId, ...params } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(input.input);
-        const scope = await this.requireNewsletterDraftScope(
+        const scope = await this.requireNewsletterScope(
           authorized,
+          input.capability,
           projectId,
         );
         const draft = await generateNewsletterDraft(scope, params);
@@ -6146,6 +6170,24 @@ export class SokoBotRuntimeService {
           });
           return result;
         }, "Newsletter draft changed concurrently");
+      }
+      case "get_newsletter":
+      case "list_newsletter_issues":
+      case "get_newsletter_issue":
+      case "get_newsletter_analytics":
+      case "list_newsletter_subscribers": {
+        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[
+          input.capability
+        ].parse(input.input);
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          input.capability,
+          projectId,
+        );
+        return runNewsletterReadTool(input.capability, input.input, {
+          projectId,
+          workspaceId: scope.workspaceId,
+        });
       }
       case "list_project_social_accounts":
       case "list_social_posts":
