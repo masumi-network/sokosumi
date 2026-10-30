@@ -168,6 +168,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       seatSummary,
       organizationCredits,
       organizationStripeCustomerId,
+      subscriptionSeats,
     ] = await Promise.all([
       isEnterpriseContract
         ? getEnterpriseContractBillingSummary(activeOrganization.id)
@@ -195,6 +196,25 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           }
           throw error;
         }),
+      !isEnterpriseContract && currentPlan !== "free"
+        ? coreClient
+            .getOrganizationSubscriptionSeats(activeOrganization.id)
+            .then((response) => response.data)
+            .catch((error: unknown) => {
+              // Same as above: the pending reduction is not worth losing the
+              // billing page over a stale membership or a subscription that
+              // just ended.
+              if (
+                error instanceof CoreApiRequestError &&
+                (error.status === 400 ||
+                  error.status === 403 ||
+                  error.status === 404)
+              ) {
+                return null;
+              }
+              throw error;
+            })
+        : Promise.resolve(null),
     ]);
     // `getSeatSummary` resolves null when core reports a stale membership
     // (403/404); fall back to zero counts so the page still renders, matching
@@ -277,6 +297,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
                 scheduledCancelDate={resolveScheduledCancelDate(billingPlan)}
+                scheduledSeats={subscriptionSeats?.scheduledSeats ?? null}
+                scheduledSeatsAt={subscriptionSeats?.scheduledSeatsAt ?? null}
               />
             }
             creditsContent={

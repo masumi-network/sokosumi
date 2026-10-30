@@ -117,13 +117,17 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       stripeSubscriptionId: "sub_stripe_1",
     });
     retrieveSubscriptionWithItemsMock.mockResolvedValue({
-      items: { data: [{ id: "si_1", price: { unit_amount: 2500 } }] },
+      items: {
+        data: [
+          {
+            current_period_end: 1_767_225_600,
+            id: "si_1",
+            price: { currency: "eur", unit_amount: 2500 },
+          },
+        ],
+      },
     });
-    previewSubscriptionItemQuantityMock.mockResolvedValue({
-      amount_due: 1234,
-      currency: "eur",
-      total: 1234,
-    });
+    previewSubscriptionItemQuantityMock.mockResolvedValue({ amount_due: 1234 });
   });
 
   it("returns what adding seats costs without changing the subscription", async () => {
@@ -135,8 +139,8 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
       amountDue: 1234,
-      creditAmount: 0,
       currency: "eur",
+      effectiveAt: null,
       newMonthlyAmount: 12500,
       seats: 5,
     });
@@ -148,13 +152,8 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
   });
 
-  it("returns the credit when removing seats", async () => {
+  it("charges and refunds nothing when removing seats, and says when it applies", async () => {
     setMembership("owner");
-    previewSubscriptionItemQuantityMock.mockResolvedValue({
-      amount_due: 0,
-      currency: "eur",
-      total: -800,
-    });
 
     const response = await previewSeats("org_123", 1);
     const body = await response.json();
@@ -162,11 +161,29 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
       amountDue: 0,
-      creditAmount: 800,
       currency: "eur",
+      effectiveAt: "2026-01-01T00:00:00.000Z",
       newMonthlyAmount: 2500,
       seats: 1,
     });
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+  });
+
+  it("costs nothing to keep the current seats", async () => {
+    setMembership("owner");
+
+    const response = await previewSeats("org_123", 2);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      amountDue: 0,
+      currency: "eur",
+      effectiveAt: null,
+      newMonthlyAmount: 5000,
+      seats: 2,
+    });
+    expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for a member who is not an owner or admin", async () => {

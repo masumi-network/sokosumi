@@ -78,9 +78,9 @@ describe("subscription actions", () => {
     expect(updateOrganizationSubscriptionSeatsMock).not.toHaveBeenCalled();
   });
 
-  it("updates organization seats immediately via core", async () => {
+  it("updates organization seats via core", async () => {
     updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
-      data: { seats: 9 },
+      data: { seats: 9, scheduledSeats: null, scheduledSeatsAt: null },
     });
 
     const { updateOrganizationSubscriptionSeats } = await import("./action");
@@ -92,7 +92,7 @@ describe("subscription actions", () => {
     });
 
     expect(result).toEqual({
-      value: { seats: 9 },
+      value: { scheduledSeats: null, seats: 9 },
       ok: true,
     });
     expect(updateOrganizationSubscriptionSeatsMock).toHaveBeenCalledWith(
@@ -108,8 +108,8 @@ describe("subscription actions", () => {
   it("returns the Core seat preview", async () => {
     const preview = {
       amountDue: 1234,
-      creditAmount: 0,
       currency: "eur",
+      effectiveAt: null,
       newMonthlyAmount: 12500,
       seats: 5,
     };

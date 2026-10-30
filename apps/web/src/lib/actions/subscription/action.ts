@@ -93,7 +93,7 @@ export const previewOrganizationSubscriptionSeats = withSession<
 
 export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,
-  ActionResultDto<{ seats: number }, ActionError>
+  ActionResultDto<{ scheduledSeats: number | null; seats: number }, ActionError>
 >(async ({ organizationId, seats, session }) => {
   const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
     organizationId,
@@ -118,7 +118,9 @@ export const updateOrganizationSubscriptionSeats = withSession<
       organizationId: parsed.data.organizationId,
     });
 
-    return toActionResult(ok({ seats: data.seats }));
+    return toActionResult(
+      ok({ scheduledSeats: data.scheduledSeats, seats: data.seats }),
+    );
   } catch (error) {
     return toActionResult(err(toSubscriptionSeatsActionError(error)));
   }

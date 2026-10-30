@@ -21003,23 +21003,60 @@ export const EnterpriseContractBillingSummarySchema = {
     ]
 } as const;
 
+export const OrganizationSubscriptionSeatsSchema = {
+    type: 'object',
+    properties: {
+        seats: {
+            type: 'integer',
+            description: 'Purchased seat count on the active subscription',
+            example: 3
+        },
+        scheduledSeats: {
+            type: [
+                'integer',
+                'null'
+            ],
+            description: 'Seat count the subscription drops to at the next renewal. Null when no reduction is pending',
+            example: 2
+        },
+        scheduledSeatsAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2025-02-01T00:00:00.000Z',
+            description: 'When the pending reduction takes effect'
+        }
+    },
+    required: [
+        'seats',
+        'scheduledSeats',
+        'scheduledSeatsAt'
+    ]
+} as const;
+
 export const OrganizationSubscriptionSeatsPreviewSchema = {
     type: 'object',
     properties: {
         amountDue: {
             type: 'integer',
-            description: 'Charged to the payment method right away, including tax',
+            description: 'Charged to the payment method right away, including tax. Zero unless seats are added',
             example: 1234
-        },
-        creditAmount: {
-            type: 'integer',
-            description: 'Unused amount added to the Stripe customer balance when seats are removed',
-            example: 0
         },
         currency: {
             type: 'string',
             description: 'Lowercase ISO currency code',
             example: 'eur'
+        },
+        effectiveAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When a reduction takes effect: the next renewal. Null when the change applies right away'
         },
         newMonthlyAmount: {
             type: 'integer',
@@ -21034,23 +21071,9 @@ export const OrganizationSubscriptionSeatsPreviewSchema = {
     },
     required: [
         'amountDue',
-        'creditAmount',
         'currency',
+        'effectiveAt',
         'newMonthlyAmount',
-        'seats'
-    ]
-} as const;
-
-export const OrganizationSubscriptionSeatsSchema = {
-    type: 'object',
-    properties: {
-        seats: {
-            type: 'integer',
-            description: 'Purchased seat count on the active subscription',
-            example: 3
-        }
-    },
-    required: [
         'seats'
     ]
 } as const;

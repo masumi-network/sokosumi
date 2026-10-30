@@ -39,6 +39,8 @@ interface OrganizationSubscriptionSectionProps {
   plans: SubscriptionPlanView[];
   returnPath: string;
   scheduledCancelDate: Date | null;
+  scheduledSeats: number | null;
+  scheduledSeatsAt: Date | null;
 }
 
 export function OrganizationSubscriptionSection({
@@ -51,6 +53,8 @@ export function OrganizationSubscriptionSection({
   plans,
   returnPath,
   scheduledCancelDate,
+  scheduledSeats,
+  scheduledSeatsAt,
 }: OrganizationSubscriptionSectionProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
@@ -241,10 +245,12 @@ export function OrganizationSubscriptionSection({
         <OrganizationSeatsCard
           assignedCount={assignedCount}
           currentSeats={currentSeats}
-          key={currentSeats}
+          key={`${currentSeats}:${scheduledSeats}`}
           onError={handleSubscriptionActionError}
           organizationId={organizationId}
           scheduledCancelDate={scheduledCancelDate}
+          scheduledSeats={scheduledSeats}
+          scheduledSeatsAt={scheduledSeatsAt}
         />
       ) : null}
       {!hasCurrentPaidPlan && !showEnterpriseExclusiveUi ? (

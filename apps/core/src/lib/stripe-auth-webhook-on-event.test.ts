@@ -8,6 +8,7 @@ const captureExceptionMock = vi.fn();
 const notifyPaymentFailedMock = vi.fn();
 const notifySubscriptionEndingMock = vi.fn();
 const resolveBillingWalletByStripeCustomerIdMock = vi.fn();
+const releaseAppliedSeatReductionMock = vi.fn();
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
@@ -36,11 +37,23 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     handleSubscriptionCreatedEventMock(...args),
 }));
 
+vi.mock("@/helpers/organization-subscription-seats", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/helpers/organization-subscription-seats")
+  >("@/helpers/organization-subscription-seats");
+  return {
+    isCancellationScheduled: actual.isCancellationScheduled,
+    releaseAppliedSeatReduction: (...args: unknown[]) =>
+      releaseAppliedSeatReductionMock(...args),
+  };
+});
+
 import { handleStripeAuthWebhookOnEvent } from "./stripe-auth-webhook-on-event";
 
 describe("handleStripeAuthWebhookOnEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    releaseAppliedSeatReductionMock.mockResolvedValue(undefined);
     handleEventMock.mockResolvedValue(undefined);
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
     handleCheckoutSessionCompletedEventMock.mockResolvedValue(undefined);
@@ -104,6 +117,49 @@ describe("handleStripeAuthWebhookOnEvent", () => {
       }),
     );
     expect(notifyPaymentFailedMock).not.toHaveBeenCalled();
+  });
+
+  it("lets go of a seat reduction on a subscription update", async () => {
+    const subscription = {
+      id: "sub_1",
+      customer: "cus_123",
+      schedule: "sub_sched_1",
+    };
+
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_updated",
+      type: "customer.subscription.updated",
+      data: { object: subscription, previous_attributes: {} },
+    } as never);
+
+    expect(releaseAppliedSeatReductionMock).toHaveBeenCalledWith(subscription);
+  });
+
+  /** A retry would replay the plugin's own subscription handling. */
+  it("reports a failed schedule release and still returns", async () => {
+    const failure = new Error("Stripe is unavailable");
+    releaseAppliedSeatReductionMock.mockRejectedValue(failure);
+
+    await expect(
+      handleStripeAuthWebhookOnEvent({
+        id: "evt_updated",
+        type: "customer.subscription.updated",
+        data: {
+          object: { id: "sub_1", customer: "cus_123", schedule: "sub_sched_1" },
+          previous_attributes: {},
+        },
+      } as never),
+    ).resolves.toBeUndefined();
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        tags: {
+          stripeEventType: "customer.subscription.updated",
+          stripeSubscriptionId: "sub_1",
+        },
+      }),
+    );
   });
 
   it("tells the wallet when a subscription is set to end at period end", async () => {

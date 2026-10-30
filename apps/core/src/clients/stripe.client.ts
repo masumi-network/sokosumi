@@ -362,6 +362,50 @@ export const stripeClient = {
     );
   },
 
+  async createSubscriptionScheduleFromSubscription(
+    subscriptionId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.create(
+      { from_subscription: subscriptionId },
+      requestOptions,
+    );
+  },
+
+  async retrieveSubscriptionSchedule(
+    scheduleId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.retrieve(
+      scheduleId,
+      undefined,
+      requestOptions,
+    );
+  },
+
+  async updateSubscriptionSchedule(
+    scheduleId: string,
+    params: Stripe.SubscriptionScheduleUpdateParams,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.update(
+      scheduleId,
+      params,
+      requestOptions,
+    );
+  },
+
+  async releaseSubscriptionSchedule(
+    scheduleId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.release(
+      scheduleId,
+      undefined,
+      requestOptions,
+    );
+  },
+
   async updateSubscriptionCancelAtPeriodEnd(
     subscriptionId: string,
     cancelAtPeriodEnd: boolean,

@@ -43,10 +43,14 @@ function renderCard({
   assignedCount = 1,
   onError = vi.fn(),
   scheduledCancelDate = null,
+  scheduledSeats = null,
+  scheduledSeatsAt = null,
 }: {
   assignedCount?: number;
   onError?: (error: { code: string }) => void;
   scheduledCancelDate?: Date | null;
+  scheduledSeats?: number | null;
+  scheduledSeatsAt?: Date | null;
 } = {}) {
   render(
     <TestQueryProvider>
@@ -56,6 +60,8 @@ function renderCard({
         onError={onError}
         organizationId="org-1"
         scheduledCancelDate={scheduledCancelDate}
+        scheduledSeats={scheduledSeats}
+        scheduledSeatsAt={scheduledSeatsAt}
       />
     </TestQueryProvider>,
   );
@@ -74,13 +80,16 @@ beforeEach(() => {
     ok: true,
     value: {
       amountDue: 1234,
-      creditAmount: 0,
       currency: "eur",
+      effectiveAt: null,
       newMonthlyAmount: 12500,
       seats: 5,
     },
   });
-  updateMock.mockResolvedValue({ ok: true, value: { seats: 5 } });
+  updateMock.mockResolvedValue({
+    ok: true,
+    value: { scheduledSeats: null, seats: 5 },
+  });
 });
 
 describe("OrganizationSeatsCard", () => {
@@ -193,16 +202,20 @@ describe("OrganizationSeatsCard", () => {
     expect(within(dialog).getByRole("button", { name: ADD_TWO })).toBeEnabled();
   });
 
-  it("warns how many members lose a seat and where the money goes", async () => {
+  it("says a removal waits for renewal, and warns how many members lose a seat", async () => {
     previewMock.mockResolvedValue({
       ok: true,
       value: {
         amountDue: 0,
-        creditAmount: 800,
         currency: "eur",
+        effectiveAt: new Date("2026-04-01T00:00:00.000Z"),
         newMonthlyAmount: 2500,
         seats: 1,
       },
+    });
+    updateMock.mockResolvedValue({
+      ok: true,
+      value: { scheduledSeats: 1, seats: 3 },
     });
     renderCard({ assignedCount: 3 });
     await setSeats("1");
@@ -210,14 +223,75 @@ describe("OrganizationSeatsCard", () => {
     await userEvent.click(screen.getByRole("button", { name: REMOVE_TWO }));
 
     const dialog = await screen.findByRole("alertdialog");
-    await within(dialog).findByText(
-      'seatsCard.dialog.approximate:{"amount":"EUR 8.00"}',
-    );
+    await within(dialog).findByText("seatsCard.dialog.effectiveAt");
+    expect(within(dialog).getByText("Apr 1, 2026")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("seatsCard.dialog.removeDescription"),
+    ).toBeInTheDocument();
     expect(
       within(dialog).getByText('seatsCard.dialog.seatsLost:{"count":2}'),
     ).toBeInTheDocument();
+    expect(within(dialog).queryByText("seatsCard.dialog.dueNow")).toBeNull();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: REMOVE_TWO }),
+    );
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("seatsScheduledSuccess"),
+    );
+  });
+
+  it("starts from a pending reduction and offers to keep the seats", async () => {
+    updateMock.mockResolvedValue({
+      ok: true,
+      value: { scheduledSeats: null, seats: 3 },
+    });
+    renderCard({
+      scheduledSeats: 1,
+      scheduledSeatsAt: new Date("2026-04-01T00:00:00.000Z"),
+    });
+
+    expect(screen.getByRole("spinbutton")).toHaveValue(1);
     expect(
-      within(dialog).getByText("seatsCard.dialog.creditNote"),
+      screen.getByText(
+        'seatsCard.scheduledNote:{"date":"Apr 1, 2026","seats":1}',
+        { exact: false },
+      ),
+    ).toBeInTheDocument();
+    // The stepper already shows the pending count: nothing to confirm yet.
+    expect(screen.getByRole("button", { name: REMOVE_TWO })).toBeDisabled();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: 'seatsCard.keepCta:{"count":3}' }),
+    );
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(
+      within(dialog).getByText("seatsCard.dialog.keepDescription"),
+    ).toBeInTheDocument();
+    await within(dialog).findByText("seatsCard.dialog.newMonthly");
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: 'seatsCard.keepCta:{"count":3}',
+      }),
+    );
+
+    await waitFor(() =>
+      expect(updateMock).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        seats: 3,
+      }),
+    );
+  });
+
+  it("blocks removing seats while the plan is set to end", async () => {
+    renderCard({ scheduledCancelDate: new Date("2026-04-01T00:00:00.000Z") });
+    await setSeats("1");
+
+    expect(screen.getByRole("button", { name: REMOVE_TWO })).toBeDisabled();
+    expect(
+      screen.getByText('seatsCard.removeBlocked:{"date":"Apr 1, 2026"}'),
     ).toBeInTheDocument();
   });
 
