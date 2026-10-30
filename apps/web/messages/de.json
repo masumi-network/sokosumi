@@ -3676,7 +3676,20 @@
             "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
             "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
             "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
-            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut."
+            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut.",
+            "resumeUnavailable": "Verifiziere diese Absenderdomain vor dem Fortsetzen. Prüfe ihre DNS-Einträge und versuche es erneut."
+          },
+          "warmup": {
+            "title": "Aufwärmphase der Domain",
+            "progress": "Tag {day} · Heute {used} von {cap} versendet (UTC)",
+            "unlimited": "Tag {day} · Heute {used} versendet (UTC) · Unbegrenzt",
+            "description": "Empfänger über dem heutigen Limit bleiben in der Warteschlange und werden automatisch angeschrieben, sobald wieder Kapazität verfügbar ist. Das Tageslimit wird um 00:00 UTC zurückgesetzt.",
+            "paused": "Versand pausiert",
+            "bounceReason": "Zu viele E-Mails waren dauerhaft unzustellbar.",
+            "complaintReason": "Zu viele Empfänger haben E-Mails als Spam markiert.",
+            "pausedDescription": "Empfänger bleiben in der Warteschlange, bis ein Projektmitglied den Versand fortsetzt. Prüfe vorher die Abonnentenliste.",
+            "resume": "Versand fortsetzen",
+            "resumed": "Versand fortgesetzt. Empfänger in der Warteschlange werden innerhalb des Tageslimits angeschrieben."
           }
         }
       }
