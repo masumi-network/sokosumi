@@ -1,18 +1,23 @@
 import "server-only";
 
 import type {
+  ApproveSocialPostRequest,
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  GetProjectsData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   JobSummary,
   Project,
+  ProjectActivityItem,
   ProjectCloseRecoveryRequest,
   ProjectCloseRequest,
   ProjectCloseStatus,
   ProjectContextMd,
+  ProjectHide,
+  ProjectHideResult,
   ProjectListItem,
   ProjectSocialConnection,
   ProjectSocialConnectionPages,
@@ -20,6 +25,7 @@ import type {
   ProjectStatsEntry,
   PublishSocialPostRequest,
   RecycleSocialAccountPostRequest,
+  ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
   SocialPost,
   SocialPostStatus,
@@ -35,6 +41,13 @@ interface ListProjectsParams {
   limit?: number;
   /** Case-insensitive project-name filter, applied by Core before paging. */
   query?: string;
+  /**
+   * Open (closing and close-failed included, the reader's Hidden projects
+   * not), Hidden, or Closed; omitted lists every project.
+   */
+  state?: NonNullable<GetProjectsData["query"]>["state"];
+  /** Lead with the reader's Pins, by `starredAt` ascending. */
+  pinnedFirst?: boolean;
 }
 
 interface ListProjectResourcesParams {
@@ -66,6 +79,8 @@ export const projectService = (() => {
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       q: params.query || undefined,
+      state: params.state,
+      pinnedFirst: params.pinnedFirst ? "true" : undefined,
     });
 
     return {
@@ -86,6 +101,18 @@ export const projectService = (() => {
     });
 
     return result.data.projects;
+  }
+
+  /**
+   * Recent activity: the newest event per task, job and project across open
+   * projects, or within one project when `projectId` is given.
+   */
+  async function listRecentActivity(
+    limit: number,
+    projectId?: string,
+  ): Promise<ProjectActivityItem[]> {
+    const result = await coreClient.getProjectsActivity({ limit, projectId });
+    return result.data;
   }
 
   async function getProjectById(projectId: string): Promise<Project | null> {
@@ -162,6 +189,33 @@ export const projectService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to unpin project");
+    }
+
+    return result.data;
+  }
+
+  /** Whether the reader has Hidden this project (ADR 0036). */
+  async function isProjectHidden(projectId: string): Promise<boolean> {
+    const result = await coreClient.getProjectHide(projectId);
+    return result.data?.hiddenAt != null;
+  }
+
+  /** Hides the project for the reader, unpinning it; `unpinned` says whether it was. */
+  async function hideProject(projectId: string): Promise<ProjectHideResult> {
+    const result = await coreClient.hideProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to hide project");
+    }
+
+    return result.data;
+  }
+
+  async function showProject(projectId: string): Promise<ProjectHide> {
+    const result = await coreClient.showProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to show project");
     }
 
     return result.data;
@@ -322,12 +376,18 @@ export const projectService = (() => {
     params: {
       statuses?: readonly SocialPostStatus[];
       cursor?: string | null;
+      quoteCandidates?: boolean;
+      excludePostId?: string;
+      search?: string;
     } = {},
   ): Promise<{ posts: SocialPost[]; nextCursor: string | null }> {
     const result = await coreClient.getProjectsByIdSocialPosts(projectId, {
       status: params.statuses?.join(","),
       cursor: params.cursor ?? undefined,
       limit: 20,
+      ...(params.quoteCandidates ? { quoteCandidates: "true" } : {}),
+      ...(params.excludePostId ? { excludePostId: params.excludePostId } : {}),
+      ...(params.search ? { search: params.search } : {}),
     });
     return {
       posts: result.data,
@@ -520,6 +580,33 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function approveSocialPost(
+    projectId: string,
+    postId: string,
+    input: ApproveSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdApprove(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function resumeSocialPostThread(
+    projectId: string,
+    postId: string,
+    input: ResumeSocialPostThreadRequest,
+  ): Promise<SocialPost> {
+    const result =
+      await coreClient.postProjectsByIdSocialPostsByPostIdThreadResume(
+        projectId,
+        postId,
+        input,
+      );
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -624,6 +711,10 @@ export const projectService = (() => {
     pinProject,
     unpinProject,
     listPinnedProjects,
+    isProjectHidden,
+    hideProject,
+    showProject,
+    listRecentActivity,
     patchProject,
     removeProjectDesignMd,
     listSocialConnections,
@@ -648,6 +739,8 @@ export const projectService = (() => {
     duplicateSocialPost,
     recycleSocialAccountPost,
     publishSocialPost,
+    approveSocialPost,
+    resumeSocialPostThread,
     listProjectJobs,
     listProjectTasks,
     addJob,

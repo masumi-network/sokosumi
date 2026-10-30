@@ -89,9 +89,9 @@ import SwiftUI
       }
       .padding(.horizontal, 8)
       .padding(.vertical, 4)
-      .background(reaction.reactedByCurrentUser ? Color.accentColor.opacity(hovered ? 0.28 : 0.18) : Color.secondary.opacity(hovered ? 0.22 : 0.12),
+      .background(reaction.reactedByCurrentUser ? Color.primary.opacity(hovered ? 0.2 : 0.14) : Color.secondary.opacity(hovered ? 0.22 : 0.12),
                   in: .capsule)
-      .overlay(Capsule().strokeBorder(reaction.reactedByCurrentUser ? Color.accentColor : Color.secondary.opacity(0.3)))
+      .overlay(Capsule().strokeBorder(reaction.reactedByCurrentUser ? Color.primary.opacity(0.5) : Color.secondary.opacity(0.3)))
       .contentShape(.capsule)
     }
   }

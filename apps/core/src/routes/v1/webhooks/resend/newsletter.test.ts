@@ -11,20 +11,23 @@ import {
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
   NEWSLETTER_SUBSCRIBER_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import router from "../index";
 
 const m = vi.hoisted(() => {
   const state: {
-    enabled: boolean;
     secret?: string;
     subscriber: NewsletterSubscriber | null;
     events: Prisma.NewsletterEventCreateManyInput[];
-  } = { enabled: true, subscriber: null, events: [] };
+  } = { subscriber: null, events: [] };
   return {
     state,
     findSend: vi.fn(),
+    findDomain: vi.fn(),
+    countSends: vi.fn(),
+    updateDomain: vi.fn(),
     createEvents: vi.fn(),
     updateSubscriber: vi.fn(),
     transaction: vi.fn(),
@@ -37,7 +40,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.state.enabled,
       RESEND_NEWSLETTER_WEBHOOK_SECRET: m.state.secret,
     }),
   };
@@ -47,7 +49,11 @@ vi.mock("@/lib/auth", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    newsletterSend: { findUnique: m.findSend },
+    newsletterSend: { findUnique: m.findSend, count: m.countSends },
+    newsletterSendingDomain: {
+      findUnique: m.findDomain,
+      updateMany: m.updateDomain,
+    },
     $transaction: m.transaction,
   },
 }));
@@ -111,7 +117,6 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NEWSLETTER_NOW);
-  m.state.enabled = true;
   m.state.secret = SECRET;
   m.state.subscriber = { ...NEWSLETTER_SUBSCRIBER };
   m.state.events = [];
@@ -119,8 +124,11 @@ beforeEach(() => {
     id: SEND_ID,
     issueId: NEWSLETTER_ISSUE_ID,
     subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+    sendingDomainId: null,
     issue: { newsletterId: NEWSLETTER_ID },
   });
+  m.findDomain.mockResolvedValue(null);
+  m.countSends.mockResolvedValue(0);
   m.createEvents.mockImplementation(
     ({ data }: { data: Prisma.NewsletterEventCreateManyInput }) => {
       if (
@@ -139,7 +147,11 @@ beforeEach(() => {
       where,
       data,
     }: {
-      where: { id: string; status: { not: string } };
+      where: {
+        id: string;
+        status: { not: string };
+        OR?: Array<{ bouncedAt: null | { gt: Date } }>;
+      };
       data: {
         status: NewsletterSubscriber["status"];
         bouncedAt?: Date;
@@ -150,7 +162,14 @@ beforeEach(() => {
       if (
         !subscriber ||
         subscriber.id !== where.id ||
-        subscriber.status === where.status.not
+        subscriber.status === where.status.not ||
+        (where.OR &&
+          subscriber.bouncedAt &&
+          !where.OR.some(
+            (condition) =>
+              condition.bouncedAt &&
+              subscriber.bouncedAt! > condition.bouncedAt.gt,
+          ))
       ) {
         return { count: 0 };
       }
@@ -172,6 +191,30 @@ afterEach(() => {
 });
 
 describe("POST /v1/webhooks/resend/newsletter", () => {
+  it.each(["other", null])(
+    "acknowledges but ignores issues in workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      // The send exists, but only outside the beta-scoped lookup.
+      m.findSend.mockImplementation(({ where }) =>
+        !where.issue ||
+        where.issue.project.workspace.organization.slug ===
+          workspace.organization?.slug
+          ? { id: SEND_ID }
+          : null,
+      );
+      const response = await app().request(
+        URL,
+        signedRequest(JSON.stringify(payload("email.complained"))),
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { received: true } });
+      expect(m.createEvents).not.toHaveBeenCalled();
+      expect(m.updateSubscriber).not.toHaveBeenCalled();
+      expect(m.state.subscriber?.status).toBe("ACTIVE");
+    },
+  );
+
   it("verifies the original raw body without session auth", async () => {
     const body = JSON.stringify(
       payload("email.delivered", { subject: "News — hello" }),
@@ -186,7 +229,12 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ data: { received: true } });
     expect(m.findSend).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { providerMessageId: EMAIL_ID } }),
+      expect.objectContaining({
+        where: {
+          providerMessageId: EMAIL_ID,
+          issue: { project: { workspace: { organization: { slug: "utxo" } } } },
+        },
+      }),
     );
     expect(m.state.events).toHaveLength(1);
   });
@@ -253,21 +301,6 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
     expect(m.transaction).not.toHaveBeenCalled();
   });
 
-  it("returns 404 before checking the secret, headers or body when disabled", async () => {
-    m.state.enabled = false;
-    m.state.secret = undefined;
-    const response = await app().request(URL, {
-      method: "POST",
-      body: "not-json",
-    });
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({
-      message: "Newsletter is not enabled",
-    });
-    expect(m.findSend).not.toHaveBeenCalled();
-    expect(m.transaction).not.toHaveBeenCalled();
-  });
-
   it.each([
     ["email.delivered", "DELIVERED"],
     ["email.opened", "OPENED"],
@@ -291,6 +324,7 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
           sendId: SEND_ID,
           type,
           url: type === "CLICKED" ? link : undefined,
+          bounceType: undefined,
           occurredAt: new Date(OCCURRED_AT),
           providerEventId: "msg_newsletter_event",
         },
@@ -336,6 +370,32 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
       expect(m.state.subscriber).toEqual(NEWSLETTER_SUBSCRIBER);
     },
   );
+
+  it("preserves the earliest permanent bounce across repeated and out-of-order reports", async () => {
+    const server = app();
+    for (const [index, at] of [
+      "2026-10-22T10:00:00Z",
+      "2026-10-23T10:00:00Z",
+      "2026-10-21T10:00:00Z",
+    ].entries()) {
+      const event = {
+        ...payload("email.bounced", { bounce: { type: "hard" } }),
+        created_at: at,
+      };
+      expect(
+        (
+          await server.request(
+            URL,
+            signedRequest(JSON.stringify(event), { id: `bounce-${index}` }),
+          )
+        ).status,
+      ).toBe(200);
+      expect(m.state.subscriber?.bouncedAt).toEqual(
+        new Date(index < 2 ? "2026-10-22T10:00:00Z" : "2026-10-21T10:00:00Z"),
+      );
+    }
+    expect(m.state.events).toHaveLength(3);
+  });
 
   it.each(["ACTIVE", "BOUNCED"] as const)(
     "unsubscribes a %s subscriber on complaint",
@@ -428,7 +488,8 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
   ])(
     "retries an early %s event until its send is saved",
     async (type, status) => {
-      m.findSend.mockResolvedValueOnce(null);
+      // Neither the beta-scoped lookup nor the existence check finds it yet.
+      m.findSend.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       const server = app();
       const body = JSON.stringify(
         payload(type, {
@@ -509,9 +570,147 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
       responses: {
         "200": expect.any(Object),
         "401": expect.any(Object),
-        "404": expect.any(Object),
         "503": expect.any(Object),
       },
     });
+  });
+});
+
+describe("newsletter sending-domain webhook health", () => {
+  function customDomainSend() {
+    m.findSend.mockResolvedValue({
+      id: SEND_ID,
+      issueId: NEWSLETTER_ISSUE_ID,
+      subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+      sendingDomainId: "domain_1",
+      issue: { newsletterId: NEWSLETTER_ID },
+    });
+    m.findDomain.mockResolvedValue({
+      id: "domain_1",
+      status: "VERIFIED",
+      warmupStartedAt: new Date("2026-10-22T00:00:00Z"),
+      warmupPausedAt: null,
+    });
+  }
+
+  it("pauses an attributed custom domain after a real hard bounce crosses the rate", async () => {
+    customDomainSend();
+    m.countSends
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(0);
+    const response = await app().request(
+      URL,
+      signedRequest(
+        JSON.stringify(
+          payload("email.bounced", { bounce: { type: " Permanent " } }),
+        ),
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(m.state.events[0]?.bounceType).toBe("permanent");
+    expect(m.updateDomain).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          warmupPausedAt: NEWSLETTER_NOW,
+          warmupPauseReason: "BOUNCE_RATE",
+        },
+      }),
+    );
+  });
+
+  it("pauses on a complaint and retries health after a duplicate webhook", async () => {
+    customDomainSend();
+    m.countSends.mockImplementation(({ where }) =>
+      where.events?.some.type === "COMPLAINED" ? 1 : where.events ? 0 : 50,
+    );
+    m.updateDomain
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({ count: 1 });
+    const server = app();
+    const request = () =>
+      signedRequest(JSON.stringify(payload("email.complained")));
+    expect((await server.request(URL, request())).status).toBe(500);
+    expect((await server.request(URL, request())).status).toBe(200);
+    expect(m.state.events).toHaveLength(1);
+    expect(m.updateSubscriber).toHaveBeenCalledOnce();
+    expect(m.updateDomain).toHaveBeenCalledTimes(2);
+    expect(m.updateDomain.mock.lastCall?.[0].data.warmupPauseReason).toBe(
+      "COMPLAINT_RATE",
+    );
+  });
+
+  it("reassesses an early complaint when deliveries grow the attempt sample to fifty", async () => {
+    customDomainSend();
+    m.countSends
+      .mockResolvedValueOnce(20)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+    const server = app();
+    expect(
+      (
+        await server.request(
+          URL,
+          signedRequest(JSON.stringify(payload("email.complained")), {
+            id: "early-complaint",
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.updateDomain).not.toHaveBeenCalled();
+    expect(
+      (
+        await server.request(
+          URL,
+          signedRequest(JSON.stringify(payload("email.delivered")), {
+            id: "later-delivery",
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.updateDomain.mock.lastCall?.[0].data.warmupPauseReason).toBe(
+      "COMPLAINT_RATE",
+    );
+  });
+
+  it("preserves a soft bounce without counting it as a permanent bounce", async () => {
+    customDomainSend();
+    m.countSends
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    expect(
+      (
+        await app().request(
+          URL,
+          signedRequest(
+            JSON.stringify(
+              payload("email.bounced", { bounce: { type: "Soft" } }),
+            ),
+          ),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.state.events[0]?.bounceType).toBe("soft");
+    expect(m.updateDomain).not.toHaveBeenCalled();
+    expect(
+      m.countSends.mock.calls[1]?.[0].where.events.some.bounceType,
+    ).toEqual({ in: ["permanent", "hard"] });
+  });
+
+  it("skips shared fallback sends even if the workspace now has a custom domain", async () => {
+    expect(
+      (
+        await app().request(
+          URL,
+          signedRequest(JSON.stringify(payload("email.complained"))),
+        )
+      ).status,
+    ).toBe(200);
+    expect(m.findDomain).not.toHaveBeenCalled();
+    expect(m.countSends).not.toHaveBeenCalled();
   });
 });

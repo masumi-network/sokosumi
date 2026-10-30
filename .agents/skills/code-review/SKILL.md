@@ -10,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-The issue tracker should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+This repo's issue tracker is **Sokosumi Tasks** — load [`.agents/skills/sokosumi/`](../sokosumi/SKILL.md) and [`docs/agents/issue-tracker.md`](../../../docs/agents/issue-tracker.md) before the Spec axis. If those docs are missing, tell the user to run `/setup-matt-pocock-skills`.
 
 ## Process
 
@@ -26,7 +26,7 @@ Before going further, confirm the fixed point resolves (`git rev-parse <fixed-po
 
 Look for the originating spec, in this order:
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in the tracker doc.
+1. Sokosumi Task identifiers on the branch name or in commit messages (`SOKD-109`, `SOK-12`, a Task UUID). Fetch with `sokosumi --preprod tasks get <id> --organization-slug <slug> --json` (see the sokosumi skill and issue-tracker doc). The Spec is `task.name` + `task.description`. If auth is missing, stop and ask for `SOKOSUMI_API_KEY` / login — do not use Linear or invent the spec from a PR body when a Task id is known.
 2. A path the user passed as an argument.
 3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
 4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".

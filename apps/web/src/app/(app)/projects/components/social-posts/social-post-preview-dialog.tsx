@@ -22,6 +22,7 @@ import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewFailure } from "./social-post-preview-failure";
+import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 export function SocialPostPreviewDialog({
   post,
@@ -84,13 +85,29 @@ export function SocialPostPreviewDialog({
                 />
               </>
             ) : post ? (
-              t(`status.${post.status}`)
+              t(
+                post.waitingForQuotedPost
+                  ? "quote.waiting"
+                  : `status.${post.status}`,
+              )
             ) : null}
           </DialogDescription>
         </DialogHeader>
+        {post &&
+        (post.waitingForQuotedPost || post.status === "NEEDS_APPROVAL") ? (
+          <SocialPostStatusBadge
+            status={post.status}
+            label={t(
+              post.waitingForQuotedPost
+                ? "quote.waiting"
+                : "status.NEEDS_APPROVAL",
+            )}
+            waitingForQuotedPost={post.waitingForQuotedPost}
+          />
+        ) : null}
         {post?.connectionNeedsReconnect ? (
           <p
-            className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+            className="text-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
             data-testid="social-post-needs-reconnect"
             role="status"
           >
@@ -117,6 +134,11 @@ export function SocialPostPreviewDialog({
             }
             className="max-h-[70dvh] overflow-y-auto"
             media={post.media}
+            quotedPost={post.quotedPost}
+            threadParts={post.threadParts}
+            publishedExternalId={
+              post.threadPartCount > 1 ? post.publishedExternalId : undefined
+            }
             provider={post.provider}
             text={post.text}
             timestamp={post.publishedAt ?? post.scheduledAt}
@@ -137,7 +159,7 @@ export function SocialPostPreviewDialog({
               {t("statistics.refresh")}
             </Button>
             {statisticsErrorPostId === post.id ? (
-              <p role="alert" className="text-semantic-warning text-sm">
+              <p role="alert" className="text-foreground text-sm">
                 {t("statistics.refreshFailed")}
               </p>
             ) : null}
@@ -173,7 +195,9 @@ export function SocialPostPreviewDialog({
                   </a>
                 </Button>
               ) : null}
-              {post.canSchedule && isProviderEnabled(post.provider) ? (
+              {post.canSchedule &&
+              !post.canApprove &&
+              isProviderEnabled(post.provider) ? (
                 <Button
                   type="button"
                   className="min-h-11 md:min-h-10"

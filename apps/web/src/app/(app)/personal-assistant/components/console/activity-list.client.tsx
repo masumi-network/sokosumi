@@ -17,7 +17,8 @@ function statusDotClass(turn: ChatTurn): string {
   if (isActiveTurn(turn)) return "bg-status-working animate-pulse";
   if (turn.status === "FAILED") return "bg-semantic-destructive";
   if (turn.status === "CANCELLED") return "bg-tertiary";
-  if (turn.decisions.some((d) => d.status === "PENDING")) return "bg-primary";
+  if (turn.decisions.some((d) => d.status === "PENDING"))
+    return "bg-foreground";
   return "bg-tertiary";
 }
 
@@ -50,15 +51,12 @@ function ActivityRow({
   const when = format.relativeTime(new Date(turn.createdAt), new Date());
 
   return (
-    <li
-      id={`turn-${turn.id}`}
-      className={cn(highlighted && "bg-primary-quinary")}
-    >
+    <li id={`turn-${turn.id}`} className={cn(highlighted && "bg-muted")}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="press hover:bg-card-background flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
+        className="press hover:bg-accent flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
       >
         <ChevronRight
           aria-hidden

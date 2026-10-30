@@ -55,7 +55,16 @@ export function SocialNewPostMenu({
   const t = useTranslations("App.Social.newPost");
   const router = useRouter();
   const compose = useSocialCompose();
-  const [choosingProject, setChoosingProject] = useState(false);
+  const [choosingProjectHere, setChoosingProjectHere] = useState(false);
+  // The calendar's day "+" asks for the composer through the same context;
+  // with no project in scope that request becomes this project pick.
+  const choosingProject =
+    choosingProjectHere || (!project && Boolean(compose?.open));
+
+  function setChoosingProject(open: boolean) {
+    setChoosingProjectHere(open);
+    if (!open && !project) compose?.setOpen(false);
+  }
   const [isOpeningChat, startOpeningChat] = useTransition();
 
   function writeManually() {
@@ -148,10 +157,14 @@ export function SocialNewPostMenu({
             className="max-h-96"
             selectedProjectId={project?.id ?? null}
             onSelect={(projectId) => {
-              if (!projectId) return;
-              router.push(
-                `/social?projectId=${encodeURIComponent(projectId)}&compose=new`,
-              );
+              const query = new URLSearchParams({
+                projectId,
+                compose: "new",
+              });
+              if (compose?.scheduledAt) {
+                query.set("composeAt", compose.scheduledAt);
+              }
+              router.push(`/social?${query}`);
             }}
             onCreate={openScopeCreate}
             onDone={() => setChoosingProject(false)}

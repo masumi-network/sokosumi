@@ -285,45 +285,27 @@ describe("choosing the Composio auth config", () => {
     });
   });
 
-  it.each([
-    ["googleads", "COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID", "ac_google"],
-    ["metaads", "COMPOSIO_METAADS_AUTH_CONFIG_ID", "ac_meta"],
-  ])(
-    "links %s through the Project Ads auth config",
-    async (provider, envName, id) => {
-      mocks.env = { [envName]: id };
-      await connect("connector", provider);
-      expect(linkedAuthConfigId()).toBe(id);
-      expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
-      expect(mocks.createAuthConfig).not.toHaveBeenCalled();
-    },
-  );
-
-  it("uses the same ads auth config for a personal bot", async () => {
-    mocks.env = { COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID: "ac_google" };
-    mocks.memberSokoBot.mockResolvedValue(PERSONAL_BOT);
-    await connect("owner", "googleads");
-    expect(linkedAuthConfigId()).toBe("ac_google");
+  it("links X through the Project socials auth config when Composio manages none", async () => {
+    mocks.env = { COMPOSIO_X_AUTH_CONFIG_ID: "ac_x" };
+    mocks.listAuthConfigs.mockResolvedValue({ items: [] });
+    await connect("connector", "twitter");
+    expect(linkedAuthConfigId()).toBe("ac_x");
+    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
   });
 
   it.each([
     ["googleads", "Google Ads"],
     ["metaads", "Meta Ads"],
-  ])(
-    "refuses %s without its auth config before any Composio client call",
-    async (provider, name) => {
-      mocks.getComposio.mockReturnValue(null);
-      await expect(connect("connector", provider)).rejects.toMatchObject({
-        kind: "NOT_CONFIGURED",
-        message: `${name} connections are not configured on this environment`,
-      });
-      expect(mocks.getComposio).not.toHaveBeenCalled();
-      expect(mocks.getToolkit).not.toHaveBeenCalled();
-      expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
-      expect(mocks.createAuthConfig).not.toHaveBeenCalled();
-      expect(mocks.link).not.toHaveBeenCalled();
-      expect(mocks.botUpdate).not.toHaveBeenCalled();
-      expect(mocks.upsert).not.toHaveBeenCalled();
-    },
-  );
+  ])("refuses %s before anything else happens", async (provider, name) => {
+    await expect(connect("connector", provider)).rejects.toMatchObject({
+      message: `${name} is connected on the Project's Ads page; your Soko Bot uses that account`,
+    });
+    expect(mocks.memberSokoBot).not.toHaveBeenCalled();
+    expect(mocks.getComposio).not.toHaveBeenCalled();
+    expect(mocks.getToolkit).not.toHaveBeenCalled();
+    expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
+    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
+    expect(mocks.link).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
 });

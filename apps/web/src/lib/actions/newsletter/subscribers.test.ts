@@ -6,6 +6,7 @@ import en from "@/messages/en.json";
 
 const mocks = vi.hoisted(() => ({
   addSubscriber: vi.fn(),
+  addSubscribersFromContacts: vi.fn(),
   importSubscribers: vi.fn(),
   updateSubscriber: vi.fn(),
   removeSubscriber: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
 
 import {
   addNewsletterSubscriber,
+  addNewsletterSubscribersFromContacts,
   changeNewsletterSubscriberStatus,
   importNewsletterSubscribers,
   removeNewsletterSubscriber,
@@ -46,17 +48,23 @@ const COPY = en.App.Projects.Newsletter.Subscribers;
 const VALUES = {
   email: " PERSON@Example.com ",
   name: " Person ",
-  consent: true,
+  consent: "CONFIRMED",
+  consentConfirmed: true,
 };
 
-function csvForm(values: { csv: string; consent: boolean }) {
+function csvForm(values: {
+  csv: string;
+  consent?: unknown;
+  consentConfirmed?: boolean;
+}) {
   const form = new FormData();
   form.set(
     "csv",
     new Blob([values.csv], { type: "text/csv" }),
     "subscribers.csv",
   );
-  form.set("consent", String(values.consent));
+  if (values.consent !== undefined) form.set("consent", String(values.consent));
+  form.set("consentConfirmed", String(values.consentConfirmed === true));
   return form;
 }
 
@@ -74,14 +82,12 @@ describe("newsletter subscriber actions", () => {
     expect(mocks.addSubscriber).toHaveBeenCalledWith(TARGET.projectId, {
       email: "person@example.com",
       name: "Person",
-      consent: true,
+      consent: "CONFIRMED",
     });
-    expect(revalidatePath).toHaveBeenCalledWith(
-      `/projects/${TARGET.projectId}/newsletter/subscribers`,
-    );
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter/subscribers");
   });
 
-  it.each([false, undefined, "true"])(
+  it.each([false, true, undefined, "true", "forged"])(
     "rejects manual consent %s on the server",
     async (consent) => {
       expect(
@@ -117,13 +123,143 @@ describe("newsletter subscriber actions", () => {
     mocks.addSubscriber.mockResolvedValue({ id: TARGET.subscriberId });
     await addNewsletterSubscriber({
       projectId: TARGET.projectId,
-      values: { email: "one@example.com", consent: true },
+      values: {
+        email: "one@example.com",
+        consent: "CONFIRMED",
+        consentConfirmed: true,
+      },
     });
     expect(mocks.addSubscriber).toHaveBeenCalledWith(TARGET.projectId, {
       email: "one@example.com",
       name: null,
-      consent: true,
+      consent: "CONFIRMED",
     });
+  });
+
+  it.each([false, undefined])(
+    "rejects CONFIRMED without confirmation: %s",
+    async (consentConfirmed) => {
+      const values = { ...VALUES, consentConfirmed };
+      expect(
+        await addNewsletterSubscriber({ projectId: TARGET.projectId, values }),
+      ).toMatchObject({
+        ok: false,
+        error: { fieldErrors: { consent: [COPY.Validation.consent] } },
+      });
+      expect(
+        await importNewsletterSubscribers({
+          projectId: TARGET.projectId,
+          values: csvForm({
+            csv: "email",
+            consent: "CONFIRMED",
+            consentConfirmed,
+          }),
+        }),
+      ).toMatchObject({ ok: false });
+      expect(mocks.addSubscriber).not.toHaveBeenCalled();
+      expect(mocks.importSubscribers).not.toHaveBeenCalled();
+    },
+  );
+
+  it("forwards ASK for manual add and CSV import without requiring confirmation", async () => {
+    mocks.addSubscriber.mockResolvedValue({ id: TARGET.subscriberId });
+    mocks.importSubscribers.mockResolvedValue({ imported: 1 });
+    await addNewsletterSubscriber({
+      projectId: TARGET.projectId,
+      values: { email: "one@example.com", consent: "ASK" },
+    });
+    expect(mocks.addSubscriber).toHaveBeenCalledWith(TARGET.projectId, {
+      email: "one@example.com",
+      name: null,
+      consent: "ASK",
+    });
+    await importNewsletterSubscribers({
+      projectId: TARGET.projectId,
+      values: csvForm({ csv: "email\none@example.com", consent: "ASK" }),
+    });
+    expect(mocks.importSubscribers).toHaveBeenCalledWith(TARGET.projectId, {
+      csv: "email\none@example.com",
+      consent: "ASK",
+    });
+  });
+
+  it.each(["CONFIRMED", "ASK"])(
+    "adds selected contacts and lists with %s and returns counts",
+    async (consent) => {
+      const summary = {
+        added: 1,
+        alreadySubscribed: 2,
+        skippedUnsubscribed: 3,
+        skippedBounced: 4,
+        skippedNoEmail: 5,
+        pendingConfirmation: 6,
+      };
+      mocks.addSubscribersFromContacts.mockResolvedValue(summary);
+      expect(
+        await addNewsletterSubscribersFromContacts({
+          projectId: TARGET.projectId,
+          values: {
+            contactIds: [TARGET.subscriberId],
+            listIds: [TARGET.projectId],
+            consent,
+            consentConfirmed: true,
+            status: "FORGED",
+          },
+        }),
+      ).toEqual({ ok: true, value: summary });
+      expect(mocks.addSubscribersFromContacts).toHaveBeenCalledWith(
+        TARGET.projectId,
+        {
+          contactIds: [TARGET.subscriberId],
+          listIds: [TARGET.projectId],
+          consent,
+        },
+      );
+      expect(revalidatePath).toHaveBeenCalledWith("/newsletter/subscribers");
+    },
+  );
+
+  it.each([
+    { consent: "ASK" },
+    { contactIds: ["invalid"], consent: "ASK" },
+    { listIds: ["invalid"], consent: "ASK" },
+    { contactIds: [TARGET.subscriberId] },
+    { contactIds: [TARGET.subscriberId], consent: "forged" },
+    { contactIds: [TARGET.subscriberId], consent: "CONFIRMED" },
+    { contactIds: Array(1001).fill(TARGET.subscriberId), consent: "ASK" },
+    { listIds: Array(21).fill(TARGET.projectId), consent: "ASK" },
+  ])(
+    "validates Contacts selections and consent before Core",
+    async (values) => {
+      expect(
+        await addNewsletterSubscribersFromContacts({
+          projectId: TARGET.projectId,
+          values,
+        }),
+      ).toMatchObject({ ok: false });
+      expect(mocks.addSubscribersFromContacts).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts a whole list alone and rejects a malformed project ID", async () => {
+    mocks.addSubscribersFromContacts.mockResolvedValue({ added: 1 });
+    await addNewsletterSubscribersFromContacts({
+      projectId: TARGET.projectId,
+      values: { listIds: [TARGET.subscriberId], consent: "ASK" },
+    });
+    expect(mocks.addSubscribersFromContacts).toHaveBeenCalledWith(
+      TARGET.projectId,
+      { contactIds: [], listIds: [TARGET.subscriberId], consent: "ASK" },
+    );
+    mocks.addSubscribersFromContacts.mockClear();
+    expect(
+      await addNewsletterSubscribersFromContacts({
+        projectId: "invalid",
+        values: { listIds: [TARGET.subscriberId], consent: "ASK" },
+      }),
+    ).toMatchObject({ ok: false });
+    expect(mocks.addSubscribersFromContacts).not.toHaveBeenCalled();
   });
 
   it("maps 409 to a friendly email error without leaking Core details", async () => {
@@ -153,7 +289,8 @@ describe("newsletter subscriber actions", () => {
     };
     const values = {
       csv: 'email,name\r\nperson@example.com,"Person,\nOne"',
-      consent: true,
+      consent: "CONFIRMED",
+      consentConfirmed: true,
     };
     mocks.importSubscribers.mockResolvedValue(summary);
     expect(
@@ -165,18 +302,26 @@ describe("newsletter subscriber actions", () => {
         }).formData(),
       }),
     ).toEqual({ ok: true, value: summary });
-    expect(mocks.importSubscribers).toHaveBeenCalledWith(
-      TARGET.projectId,
-      values,
-    );
+    expect(mocks.importSubscribers).toHaveBeenCalledWith(TARGET.projectId, {
+      csv: values.csv,
+      consent: "CONFIRMED",
+    });
     expect(revalidatePath).toHaveBeenCalled();
   });
 
   it.each([
     { csv: "email", consent: false },
-    { csv: "", consent: true },
-    { csv: "a".repeat(5_000_001), consent: true },
-    { csv: "é".repeat(2_500_001), consent: true },
+    { csv: "", consent: "CONFIRMED", consentConfirmed: true },
+    {
+      csv: "a".repeat(5_000_001),
+      consent: "CONFIRMED",
+      consentConfirmed: true,
+    },
+    {
+      csv: "é".repeat(2_500_001),
+      consent: "CONFIRMED",
+      consentConfirmed: true,
+    },
   ])("rejects CSV validation failures before Core", async (values) => {
     expect(
       await importNewsletterSubscribers({
@@ -196,7 +341,11 @@ describe("newsletter subscriber actions", () => {
     expect(
       await importNewsletterSubscribers({
         projectId: TARGET.projectId,
-        values: csvForm({ csv: "a".repeat(5_000_000), consent: true }),
+        values: csvForm({
+          csv: "a".repeat(5_000_000),
+          consent: "CONFIRMED",
+          consentConfirmed: true,
+        }),
       }),
     ).toMatchObject({ ok: true });
   });
@@ -205,13 +354,17 @@ describe("newsletter subscriber actions", () => {
     expect(
       await importNewsletterSubscribers({
         projectId: TARGET.projectId,
-        values: { csv: "email", consent: true },
+        values: { csv: "email", consent: "CONFIRMED", consentConfirmed: true },
       }),
     ).toMatchObject({ ok: false });
     expect(
       await importNewsletterSubscribers({
         projectId: "invalid",
-        values: csvForm({ csv: "email", consent: true }),
+        values: csvForm({
+          csv: "email",
+          consent: "CONFIRMED",
+          consentConfirmed: true,
+        }),
       }),
     ).toMatchObject({ ok: false });
     expect(mocks.importSubscribers).not.toHaveBeenCalled();
@@ -224,7 +377,11 @@ describe("newsletter subscriber actions", () => {
     expect(
       await importNewsletterSubscribers({
         projectId: TARGET.projectId,
-        values: csvForm({ csv: "wrong\nvalue", consent: true }),
+        values: csvForm({
+          csv: "wrong\nvalue",
+          consent: "CONFIRMED",
+          consentConfirmed: true,
+        }),
       }),
     ).toMatchObject({ ok: false, error: { message: COPY.Import.invalidCsv } });
   });
@@ -309,7 +466,11 @@ describe("newsletter subscriber actions", () => {
       expect(
         await importNewsletterSubscribers({
           projectId: TARGET.projectId,
-          values: csvForm({ csv: "email", consent: true }),
+          values: csvForm({
+            csv: "email",
+            consent: "CONFIRMED",
+            consentConfirmed: true,
+          }),
         }),
       ).toMatchObject({ ok: false, error: { message: COPY.Import.error } });
       expect(
@@ -321,6 +482,15 @@ describe("newsletter subscriber actions", () => {
       expect(await removeNewsletterSubscriber(TARGET)).toMatchObject({
         ok: false,
         error: { message: COPY.Remove.error },
+      });
+      expect(
+        await addNewsletterSubscribersFromContacts({
+          projectId: TARGET.projectId,
+          values: { contactIds: [TARGET.subscriberId], consent: "ASK" },
+        }),
+      ).toMatchObject({
+        ok: false,
+        error: { message: COPY.FromContacts.error },
       });
       expect(revalidatePath).not.toHaveBeenCalled();
     },

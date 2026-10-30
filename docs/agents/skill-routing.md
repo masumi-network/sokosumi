@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Agent skills
 
-First-party sources in `skills/` are only `linear-requirement`, `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three, and `.agents/skills/sokosumi` links to the CLI's bundled [`apps/cli/skills/sokosumi/`](../../apps/cli/skills/sokosumi/) (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
+First-party sources in `skills/` are only `linear-requirement` (retired here — use Sokosumi Tasks), `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three, and `.agents/skills/sokosumi` links to the CLI's bundled [`apps/cli/skills/sokosumi/`](../../apps/cli/skills/sokosumi/) (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`). Adding a shadcn component or block: [`shadcn-add`](../../apps/web/.agents/skills/shadcn-add/SKILL.md).
 
 ### Manage installations with the skills CLI
 
@@ -58,19 +58,19 @@ Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask
 
 When watching a pull request, fixing its CI, or merging `main` into it, read [`.agents/skills/steward/`](../../.agents/skills/steward/). Commit, check, and preview rules stay in [`delivery.md`](./delivery.md).
 
-### Caveman
+### I have ADHD
 
-When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](../../.agents/skills/caveman/).
+When the i-have-adhd skill is present, follow it for all replies. Off: "stop adhd mode" / "normal mode". See [`.agents/skills/i-have-adhd/`](../../.agents/skills/i-have-adhd/).
 
 ### Ponytail
 
-Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. Caveman owns prose; ponytail owns what gets built. Load [`.agents/skills/ponytail/`](../../.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
+Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. I have ADHD owns replies; ponytail owns what gets built. Load [`.agents/skills/ponytail/`](../../.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
 
-### Linear issue implementation
+### Sokosumi Task implementation
 
-Inside that flow, ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
+Inside that flow, ship a Sokosumi Task that already has its spec in `description` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a written Task description skip `/to-spec`.
 
-Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`.agents/skills/linear-requirement/`](../../.agents/skills/linear-requirement/) (`disable-model-invocation`).
+Do **not** invent or file Tasks during implement work. Filing a new requirement is a separate, explicit ask: load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/) and create the Task after approval (see [`issue-tracker.md`](../../docs/agents/issue-tracker.md)). The legacy [`linear-requirement`](../../.agents/skills/linear-requirement/) skill is retired for this repo (`disable-model-invocation`); do not publish new work to Linear.
 
 ### Translations
 
@@ -78,7 +78,7 @@ When deleting or changing `useTranslations()` / `getTranslations()` usage or `ap
 
 ### Sokosumi Tasks and CLI
 
-To create, update, link, or move Sokosumi Tasks, or to drive the `sokosumi` CLI, load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/). Its "Track work as Tasks" section covers tickets, specs, priority, links, and status events.
+To create, update, link, or move Sokosumi Tasks, read a Task spec, or drive the `sokosumi` CLI, load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/). Its "Track work as Tasks" section covers tickets, specs, priority, links, and status events. Spec reviews and `/implement` fetch the Task through that skill — never through Linear.
 
 ### Verify Sokosumi
 
@@ -86,11 +86,11 @@ End-to-end launch, doctor, and browser proof for web + Core. First-party skill l
 
 ### Issue tracker
 
-Issues live in Linear (team "Sokosumi", key `SOK`). When `linear` is on PATH, run the CLI for all Linear work and ignore Linear MCP (`linear__*`). Follow [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/) for flags, `--json`, and `linear api`. If `command -v linear` fails, use Linear MCP. See [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md).
+Issues and specs live as Sokosumi Tasks. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/), then follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md) for fetch/publish/wayfinding. Do not use Linear CLI or Linear MCP for this repo's tickets.
 
 ### Triage labels
 
-Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Canceled); labels `needs-info` / `ready-for-agent` / `ready-for-human`. See [`docs/agents/triage-labels.md`](../../docs/agents/triage-labels.md).
+Task status mapping for needs-triage / ready-for-agent / wontfix and related roles. See [`docs/agents/triage-labels.md`](../../docs/agents/triage-labels.md).
 
 ### Domain docs
 

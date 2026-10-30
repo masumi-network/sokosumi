@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   cloneElement,
@@ -16,7 +16,6 @@ import {
   chatRoomEditHref,
 } from "@/app/chat/utils/chat-route-base";
 import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
-import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
 const {
   leaveRoomActionMock,
@@ -63,7 +62,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// The row's two numbers and the rail pill's two states resolve by full key
+// The row's numbers resolve by full key
 // path, so a typo in the namespace fails here instead of passing on a bare key
 // that happens to match. The real
 // catalog and the real ICU plurals are bound in
@@ -77,8 +76,6 @@ vi.mock("next-intl", () => ({
         "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
         "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
         "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
-        "App.Channels.RoomUnread.railUnread": "Unread",
-        "App.Channels.RoomMentions.railMention": "Mentions you",
       };
       const catalogValue = catalogKeys[`${namespace ?? ""}.${key}`];
       if (catalogValue !== undefined) {
@@ -145,48 +142,30 @@ vi.mock("@/components/ui/sheet", () => ({
   }) => (asChild && isValidElement(children) ? children : <>{children}</>),
 }));
 
-// Expanded unless a test collapses it. The row asks only to choose between its
-// name tooltip and the unread threads flyout.
-const sidebarMock = vi.hoisted(() => ({
-  state: "expanded" as "expanded" | "collapsed",
-  isMobile: false,
-}));
-
-// Content inline rather than on hover: when the card opens belongs to the
-// primitive. This row decides whether there is a card and what it holds.
-vi.mock("@/components/ui/hover-card", () => ({
-  HoverCard: ({ children }: { children: ReactNode }) => (
-    <div data-testid="rail-flyout">{children}</div>
-  ),
-  HoverCardTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  HoverCardContent: ({ children }: { children: ReactNode }) => (
-    <div data-testid="rail-flyout-content">{children}</div>
-  ),
-}));
-
 // The real module under the overrides, so `SidebarRowSlot` — the shared
 // leading slot every row sits its mark in — is the one the app ships.
 vi.mock("@/components/ui/sidebar", async () => ({
   ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
     "@/components/ui/sidebar",
   )),
-  // `className` rides the wrapper: the row's height is what this component
-  // decides and the real primitive merges, so a mock that swallowed it would
-  // leave the one exception to the row height rule untested.
+  // `className` and `lines` ride the wrapper: how many lines the row holds is
+  // what this component decides and the real primitive turns into a height,
+  // so a mock that swallowed them would leave the one exception to the row
+  // height rule untested.
   SidebarMenuButton: ({
     children,
     asChild,
-    tooltip,
     className,
+    lines,
   }: {
     children: ReactNode;
     asChild?: boolean;
-    tooltip?: string;
     className?: string;
+    lines?: 1 | 2;
   }) => (
     <div
       data-testid="sidebar-menu-button"
-      data-tooltip={tooltip}
+      data-lines={lines}
       className={className}
     >
       {asChild && isValidElement(children) ? children : <div>{children}</div>}
@@ -195,11 +174,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
-  useSidebar: () => sidebarMock,
-  // A marker, not the real bar: what it looks like belongs to the primitive
-  // that owns it, and `sidebar-rail-selection.test.tsx` pins that. This row
-  // only decides when it is there.
-  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => {
@@ -381,26 +355,6 @@ async function openRoomMenu(label = "general") {
   return user;
 }
 
-describe("ChatRoomSidebarRow tooltip", () => {
-  it("names the room on the sidebar button so the collapsed rail can show it", () => {
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom()}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={false}
-        leading={<span />}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
-      "data-tooltip",
-      "general",
-    );
-  });
-});
-
 describe("ChatRoomSidebarRow leading slot", () => {
   it("wraps any room leading icon in the shared 24px slot", () => {
     const { container } = render(
@@ -417,8 +371,7 @@ describe("ChatRoomSidebarRow leading slot", () => {
     const leading = screen.getByTestId("custom-leading");
     const slot = leading.parentElement;
     expect(slot).not.toBeNull();
-    // The slot the sidebar primitive owns, not a box this row builds: one
-    // size in both states, so the mark cannot resize or slide on a toggle.
+    // The slot the sidebar primitive owns, not a box this row builds.
     expect(slot?.getAttribute("data-slot")).toBe("sidebar-row-slot");
     const tokens = slot?.className.split(" ") ?? [];
     expect(tokens).toContain("h-6");
@@ -426,7 +379,6 @@ describe("ChatRoomSidebarRow leading slot", () => {
     expect(tokens).toContain("shrink-0");
     expect(tokens).toContain("items-center");
     expect(tokens).toContain("justify-center");
-    expect(slot?.className).not.toContain("group-data-[collapsible=icon]:");
 
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
@@ -458,192 +410,39 @@ describe("ChatRoomSidebarRow row height", () => {
   }
 
   it("adds nothing to the row primitive's height on an ordinary room", () => {
-    // `h-11 md:h-8` lives on `sidebarMenuButtonVariants`, pinned by
-    // `ui/__tests__/sidebar-rail-selection.test.tsx`. A room row used to
+    // `h-11 md:h-7` lives on `sidebarMenuButtonVariants`, pinned by
+    // `ui/__tests__/sidebar-geometry.test.tsx`. A room row used to
     // restate it here, which is how the two could drift apart.
     expect(heightTokens({})).toEqual([]);
   });
 
-  it("lets a guest row grow for its host organisation line, at both sizes", () => {
-    const tokens = heightTokens({ subtitle: "Hosted by Acme" });
-    // One of the three items allowed to differ between states. `md:h-auto`
-    // matters as much as `h-auto`: the row primitive's height is `h-11
-    // md:h-8`, and lifting only the unprefixed one leaves the desktop row
-    // pinned at 32px with the second line clipped by its `overflow-hidden`.
-    expect(tokens).toContain("h-auto");
-    expect(tokens).toContain("md:h-auto");
-    expect(tokens).toContain("min-h-11");
-    expect(tokens).toContain("md:min-h-8");
-    expect(tokens).not.toContain("h-11");
-    expect(tokens).not.toContain("md:h-8");
-  });
-});
-
-describe("ChatRoomSidebarRow collapsed rail", () => {
-  it("centres a 24px leading mark and keeps the name for assistive tech", () => {
+  function lines(props: { subtitle?: string }) {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom()}
         href="/chat/rooms/room-1"
         label="general"
         isActive={false}
-        leading={<span data-testid="custom-leading">#</span>}
+        leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
+        {...props}
       />,
     );
-
-    const link = container.querySelector('a[href="/chat/rooms/room-1"]');
-    // The menu button clips its content for name truncation. Collapsed, the
-    // 20px tile's corner mark hangs 4px below it inside a 32px button, so the
-    // clip has to lift there or the lock and globe lose their bottom.
-    expect(link?.className).toContain(
-      "group-data-[collapsible=icon]:overflow-visible",
-    );
-    // Dropping the padding and centring the mark is the row primitive's job
-    // now; `ui/__tests__/sidebar-rail-selection.test.tsx` pins it there.
-    expect(link?.className).not.toContain("px-3");
-
-    const slot = screen.getByTestId("custom-leading").parentElement;
-    expect(slot?.className).toContain("min-w-6");
-
-    // The name must stay in the accessible name (the tooltip adds none) while
-    // taking no flex space at rest, so the shared label class, never `hidden`.
-    // The spacer would otherwise pull the mark off centre on touch.
-    const name = screen.getByText("general");
-    expect(name.parentElement?.className.split(/\s+/)).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(name.parentElement?.className.split(/\s+/)).not.toContain(
-      "group-data-[collapsible=icon]:sr-only",
-    );
-    expect(
-      container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
-    ).toContain("group-data-[collapsible=icon]:hidden");
-  });
-
-  // The rail attention pill: the one cue left once bold, count, and badge hide.
-  function renderRail(
-    room: Partial<ChatRoom>,
-    options: { isActive?: boolean; leading?: ReactNode } = {},
-  ) {
-    const { container } = render(
-      <ChatRoomSidebarRow
-        room={makeRoom(room)}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={options.isActive ?? false}
-        leading={options.leading ?? <span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-    return container.querySelector('[data-slot="room-rail-attention"]');
+    return container
+      .querySelector('[data-testid="sidebar-menu-button"]')
+      ?.getAttribute("data-lines");
   }
 
-  it("shows the unread pill for an unread room, in the collapsed rail only", () => {
-    const pill = renderRail({ unreadCount: 3 });
-    expect(pill?.getAttribute("data-variant")).toBe("unread");
-    // Rendered always, shown only collapsed, like the channel tile.
-    expect(pill?.className).toContain("hidden");
-    expect(pill?.className).toContain("group-data-[collapsible=icon]:block");
-    // 6px unread, on the rail's edge outside the link's overflow clip.
-    expect(pill?.className).toContain("h-1.5");
-    expect(pill?.className).toContain("-left-2");
-    expect(
-      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(pill),
-    ).toBe(false);
-    // The state is announced inside the link, collapsed only.
-    const text = screen.getByText("Unread");
-    expect(text.className).toContain("sr-only");
-    expect(text.className).toContain("hidden");
-    expect(text.className).toContain("group-data-[collapsible=icon]:block");
-    expect(
-      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(text),
-    ).toBe(true);
-  });
-
-  it("shows the taller mention pill when the reader is mentioned", () => {
-    const pill = renderRail({ unreadMentionCount: 2 });
-    expect(pill?.getAttribute("data-variant")).toBe("mention");
-    expect(pill?.className).toContain("h-2");
-    expect(screen.getByText("Mentions you").className).toContain("sr-only");
-  });
-
-  it("shows exactly one pill, the mention one, when mention and unread meet", () => {
-    const pill = renderRail({ unreadCount: 5, unreadMentionCount: 2 });
-    expect(pill?.getAttribute("data-variant")).toBe("mention");
-    expect(screen.queryByText("Unread")).toBeNull();
-    expect(
-      document.querySelectorAll('[data-slot="room-rail-attention"]'),
-    ).toHaveLength(1);
-  });
-
-  it("shows the unread pill for a room the reader marked unread by hand", () => {
-    expect(
-      renderRail({ markedUnread: true })?.getAttribute("data-variant"),
-    ).toBe("unread");
-  });
-
-  it("shows no pill for a read room", () => {
-    expect(renderRail({})).toBeNull();
-  });
-
-  // ADR-0037: Thread replies stop marking the channel.
-  it("shows no pill for a room whose only unread is in threads", () => {
-    expect(
-      renderRail({
-        unreadCount: 3,
-        channelUnreadCount: 0,
-        threadUnreadCount: 3,
-      }),
-    ).toBeNull();
-    expect(screen.queryByText("Unread")).toBeNull();
-  });
-
-  it("shows the mention pill when a thread reply names the reader", () => {
-    const pill = renderRail({
-      unreadCount: 1,
-      channelUnreadCount: 0,
-      threadUnreadCount: 1,
-      unreadMentionCount: 1,
-    });
-    expect(pill?.getAttribute("data-variant")).toBe("mention");
-  });
-
-  it("shows no pill for a muted room however loud it is", () => {
-    expect(
-      renderRail({
-        unreadCount: 9,
-        unreadMentionCount: 4,
-        markedUnread: true,
-        mutedAt: new Date("2026-09-01T00:00:00.000Z"),
-      }),
-    ).toBeNull();
-  });
-
-  it("keeps the pill on the room the reader has open", () => {
-    expect(
-      renderRail({ unreadCount: 1 }, { isActive: true })?.getAttribute(
-        "data-variant",
-      ),
-    ).toBe("unread");
-  });
-
-  // The pill belongs to the row, so a Direct gets it with no wiring of its
-  // own, and it sits beside the real avatar stack rather than on it: the face
-  // keeps its presence dot to itself.
-  it("marks a Direct beside its avatar the same way as a Channel", () => {
-    const room = makeRoom({ kind: "direct", unreadMentionCount: 1 });
-    const pill = renderRail(room, {
-      leading: <DirectRoomAvatarStack room={room} currentUserId="user-1" />,
-    });
-    expect(pill?.getAttribute("data-variant")).toBe("mention");
-    const face = screen.getByTestId("dm-sidebar-avatar-user-2");
-    expect(face).toBeInTheDocument();
-    expect(face.parentElement?.contains(pill)).toBe(false);
+  it("asks the primitive for a second line for a guest row's host organisation", () => {
+    // One of the items allowed a second line. What that costs in height is
+    // the primitive's (`ui/__tests__/sidebar-geometry.test.tsx`), so the row
+    // asks for two lines and names no height of its own.
+    expect(lines({ subtitle: "Hosted by Acme" })).toBe("2");
+    expect(heightTokens({ subtitle: "Hosted by Acme" })).toEqual([]);
+    expect(lines({})).toBe("1");
   });
 });
 
-// The rail selection bar: the row's job is when it shows, not how it looks.
 describe("ChatRoomSidebarRow unread threads", () => {
   const unreadThread = {
     parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
@@ -829,167 +628,8 @@ describe("ChatRoomSidebarRow mention pill", () => {
   });
 });
 
-// The collapsed rail hides the inset rows, so the same rows ride a flyout
-// beside the room's mark (ADR-0037).
-describe("ChatRoomSidebarRow rail thread flyout", () => {
-  const unreadThread = {
-    parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
-    firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
-    parentContent: "Vendor-wide rollout",
-    unreadReplyCount: 2,
-  };
-  const withUnreadThread = {
-    threadUnreadCount: 2,
-    unreadThreadCount: 1,
-    unreadThreads: [unreadThread],
-  };
-
-  afterEach(() => {
-    sidebarMock.state = "expanded";
-    sidebarMock.isMobile = false;
-  });
-
-  function renderRoom(room: Partial<ChatRoom>) {
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom(room)}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={false}
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-  }
-
-  it("lists a room's unread threads beside its mark on the collapsed rail", () => {
-    sidebarMock.state = "collapsed";
-    renderRoom(withUnreadThread);
-
-    const flyout = within(screen.getByTestId("rail-flyout-content"));
-    expect(flyout.getByText("general")).toBeInTheDocument();
-    expect(
-      flyout.getByRole("link", { name: /Vendor-wide rollout/ }),
-    ).toHaveAttribute(
-      "href",
-      "/chat/rooms/room-1?message=550e8400-e29b-41d4-a716-446655440c01",
-    );
-  });
-
-  // Two floating layers on one hover would cover each other.
-  it("stands in for the name tooltip rather than joining it", () => {
-    sidebarMock.state = "collapsed";
-    renderRoom(withUnreadThread);
-
-    expect(screen.getByTestId("sidebar-menu-button")).not.toHaveAttribute(
-      "data-tooltip",
-    );
-  });
-
-  it("keeps the plain name tooltip for a room with no unread thread", () => {
-    sidebarMock.state = "collapsed";
-    renderRoom({ unreadCount: 2, channelUnreadCount: 2 });
-
-    expect(screen.queryByTestId("rail-flyout")).toBeNull();
-    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
-      "data-tooltip",
-      "general",
-    );
-  });
-
-  it("offers no flyout while the sidebar is expanded", () => {
-    renderRoom(withUnreadThread);
-
-    expect(screen.queryByTestId("rail-flyout")).toBeNull();
-  });
-
-  it("offers no flyout for a muted room", () => {
-    sidebarMock.state = "collapsed";
-    renderRoom({
-      ...withUnreadThread,
-      mutedAt: new Date("2026-08-01T00:00:00.000Z"),
-    });
-
-    expect(screen.queryByTestId("rail-flyout")).toBeNull();
-  });
-
-  // The phone sheet is never the rail. Its "collapsed" state is the sheet
-  // being closed, and a hover card cannot open by touch anyway.
-  it("offers no flyout on the phone sheet", () => {
-    sidebarMock.state = "collapsed";
-    sidebarMock.isMobile = true;
-    renderRoom(withUnreadThread);
-
-    expect(screen.queryByTestId("rail-flyout")).toBeNull();
-    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
-      "data-tooltip",
-      "general",
-    );
-  });
-
-  // Reorder mode hides the inset rows so rows keep one height under the
-  // pointer. The rail keeps that decision: reorder can start expanded and the
-  // sidebar be collapsed with it still on.
-  it("offers no flyout while the rows are being reordered", () => {
-    sidebarMock.state = "collapsed";
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom(withUnreadThread)}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={false}
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-        reorderHandle={<button type="button">Move</button>}
-      />,
-    );
-
-    expect(screen.queryByTestId("rail-flyout")).toBeNull();
-  });
-});
-
-describe("ChatRoomSidebarRow rail selection bar", () => {
-  function renderRow(
-    room: Partial<ChatRoom>,
-    options: { isActive?: boolean } = {},
-  ) {
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom(room)}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={options.isActive ?? false}
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-    return screen.queryByTestId("rail-selection-bar");
-  }
-
-  it("marks the room the reader has open", () => {
-    expect(renderRow({}, { isActive: true })).toBeInTheDocument();
-  });
-
-  it("shows no selection mark on a room the reader does not have open", () => {
-    expect(renderRow({})).toBeNull();
-  });
-
-  // The two marks sit on opposite edges precisely so this can happen without
-  // either having to give way.
-  it("marks an unread open room on both edges at once", () => {
-    expect(
-      renderRow({ unreadMentionCount: 2 }, { isActive: true }),
-    ).toBeInTheDocument();
-    expect(
-      document
-        .querySelector('[data-slot="room-rail-attention"]')
-        ?.getAttribute("data-variant"),
-    ).toBe("mention");
-  });
-});
-
 describe("ChatRoomSidebarRow trailing cluster", () => {
-  it("hides the muted glyph and room menu when the sidebar collapses", () => {
+  it("keeps the muted glyph and the room menu in one cluster", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
@@ -1010,9 +650,6 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
         screen.getByRole("button", { name: "Chat actions for general" }),
       ),
     ).toBe(true);
-    expect(cluster?.className).toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
   });
 
   it("gives the room menu a 44px touch target below md and 32px from md", () => {
@@ -1374,10 +1011,6 @@ describe("ChatRoomSidebarRow reorder mode", () => {
 
     const link = screen.getByRole("link");
     expect(link.className.split(" ")).toContain("pointer-events-none");
-    // The collapsed rail shows no handle, so its rows keep opening rooms.
-    expect(link.className.split(" ")).toContain(
-      "group-data-[collapsible=icon]:pointer-events-auto",
-    );
     expect(link).toHaveAttribute("tabindex", "-1");
   });
 
@@ -1840,27 +1473,6 @@ describe("ChatRoomSidebarRow unread message count", () => {
     expect(screen.getByText("More than 99 unread messages")).toBeVisible();
   });
 
-  // Collapsed to icons, the row is a 20px glyph with no room for either
-  // number. Hiding both is the decided behaviour, not an oversight.
-  it("hides the count when the sidebar collapses", () => {
-    renderRow(makeRoom({ unreadCount: 4 }));
-
-    // The count is a visible span wrapping its own announcement, so the rule
-    // sits on the parent.
-    expect(
-      screen.getByText("4 unread messages").parentElement?.className,
-    ).toContain("group-data-[collapsible=icon]:hidden");
-  });
-
-  it("hides the mention badge when the sidebar collapses", () => {
-    renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
-
-    // The mention is announcement only.
-    expect(screen.getByText("2 mentions").className).toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-  });
-
   // The regression guard: a mention and unread messages on one row. One
   // number per row, so the badge stands alone, and it must keep counting
   // mentions rather than turning into the message count it replaced.
@@ -1978,6 +1590,116 @@ describe("ChatRoomSidebarRow unread message count", () => {
     );
 
     expect(screen.getByText("5 unread messages")).toBeInTheDocument();
+  });
+});
+
+describe("ChatRoomSidebarRow as an Elsewhere row", () => {
+  function renderElsewhereRow(room = makeRoom()) {
+    render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label="general"
+        subtitle="Other Org"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        elsewhere
+      />,
+    );
+  }
+
+  it("offers the normal room actions without Pin", async () => {
+    renderElsewhereRow();
+
+    await openRoomMenu();
+
+    expect(
+      screen.getByRole("menuitem", { name: "Mark as unread" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Mute" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Unpin" })).toBeNull();
+  });
+
+  // A pinned room cannot be muted until it is unpinned, so hiding this too would
+  // leave the row's reader with neither.
+  it("offers Unpin on a room already pinned, and still no Pin", async () => {
+    renderElsewhereRow(
+      makeRoom({ starredAt: new Date("2026-01-03T00:00:00.000Z") }),
+    );
+
+    await openRoomMenu();
+
+    expect(screen.getByRole("menuitem", { name: "Unpin" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+  });
+
+  describe("for a room whose only unread is a Thread reply", () => {
+    const threadOnly = {
+      unreadCount: 2,
+      channelUnreadCount: 0,
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [
+        {
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+        },
+      ],
+    };
+
+    // The preference is off here: it hides a Room unread, and this is not one.
+    it("draws its plain number and no inset Thread rows", () => {
+      renderElsewhereRow(makeRoom(threadOnly));
+
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]')?.textContent,
+      ).toBe("2");
+      expect(
+        document.querySelector('[data-slot="room-thread-rows"]'),
+      ).toBeNull();
+      expect(screen.queryByText("Vendor-wide rollout")).toBeNull();
+      expect(screen.getByText("general").className).not.toContain(
+        "font-semibold",
+      );
+      expect(
+        screen.getByRole("link", { name: /general/ }).textContent,
+      ).toContain("2 unread messages");
+    });
+
+    it("draws the pill instead where a Thread names the reader", () => {
+      renderElsewhereRow(makeRoom({ ...threadOnly, unreadMentionCount: 1 }));
+
+      expect(
+        document.querySelector('[data-slot="room-mention-badge"]'),
+      ).not.toBeNull();
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]'),
+      ).toBeNull();
+    });
+
+    it("draws no number while the channel holds something too", () => {
+      renderElsewhereRow(
+        makeRoom({ ...threadOnly, unreadCount: 5, channelUnreadCount: 3 }),
+      );
+
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]'),
+      ).toBeNull();
+      expect(screen.getByText("general").className).toContain("font-semibold");
+    });
+  });
+
+  it("announces the room, its workspace and its mentions in one link", () => {
+    renderElsewhereRow(makeRoom({ unreadMentionCount: 2 }));
+
+    const link = screen.getByRole("link", { name: /general/ });
+
+    expect(link.textContent).toContain("Other Org");
+    expect(link.textContent).toContain("2 mentions");
   });
 });
 

@@ -66,7 +66,7 @@ describe("Markdown raw HTML", () => {
       <Markdown>
         {[
           "<u>under</u>",
-          '<span class="text-primary font-medium whitespace-nowrap other" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
+          '<span class="text-foreground font-medium whitespace-nowrap other" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
           "",
           '<video src="https://e.test/clip.mp4" controls loop muted autoplay></video>',
         ].join("\n")}
@@ -76,7 +76,7 @@ describe("Markdown raw HTML", () => {
     expect(container.querySelector("u")).toHaveTextContent("under");
     const chip = container.querySelector("span[data-direct-id]");
     expect(chip).toHaveClass(
-      "text-primary",
+      "text-foreground",
       "font-medium",
       "whitespace-nowrap",
     );
@@ -94,7 +94,7 @@ describe("Markdown raw HTML", () => {
     const { container } = render(
       <Markdown highlightTerm="found">
         {
-          '<p>\n```\n<mark class="bg-primary-tertiary">authored</mark>\n```\n\nfound it'
+          '<p>\n```\n<mark class="bg-quaternary">authored</mark>\n```\n\nfound it'
         }
       </Markdown>,
     );
@@ -102,7 +102,7 @@ describe("Markdown raw HTML", () => {
 
     expect(marks).toHaveLength(1);
     expect(marks[0]).toHaveTextContent("found");
-    expect(marks[0]).toHaveClass("bg-primary-tertiary");
+    expect(marks[0]).toHaveClass("bg-quaternary");
     expect(container).toHaveTextContent("authored");
   });
 

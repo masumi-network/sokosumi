@@ -67,8 +67,7 @@ const SRC_FILES: SrcFile[] = walk(SRC_ROOT).map((full) => {
  * solid steps to move to, because the neutral tokens were still faded by hand
  * in roughly 700 places. Those are all converted, so a modifier on any colour
  * utility is a bug from here on. Where a surface genuinely has to show what
- * sits behind it, the token carries the alpha: `--overlay`, `--surface-glass`,
- * `--surface-sticky`, `--scrim`.
+ * sits behind it, the token carries the alpha: `--overlay`, `--scrim`.
  */
 
 const TAILWIND_PALETTE = [
@@ -140,6 +139,23 @@ const TOKEN_OPACITY = new RegExp(
   `(?<![\\w/.-])(?:text-(?!(?:${FONT_SIZES})/)|(?:${COLOR_UTILITIES_NO_TEXT})-)[a-z0-9-]+/(?:\\[[0-9.]+%?\\]|\\d{1,3})(?![\\w.])`,
 );
 
+const PRIMARY_ON_TEXT_OR_EDGE =
+  /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|caret|divide)-primary(?![\w-])/;
+
+/**
+ * Done green, input-required yellow and in-progress Iris are fills. On white
+ * they measure 2.00, 1.44 and 2.67:1, so none of them can be text, an icon or
+ * a thin edge. `risk-high` is the same Golden Yellow. The tail rejects
+ * `[\w-]`, so the fill-side `text-semantic-success-foreground` stays legal.
+ */
+const STATUS_FILL_ON_TEXT_OR_EDGE =
+  /(?<![\w-])(?:text|border(?:-[trblxyse])?|ring|fill|stroke|decoration|outline|divide|caret)-(?:semantic-success|semantic-warning|status-working|risk-high)(?![\w-])/;
+
+const PRIMARY_EDGE_ALLOWLIST = new Set([
+  // Asserts that the retired chip class is dropped, so it has to name it.
+  "lib/utils/sanitizeMarkdown.test.ts",
+]);
+
 /**
  * A hex only counts when it is quote-delimited or inside an arbitrary Tailwind
  * value. A bare `#3617` in prose is an issue number, not a color.
@@ -172,6 +188,9 @@ const LITERAL_ALLOWLIST = new Set([
   // Canvas painters. Both build a concrete string for a 2D context.
   "lib/aurora-orb.ts",
   "lib/job-input/form.ts",
+  // The design system preview's value table: the one home of each brand
+  // value, written as a custom property and printed as a swatch label.
+  "app/(app)/admin/design-system/tokens.ts",
 ]);
 
 function findColorViolations(
@@ -203,6 +222,32 @@ describe("color tokens", () => {
 
   it("puts no opacity modifier on any color utility", () => {
     const violations = findColorViolations(TOKEN_OPACITY);
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("paints the primary on no text or edge", () => {
+    // Iris Flower, the primary, measures 2.67:1 on white. The Masumi Family
+    // guide allows it as a fill only, so text, borders, rings and thin marks
+    // take a foreground role. The tail rejects `[\w-]`, so fill-side
+    // label (`text-primary-foreground`) stays legal.
+    const violations = findColorViolations(
+      PRIMARY_ON_TEXT_OR_EDGE,
+      (rel) =>
+        rel.startsWith("app/(app)/admin/design-system/") ||
+        PRIMARY_EDGE_ALLOWLIST.has(rel),
+    );
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("paints no fill-only status colour on text or an edge", () => {
+    // Green, yellow and Iris are fills under a `-foreground` glyph. The
+    // status word or the glyph shape carries the meaning; text takes
+    // `text-foreground`, an edge takes `border-border`.
+    const violations = findColorViolations(STATUS_FILL_ON_TEXT_OR_EDGE, (rel) =>
+      rel.startsWith("app/(app)/admin/design-system/"),
+    );
 
     expect(violations, violations.join("\n")).toEqual([]);
   });
@@ -287,6 +332,33 @@ describe("color tokens", () => {
 });
 
 // ---------------------------------------------------------------------------
+// no blur
+// ---------------------------------------------------------------------------
+
+/**
+ * The Masumi Family guide (5.5) bans glow and blur: borders first, and an
+ * overlay is a scrim, not frosted glass. This catches the Tailwind utilities,
+ * `backdrop-blur`, `backdrop-blur-*` and the `blur-*` filter, with any variant
+ * prefix. The bare `blur` filter counts only behind a variant (`hover:blur`):
+ * a plain "blur" is also the DOM event name, and a line regex cannot tell the
+ * two apart.
+ */
+const BLUR_SIZES = "none|xs|sm|md|lg|xl|2xl|3xl|\\[[^\\]]*\\]|\\([^)]*\\)";
+const BLUR_UTILITY = new RegExp(
+  `(?<![\\w-])backdrop-blur(?![\\w])|(?<![\\w-])blur-(?:${BLUR_SIZES})(?![\\w-])|[\\w\\]]:blur(?=["'\`\\s])`,
+);
+
+describe("no blur", () => {
+  it("uses no backdrop-blur or blur utility", () => {
+    const violations = findColorViolations(BLUR_UTILITY, (rel) =>
+      rel.startsWith("app/(app)/admin/design-system/"),
+    );
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // whole pixels
 // ---------------------------------------------------------------------------
 
@@ -301,7 +373,7 @@ describe("color tokens", () => {
  * It does not cover continuous values, which are interpolated rather than
  * snapped and are legitimately fractional:
  *
- *   - blur and shadow radii (`blur(1.5px)`, `--chat-jump-dim-blur: 1.5px`)
+ *   - shadow radii (`shadow-[0_1px_1.5px_var(--x)]`)
  *   - translations inside a keyframe, which the compositor tweens anyway
  *   - unitless scale factors
  */
@@ -1079,8 +1151,8 @@ describe("focus rings", () => {
       widthlessFocusRings('"focus-within:inset-ring-ring focus:ring-2"'),
     ).toEqual(["focus-within:inset-ring-ring"]);
     expect(
-      widthlessFocusRings('"focus:ring-ring-halo focus-visible:ring-[3px]"'),
-    ).toEqual(["focus:ring-ring-halo"]);
+      widthlessFocusRings('"focus:ring-ring focus-visible:ring-[3px]"'),
+    ).toEqual(["focus:ring-ring"]);
     expect(
       widthlessFocusRings(
         '"focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"',
@@ -1091,7 +1163,7 @@ describe("focus rings", () => {
     ).toEqual([]);
     expect(
       widthlessFocusRings(
-        '"focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring-halo"',
+        '"focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring"',
       ),
     ).toEqual([]);
   });
@@ -1099,9 +1171,9 @@ describe("focus rings", () => {
   it("reads zero widths, variant chains, and group and peer focus", () => {
     expect(
       widthlessFocusRings(
-        '"focus-visible:ring-0 focus-visible:ring-ring focus:ring-[0px] focus:ring-ring-halo"',
+        '"focus-visible:ring-0 focus-visible:ring-ring focus:ring-[0px] focus:ring-ring"',
       ),
-    ).toEqual(["focus-visible:ring-ring", "focus:ring-ring-halo"]);
+    ).toEqual(["focus-visible:ring-ring", "focus:ring-ring"]);
     expect(
       widthlessFocusRings(
         '"focus-visible:after:ring-ring focus-visible:md:ring-ring group-focus-visible:ring-ring peer-focus:inset-ring-ring"',
@@ -1341,12 +1413,13 @@ function openingTags(
       if (quote) {
         if (char === "\\") i++;
         else if (char === quote) quote = null;
-      } else if (depth > 0 && text.startsWith("//", i)) {
-        // A comment in a prop (`section's`) would otherwise open a string.
+      } else if (text.startsWith("//", i)) {
+        // A comment in a prop (`section's`) or between props (`primitive's`)
+        // would otherwise open a string.
         const end = text.indexOf("\n", i);
         i = end === -1 ? text.length : end - 1;
         continue;
-      } else if (depth > 0 && text.startsWith("/*", i)) {
+      } else if (text.startsWith("/*", i)) {
         const end = text.indexOf("*/", i);
         i = end === -1 ? text.length : end + 1;
         continue;
@@ -1449,6 +1522,7 @@ describe("icon touch targets", () => {
       '<Button size="icon" className="size-6 after:absolute after:-inset-2">',
       '<Button size="sm" className="size-8">',
       '<Button size="icon"><X className="size-4" /></Button>',
+      '<SidebarMenuButton\n  asChild\n  // down to the primitive\'s floor\n  className={cn(subtitle && "h-auto")}\n>\n  <Button size="icon"><X className="size-4" /></Button>\n  {t(\'close\')}\n</SidebarMenuButton>',
     ];
     for (const fixture of fixtures) {
       expect(smallIconTargets("f.tsx", fixture), fixture).toEqual([]);
@@ -1788,6 +1862,90 @@ describe("instant navigation routes", () => {
     ];
     for (const line of nonMatches) {
       expect(URL_DATA_PROP.test(line), line).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// segmented controls
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Segmented controls: every one looks the same, and the look
+ * lives in `components/ui/segmented-control-classes.ts`, which `ToggleGroup`
+ * wears by default. A caller passes layout (width, wrap, overflow, padding
+ * for an icon-only item) and nothing that repaints the track or the pill: no
+ * fill, border, radius, shadow or text colour on `ToggleGroup` or
+ * `ToggleGroupItem`, and no `data-[state=on]:` class outside `components/ui`.
+ * Tabs are a different control and keep their own classes.
+ */
+const SEGMENTED_PRIMITIVE_TAG = /<(?:ToggleGroup|ToggleGroupItem)\b/g;
+const SEGMENTED_LOOK_CLASS =
+  /(?<![\w-])(?:[\w@\-[\]:]+:)?(?:bg-[^\s"'`]+|border(?:-[^\s"'`]+)?|rounded(?:-[^\s"'`]+)?|shadow(?:-[^\s"'`]+)?|text-(?!(?:2xs|xs|sm|base|lg|left|right|center|start|end|nowrap|wrap)\b)[^\s"'`]+)(?![\w-])/;
+const SEGMENTED_SELECTED_CLASS = /data-\[state=on\]:/;
+
+function segmentedLookOverrides(relSrc: string, text: string): string[] {
+  const hits: string[] = [];
+  const consts = constStrings(text);
+  const lineOf = (at: number) => text.slice(0, at).split("\n").length;
+
+  for (const { tag: opening, index } of openingTags(
+    text,
+    SEGMENTED_PRIMITIVE_TAG,
+  )) {
+    const attr = opening.match(/className=([{"])/);
+    if (!attr || attr.index === undefined) continue;
+    const start = attr.index + "className=".length;
+    const raw =
+      attr[1] === "{"
+        ? balanced(opening, start, "{", "}")
+        : opening.slice(start, opening.indexOf('"', start + 1) + 1);
+    const look = expandConsts(raw, consts).match(SEGMENTED_LOOK_CLASS);
+    if (look) hits.push(`${relSrc}:${lineOf(index)}: ${look[0]}`);
+  }
+
+  if (!relSrc.startsWith("components/ui/")) {
+    text.split("\n").forEach((line, index) => {
+      const selected = line.match(SEGMENTED_SELECTED_CLASS);
+      if (selected) hits.push(`${relSrc}:${index + 1}: ${selected[0]}`);
+    });
+  }
+  return hits;
+}
+
+describe("segmented controls", () => {
+  it("leaves the look to the shared segmented-control classes", () => {
+    const hits = SRC_FILES.filter(
+      (file) => file.ext === ".tsx" && !file.relSrc.includes(".test."),
+    ).flatMap((file) => segmentedLookOverrides(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<ToggleGroup className="bg-muted w-full">',
+      '<ToggleGroupItem value="a" className="bg-[Canvas] px-2">',
+      '<ToggleGroup aria-label="a > b" className="rounded-none">',
+      '<ToggleGroupItem value="a" className="data-[state=on]:bg-primary">',
+      '<ToggleGroup\n  type="single"\n  className={cn("rounded-md border", x)}\n>',
+      'const ITEM = "text-primary";\n<ToggleGroupItem value="a" className={ITEM}>',
+      'const ON = "data-[state=on]:font-semibold";',
+    ];
+    for (const fixture of fixtures) {
+      expect(segmentedLookOverrides("app/x.tsx", fixture), fixture).not.toEqual(
+        [],
+      );
+    }
+
+    const clean = [
+      '<ToggleGroup className="w-full overflow-x-auto">',
+      '<ToggleGroupItem value="a" className="h-full p-2 max-sm:text-xs">',
+      '<ToggleGroup type="single" onValueChange={(v) => v && set(v)} className="grid grid-cols-2">',
+      '<TabsList className="bg-card-background">',
+    ];
+    for (const line of clean) {
+      expect(segmentedLookOverrides("app/x.tsx", line), line).toEqual([]);
     }
   });
 });

@@ -23,22 +23,8 @@ import {
   chatRoomSchema,
 } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { getChatRoomNeedsYouCounts } from "@/services/chat-signal-views.service";
-import {
-  chatRoomInclude,
-  getChatRoomPinnedMessageCounts,
-  getChatRoomSidebarFlags,
-  getPeerInActiveOrganizationFlags,
-  loadFormerDirectUserMembers,
-  mapChatRoom,
-  membershipVisibleActiveRoomWhere,
-} from "./helpers";
-import { getChatRoomUnreadMentionCounts } from "./room-mention-counts";
-import {
-  getChatRoomUnreadCounts,
-  listUnreadThreadsOfRoomsWithThreadUnread,
-  unreadCountFields,
-} from "./room-unread";
+import { chatRoomInclude, membershipVisibleActiveRoomWhere } from "./helpers";
+import { mapSidebarRooms } from "./sidebar-rooms";
 
 /**
  * Higher than the shared default because the sidebar renders the full list in
@@ -77,7 +63,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), org-less matched channels where the caller is a member, and external channels where the caller is a guest. With no active organization, lists personal Directs, matched-channel memberships, and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
+      "List chat rooms visible to the current user: active-org membership rooms plus, in every workspace, Personal Directs (all-human, `organizationId` null), org-less matched channels and every external channel the caller is on, as a host-org member or a guest. With no active organization, the active-org rooms are the caller's org-less Directs: Personal Directs plus coworker and Soko Bot 1:1s of the personal workspace. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -116,8 +102,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Active: membership of caller AND (active-org rooms ∪ guest rooms ∪
-    // personal human Directs ∪ org-less matched channels). No active org:
-    // personal Directs ∪ guest rooms ∪ matched-channel memberships.
+    // Personal Directs ∪ org-less matched channels). No active org:
+    // org-less Directs (incl. AI 1:1s) ∪ guest rooms ∪ matched-channel memberships.
     // Archived rooms are always org channels, so personal workspace returns
     // empty for status=archived. Archived list is OWNER/ADMIN only.
     const canManageAnyArchived =
@@ -149,7 +135,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userMembers: {
               some: { userId },
             },
-            ...membershipVisibleActiveRoomWhere(userId, organizationId),
+            ...membershipVisibleActiveRoomWhere(organizationId),
           };
 
     const [rows, count] = await Promise.all([
@@ -168,48 +154,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = rows.length === takePlusOne;
     const rooms = rows.slice(0, take);
-    const roomIds = rooms.map((room) => room.id);
-    const organizationIds = [
-      ...new Set(
-        rooms
-          .map((room) => room.organizationId)
-          .filter((id): id is string => id != null),
-      ),
-    ];
-    // Started here so the unread Threads can wait on it alone, beside the
-    // other reads rather than after them.
-    const unreadCountsRead = getChatRoomUnreadCounts(roomIds, userId, prisma);
-    const [
-      unreadCounts,
-      unreadThreads,
-      unreadMentionCounts,
-      needsYouCounts,
-      sidebarFlags,
-      pinnedMessageCounts,
-      peerInActiveOrganizationFlags,
-      formerUserMembers,
-      organizations,
-    ] = await Promise.all([
-      unreadCountsRead,
-      unreadCountsRead.then((counts) =>
-        listUnreadThreadsOfRoomsWithThreadUnread(counts, userId, prisma),
-      ),
-      getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
-      getChatRoomNeedsYouCounts(roomIds, userId, prisma),
-      getChatRoomSidebarFlags(roomIds, userId, prisma),
-      getChatRoomPinnedMessageCounts(roomIds, prisma),
-      getPeerInActiveOrganizationFlags(rooms, userId, organizationId, prisma),
-      loadFormerDirectUserMembers(rooms, prisma),
-      organizationIds.length > 0
-        ? prisma.organization.findMany({
-            where: { id: { in: organizationIds } },
-            select: { id: true, name: true },
-          })
-        : Promise.resolve([] as Array<{ id: string; name: string }>),
-    ]);
-    const organizationNameById = new Map(
-      organizations.map((org) => [org.id, org.name]),
-    );
 
     // Message writes advance the stored timestamp used by both pagination
     // and room read responses.
@@ -223,27 +167,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      z.array(chatRoomSchema).parse(
-        rooms.map((room) => {
-          const flags = sidebarFlags.get(room.id);
-          return mapChatRoom(room, userId, {
-            ...unreadCountFields(unreadCounts.get(room.id)),
-            unreadThreads: unreadThreads.get(room.id),
-            unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-            unreadNeedsYouCount: needsYouCounts.get(room.id) ?? 0,
-            starredAt: flags?.starredAt ?? null,
-            pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
-            mutedAt: flags?.mutedAt ?? null,
-            markedUnread: flags?.markedUnread ?? false,
-            organizationName: room.organizationId
-              ? (organizationNameById.get(room.organizationId) ?? null)
-              : null,
-            peerInActiveOrganization:
-              peerInActiveOrganizationFlags.get(room.id) ?? false,
-            formerUserMembers: formerUserMembers.get(room.id),
-          });
-        }),
-      ),
+      await mapSidebarRooms(rooms, userId, organizationId),
       paginationMeta,
     );
   });

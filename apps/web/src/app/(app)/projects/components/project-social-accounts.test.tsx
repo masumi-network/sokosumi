@@ -772,7 +772,7 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(pendingRow)
         .getByText("Connection pending")
-        .closest(".text-semantic-warning-label"),
+        .closest(".text-foreground"),
     ).toBeTruthy();
     expect(
       within(pendingRow).queryByRole("button", { name: "Reconnect" }),

@@ -171,7 +171,6 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
@@ -190,6 +189,7 @@ import {
 } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { useSelectedRoomChannelHealth } from "@/lib/ably/use-selected-room-channel-health";
+import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {
@@ -198,7 +198,6 @@ import {
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
 import {
-  canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
@@ -214,7 +213,6 @@ import {
   appendMessage,
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
-  getRoomDisplayName,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -258,6 +256,7 @@ import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
+import { useRoomDisplayName } from "./use-room-display-name";
 
 /** The active organization as a room reads it. */
 export interface RoomWorkspace {
@@ -279,7 +278,7 @@ export interface RoomsClientProps {
   /**
    * Caller's own role in the active organization, from their membership. Not
    * derived from `organizationMembers`: that list is empty while it loads
-   * and when it fails.
+   * and when it fails. On a Room visit, their role in the room's Organization.
    */
   isOrgOwnerOrAdmin: boolean;
   coworkers: Coworker[];
@@ -606,7 +605,7 @@ function RoomView({
   registerRefresh?: MutableRefObject<() => void>;
 }) {
   const t = useTranslations("App.Channels");
-  const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const roomDisplayName = useRoomDisplayName();
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -617,9 +616,15 @@ function RoomView({
     getSidebarRooms,
     getSidebarRooms,
   );
+  const isRoomVisit = rooms.some(
+    (room) =>
+      room.id === selectedRoomId && !isRoomOfWorkspace(room, organizationId),
+  );
+  // The sidebar lists the active workspace. On a Room visit its channels are
+  // not the room's: a `#general` here must not resolve to that workspace's.
   const channelCatalogRooms = useMemo(
-    () => mergeMembershipVisibleRooms(rooms, sidebarRooms),
-    [rooms, sidebarRooms],
+    () => mergeMembershipVisibleRooms(rooms, isRoomVisit ? [] : sidebarRooms),
+    [isRoomVisit, rooms, sidebarRooms],
   );
   const channelOptions = useMemo(
     () => membershipVisibleChannelOptions(channelCatalogRooms),
@@ -1207,7 +1212,7 @@ function RoomView({
     return selectedRoomIdRef.current === roomId;
   }
   const selectedRoomDisplayName = selectedRoom
-    ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
+    ? roomDisplayName(selectedRoom, currentUserId)
     : "";
   const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 
@@ -1225,12 +1230,8 @@ function RoomView({
   if (rosterOpen && !showRoomRosterControl) {
     setRosterOpen(false);
   }
-  const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
-    kind: selectedRoom?.kind,
-    discoverability: selectedRoom?.discoverability,
-    myAccess: selectedRoom?.myAccess,
-    hasActiveOrganization: Boolean(activeOrganization),
-  });
+  // Message on a person works from any workspace; Core decides who is reachable.
+  const canOpenHumanDirect = true;
   // Name/topic/visibility and archive: organization owner/admin only. Everyone
   // else manages membership from the members panel instead.
   const canManageSelectedRoomSettings =
@@ -1712,27 +1713,6 @@ function RoomView({
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
   // start lost the draft when the request failed after submit.
 
-  const breadcrumbOverride = useMemo(
-    () => ({
-      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/",
-      segments: [
-        {
-          label: tBreadcrumb("chat"),
-          href: "/",
-        },
-        ...(selectedRoom
-          ? [
-              {
-                label: selectedRoomDisplayName,
-                href: `/chat/rooms/${selectedRoom.id}`,
-              },
-            ]
-          : []),
-      ],
-    }),
-    [selectedRoom, selectedRoomDisplayName, tBreadcrumb],
-  );
-  useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
     return new Map(
       (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
@@ -3219,6 +3199,7 @@ function RoomView({
     selectedRoom != null ? (
       <RoomHeaderChrome
         room={selectedRoom}
+        isRoomVisit={isRoomVisit}
         displayName={selectedRoomDisplayName}
         isDirectRoom={isDirectRoom}
         onJumpToMessage={handleSearchJump}
@@ -3776,7 +3757,8 @@ function RoomView({
                 currentUserId={currentUserId}
                 isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
                 organizationMembers={organizationMembers}
-                coworkers={coworkers}
+                // shortcut: a Room visit's picker offers no Coworkers because this list is the active workspace's and Core refuses them, read them by room once someone needs to add a Coworker during a visit (.scratch/room-visits/issues/06-add-a-coworker-during-a-room-visit.md)
+                coworkers={isRoomVisit ? [] : coworkers}
                 sokoBots={sokoBots}
                 membersLoadFailed={membersLoadFailed}
                 readStateFor={readReceipts.readStateFor}

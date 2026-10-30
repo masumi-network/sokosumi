@@ -3,11 +3,11 @@ version: alpha
 name: Sokosumi
 description: >-
   Design system for Sokosumi — the AI-agent marketplace in the Sumi (AGENTIC)
-  family alongside masumi (blockchain layer) and kodosumi (the code). Deep-blue
-  primary on a neutral-gray base, Inter throughout, sentence case, segmented
-  full-bleed lines, soft glow for depth. Sokosumi is the "vessel" where masumi
-  (warm) and kodosumi (cool) palettes meet — its only chromatic accents beyond the
-  primary come from those two ecosystems. Tokens are CSS-first (Tailwind v4
+  family alongside masumi (blockchain layer) and kodosumi (the code). Follows the
+  Masumi Family Brand Guide (github.com/masumi-network/Masumi-Family-Brand-Guide):
+  Iris Flower primary as a fill with Neutral 950 text, shared neutrals, Inter
+  throughout, sentence case, segmented full-bleed lines, borders first. Chromatic
+  accents beyond the primary come only from the shared Masumi palette. Tokens are CSS-first (Tailwind v4
   `@theme` in apps/web/src/app/globals.css); there is no tailwind.config. shadcn/ui
   (new-york, neutral base, lucide) over Radix.
   Color values live only in apps/web/src/app/globals.css — do not duplicate a hex table here.
@@ -68,19 +68,19 @@ spacing:        # Tailwind default 4-pt scale (no custom spacing token)
   12: 48px
 components:
   button:
-    backgroundColor: secondary
-    textColor: secondary-foreground
+    backgroundColor: background
+    textColor: foreground
     rounded: "{rounded.md}"
     height: h-10
     padding: 8px 16px
     typography: text-sm font-medium
   buttonHover:
-    backgroundColor: secondary-hover
+    backgroundColor: accent
   buttonPrimary:
-    backgroundColor: primary-solid
-    textColor: primary-solid-foreground
+    backgroundColor: primary
+    textColor: primary-foreground
   buttonPrimaryHover:
-    backgroundColor: primary-solid-hover
+    backgroundColor: primary-hover
   buttonSm:
     height: h-8
     padding: 0 12px
@@ -111,7 +111,7 @@ components:
     padding: 2px 8px
     typography: "{typography.label}"
   focusRing:
-    width: 3px
+    width: 2px
 ---
 
 # Sokosumi — Design System
@@ -126,41 +126,46 @@ components:
 Sokosumi is the **AI-agent marketplace** in the **Sumi (AGENTIC)** family — alongside
 **masumi** (blockchain layer) and **kodosumi** (the code). Voice: **sincere, minimal,
 consistent** — heavy contrast, ample white space, restraint. Sokosumi is the **vessel**
-where masumi and kodosumi meet, so its own surface is **deep-blue primary on a neutral-gray
-base**; everything else is simplified to gray so the sibling palettes (and the work) stand
-out. Brand names and the first letter of any brand are always **lowercase**; UI copy is
+where masumi and kodosumi meet. It follows the
+[Masumi Family Brand Guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide):
+**Iris Flower primary on the shared neutrals**, and everything else is simplified to gray so
+the work stands out. Brand names and the first letter of any brand are always **lowercase**; UI copy is
 **sentence case**.
 
 - **Aesthetic:** intricate minimalism — Linear/Notion precision with a warm, human edge.
-- **Color discipline:** deep-blue primary + neutrals carry the UI; chromatic accents appear
-  **only when they communicate** (masumi/kodosumi charts, status, category), at most one
-  accent role per view.
+- **Color discipline:** neutrals carry the UI and Iris Flower is the one accent, as a fill;
+  other palette colours appear **only when they communicate** (charts, status, category).
+  One pink per view: never mix Iris with Electric Pink, Vivid Sakura or Peach Blossom.
 - **Theming:** dark mode is a `.dark` class that re-defines the same token names; reference one
-  token and theming is automatic. `--radius` and the solid category colours (`--chart-1`…`5`) are
-  identical across modes; their `-quinary` resting fills are retuned for dark.
+  token and theming is automatic. `--radius`, `--primary` and the solid category colours `--chart-1`…`4` are
+  identical across modes; `--chart-5` is a neutral that steps with the theme, and every
+  `-quinary` resting fill is retuned for dark.
 
 ## Colors
 
-### Primary — Sokosumi Blue, themeable
+### Primary — Iris Flower, a fill
 
-The primary is Sokosumi Blue. Light and dark values live in `globals.css`; dark mode
-raises the lightness so accent text and focus rings remain visible on dark surfaces.
-The working status uses a separate magenta hue, and the former `semantic-info` role
-has been consolidated into `status-working`.
+The primary is Iris Flower in light. Dark rests on **Dark Iris** `#D141D1` (Proposed,
+off-guide): Iris Flower measures 7.3:1 on Neutral 950 against 2.7:1 on white, so it reads
+about three times louder in dark. It is a **fill**: the label on it is always
+`--primary-foreground` (Neutral 950; 7.33:1 on Iris Flower, 5:1 on Dark Iris). It is never
+text, a border or a thin mark on the page, where it measures 2.67:1 on white.
+`--primary-hover` is Iris Flower in both themes, so a dark primary lifts to full Iris on
+hover and a light one keeps its fill.
 
-The primary family exposes `--primary-solid` (fill under a near-white label),
-`--primary-variant`, opaque ramp steps `--primary-tertiary`, `--primary-quaternary`, `--primary-quinary`
-(border / hover fill / resting fill). `--primary-iris` is a magenta (the `status-working`
-hue) that is bridged but unused today; reach for it only with a design decision. Never
-invent a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no step
-fits, add one in `globals.css`. Tokens may mix with `transparent` inside `globals.css`
-(`--overlay`, `--surface-glass`); call sites never do.
+There are no other primary aliases or tints: use `bg-primary`, and the neutral steps for tints.
+Never invent a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no
+step fits, add one in `globals.css`.
 
 ### Neutrals
 
-Black/White plus the neutral ramp (`--background` / `--card-background` through
-`--foreground`) and the step ramp (`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`).
-Values live in `globals.css`. Pages stack three surfaces (see **Page surfaces** under Layout):
+The guide's shared neutrals (White, Neutral 50 to 950, Black) behind the role ramp
+(`--background` / `--card-background` through `--foreground`) and the step ramp
+(`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`). Values live in
+`globals.css`. Three steps leave the guide's role table to stay AA: light
+`--muted-foreground` is Neutral 600 (Neutral 500 is 4.35:1 on the panel), `--input` is
+Neutral 500 in both themes (the guide's field border is under 3:1), and dark
+`--quaternary`/`--quinary` sit one step deeper so muted text clears 4.5:1 on them. Pages stack three surfaces (see **Page surfaces** under Layout):
 white `--background`, the light-gray `--card-background` panel, and white components with a
 `--border` hairline on top of it. Default border = `--border`; `--input` is a separate, stronger
 boundary for fields (input, textarea, select, checkbox, radio). Labelled controls (outline
@@ -168,14 +173,15 @@ buttons, toggles, triggers, option cards) take the soft `--control-border`. The 
 
 ### Category palette (ecosystem)
 
-Category accents come from the **real masumi (warm) + kodosumi (cool)** palettes, mapped to
-`--chart-1…5` — **never** stock shadcn chart defaults. Hex values live only in `globals.css`.
+Category accents come from the shared Masumi palette, mapped to `--chart-1…5` — **never**
+stock shadcn chart defaults. Hex values live only in `globals.css`. Proposed until the
+guide's data visualization rules (6.6) land.
 
-- `--chart-1` — kodosumi · Sky Blue
-- `--chart-2` — masumi · Electric Pink
-- `--chart-3` — kodosumi · Neon Grass
-- `--chart-4` — masumi · Golden Yellow
-- `--chart-5` — masumi · Persimmon
+- `--chart-1` — Iris Flower (both themes; the primary dims in dark, the chart does not)
+- `--chart-2` — Persimmon
+- `--chart-3` — Golden Yellow
+- `--chart-4` — Sand
+- `--chart-5` — Neutral 500 (light) / Neutral 400 (dark)
 
 These are vivid (built for fills/ink, not small text). Use as **solid fills** (badges, mock
 accents) or **`-quinary` resting fills** (chips — `--chart-N-quinary`); keep adjacent
@@ -186,23 +192,29 @@ text/icons **neutral** for contrast.
 Beyond the above, `globals.css` exposes:
 
 - **Semantic:** `--semantic-destructive`, `--semantic-warning`, `--semantic-success`, each
-  with `-tertiary/-quaternary/-quinary/-label/-foreground`; `--semantic-destructive-solid` is
-  the fill that carries a near-white label. There is no info role: it was retired into
+  with a `-foreground`. Success (green) and warning (Golden Yellow) are **fills only**, 2.00
+  and 1.44:1 on white, under their `-foreground` glyph; they are never text, an icon colour or
+  an edge. Destructive is Neutral 950 (Neutral 50 in dark), so it can be text.
+  `--semantic-destructive-solid` is the fill that carries a near-white label. There is no
+  tint or label step: chips and tints take the neutral roles (`bg-muted`, `bg-quinary`,
+  `border-border`, `text-foreground`). There is no info role: it was retired into
   `--status-working`.
-- **Status:** `--status-working`, `--status-external`, `--status-done` (with ramp steps),
-  `--presence-offline`, `--risk-high`.
-- **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
-  `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
+- **Status:** `--status-working` (Iris, Dark Iris in dark, a fill only), `--status-external`, `--status-done`
+  (neutral, no steps), `--presence-offline`, `--risk-high` (Golden Yellow, a fill only).
+  `src-walk-guards.test.ts` fails on a fill-only status colour used as text or an edge.
+- **Overlay:** `--overlay` (Alpha 50 scrim behind a dialog; pair with an opaque panel, not a blur),
+  `--overlay-primary`, `--scrim`, `--scrim-soft`, `--scrim-strong` (alpha lives in the token, not
+  at the call site). Floating chips and sticky headers are opaque: `bg-popover`, `bg-background`.
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
   `--media-ground`.
 - **Surfaces and states:** `--background-muted`, `--card-background-hover`,
-  `--disabled-foreground`, `--scrollbar-thumb`, `--destructive-halo`, and `*-hover` steps
+  `--disabled-foreground`, `--scrollbar-thumb`, and `*-hover` steps
   for filled controls.
 - The **sidebar-** set, the **social-** link colours, and
-  `card/popover/border/input/ring/ring-halo`.
+  `card/popover/border/input/ring`.
 
 Use semantic tokens
-(`bg-primary`, `text-muted-foreground`, `border-input`, `bg-primary-solid`, `ring-ring-halo`) —
+(`bg-primary`, `text-muted-foreground`, `border-input`, `ring-ring`) —
 never hardcoded hex, never an opacity modifier on a colour utility.
 
 ## Typography
@@ -233,7 +245,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 
 - **CSS-first, no JS config.** Breakpoints are Tailwind defaults (`sm 640 · md 768 · lg 1024 ·
   xl 1280 · 2xl 1536`); **`md` is the primary mobile/desktop split** (sidebar hidden→flex,
-  header sticky). `2xl` is effectively unused.
+  header sticky). `2xl` is rare: Organization billing uses it to fit every plan on one row.
 - **App shell:** sidebar + a sticky header, `<main data-app-main class="… p-4 …">`
   (overflow-y-auto). That `p-4` is the only horizontal gutter (see Shapes).
 - **Container:** the custom `.container` (centered, capped at 1400px) is for marketing pages
@@ -283,23 +295,34 @@ inside a full-width panel.
   app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
   little above the middle of the screen, prompt chips, then a quiet list with no panel or
   borders.
+- **Chat room:** the header row, transcript and composer share one centred `max-w-4xl`
+  reading column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`,
+  applied by `RoomShellLayout`); the header's bottom rule and the scroller stay full width.
+  The title's mark starts at the transcript avatars' left edge and the header actions end at
+  the column's right edge. The title always has a second line, so it never moves between rooms:
+  a Channel's topic, else the member count, "Direct message" or "Only you". The thread panel
+  stays full width. A docked side panel (thread, threads, pinned, members) does not re-centre
+  the column: it keeps its left edge while it fits, moves left only as far as it must, and
+  slides there with a transform (`useRoomColumnSlide`, off under reduced motion; see
+  **Motion**).
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).
 
 ## Elevation & Depth
 
-Borders-first, then soft glow. Shadows stop at `shadow-lg`.
+Borders first (guide 5.5). No glow, no blur. Shadows stop at `shadow-lg`.
 
 - Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
-- **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
-  brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
+- **Shadows:** a small shadow (`shadow-sm`, `shadow-md`) may lift a card on hover;
+  `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
   `shadow-2xl` and a hand-written `shadow-[…]` drop shadow are out under any variant; an
   arbitrary `shadow-[inset_…]` hairline is a border and stays. No shadow **token scale**
   exists — use Tailwind `shadow-*` defaults. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
-- **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
-  backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
+- **Overlays use a scrim:** the dialog overlay is `bg-overlay` (Alpha 50) with an opaque panel.
+  `backdrop-blur` and `blur-*` are out everywhere; the guard fails on them. A floating chip
+  over content is `bg-popover border`, opaque. Mobile chrome is opaque `bg-background`.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
   modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
   takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
@@ -332,22 +355,22 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
 - **Whole pixels:** every layout and border length is a whole number of CSS pixels. A 1x
   display, which is most Windows hardware, has no half pixel, so a `1.5px` border rounds to
   1px on one edge of a box and 2px on the opposite one, and a `0.2px` border rounds away to
-  nothing. Blur radii, keyframe translations and unitless scale factors are continuous and
+  nothing. Shadow radii, keyframe translations and unitless scale factors are continuous and
   stay fractional. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 
 ## Components
 
 shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `data-slot`.
-Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
+Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar); others are
 prop/state-driven.
 
-- **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, _default_),
+- **Button** — 8 variants: `primary` (bg-primary), `default` (bordered, _default_),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
   `transition-[color,background-color,border-color,transform] duration-150 ease-out press
-  disabled:opacity-50`, hover per-variant (`hover:bg-primary-solid-hover` /
-  `hover:bg-secondary-hover` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
+  disabled:opacity-50`, hover per-variant (`hover:bg-primary-hover` on `primary`, Iris Flower over Dark Iris in dark /
+  `hover:bg-accent` on the bordered `default` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
   Pass `loading` to the button whose request is running: it keeps the label and width and
   draws `ButtonLoadingBar`.
 - **Input** — h-10, `rounded-md border-input bg-transparent`, `text-base md:text-sm`
@@ -357,10 +380,26 @@ prop/state-driven.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
-  `bg-overlay backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
+  `bg-overlay` (Alpha 50, no blur); built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
-  Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
-  rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
+  Radix `data-[state=…]` + `focus-visible:border-ring`; tabs/list `bg-muted h-9
+  rounded-lg`; tooltip `bg-secondary text-secondary-foreground text-xs` (neutral, never Iris).
+- **Menu rows** — `bg-accent`, `rounded-sm` and one colour fade on hover, whatever draws the row.
+  Primitives carry it; a row a popover draws for itself takes `POPOVER_ROW_CLASS`.
+- **Page rows** — the same `hover:bg-accent` and fade. A row between divider lines, as in a table,
+  stays square so the fill meets the lines; every other row keeps its rounded corners. Sticky cells
+  paint their row's fill (`GRID_ROW_BACKGROUND`). Holder items take it too, through
+  `HOLDER_ITEM_HOVER_CLASS`, whether they read as a row or a card. Agent cards, image tiles and chips
+  keep `--card-background-hover`.
+- **Segmented controls** (ToggleGroup) — switch the view of the same content; Tabs move
+  between panels and keep their own look. One look for every segmented control: a
+  `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3` options in
+  `text-muted-foreground` (`hover:text-foreground`); the selected option is a
+  `bg-background text-foreground shadow-sm` pill inset in the track, `Highlight` under forced
+  colours. The classes live in `components/ui/segmented-control-classes.ts` and ToggleGroup
+  wears them by default, with no variants or sizes. Callers pass layout only (width, wrap,
+  overflow, `size-10 px-0 md:size-8` for an icon-only option), never a fill, border, radius, shadow, text
+  colour or `data-[state=on]:` class; `src-walk-guards.test.ts` holds that.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
   **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill);
   **company rail + detail** (pick a company on the left, its coworkers and "Ready-to-run
@@ -380,20 +419,23 @@ prop/state-driven.
   `transition-colors` runs 310ms. Controls set their own: the UI primitives (Button, Badge,
   tabs) use `duration-150 ease-out` for press and hover feedback; enter animations run about
   200ms.
-- **What animates:** `transform`, `opacity`, `blur` — **not layout** (width/height/top/margin).
-  Two exceptions are deliberate: the sidebar collapse (width) and disclosures that animate
+- **What animates:** `transform`, `opacity` — **not layout** (width/height/top/margin).
+  Two exceptions are deliberate: hiding the sidebar (the width it leaves) and disclosures that animate
   `grid-template-rows` from `0fr` to `1fr`. Name the properties you transition; `transition-all`
   animates layout by accident.
   Active state nudges with `scale(0.995)`, shared as the `press` utility in `globals.css`
   (buttons, tabs, toggles, rows, cards; off under reduced motion); overlays use `animate-in/out` + `fade` + `zoom-95` +
   slide.
+  When layout must move, slide it with a transform from the old place (FLIP) instead of
+  animating the layout: `useRoomColumnSlide` does this for the chat column when a side panel
+  docks, with the Web Animations API at the dialog enter pairing (200ms, `--ease-out-strong`).
+  `motion`'s `layout` would also animate window resizes, which should stay instant.
 - **Tokens:** animations are `--animate-*` aliases in `@theme` (accordion, roll-up/down,
   rotate-once, reasoning and shimmer text, the button loading sweep, caret blink, the chat
   input border, and others). Add new keyframes there.
 - **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
   arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
-  transform only. Under reduced motion overlays cross-fade in place and `prefers-reduced-transparency`
-  drops the blur on scrims and glass chrome.
+  transform only. Under reduced motion overlays cross-fade in place.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
@@ -411,10 +453,10 @@ prop/state-driven.
 ## Imagery & Visuals
 
 - **Ink** represents the movement/flow of AI agents — fluid, 2D, shaping figures; layering adds
-  depth, soft blur contrasts with sharp edges ("frosted glass"). Used in place of icons/stock for
+  depth. Used in place of icons/stock for
   abstract concepts; brand-color gradients add vibrancy in imagery. In the UI, gradients are
   fades, scrims and masks, plus two brand rings (the hero search and the chat input border).
-- **Blur & glow** are core: soft drop shadows for depth; blur for legibility on busy backgrounds.
+- **No glow or blur** (guide 5.5): depth comes from borders and, for floating overlays, a shadow up to `shadow-lg`.
 - **Generative art** is on-brand (agents create visuals from words). **Photography** is organic
   and natural — abstract macro, grain, brand-tinted, depth-of-field softness; avoid harsh stock.
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
@@ -427,23 +469,22 @@ prop/state-driven.
 ## Accessibility
 
 - **Focus rings — three conventions, by surface.**
-  - **Form primitives** (Input, Select, Checkbox, Switch, Tabs, Textarea, Toggle, Badge):
-    `outline-none focus-visible:border-ring focus-visible:ring-ring-halo
-    focus-visible:ring-[3px]` (+ `aria-invalid:ring-destructive-halo aria-invalid:border-destructive`).
+  - **Form primitives** (Input, Select, Checkbox, Switch, Tabs, Textarea, ToggleGroup, Badge):
+    the field marks focus with its border, `outline-none focus-visible:border-ring`
+    (+ `aria-invalid:border-destructive`). No ring.
   - **Buttons:** `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
     focus-visible:ring-offset-background`, one ring for every variant so the destructive
     button is not the faintest. The Dialog and Sheet close buttons draw the same ring on
     `focus:`.
   - **Bespoke clickable cards and chips** (marketplace, offer picker): a local `FOCUS_RING`
-    constant, `outline-none focus-visible:ring-2 focus-visible:ring-ring-halo
+    constant, `outline-none focus-visible:ring-2 focus-visible:ring-ring
     focus-visible:inset-ring-1 focus-visible:inset-ring-ring`.
 
-  Reuse the one that matches the surface. A ring always has a width (`ring-2` or `ring-[3px]`):
+  Reuse the one that matches the surface. A ring always has a width (`ring-2`):
   `ring-ring` alone sets only its colour and, next to `outline-none`, leaves no focus mark at
   all. Never animate the ring: a ring is a `box-shadow`, so keep `box-shadow` out of the
   transition (no `transition`, `transition-all` or `transition-shadow` on a focusable
-  element). Never fade it with a modifier: `--ring-halo` is the soft wide glow, and it carries
-  its own alpha so the class does not have to. Guard:
+  element). Never fade it with a modifier. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
   accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
@@ -507,10 +548,10 @@ primary on a neutral background. Brand names are always lowercase.
 ## Do's and Don'ts
 
 **Do**
-- Keep deep-blue primary + neutrals as the base; let chromatic accents (masumi/kodosumi
-  charts, status) appear only when they communicate.
+- Keep neutrals as the base and Iris Flower as the one accent fill; let other palette
+  colours (charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
-- Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
+- Separate sections with full-bleed segmented lines; lean on borders, not glow or blur.
 - Build pages from the three layers: white page, borderless light-gray panel, white bordered
   components. Fill the width of `main`.
 - Reuse the documented focus rings; give every icon-only control an `aria-label`.
@@ -525,8 +566,9 @@ primary on a neutral background. Brand names are always lowercase.
   outside the two documented exceptions.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
-  `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
-  `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
+  `color-mix(…, transparent)` tints — use a neutral step (`--border`,
+  `--quinary`, `--muted`) or a named token (`--overlay`, `--scrim`).
+- Glow or `backdrop-blur` on product chrome (guide 5.5).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
-- A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
-  directly on the white page.
+- A centred `mx-auto max-w-*` page column (outside the entry page and chat room exceptions in
+  **Fill the width**), a bordered panel, or a white component sitting directly on the white page.

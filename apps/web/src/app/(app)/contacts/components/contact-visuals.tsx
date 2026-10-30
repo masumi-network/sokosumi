@@ -186,7 +186,7 @@ export function AvatarStack({
         <PersonAvatar
           key={person.id}
           person={person}
-          className="ring-card-background group-hover/row:ring-card-background-hover -ms-0.5 size-6 ring-2 first:ms-0"
+          className="ring-card-background group-hover/row:ring-accent -ms-0.5 size-6 ring-2 first:ms-0"
         />
       ))}
       {rest > 0 ? (

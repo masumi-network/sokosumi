@@ -9,6 +9,7 @@ import { InputType } from "@sokosumi/masumi/types";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -302,8 +303,7 @@ function JobDetailsInputsInner({
                 className={cn(
                   "space-y-4",
                   !open && "max-h-48 overflow-hidden",
-                  shouldFade &&
-                    "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
+                  shouldFade && COLLAPSED_FADE_CLASS,
                 )}
               >
                 {displayInputEntries.map(([key, value]) => {
@@ -337,7 +337,7 @@ function JobDetailsInputsInner({
                   <Button
                     type="button"
                     variant="outline"
-                    className="bg-surface-glass hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
+                    className="bg-popover hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold"
                   >
                     {t("expand")}
                   </Button>
@@ -388,7 +388,7 @@ function JobDetailsInputsError() {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
 
   return (
-    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-semantic-destructive-tertiary bg-semantic-destructive-quinary p-4">
+    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-border bg-muted p-4">
       <span className="text-lg text-semantic-destructive">
         {t("failedToParseInput")}
       </span>

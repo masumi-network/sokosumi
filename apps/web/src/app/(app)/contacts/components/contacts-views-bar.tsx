@@ -38,13 +38,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { Dot } from "./contact-visuals";
 
@@ -67,36 +61,32 @@ interface Props {
   onCompanySearch: (search: string) => void;
 }
 
-/** The presets as tabs, at the top of the page. */
+/**
+ * The presets as a segmented control, at the top of the page. A list or a
+ * company menu choice leaves none of them selected.
+ */
 export function ContactsPresetTabs({
   view,
   onViewChange,
 }: Pick<Props, "view" | "onViewChange">) {
   const t = useTranslations("App.Contacts");
   return (
-    <Tabs
+    <ToggleGroup
+      type="single"
+      aria-label={t("views.label")}
       value={isContactPreset(view) ? view : ""}
-      onValueChange={onViewChange}
-      className="max-w-full min-w-0"
+      onValueChange={(value) => {
+        // Clicking the selected preset again would clear it; keep it.
+        if (value) onViewChange(value);
+      }}
+      className="justify-start overflow-x-auto"
     >
-      <TabsList
-        aria-label={t("views.label")}
-        className={cn(
-          SEGMENTED_TABS_LIST_CLASS_NAME,
-          "w-fit max-w-full justify-start overflow-x-auto",
-        )}
-      >
-        {CONTACT_PRESET_IDS.map((preset) => (
-          <TabsTrigger
-            key={preset}
-            value={preset}
-            className={cn(SEGMENTED_TAB_TRIGGER_CLASS_NAME, "shrink-0")}
-          >
-            {t(`presets.${preset}`)}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+      {CONTACT_PRESET_IDS.map((preset) => (
+        <ToggleGroupItem key={preset} value={preset} className="shrink-0">
+          {t(`presets.${preset}`)}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }
 

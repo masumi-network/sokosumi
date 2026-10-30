@@ -6,12 +6,18 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-import { PROJECTS_PAGE_LIMIT } from "./constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  type ProjectsListState,
+  projectsListStateQuery,
+} from "./constants";
 
 interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
   /** Carries the active name filter so later pages stay inside it. */
   query?: string;
+  /** Carries the Open/Hidden/Closed view; its cursor only makes sense inside it. */
+  state: ProjectsListState;
 }
 
 export const loadMoreProjects = withSession<
@@ -22,11 +28,12 @@ export const loadMoreProjects = withSession<
     >["projects"];
     nextCursor: string | null;
   }
->(async ({ cursor, query }) => {
+>(async ({ cursor, query, state }) => {
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,
     query,
+    ...projectsListStateQuery(state),
   });
 
   return {
@@ -52,3 +59,18 @@ export const unpinProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.unpinProject>>
 >(async ({ projectId }) => projectService.unpinProject(projectId));
+
+/**
+ * A Hide is the reader's own and the opposite of a Pin: hiding unpins, and
+ * the result says whether it did so Undo can Pin again (ADR 0036). Both are
+ * idempotent at Core.
+ */
+export const hideProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.hideProject>>
+>(async ({ projectId }) => projectService.hideProject(projectId));
+
+export const showProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.showProject>>
+>(async ({ projectId }) => projectService.showProject(projectId));

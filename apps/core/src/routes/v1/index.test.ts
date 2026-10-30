@@ -115,6 +115,13 @@ describe("v1 router", () => {
     expect(
       body.paths?.["/public/newsletters/{publicSlug}"]?.get?.security,
     ).toEqual([]);
+    expect(
+      body.paths?.["/public/newsletters/{publicSlug}/issues"]?.get?.security,
+    ).toEqual([]);
+    expect(
+      body.paths?.["/public/newsletters/{publicSlug}/issues/{issueSlug}"]?.get
+        ?.security,
+    ).toEqual([]);
     expect(body.paths?.["/public/newsletter/confirm"]?.get?.security).toEqual(
       [],
     );
@@ -147,7 +154,6 @@ describe("v1 router", () => {
   it("includes public CORS headers on the signup acknowledgment", async () => {
     getEnvMock.mockReturnValue({
       NODE_ENV: "production",
-      NEWSLETTER_ENABLED: true,
     });
     const { default: app } = await import("./index.js");
     const server = new Hono().route("/v1", app);

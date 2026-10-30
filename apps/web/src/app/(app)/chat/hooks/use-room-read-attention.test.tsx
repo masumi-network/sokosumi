@@ -2,6 +2,7 @@ import type { ChatRoom } from "@sokosumi/core-client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markThreadReadAction } from "@/app/chat/actions";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
@@ -383,6 +384,30 @@ describe("useRoomReadAttention", () => {
     rerender({ ...props, transcriptAtEnd: true });
     await act(async () => {});
     expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the sidebar about a Look above the end, where the room is not read", async () => {
+    const changes: unknown[] = [];
+    const record = (event: Event) =>
+      changes.push((event as CustomEvent).detail);
+    window.addEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, record);
+    try {
+      renderHook(() =>
+        useRoomReadAttention({
+          ...options(),
+          openThreadParentId: "thread-1",
+          transcriptAtEnd: false,
+        }),
+      );
+      await act(async () => {});
+
+      expect(markThreadReadAction).toHaveBeenCalledTimes(1);
+      expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
+      // The sidebar's inset Thread row only drops once it refetches the room.
+      expect(changes).toEqual([{ collections: ["active"], roomId: "room-1" }]);
+    } finally {
+      window.removeEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, record);
+    }
   });
 
   it("does not let an older failed request replace a newer successful read", async () => {

@@ -176,7 +176,6 @@
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceptable",
       "settings": "Configuración",
-      "expandSidebar": "Expandir barra lateral",
       "creditsSummary": "Resumen de créditos:",
       "monthlyUsageLimit": "Límite de uso mensual",
       "additionalCreditsHero": "{credits, number}",
@@ -196,7 +195,11 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createWorkspace": "Crear espacio de trabajo",
-      "userAvatarAlt": "Avatar del usuario"
+      "userAvatarAlt": "Avatar del usuario",
+      "inviteMembers": "Invitar miembros",
+      "organizationSettings": "Ajustes",
+      "membersAndSettings": "Miembros y ajustes",
+      "roleAndMemberCount": "{role, select, owner {Propietario} admin {Admin} other {Miembro}} · {count, plural, =1 {1 miembro} other {# miembros}}"
     },
     "DataTable": {
       "Data": {
@@ -255,7 +258,8 @@
             "changeRole": "No se pudo cambiar el rol",
             "remove": "No se pudo eliminar al miembro",
             "assignSeat": "No se pudo asignar el Seat",
-            "unassignSeat": "No se pudo quitar el Seat"
+            "unassignSeat": "No se pudo quitar el Seat",
+            "manageSeats": "Gestionar Seats"
           },
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
@@ -285,50 +289,6 @@
         "resendError": "No se pudo reenviar la invitación",
         "open": "Acciones de la invitación"
       }
-    },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agentes",
-      "credits": "Credits",
-      "coupon": "Cupón",
-      "subscriptions": "Suscripciones",
-      "billing": "Billing",
-      "account": "Cuenta",
-      "admin": "Administración",
-      "organizations": "Organizaciones",
-      "users": "Usuarios",
-      "edit": "Editar",
-      "editor": "Editor",
-      "enterprise-contracts": "Contratos empresariales",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Tareas",
-      "connections": "Conexiones",
-      "developer": "Desarrollador",
-      "personal-assistant": "Asistente personal",
-      "history": "Historial de créditos",
-      "new": "Nuevo",
-      "notifications": "Notificaciones",
-      "projects": "Proyectos",
-      "invoices": "Facturas",
-      "oauth-clients": "Clientes OAuth",
-      "api-keys": "Claves API",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Documentación",
-      "drive": "Archivos",
-      "soko-bots": "Soko Bots",
-      "calendar": "Calendario",
-      "schedules": "Programaciones",
-      "threads": "Hilos",
-      "studio": "Content Studio",
-      "design-md": "Diseño",
-      "memory": "Memoria",
-      "social": "Programación social",
-      "ads": "Anuncios",
-      "evaluations": "Evaluaciones de modelos",
-      "catch-up": "Ponerse al día",
-      "contacts": "Contactos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -761,8 +721,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Invitar miembros en bloque",
-        "description": "Pega direcciones de email para invitar a varios miembros a la vez.",
+        "title": "Invitar miembros",
+        "description": "Pega una o varias direcciones de email.",
         "label": "Direcciones de email",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separa los emails con comas, punto y coma o saltos de línea.",
@@ -2297,8 +2257,9 @@
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
-        "pin": "Fijar proyecto",
-        "unpin": "Desfijar proyecto",
+        "pin": "Fijar",
+        "unpin": "Desfijar",
+        "pinned": "Fijado",
         "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
@@ -2334,6 +2295,54 @@
             "dispute_pending": "Disputa",
             "dispute_resolved": "Resuelto"
           }
+        },
+        "emptyClosed": {
+          "title": "No hay proyectos cerrados",
+          "description": "Un proyecto que cierras pasa aquí y conserva su historial."
+        },
+        "emptyHidden": {
+          "title": "No hay proyectos ocultos",
+          "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
+        },
+        "onlyClosed": {
+          "title": "Todos los proyectos están cerrados",
+          "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
+          "action": "Ver proyectos cerrados"
+        },
+        "state": {
+          "label": "Mostrar proyectos",
+          "open": "Abiertos",
+          "hidden": "Ocultos",
+          "closed": "Cerrados"
+        },
+        "closed": "Cerrado",
+        "hide": {
+          "hide": "Ocultar",
+          "show": "Mostrar",
+          "hidden": "Proyecto oculto",
+          "undo": "Deshacer",
+          "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
+          "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Te necesita",
+          "empty": "Nada te está esperando.",
+          "error": "No se pudo cargar lo que te necesita.",
+          "showAll": "Ver todo"
+        },
+        "activity": {
+          "title": "Actividad reciente",
+          "empty": "Todavía no hay actividad en proyectos abiertos.",
+          "emptyProject": "Todavía no hay actividad en este proyecto.",
+          "error": "No se pudo cargar la actividad reciente.",
+          "showAll": "Ver todo",
+          "untitledJob": "Trabajo sin nombre",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Tarea creada} COMMENT {Comentario añadido} READY {Tarea lista} QUEUED {Tarea programada} RUNNING {Tarea en curso} INPUT_REQUIRED {La tarea necesita datos} APPROVAL_REQUIRED {La tarea necesita aprobación} AUTHENTICATION_REQUIRED {La tarea necesita inicio de sesión} OUT_OF_CREDITS {Tarea en pausa por créditos} COMPLETED {Tarea completada} FAILED {Tarea fallida} CANCELED {Tarea cancelada} other {Tarea actualizada}}",
+          "job": "{status, select, INITIATED {Trabajo iniciado} AWAITING_PAYMENT {Trabajo pendiente de pago} AWAITING_INPUT {El trabajo necesita datos} RUNNING {Trabajo en curso} COMPLETED {Trabajo completado} FAILED {Trabajo fallido} other {Trabajo actualizado}}",
+          "project": "{event, select, CLOSE_REQUESTED {Cierre solicitado} BATCH_FAILED {Cierre fallido} RETRY_REQUESTED {Cierre reintentado} SERIES_RESOLVED {Trabajo programado detenido} CLOSE_FINALIZED {Proyecto cerrado} other {Proyecto actualizado}}"
         }
       },
       "Briefing": {
@@ -2669,6 +2678,7 @@
           "confirm": "Descartar"
         },
         "toasts": {
+          "movedQuotes": "También se {count, plural, one {movió # cita para que aparezca} other {movieron # citas para que aparezcan}} después de esta publicación",
           "created": "{count, plural, one {Borrador guardado.} other {# borradores guardados.}}",
           "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
@@ -2685,7 +2695,8 @@
           "publishFailed": "Error al publicar: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
-          "duplicated": "Borrador creado."
+          "duplicated": "Borrador creado.",
+          "approved": "Publicación aprobada."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2697,7 +2708,8 @@
           "publishNow": "Publicar ahora",
           "retry": "Reintentar",
           "dismiss": "Descartar",
-          "duplicate": "Duplicar como borrador"
+          "duplicate": "Duplicar como borrador",
+          "approve": "Aprobar"
         },
         "publishDialog": {
           "title": "¿Publicar ahora?",
@@ -2807,6 +2819,7 @@
           },
           "performance": {
             "lastDays": "Últimos {days} días",
+            "rangeLabel": "Periodo",
             "moreFilters": "Más filtros",
             "activeFilters": "{count} activos",
             "posts": "Publicaciones",
@@ -2950,7 +2963,50 @@
           "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
           "later": "Más tarde"
         },
-        "moreActions": "Acciones de la publicación"
+        "moreActions": "Acciones de la publicación",
+        "thread": {
+          "add": "Añadir al hilo",
+          "limit": "Los hilos pueden tener hasta {max} partes.",
+          "part": "Parte {part}",
+          "text": "Texto de la parte {part}",
+          "position": "{part}/{total}",
+          "positionLabel": "Parte {part} de {total}",
+          "moveUp": "Subir la parte {part}",
+          "moveDown": "Bajar la parte {part}",
+          "remove": "Eliminar la parte {part}",
+          "onlyX": "Las partes de un hilo solo se pueden publicar en cuentas de X. Deselecciona las otras cuentas o elimina las partes adicionales.",
+          "empty": "La parte {part} está vacía. Añade texto o archivos multimedia.",
+          "tooLong": "La parte {part} supera el límite.",
+          "mediaInvalid": "Parte {part}: {error}",
+          "partlyPosted": "Publicado parcialmente",
+          "progress": "Publicado parcialmente: {published} de {total} partes publicadas.",
+          "failedPart": "La parte {part} ha fallado.",
+          "retry": "Reintentar las partes restantes",
+          "outcomeUnknown": "No hemos podido confirmar si se publicó la parte {part}. Compruébalo en X y confirma que no se publicó para continuar, o déjalo como está.",
+          "confirmNotPosted": "No se publicó, continuar",
+          "viewPart": "Ver la parte {part} en X",
+          "retryDescription": "Solo se publicarán las partes restantes."
+        },
+        "quote": {
+          "label": "Cita",
+          "choose": "Citar una publicación",
+          "pickerDescription": "Elige una publicación de X de este proyecto para citarla.",
+          "search": "Buscar publicaciones",
+          "select": "Citar esta publicación",
+          "empty": "No se encontraron publicaciones. Prueba otra búsqueda o programa una publicación de X en este proyecto.",
+          "loadFailed": "No se pudieron cargar las publicaciones. Inténtalo de nuevo.",
+          "embedded": "Publicación citada",
+          "change": "Elegir otra publicación",
+          "remove": "Quitar cita",
+          "publishesAfter": "Se publicará después de la publicación citada ({time})",
+          "scheduleAfter": "Elige una hora posterior a la publicación citada ({time}).",
+          "scheduleTargetFirst": "Programa la publicación citada antes de programar esta cita.",
+          "postNowUnavailable": "La opción de publicar ahora estará disponible cuando se haya publicado la publicación citada.",
+          "onlyX": "Las citas solo están disponibles para cuentas de X. Quita la cita o selecciona únicamente cuentas de X.",
+          "failed": "No se pudo publicar la publicación citada",
+          "cancelled": "La publicación citada se canceló",
+          "waiting": "Esperando a la publicación citada"
+        }
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -2963,6 +3019,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
+        "stats": {
+          "label": "Recuento de tareas",
+          "running": "En ejecución",
+          "waiting": "En espera",
+          "done": "Hecho"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",
@@ -3039,7 +3101,7 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
-          "close": "Cerrar proyecto",
+          "close": "Cerrar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
@@ -3104,8 +3166,7 @@
           "design": "Diseño",
           "memory": "Memoria",
           "ariaLabel": "Secciones del proyecto",
-          "bots": "Bots",
-          "newsletter": "Boletín"
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
@@ -3120,12 +3181,11 @@
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
-        "emptyDescription": "Elige un nombre, un remitente y una marca a continuación. Después, guarda los ajustes para crear el boletín.",
+        "emptyDescription": "Elige un nombre, un remitente y una marca. Después, guarda los ajustes para crear el boletín.",
         "general": "General",
         "brand": "Marca",
         "welcome": "Correo de bienvenida",
         "welcomeDescription": "Envía un correo de bienvenida cuando un suscriptor confirme su dirección de correo electrónico.",
-        "publicAddress": "Dirección pública del boletín",
         "colorHint": "Usa un color hexadecimal, como #1a2b3c, o deja el campo vacío.",
         "save": "Guardar ajustes",
         "success": "Ajustes del boletín guardados",
@@ -3136,7 +3196,7 @@
           "name": "Nombre del boletín",
           "senderName": "Nombre del remitente",
           "replyTo": "Correo de respuesta",
-          "logoUrl": "URL del logotipo",
+          "logoUrl": "Logotipo",
           "primaryColor": "Color principal",
           "accentColor": "Color de acento",
           "fontFamily": "Familia tipográfica",
@@ -3166,7 +3226,7 @@
           "cancel": "Cancelar",
           "done": "Listo",
           "emptyTitle": "Aún no hay suscriptores",
-          "emptyDescription": "Añade a alguien que haya aceptado recibir tu boletín o importa una lista CSV con consentimiento.",
+          "emptyDescription": "Añade personas desde Contactos, importa un CSV o añade un suscriptor a mano.",
           "search": "Buscar por correo",
           "searchPlaceholder": "nombre@ejemplo.es",
           "searchButton": "Buscar",
@@ -3202,21 +3262,22 @@
             "MANUAL": "Añadido manualmente",
             "CSV_IMPORT": "Importación CSV",
             "SIGNUP_FORM": "Formulario de suscripción",
-            "API": "API"
+            "API": "API",
+            "CONTACTS": "Contactos"
           },
           "Validation": {
             "email": "Introduce un correo electrónico válido.",
             "name": "Usa como máximo 200 caracteres.",
-            "consent": "Confirma el consentimiento antes de continuar."
+            "consent": "Elige cómo dieron su consentimiento y confírmalo antes de continuar."
           },
           "Add": {
-            "description": "Añade a una persona que haya aceptado recibir este boletín.",
+            "description": "Añade una persona a este boletín.",
             "email": "Correo electrónico",
             "name": "Nombre (opcional)",
-            "consent": "Esta persona ha aceptado recibir este boletín",
             "duplicate": "Este correo ya está en la lista. Búscalo para gestionar el suscriptor existente.",
             "error": "No se pudo añadir el suscriptor. Inténtalo de nuevo.",
-            "success": "Suscriptor añadido"
+            "success": "Suscriptor añadido",
+            "pendingConfirmation": "Correo de confirmación enviado"
           },
           "Remove": {
             "title": "¿Eliminar suscriptor?",
@@ -3233,7 +3294,6 @@
             "fileType": "Elige un archivo con la extensión .csv.",
             "fileSize": "Elige un archivo CSV de 5 MB como máximo.",
             "fileRequired": "Elige un archivo CSV para importar.",
-            "consent": "Todas las personas de este CSV han aceptado recibir este boletín",
             "importing": "Importando suscriptores…",
             "error": "No se pudieron importar los suscriptores. Inténtalo de nuevo.",
             "invalidCsv": "Revisa el CSV: incluye una cabecera email, otra opcional name y un máximo de 50.000 filas. Después, inténtalo de nuevo.",
@@ -3241,13 +3301,417 @@
             "result": {
               "imported": "Importados",
               "skippedExisting": "Ya están en la lista",
-              "invalid": "Filas no válidas notificadas"
+              "invalid": "Filas no válidas notificadas",
+              "skippedUnsubscribed": "Omitidos por haberse dado de baja",
+              "skippedBounced": "Omitidos por correos devueltos",
+              "pendingConfirmation": "En espera de confirmación"
             },
             "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
             "invalidRow": "Fila {row}: {value}",
             "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
           },
-          "dismiss": "Cerrar"
+          "dismiss": "Cerrar",
+          "fromContacts": "Añadir desde Contactos",
+          "openContactList": "Abrir lista en Contactos",
+          "Consent": {
+            "question": "¿Cómo aceptaron recibir este boletín?",
+            "CONFIRMED": "Ya dieron su consentimiento (añadir ahora)",
+            "ASK": "Preguntar primero (enviar un correo de confirmación)",
+            "confirm": "Confirmo que estas personas aceptaron recibir este boletín",
+            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». Las personas que se dieron de baja nunca se vuelven a añadir."
+          },
+          "FromContacts": {
+            "description": "Elige personas y listas de los Contactos de tu espacio de trabajo.",
+            "people": "Personas",
+            "lists": "Listas",
+            "search": "Buscar personas",
+            "noEmail": "Sin correo electrónico",
+            "loading": "Cargando contactos…",
+            "noPeople": "No se encontraron personas. Prueba otra búsqueda.",
+            "noLists": "Aún no hay listas. Crea una lista en Contactos.",
+            "loadPeopleError": "No se pudieron cargar las personas. Inténtalo de nuevo.",
+            "loadListsError": "No se pudieron cargar las listas. Inténtalo de nuevo.",
+            "retry": "Intentar de nuevo",
+            "loadMore": "Cargar más personas",
+            "members": "{count, plural, one {# miembro} other {# miembros}}",
+            "peopleSelected": "{count, plural, one {# persona seleccionada} other {# personas seleccionadas}}",
+            "listsSelected": "{count, plural, one {# lista seleccionada} other {# listas seleccionadas}}",
+            "selectionRequired": "Elige al menos una persona o lista.",
+            "selectionLimit": "Elige como máximo 1.000 personas y 20 listas a la vez.",
+            "add": "Añadir",
+            "adding": "Añadiendo suscriptores…",
+            "error": "No se pudieron añadir los suscriptores. Inténtalo de nuevo.",
+            "doneDescription": "Suscriptores añadidos. Revisa los resultados a continuación.",
+            "result": {
+              "added": "Añadidos",
+              "alreadySubscribed": "Ya suscritos",
+              "skippedUnsubscribed": "Omitidos por haberse dado de baja",
+              "skippedBounced": "Omitidos por correos devueltos",
+              "skippedNoEmail": "Omitidos por no tener correo electrónico",
+              "pendingConfirmation": "En espera de confirmación"
+            }
+          }
+        },
+        "Calendar": {
+          "title": "Calendario",
+          "description": "Consulta cuándo está programada o se envió cada edición del boletín.",
+          "navigation": "Cambiar de mes",
+          "previous": "Mes anterior",
+          "next": "Mes siguiente",
+          "today": "Hoy",
+          "emptyTitle": "No hay boletines este mes",
+          "emptyDescription": "Las ediciones programadas y enviadas aparecen aquí en su fecha de envío. Programa una edición para planificar tu próximo envío.",
+          "viewIssues": "Ver ediciones"
+        },
+        "Issues": {
+          "title": "Ediciones",
+          "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
+          "newIssue": "Nueva edición",
+          "Ai": {
+            "action": "Escríbelo por mí",
+            "description": "Describe esta edición. Soko Bot creará un borrador para que lo revises antes de aprobarlo.",
+            "brief": "Instrucciones",
+            "placeholder": "Presenta las novedades de nuestro lanzamiento de otoño e invita a la demostración.",
+            "useProjectMemory": "Usar la memoria del proyecto",
+            "useRecentSocialPosts": "Usar publicaciones recientes de redes sociales",
+            "template": "Plantilla",
+            "pickImages": "Elegir imágenes de Content Studio",
+            "images": "Imágenes recientes del proyecto",
+            "imagesHint": "Elige hasta 10 imágenes. Las imágenes seleccionadas tendrán enlaces públicos para poder mostrarse en el correo.",
+            "noImages": "Aún no hay imágenes. Crea una imagen en Content Studio y vuelve a intentarlo.",
+            "imagesError": "No se pudieron cargar las imágenes. Vuelve a intentar seleccionarlas.",
+            "generate": "Generar borrador",
+            "cancel": "Cancelar",
+            "invalid": "Escribe instrucciones de entre 1 y 10.000 caracteres y elige hasta 10 imágenes.",
+            "error": "No se pudo crear el borrador. Conserva tus instrucciones y vuelve a intentarlo.",
+            "rateLimited": "Demasiados borradores para este proyecto. Espera diez minutos y vuelve a intentarlo.",
+            "notice": "Borrador de Soko Bot — revísalo antes de enviarlo para su aprobación"
+          },
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Elige una plantilla para empezar tu primera edición del boletín.",
+          "subject": "Asunto",
+          "previewText": "Texto de vista previa",
+          "status": "Estado",
+          "deliveryDate": "Programada / enviada",
+          "updatedAt": "Actualizada",
+          "actions": "Acciones",
+          "sentAt": "Enviada el {date}",
+          "scheduledAt": "Programada para el {date}",
+          "noDate": "Sin programar",
+          "firstPage": "Primera página",
+          "nextPage": "Página siguiente",
+          "results": "{count, plural, one {# edición} other {# ediciones}}",
+          "statuses": {
+            "DRAFT": "Borrador",
+            "NEEDS_APPROVAL": "Pendiente de aprobación",
+            "SCHEDULED": "Programada",
+            "SENDING": "Enviando",
+            "SENT": "Enviada",
+            "FAILED": "Fallida",
+            "CANCELED": "Cancelada"
+          },
+          "createError": "No se pudo crear la edición. Vuelve a elegir la plantilla.",
+          "saveError": "No se pudo guardar la edición. Conserva los cambios e inténtalo de nuevo.",
+          "conflict": "Esta edición ha cambiado o ya no se puede editar. Copia tus cambios, recarga la página e inténtalo de nuevo.",
+          "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
+          "save": "Guardar edición",
+          "saved": "Todos los cambios guardados",
+          "unsaved": "Cambios sin guardar",
+          "readOnly": "Esta edición es de solo lectura. Solo se pueden editar borradores y ediciones pendientes de aprobación.",
+          "back": "Volver a las ediciones",
+          "blocks": "Bloques de contenido",
+          "addBlock": "Añadir bloque",
+          "moveUp": "Subir el bloque {number}",
+          "moveDown": "Bajar el bloque {number}",
+          "removeBlock": "Eliminar el bloque {number}",
+          "blockNumber": "Bloque {number}: {type}",
+          "emptyBlocks": "Añade un bloque para empezar a escribir.",
+          "level": "Nivel del encabezado",
+          "mainHeading": "Encabezado principal",
+          "subheading": "Subtítulo",
+          "text": "Texto",
+          "imageUrl": "URL de la imagen",
+          "alt": "Texto alternativo",
+          "imageLink": "URL del enlace (opcional)",
+          "buttonLabel": "Texto del botón",
+          "buttonUrl": "URL del botón",
+          "httpsHint": "Usa una URL HTTPS completa.",
+          "blockTypes": {
+            "heading": "Encabezado",
+            "text": "Texto",
+            "image": "Imagen",
+            "button": "Botón",
+            "divider": "Separador"
+          },
+          "Validation": {
+            "subject": "Introduce un asunto de entre 1 y 200 caracteres.",
+            "previewText": "El texto de vista previa no puede superar los 500 caracteres.",
+            "content": "Revisa este bloque. Usa URL HTTPS y respeta los límites de los campos de texto."
+          },
+          "Templates": {
+            "title": "Elige una plantilla",
+            "description": "Empieza con un diseño y después edita cada bloque.",
+            "subject": "Edición sin título",
+            "heading": "Lo más destacado de la semana",
+            "text": "Comparte las últimas novedades, una idea útil o una actualización con tus suscriptores.",
+            "closing": "Gracias por leer. Hasta la próxima.",
+            "heroAlt": "Imagen principal",
+            "imageAlt": "Imagen complementaria",
+            "button": "Leer más",
+            "TEXT": {
+              "title": "Texto",
+              "description": "Un encabezado, párrafos y un separador."
+            },
+            "IMAGES": {
+              "title": "Imágenes",
+              "description": "Un encabezado, una imagen principal, texto y otra imagen."
+            },
+            "BUTTONS": {
+              "title": "Botones",
+              "description": "Un encabezado, texto, un botón, un separador y un texto de cierre."
+            }
+          },
+          "Preview": {
+            "title": "Vista previa",
+            "label": "Vista previa del correo del boletín",
+            "mobile": "Móvil",
+            "desktop": "Escritorio",
+            "loading": "Actualizando vista previa…",
+            "error": "No se pudo cargar la vista previa. Inténtalo de nuevo.",
+            "invalid": "Completa el asunto y revisa los bloques para ver la vista previa.",
+            "retry": "Volver a cargar la vista previa"
+          },
+          "Delete": {
+            "title": "¿Eliminar el borrador?",
+            "description": "«{subject}» se eliminará permanentemente. Esta acción no se puede deshacer.",
+            "action": "Eliminar borrador",
+            "cancel": "Cancelar",
+            "error": "No se pudo eliminar la edición. Es posible que haya cambiado de estado. Recarga la página e inténtalo de nuevo."
+          },
+          "Lifecycle": {
+            "submit": "Enviar para aprobación",
+            "approve": "Aprobar",
+            "approved": "Aprobada",
+            "schedule": "Programar",
+            "sendNow": "Enviar ahora",
+            "cancel": "Cancelar programación",
+            "close": "Cerrar",
+            "approvedBy": "Aprobada por {user} el {date}",
+            "formerMember": "Antiguo miembro del espacio de trabajo",
+            "task": "Ver tarea de aprobación",
+            "scheduled": "Programada para el {date} ({timezone})",
+            "when": "Cuándo",
+            "timezone": "Zona horaria: {timezone}",
+            "scheduleTitle": "Programar boletín",
+            "scheduleDescription": "Elige una fecha entre un minuto y un año a partir de ahora.",
+            "sendTitle": "¿Enviar este boletín ahora?",
+            "sendDescription": "{count, plural, one {Esta edición se enviará a # suscriptor activo. El envío no se puede deshacer.} other {Esta edición se enviará a # suscriptores activos. El envío no se puede deshacer.}}",
+            "cancelTitle": "¿Cancelar la programación de este boletín?",
+            "cancelDescription": "Esta edición volverá a ser un borrador. Vuelve a enviarla para aprobación antes de programarla o enviarla.",
+            "saveFirst": "Guarda los cambios antes de enviar para aprobación, aprobar, programar o enviar.",
+            "invalid": "Revisa la edición e inténtalo de nuevo.",
+            "error": "No se pudo actualizar la edición del boletín. Recarga la página e inténtalo de nuevo.",
+            "conflict": "Esta edición ha cambiado. Recarga la página e inténtalo de nuevo.",
+            "humanRequired": "Una persona debe aprobar o enviar esta edición desde una sesión iniciada en el navegador.",
+            "invalidSchedule": "Elige una fecha entre un minuto y un año a partir de ahora y una zona horaria válida.",
+            "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
+            "noSender": "Conecta un dominio de envío en la configuración del boletín, en «Dominio de envío», antes de programar o enviar.",
+            "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
+          },
+          "viewOnWeb": "Ver en la web"
+        },
+        "publicArchive": "Archivo público",
+        "SignupForm": {
+          "title": "Formulario de suscripción",
+          "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "hostedPage": "Página de suscripción alojada",
+          "open": "Abrir página de suscripción",
+          "embedCode": "Código de inserción",
+          "embedTitle": "Suscripción al boletín"
+        },
+        "Analytics": {
+          "title": "Estadísticas",
+          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
+          "keyMetrics": "Métricas del boletín",
+          "from": "Desde",
+          "to": "Hasta",
+          "lastDays": "Últimos {days} días",
+          "resetRange": "Restablecer fechas",
+          "invalidRange": "Elige fechas válidas que abarquen entre 1 y 366 días, con el inicio antes del final, o restablece las fechas.",
+          "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
+          "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
+          "opensNote": "Las aperturas pueden quedar por debajo de la cifra real porque algunas aplicaciones de correo bloquean las imágenes.",
+          "issueUnsubscribesNote": "Las bajas se aplican a todo el boletín y no se pueden atribuir a una edición concreta.",
+          "emptyTitle": "No hay envíos en este período",
+          "emptyDescription": "Envía una edición para ver sus resultados o elige fechas con actividad anterior.",
+          "viewIssues": "Ver ediciones",
+          "subscriberGrowth": "Crecimiento de suscriptores",
+          "growthMetric": "Métrica del gráfico de suscriptores",
+          "engagement": "Aperturas y clics",
+          "engagementMetric": "Métrica del gráfico de interacciones",
+          "issuePerformance": "Resultados por edición",
+          "subject": "Asunto",
+          "sentAt": "Fecha de envío",
+          "unavailable": "—",
+          "issueSummary": "Estadísticas de la edición",
+          "topLinks": "Enlaces con más clics",
+          "url": "URL",
+          "noLinks": "Aún no se han registrado clics en enlaces.",
+          "metrics": {
+            "sent": "Enviados",
+            "delivered": "Entregados",
+            "uniqueOpens": "Aperturas únicas",
+            "uniqueClicks": "Clics únicos",
+            "unsubscribes": "Bajas",
+            "bounces": "Rebotes",
+            "complaints": "Quejas",
+            "openRate": "Tasa de apertura",
+            "clickRate": "Tasa de clics",
+            "activeSubscribers": "Suscriptores activos"
+          },
+          "growth": {
+            "newActive": "Nuevos suscriptores activos",
+            "unsubscribed": "Dados de baja",
+            "bounced": "Rebotados",
+            "net": "Crecimiento neto",
+            "runningTotal": "Total de suscriptores activos"
+          }
+        },
+        "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
+        "brandDescription": "El logotipo, los colores y la fuente de tus números.",
+        "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
+        "unsavedChanges": "Tienes cambios sin guardar.",
+        "colorPlaceholder": "Sin color",
+        "presetColors": "Colores predefinidos",
+        "clearColor": {
+          "primaryColor": "Quitar color principal",
+          "accentColor": "Quitar color de acento"
+        },
+        "Logo": {
+          "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
+          "upload": "Subir",
+          "replace": "Reemplazar",
+          "remove": "Quitar logotipo",
+          "previewAlt": "Logotipo del boletín",
+          "uploadError": "No se pudo subir el logotipo. Inténtalo de nuevo.",
+          "fileTooLarge": "El archivo es demasiado grande",
+          "fileTypeNotAccepted": "Este tipo de archivo no se admite",
+          "maxFilesExceeded": "Sube un solo logotipo a la vez"
+        },
+        "Preview": {
+          "title": "Vista previa",
+          "description": "Un boceto de cómo se ve tu marca en un número. Se actualiza mientras escribes.",
+          "from": "De {sender}",
+          "sampleHeading": "Tu próximo número",
+          "sampleBody": "Aquí aparece el contenido de tu número, con la fuente de tu marca.",
+          "button": "Leer más",
+          "unsubscribe": "Darse de baja",
+          "primary": "Principal",
+          "accent": "Acento",
+          "unset": "Predeterminado",
+          "welcome": "Correo de bienvenida",
+          "noSubject": "Aún sin asunto"
+        },
+        "SendingDomain": {
+          "title": "Dominio de envío",
+          "description": "Envía el boletín de este proyecto desde tu propia dirección, como news@news.tumarca.com.",
+          "fromAddress": "Dirección del remitente",
+          "fromAddressPlaceholder": "news@news.tumarca.com",
+          "fromAddressHint": "Usa un subdominio, como news.tumarca.com. Así la reputación de tus boletines queda separada de tu correo habitual.",
+          "add": "Añadir dominio",
+          "added": "Dominio añadido. Ahora añade sus registros DNS.",
+          "fallback": "Hasta que se verifique, los boletines se envían desde la dirección de Sokosumi como «tu nombre de remitente via Sokosumi».",
+          "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
+          "status": {
+            "PENDING": "Pendiente",
+            "VERIFIED": "Verificado",
+            "FAILED": "Fallido"
+          },
+          "lastChecked": "Última comprobación: {time}",
+          "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
+          "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
+          "checked": "Comprobado. Tus registros DNS aún no son visibles. Los cambios de DNS pueden tardar unas horas.",
+          "checkNow": "Comprobar ahora",
+          "connectTitle": "Añadir los registros DNS",
+          "dmarc": {
+            "title": "No se encontró ninguna política DMARC",
+            "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
+          },
+          "oneClick": {
+            "title": "Configuración con un clic",
+            "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
+            "lookup": "Buscar mi proveedor de DNS",
+            "found": "Tu dominio usa {provider}.",
+            "connect": "Conectar con {provider}",
+            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Usa un token de Cloudflare o añade los registros de abajo."
+          },
+          "cloudflare": {
+            "title": "Token de la API de Cloudflare",
+            "description": "Crea un token con Zone · DNS · Edit para la zona de este dominio y pégalo aquí. Sokosumi lo usa una vez para añadir los registros y nunca lo guarda.",
+            "submit": "Añadir registros en Cloudflare",
+            "success": "Registros añadidos en Cloudflare. La comprobación puede tardar unos minutos."
+          },
+          "records": {
+            "title": "Registros DNS",
+            "description": "O añade estos registros tú mismo en tu proveedor de DNS.",
+            "name": "Nombre",
+            "value": "Valor",
+            "priority": "Prioridad",
+            "found": "Registro encontrado",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Demuestra que el correo viene de ti."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Permite que Sokosumi envíe en tu nombre."
+              },
+              "bounce": {
+                "label": "Ruta de retorno (MX)",
+                "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Indica a los buzones qué hacer con el correo que no supera estas comprobaciones. p=none solo supervisa."
+              },
+              "other": {
+                "label": "Registro adicional",
+                "explanation": "Lo exige el proveedor de correo."
+              }
+            }
+          },
+          "remove": {
+            "action": "Quitar dominio",
+            "title": "¿Quitar el dominio de envío?",
+            "description": "Los boletines dejan de enviarse desde {domain}. Sus registros DNS siguen en tu proveedor de DNS hasta que los borres.",
+            "cancel": "Cancelar",
+            "success": "Dominio de envío quitado."
+          },
+          "errors": {
+            "generic": "No se pudo actualizar el dominio de envío. Inténtalo de nuevo.",
+            "invalidAddress": "Introduce una dirección de correo, como news@news.tumarca.com.",
+            "forbidden": "No tienes acceso al dominio de envío de este proyecto. Recarga la página.",
+            "notFound": "Este dominio de envío se quitó. Recarga la página.",
+            "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro proyecto.",
+            "domainRejected": "Este dominio no se puede usar. Revisa la dirección e inténtalo de nuevo.",
+            "providerFailed": "El proveedor de correo no respondió. Inténtalo de nuevo en un minuto.",
+            "cloudflareRejected": "Cloudflare rechazó el token. Comprueba que tenga Zone · DNS · Edit para la zona de este dominio.",
+            "cloudflareFailed": "Cloudflare no respondió. Inténtalo de nuevo en un minuto.",
+            "resumeUnavailable": "Verifica este dominio de envío antes de reanudar. Comprueba sus registros DNS e inténtalo de nuevo."
+          },
+          "warmup": {
+            "title": "Calentamiento del dominio",
+            "progress": "Día {day} · {used} de {cap} enviados hoy (UTC)",
+            "unlimited": "Día {day} · {used} enviados hoy (UTC) · Sin límite",
+            "description": "Los destinatarios que superan el límite de hoy siguen en cola y reciben el boletín automáticamente cuando vuelve a haber capacidad. El límite diario se restablece a las 00:00 UTC.",
+            "paused": "Envío pausado",
+            "bounceReason": "Demasiados correos tuvieron rebotes permanentes.",
+            "complaintReason": "Demasiados destinatarios marcaron los correos como spam.",
+            "pausedDescription": "Los destinatarios siguen en cola hasta que un miembro del proyecto reanude el envío. Revisa antes la lista de suscriptores.",
+            "resume": "Reanudar envío",
+            "resumed": "Envío reanudado. Los destinatarios en cola recibirán el boletín dentro del límite diario."
+          }
         }
       }
     },
@@ -3989,8 +4453,21 @@
         "retry": "Reintentar"
       }
     },
+    "Newsletter": {
+      "title": "Boletín",
+      "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
+      "pickProject": "Elige un proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "projectTitle": "Boletín de {project}",
+      "nextPage": "Siguientes proyectos",
+      "empty": {
+        "title": "Aún no hay proyectos",
+        "description": "Crea un proyecto para empezar un boletín.",
+        "action": "Crear proyecto"
+      }
+    },
     "Social": {
-      "title": "Programación social",
+      "title": "Publicaciones sociales",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
         "label": "Nueva publicación",
@@ -4050,15 +4527,18 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
+        "compactCredits": "{count, plural, =0 {Sin Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
-        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "Nuevo",
           "newTask": "Nueva tarea",
           "search": "Buscar",
+          "home": "Inicio",
+          "projects": "Proyectos",
+          "overview": "Resumen",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
@@ -4072,9 +4552,15 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Programación social",
+          "social": "Publicaciones sociales",
           "ads": "Anuncios",
-          "contacts": "Contactos"
+          "newsletter": "Boletín",
+          "contacts": "Contactos",
+          "groups": {
+            "work": "Trabajo",
+            "records": "Registros",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -4086,9 +4572,20 @@
           "title": "Se requiere un Seat asignado",
           "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
           "hint": "Pide a un propietario o admin que te asigne un Seat."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Trabajando ahora",
+          "needsAttention": "Requiere atención",
+          "activeAgo": "Activo {time}",
+          "ready": "Listo",
+          "team": "Los Soko Bots de tu equipo"
         }
       },
-      "toggle": "Mostrar u ocultar la barra lateral"
+      "show": "Mostrar barra lateral",
+      "hide": "Ocultar barra lateral",
+      "resize": "Cambiar el tamaño de la barra lateral",
+      "unreadChats": "Chats sin leer"
     },
     "HistorySearchDialog": {
       "title": "Buscar",
@@ -4326,7 +4823,8 @@
           "accounts": "Cuentas",
           "billing": "Facturación y comercial",
           "catalog": "Catálogo del marketplace",
-          "operations": "Operaciones"
+          "operations": "Operaciones",
+          "reference": "Referencia"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4380,6 +4878,10 @@
           "badgeCampaigns": {
             "title": "Insignias de funciones",
             "description": "Muestra una insignia Nuevo en una función de la barra lateral a los usuarios existentes durante un tiempo fijo."
+          },
+          "designSystem": {
+            "title": "Sistema de diseño",
+            "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales."
           }
         }
       },
@@ -5692,6 +6194,141 @@
           "deleteFailed": "No se pudo eliminar la campaña",
           "started": "Campaña iniciada"
         }
+      },
+      "DesignSystem": {
+        "title": "Sistema de diseño",
+        "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales y los tokens de la app. Cambia el tema de la app para ver el modo oscuro.",
+        "guideLink": "Guía de marca",
+        "backToAdmin": "Volver al admin",
+        "Theme": {
+          "light": "Claro",
+          "dark": "Oscuro"
+        },
+        "Color": {
+          "title": "Color",
+          "lead": "Superficies neutras. Un rosa por vista.",
+          "primaryName": "Iris Flower · principal",
+          "primaryRuleTitle": "El texto sobre Iris Flower siempre es Neutral 950",
+          "primaryRule": "El blanco sobre Iris Flower no tiene contraste suficiente. Nunca uses Iris Flower como color de texto sobre una página blanca. Úsalo para rellenos, acentos y estados activos.",
+          "palette": "Paleta Masumi",
+          "paletteRule": "Compartida por todas las marcas. Todo salvo Iris Flower es secundario. Nunca uses Scarlet ni Persimmon para estados.",
+          "neutrals": "Neutros",
+          "roles": "Roles del tema",
+          "Roles": {
+            "page": "Página",
+            "panel": "Panel",
+            "border": "Borde",
+            "fieldBorder": "Borde de campo",
+            "text": "Texto",
+            "mutedText": "Texto atenuado",
+            "primary": "Principal",
+            "component": "Componente sobre un panel",
+            "disabledText": "Texto deshabilitado",
+            "textOnPrimary": "Texto sobre el principal",
+            "scrim": "Oscurecimiento de capa"
+          },
+          "darkPrimaryRule": "En modo oscuro, el color primario reposa en Dark Iris (#D141D1, propuesta). Iris Flower se ve tres veces más intenso sobre casi negro. Al pasar el cursor vuelve Iris Flower.",
+          "status": "Estado",
+          "Status": {
+            "done": "Positivo",
+            "needsInput": "Advertencia",
+            "failed": "Destructivo"
+          },
+          "statusRule": "Cada estado combina color con un símbolo y una etiqueta. Nunca solo color.",
+          "gradients": "Degradados",
+          "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa.",
+          "alpha": "Tonos alfa",
+          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz.",
+          "alphaStep": "Alfa {step}"
+        },
+        "Type": {
+          "title": "Tipografía",
+          "lead": "Solo Inter. Light desde 20px, para titulares.",
+          "sample": "Agentes trabajando",
+          "Roles": {
+            "display": "Titular",
+            "heading": "Encabezado",
+            "subheading": "Subencabezado",
+            "body": "Cuerpo",
+            "label": "Etiqueta",
+            "caption": "Leyenda",
+            "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Forma y profundidad",
+          "lead": "Primero bordes. Sombras solo en capas flotantes. Sin brillo ni desenfoque.",
+          "border": "Borde",
+          "overlay": "Capa flotante"
+        },
+        "Components": {
+          "title": "Componentes",
+          "lead": "Un botón principal relleno por vista. El verbo primero.",
+          "schedule": "Programar publicación",
+          "duplicate": "Duplicar",
+          "cancel": "Cancelar",
+          "delete": "Eliminar",
+          "showAll": "Ver todo",
+          "small": "Pequeño",
+          "addTask": "Añadir tarea",
+          "saving": "Guardando",
+          "postTitle": "Título de la publicación",
+          "postTitlePlaceholder": "p. ej. Tres lecciones de nuestro lanzamiento",
+          "budget": "Presupuesto diario",
+          "budgetError": "Introduce un importe mayor que 0, como 25.",
+          "notify": "Avisarme cuando una tarea necesite datos",
+          "review": "Revisar las publicaciones antes de que salgan",
+          "calendar": "Calendario",
+          "drafts": "Borradores",
+          "cardTitle": "Panorama de la competencia",
+          "cardBody": "Para alinearnos mejor: ¿en qué región vendes?",
+          "answer": "Responder",
+          "openTask": "Abrir tarea",
+          "toast": "Publicación programada",
+          "undo": "Deshacer",
+          "dialogTitle": "¿Eliminar 3 borradores?",
+          "dialogBody": "No se publicarán y no se podrán recuperar.",
+          "deleteDrafts": "Eliminar borradores"
+        },
+        "Motion": {
+          "title": "Movimiento",
+          "lead": "El movimiento explica un cambio. Nada más.",
+          "rules": "Anima transform y opacidad, nunca el diseño. Nombra las propiedades que animas. Sin bucles decorativos. El movimiento reducido elimina lo que no es esencial.",
+          "feedback": {
+            "title": "Respuesta",
+            "body": "Pulsar y pasar el cursor en cada control, ease-out."
+          },
+          "enter": {
+            "title": "Entrada",
+            "body": "Listas, páginas, diálogos y menús que aparecen."
+          }
+        },
+        "States": {
+          "title": "Estado",
+          "lead": "Cada estado está diseñado, no es un resto.",
+          "todo": "Pendiente",
+          "inProgress": "En curso",
+          "needsInput": "Necesita datos",
+          "done": "Hecho",
+          "failed": "Fallido",
+          "loading": "Redactando tus publicaciones",
+          "emptyTitle": "Borradores",
+          "emptyBody": "Las publicaciones que empiezas pero no programas esperan aquí.",
+          "emptyAction": "Escribir una publicación",
+          "errorTitle": "LinkedIn no aceptó la publicación",
+          "errorBody": "La imagen supera los 5 MB. Elige una más pequeña y vuelve a intentarlo.",
+          "errorAction": "Cambiar imagen",
+          "doneTitle": "5 publicaciones programadas",
+          "doneBody": "La primera sale el jueves a las 09:00 en tu zona horaria.",
+          "doneAction": "Abrir calendario"
+        }
       }
     },
     "Billing": {
@@ -6584,12 +7221,12 @@
           "currentSeatsLabel": "Seats actuales",
           "membersLabel": "Miembros activos",
           "seatsInputLabel": "Seats comprados",
-          "seatsInputHint": "El mínimo es {minimum} para cubrir los Seats de pago en uso. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
+          "seatsInputHint": "Elige cuántos Seats comprar con un plan de pago. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sin plan activo",
-          "seatsUpdatedSuccess": "Seats actualizados correctamente.",
+          "seatsUpdatedSuccess": "Seats actualizados.",
+          "seatsScheduledSuccess": "Los Seats se quitarán en la próxima renovación.",
           "currentPlanCta": "Plan actual",
-          "updateSeatsCta": "Actualizar Seats",
           "choosePlanCta": "Elegir plan",
           "Errors": {
             "unauthenticated": "Por favor, inicia sesión para continuar",
@@ -6597,8 +7234,42 @@
             "unauthorized": "Solo los propietarios y admins pueden gestionar las suscripciones",
             "badInput": "Proporciona valores válidos de plan y Seats",
             "general": "No se pudo gestionar la suscripción de la organización",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
-          }
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "El pago no se completó, así que tus Seats no han cambiado. Actualiza tu método de pago e inténtalo de nuevo.",
+            "paymentFailedAction": "Actualizar método de pago"
+          },
+          "seatsCard": {
+            "summary": "{assigned} de {purchased, plural, =1 {# Seat} other {# Seats}} asignados, {unused} sin usar. Los Seats añadidos se facturan de inmediato. Los Seats quitados terminan en la renovación.",
+            "scheduledNote": "{count, plural, =1 {Se quitará # Seat} other {Se quitarán # Seats}} el {date}. Cambiar de plan lo cancela.",
+            "removeBlocked": "Tu plan termina el {date}, y todos los Seats terminan con él. Reactiva tu plan para quitar Seats.",
+            "keepCta": "{count, plural, =1 {Conservar # Seat} other {Conservar # Seats}}",
+            "addIdleCta": "Añadir Seats",
+            "addCta": "{count, plural, =1 {Añadir # Seat} other {Añadir # Seats}}",
+            "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
+            "decrease": "Quitar un Seat",
+            "increase": "Añadir un Seat",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
+              "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
+              "keepTitle": "{count, plural, =1 {¿Conservar # Seat?} other {¿Conservar # Seats?}}",
+              "addDescription": "Este cambio se aplica de inmediato.",
+              "removeDescription": "Conservas todos los Seats hasta la próxima renovación y no se reembolsa nada.",
+              "keepDescription": "Esto cancela los Seats que se iban a quitar. Tu factura no cambia.",
+              "addCancelsReduction": "Esto también cancela los Seats que se iban a quitar.",
+              "loading": "Obteniendo el precio…",
+              "previewError": "No se pudo obtener el precio, así que aún no se pueden cambiar tus Seats.",
+              "previewRetry": "Intentar de nuevo",
+              "dueNow": "A pagar ahora",
+              "effectiveAt": "Se aplica el",
+              "approximate": "Aproximadamente {amount}",
+              "newMonthly": "Nuevo precio mensual",
+              "newMonthlyHint": "Con impuestos y descuentos incluidos",
+              "seatsLost": "{count, plural, =1 {En la renovación, el miembro que se unió más recientemente pierde su Seat.} other {En la renovación, los # miembros que se unieron más recientemente pierden su Seat.}}",
+              "cancellationNote": "Tu plan termina el {date}, y estos Seats terminan con él.",
+              "cancel": "Cancelar"
+            }
+          },
+          "seatsCheckoutLabel": "Seats a comprar"
         },
         "Seats": {
           "title": "Resumen de Seats",
@@ -7164,7 +7835,11 @@
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Mensaje directo",
+      "headerSelfDirect": "Solo tú",
+      "headerVisitSwitch": "Cambiar a {workspace}",
       "participantOverflowCount": "{count} participantes más",
+      "chats": "Chats",
       "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
@@ -7180,13 +7855,13 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "Convertir a archivo",
       "NoOrganization": {
-        "title": "Canales próximamente",
         "description": "Los canales están en fase de prueba para espacios de organización. El uso personal llegará pronto."
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
+        "peopleLoadFailedDescription": "Las personas a las que puedes escribir no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
         "noMessagesDescription": "Empieza el canal con un mensaje o menciona a un coworker de IA.",
         "noDirectMessagesDescription": "Envía un mensaje para empezar la conversación.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -7241,7 +7916,6 @@
         "title": "New direct message",
         "empty": "Elige a quién escribir.",
         "chooseRecipientError": "Elige un destinatario.",
-        "organizationRequiredForGroup": "Cambia a una organización para escribir a un compañero.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Los mensajes directos de grupo son solo entre personas.",
         "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1.",
@@ -7328,7 +8002,9 @@
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "justRead": "Recién leídos"
+        "justRead": "Recién leídos",
+        "elsewhereLabel": "Sin leer en otros espacios de trabajo",
+        "elsewhereMore": "{count} más en otros espacios de trabajo"
       },
       "ThreadsView": {
         "title": "Hilos",
@@ -7546,12 +8222,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
         "unreadMessagesCapped": "Más de {max} mensajes no leídos",
-        "railUnread": "Sin leer"
+        "unread": "Sin leer"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "mentionsCapped": "Más de {max} menciones",
-        "railMention": "Te menciona"
+        "mentionsYou": "Te menciona"
       },
       "MembershipStatus": {
         "joined": "{name} se unió",
@@ -7692,6 +8368,7 @@
       "SelfDirect": {
         "messageYourself": "Enviarte un mensaje",
         "you": "Tú",
+        "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
@@ -7726,12 +8403,14 @@
         "editTagsNote": "Tu corrección vale para todos en la sala.",
         "taskDue": "Vence {date}",
         "taskSource": "Del chat:",
+        "taskFrom": "{name} escribió:",
         "Buckets": {
           "needsYou": "{count, plural, one {# pregunta para ti} other {# preguntas para ti}}",
           "escalation": "{count, plural, one {# escalada} other {# escaladas}}",
           "urgent": "{count, plural, one {# urgente} other {# urgentes}}",
           "blocker": "{count, plural, one {# bloqueo} other {# bloqueos}}",
           "decisionMade": "{count, plural, one {# decisión} other {# decisiones}}",
+          "announcement": "{count, plural, one {# anuncio} other {# anuncios}}",
           "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
           "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
           "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
@@ -7751,6 +8430,7 @@
           "urgent": "Urgente",
           "blocker": "Bloqueo",
           "decisionMade": "Decisión",
+          "announcement": "Anuncio",
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
@@ -7760,6 +8440,7 @@
           "question": "Hace una pregunta a alguien",
           "needsDecision": "Necesita una decisión",
           "decisionMade": "Decisión tomada",
+          "announcement": "Anuncio",
           "commitment": "Compromiso",
           "blocker": "Bloqueo",
           "urgent": "Urgente",
@@ -7780,10 +8461,22 @@
           "overview": "Resumen",
           "threads": "Hilos"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG o WebP, hasta 2 MiB. Selecciona un sticker y envíalo.",
+        "upload": "Subir sticker",
+        "invalid": "Elige una imagen PNG, JPEG o WebP de hasta 2 MiB.",
+        "uploadFailed": "No se pudo guardar el sticker. Intenta subirlo de nuevo.",
+        "loading": "Cargando stickers…",
+        "loadFailed": "No se pudieron cargar los stickers.",
+        "retry": "Reintentar",
+        "empty": "Sube un sticker para empezar tu colección.",
+        "collection": "Stickers guardados",
+        "select": "Seleccionar {name}"
       }
     },
     "Drive": {
-      "breadcrumb": "Archivos",
       "breadcrumbNavLabel": "Navegación de carpetas de Archivos",
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
@@ -8480,6 +9173,17 @@
       "Disabled": {
         "title": "Soko Bot no está disponible temporalmente",
         "description": "Un administrador ha desactivado Soko Bot por ahora. No se pierde nada de lo que hizo tu asistente; retomará donde lo dejó."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Tu asistente usa las cuentas publicitarias del proyecto de la página de Ads.",
+        "open": "Abrir",
+        "empty": "Aún no hay cuentas publicitarias conectadas.",
+        "connectOnAds": "Conecta una en la página de Ads.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
@@ -8566,7 +9270,9 @@
       "previous": "Periodo anterior",
       "next": "Periodo siguiente",
       "today": "Hoy",
+      "weekNumber": "Semana {week}",
       "view": {
+        "label": "Vista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"
@@ -8648,7 +9354,28 @@
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
         "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}",
-        "platform": "Plataforma"
+        "platform": "Plataforma",
+        "more": "+{count} más",
+        "moreHint": "Mostrar {count, plural, one {# publicación más} other {# publicaciones más}} de este día",
+        "newOnDay": "Nueva publicación el {date}",
+        "newPost": "Nueva publicación",
+        "dragHint": "Arrastra a otro día para reprogramar.",
+        "dayEmpty": "No hay nada programado este día.",
+        "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "statusFilter": "Mostrar publicaciones por estado",
+        "postCount": "{count, plural, =0 {Sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "dayAttention": "{count, plural, one {# requiere atención} other {# requieren atención}}",
+        "reschedule": "Reprogramar",
+        "rescheduleNamed": "Reprogramar la publicación de las {time}: {text}"
+      },
+      "socialMove": {
+        "title": "Reprogramar publicación",
+        "description": "Elige una nueva fecha y hora. Las horas están en {zone}.",
+        "label": "Nueva fecha y hora",
+        "confirm": "Reprogramar",
+        "cancel": "Cancelar",
+        "invalid": "Elige una fecha y hora válidas.",
+        "past": "Elige una hora en el futuro."
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"
@@ -8826,13 +9553,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
+      "clearProject": "Quitar proyecto",
       "close": "Cerrar",
       "label": "Proyecto",
+      "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceView": "Todo",
-      "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
-      "recent": "Recientes",
       "all": "Proyectos",
       "searchPlaceholder": "Buscar un proyecto...",
       "empty": "No se encontraron proyectos.",
@@ -8840,7 +9566,7 @@
       "error": "No se pudieron cargar los proyectos.",
       "retry": "Reintentar",
       "create": "Crear proyecto",
-      "manage": "Gestionar proyectos",
+      "closed": "Cerrado",
       "current": "(actual)",
       "searching": "Buscando proyectos..."
     },
@@ -9548,6 +10274,36 @@
       "later": "Más tarde",
       "skip": "Omitir",
       "continue": "Continuar"
+    }
+  },
+  "PublicNewsletter": {
+    "archive": "Archivo",
+    "subscribe": "Suscribirse",
+    "emptyTitle": "Aún no hay ediciones",
+    "emptyDescription": "Las ediciones publicadas aparecerán aquí.",
+    "loadMore": "Cargar más",
+    "loadError": "No se pudieron cargar las ediciones. Inténtalo de nuevo.",
+    "unavailable": "Este archivo ya no está disponible. Vuelve a cargar la página.",
+    "metadataTitle": "Archivo de {name}",
+    "metadataDescription": "Lee las ediciones anteriores de {name}.",
+    "backToArchive": "Volver al archivo",
+    "issueContent": "Edición del boletín: {subject}",
+    "Signup": {
+      "title": "Suscríbete a {name}",
+      "description": "Recibe las nuevas ediciones directamente en tu correo.",
+      "email": "Dirección de correo electrónico",
+      "name": "Nombre (opcional)",
+      "consent": "Acepto recibir este boletín. Puedes darte de baja en cualquier momento.",
+      "website": "Sitio web",
+      "archive": "Explorar el archivo",
+      "success": "Revisa tu correo para confirmar tu suscripción",
+      "invalidEmail": "Introduce una dirección de correo electrónico válida.",
+      "invalidName": "Usa un nombre de 200 caracteres como máximo.",
+      "consentRequired": "Acepta recibir el boletín para suscribirte.",
+      "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
+      "rateLimit": "Demasiados intentos de suscripción. Espera unos minutos e inténtalo de nuevo.",
+      "unavailable": "Este boletín no está disponible. Recarga la página e inténtalo de nuevo.",
+      "error": "No se pudo completar la suscripción. Inténtalo de nuevo."
     }
   }
 }

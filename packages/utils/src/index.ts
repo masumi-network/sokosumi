@@ -16,10 +16,23 @@ export {
   type RealtimeChannelEnvironment,
 } from "./ably-channel.js";
 export {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
+  type AdCampaignSettableStatus,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
+  type GoogleDisplayImageRole,
+  type GoogleKeywordMatchType,
+} from "./ads.js";
+export {
   AUTH_CAPTCHA_ACTION,
   AUTH_CAPTCHA_HEADER,
   TURNSTILE_ALWAYS_PASS_SECRET,
 } from "./auth-captcha.js";
+export {
+  BETA_ORGANIZATION_SLUGS,
+  isBetaOrganizationSlug,
+  NEWSLETTER_BETA_ORGANIZATION_SLUG,
+} from "./beta-organizations.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
@@ -63,6 +76,7 @@ export {
   CHAT_MENTION_ALL_KEY,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
   canonicalUuidSpelling,
+  chatMessageTextWithNames,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview.js";
@@ -311,6 +325,7 @@ export {
   type NewsletterBlock,
   newsletterBlockSchema,
   newsletterContentSchema,
+  newsletterDraftInputSchema,
 } from "./newsletter.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
@@ -414,6 +429,7 @@ export {
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   isSocialProviderEnabled,
+  isXLongPostSubscription,
   SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
@@ -423,6 +439,7 @@ export {
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostMediaKind,
   type SocialPostMediaRef,

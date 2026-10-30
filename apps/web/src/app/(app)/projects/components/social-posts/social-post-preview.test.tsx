@@ -38,6 +38,36 @@ const VIDEO: SocialPostMediaRef = {
 };
 
 describe("SocialPostPreview", () => {
+  it("renders every thread part with the real X layout, shared author, media and connecting avatars", () => {
+    render(
+      <SocialPostPreview
+        provider="x"
+        account={ACCOUNT}
+        text="First post"
+        media={[]}
+        timestamp={null}
+        threadParts={[
+          { id: "part-2", text: "Second post", media: [IMAGE] },
+          { id: "part-3", text: "Third post", media: [] },
+        ]}
+      />,
+    );
+    const parts = screen.getAllByTestId("social-post-x-preview");
+    expect(parts).toHaveLength(3);
+    for (const [index, text] of [
+      "First post",
+      "Second post",
+      "Third post",
+    ].entries()) {
+      expect(within(parts[index]).getByText(text)).toBeVisible();
+      expect(within(parts[index]).getByText("Sokosumi HQ")).toBeVisible();
+    }
+    expect(within(parts[1]).getByAltText("a.png")).toBeVisible();
+    expect(screen.getAllByTestId("social-post-thread-connector")).toHaveLength(
+      2,
+    );
+  });
+
   it.each(["instagram", "youtube", "tiktok"] as const)(
     "uses neutral imported-media copy for %s when media is unavailable",
     (provider) => {

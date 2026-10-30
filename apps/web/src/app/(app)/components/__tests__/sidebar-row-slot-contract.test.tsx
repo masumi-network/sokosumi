@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -35,6 +38,8 @@ vi.mock("next/link", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({ relativeTime: () => "2h ago" }),
+  useNow: () => new Date(),
 }));
 
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
@@ -69,8 +74,12 @@ vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async () => ({ rooms: [], nextCursor: null }),
 }));
+vi.mock("@/lib/project-scope-list.client", () => ({
+  fetchScopeList: async () => ({ projects: [], nextCursor: null }),
+}));
 
-import type { ChatRoomInvitation } from "@sokosumi/core-client";
+import { type ChatRoomInvitation, SokoBotStatus } from "@sokosumi/core-client";
+import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { SidebarChatListSkeleton } from "@/app/components/sidebar/components/sidebar-chat-list-skeleton";
@@ -108,23 +117,28 @@ const pendingInvitations: ChatRoomInvitation[] = [
 ];
 
 /**
- * One rule, one slot: every kind of **Sidebar row** (CONTEXT.md) puts its
+ * One rule, one slot: every kind of **Sidebar row** (GLOSSARY.md) puts its
  * leading mark in `SidebarRowSlot`, so no row can drift off the sidebar's
  * 28px leading axis or start its label off the 48px column. Each row type used
  * to build that box by hand, which is how a room's mark ended up 2px from the
  * nav icons' line, a section's chevron 2px, and Soko Bots' stack 16px.
- *
- * One render answers both states: expanded and collapsed are pure CSS on the
- * same markup, so a slot that is right here is right on the rail too.
  */
 function renderSidebar() {
   return render(
     <TestQueryProvider>
       <SidebarProvider defaultOpen>
-        <Sidebar collapsible="icon">
+        <Sidebar>
           <SidebarContent>
+            <SidebarProjectScope />
             <PersonalAssistantNav
-              bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
+              bot={{
+                id: "bot-1",
+                imageUrl: null,
+                seed: "seed",
+                name: "Mo",
+                status: SokoBotStatus.RUNNING,
+                lastActivityAt: null,
+              }}
             />
             <MenuItems />
             <OrganizationChatList
@@ -145,63 +159,56 @@ function renderSidebar() {
   );
 }
 
+const SRC_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../..",
+);
+
+function listSources(dir: string): { file: string; text: string }[] {
+  return readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .filter((name) => name.endsWith(".tsx") && !name.includes(".test."))
+    .map((name) => ({
+      file: name,
+      text: readFileSync(path.join(dir, name), "utf8"),
+    }));
+}
+
+/** Every list that draws sidebar rows: the App chrome's and the chat list. */
+const SIDEBAR_LIST_SOURCES = [
+  ...listSources(path.join(SRC_ROOT, "app/(app)/components")),
+  ...listSources(path.join(SRC_ROOT, "components/chat")),
+];
+
 const SLOT = '[data-slot="sidebar-row-slot"]';
+// Not `data-slot`: a Popover trigger wrapping a row (as the project picker
+// once did) renames that to `popover-trigger`, and the row would drop out
+// unseen.
+const ROW = '[data-sidebar="menu-button"]';
 
 describe("every sidebar row uses the shared leading slot", () => {
-  it("renders one for Soko Bots, nav, headings, rooms, archived and the invitation", () => {
+  it("renders one for Soko Bots, nav, rooms, archived and the invitation", () => {
     const { container } = renderSidebar();
 
-    // Soko Bots, eight nav rows, four section headings (Pinned, Channels,
-    // External, Direct Messages) twice over — the titled row and its rail
-    // square — Archived's titled row, five rooms, the archived row, the
-    // invitation's card and its rail button, and eight skeleton slots — two
-    // section headings and six rooms. Counting
-    // by row type rather than by total, so adding a nav item does not edit a
-    // number here.
-    expect(container.querySelectorAll(SLOT).length).toBeGreaterThan(20);
+    // Soko Bots, the nav rows, five rooms, the archived row, the
+    // invitation's card, and six skeleton room slots. Section headings have
+    // none: their title leads and the chevron follows it, the project title
+    // titles the nav rather than standing in it, and New task is the
+    // header's button, not a row. Counting by row type rather than by
+    // total, so adding a nav item does not edit a number here.
+    expect(container.querySelectorAll(SLOT).length).toBeGreaterThanOrEqual(20);
 
     for (const slot of container.querySelectorAll(SLOT)) {
       const tokens = slot.className.split(/\s+/);
       expect(tokens).toContain("h-6");
       expect(tokens).toContain("min-w-6");
       expect(tokens).toContain("shrink-0");
-      // A slot that changed with the sidebar's state would be a mark that
-      // moves on a toggle, which is the whole thing this rule forbids.
-      expect(slot.className).not.toContain("group-data-[collapsible=icon]:");
-    }
-  });
-
-  it("renders a rail square per section, Archived included", () => {
-    const { container } = renderSidebar();
-
-    // Every section keeps a square on the rail or the sections below it jump
-    // on a toggle, and each square's mark uses the same slot as the rows it
-    // heads. Named rather than counted: the `> 20` total above would not dent
-    // if a section lost its square, and Archived is the one that only just
-    // got one — its rows never reach the rail, so nothing else there would
-    // hold its heading's place.
-    const squares = [
-      ...container.querySelectorAll('[data-slot="section-rail-header"]'),
-    ];
-    expect(squares.map((square) => square.textContent?.trim())).toContain(
-      "archivedChannels",
-    );
-    // Pinned, Channels, External, Archived, Direct Messages.
-    expect(squares).toHaveLength(5);
-    for (const square of squares) {
-      expect(
-        square.querySelector(SLOT),
-        square.textContent ?? "",
-      ).not.toBeNull();
     }
   });
 
   it("gives every row button the slot as its first child", () => {
     const { container } = renderSidebar();
 
-    const buttons = container.querySelectorAll(
-      '[data-slot="sidebar-menu-button"]',
-    );
+    const buttons = container.querySelectorAll(ROW);
     expect(buttons.length).toBeGreaterThan(10);
 
     for (const button of buttons) {
@@ -212,22 +219,75 @@ describe("every sidebar row uses the shared leading slot", () => {
     }
   });
 
-  it("holds every row to one height in both states", () => {
+  it("holds every row to the primitive's height, and no list to its own", () => {
     const { container } = renderSidebar();
+    const ROW_HEIGHT = ["h-11", "min-h-11", "md:h-7", "md:min-h-7"];
+    // A two-line row (a guest room's host organisation line, the live Soko
+    // Bot row) asks the primitive for `lines={2}`, which
+    // marks it `data-row-lines` and releases the height down to the floor.
+    // A list that wrote a height of its own, one line or two, fails here.
+    const TWO_LINE_HEIGHT = ["h-auto", "min-h-11", "md:h-auto", "md:min-h-7"];
+    let twoLineRows = 0;
 
-    for (const button of container.querySelectorAll(
-      '[data-slot="sidebar-menu-button"]',
-    )) {
-      const tokens = button.className.split(/\s+/);
-      // The guest row is one of the three items allowed to differ: its host
-      // organisation line needs a second line no 32px row can hold.
-      if (tokens.includes("h-auto")) {
-        expect(tokens).toContain("md:min-h-8");
+    for (const button of container.querySelectorAll(ROW)) {
+      const heights = button.className
+        .split(/\s+/)
+        .filter((token) => /^(md:)?(min-)?h-/.test(token))
+        .sort();
+      if (button.getAttribute("data-row-lines") === "2") {
+        twoLineRows += 1;
+        expect(heights, button.textContent ?? "").toEqual(
+          [...TWO_LINE_HEIGHT].sort(),
+        );
+        // Both lines sit inside the element that takes the hover, so the
+        // highlight covers the whole row and not just its first line.
+        expect(button.className).toContain("hover:bg-sidebar-accent");
         continue;
       }
-      expect(tokens).toContain("h-11");
-      expect(tokens).toContain("md:h-8");
-      expect(button.className).not.toContain("min-h-10");
+      expect(heights, button.textContent ?? "").toEqual([...ROW_HEIGHT].sort());
+    }
+    expect(twoLineRows).toBeGreaterThanOrEqual(2);
+  });
+
+  // The project scope titles the nav rather than standing in it, so it is
+  // the one control in the list that is not a row: no slot, no row height.
+  // A row primitive here would put its name on the 48px column, not the
+  // title's 16px.
+  it("keeps the project title out of the rows it titles", () => {
+    const { container } = renderSidebar();
+    const title = container.querySelector(
+      '[data-testid="project-scope-sidebar-title"]',
+    );
+
+    expect(title).not.toBeNull();
+    expect(title?.matches(ROW)).toBe(false);
+    expect(title?.querySelector(SLOT)).toBeNull();
+  });
+
+  it("leaves a two-line row's height to the primitive's `lines`", () => {
+    // The render above cannot tell a primitive's class from one a list
+    // copied, so read the lists: none that draws a row writes the released
+    // height or the marker itself.
+    const offenders = SIDEBAR_LIST_SOURCES.filter(
+      ({ text }) =>
+        text.includes("SidebarMenuButton") &&
+        /data-row-lines=|md:h-auto/.test(text),
+    ).map(({ file }) => file);
+
+    expect(SIDEBAR_LIST_SOURCES.length).toBeGreaterThan(10);
+    expect(offenders).toEqual([]);
+  });
+
+  it("lets the slot size every row icon, so no list sets its own", () => {
+    const { container } = renderSidebar();
+    const icons = container.querySelectorAll(`${SLOT} > svg`);
+    expect(icons.length).toBeGreaterThan(10);
+
+    for (const icon of icons) {
+      const sizes = (icon.getAttribute("class") ?? "")
+        .split(/\s+/)
+        .filter((token) => /^(md:)?(size|w|h)-/.test(token));
+      expect(sizes, icon.getAttribute("class") ?? "").toEqual([]);
     }
   });
 });

@@ -43,7 +43,7 @@ interface AgentSpotlightProps {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
@@ -106,7 +106,7 @@ function RailItem({
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
         FOCUS_RING,
-        active ? "bg-muted" : "hover:bg-card-background",
+        active ? "bg-muted" : "hover:bg-accent",
         className,
       )}
     >

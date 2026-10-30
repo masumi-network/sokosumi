@@ -7,6 +7,10 @@ import {
   type RoomReadAttentionSnapshot,
   sameRoomReadAttention,
 } from "@/app/chat/utils/room-read-attention";
+import {
+  notifyOrganizationChatRoomsChanged,
+  ORGANIZATION_CHAT_ROOM_READ_EVENT,
+} from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { roomAttentionAfterRead } from "@/components/chat/room-attention";
 import {
@@ -40,7 +44,7 @@ interface RoomReadAttentionOptions {
 
 function dispatchRoomRead(roomId: string, room: ChatRoom): void {
   window.dispatchEvent(
-    new CustomEvent("organization-chat-room-read", {
+    new CustomEvent(ORGANIZATION_CHAT_ROOM_READ_EVENT, {
       detail: { room, roomId },
     }),
   );
@@ -116,6 +120,13 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         const result = await markThreadReadAction(roomId, parentMessageId);
         if (result.ok) {
           snapshotRef.current.onThreadLooked?.(parentMessageId);
+          // Core announces a Look only over the control channel, which this
+          // tab may not have, and above the end no room read follows to carry
+          // the fresh room, so the sidebar's Thread row would stay.
+          notifyOrganizationChatRoomsChanged({
+            collections: ["active"],
+            roomId,
+          });
         }
         return result.ok;
       } catch {

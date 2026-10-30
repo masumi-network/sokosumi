@@ -13,7 +13,6 @@ struct MessageAttachmentRunTests {
     #expect(document.segments.count == 1)
     #expect(document.segments.first?.attachments.map(\.filename) == ["a.png", "b.png"])
     #expect(document.segments.first?.usesLargeImage == false)
-    #expect(document.clampsLongBody)
   }
 
   @Test func textAndMixedAttachmentsKeepTheirOrder() {
@@ -21,7 +20,6 @@ struct MessageAttachmentRunTests {
     #expect(document.segments.map { $0.attachments.map(\.filename) } == [[], ["a.png", "report.pdf"], [], ["b.png"]])
     #expect(document.segments.map(\.usesLargeImage) == [false, false, false, true])
     #expect(document.segments.first?.blocks.first?.text.runs.first?.inlinePresentationIntent?.contains(.stronglyEmphasized) == true)
-    #expect(!document.clampsLongBody)
   }
 
   /// A rule between two lone links splits the run. A list or quote marker or a table pipe on a link's line keeps
@@ -30,8 +28,35 @@ struct MessageAttachmentRunTests {
     for (gap, runs) in [("\n\n---\n\n", [1, 1]), ("\n- ", [1]), ("\n> ", [1]), (" | ", [])] {
       let document = MessageMarkdown(link("a.png") + gap + link("b.png"))
       #expect(document.segments.filter { !$0.attachments.isEmpty }.map(\.attachments.count) == runs, "\(gap)")
-      #expect(document.clampsLongBody == runs.isEmpty, "\(gap)")
     }
+  }
+
+  private func fileRuns(_ source: String) -> [[String]] {
+    MessageMarkdown(source).segments.filter { !$0.files.isEmpty }.map { $0.attachments.map(\.filename) }
+  }
+
+  /// A sample link inside a fence is no attachment: a backtick run inside a fence line does not close it
+  /// (CommonMark: a closer starts its own line), nor does a closer with text after it, and an unclosed fence
+  /// runs to the end of the body.
+  @Test(arguments: [
+    "```\n[photo.png](https://cdn.example/photo.png)\n```",
+    "```\nwrap samples in ``` fences\n[photo.png](https://cdn.example/photo.png)\n```",
+    "```\n[sample.png](https://cdn.example/sample.png)\n``` not yet\n[photo.png](https://cdn.example/photo.png)\n```",
+    "```\ntext\n[photo.png](https://cdn.example/photo.png)"
+  ])
+  func aLinkInsideAFenceIsNoAttachment(source: String) {
+    #expect(fileRuns(source).isEmpty)
+  }
+
+  /// A closer indented up to three spaces still closes; the lone link after it is a card.
+  @Test func anIndentedCloserEndsTheFence() {
+    #expect(fileRuns("```\n" + link("sample.png") + "\n  ```\n\n" + link("photo.png")) == [["photo.png"]])
+  }
+
+  /// Indented (four-space) code is scanned like any text, as web's raw scan is; the fenced-code skip above is
+  /// the only deviation from web.
+  @Test func aLinkInIndentedCodeIsAnAttachment() {
+    #expect(fileRuns("Text\n\n    " + link("photo.png")) == [["photo.png"]])
   }
 
   @Test func repeatedURLsRemainSeparateTilesButOneGalleryImage() {

@@ -60,6 +60,22 @@ describe("action lines the owner reads", () => {
     vi.resetAllMocks();
   });
 
+  it("links a verified newsletter draft to the editor for human review", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "newsletter_draft_issue",
+        targetId: "issue-one",
+        result: { projectId, status: "DRAFT" },
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Drafted newsletter issue for review ([Review draft](/newsletter/issues/issue-one?projectId=${projectId}&draftedBySokoBot=true)).`,
+    );
+    expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",
@@ -767,6 +783,71 @@ describe("authoritative action responses", () => {
     );
   });
 
+  it("reports a created ad campaign with a link to open it", async () => {
+    const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_ad_campaign",
+        targetId: "123",
+        verification: "PROVIDER_ACK",
+        result: { campaignId: "123", status: "PAUSED", link },
+      }),
+    ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "The campaign is live.",
+    );
+    expect(response.answerText).toBe(
+      `Created paused ad campaign ([Open campaign](${link})).`,
+    );
+  });
+
+  it.each([
+    [
+      "update_ad_campaign",
+      "Updated ad campaign",
+      { campaignId: "123", updated: true as const },
+    ],
+    [
+      "edit_ad_campaign",
+      "Edited ad campaign",
+      { campaignId: "123", edited: true as const },
+    ],
+  ])(
+    "reports %s with a link to open the campaign",
+    async (capability, label, proof) => {
+      const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability,
+          targetId: "123",
+          verification: "PROVIDER_ACK",
+          result: { ...proof, link },
+        }),
+      ]);
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done.",
+      );
+      expect(response.answerText).toBe(`${label} ([Open campaign](${link})).`);
+    },
+  );
+
+  it("reports delete_ad_campaign with no link, since the campaign is gone", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "delete_ad_campaign",
+        targetId: "123",
+        verification: "PROVIDER_ACK",
+        result: { campaignId: "123", deleted: true },
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Deleted ad campaign.");
+  });
+
   it.each([false, true])(
     "quotes connected social account evidence with availability metadata %s",
     async (withAvailability) => {
@@ -969,6 +1050,59 @@ describe("authoritative action responses", () => {
       }
     },
   );
+
+  it("restates an account's text limit and a post's thread and quote", async () => {
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        receipt({
+          capability: "list_project_social_accounts",
+          result: {
+            enabledProviders: ["x"],
+            accounts: [
+              {
+                id: "account-one",
+                provider: "x",
+                externalHandle: "acme",
+                status: "active",
+                connectedAt: null,
+                disconnectedAt: null,
+                textLimit: 25_000,
+              },
+            ],
+          },
+        }),
+        receipt({
+          capability: "get_social_post",
+          result: {
+            id: "post-one",
+            provider: "x",
+            status: "NEEDS_APPROVAL",
+            text: "Launch",
+            revision: 0,
+            scheduledAt: null,
+            timezone: null,
+            publishedUrl: null,
+            threadPartCount: 3,
+            quotedPostId: "post-zero",
+          },
+        }),
+      ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Done",
+      true,
+      {
+        kind: "REPORT",
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    expect(response.answerText).toContain("Text limit: 25000 characters.");
+    expect(response.answerText).toContain("Thread of 3 posts.");
+    expect(response.answerText).toContain('Quotes post "post-zero".');
+  });
 
   it.each([
     ["list_project_social_accounts", {}],

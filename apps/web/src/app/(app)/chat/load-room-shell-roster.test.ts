@@ -24,10 +24,11 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 }));
 
 vi.mock("next-intl/server", () => ({
-  getTranslations: vi.fn(
-    async () => (key: string) =>
-      key === "personalAssistantBadge" ? "Personal assistant" : key,
-  ),
+  getTranslations: async (namespace: "App") => {
+    const { createTranslator } = await import("next-intl");
+    const { default: messages } = await import("@/messages/en.json");
+    return createTranslator({ locale: "en", messages, namespace });
+  },
 }));
 
 import { loadRoomShellRoster } from "./load-room-shell-roster";
@@ -86,5 +87,18 @@ describe("loadRoomShellRoster", () => {
       sokoBots: [],
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(null);
+  });
+
+  it("names a Soko Bot without a name from the catalog", async () => {
+    loadOrganizationMembersMock.mockResolvedValue({
+      members: [],
+      failed: false,
+    });
+    listCoworkersMock.mockResolvedValue([]);
+    getMineMock.mockResolvedValue({ id: "bot_1", name: null, avatarSeed: "s" });
+
+    const { sokoBots } = await loadRoomShellRoster("org_1");
+
+    expect(sokoBots[0]?.name).toBe("Personal assistant");
   });
 });

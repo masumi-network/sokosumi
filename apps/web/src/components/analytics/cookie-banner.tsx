@@ -1,8 +1,10 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NEWSLETTER_EMBED_PATH } from "@/config/document-security-headers";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import {
   applyConsentMode,
@@ -72,6 +74,7 @@ function useMainChromeLeftPx(): number {
  */
 export function CookieBanner() {
   const t = useTranslations("CookieConsent");
+  const pathname = usePathname();
   const chromeLeftPx = useMainChromeLeftPx();
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -93,7 +96,7 @@ export function CookieBanner() {
     return () => window.removeEventListener(OPEN_CONSENT_EVENT, reopen);
   }, []);
 
-  if (!visible) return null;
+  if (!visible || NEWSLETTER_EMBED_PATH.test(pathname)) return null;
 
   const decide = (choice: Omit<ConsentChoice, "necessary">) => {
     const stored = writeConsent(choice);
@@ -207,7 +210,7 @@ function Category({
     >
       <input
         type="checkbox"
-        className="accent-primary mt-1 size-4"
+        className="accent-foreground mt-1 size-4"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.checked)}

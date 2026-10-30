@@ -20,11 +20,18 @@ enum NewsletterSubscriberSource {
   CSV_IMPORT
   SIGNUP_FORM
   API
+  CONTACTS
 }
 
 enum NewsletterSendStatus {
   QUEUED
   SENT
+  FAILED
+}
+
+enum NewsletterSendingDomainStatus {
+  PENDING
+  VERIFIED
   FAILED
 }
 
@@ -51,6 +58,10 @@ model Newsletter {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "newsletter_workspaceId_fkey")
 
+  /// Manual Contacts list used to file this newsletter's subscribers.
+  contactListId String?      @db.Uuid
+  contactList   ContactList? @relation(fields: [contactListId], references: [id], onDelete: SetNull, map: "newsletter_contactListId_fkey")
+
   name                String
   senderName          String
   replyTo             String
@@ -66,6 +77,7 @@ model Newsletter {
   events      NewsletterEvent[]
 
   @@index([workspaceId], map: "newsletter_workspaceId_idx")
+  @@index([contactListId], map: "newsletter_contactListId_idx")
   @@map("newsletter")
 }
 
@@ -130,6 +142,10 @@ model NewsletterSubscriber {
   newsletterId String     @db.Uuid
   newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade, map: "newsletter_subscriber_newsletterId_fkey")
 
+  /// Person in Contacts; email and name remain snapshots for sending after contact deletion.
+  contactId String?  @db.Uuid
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull, map: "newsletter_subscriber_contactId_fkey")
+
   /// Lowercased by Core before writing so the unique key catches duplicates.
   email          String
   name           String?
@@ -151,6 +167,7 @@ model NewsletterSubscriber {
 
   @@unique([newsletterId, email], map: "newsletter_subscriber_newsletterId_email_key")
   @@index([newsletterId, status], map: "newsletter_subscriber_newsletterId_status_idx")
+  @@index([contactId], map: "newsletter_subscriber_contactId_idx")
   @@index([newsletterId, status, id], map: "newsletter_subscriber_newsletterId_status_id_idx")
   @@index([newsletterId, createdAt, id], map: "newsletter_subscriber_newsletterId_createdAt_id_idx")
   @@index([newsletterId, status, createdAt, id], map: "newsletter_subscriber_newsletterId_status_createdAt_id_idx")
@@ -166,6 +183,11 @@ model NewsletterSend {
   subscriberId String               @db.Uuid
   subscriber   NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade, map: "newsletter_send_subscriberId_fkey")
 
+  sendingDomainId String?                  @db.Uuid
+  sendingDomain   NewsletterSendingDomain? @relation(fields: [sendingDomainId], references: [id], onDelete: SetNull, map: "newsletter_send_sendingDomainId_fkey")
+  /// Legacy senders omit this; only the retryable queue explicitly writes null.
+  attemptedAt     DateTime?                @default(now())
+
   /// Unset until Resend accepts the queued send.
   providerMessageId String?              @unique(map: "newsletter_send_providerMessageId_key")
   status            NewsletterSendStatus @default(QUEUED)
@@ -176,6 +198,8 @@ model NewsletterSend {
 
   @@unique([issueId, subscriberId], map: "newsletter_send_issueId_subscriberId_key")
   @@index([subscriberId], map: "newsletter_send_subscriberId_idx")
+  @@index([issueId, status, attemptedAt], map: "newsletter_send_issueId_status_attemptedAt_idx")
+  @@index([sendingDomainId, attemptedAt], map: "newsletter_send_sendingDomainId_attemptedAt_idx")
   @@map("newsletter_send")
 }
 
@@ -196,6 +220,7 @@ model NewsletterEvent {
 
   type            NewsletterEventType
   url             String?
+  bounceType      String?
   occurredAt      DateTime            @default(now())
   /// Local subscription events need no provider id.
   providerEventId String?             @unique(map: "newsletter_event_providerEventId_key")
@@ -205,4 +230,34 @@ model NewsletterEvent {
   @@index([subscriberId], map: "newsletter_event_subscriberId_idx")
   @@index([sendId], map: "newsletter_event_sendId_idx")
   @@map("newsletter_event")
+}
+
+/// The Project's own From address. Only this Project's newsletter sends from it once Resend verifies its domain.
+model NewsletterSendingDomain {
+  id        String   @id(map: "newsletter_sending_domain_pkey") @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @unique(map: "newsletter_sending_domain_projectId_key") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "newsletter_sending_domain_projectId_fkey")
+
+  /// Lowercased. Unique because one Resend account holds a domain only once.
+  domain         String                        @unique(map: "newsletter_sending_domain_domain_key")
+  fromAddress    String
+  resendDomainId String                        @unique(map: "newsletter_sending_domain_resendDomainId_key")
+  status         NewsletterSendingDomainStatus @default(PENDING)
+  /// The DNS records Resend asks for: record, type, name, value, ttl, priority, status.
+  dnsRecords     Json                          @default("[]")
+  lastCheckedAt  DateTime?
+  failureReason  String?
+
+  warmupStartedAt    DateTime?
+  warmupPausedAt     DateTime?
+  warmupPauseReason  String?
+  warmupSentOnDayUtc DateTime?
+  warmupSentCount    Int       @default(0)
+
+  sends NewsletterSend[]
+
+  @@map("newsletter_sending_domain")
 }

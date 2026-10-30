@@ -613,9 +613,7 @@ export function ProjectSocialAccounts({
           className={
             feedback.kind === "error"
               ? "text-destructive text-sm"
-              : feedback.kind === "warning"
-                ? "text-semantic-warning text-sm"
-                : "text-semantic-success text-sm"
+              : "text-foreground text-sm"
           }
           role={feedback.kind === "error" ? "alert" : "status"}
         >
@@ -687,7 +685,7 @@ export function ProjectSocialAccounts({
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
-                        isWarningStatus && "text-semantic-warning-label",
+                        isWarningStatus && "text-foreground",
                       )}
                     >
                       {isWarningStatus ? (

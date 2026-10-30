@@ -19,6 +19,8 @@ const m = vi.hoisted(() => {
     metaCampaigns: vi.fn(),
     googleUpdate: vi.fn(),
     metaUpdate: vi.fn(),
+    googleDelete: vi.fn(),
+    metaDelete: vi.fn(),
     googleCreate: vi.fn(),
     metaCreate: vi.fn(),
     googleLocations: vi.fn(),
@@ -86,6 +88,7 @@ vi.mock("@/lib/ads/google-ads", () => ({
   listGoogleAdAccounts: m.listGoogle,
   listGoogleCampaigns: m.googleCampaigns,
   updateGoogleCampaign: m.googleUpdate,
+  deleteGoogleCampaign: m.googleDelete,
   createGoogleCampaign: m.googleCreate,
   searchGoogleLocations: m.googleLocations,
   listGoogleLanguages: m.googleLanguages,
@@ -96,6 +99,7 @@ vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
   listMetaCampaigns: m.metaCampaigns,
   updateMetaCampaign: m.metaUpdate,
+  deleteMetaCampaign: m.metaDelete,
   createMetaCampaign: m.metaCreate,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
@@ -114,6 +118,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: m.tx }));
 import {
   attachProjectAdAccounts,
   createProjectAdCampaign,
+  deleteProjectAdCampaign,
   detachProjectAdAccount,
   discardProjectAdConnection,
   editProjectAdCampaign,
@@ -958,6 +963,59 @@ describe("project ad accounts service", () => {
       m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
       await expect(update()).rejects.toMatchObject({ status: 404 });
       expect(m.accountFindFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delete campaign", () => {
+    const remove = () =>
+      deleteProjectAdCampaign({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+      });
+
+    it("deletes a Google campaign inside the attached customer", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await remove();
+      expect(m.googleDelete).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        customerId: "111",
+        campaignId: "42",
+      });
+      expect(m.accountFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ACCOUNT_UUID, projectId: PROJECT_ID },
+        }),
+      );
+      expect(m.metaDelete).not.toHaveBeenCalled();
+    });
+
+    it("deletes a Meta campaign inside the attached ad account", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      await remove();
+      expect(m.metaDelete).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        adAccountId: "act_9",
+        campaignId: "42",
+      });
+      expect(m.googleDelete).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 for an account of another Project", async () => {
+      m.accountFindFirst.mockResolvedValue(null);
+      await expect(remove()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleDelete).not.toHaveBeenCalled();
+      expect(m.metaDelete).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when the connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("meta_ads", "act_9", "disconnected"),
+      );
+      await expect(remove()).rejects.toMatchObject({ status: 409 });
+      expect(m.metaDelete).not.toHaveBeenCalled();
     });
   });
 

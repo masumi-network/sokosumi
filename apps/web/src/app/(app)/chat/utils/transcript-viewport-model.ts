@@ -28,7 +28,7 @@ const UNFURL_IMAGE_HEIGHT_PX = 250;
 /** Body `leading-6`. */
 const BODY_LINE_HEIGHT_PX = 24;
 
-/** The row clamps a collapsed body to this many lines (`line-clamp-[16]`). */
+/** The row caps a collapsed body at this many lines (`max-h-96`). */
 const BODY_CLAMP_LINES = 16;
 
 /** List `px-5` on both sides, the `size-8` avatar and the `gap-3.5` after it. */

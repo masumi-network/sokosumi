@@ -15,21 +15,18 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import {
-  ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-  type OrganizationChatRoomsChangedDetail,
+  subscribeOrganizationChatRoomRead,
+  subscribeOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
-import {
-  keepRoomUnreadState,
-  roomAttentionAfterRead,
-} from "@/components/chat/room-attention";
+import { keepRoomUnreadState } from "@/components/chat/room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
   reconcileRoomAttention,
-  rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
 
@@ -82,7 +79,7 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   // same collection twice, so on desktop this waits a moment for it; on a
   // phone there is no sidebar to wait for.
   const [ownershipSettled, setOwnershipSettled] = useState(false);
-  useEffect(() => {
+  useMountEffect(() => {
     if (window.innerWidth < MOBILE_BREAKPOINT) {
       setOwnershipSettled(true);
       return;
@@ -92,7 +89,7 @@ export function useLiveChatRooms(): ChatRoom[] | null {
       SIDEBAR_REGISTRATION_WAIT_MS,
     );
     return () => window.clearTimeout(timer);
-  }, []);
+  });
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,
@@ -164,92 +161,45 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     refreshOnRecovery: true,
   });
 
-  useEffect(() => {
-    const handleRoomRead = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ room?: ChatRoom; roomId?: string }>
-      ).detail;
-      if (!detail?.roomId) {
-        return;
-      }
+  useMountEffect(() =>
+    subscribeOrganizationChatRoomRead((apply) =>
+      setRooms((current) => (current === null ? null : apply(current))),
+    ),
+  );
 
-      if (detail.room) {
-        rememberRoomRead(detail.room);
-      }
-
-      setRooms((current) =>
-        current === null
-          ? null
-          : applyRoomReadOverlays(
-              current.map((room) => {
-                if (room.id !== detail.roomId) return room;
-                const updated = detail.room ?? {
-                  ...room,
-                  ...roomAttentionAfterRead(room),
-                };
-                if (!detail.room) rememberRoomRead(updated);
-                return updated;
-              }),
-            ),
-      );
-    };
-
-    window.addEventListener("organization-chat-room-read", handleRoomRead);
-    return () => {
-      window.removeEventListener("organization-chat-room-read", handleRoomRead);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleRoomsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
-        .detail;
-      const removedRoomId = detail?.removedRoomId;
-      if (removedRoomId) {
-        setRooms((current) =>
-          current === null
-            ? null
-            : applyRoomReadOverlays(
-                current.filter((row) => row.id !== removedRoomId),
-              ),
-        );
-        return;
-      }
-
-      const room = detail?.room;
-      if (room) {
-        // The answers that land here do not count what is unread, so the
-        // room keeps what the title already counted for it.
-        setRooms((current) => {
-          // One room is not the list; the first read still decides it.
-          if (current === null) return null;
-          const held = current.find((row) => row.id === room.id);
-          const without = current.filter((row) => row.id !== room.id);
-          return applyRoomReadOverlays([
-            keepRoomUnreadState(held, room),
-            ...without,
-          ]);
-        });
-        return;
-      }
-
-      // Only the active collection holds what is unread.
-      if (!detail?.collections || detail.collections.includes("active")) {
-        requestRefresh();
-      }
-    };
-
-    window.addEventListener(
-      ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-      handleRoomsChanged,
-    );
-    return () => {
-      window.removeEventListener(
-        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-        handleRoomsChanged,
-      );
-    };
-  }, [requestRefresh]);
+  useEffect(
+    () =>
+      subscribeOrganizationChatRoomsChanged({
+        onRemoved: (removedRoomId) =>
+          setRooms((current) =>
+            current === null
+              ? null
+              : applyRoomReadOverlays(
+                  current.filter((row) => row.id !== removedRoomId),
+                ),
+          ),
+        onRoom: (room) =>
+          // The answers that land here do not count what is unread, so the
+          // room keeps what the title already counted for it.
+          setRooms((current) => {
+            // One room is not the list; the first read still decides it.
+            if (current === null) return null;
+            const held = current.find((row) => row.id === room.id);
+            const without = current.filter((row) => row.id !== room.id);
+            return applyRoomReadOverlays([
+              keepRoomUnreadState(held, room),
+              ...without,
+            ]);
+          }),
+        onInvalidated: (collections) => {
+          // Only the active collection holds what is unread.
+          if (!collections || collections.includes("active")) {
+            requestRefresh();
+          }
+        },
+      }),
+    [requestRefresh],
+  );
 
   return rooms;
 }

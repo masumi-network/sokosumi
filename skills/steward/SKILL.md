@@ -13,4 +13,4 @@ Canonical files: `skills/steward/`. Install into agent skill dirs with `npx skil
 - **Conflicts:** merge `origin/main` into the PR branch; never rebase or force-push. The `post-merge` hook reinstalls when the merge moved `pnpm-lock.yaml`; in a cloud session an old branch may still need a deeper clone ([cloud environment](../../docs/agents/cloud-environment.md#sandbox-facts)).
 - **Red check:** only the ruleset's required checks block merge; a red advisory job (`Test CLI`, `Test Local env`, `Test CI config`, `Test Cloud agent db`) is still worth fixing when this PR caused it. For `Xcode test`, read the `Sokosumi-xcresult` bundle as [`apps/apple/AGENTS.md`](../../apps/apple/AGENTS.md) describes.
 - **`/deploy` fails with "owned by another workflow":** the branch carried an earlier PR whose preview env vars still exist. Dispatch `Preview deploy` to reconcile, then retry; use a new branch for the next PR.
-- **Merge:** a human merges. Mark the PR ready only when CI is green and the change is complete.
+- **Merge:** a human merges. CI skips draft PRs: mark the PR ready once the change is complete and the pre-commit checks pass, which starts CI, then get it green.

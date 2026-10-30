@@ -9,23 +9,25 @@ import {
   NEWSLETTER_ID,
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
-  NEWSLETTER_WORKSPACE_ID,
 } from "@/test/newsletter";
 
 import router from "../index";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   domain: "news.example.com" as string | undefined,
   newsletter: vi.fn(),
   createMany: vi.fn(),
   subscriber: vi.fn(),
+  pending: vi.fn(),
   updateMany: vi.fn(),
   eventCreate: vi.fn(),
   transaction: vi.fn(),
-  contactChannel: vi.fn(),
-  contactList: vi.fn(),
-  contactListMember: vi.fn(),
+  update: vi.fn(),
+  contactCreateMany: vi.fn(),
+  channelCreateMany: vi.fn(),
+  listCreate: vi.fn(),
+  listMembers: vi.fn(),
+  newsletterUpdate: vi.fn(),
   send: vi.fn(),
   redis: vi.fn(),
 }));
@@ -41,7 +43,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NEWSLETTER_ENABLED: m.enabled,
       NEWSLETTER_FROM_DOMAIN: m.domain,
     }),
     getBetterAuthPublicBaseUrl: () => "https://core.example.com",
@@ -53,15 +54,19 @@ vi.mock("@/lib/db/prisma", () => ({
     newsletterSubscriber: {
       createMany: m.createMany,
       findUnique: m.subscriber,
+      findMany: m.pending,
       updateMany: m.updateMany,
+      update: m.update,
     },
     newsletterEvent: { create: m.eventCreate },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
 }));
 
 const URL = `http://localhost/v1/public/newsletters/${NEWSLETTER.publicSlug}/subscribe`;
 const ACK = { status: "check_your_inbox" };
+const LIST_ID = "77777777-7777-4777-8777-777777777777";
 
 function app() {
   const app = new OpenAPIHono<EnvVariables>();
@@ -92,30 +97,49 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NEWSLETTER_NOW);
-  m.enabled = true;
   m.domain = "news.example.com";
   m.newsletter.mockResolvedValue(NEWSLETTER);
   m.createMany.mockResolvedValue({ count: 1 });
-  m.subscriber.mockResolvedValue({
+  m.listCreate.mockResolvedValue({ id: LIST_ID });
+  m.subscriber.mockImplementation(async () => ({
     ...NEWSLETTER_SUBSCRIBER,
     status: "PENDING",
     source: "SIGNUP_FORM",
-  });
+    contactId: m.createMany.mock.lastCall?.[0].data.contactId ?? null,
+  }));
+  m.pending.mockImplementation(
+    async ({ where }: { where: { OR: { id: string }[] } }) =>
+      where.OR.map(({ id }) => ({ id })),
+  );
   m.updateMany.mockResolvedValue({ count: 1 });
   m.send.mockResolvedValue({ data: { id: "confirmation" }, error: null });
   m.redis.mockResolvedValue(1);
-  m.contactChannel.mockResolvedValue({ contactId: "contact-1" });
-  m.contactList.mockResolvedValue({ id: "list-1", smartFilter: null });
   const tx = {
+    $executeRaw: vi.fn(),
+    newsletter: { findUniqueOrThrow: m.newsletter, update: m.newsletterUpdate },
+    contact: {
+      findMany: vi.fn(async () => []),
+      createMany: m.contactCreateMany,
+    },
+    contactChannel: {
+      findMany: vi.fn(async () => []),
+      createMany: m.channelCreateMany,
+    },
+    contactActivity: { createMany: vi.fn() },
+    contactList: {
+      findMany: vi.fn(async () => []),
+      findUnique: vi.fn(async () => null),
+      create: m.listCreate,
+      update: vi.fn(),
+    },
+    contactListMember: { createMany: m.listMembers },
     newsletterSubscriber: {
       createMany: m.createMany,
       findUnique: m.subscriber,
       updateMany: m.updateMany,
+      update: m.update,
     },
     newsletterEvent: { create: m.eventCreate },
-    contactChannel: { upsert: m.contactChannel },
-    contactList: { upsert: m.contactList },
-    contactListMember: { createMany: m.contactListMember },
   };
   m.transaction.mockImplementation(
     (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
@@ -142,6 +166,33 @@ describe("public newsletter signup", () => {
       },
       skipDuplicates: true,
     });
+    const person = m.contactCreateMany.mock.calls[0][0].data[0];
+    expect(person).toMatchObject({
+      name: "Ada",
+      workspaceId: NEWSLETTER.workspaceId,
+      createdByUserId: null,
+      createdBySokoBotId: null,
+    });
+    expect(m.update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: NEWSLETTER_SUBSCRIBER.id },
+      data: { contactId: person.id },
+    });
+    expect(m.channelCreateMany.mock.calls[0][0].data).toEqual([
+      expect.objectContaining({
+        contactId: person.id,
+        type: "EMAIL",
+        value: "reader@example.com",
+        source: "OTHER",
+      }),
+    ]);
+    expect(m.listMembers.mock.calls[0][0].data).toEqual([
+      {
+        contactId: person.id,
+        listId: LIST_ID,
+        addedByUserId: null,
+        addedBySokoBotId: null,
+      },
+    ]);
     expect(m.eventCreate).toHaveBeenCalledExactlyOnceWith({
       data: {
         newsletterId: NEWSLETTER_ID,
@@ -155,7 +206,7 @@ describe("public newsletter signup", () => {
     const [email] = m.send.mock.calls[0]!;
     expect(email).toMatchObject({
       to: "reader@example.com",
-      from: '"Ada" <newsletter@news.example.com>',
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
       replyTo: "ada@example.com",
       subject: "Confirm your subscription to Weekly News",
       headers: { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
@@ -166,7 +217,7 @@ describe("public newsletter signup", () => {
       "https://core.example.com/v1/public/newsletter/unsubscribe?token=",
     );
     const link = email.html.match(
-      /href="(https:\/\/core.example.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
+      /href="(https:\/\/core\.example\.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
     )?.[1];
     expect(link).toBeDefined();
     const token = new globalThis.URL(link!).searchParams.get("token")!;
@@ -177,90 +228,28 @@ describe("public newsletter signup", () => {
     });
   });
 
-  it("files the normalized email as a Contact on the newsletter's workspace list", async () => {
-    await signup({ email: " Reader@EXAMPLE.com ", name: "Ada" });
-    expect(m.contactChannel).toHaveBeenCalledExactlyOnceWith({
-      where: {
-        workspaceId_type_value: {
-          workspaceId: NEWSLETTER_WORKSPACE_ID,
-          type: "EMAIL",
-          value: "reader@example.com",
-        },
-      },
-      create: {
-        workspaceId: NEWSLETTER_WORKSPACE_ID,
-        type: "EMAIL",
-        value: "reader@example.com",
-        source: "OTHER",
-        isPrimary: true,
-        contact: {
-          create: { workspaceId: NEWSLETTER_WORKSPACE_ID, name: "Ada" },
-        },
-      },
-      update: {},
-      select: { contactId: true },
-    });
-    expect(m.contactList).toHaveBeenCalledExactlyOnceWith({
-      where: {
-        workspaceId_nameKey: {
-          workspaceId: NEWSLETTER_WORKSPACE_ID,
-          nameKey: "weekly news subscribers",
-        },
-      },
-      create: {
-        workspaceId: NEWSLETTER_WORKSPACE_ID,
-        name: "Weekly News subscribers",
-        nameKey: "weekly news subscribers",
-        color: "gray",
-      },
-      update: {},
-      select: { id: true, smartFilter: true },
-    });
-    expect(m.contactListMember).toHaveBeenCalledExactlyOnceWith({
-      data: { listId: "list-1", contactId: "contact-1" },
-      skipDuplicates: true,
-    });
-  });
-
-  it("reuses a Contact owned by the email without overwriting its name", async () => {
-    m.contactChannel.mockResolvedValue({ contactId: "existing-contact" });
-    await signup({ name: "Untrusted replacement" });
-    expect(m.contactChannel).toHaveBeenCalledWith(
-      expect.objectContaining({ update: {} }),
-    );
-    expect(m.contactListMember).toHaveBeenCalledWith({
-      data: { listId: "list-1", contactId: "existing-contact" },
-      skipDuplicates: true,
-    });
-  });
-
   it("retries a concurrent Contact insert before sending one confirmation", async () => {
-    m.contactChannel.mockRejectedValueOnce({ code: "P2002" });
+    m.contactCreateMany.mockRejectedValueOnce({ code: "P2002" });
     await signup();
     expect(m.transaction).toHaveBeenCalledTimes(2);
     expect(m.eventCreate).toHaveBeenCalledOnce();
     expect(m.send).toHaveBeenCalledOnce();
   });
 
-  it("keeps a smart-list name collision private without adding a member or sending mail", async () => {
-    m.contactList.mockResolvedValue({
-      id: "smart-list",
-      smartFilter: { stages: ["CONTACT"] },
-    });
-    await signup();
-    expect(m.contactListMember).not.toHaveBeenCalled();
-    expect(m.eventCreate).not.toHaveBeenCalled();
-    expect(m.send).not.toHaveBeenCalled();
-  });
-
   it("does not send a confirmation after an unsubscribe wins before dispatch", async () => {
-    m.subscriber
-      .mockResolvedValueOnce({
-        ...NEWSLETTER_SUBSCRIBER,
-        status: "PENDING",
-      })
-      .mockResolvedValue(null);
+    m.pending.mockResolvedValue([]);
     await signup();
+    expect(m.pending).toHaveBeenCalledWith({
+      where: {
+        newsletterId: NEWSLETTER_ID,
+        newsletter: expect.any(Object),
+        status: "PENDING",
+        unsubscribedAt: null,
+        bouncedAt: null,
+        OR: [{ id: NEWSLETTER_SUBSCRIBER.id, consentAt: NEWSLETTER_NOW }],
+      },
+      select: { id: true },
+    });
     expect(m.send).not.toHaveBeenCalled();
   });
 
@@ -273,7 +262,7 @@ describe("public newsletter signup", () => {
     expect(m.send).toHaveBeenCalledWith(expect.objectContaining({ subject }));
   });
 
-  it.each(["ACTIVE", "BOUNCED", "UNSUBSCRIBED"])(
+  it.each(["ACTIVE", "UNSUBSCRIBED", "BOUNCED"])(
     "does nothing for %s with the same acknowledgment",
     async (status) => {
       m.createMany.mockResolvedValue({ count: 0 });
@@ -282,7 +271,7 @@ describe("public newsletter signup", () => {
       expect(m.updateMany).not.toHaveBeenCalled();
       expect(m.eventCreate).not.toHaveBeenCalled();
       expect(m.send).not.toHaveBeenCalled();
-      expect(m.contactChannel).not.toHaveBeenCalled();
+      expect(m.contactCreateMany).not.toHaveBeenCalled();
     },
   );
 
@@ -311,6 +300,20 @@ describe("public newsletter signup", () => {
     expect(m.eventCreate).not.toHaveBeenCalled();
   });
 
+  it("preserves unsubscribe and confirmation history without sending another opt-in", async () => {
+    m.createMany.mockResolvedValue({ count: 0 });
+    m.subscriber.mockResolvedValue({
+      ...NEWSLETTER_SUBSCRIBER,
+      status: "UNSUBSCRIBED",
+      unsubscribedAt: NEWSLETTER_NOW,
+      confirmedAt: NEWSLETTER_NOW,
+    });
+    await signup();
+    expect(m.updateMany).not.toHaveBeenCalled();
+    expect(m.send).not.toHaveBeenCalled();
+    expect(m.eventCreate).not.toHaveBeenCalled();
+  });
+
   it.each(["unsubscribedAt", "bouncedAt"])(
     "honors retained %s even on a pending row",
     async (field) => {
@@ -325,7 +328,7 @@ describe("public newsletter signup", () => {
       expect(m.updateMany).not.toHaveBeenCalled();
       expect(m.send).not.toHaveBeenCalled();
       expect(m.eventCreate).not.toHaveBeenCalled();
-      expect(m.contactChannel).not.toHaveBeenCalled();
+      expect(m.contactCreateMany).not.toHaveBeenCalled();
     },
   );
 
@@ -380,13 +383,6 @@ describe("public newsletter signup", () => {
   it("never falls back to the product domain when newsletter sending is unconfigured", async () => {
     m.domain = undefined;
     await signup();
-    expect(m.send).not.toHaveBeenCalled();
-  });
-
-  it("returns 404 before validation when disabled", async () => {
-    m.enabled = false;
-    expect((await app().request(URL, { method: "POST" })).status).toBe(404);
-    expect(m.newsletter).not.toHaveBeenCalled();
     expect(m.send).not.toHaveBeenCalled();
   });
 

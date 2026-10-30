@@ -31,6 +31,12 @@ vi.mock("@/app/social/components/social-calendar-preview", () => ({
 
 const item: SocialPostCalendarItem = {
   kind: "socialPost",
+  quotedPostId: null,
+  needsAttentionReason: null,
+  threadPartCount: 1,
+  publishedThreadPartCount: 0,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
   revision: 4,
   provider: "x",
   id: "social:post",
@@ -54,7 +60,7 @@ const item: SocialPostCalendarItem = {
 
 function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
-  variant: "compact" | "preview" = "preview",
+  variant: "compact" | "preview" | "month" | "week" = "preview",
   showThumb = false,
   enabledProviders: readonly ProjectSocialProvider[] = SOCIAL_PUBLIC_PROVIDERS,
 ) {
@@ -78,9 +84,88 @@ function renderCard(
 }
 
 describe("Social post calendar event", () => {
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows waiting on a due quote in %s (week: %s)",
+    (variant, showThumb) => {
+      renderCard(
+        { quotedPostId: "quoted-post", waitingForQuotedPost: true },
+        variant,
+        showThumb,
+      );
+      expect(screen.getByText("Waiting for the quoted post")).toBeVisible();
+      expect(
+        screen.getByTestId("social-post-status-SCHEDULED"),
+      ).toHaveTextContent("Waiting for the quoted post");
+      expect(
+        screen.getByRole(variant === "preview" ? "link" : "button", {
+          name: /Waiting for the quoted post/,
+        }),
+      ).toBeVisible();
+    },
+  );
   beforeEach(() => {
     openPreview.current = null;
   });
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows the quote indicator beside the thread indicator in %s (week: %s)",
+    (variant, showThumb) => {
+      renderCard(
+        { quotedPostId: "quoted-post", threadPartCount: 3 },
+        variant,
+        showThumb,
+      );
+      const quote = screen.getByTestId("social-post-quote-badge");
+      const thread = screen.getByTestId("social-post-thread-count");
+      expect(quote).toHaveTextContent("Quote");
+      expect(thread).toHaveTextContent("1/3");
+      expect(thread.nextElementSibling).toBe(quote);
+      expect(screen.getByTestId("calendar-social-post")).toHaveAccessibleName(
+        /Quote/,
+      );
+    },
+  );
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows a compact part count in the %s calendar chip (week: %s)",
+    (variant, showThumb) => {
+      renderCard({ threadPartCount: 3 }, variant, showThumb);
+      const badge = screen.getByTestId("social-post-thread-count");
+      expect(badge).toHaveTextContent("1/3");
+      expect(badge).toHaveAttribute("data-slot", "badge");
+      expect(badge).toHaveClass("w-fit", "shrink-0");
+      expect(badge.parentElement).toHaveClass("flex", "items-center");
+      expect(screen.getByLabelText("Part 1 of 3")).toBeVisible();
+      if (variant === "compact") {
+        expect(screen.getByText("X post")).toBeVisible();
+      }
+    },
+  );
+
+  it("shows a warning for a partly published thread", () => {
+    renderCard({
+      status: "FAILED",
+      threadPartCount: 3,
+      publishedThreadPartCount: 1,
+      partiallyPublished: true,
+      failedThreadPartPosition: 2,
+    });
+    expect(screen.getByText("Partly posted")).toBeVisible();
+    expect(screen.getByTestId("social-post-status-FAILED")).toHaveTextContent(
+      "Partly posted",
+    );
+  });
+
   it("names the compact workspace card in one phrase", () => {
     renderCard({}, "compact");
     expect(
@@ -536,5 +621,171 @@ describe("Social post calendar event", () => {
       previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
     });
     expect(screen.queryByText("1 attachment")).not.toBeInTheDocument();
+  });
+
+  describe("Social calendar chips", () => {
+    it("draws the month chip as status, platform, time and first words", () => {
+      renderCard({}, "month");
+      const chip = screen.getByTestId("calendar-social-post");
+      expect(chip).toHaveAttribute("data-density", "month");
+      expect(chip).toHaveTextContent("12:00 PMLaunch news");
+      expect(chip).not.toHaveTextContent("Launch project");
+      // A bordered chip: a status rail and glyph lead.
+      expect(chip).toHaveClass("border");
+      expect(
+        within(chip).getByTestId("social-post-status-SCHEDULED"),
+      ).toHaveAccessibleName("Scheduled");
+      expect(
+        within(chip).getByTestId("social-post-provider-icon"),
+      ).toBeInTheDocument();
+      expect(
+        within(chip).getByTestId("calendar-social-post-rail"),
+      ).toBeInTheDocument();
+      expect(chip).toHaveAccessibleName(
+        "X · @team, 12:00 PM, Project: Launch project, Launch news, Scheduled, Scheduled by Albina, 2 attachments",
+      );
+    });
+
+    it("adds the account, project and media on the week chip", () => {
+      renderCard({ previewMedia: { fileUrl: "a.png", kind: "image" } }, "week");
+      const chip = screen.getByTestId("calendar-social-post");
+      expect(chip).toHaveTextContent("@team");
+      expect(chip).toHaveTextContent("Launch project");
+      expect(
+        within(chip).getByTestId("calendar-social-post-thumb"),
+      ).toBeInTheDocument();
+    });
+
+    it("marks a quote post on the week chip and says it on both chips", () => {
+      const { unmount } = renderCard(
+        { quotedPostId: "quoted-post", threadPartCount: 3 },
+        "week",
+      );
+      const week = screen.getByTestId("calendar-social-post");
+      const quote = within(week).getByTestId("social-post-quote-badge");
+      expect(
+        within(week).getByTestId("social-post-thread-count").nextElementSibling,
+      ).toBe(quote);
+      expect(week).toHaveAccessibleName(/Part 1 of 3, Quote/);
+      unmount();
+
+      renderCard({ quotedPostId: "quoted-post" }, "month");
+      expect(screen.getByTestId("calendar-social-post")).toHaveAccessibleName(
+        /Quote/,
+      );
+    });
+
+    it("says a due quote waits for the quoted post on the week and month chips", () => {
+      const waiting = {
+        quotedPostId: "quoted-post",
+        waitingForQuotedPost: true,
+      };
+      const { unmount } = renderCard(waiting, "week");
+      const week = screen.getByTestId("calendar-social-post");
+      expect(
+        within(week).getByTestId("social-post-status-SCHEDULED"),
+      ).toHaveTextContent("Waiting for the quoted post");
+      expect(week).toHaveAccessibleName(/Waiting for the quoted post/);
+      unmount();
+
+      renderCard(waiting, "month");
+      const month = screen.getByTestId("calendar-social-post");
+      expect(month).toHaveAccessibleName(/Waiting for the quoted post/);
+      // The one-line chip keeps to the glyph, which names the wait.
+      const glyph = within(month).getByTestId("social-post-status-SCHEDULED");
+      expect(glyph).toHaveAccessibleName("Waiting for the quoted post");
+      expect(glyph).not.toHaveTextContent("Waiting for the quoted post");
+    });
+
+    it("shows a grip and a drag hint only on posts that can move", () => {
+      const { unmount } = renderCard({ status: "SCHEDULED" }, "week");
+      const movable = screen.getByTestId("calendar-social-post");
+      expect(movable).toHaveAttribute("data-movable", "true");
+      expect(movable).toHaveAccessibleDescription(
+        "Drag to another day to reschedule.",
+      );
+      expect(
+        screen.getByTestId("calendar-social-post-grip"),
+      ).toBeInTheDocument();
+      unmount();
+
+      renderCard({ status: "PUBLISHED" }, "week");
+      expect(screen.getByTestId("calendar-social-post")).not.toHaveAttribute(
+        "data-movable",
+      );
+      expect(
+        screen.queryByTestId("calendar-social-post-grip"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("strikes a canceled post through and dashes its edge", () => {
+      const { unmount } = renderCard({ status: "CANCELED" }, "month");
+      const month = screen.getByTestId("calendar-social-post");
+      expect(month).toHaveClass("border-dashed");
+      expect(within(month).getByText("Launch news")).toHaveClass(
+        "line-through",
+      );
+      unmount();
+
+      renderCard({ status: "CANCELED" }, "week");
+      const week = screen.getByTestId("calendar-social-post");
+      expect(week).toHaveClass("border-dashed");
+      expect(within(week).getByText("Launch news")).toHaveClass("line-through");
+    });
+
+    it.each([
+      ["FAILED", "Failed"],
+      ["MISSED", "Missed"],
+      ["NEEDS_APPROVAL", "Needs approval"],
+    ] as const)(
+      "names a %s post in words on the week, and by glyph on the month",
+      (status, word) => {
+        const { unmount } = renderCard({ status }, "week");
+        expect(
+          screen.getByTestId(`social-post-status-${status}`),
+        ).toHaveTextContent(word);
+        unmount();
+
+        renderCard({ status }, "month");
+        expect(
+          screen.getByTestId(`social-post-status-${status}`),
+        ).toHaveAccessibleName(word);
+      },
+    );
+
+    it("says why a failed month chip failed on its glyph", () => {
+      renderCard(
+        {
+          status: "FAILED",
+          lastAttempt: { outcome: "failed_permanent", errorKind: "rejected" },
+        },
+        "month",
+      );
+      const chip = screen.getByTestId("calendar-social-post");
+      expect(
+        within(chip).getByTestId("social-post-status-reason"),
+      ).toHaveAccessibleDescription("The platform rejected this post.");
+    });
+
+    it("keeps a published week chip to the glyph", () => {
+      renderCard({ status: "PUBLISHED" }, "week");
+      expect(
+        screen.getByTestId("social-post-status-PUBLISHED"),
+      ).toHaveAccessibleName("Published");
+      expect(
+        screen.getByTestId("social-post-status-PUBLISHED"),
+      ).not.toHaveTextContent("Published");
+    });
+
+    it("opens the in-place preview from a chip", () => {
+      openPreview.current = vi.fn();
+      renderCard({}, "month");
+      fireEvent.click(screen.getByTestId("calendar-social-post"));
+      expect(openPreview.current).toHaveBeenCalledWith(
+        "project",
+        "post",
+        screen.getByTestId("calendar-social-post"),
+      );
+    });
   });
 });

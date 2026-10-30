@@ -172,7 +172,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
-  it("draws one 20px face in every state, so the row's mark never resizes", () => {
+  it("draws every face at 20px", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -181,14 +181,11 @@ describe("DirectRoomAvatarStack", () => {
     );
 
     // An empty direct's mark is a face like any other, and the row's own
-    // `SidebarRowSlot` is the box around it — nothing here sizes with state.
+    // `SidebarRowSlot` is the box around it.
     const emptyTokens =
       emptyContainer.firstElementChild?.className.split(" ") ?? [];
     expect(emptyTokens).toContain("size-5");
     expect(emptyTokens).toContain("shrink-0");
-    expect(emptyContainer.firstElementChild?.className).not.toContain(
-      "group-data-[collapsible=icon]:",
-    );
     unmount();
 
     const { container } = render(
@@ -197,10 +194,9 @@ describe("DirectRoomAvatarStack", () => {
 
     const face = container.querySelector('[data-slot="avatar"]');
     expect(face?.className.split(" ")).toContain("size-5");
-    expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
-  it("stacks up to three faces and keeps only the first on the rail", () => {
+  it("stacks up to three faces, the first on top", () => {
     render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({
@@ -226,13 +222,6 @@ describe("DirectRoomAvatarStack", () => {
     // one beside it.
     expect(Number(first.style.zIndex)).toBeGreaterThan(
       Number(second.style.zIndex),
-    );
-
-    // A 32px rail square cannot hold three of them, and the row's tooltip
-    // already names everyone.
-    expect(first.className).not.toContain("group-data-[collapsible=icon]:");
-    expect(second.className.split(/\s+/)).toContain(
-      "group-data-[collapsible=icon]:hidden",
     );
   });
 
@@ -263,12 +252,6 @@ describe("DirectRoomAvatarStack", () => {
     );
     expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
       "pl-0.5",
-    );
-    // Extra faces are `display: none` on the rail, so the stack is one 20px
-    // face again. Leaving the pad would centre a 22px mark and sit 1px off
-    // every 1:1 face in that column.
-    expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
-      "group-data-[collapsible=icon]:pl-0",
     );
   });
 
