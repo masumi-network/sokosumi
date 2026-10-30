@@ -421,8 +421,16 @@ The sidebar's chat area as one block under a heading that reads like Work, Recor
 _Avoid_: A rule between the nav and the chat area, Catch up floating between them
 
 **Catch up**:
-The first row of the Chats block: one entry for everything the reader missed, opening the written overview and the unread Threads. A plain Sidebar row whose one count is what waits on the reader (the needs-you pill), else the unread Threads mark, and none at zero; its accessible name states the count in words. While the Unreads filter is on, the count is hidden and Mark all as read stands beside the chip, on the Chats heading (on the phone's Chats page, which has no heading, at this row's end in the count's place).
+The first row of the Chats block: one entry for everything the reader missed, opening the written overview and the unread Threads. A plain Sidebar row whose one count is what waits on the reader (the needs-you pill), else the unread Threads mark, and none at zero; its accessible name states the count in words. While the Unreads filter is on, the count is hidden and Mark all as read stands beside the chip, on the Chats heading (on the phone's Chats page, which has no heading, at this row's end in the count's place). Its page also lists the unread rooms of the reader's other workspaces.
 _Avoid_: Inbox, a second count, the Unreads chip on this row in the sidebar
+
+**Elsewhere row**:
+A Sidebar row under Catch up for a room of another of the reader's workspaces that holds something unread, naming the room and its workspace; opening it starts a Room visit. At most five show, mentions first, except that every room naming the reader always gets one; the rest share one row that opens Catch up. Muted rooms and rooms shown in every workspace get none.
+_Avoid_: External row (External channels are something else), other-workspace row
+
+**Room visit**:
+Working in a room of another of the reader's workspaces while the active workspace stays as it is. The room works in full, and its header names the workspace it belongs to; choosing that name switches there.
+_Avoid_: Peek, chat-only workspace, switching to read
 
 **Unreads filter**:
 The chat list's switch between All and Unreads: on, it keeps only rooms with Room unread or an unread Thread, with Pinned always shown. Its switch is the Unreads chip (⌘⇧U): at the end of the Chats heading in the sidebar, at the end of the Catch up row on the phone's Chats page, which has no Chats heading. The reader's choice is remembered per browser — one value for every organisation, shared by the sidebar and the phone's Chats page — and never flips by itself: with nothing unread it stays on and the list reads All caught up.
