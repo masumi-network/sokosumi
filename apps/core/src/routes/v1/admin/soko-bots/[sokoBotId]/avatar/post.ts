@@ -42,7 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireAdminAuthContext(c.var.authContext);
     const { sokoBotId } = c.req.valid("param");
     const bot = await prisma.sokoBot.findUnique({
-      where: { id: sokoBotId },
+      where: { id: sokoBotId, deletedAt: null },
       select: { id: true },
     });
     if (!bot) throw notFound("Soko Bot not found");

@@ -11,6 +11,7 @@ import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { sokoBotTeamSchema } from "@/schemas/soko-bot.schema";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 
 const botTeamSelect = () =>
   ({
@@ -54,6 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: botTeamSelect(),
       },
     } as const;
+    const { disabled: availabilityDisabled } = await getSokoBotAvailability();
     const mapBotForTeam = (
       bot: Parameters<typeof avatarFields>[0] & {
         id: string;
@@ -68,7 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             id: bot.id,
             name: bot.name,
             avatarImageUrl: bot.avatarImageUrl,
-            ...avatarFields(bot),
+            ...avatarFields({ ...bot, availabilityDisabled }),
             avatarSeed: bot.avatarSeed,
             status: bot.status,
             lastActivityAt: bot.lastActivityAt,

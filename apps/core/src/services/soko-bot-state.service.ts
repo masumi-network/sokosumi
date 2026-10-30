@@ -13,6 +13,7 @@ import {
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
 import { type AvatarState } from "@/lib/soko-bot-avatar/style";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import {
   ACTIVE_TURN_STATUSES,
   FOREGROUND_TURN,
@@ -92,6 +93,7 @@ export async function getSokoBotActivity(
       orderBy: { createdAt: "desc" },
       select: { status: true, completedAt: true },
     }));
+  const { disabled: availabilityDisabled } = await getSokoBotAvailability();
   return {
     status: bot.status,
     activeTurnId: activeTurn?.id ?? null,
@@ -100,6 +102,7 @@ export async function getSokoBotActivity(
       status: bot.status,
       archivedAt: bot.archivedAt,
       adminPausedAt: bot.adminPausedAt,
+      availabilityDisabled,
       latestTurn,
       hasOpenDecision: bot.pendingDecisions.length > 0,
     }),
@@ -135,9 +138,10 @@ export async function getSokoBotState(
   if (!bot) return null;
   const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
   const { turns: _turns, avatar: avatarRow, ...rest } = bot;
+  const { disabled: availabilityDisabled } = await getSokoBotAvailability();
   return {
     ...rest,
-    ...avatarFields({ ...bot, avatar: avatarRow }),
+    ...avatarFields({ ...bot, avatar: avatarRow, availabilityDisabled }),
     memoryHash: memoryRevisions[0]?.hash ?? bot.memoryHash,
     memoryRevisions,
     viewerCanManage: await canManageSokoBot(viewerUserId, bot),
@@ -183,6 +187,7 @@ export async function listSharedSokoBots(
   const viewerCanManage = first
     ? await canManageSokoBot(viewerUserId, first)
     : false;
+  const { disabled: availabilityDisabled } = await getSokoBotAvailability();
   return bots.map((bot) => {
     const {
       userId: _userId,
@@ -195,7 +200,7 @@ export async function listSharedSokoBots(
     } = bot;
     return {
       ...rest,
-      ...avatarFields(bot),
+      ...avatarFields({ ...bot, availabilityDisabled }),
       scope:
         bot.projectId === null ? ("workspace" as const) : ("project" as const),
       viewerCanManage,
@@ -209,7 +214,7 @@ export async function listSharedSokoBots(
  */
 export async function getSokoBotAvatarFields(
   sokoBotId: string,
-  availabilityDisabled = false,
+  availabilityDisabled?: boolean,
 ) {
   const bot = await prisma.sokoBot.findUnique({
     where: { id: sokoBotId },
@@ -221,5 +226,8 @@ export async function getSokoBotAvatarFields(
       ...avatarStateRelations(),
     },
   });
-  return bot ? avatarFields({ ...bot, availabilityDisabled }) : {};
+  if (!bot) return {};
+  const disabled =
+    availabilityDisabled ?? (await getSokoBotAvailability()).disabled;
+  return avatarFields({ ...bot, availabilityDisabled: disabled });
 }
