@@ -40,7 +40,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
             className={cn(
               "min-w-0 rounded-lg px-3 py-2.5",
               index === 0
-                ? "bg-primary-quinary text-foreground"
+                ? "bg-muted text-foreground"
                 : "bg-card-background text-foreground",
             )}
           >
@@ -90,7 +90,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
                     width={barWidth}
                     height={background}
                     rx={1}
-                    className="fill-primary-tertiary"
+                    className="fill-quaternary"
                   />
                   <rect
                     x={x}
@@ -113,7 +113,7 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
             </span>
             <span className="flex items-center gap-3">
               <Legend className="bg-primary" label={t("messages")} />
-              <Legend className="bg-primary-tertiary" label={t("background")} />
+              <Legend className="bg-quaternary" label={t("background")} />
             </span>
             <span>{t("today")}</span>
           </div>

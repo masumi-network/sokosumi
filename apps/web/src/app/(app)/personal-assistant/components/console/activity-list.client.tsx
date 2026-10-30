@@ -51,10 +51,7 @@ function ActivityRow({
   const when = format.relativeTime(new Date(turn.createdAt), new Date());
 
   return (
-    <li
-      id={`turn-${turn.id}`}
-      className={cn(highlighted && "bg-primary-quinary")}
-    >
+    <li id={`turn-${turn.id}`} className={cn(highlighted && "bg-muted")}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

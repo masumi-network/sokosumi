@@ -69,17 +69,14 @@ the token, not at the call site:
 
 | Token | Role |
 | --- | --- |
-| `--overlay` | scrim behind a dialog, or under the mobile chrome; always with a backdrop blur |
+| `--overlay` | the Alpha 50 scrim behind a dialog or sheet |
 | `--overlay-primary` | drop-target wash over content that must stay readable |
-| `--surface-glass` | floating chip or control over content |
-| `--surface-sticky` | header that sits on the page |
 | `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
 | `--on-media`, `--on-media-muted` | label riding on a scrim |
 | `--on-media-tertiary` | hairline, ring or border drawn on media |
 | `--on-media-quaternary` | hover wash under a control on media |
 | `--media-ground` | the opaque ground behind media, and ink on light media |
 | `--background-muted` | quieter label on an inverted (`bg-foreground`) surface |
-| `--ring-halo`, `--destructive-halo` | transparent: the guide bans glow (5.5); deleted with their call sites |
 
 The `on-media` family is the one place a name has tripped people up. `-muted`
 is a *label*, at 85% white. The hairline and the wash are `-tertiary` and
@@ -161,7 +158,7 @@ pickers are data, not UI color. Those keep their literals.
 ### Guard
 
 `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails the build on
-six things. Each is its own test case, and a call-site failure prints the
+eight things. Each is its own test case, and a call-site failure prints the
 file, the line number, and the offending line:
 
 1. A raw Tailwind palette class on any colour utility, `ring-offset` included.
@@ -173,6 +170,10 @@ file, the line number, and the offending line:
 5. A token defined in one theme block but not the other.
 6. A fill-only status colour (`semantic-success`, `semantic-warning`,
    `status-working`, `risk-high`) used as text or an edge.
+7. A `backdrop-blur` or `blur-*` utility anywhere in `src`. The guide bans glow
+   and blur (5.5); an overlay is the `--overlay` scrim, nothing more.
+8. The primary (`text-`, `border-`, `ring-`, `fill-`, `stroke-`, `decoration-`,
+   `outline-` and kin) as text or an edge. Iris Flower is a fill only.
 
 A hex counts only when it is quote-delimited or sits inside an arbitrary
 Tailwind value, so an issue number in a comment is not a color. The allowlist

@@ -62,12 +62,7 @@ export function DecisionCard({
   }
 
   return (
-    <div
-      className={cn(
-        "bg-card w-full max-w-xl rounded-lg border",
-        pending ? "border-primary-tertiary" : "border-border",
-      )}
-    >
+    <div className="bg-card border-border w-full max-w-xl rounded-lg border">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
         <p className="text-sm font-medium">
           {pending ? t("heading") : t("headingResolved")}

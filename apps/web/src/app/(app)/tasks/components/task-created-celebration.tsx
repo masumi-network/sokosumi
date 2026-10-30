@@ -56,7 +56,7 @@ const STATUS_CARD_STYLES: Record<
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {
-    badge: "bg-primary-quinary text-foreground",
+    badge: "bg-muted text-foreground",
     dot: CELEBRATION_SCHEDULED_DOT,
   },
 };
@@ -148,7 +148,7 @@ export function TaskCreatedCelebration({
                     {reduceMotion ? null : (
                       <motion.span
                         aria-hidden
-                        className="ring-ring-halo pointer-events-none absolute inset-0 rounded-lg ring-2"
+                        className="ring-border pointer-events-none absolute inset-0 rounded-lg ring-2"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: [0, 1, 0] }}
                         transition={{ duration: 0.9, delay: 0.3 }}
@@ -157,7 +157,7 @@ export function TaskCreatedCelebration({
                     {/* Status pop */}
                     <motion.span
                       aria-hidden
-                      className="bg-primary-solid text-primary-solid-foreground absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full shadow-sm"
+                      className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full shadow-sm"
                       initial={reduceMotion ? false : { scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={

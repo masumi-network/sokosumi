@@ -118,7 +118,7 @@ export function ContactListDialog({
                     )}
                   >
                     {color === option ? (
-                      <Check className="text-primary-solid-foreground size-3" />
+                      <Check className="text-primary-foreground size-3" />
                     ) : null}
                   </span>
                 </label>

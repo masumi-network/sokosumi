@@ -49,8 +49,6 @@
   --color-card-background-hover: var(--card-background-hover);
   --color-overlay: var(--overlay);
   --color-overlay-primary: var(--overlay-primary);
-  --color-surface-glass: var(--surface-glass);
-  --color-surface-sticky: var(--surface-sticky);
   --color-scrim: var(--scrim);
   --color-scrim-soft: var(--scrim-soft);
   --color-scrim-strong: var(--scrim-strong);
@@ -63,15 +61,8 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
-  --color-primary-variant: var(--primary-variant);
-  --color-primary-tertiary: var(--primary-tertiary);
-  --color-primary-quaternary: var(--primary-quaternary);
-  --color-primary-quinary: var(--primary-quinary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-solid: var(--primary-solid);
-  --color-primary-solid-foreground: var(--primary-solid-foreground);
-  --color-primary-solid-hover: var(--primary-solid-hover);
-  --color-primary-iris: var(--primary-iris);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-tertiary: var(--tertiary);
@@ -91,11 +82,8 @@
   --color-input: var(--input);
   --color-control-border: var(--control-border);
   --color-ring: var(--ring);
-  --color-ring-halo: var(--ring-halo);
-  --color-primary-hover: var(--primary-hover);
   --color-secondary-hover: var(--secondary-hover);
   --color-destructive-hover: var(--destructive-hover);
-  --color-destructive-halo: var(--destructive-halo);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -108,6 +96,8 @@
   --color-chart-5-quinary: var(--chart-5-quinary);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
@@ -274,7 +264,8 @@
    Each value is a guide step named in its comment; the chart tints say how
    they are derived. Iris Flower #FF51FF is the one primary and carries
    Neutral 950 text (7.33:1; white is 2.67:1). It is a fill, never text, an
-   edge or a thin mark on the page.
+   edge or a thin mark on the page. Dark rests on Dark Iris #D141D1
+   (Proposed, 5:1 under Neutral 950) and hovers to Iris Flower.
 
    Two light and three dark values leave the guide's role table to meet its
    own AA floor (5.11); `token-contrast.test.ts` holds each pair:
@@ -291,9 +282,9 @@
    ramps carry no tint or label step: chips and tints are the neutral roles,
    and `src-walk-guards.test.ts` fails on a fill colour used as text.
 
-   No glow (5.5): the focus halo is transparent. The only translucent
-   values are the guide's alpha tones, black at (100 - N)% for Alpha N, and
-   the white on-media steps over user media. */
+   No glow or blur (5.5). The only translucent values are the guide's alpha
+   tones, black at (100 - N)% for Alpha N, and the white on-media steps over
+   user media. */
 :root {
   --radius: 0.625rem;
   --background: #ffffff; /* White */
@@ -304,8 +295,6 @@
   --card-background-hover: #e5e5e5; /* Neutral 200 */
   --overlay: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --overlay-primary: rgb(0 0 0 / 0.1); /* Alpha 90 */
-  --surface-glass: #ffffff; /* White */
-  --surface-sticky: #ffffff; /* White */
   /* The scrims and on-media steps sit over user media, not the page, so they
      hold the same value in both themes. */
   --scrim-soft: rgb(0 0 0 / 0.3); /* Alpha 70 */
@@ -321,16 +310,9 @@
   --popover: #ffffff; /* White */
   --popover-foreground: #171717; /* Neutral 900 */
   --primary: #ff51ff; /* Iris Flower */
-  --primary-variant: #ff51ff; /* Iris Flower */
-  --primary-tertiary: #d4d4d4; /* Neutral 300 */
-  --primary-quaternary: #e5e5e5; /* Neutral 200 */
-  --primary-quinary: #f5f5f5; /* Neutral 100 */
   --primary-foreground: #0c0c0c; /* Neutral 950 */
-  --primary-solid: #ff51ff; /* Iris Flower */
-  --primary-solid-foreground: #0c0c0c; /* Neutral 950 */
+  --primary-hover: #ff51ff; /* Iris Flower */
   /* No hover pink: a primary keeps its fill and answers with the press. */
-  --primary-solid-hover: #ff51ff; /* Iris Flower */
-  --primary-iris: #ff51ff; /* Iris Flower */
   --secondary: #0c0c0c; /* Neutral 950 */
   --secondary-foreground: #fafafa; /* Neutral 50 */
   --tertiary: #a3a3a3; /* Neutral 400 */
@@ -353,11 +335,8 @@
      measures. */
   --control-border: #d4d4d4; /* Neutral 300 */
   --ring: #0c0c0c; /* Neutral 950 */
-  --ring-halo: transparent;
-  --primary-hover: #ff51ff; /* Iris Flower */
   --secondary-hover: #262626; /* Neutral 800 */
   --destructive-hover: #262626; /* Neutral 800 */
-  --destructive-halo: transparent;
   /* Category palette, Proposed until guide 6.6 sets chart rules. Each
      -quinary is its base at .09 over the page, frozen. */
   --chart-1: #ff51ff; /* Iris Flower */
@@ -372,6 +351,8 @@
   --chart-5-quinary: #f2f2f2;
   --sidebar: #f5f5f5; /* Neutral 100 */
   --sidebar-foreground: #171717; /* Neutral 900 */
+  --sidebar-primary: #ff51ff; /* Iris Flower */
+  --sidebar-primary-foreground: #0c0c0c; /* Neutral 950 */
   --sidebar-accent: #e5e5e5; /* Neutral 200 */
   --sidebar-accent-foreground: #171717; /* Neutral 900 */
   --sidebar-border: #e5e5e5; /* Neutral 200 */
@@ -412,8 +393,6 @@
   --card-background-hover: #262626; /* Neutral 800 */
   --overlay: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --overlay-primary: rgb(0 0 0 / 0.1); /* Alpha 90 */
-  --surface-glass: #0c0c0c; /* Neutral 950 */
-  --surface-sticky: #0c0c0c; /* Neutral 950 */
   --scrim-soft: rgb(0 0 0 / 0.3); /* Alpha 70 */
   --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
@@ -425,16 +404,11 @@
   --background-muted: #525252; /* Neutral 600 */
   --popover: #0c0c0c; /* Neutral 950 */
   --popover-foreground: #fafafa; /* Neutral 50 */
-  --primary: #ff51ff; /* Iris Flower */
-  --primary-variant: #ff51ff; /* Iris Flower */
-  --primary-tertiary: #404040; /* Neutral 700 */
-  --primary-quaternary: #262626; /* Neutral 800 */
-  --primary-quinary: #171717; /* Neutral 900 */
+  /* Dark Iris (Proposed, off-guide): Iris Flower reads three times louder
+     on Neutral 950, so dark rests on this and hover lifts to full Iris. */
+  --primary: #d141d1; /* Dark Iris */
   --primary-foreground: #0c0c0c; /* Neutral 950 */
-  --primary-solid: #ff51ff; /* Iris Flower */
-  --primary-solid-foreground: #0c0c0c; /* Neutral 950 */
-  --primary-solid-hover: #ff51ff; /* Iris Flower */
-  --primary-iris: #ff51ff; /* Iris Flower */
+  --primary-hover: #ff51ff; /* Iris Flower */
   --secondary: #fafafa; /* Neutral 50 */
   --secondary-foreground: #0c0c0c; /* Neutral 950 */
   --tertiary: #525252; /* Neutral 600 */
@@ -454,11 +428,8 @@
   --input: #737373; /* Neutral 500 */
   --control-border: #404040; /* Neutral 700 */
   --ring: #fafafa; /* Neutral 50 */
-  --ring-halo: transparent;
-  --primary-hover: #ff51ff; /* Iris Flower */
   --secondary-hover: #e5e5e5; /* Neutral 200 */
   --destructive-hover: #e5e5e5; /* Neutral 200 */
-  --destructive-halo: transparent;
 
   --chart-1: #ff51ff; /* Iris Flower */
   --chart-2: #ff6400; /* Persimmon */
@@ -472,6 +443,8 @@
   --chart-5-quinary: #1a1a1a;
   --sidebar: #171717; /* Neutral 900 */
   --sidebar-foreground: #fafafa; /* Neutral 50 */
+  --sidebar-primary: #d141d1; /* Dark Iris */
+  --sidebar-primary-foreground: #0c0c0c; /* Neutral 950 */
   --sidebar-accent: #262626; /* Neutral 800 */
   --sidebar-accent-foreground: #fafafa; /* Neutral 50 */
   --sidebar-border: #262626; /* Neutral 800 */
@@ -493,7 +466,7 @@
   --risk-high: #ffd300; /* Golden Yellow */
   --risk-high-foreground: #0c0c0c; /* Neutral 950 */
 
-  --status-working: #ff51ff; /* Iris Flower */
+  --status-working: #d141d1; /* Dark Iris */
   --status-external: #fafafa; /* Neutral 50 */
   --status-done: #a3a3a3; /* Neutral 400 */
 }
@@ -603,7 +576,7 @@
   --fc-classic-faint: var(--muted);
   --fc-classic-muted-foreground: var(--muted-foreground);
   --fc-classic-background: var(--card-background);
-  --fc-classic-today: var(--primary-quinary);
+  --fc-classic-today: var(--muted);
 }
 
 /*
@@ -834,22 +807,6 @@ time {
   }
 }
 
-/* Frosted chrome goes solid for people who ask for less transparency. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-slot="dialog-overlay"],
-  [data-slot="sheet-overlay"],
-  [data-chrome="glass"] {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) and (max-width: 767.98px) {
-  [data-chrome="glass"] {
-    background-color: var(--background);
-  }
-}
-
 @utility agent-card-roll-up {
   animation: var(--animate-roll-down);
 
@@ -933,15 +890,13 @@ time {
      the mark when it ends. */
   --chat-jump-leave: 320ms;
   --chat-jump-dim-opacity: 0.5;
-  --chat-jump-dim-blur: 1.5px;
 }
 
-/* Dark needs more of both: pulling opacity down on a dark ground takes far
-   less contrast out of the text than the same drop does on white, so the same
-   numbers read as almost no change. */
+/* Dark needs more: pulling opacity down on a dark ground takes far less
+   contrast out of the text than the same drop does on white, so the same
+   number reads as almost no change. */
 .dark [data-chat-message-list] {
   --chat-jump-dim-opacity: 0.36;
-  --chat-jump-dim-blur: 2.5px;
 }
 
 [data-message-id][data-search-landed] {
@@ -1046,24 +1001,18 @@ time {
   }
 }
 
-/* Blur carries the step-back where opacity alone is weak. It reads as depth
-   rather than as faded text, so the marked row stands out in either theme. */
 @keyframes chat-jump-dim {
   0% {
     opacity: 1;
-    filter: blur(0);
   }
   10% {
     opacity: var(--chat-jump-dim-opacity);
-    filter: blur(var(--chat-jump-dim-blur));
   }
   76% {
     opacity: var(--chat-jump-dim-opacity);
-    filter: blur(var(--chat-jump-dim-blur));
   }
   100% {
     opacity: 1;
-    filter: blur(0);
   }
 }
 
@@ -1079,11 +1028,9 @@ time {
 @keyframes chat-jump-undim {
   from {
     opacity: var(--chat-jump-dim-opacity);
-    filter: blur(var(--chat-jump-dim-blur));
   }
   to {
     opacity: 1;
-    filter: blur(0);
   }
 }
 

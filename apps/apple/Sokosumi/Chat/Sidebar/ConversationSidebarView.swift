@@ -352,7 +352,7 @@ struct ConversationSidebarView: View {
   }
 
   /// Web's Unreads toggle (`ChatUnreadNavRows`): a mode, not a place, so it is a button and never the List's
-  /// selection. On, it takes the accent tint web gives what is on. Mark all as read stands at its trailing edge
+  /// selection. On, it takes the neutral fill web gives what is on. Mark all as read stands at its trailing edge
   /// while the filter lists anything a read would still change.
   private func unreadsRow(_ filter: UnreadsFilterList?) -> some View {
     let isOn = filter != nil
@@ -385,7 +385,7 @@ struct ConversationSidebarView: View {
     }
     // No `listRowInsets`: the List ignores them on its badged rows (the Threads and room rows above and below) and
     // honours them here, which would push this row off the column they share.
-    .listRowBackground(isOn ? RoundedRectangle(cornerRadius: 6).fill(.tint.opacity(0.15)).padding(.horizontal, 10) : nil)
+    .listRowBackground(isOn ? RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.1)).padding(.horizontal, 10) : nil)
     .selectionDisabled()
   }
 
@@ -400,7 +400,7 @@ struct ConversationSidebarView: View {
           .controlSize(.mini)
       } else {
         Image(systemName: "checkmark.circle")
-          .foregroundStyle(.tint)
+          .foregroundStyle(.primary)
       }
     }
     .buttonStyle(.borderless)
@@ -877,13 +877,11 @@ struct ConversationSidebarView: View {
 }
 
 private extension SidebarEmphasis {
-  /// A label's colour: muted at rest, the accent tint while a mode is on, full strength otherwise. Weight stays with
-  /// each row type.
+  /// A label's colour: muted at rest, full strength otherwise. Weight stays with each row type.
   var textStyle: AnyShapeStyle {
     switch self {
     case .atRest: AnyShapeStyle(.secondary)
-    case .active: AnyShapeStyle(.tint)
-    case .attention, .normal: AnyShapeStyle(.primary)
+    case .active, .attention, .normal: AnyShapeStyle(.primary)
     }
   }
 }

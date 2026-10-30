@@ -4,7 +4,6 @@ import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { mobileChromeSurfaceClass } from "@/app/components/mobile-chrome-surface";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSession } from "@/lib/auth/auth.client";
@@ -82,8 +81,7 @@ export function ChatMobileBottomNav({
     <nav
       aria-label={t("ariaLabel")}
       className={cn(
-        "z-40 md:hidden",
-        mobileChromeSurfaceClass(isApple),
+        "bg-background z-40 md:hidden",
         isApple
           ? "fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-full border border-border shadow-lg shadow-scrim-soft dark:shadow-scrim"
           : "border-border fixed inset-x-0 bottom-0 border-t pb-[env(safe-area-inset-bottom)]",

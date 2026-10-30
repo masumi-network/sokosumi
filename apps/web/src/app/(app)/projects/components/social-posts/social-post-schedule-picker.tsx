@@ -398,7 +398,7 @@ export function SocialPostSchedulePicker({
                   aria-selected={isSelected}
                   className={cn(
                     "hover:bg-muted focus-visible:ring-ring rounded-md px-2 py-1.5 text-start text-sm tabular-nums outline-none focus-visible:ring-2",
-                    isSelected && "bg-primary-quinary font-medium",
+                    isSelected && "bg-muted font-medium",
                     tooSoon &&
                       "text-muted-foreground pointer-events-none opacity-50",
                   )}

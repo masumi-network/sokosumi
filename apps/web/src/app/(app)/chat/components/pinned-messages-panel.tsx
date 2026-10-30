@@ -286,7 +286,7 @@ export function PinnedMessagesPanel({
                   className={cn(
                     "pointer-events-none relative z-[1] mt-1 line-clamp-6 text-sm [&_:is(a,button,input:enabled,select,textarea,summary,audio,video,[role=button],[tabindex],[data-slot=hover-card-trigger],pre,.overflow-x-auto)]:pointer-events-auto",
                     quoteOnly &&
-                      "border-primary-tertiary text-muted-foreground border-l-2 pl-2.5",
+                      "border-border text-muted-foreground border-l-2 pl-2.5",
                   )}
                 >
                   <ChannelMessageText
