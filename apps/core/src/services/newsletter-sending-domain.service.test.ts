@@ -5,7 +5,6 @@ import { CloudflareApiError } from "@/clients/cloudflare-dns.client";
 
 import {
   assertNewsletterSenderConfigured,
-  canManageNewsletterSendingDomain,
   checkNewsletterSendingDomain,
   connectNewsletterSendingDomainWithCloudflare,
   getNewsletterSendingDomain,
@@ -17,7 +16,7 @@ import {
   resumeNewsletterSendingDomainWarmup,
 } from "./newsletter-sending-domain.service";
 
-const WORKSPACE_ID = "019a0000-0000-7000-8000-000000000001";
+const PROJECT_ID = "019a0000-0000-7000-8000-000000000001";
 const TOKEN = "cf-secret-token-0123456789abcdef";
 const { privateKey } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
@@ -32,7 +31,6 @@ const m = vi.hoisted(() => ({
   updateMany: vi.fn(),
   transaction: vi.fn(),
   deleteMany: vi.fn(),
-  memberFindFirst: vi.fn(),
   createDomain: vi.fn(),
   getDomain: vi.fn(),
   verifyDomain: vi.fn(),
@@ -57,7 +55,6 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: m.updateMany,
       deleteMany: m.deleteMany,
     },
-    member: { findFirst: m.memberFindFirst },
     $transaction: m.transaction,
   },
 }));
@@ -144,7 +141,7 @@ const STORED_RECORDS = [
 const NOW = new Date("2026-10-27T12:00:00Z");
 const ROW = {
   id: "019a0000-0000-7000-8000-000000000002",
-  workspaceId: WORKSPACE_ID,
+  projectId: PROJECT_ID,
   domain: "brand.example",
   fromAddress: "news@brand.example",
   resendDomainId: "resend_domain_1",
@@ -193,6 +190,7 @@ beforeEach(() => {
     createDnsRecord: m.createDnsRecord,
   });
   m.createDnsRecord.mockResolvedValue(true);
+  m.removeDomain.mockResolvedValue(undefined);
   m.hasDmarc.mockResolvedValue(true);
 });
 
@@ -206,50 +204,6 @@ const DMARC_SUGGESTION = {
   status: "not_found",
 };
 
-describe("canManageNewsletterSendingDomain", () => {
-  const ORG_WORKSPACE = {
-    workspaceId: WORKSPACE_ID,
-    userId: null,
-    organizationId: "org_1",
-  };
-
-  it.each([
-    ["owner", true],
-    ["admin", true],
-    ["member", false],
-  ])("lets an organization %s manage: %s", async (role, allowed) => {
-    m.memberFindFirst.mockResolvedValue({ role });
-    await expect(
-      canManageNewsletterSendingDomain("user_1", ORG_WORKSPACE),
-    ).resolves.toBe(allowed);
-    expect(m.memberFindFirst).toHaveBeenCalledWith({
-      where: {
-        userId: "user_1",
-        organization: { workspace: { id: WORKSPACE_ID } },
-      },
-      select: { role: true },
-    });
-  });
-
-  it("refuses a non-member and allows only a personal workspace's owner", async () => {
-    m.memberFindFirst.mockResolvedValue(null);
-    await expect(
-      canManageNewsletterSendingDomain("user_1", ORG_WORKSPACE),
-    ).resolves.toBe(false);
-    const personal = {
-      workspaceId: WORKSPACE_ID,
-      userId: "user_1",
-      organizationId: null,
-    };
-    await expect(
-      canManageNewsletterSendingDomain("user_1", personal),
-    ).resolves.toBe(true);
-    await expect(
-      canManageNewsletterSendingDomain("user_2", personal),
-    ).resolves.toBe(false);
-  });
-});
-
 describe("putNewsletterSendingDomain", () => {
   it("registers a new domain with Resend and stores its records", async () => {
     m.findUnique.mockResolvedValue(null);
@@ -260,14 +214,17 @@ describe("putNewsletterSendingDomain", () => {
     });
 
     const domain = await putNewsletterSendingDomain(
-      WORKSPACE_ID,
+      PROJECT_ID,
       "News@Brand.Example",
     );
 
+    expect(m.findUnique).toHaveBeenNthCalledWith(1, {
+      where: { projectId: PROJECT_ID },
+    });
     expect(m.createDomain).toHaveBeenCalledWith("brand.example");
     expect(m.create).toHaveBeenCalledWith({
       data: {
-        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
         domain: "brand.example",
         fromAddress: "News@brand.example",
         resendDomainId: "resend_domain_1",
@@ -287,7 +244,7 @@ describe("putNewsletterSendingDomain", () => {
       status: "not_started",
       records: RESEND_RECORDS,
     });
-    await putNewsletterSendingDomain(WORKSPACE_ID, "news@brand.example");
+    await putNewsletterSendingDomain(PROJECT_ID, "news@brand.example");
     expect(m.hasDmarc).toHaveBeenCalledWith("brand.example");
     expect(m.create.mock.calls[0]![0].data.dnsRecords).toEqual([
       ...STORED_RECORDS,
@@ -296,7 +253,7 @@ describe("putNewsletterSendingDomain", () => {
   });
 
   it("only changes the address for the same domain", async () => {
-    await putNewsletterSendingDomain(WORKSPACE_ID, "hello@brand.example");
+    await putNewsletterSendingDomain(PROJECT_ID, "hello@brand.example");
     expect(m.createDomain).not.toHaveBeenCalled();
     expect(m.update).toHaveBeenCalledWith({
       where: { id: ROW.id },
@@ -304,18 +261,36 @@ describe("putNewsletterSendingDomain", () => {
     });
   });
 
-  it("refuses a second domain and a domain another workspace holds", async () => {
+  it("refuses a second domain and a domain another project holds", async () => {
     await expect(
-      putNewsletterSendingDomain(WORKSPACE_ID, "news@other.example"),
+      putNewsletterSendingDomain(PROJECT_ID, "news@other.example"),
     ).rejects.toMatchObject({ status: 409 });
 
     m.findUnique
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: "other" });
     await expect(
-      putNewsletterSendingDomain(WORKSPACE_ID, "news@brand.example"),
+      putNewsletterSendingDomain(PROJECT_ID, "news@brand.example"),
     ).rejects.toMatchObject({ status: 409 });
     expect(m.createDomain).not.toHaveBeenCalled();
+  });
+
+  it("maps a concurrent project or domain claim to a conflict and cleans up Resend", async () => {
+    m.findUnique.mockResolvedValue(null);
+    m.createDomain.mockResolvedValue({
+      id: "resend_domain_2",
+      status: "not_started",
+      records: [],
+    });
+    m.create.mockRejectedValue({ code: "P2002" });
+
+    await expect(
+      putNewsletterSendingDomain(PROJECT_ID, "news@brand.example"),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "This project or domain already has a sending domain",
+    });
+    expect(m.removeDomain).toHaveBeenCalledWith("resend_domain_2");
   });
 
   it("reports a Resend refusal and removes a domain no row could keep", async () => {
@@ -324,7 +299,7 @@ describe("putNewsletterSendingDomain", () => {
       Object.assign(new Error("The domain is invalid"), { statusCode: 422 }),
     );
     await expect(
-      putNewsletterSendingDomain(WORKSPACE_ID, "news@brand.example"),
+      putNewsletterSendingDomain(PROJECT_ID, "news@brand.example"),
     ).rejects.toMatchObject({ status: 422 });
 
     m.createDomain.mockResolvedValue({
@@ -335,7 +310,7 @@ describe("putNewsletterSendingDomain", () => {
     m.create.mockRejectedValue(new Error("database down"));
     m.removeDomain.mockResolvedValue(undefined);
     await expect(
-      putNewsletterSendingDomain(WORKSPACE_ID, "news@brand.example"),
+      putNewsletterSendingDomain(PROJECT_ID, "news@brand.example"),
     ).rejects.toThrow("database down");
     expect(m.removeDomain).toHaveBeenCalledWith("resend_domain_2");
   });
@@ -343,7 +318,7 @@ describe("putNewsletterSendingDomain", () => {
 
 describe("checking", () => {
   it("asks Resend to verify, then stores status, records and lastCheckedAt", async () => {
-    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    const domain = await checkNewsletterSendingDomain(PROJECT_ID);
 
     expect(m.verifyDomain).toHaveBeenCalledWith(ROW.resendDomainId);
     expect(m.update).toHaveBeenCalledWith({
@@ -355,6 +330,9 @@ describe("checking", () => {
       }),
     });
     expect(domain.status).toBe("VERIFIED");
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
+    });
   });
 
   it("checks off the DMARC suggestion once the policy is published", async () => {
@@ -362,7 +340,7 @@ describe("checking", () => {
       ...ROW,
       dnsRecords: [...STORED_RECORDS, DMARC_SUGGESTION],
     });
-    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    const domain = await checkNewsletterSendingDomain(PROJECT_ID);
     expect(domain.dnsRecords).toContainEqual({
       ...DMARC_SUGGESTION,
       status: "verified",
@@ -374,7 +352,7 @@ describe("checking", () => {
       status: "failed",
       records: [{ ...RESEND_RECORDS[0], status: "failed" }],
     });
-    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    const domain = await checkNewsletterSendingDomain(PROJECT_ID);
     expect(domain.status).toBe("FAILED");
     expect(domain.failureReason).toContain("resend._domainkey.brand.example");
   });
@@ -382,7 +360,7 @@ describe("checking", () => {
   it("404s without a domain", async () => {
     m.findUnique.mockResolvedValue(null);
     await expect(
-      checkNewsletterSendingDomain(WORKSPACE_ID),
+      checkNewsletterSendingDomain(PROJECT_ID),
     ).rejects.toMatchObject({ status: 404 });
   });
 
@@ -391,7 +369,7 @@ describe("checking", () => {
       ...ROW,
       lastCheckedAt: new Date(NOW.getTime() - 120_000),
     });
-    expect((await getNewsletterSendingDomain(WORKSPACE_ID))?.status).toBe(
+    expect((await getNewsletterSendingDomain(PROJECT_ID))?.status).toBe(
       "VERIFIED",
     );
     expect(m.verifyDomain).not.toHaveBeenCalled();
@@ -399,27 +377,30 @@ describe("checking", () => {
   });
 
   it("does not re-read a fresh or verified domain, and survives a Resend outage", async () => {
-    await getNewsletterSendingDomain(WORKSPACE_ID);
+    await getNewsletterSendingDomain(PROJECT_ID);
     m.findUnique.mockResolvedValue({
       ...ROW,
       status: "VERIFIED",
       lastCheckedAt: null,
     });
-    await getNewsletterSendingDomain(WORKSPACE_ID);
+    await getNewsletterSendingDomain(PROJECT_ID);
     expect(m.getDomain).not.toHaveBeenCalled();
 
     const stale = { ...ROW, lastCheckedAt: null };
     m.findUnique.mockResolvedValue(stale);
     m.getDomain.mockRejectedValue(new Error("Resend down"));
-    await expect(
-      getNewsletterSendingDomain(WORKSPACE_ID),
-    ).resolves.toMatchObject(stale);
+    await expect(getNewsletterSendingDomain(PROJECT_ID)).resolves.toMatchObject(
+      stale,
+    );
   });
 });
 
 describe("removeNewsletterSendingDomain", () => {
   it("removes the domain in Resend, then the row", async () => {
-    await removeNewsletterSendingDomain(WORKSPACE_ID);
+    await removeNewsletterSendingDomain(PROJECT_ID);
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
+    });
     expect(m.removeDomain).toHaveBeenCalledWith(ROW.resendDomainId);
     expect(m.deleteMany).toHaveBeenCalledWith({ where: { id: ROW.id } });
   });
@@ -428,7 +409,7 @@ describe("removeNewsletterSendingDomain", () => {
     m.removeDomain.mockRejectedValue(
       Object.assign(new Error("Domain not found"), { statusCode: 404 }),
     );
-    await removeNewsletterSendingDomain(WORKSPACE_ID);
+    await removeNewsletterSendingDomain(PROJECT_ID);
     expect(m.deleteMany).toHaveBeenCalled();
   });
 
@@ -437,7 +418,7 @@ describe("removeNewsletterSendingDomain", () => {
       Object.assign(new Error("Internal"), { statusCode: 500 }),
     );
     await expect(
-      removeNewsletterSendingDomain(WORKSPACE_ID),
+      removeNewsletterSendingDomain(PROJECT_ID),
     ).rejects.toMatchObject({ status: 502 });
     expect(m.deleteMany).not.toHaveBeenCalled();
   });
@@ -448,10 +429,13 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
     m.listZones.mockResolvedValue([{ id: "zone_1", name: "brand.example" }]);
 
     const domain = await connectNewsletterSendingDomainWithCloudflare(
-      WORKSPACE_ID,
+      PROJECT_ID,
       TOKEN,
     );
 
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
+    });
     expect(m.cloudflareFactory).toHaveBeenCalledWith(TOKEN);
     expect(m.listZones).toHaveBeenCalledWith("brand.example");
     expect(m.createDnsRecord.mock.calls).toEqual([
@@ -494,7 +478,7 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
       dnsRecords: [...STORED_RECORDS, DMARC_SUGGESTION],
     });
     m.hasDmarc.mockResolvedValue(false);
-    await connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN);
+    await connectNewsletterSendingDomainWithCloudflare(PROJECT_ID, TOKEN);
     expect(m.createDnsRecord).toHaveBeenCalledWith("zone_1", {
       type: "TXT",
       name: "_dmarc.brand.example",
@@ -504,7 +488,7 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
     m.createDnsRecord.mockClear();
     // Published meanwhile: a second policy would invalidate both.
     m.hasDmarc.mockResolvedValue(true);
-    await connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN);
+    await connectNewsletterSendingDomainWithCloudflare(PROJECT_ID, TOKEN);
     expect(
       m.createDnsRecord.mock.calls.map(([, record]) => record.name),
     ).not.toContain("_dmarc.brand.example");
@@ -521,7 +505,7 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
     m.listZones.mockImplementation(async (name: string) =>
       name === "brand.example" ? [{ id: "zone_1", name }] : [],
     );
-    await connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN);
+    await connectNewsletterSendingDomainWithCloudflare(PROJECT_ID, TOKEN);
     expect(m.listZones.mock.calls).toEqual([
       ["news.brand.example"],
       ["brand.example"],
@@ -532,7 +516,7 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
   it("refuses a token whose zone does not match the domain", async () => {
     m.listZones.mockResolvedValue([{ id: "zone_9", name: "other.example" }]);
     const error = await connectNewsletterSendingDomainWithCloudflare(
-      WORKSPACE_ID,
+      PROJECT_ID,
       TOKEN,
     ).catch((caught: unknown) => caught);
     expect(error).toMatchObject({ status: 422 });
@@ -543,7 +527,7 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
   it("maps a rejected token to 422 and other Cloudflare failures to 502", async () => {
     m.listZones.mockRejectedValueOnce(new CloudflareApiError(403, [10000]));
     await expect(
-      connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN),
+      connectNewsletterSendingDomainWithCloudflare(PROJECT_ID, TOKEN),
     ).rejects.toMatchObject({ status: 422 });
 
     // A Global API Key pasted as a token: HTTP 400, not 401/403.
@@ -551,13 +535,13 @@ describe("connectNewsletterSendingDomainWithCloudflare", () => {
       new CloudflareApiError(400, [6003, 6111]),
     );
     await expect(
-      connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN),
+      connectNewsletterSendingDomainWithCloudflare(PROJECT_ID, TOKEN),
     ).rejects.toMatchObject({ status: 422 });
 
     m.listZones.mockResolvedValue([{ id: "zone_1", name: "brand.example" }]);
     m.createDnsRecord.mockRejectedValue(new CloudflareApiError(500, []));
     await expect(
-      connectNewsletterSendingDomainWithCloudflare(WORKSPACE_ID, TOKEN),
+      connectNewsletterSendingDomainWithCloudflare(PROJECT_ID, TOKEN),
     ).rejects.toMatchObject({ status: 502 });
   });
 });
@@ -573,18 +557,18 @@ describe("getNewsletterSendingDomainConnect", () => {
     m.env.DOMAIN_CONNECT_PRIVATE_KEY = privateKey;
     m.discover.mockResolvedValue(PROVIDER);
 
-    const connect = await getNewsletterSendingDomainConnect(
-      WORKSPACE_ID,
-      "019a0000-0000-7000-8000-000000000003",
-    );
+    const connect = await getNewsletterSendingDomainConnect(PROJECT_ID);
 
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
+    });
     expect(m.discover).toHaveBeenCalledWith("brand.example");
     expect(connect?.providerName).toBe("Cloudflare");
     const url = new URL(connect!.applyUrl);
     expect(url.searchParams.get("domain")).toBe("brand.example");
     expect(url.searchParams.get("dkimkey")).toBe("p=KEY");
     expect(url.searchParams.get("redirect_uri")).toBe(
-      "https://app.sokosumi.example/newsletter/settings?projectId=019a0000-0000-7000-8000-000000000003",
+      "https://app.sokosumi.example/newsletter/settings?projectId=019a0000-0000-7000-8000-000000000001",
     );
     expect(url.searchParams.get("sig")).toBeTruthy();
     expect(url.searchParams.get("groupId")).toBe("mail");
@@ -598,10 +582,7 @@ describe("getNewsletterSendingDomainConnect", () => {
       status: "VERIFIED",
       dnsRecords: [...STORED_RECORDS, DMARC_SUGGESTION],
     });
-    const connect = await getNewsletterSendingDomainConnect(
-      WORKSPACE_ID,
-      undefined,
-    );
+    const connect = await getNewsletterSendingDomainConnect(PROJECT_ID);
     expect(new URL(connect!.applyUrl).searchParams.get("groupId")).toBe(
       "dmarc",
     );
@@ -614,10 +595,7 @@ describe("getNewsletterSendingDomainConnect", () => {
       ...ROW,
       dnsRecords: [...STORED_RECORDS, DMARC_SUGGESTION],
     });
-    const connect = await getNewsletterSendingDomainConnect(
-      WORKSPACE_ID,
-      undefined,
-    );
+    const connect = await getNewsletterSendingDomainConnect(PROJECT_ID);
     expect(new URL(connect!.applyUrl).searchParams.get("groupId")).toBe(
       "mail,dmarc",
     );
@@ -626,35 +604,38 @@ describe("getNewsletterSendingDomainConnect", () => {
   it("returns null without a signing key, once verified, or without provider support", async () => {
     m.discover.mockResolvedValue(PROVIDER);
     await expect(
-      getNewsletterSendingDomainConnect(WORKSPACE_ID, undefined),
+      getNewsletterSendingDomainConnect(PROJECT_ID),
     ).resolves.toBeNull();
 
     m.env.DOMAIN_CONNECT_PRIVATE_KEY = privateKey;
     m.findUnique.mockResolvedValue({ ...ROW, status: "VERIFIED" });
     await expect(
-      getNewsletterSendingDomainConnect(WORKSPACE_ID, undefined),
+      getNewsletterSendingDomainConnect(PROJECT_ID),
     ).resolves.toBeNull();
 
     m.findUnique.mockResolvedValue(ROW);
     m.discover.mockResolvedValue(null);
     await expect(
-      getNewsletterSendingDomainConnect(WORKSPACE_ID, undefined),
+      getNewsletterSendingDomainConnect(PROJECT_ID),
     ).resolves.toBeNull();
   });
 });
 
 describe("resolveNewsletterSender", () => {
   const NEWSLETTER = {
-    workspaceId: WORKSPACE_ID,
+    projectId: PROJECT_ID,
     senderName: "Brand",
     replyTo: "hello@brand.example",
   };
 
-  it("sends from the verified workspace address", async () => {
+  it("sends from the verified project address", async () => {
     m.findUnique.mockResolvedValue({ ...ROW, status: "VERIFIED" });
     await expect(resolveNewsletterSender(NEWSLETTER)).resolves.toEqual({
       from: '"Brand" <news@brand.example>',
       replyTo: "hello@brand.example",
+    });
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
     });
   });
 
@@ -683,7 +664,7 @@ describe("resolveNewsletterSender", () => {
 
 describe("sending-domain warm-up", () => {
   it("starts the UTC ramp on first verification and preserves its original start", async () => {
-    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    const domain = await checkNewsletterSendingDomain(PROJECT_ID);
     expect(domain.warmup).toEqual({
       startedAt: NOW,
       day: 0,
@@ -699,9 +680,7 @@ describe("sending-domain warm-up", () => {
       warmupStartedAt: startedAt,
       ...data,
     }));
-    expect((await checkNewsletterSendingDomain(WORKSPACE_ID)).warmup.day).toBe(
-      3,
-    );
+    expect((await checkNewsletterSendingDomain(PROJECT_ID)).warmup.day).toBe(3);
     expect(m.update.mock.lastCall?.[0].data).not.toHaveProperty(
       "warmupStartedAt",
     );
@@ -715,7 +694,7 @@ describe("sending-domain warm-up", () => {
       warmupStartedAt: firstStartedAt,
       ...data,
     }));
-    const domain = await checkNewsletterSendingDomain(WORKSPACE_ID);
+    const domain = await checkNewsletterSendingDomain(PROJECT_ID);
     expect(m.updateMany).toHaveBeenCalledWith({
       where: { id: ROW.id, warmupStartedAt: null, status: { not: "VERIFIED" } },
       data: { warmupStartedAt: NOW },
@@ -734,12 +713,12 @@ describe("sending-domain warm-up", () => {
       records: RESEND_RECORDS,
     });
     expect(
-      (await putNewsletterSendingDomain(WORKSPACE_ID, "news@brand.example"))
+      (await putNewsletterSendingDomain(PROJECT_ID, "news@brand.example"))
         .warmup.startedAt,
     ).toEqual(NOW);
     m.findUnique.mockResolvedValue({ ...ROW, status: "VERIFIED" });
     expect(
-      (await checkNewsletterSendingDomain(WORKSPACE_ID)).warmup.startedAt,
+      (await checkNewsletterSendingDomain(PROJECT_ID)).warmup.startedAt,
     ).toBeNull();
     expect(m.update.mock.lastCall?.[0].data).not.toHaveProperty(
       "warmupStartedAt",
@@ -756,14 +735,14 @@ describe("sending-domain warm-up", () => {
     };
     m.findUnique.mockResolvedValue(verified);
     expect(
-      (await getNewsletterSendingDomain(WORKSPACE_ID))?.warmup.sentToday,
+      (await getNewsletterSendingDomain(PROJECT_ID))?.warmup.sentToday,
     ).toBe(21);
     m.findUnique.mockResolvedValue({
       ...verified,
       warmupSentOnDayUtc: new Date("2026-10-26T00:00:00Z"),
     });
     expect(
-      (await getNewsletterSendingDomain(WORKSPACE_ID))?.warmup.sentToday,
+      (await getNewsletterSendingDomain(PROJECT_ID))?.warmup.sentToday,
     ).toBe(0);
   });
 
@@ -777,7 +756,7 @@ describe("sending-domain warm-up", () => {
         warmupPausedAt: NOW,
       });
       const newsletter = {
-        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
         senderName: "Brand",
         replyTo: "editor@brand.example",
       };
@@ -785,7 +764,7 @@ describe("sending-domain warm-up", () => {
         status: 409,
       });
       await expect(
-        assertNewsletterSenderConfigured(WORKSPACE_ID),
+        assertNewsletterSenderConfigured(PROJECT_ID),
       ).rejects.toMatchObject({ status: 409 });
       const context = await resolveNewsletterSendingContext(newsletter);
       expect(context.domain?.warmupPausedAt).toEqual(NOW);
@@ -795,7 +774,7 @@ describe("sending-domain warm-up", () => {
 
   it("does not attach warm-up to a pending domain's shared sender", async () => {
     const context = await resolveNewsletterSendingContext({
-      workspaceId: WORKSPACE_ID,
+      projectId: PROJECT_ID,
       senderName: "Brand",
       replyTo: "editor@brand.example",
     });
@@ -811,7 +790,7 @@ describe("sending-domain warm-up", () => {
       warmupPausedAt: NOW,
       warmupPauseReason: "BOUNCE_RATE",
     });
-    await resumeNewsletterSendingDomainWarmup(WORKSPACE_ID);
+    await resumeNewsletterSendingDomainWarmup(PROJECT_ID);
     expect(m.update).toHaveBeenCalledWith({
       where: { id: ROW.id },
       data: { warmupPausedAt: null, warmupPauseReason: null },
@@ -820,12 +799,83 @@ describe("sending-domain warm-up", () => {
 
   it("refuses to resume an unverified or pre-warm-up domain", async () => {
     await expect(
-      resumeNewsletterSendingDomainWarmup(WORKSPACE_ID),
+      resumeNewsletterSendingDomainWarmup(PROJECT_ID),
     ).rejects.toMatchObject({ status: 409 });
     m.findUnique.mockResolvedValue({ ...ROW, status: "VERIFIED" });
     await expect(
-      resumeNewsletterSendingDomainWarmup(WORKSPACE_ID),
+      resumeNewsletterSendingDomainWarmup(PROJECT_ID),
     ).rejects.toMatchObject({ status: 409 });
     expect(m.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("project isolation", () => {
+  it("keeps a verified domain private to its project, even in the same workspace", async () => {
+    const otherProjectId = "019a0000-0000-7000-8000-000000000004";
+    m.findUnique.mockImplementation(async ({ where }) =>
+      where.projectId === PROJECT_ID ? { ...ROW, status: "VERIFIED" } : null,
+    );
+    const newsletter = { senderName: "Brand", replyTo: "hello@brand.example" };
+
+    await expect(
+      resolveNewsletterSender({ ...newsletter, projectId: PROJECT_ID }),
+    ).resolves.toMatchObject({ from: '\"Brand\" <news@brand.example>' });
+    await expect(
+      resolveNewsletterSender({ ...newsletter, projectId: otherProjectId }),
+    ).resolves.toMatchObject({
+      from: '\"Brand via Sokosumi\" <newsletter@news.sokosumi.example>',
+    });
+    await expect(
+      getNewsletterSendingDomain(otherProjectId),
+    ).resolves.toBeNull();
+    await expect(
+      checkNewsletterSendingDomain(otherProjectId),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(m.verifyDomain).not.toHaveBeenCalled();
+  });
+
+  it("rejects a domain already claimed by another project globally", async () => {
+    m.findUnique.mockImplementation(async ({ where }) =>
+      where.domain === ROW.domain ? ROW : null,
+    );
+    await expect(
+      putNewsletterSendingDomain(
+        "019a0000-0000-7000-8000-000000000004",
+        ROW.fromAddress,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "This domain is already connected to another project",
+    });
+    expect(m.createDomain).not.toHaveBeenCalled();
+  });
+});
+
+describe("assertNewsletterSenderConfigured", () => {
+  it("checks the project's domain without making external requests", async () => {
+    m.findUnique.mockResolvedValue({
+      fromAddress: ROW.fromAddress,
+      status: "VERIFIED",
+    });
+    m.env.NEWSLETTER_FROM_DOMAIN = undefined;
+    await expect(
+      assertNewsletterSenderConfigured(PROJECT_ID),
+    ).resolves.toBeUndefined();
+    expect(m.findUnique).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
+      select: { fromAddress: true, status: true, warmupPausedAt: true },
+    });
+    expect(m.getDomain).not.toHaveBeenCalled();
+  });
+
+  it("requires a shared fallback for a project without its own verified domain", async () => {
+    m.findUnique.mockResolvedValue(null);
+    await expect(
+      assertNewsletterSenderConfigured(PROJECT_ID),
+    ).resolves.toBeUndefined();
+    m.env.NEWSLETTER_FROM_DOMAIN = undefined;
+    await expect(
+      assertNewsletterSenderConfigured(PROJECT_ID),
+    ).rejects.toMatchObject({ status: 409 });
   });
 });

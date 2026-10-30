@@ -18685,247 +18685,6 @@ export const NewsletterAvailabilitySchema = {
     ]
 } as const;
 
-export const NewsletterSendingDomainStateSchema = {
-    type: 'object',
-    properties: {
-        sendingDomain: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/NewsletterSendingDomain'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Null until a workspace owner or admin adds one.'
-        },
-        canManage: {
-            type: 'boolean'
-        },
-        fallbackAvailable: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'sendingDomain',
-        'canManage',
-        'fallbackAvailable'
-    ]
-} as const;
-
-export const NewsletterSendingDomainSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        domain: {
-            type: 'string'
-        },
-        fromAddress: {
-            type: 'string'
-        },
-        status: {
-            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
-        },
-        dnsRecords: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/NewsletterDnsRecord'
-            }
-        },
-        lastCheckedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        failureReason: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        warmup: {
-            $ref: '#/components/schemas/NewsletterSendingDomainWarmup'
-        }
-    },
-    required: [
-        'id',
-        'domain',
-        'fromAddress',
-        'status',
-        'dnsRecords',
-        'lastCheckedAt',
-        'failureReason',
-        'createdAt',
-        'warmup'
-    ]
-} as const;
-
-export const NewsletterSendingDomainStatusSchema = {
-    type: 'string',
-    enum: [
-        'PENDING',
-        'VERIFIED',
-        'FAILED'
-    ]
-} as const;
-
-export const NewsletterDnsRecordSchema = {
-    type: 'object',
-    properties: {
-        record: {
-            type: 'string'
-        },
-        type: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        value: {
-            type: 'string'
-        },
-        ttl: {
-            type: 'string'
-        },
-        priority: {
-            type: [
-                'number',
-                'null'
-            ]
-        },
-        status: {
-            type: 'string'
-        }
-    },
-    required: [
-        'record',
-        'type',
-        'name',
-        'value',
-        'ttl',
-        'priority',
-        'status'
-    ]
-} as const;
-
-export const NewsletterSendingDomainWarmupSchema = {
-    type: 'object',
-    properties: {
-        startedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        day: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0
-        },
-        dailyCap: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0
-        },
-        sentToday: {
-            type: 'integer',
-            minimum: 0
-        },
-        pausedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        pauseReason: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'BOUNCE_RATE',
-                'COMPLAINT_RATE',
-                null
-            ]
-        }
-    },
-    required: [
-        'startedAt',
-        'day',
-        'dailyCap',
-        'sentToday',
-        'pausedAt',
-        'pauseReason'
-    ]
-} as const;
-
-export const PutNewsletterSendingDomainRequestSchema = {
-    type: 'object',
-    properties: {
-        fromAddress: {
-            type: 'string',
-            maxLength: 254,
-            format: 'email'
-        }
-    },
-    required: [
-        'fromAddress'
-    ]
-} as const;
-
-export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
-    type: 'object',
-    properties: {
-        apiToken: {
-            type: 'string',
-            minLength: 20,
-            maxLength: 256
-        }
-    },
-    required: [
-        'apiToken'
-    ]
-} as const;
-
-export const NewsletterSendingDomainConnectSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        providerName: {
-            type: 'string'
-        },
-        applyUrl: {
-            type: 'string',
-            format: 'uri'
-        }
-    },
-    required: [
-        'providerName',
-        'applyUrl'
-    ]
-} as const;
-
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -19464,6 +19223,27 @@ export const UserWorkspaceSchema = {
             description: 'Organization website from its metadata, or null for none and for a personal workspace',
             example: 'https://acme.com'
         },
+        role: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberRole'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'member',
+            description: 'The person\'s role in the organization, or null for a personal workspace or a role this API does not know'
+        },
+        memberCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'How many people are members of the organization, or null for a personal workspace',
+            example: 14
+        },
         enabledSocialProviders: {
             type: 'array',
             items: {
@@ -19485,6 +19265,8 @@ export const UserWorkspaceSchema = {
         'slug',
         'logo',
         'websiteUrl',
+        'role',
+        'memberCount',
         'enabledSocialProviders',
         'preferred'
     ]
@@ -23540,6 +23322,247 @@ export const PutNewsletterRequestSchema = {
         'replyTo',
         'brand',
         'welcomeEmailEnabled'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStateSchema = {
+    type: 'object',
+    properties: {
+        sendingDomain: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/NewsletterSendingDomain'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a member adds a sending domain to this Project.'
+        },
+        canManage: {
+            type: 'boolean'
+        },
+        fallbackAvailable: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'sendingDomain',
+        'canManage',
+        'fallbackAvailable'
+    ]
+} as const;
+
+export const NewsletterSendingDomainSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        domain: {
+            type: 'string'
+        },
+        fromAddress: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
+        },
+        dnsRecords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/NewsletterDnsRecord'
+            }
+        },
+        lastCheckedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        warmup: {
+            $ref: '#/components/schemas/NewsletterSendingDomainWarmup'
+        }
+    },
+    required: [
+        'id',
+        'domain',
+        'fromAddress',
+        'status',
+        'dnsRecords',
+        'lastCheckedAt',
+        'failureReason',
+        'createdAt',
+        'warmup'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'VERIFIED',
+        'FAILED'
+    ]
+} as const;
+
+export const NewsletterDnsRecordSchema = {
+    type: 'object',
+    properties: {
+        record: {
+            type: 'string'
+        },
+        type: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        value: {
+            type: 'string'
+        },
+        ttl: {
+            type: 'string'
+        },
+        priority: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'record',
+        'type',
+        'name',
+        'value',
+        'ttl',
+        'priority',
+        'status'
+    ]
+} as const;
+
+export const NewsletterSendingDomainWarmupSchema = {
+    type: 'object',
+    properties: {
+        startedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        day: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        dailyCap: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        sentToday: {
+            type: 'integer',
+            minimum: 0
+        },
+        pausedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pauseReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'BOUNCE_RATE',
+                'COMPLAINT_RATE',
+                null
+            ]
+        }
+    },
+    required: [
+        'startedAt',
+        'day',
+        'dailyCap',
+        'sentToday',
+        'pausedAt',
+        'pauseReason'
+    ]
+} as const;
+
+export const PutNewsletterSendingDomainRequestSchema = {
+    type: 'object',
+    properties: {
+        fromAddress: {
+            type: 'string',
+            maxLength: 254,
+            format: 'email'
+        }
+    },
+    required: [
+        'fromAddress'
+    ]
+} as const;
+
+export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
+    type: 'object',
+    properties: {
+        apiToken: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 256
+        }
+    },
+    required: [
+        'apiToken'
+    ]
+} as const;
+
+export const NewsletterSendingDomainConnectSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        providerName: {
+            type: 'string'
+        },
+        applyUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'providerName',
+        'applyUrl'
     ]
 } as const;
 

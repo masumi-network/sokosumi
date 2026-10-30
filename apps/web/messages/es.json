@@ -195,7 +195,11 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createWorkspace": "Crear espacio de trabajo",
-      "userAvatarAlt": "Avatar del usuario"
+      "userAvatarAlt": "Avatar del usuario",
+      "inviteMembers": "Invitar miembros",
+      "organizationSettings": "Ajustes",
+      "membersAndSettings": "Miembros y ajustes",
+      "roleAndMemberCount": "{role, select, owner {Propietario} admin {Admin} other {Miembro}} · {count, plural, =1 {1 miembro} other {# miembros}}"
     },
     "DataTable": {
       "Data": {
@@ -716,8 +720,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Invitar miembros en bloque",
-        "description": "Pega direcciones de email para invitar a varios miembros a la vez.",
+        "title": "Invitar miembros",
+        "description": "Pega una o varias direcciones de email.",
         "label": "Direcciones de email",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separa los emails con comas, punto y coma o saltos de línea.",
@@ -2330,6 +2334,7 @@
         "activity": {
           "title": "Actividad reciente",
           "empty": "Todavía no hay actividad en proyectos abiertos.",
+          "emptyProject": "Todavía no hay actividad en este proyecto.",
           "error": "No se pudo cargar la actividad reciente.",
           "showAll": "Ver todo",
           "untitledJob": "Trabajo sin nombre",
@@ -2992,6 +2997,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
+        "stats": {
+          "label": "Recuento de tareas",
+          "running": "En ejecución",
+          "waiting": "En espera",
+          "done": "Hecho"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",
@@ -3581,8 +3592,7 @@
         },
         "SendingDomain": {
           "title": "Dominio de envío",
-          "description": "Envía boletines desde tu propia dirección, como news@news.tumarca.com. Todos los proyectos de este espacio de trabajo la usan.",
-          "managedByAdmins": "Solo la persona propietaria o un administrador del espacio de trabajo puede conectar un dominio de envío.",
+          "description": "Envía el boletín de este proyecto desde tu propia dirección, como news@news.tumarca.com.",
           "fromAddress": "Dirección del remitente",
           "fromAddressPlaceholder": "news@news.tumarca.com",
           "fromAddressHint": "Usa un subdominio, como news.tumarca.com. Así la reputación de tus boletines queda separada de tu correo habitual.",
@@ -3596,7 +3606,7 @@
             "FAILED": "Fallido"
           },
           "lastChecked": "Última comprobación: {time}",
-          "verifiedDescription": "Los boletines de todos los proyectos de este espacio de trabajo se envían ahora desde esta dirección.",
+          "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
           "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
           "checked": "Comprobado. Tus registros DNS aún no son visibles. Los cambios de DNS pueden tardar unas horas.",
           "checkNow": "Comprobar ahora",
@@ -3659,9 +3669,9 @@
           "errors": {
             "generic": "No se pudo actualizar el dominio de envío. Inténtalo de nuevo.",
             "invalidAddress": "Introduce una dirección de correo, como news@news.tumarca.com.",
-            "forbidden": "Solo la persona propietaria o un administrador del espacio de trabajo puede cambiar el dominio de envío.",
+            "forbidden": "No tienes acceso al dominio de envío de este proyecto. Recarga la página.",
             "notFound": "Este dominio de envío se quitó. Recarga la página.",
-            "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro espacio de trabajo.",
+            "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro proyecto.",
             "domainRejected": "Este dominio no se puede usar. Revisa la dirección e inténtalo de nuevo.",
             "providerFailed": "El proveedor de correo no respondió. Inténtalo de nuevo en un minuto.",
             "cloudflareRejected": "Cloudflare rechazó el token. Comprueba que tenga Zone · DNS · Edit para la zona de este dominio.",
@@ -3676,7 +3686,7 @@
             "paused": "Envío pausado",
             "bounceReason": "Demasiados correos tuvieron rebotes permanentes.",
             "complaintReason": "Demasiados destinatarios marcaron los correos como spam.",
-            "pausedDescription": "Los destinatarios siguen en cola hasta que la persona propietaria o un administrador del espacio de trabajo reanude el envío. Revisa antes la lista de suscriptores.",
+            "pausedDescription": "Los destinatarios siguen en cola hasta que un miembro del proyecto reanude el envío. Revisa antes la lista de suscriptores.",
             "resume": "Reanudar envío",
             "resumed": "Envío reanudado. Los destinatarios en cola recibirán el boletín dentro del límite diario."
           }
@@ -7629,6 +7639,8 @@
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Mensaje directo",
+      "headerSelfDirect": "Solo tú",
       "participantOverflowCount": "{count} participantes más",
       "chats": "Chats",
       "directMessages": "Mensajes directos",
@@ -8963,6 +8975,17 @@
       "Disabled": {
         "title": "Soko Bot no está disponible temporalmente",
         "description": "Un administrador ha desactivado Soko Bot por ahora. No se pierde nada de lo que hizo tu asistente; retomará donde lo dejó."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Tu asistente usa las cuentas publicitarias del proyecto de la página de Ads.",
+        "open": "Abrir",
+        "empty": "Aún no hay cuentas publicitarias conectadas.",
+        "connectOnAds": "Conecta una en la página de Ads.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {

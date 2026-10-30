@@ -353,7 +353,7 @@ The header control that shows and changes the Project scope: one searchable list
 _Avoid_: Flyout, project picker, project selector, Manage projects as a way into the list
 
 **Project Overview**:
-The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both.
+The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both. Its Overview tab opens with the project's Running, Waiting and Done task counts, the In progress, Input required and Done columns of the project's Tasks board, each a link to that board, and shows the Workspace column's two panels under the project's Properties, scoped to the project.
 _Avoid_: Project detail page, project settings, Manage project
 
 **Projects list**:
@@ -361,7 +361,7 @@ Every project in the workspace as a grid of cards, one view at a time: Open (the
 _Avoid_: Manage projects, project management page, All projects (that is the scope, not this page)
 
 **Workspace column**:
-The two panels beside the Projects list's Open view: Needs you (the Notification Center view's rows, newest first) and Recent activity. Only what the reader can act on or just changed; the recap of what happened while they were away stays on Home. Not shown in the Closed view.
+The two panels beside the Projects list's Open view: Needs you (the Notification Center view's rows, newest first) and Recent activity. Only what the reader can act on or just changed; the recap of what happened while they were away stays on Home. Not shown in the Closed view. Project Overview shows the same two panels scoped to its project: Needs you lists only requests about the project's tasks and jobs, and Recent activity only the project's events, including when the project is Closed or Hidden, so its history stays readable.
 _Avoid_: Dashboard, team overview, sidebar (that is the app's nav), usage panel
 
 **Recent activity**:

@@ -22,7 +22,8 @@ vi.mock("next-intl", () => ({
     relativeTime: () => "now",
   }),
 }));
-vi.mock("nuqs", () => ({ useQueryState: () => ["advanced", vi.fn()] }));
+const viewMock = vi.fn(() => "advanced" as string | null);
+vi.mock("nuqs", () => ({ useQueryState: () => [viewMock(), vi.fn()] }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: (...a: unknown[]) => toastErrorMock(...a) },
 }));
@@ -74,7 +75,15 @@ vi.mock("../follow-board-toggle.client", () => ({
   FollowBoardToggle: () => null,
 }));
 vi.mock("../integrations-section.client", () => ({
-  IntegrationsSection: () => null,
+  IntegrationsSection: () => <span data-testid="integrations" />,
+}));
+vi.mock("./tool-connectors.client", () => ({
+  ToolConnectors: () => <span data-testid="connectors" />,
+}));
+vi.mock("../ad-accounts-section", () => ({
+  AdAccountsSection: ({ botProjectId }: { botProjectId: string | null }) => (
+    <span data-testid="ads">{botProjectId ?? "all"}</span>
+  ),
 }));
 vi.mock("../how-it-works", () => ({ HowItWorks: () => null }));
 vi.mock("./activity-list.client", () => ({ ActivityList: () => null }));
@@ -128,6 +137,7 @@ function renderConsole(overrides: Partial<SokoBotConsoleProps>): void {
       botId={BOT_ID}
       canManage
       sharedRoomId="room-1"
+      ads={null}
       {...overrides}
     />,
   );
@@ -136,6 +146,7 @@ function renderConsole(overrides: Partial<SokoBotConsoleProps>): void {
 describe("SokoBotConsole", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    viewMock.mockReturnValue("advanced");
   });
 
   it("offers archive, delete and memory reset to a manager of a shared bot", () => {
@@ -183,5 +194,48 @@ describe("SokoBotConsole", () => {
     fireEvent.click(screen.getByRole("button", { name: "Console.openChat" }));
     expect(pushMock).not.toHaveBeenCalled();
     expect(toastErrorMock).toHaveBeenCalledWith("Console.openChatError");
+  });
+
+  describe("Ads section", () => {
+    const connected = { configured: true, integrations: [] };
+
+    it("sits right after the connectors in the default view", () => {
+      viewMock.mockReturnValue(null);
+      renderConsole({
+        integrations: connected,
+        ads: { accounts: [], projectId: "p1" },
+      });
+      const connectors = screen.getByTestId("connectors");
+      const ads = screen.getByTestId("ads");
+      expect(ads).toHaveTextContent("p1");
+      expect(screen.getByText("Ads.title")).toBeInTheDocument();
+      expect(
+        connectors.compareDocumentPosition(ads) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("sits right after the integrations under Advanced", () => {
+      renderConsole({
+        integrations: connected,
+        ads: { accounts: [], projectId: null },
+      });
+      const integrationsEl = screen.getByTestId("integrations");
+      const ads = screen.getByTestId("ads");
+      expect(
+        integrationsEl.compareDocumentPosition(ads) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it.each([null, "advanced"])(
+      "is absent without the Social beta (view %s)",
+      (view) => {
+        viewMock.mockReturnValue(view);
+        renderConsole({ integrations: connected, ads: null });
+        expect(screen.queryByTestId("ads")).not.toBeInTheDocument();
+        expect(screen.queryByText("Ads.title")).not.toBeInTheDocument();
+      },
+    );
   });
 });

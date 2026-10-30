@@ -48,7 +48,7 @@ export const newsletterSendingDomainStateSchema = z
   .object({
     // A union, not `.nullable()`, so the shared component itself stays non-null.
     sendingDomain: z.union([newsletterSendingDomainSchema, z.null()]).openapi({
-      description: "Null until a workspace owner or admin adds one.",
+      description: "Null until a member adds a sending domain to this Project.",
     }),
     /** Whether the caller may add, verify, connect and remove the domain. */
     canManage: z.boolean(),
@@ -67,10 +67,6 @@ export const connectNewsletterSendingDomainCloudflareRequestSchema = z
     apiToken: z.string().trim().min(20).max(256),
   })
   .openapi("ConnectNewsletterSendingDomainCloudflareRequest");
-
-export const newsletterSendingDomainConnectQuerySchema = z.object({
-  projectId: z.uuid().optional(),
-});
 
 export const newsletterSendingDomainConnectSchema = z
   .object({ providerName: z.string(), applyUrl: z.url() })

@@ -1,10 +1,12 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Settings, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
 import { Avatar } from "@/components/ui/avatar";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { cn } from "@/lib/utils";
 import {
   useWorkspaceSwitcherState,
@@ -90,6 +93,85 @@ function WorkspaceMenuItem({
   );
 }
 
+interface ActiveOrganizationHeaderProps {
+  sessionUser: SessionUser;
+  workspace: WorkspaceItem;
+  disabled: boolean;
+  onInvite: () => void;
+}
+
+/**
+ * The organization you are in and what you can do there, pinned above the
+ * list so scrolling a long list never takes it out of view. Owners and admins
+ * invite; everyone reaches the member list and settings.
+ */
+function ActiveOrganizationHeader({
+  sessionUser,
+  workspace,
+  disabled,
+  onInvite,
+}: ActiveOrganizationHeaderProps) {
+  const t = useTranslations("Components.OrganizationSwitcher");
+  const canInvite =
+    workspace.role !== null && isOrganizationOwnerOrAdmin(workspace.role);
+
+  return (
+    // Covers the content's own side padding too, and pt-1 stands in for its top
+    // padding, so rows scroll under it unseen.
+    <div className="bg-popover sticky top-0 z-10 -mx-1 px-1 pt-1">
+      <div className="flex flex-col gap-3 p-2 pb-3">
+        <div className="flex items-center gap-2.5">
+          <WorkspaceAvatar
+            sessionUser={sessionUser}
+            organization={workspace.organization ?? null}
+            className="size-9 md:size-9"
+            logoSize={20}
+            decorative
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{workspace.name}</p>
+            <p className="text-muted-foreground text-xs">
+              {t("roleAndMemberCount", {
+                role: workspace.role ?? "member",
+                count: workspace.memberCount ?? 0,
+              })}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {canInvite ? (
+            <DropdownMenuItem
+              className={cn(
+                buttonVariants({ variant: "primary", size: "sm" }),
+                "focus:bg-primary-solid-hover focus:text-primary-solid-foreground flex-1",
+              )}
+              disabled={disabled}
+              onSelect={onInvite}
+            >
+              <UserPlus className="text-current" />
+              {t("inviteMembers")}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem
+            asChild
+            className={cn(
+              buttonVariants({ variant: "secondary", size: "sm" }),
+              "focus:bg-quaternary focus:text-foreground flex-1",
+            )}
+            disabled={disabled}
+          >
+            <Link href="/organization">
+              <Settings className="text-current" />
+              {canInvite ? t("organizationSettings") : t("membersAndSettings")}
+            </Link>
+          </DropdownMenuItem>
+        </div>
+      </div>
+      <DropdownMenuSeparator />
+    </div>
+  );
+}
+
 interface WorkspaceSwitcherMenuProps {
   placement: WorkspaceSwitcherPlacement;
 }
@@ -117,7 +199,10 @@ export default function WorkspaceSwitcherMenu({
     setMenuOpen,
     selectWorkspace,
     openCreateWorkspace,
+    openInviteMembers,
   } = useWorkspaceSwitcherState();
+  const showOrganizationHeader =
+    activeWorkspace !== null && activeOrganizationId !== null;
 
   return (
     <div
@@ -170,7 +255,21 @@ export default function WorkspaceSwitcherMenu({
             <WorkspaceSwitcherArrows placement={placement} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72" align={MENU_ALIGN[placement]}>
+        <DropdownMenuContent
+          // The pinned header's height, so a row focused by arrow keys
+          // scrolls into view below it, never under it. No top padding: sticky
+          // stops below it, which would push the header over the first row.
+          className={cn("w-72", showOrganizationHeader && "scroll-pt-29 pt-0")}
+          align={MENU_ALIGN[placement]}
+        >
+          {showOrganizationHeader ? (
+            <ActiveOrganizationHeader
+              sessionUser={sessionUser}
+              workspace={activeWorkspace}
+              disabled={isBusy}
+              onInvite={openInviteMembers}
+            />
+          ) : null}
           {personalWorkspace ? (
             <WorkspaceMenuItem
               sessionUser={sessionUser}

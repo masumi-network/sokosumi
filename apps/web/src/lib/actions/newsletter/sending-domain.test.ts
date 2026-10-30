@@ -48,6 +48,7 @@ import {
 } from "./sending-domain";
 
 const T = en.App.Projects.Newsletter.SendingDomain;
+const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const TOKEN = "cf-secret-token-0123456789abcdef";
 const DOMAIN: NewsletterSendingDomain = {
   id: "d1",
@@ -78,11 +79,13 @@ beforeEach(() => {
 
 describe("sending domain actions", () => {
   it("resumes warm-up through Core and revalidates settings", async () => {
-    expect(await resumeNewsletterSendingDomainWarmup({})).toEqual({
+    expect(
+      await resumeNewsletterSendingDomainWarmup({ projectId: PROJECT_ID }),
+    ).toEqual({
       ok: true,
       value: DOMAIN,
     });
-    expect(mocks.resume).toHaveBeenCalledExactlyOnceWith();
+    expect(mocks.resume).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
     expect(revalidatePath).toHaveBeenCalledWith("/newsletter/settings");
   });
 
@@ -93,7 +96,9 @@ describe("sending domain actions", () => {
     [500, T.errors.generic],
   ])("maps resume failures to actionable copy: %s", async (status, message) => {
     mocks.resume.mockRejectedValue(new CoreApiRequestError("x", { status }));
-    expect(await resumeNewsletterSendingDomainWarmup({})).toEqual({
+    expect(
+      await resumeNewsletterSendingDomainWarmup({ projectId: PROJECT_ID }),
+    ).toEqual({
       ok: false,
       error: { message },
     });
@@ -102,15 +107,17 @@ describe("sending domain actions", () => {
 
   it("saves a trimmed From address and revalidates settings", async () => {
     const result = await saveNewsletterSendingDomain({
+      projectId: PROJECT_ID,
       fromAddress: " news@brand.example ",
     });
     expect(result).toEqual({ ok: true, value: DOMAIN });
-    expect(mocks.save).toHaveBeenCalledWith("news@brand.example");
+    expect(mocks.save).toHaveBeenCalledWith(PROJECT_ID, "news@brand.example");
     expect(revalidatePath).toHaveBeenCalledWith("/newsletter/settings");
   });
 
   it("refuses an invalid address without calling Core", async () => {
     const result = await saveNewsletterSendingDomain({
+      projectId: PROJECT_ID,
       fromAddress: "Brand <news@brand.example>",
     });
     expect(result).toEqual({
@@ -129,22 +136,27 @@ describe("sending domain actions", () => {
   ])("maps Core %s to plain copy", async (status, message) => {
     mocks.save.mockRejectedValue(new CoreApiRequestError("x", { status }));
     expect(
-      await saveNewsletterSendingDomain({ fromAddress: "news@brand.example" }),
+      await saveNewsletterSendingDomain({
+        projectId: PROJECT_ID,
+        fromAddress: "news@brand.example",
+      }),
     ).toEqual({ ok: false, error: { message } });
   });
 
   it("passes the Cloudflare token straight to Core and never echoes it", async () => {
     expect(
       await connectNewsletterSendingDomainWithCloudflare({
+        projectId: PROJECT_ID,
         apiToken: ` ${TOKEN} `,
       }),
     ).toEqual({ ok: true, value: DOMAIN });
-    expect(mocks.cloudflare).toHaveBeenCalledWith(TOKEN);
+    expect(mocks.cloudflare).toHaveBeenCalledWith(PROJECT_ID, TOKEN);
 
     mocks.cloudflare.mockRejectedValue(
       new CoreApiRequestError(`bad ${TOKEN}`, { status: 422 }),
     );
     const failed = await connectNewsletterSendingDomainWithCloudflare({
+      projectId: PROJECT_ID,
       apiToken: TOKEN,
     });
     expect(failed).toEqual({
@@ -154,16 +166,18 @@ describe("sending domain actions", () => {
     expect(JSON.stringify(failed)).not.toContain(TOKEN);
   });
 
-  it("checks, removes and looks up Domain Connect for a valid project only", async () => {
-    expect((await checkNewsletterSendingDomain({})).ok).toBe(true);
-    expect((await removeNewsletterSendingDomain({})).ok).toBe(true);
-    expect(mocks.remove).toHaveBeenCalled();
+  it("checks, removes and looks up Domain Connect for the current project", async () => {
+    expect(
+      (await checkNewsletterSendingDomain({ projectId: PROJECT_ID })).ok,
+    ).toBe(true);
+    expect(mocks.check).toHaveBeenCalledWith(PROJECT_ID);
+    expect(
+      (await removeNewsletterSendingDomain({ projectId: PROJECT_ID })).ok,
+    ).toBe(true);
+    expect(mocks.remove).toHaveBeenCalledWith(PROJECT_ID);
 
     mocks.connect.mockResolvedValue(null);
-    await getNewsletterSendingDomainConnect({ projectId: "not-a-uuid" });
-    expect(mocks.connect).toHaveBeenLastCalledWith(undefined);
-    const projectId = "11111111-1111-4111-8111-111111111111";
-    await getNewsletterSendingDomainConnect({ projectId });
-    expect(mocks.connect).toHaveBeenLastCalledWith(projectId);
+    await getNewsletterSendingDomainConnect({ projectId: PROJECT_ID });
+    expect(mocks.connect).toHaveBeenCalledWith(PROJECT_ID);
   });
 });

@@ -252,7 +252,7 @@ export async function sendNewsletterIssue(
           if (
             !current ||
             current.status !== "VERIFIED" ||
-            current.workspaceId !== newsletter.workspaceId ||
+            current.projectId !== newsletter.projectId ||
             current.warmupPausedAt
           ) {
             return {

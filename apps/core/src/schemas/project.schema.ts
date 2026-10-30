@@ -52,6 +52,18 @@ export const projectIdentifierSchema = z
     example: "SOK",
   });
 
+/** An optional `projectId` query param that narrows a list to one project. */
+export function projectIdQuerySchema(description: string) {
+  return z
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "projectId", in: "query" },
+      description,
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    });
+}
+
 const projectLogoUrlSchema = z
   .string()
   .url()

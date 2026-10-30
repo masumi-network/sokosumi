@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -15,6 +16,8 @@ import mountPut from "./put";
 import mountResume from "./warmup/resume/post";
 
 const WORKSPACE_ID = "019a0000-0000-7000-8000-000000000001";
+const PROJECT_ID = "019a0000-0000-7000-8000-000000000003";
+const DOMAIN_PATH = `/${PROJECT_ID}/newsletter/sending-domain`;
 const TOKEN = "cf-secret-token-0123456789abcdef";
 const NOW = "2026-10-27T12:00:00.000Z";
 const DOMAIN = {
@@ -37,8 +40,9 @@ const DOMAIN = {
 };
 
 const m = vi.hoisted(() => ({
+  authorize: vi.fn(),
   workspace: vi.fn(),
-  member: vi.fn(),
+  project: vi.fn(),
   get: vi.fn(),
   put: vi.fn(),
   check: vi.fn(),
@@ -51,14 +55,11 @@ const m = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUnique: m.workspace },
-    member: { findFirst: m.member },
+    project: { findFirst: m.project },
   },
 }));
 vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  requireAuthorizedUserContext: async () => ({
-    userId: "user_1",
-    organizationId: "org_1",
-  }),
+  requireAuthorizedUserContext: m.authorize,
 }));
 vi.mock("@/services/newsletter-sending-domain.service", async (original) => ({
   ...(await original<
@@ -84,14 +85,16 @@ const COWORKER = {
   actor: "coworker",
   coworkerId: "coworker_1",
   vendorId: "vendor_1",
-} as AuthenticationContext;
+  context: { userId: "user_1", organizationId: "org_1" },
+} satisfies AuthenticationContext;
 const SOKO_BOT = {
   actor: "sokoBot",
   sokoBotId: "bot_1",
   userId: "user_1",
   organizationId: "org_1",
   workspaceId: WORKSPACE_ID,
-} as AuthenticationContext;
+  scope: "personal",
+} satisfies AuthenticationContext;
 const WORKSPACE: WorkspaceContext = {
   workspaceId: WORKSPACE_ID,
   userId: null,
@@ -124,12 +127,12 @@ function createApp(auth: AuthenticationContext = USER) {
 }
 
 const MUTATIONS = [
-  ["PUT", "/sending-domain", { fromAddress: "news@brand.example" }],
-  ["DELETE", "/sending-domain", undefined],
-  ["POST", "/sending-domain/check", undefined],
-  ["POST", "/sending-domain/warmup/resume", undefined],
-  ["POST", "/sending-domain/cloudflare", { apiToken: TOKEN }],
-  ["GET", "/sending-domain/domain-connect", undefined],
+  ["PUT", DOMAIN_PATH, { fromAddress: "news@brand.example" }],
+  ["DELETE", DOMAIN_PATH, undefined],
+  ["POST", `${DOMAIN_PATH}/check`, undefined],
+  ["POST", `${DOMAIN_PATH}/warmup/resume`, undefined],
+  ["POST", `${DOMAIN_PATH}/cloudflare`, { apiToken: TOKEN }],
+  ["GET", `${DOMAIN_PATH}/domain-connect`, undefined],
 ] as const;
 
 function send(
@@ -149,8 +152,9 @@ function send(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  m.authorize.mockResolvedValue({ userId: "user_1", organizationId: "org_1" });
   m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
-  m.member.mockResolvedValue({ role: "admin" });
+  m.project.mockResolvedValue({ id: PROJECT_ID });
   m.get.mockResolvedValue(DOMAIN);
   m.put.mockResolvedValue(DOMAIN);
   m.check.mockResolvedValue(DOMAIN);
@@ -159,9 +163,9 @@ beforeEach(() => {
   m.connect.mockResolvedValue(null);
 });
 
-describe("GET /v1/newsletter/sending-domain", () => {
-  it("shows an admin the domain and that they may manage it", async () => {
-    const response = await createApp().request("/sending-domain");
+describe("GET /v1/projects/{id}/newsletter/sending-domain", () => {
+  it("shows a project member the domain and that they may manage it", async () => {
+    const response = await createApp().request(DOMAIN_PATH);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       data: {
@@ -172,44 +176,73 @@ describe("GET /v1/newsletter/sending-domain", () => {
     });
   });
 
-  it("lets a member or an agent read it without managing", async () => {
-    m.member.mockResolvedValue({ role: "member" });
-    let response = await createApp().request("/sending-domain");
-    expect((await response.json()).data.canManage).toBe(false);
-
-    response = await createApp(COWORKER).request("/sending-domain");
+  it("lets an authorized agent read it without managing", async () => {
+    const response = await createApp(COWORKER).request(DOMAIN_PATH);
     expect(response.status).toBe(200);
     expect((await response.json()).data.canManage).toBe(false);
   });
 
+  it("looks up only the requested project in the active workspace", async () => {
+    const otherProjectId = "019a0000-0000-7000-8000-000000000004";
+    const response = await createApp().request(
+      `/${otherProjectId}/newsletter/sending-domain`,
+    );
+    expect(response.status).toBe(200);
+    expect(m.project).toHaveBeenCalledWith({
+      where: { id: otherProjectId, workspaceId: WORKSPACE_ID },
+      select: expect.any(Object),
+    });
+    expect(m.get).toHaveBeenCalledWith(otherProjectId);
+    expect(m.authorize).toHaveBeenCalledWith(USER);
+  });
+
+  it("404s for a project outside the active workspace before reading its domain", async () => {
+    m.project.mockResolvedValue(null);
+    const response = await createApp().request(DOMAIN_PATH);
+    expect(response.status).toBe(404);
+    expect(m.get).not.toHaveBeenCalled();
+  });
+
+  it("rejects an actor without project newsletter authorization before reading", async () => {
+    m.authorize.mockRejectedValue(forbidden("Workspace access denied"));
+    const response = await createApp(COWORKER).request(DOMAIN_PATH);
+    expect(response.status).toBe(403);
+    expect(m.project).not.toHaveBeenCalled();
+    expect(m.get).not.toHaveBeenCalled();
+  });
+
   it("404s outside the newsletter beta", async () => {
     m.workspace.mockResolvedValue({ organization: { slug: "other" } });
-    expect((await createApp().request("/sending-domain")).status).toBe(404);
+    expect((await createApp().request(DOMAIN_PATH)).status).toBe(404);
   });
 });
 
 describe("sending domain mutations", () => {
-  it.each(["owner", "admin"])(
-    "are allowed for an organization %s",
-    async (role) => {
-      m.member.mockResolvedValue({ role });
-      for (const mutation of MUTATIONS) {
-        const response = await send(createApp(), mutation);
-        expect(response.status, mutation.join(" ")).toBeLessThan(300);
-      }
-      expect(m.put).toHaveBeenCalledWith(WORKSPACE_ID, "news@brand.example");
-      expect(m.cloudflare).toHaveBeenCalledWith(WORKSPACE_ID, TOKEN);
-      expect(m.remove).toHaveBeenCalledWith(WORKSPACE_ID);
-      expect(m.resume).toHaveBeenCalledWith(WORKSPACE_ID);
-    },
-  );
+  it("allows a plain project member to connect, remove, check, resume and configure DNS", async () => {
+    for (const mutation of MUTATIONS) {
+      const response = await send(createApp(), mutation);
+      expect(response.status, mutation.join(" ")).toBeLessThan(300);
+    }
+    expect(m.put).toHaveBeenCalledWith(PROJECT_ID, "news@brand.example");
+    expect(m.cloudflare).toHaveBeenCalledWith(PROJECT_ID, TOKEN);
+    expect(m.remove).toHaveBeenCalledWith(PROJECT_ID);
+    expect(m.check).toHaveBeenCalledWith(PROJECT_ID);
+    expect(m.connect).toHaveBeenCalledWith(PROJECT_ID);
+    expect(m.resume).toHaveBeenCalledWith(PROJECT_ID);
+  });
 
   it.each(MUTATIONS)(
-    "%s %s is forbidden for a plain member",
+    "%s %s rejects an inaccessible project",
     async (...mutation) => {
-      m.member.mockResolvedValue({ role: "member" });
+      m.project.mockResolvedValue(null);
       const response = await send(createApp(), mutation);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
+      expect(m.put).not.toHaveBeenCalled();
+      expect(m.check).not.toHaveBeenCalled();
+      expect(m.cloudflare).not.toHaveBeenCalled();
+      expect(m.connect).not.toHaveBeenCalled();
+      expect(m.remove).not.toHaveBeenCalled();
+      expect(m.resume).not.toHaveBeenCalled();
     },
   );
 
@@ -221,16 +254,18 @@ describe("sending domain mutations", () => {
       const response = await send(createApp(auth), mutation);
       expect(response.status, mutation.join(" ")).toBe(403);
     }
-    expect(m.member).not.toHaveBeenCalled();
+    expect(m.project).not.toHaveBeenCalled();
+    expect(m.authorize).not.toHaveBeenCalled();
     expect(m.put).not.toHaveBeenCalled();
     expect(m.cloudflare).not.toHaveBeenCalled();
     expect(m.remove).not.toHaveBeenCalled();
+    expect(m.resume).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid From address before calling the service", async () => {
     const response = await send(createApp(), [
       "PUT",
-      "/sending-domain",
+      DOMAIN_PATH,
       { fromAddress: "Brand <news@brand.example>" },
     ]);
     expect(response.status).toBe(422);
@@ -240,7 +275,7 @@ describe("sending domain mutations", () => {
   it("never echoes the Cloudflare token in a validation error", async () => {
     const response = await send(createApp(), [
       "POST",
-      "/sending-domain/cloudflare",
+      `${DOMAIN_PATH}/cloudflare`,
       { apiToken: "short-token" },
     ]);
     expect(response.status).toBe(422);
@@ -248,8 +283,43 @@ describe("sending domain mutations", () => {
   });
 });
 
-it("returns warm-up status for ordinary members", async () => {
-  m.member.mockResolvedValue({ role: "member" });
+describe("sending domain API contract", () => {
+  it.each([["GET", DOMAIN_PATH, undefined], ...MUTATIONS] as const)(
+    "%s %s rejects an invalid project id before accessing data",
+    async (method, path, body) => {
+      const response = await send(createApp(), [
+        method,
+        path.replace(PROJECT_ID, "invalid-project"),
+        body,
+      ]);
+      expect(response.status).toBe(422);
+      expect(m.project).not.toHaveBeenCalled();
+      expect(m.get).not.toHaveBeenCalled();
+      expect(m.put).not.toHaveBeenCalled();
+      expect(m.check).not.toHaveBeenCalled();
+      expect(m.cloudflare).not.toHaveBeenCalled();
+      expect(m.connect).not.toHaveBeenCalled();
+      expect(m.remove).not.toHaveBeenCalled();
+      expect(m.resume).not.toHaveBeenCalled();
+    },
+  );
+
+  it("exposes only project-scoped operations", () => {
+    const document = createApp().getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "test", version: "1" },
+    });
+    expect(Object.keys(document.paths ?? {})).toEqual([
+      "/{id}/newsletter/sending-domain",
+      "/{id}/newsletter/sending-domain/check",
+      "/{id}/newsletter/sending-domain/cloudflare",
+      "/{id}/newsletter/sending-domain/domain-connect",
+      "/{id}/newsletter/sending-domain/warmup/resume",
+    ]);
+  });
+});
+
+it("returns warm-up status for ordinary project members", async () => {
   m.get.mockResolvedValue({
     ...DOMAIN,
     status: "VERIFIED",
@@ -262,10 +332,10 @@ it("returns warm-up status for ordinary members", async () => {
       pauseReason: "BOUNCE_RATE",
     },
   });
-  const response = await createApp().request("/sending-domain");
+  const response = await createApp().request(DOMAIN_PATH);
   expect(response.status).toBe(200);
   expect((await response.json()).data).toMatchObject({
-    canManage: false,
+    canManage: true,
     sendingDomain: {
       warmup: {
         day: 0,

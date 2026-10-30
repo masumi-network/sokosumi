@@ -12,6 +12,7 @@ import {
   NEWSLETTER_ID,
   NEWSLETTER_ISSUE,
   NEWSLETTER_ISSUE_ID,
+  NEWSLETTER_PROJECT_ID,
   NEWSLETTER_SUBSCRIBER,
 } from "@/test/newsletter";
 
@@ -119,7 +120,7 @@ function customDomain(
 ): NewsletterSendingDomain {
   return {
     id: "custom-domain",
-    workspaceId: NEWSLETTER.workspaceId,
+    projectId: NEWSLETTER_PROJECT_ID,
     domain: "custom.example.com",
     fromAddress: "hello@custom.example.com",
     resendDomainId: "resend-domain",
@@ -352,6 +353,35 @@ afterEach(() => {
 });
 
 describe("sendNewsletterIssue", () => {
+  it("uses this project's verified sending domain", async () => {
+    m.state.sendingDomain = customDomain({
+      fromAddress: "updates@project.example",
+    });
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    expect(m.domainFind).toHaveBeenCalledWith({
+      where: { projectId: NEWSLETTER_PROJECT_ID },
+    });
+    expect(m.batchSend.mock.calls[0]?.[0][0]).toMatchObject({
+      from: '\"Ada\" <updates@project.example>',
+    });
+  });
+
+  it("uses the shared sender when only another project has a verified domain", async () => {
+    m.domainFind.mockImplementation(
+      ({ where }: { where: { projectId?: string } }) =>
+        where.projectId === NEWSLETTER_PROJECT_ID
+          ? null
+          : customDomain({
+              projectId: "other-project",
+              fromAddress: "updates@other.example",
+            }),
+    );
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+    expect(m.batchSend.mock.calls[0]?.[0][0]).toMatchObject({
+      from: '\"Ada via Sokosumi\" <newsletter@news.example.com>',
+    });
+  });
+
   it("keeps recipients above a custom domain's daily cap queued", async () => {
     m.state.subscribers = subscribers(75);
     m.state.sendingDomain = customDomain();
@@ -571,7 +601,7 @@ describe("sendNewsletterIssue", () => {
     ).toHaveLength(30);
   });
 
-  it("keeps paused custom-domain recipients queued until an admin resumes it", async () => {
+  it("keeps paused custom-domain recipients queued until a project member resumes it", async () => {
     m.state.subscribers = subscribers(3);
     m.state.sendingDomain = customDomain({
       warmupPausedAt: new Date(),
@@ -642,6 +672,26 @@ describe("sendNewsletterIssue", () => {
         }),
       }),
     );
+  });
+
+  it("keeps recipients queued if the reserved domain belongs to another project", async () => {
+    m.state.sendingDomain = customDomain();
+    m.domainFind
+      .mockImplementationOnce(() => m.state.sendingDomain)
+      .mockImplementation(() => customDomain({ projectId: "other-project" }));
+
+    await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+
+    expect(m.domainFind).toHaveBeenCalledWith({
+      where: { id: "custom-domain" },
+    });
+    expect(m.batchSend).not.toHaveBeenCalled();
+    expect(m.domainUpdate).not.toHaveBeenCalled();
+    expect(m.state.sends[0]).toMatchObject({
+      status: "QUEUED",
+      attemptedAt: null,
+      sendingDomainId: null,
+    });
   });
 
   it("sends the full list after a custom domain reaches unlimited capacity", async () => {

@@ -273,41 +273,59 @@ export const newsletterService = {
     return response.data;
   },
 
-  async getSendingDomain(): Promise<NewsletterSendingDomainState> {
-    const response = await coreClient.getNewsletterSendingDomain();
-    return response.data;
-  },
-
-  async saveSendingDomain(fromAddress: string) {
-    const response = await coreClient.putNewsletterSendingDomain({
-      fromAddress,
-    });
-    return response.data;
-  },
-
-  async removeSendingDomain() {
-    await coreClient.deleteNewsletterSendingDomain();
-  },
-
-  async checkSendingDomain() {
-    const response = await coreClient.postNewsletterSendingDomainCheck();
-    return response.data;
-  },
-
-  async resumeSendingDomainWarmup() {
-    const response = await coreClient.postNewsletterSendingDomainWarmupResume();
-    return response.data;
-  },
-
-  async connectSendingDomainWithCloudflare(apiToken: string) {
+  async getSendingDomain(
+    projectId: string,
+  ): Promise<NewsletterSendingDomainState> {
     const response =
-      await coreClient.postNewsletterSendingDomainCloudflare(apiToken);
+      await coreClient.getProjectsByIdNewsletterSendingDomain(projectId);
     return response.data;
   },
 
-  async getSendingDomainConnect(projectId?: string) {
+  async saveSendingDomain(projectId: string, fromAddress: string) {
+    const response = await coreClient.putProjectsByIdNewsletterSendingDomain(
+      projectId,
+      {
+        fromAddress,
+      },
+    );
+    return response.data;
+  },
+
+  async removeSendingDomain(projectId: string) {
+    await coreClient.deleteProjectsByIdNewsletterSendingDomain(projectId);
+  },
+
+  async checkSendingDomain(projectId: string) {
     const response =
-      await coreClient.getNewsletterSendingDomainDomainConnect(projectId);
+      await coreClient.postProjectsByIdNewsletterSendingDomainCheck(projectId);
+    return response.data;
+  },
+
+  async resumeSendingDomainWarmup(projectId: string) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterSendingDomainWarmupResume(
+        projectId,
+      );
+    return response.data;
+  },
+
+  async connectSendingDomainWithCloudflare(
+    projectId: string,
+    apiToken: string,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterSendingDomainCloudflare(
+        projectId,
+        apiToken,
+      );
+    return response.data;
+  },
+
+  async getSendingDomainConnect(projectId: string) {
+    const response =
+      await coreClient.getProjectsByIdNewsletterSendingDomainDomainConnect(
+        projectId,
+      );
     return response.data;
   },
 

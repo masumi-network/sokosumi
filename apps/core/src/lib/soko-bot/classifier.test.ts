@@ -310,6 +310,7 @@ describe("Jev route selection", () => {
     "MEMORY",
     "SCHEDULE",
     "SOCIAL",
+    "ADS",
     "CHAT",
     "FILE",
     "INTEGRATION",

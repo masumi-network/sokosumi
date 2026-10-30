@@ -451,7 +451,7 @@ describe("newsletter approval and delivery", () => {
       expect(m.send).not.toHaveBeenCalled();
     },
   );
-  it("schedules from a verified workspace domain without the shared fallback", async () => {
+  it("schedules from this project's verified domain without the shared fallback", async () => {
     issue("NEEDS_APPROVAL", true);
     m.subscribers.mockResolvedValue(1);
     m.domain = "";
@@ -466,7 +466,7 @@ describe("newsletter approval and delivery", () => {
     });
     expect(response.status).toBe(200);
     expect(m.sendingDomain).toHaveBeenCalledWith({
-      where: { workspaceId: NEWSLETTER_WORKSPACE_ID },
+      where: { projectId: NEWSLETTER_PROJECT_ID },
       select: { fromAddress: true, status: true, warmupPausedAt: true },
     });
   });

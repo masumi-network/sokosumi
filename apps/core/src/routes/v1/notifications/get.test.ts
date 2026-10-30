@@ -519,6 +519,67 @@ describe("GET /notifications?needsAction=true", () => {
     );
   });
 
+  it("narrows to one project's waiting tasks and jobs", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    answerNotificationLookups([
+      {
+        id: "n_task_waiting",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+      {
+        id: "n_job_waiting",
+        messageKey: "Notifications.Job.inputRequired",
+        referenceId: "job_waiting",
+      },
+      {
+        id: "n_grant_pending",
+        messageKey: "notifications.vendorGrant.pending",
+        referenceId: "grant_pending",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+    jobFindManyMock.mockResolvedValue([jobRow("job_waiting", true)]);
+    vendorGrantFindManyMock.mockResolvedValue([{ id: "grant_pending" }]);
+
+    const response = await createApp().request(
+      `http://localhost/?needsAction=true&projectId=${projectId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["task_waiting"] },
+        status: "INPUT_REQUIRED",
+        projectId,
+      },
+      select: { id: true },
+    });
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["job_waiting"] }, projectId },
+      }),
+    );
+    // A vendor grant belongs to no project, so it is not asked about.
+    expect(vendorGrantFindManyMock).not.toHaveBeenCalled();
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: ["n_task_waiting", "n_job_waiting"] },
+        }),
+      }),
+    );
+  });
+
+  it("rejects projectId without needsAction", async () => {
+    const response = await createApp().request(
+      "http://localhost/?projectId=11111111-1111-4111-8111-111111111111",
+    );
+
+    expect(response.status).toBe(400);
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("asks no record anything when nothing ever asked the reader", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?needsAction=true");
