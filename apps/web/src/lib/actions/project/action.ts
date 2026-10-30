@@ -9,6 +9,7 @@ import type {
   ProjectCloseStatus,
   ProjectContextMd,
   ProjectSocialConnection,
+  ProjectSocialConnectionPages,
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
@@ -100,6 +101,11 @@ interface DisconnectProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   socialConnectionId: string;
+}
+
+interface AddProjectSocialConnectionPageParameters
+  extends DisconnectProjectSocialConnectionParameters {
+  externalAccountId: string;
 }
 
 interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
@@ -596,6 +602,65 @@ export const disconnectProjectSocialConnection = withSession<
     const connection = await projectService.disconnectSocialConnection(
       normalizedProjectId,
       normalizedSocialConnectionId,
+    );
+    revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
+    return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const listProjectSocialConnectionPages = withSession<
+  DisconnectProjectSocialConnectionParameters,
+  ActionResultDto<ProjectSocialConnectionPages, ActionError>
+>(async ({ projectId, socialConnectionId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSocialConnectionId = socialConnectionId.trim();
+  if (!normalizedProjectId || !normalizedSocialConnectionId) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Project social connection required",
+      }),
+    );
+  }
+
+  try {
+    const pages = await projectService.listSocialConnectionPages(
+      normalizedProjectId,
+      normalizedSocialConnectionId,
+    );
+    return toActionResult(ok(pages));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const addProjectSocialConnectionPage = withSession<
+  AddProjectSocialConnectionPageParameters,
+  ActionResultDto<ProjectSocialConnection, ActionError>
+>(async ({ projectId, socialConnectionId, externalAccountId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSocialConnectionId = socialConnectionId.trim();
+  const normalizedExternalAccountId = externalAccountId.trim();
+  if (
+    !normalizedProjectId ||
+    !normalizedSocialConnectionId ||
+    !normalizedExternalAccountId
+  ) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Project social connection page required",
+      }),
+    );
+  }
+
+  try {
+    const connection = await projectService.addSocialConnectionPage(
+      normalizedProjectId,
+      normalizedSocialConnectionId,
+      normalizedExternalAccountId,
     );
     revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
     return toActionResult(ok(connection));

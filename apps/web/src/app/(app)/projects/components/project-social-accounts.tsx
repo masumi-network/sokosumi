@@ -52,6 +52,7 @@ import {
   useComposioConnection,
 } from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import { SocialAccountPagePicker } from "./social-account-page-picker";
 import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
@@ -147,7 +148,9 @@ export function ProjectSocialAccounts({
   reconnections,
   onReconnected,
 }: ProjectSocialAccountsProps) {
-  const { enabledProviders, isProviderEnabled } =
+  // Also gates the LinkedIn connect-row hint once "personal profile only"
+  // copy lands: with pages enabled it no longer applies.
+  const { enabledProviders, isProviderEnabled, linkedInCompanyPagesEnabled } =
     useSocialProviderAvailability();
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
@@ -168,6 +171,10 @@ export function ProjectSocialAccounts({
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
+  // The personal LinkedIn account whose company pages are being picked.
+  const [pageSource, setPageSource] = useState<ProjectSocialConnection | null>(
+    null,
+  );
   const isBusy = pendingAction !== null;
 
   useMountEffect(() => {
@@ -267,6 +274,9 @@ export function ProjectSocialAccounts({
         }),
       });
       if (action === "reconnect") onReconnected?.(outcome.value);
+      if (action === "connect" && canAddPages(outcome.value)) {
+        setPageSource(outcome.value);
+      }
     } else if (outcome.kind === "timeout") {
       showFeedback({ kind: "error", message: t("errors.timeout") });
     } else if (outcome.kind === "failed") {
@@ -413,6 +423,16 @@ export function ProjectSocialAccounts({
 
     await startOAuth("connect", undefined, connection.provider);
     router.refresh();
+  }
+
+  function canAddPages(connection: ProjectSocialConnection): boolean {
+    return (
+      linkedInCompanyPagesEnabled &&
+      !connectDisabled &&
+      connection.accountType === "personal" &&
+      connection.status === "active" &&
+      isProviderEnabled(connection.provider)
+    );
   }
 
   function requestConfirmation(
@@ -568,7 +588,9 @@ export function ProjectSocialAccounts({
                         className="text-muted-foreground text-xs"
                         data-testid="linkedin-personal-only"
                       >
-                        {t("linkedinPersonalOnly")}
+                        {linkedInCompanyPagesEnabled
+                          ? t("linkedInPages.connectHint")
+                          : t("linkedinPersonalOnly")}
                       </span>
                     </span>
                   ) : (
@@ -620,7 +642,9 @@ export function ProjectSocialAccounts({
             const isWarningStatus =
               canReconnect || connection.status === "pending";
             const canStartOver = connection.status === "pending";
+            // A page's authorization belongs to the profile that added it.
             const canReplace =
+              connection.accountType !== "organization" &&
               !comingSoon &&
               !connectDisabled &&
               (connection.status === "active" || canReconnect);
@@ -639,11 +663,18 @@ export function ProjectSocialAccounts({
                   provider={connection.provider}
                 />
                 <div className="min-w-40 flex-1">
-                  <p className="truncate text-sm font-medium">{primary}</p>
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    <span className="min-w-0 truncate">{primary}</span>
+                    {connection.accountType === "organization" ? (
+                      <Badge variant="secondary">
+                        {t("linkedInPages.companyPage")}
+                      </Badge>
+                    ) : null}
+                  </p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
-                    {connection.provider === "linkedin" ? (
+                    {connection.accountType === "personal" ? (
                       <span data-testid="linkedin-personal-profile">
                         {t("personalProfile")}
                       </span>
@@ -744,6 +775,16 @@ export function ProjectSocialAccounts({
                             {t("syncNow")}
                           </DropdownMenuItem>
                         ) : null}
+                        {canAddPages(connection) ? (
+                          <DropdownMenuItem
+                            className="min-h-11"
+                            onSelect={() => {
+                              setPageSource(connection);
+                            }}
+                          >
+                            {t("linkedInPages.addCompanyPages")}
+                          </DropdownMenuItem>
+                        ) : null}
                         {canReplace ? (
                           <DropdownMenuItem
                             className="min-h-11"
@@ -780,6 +821,17 @@ export function ProjectSocialAccounts({
           />
         </div>
       )}
+
+      {pageSource ? (
+        <SocialAccountPagePicker
+          projectId={projectId}
+          connection={pageSource}
+          onOpenChange={(open) => {
+            if (!open) setPageSource(null);
+          }}
+          onAdded={() => router.refresh()}
+        />
+      ) : null}
 
       <AlertDialog
         open={pendingConfirmation !== null}

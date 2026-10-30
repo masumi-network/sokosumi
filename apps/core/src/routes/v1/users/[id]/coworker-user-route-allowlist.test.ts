@@ -334,6 +334,7 @@ describe("coworker user route allowlist", () => {
           role: "member",
           memberCount: 3,
           enabledSocialProviders: [...SOCIAL_PUBLIC_PROVIDERS],
+          linkedInCompanyPagesEnabled: false,
           logo: null,
           websiteUrl: null,
           preferred: false,
@@ -365,6 +366,7 @@ describe("coworker user route allowlist", () => {
           role: "member",
           memberCount: 3,
           enabledSocialProviders: [...SOCIAL_PUBLIC_PROVIDERS],
+          linkedInCompanyPagesEnabled: false,
           logo: null,
           websiteUrl: null,
           preferred: true,
@@ -382,6 +384,7 @@ describe("coworker user route allowlist", () => {
     expect((await response.json()).data).toMatchObject({
       organizationId: "org_1",
       enabledSocialProviders: SOCIAL_PUBLIC_PROVIDERS,
+      linkedInCompanyPagesEnabled: false,
       preferred: true,
     });
     expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();

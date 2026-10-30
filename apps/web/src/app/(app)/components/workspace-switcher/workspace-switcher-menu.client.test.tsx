@@ -93,6 +93,7 @@ const personalWorkspace: UserWorkspace = {
   websiteUrl: null,
   preferred: false,
   enabledSocialProviders: [],
+  linkedInCompanyPagesEnabled: false,
 };
 
 const orgWorkspace: UserWorkspace = {
@@ -107,6 +108,7 @@ const orgWorkspace: UserWorkspace = {
   websiteUrl: null,
   preferred: false,
   enabledSocialProviders: ["x", "youtube", "linkedin"],
+  linkedInCompanyPagesEnabled: false,
 };
 
 function renderSwitcher({

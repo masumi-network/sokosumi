@@ -195,6 +195,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
         enabledSocialProviders: [
           ...socialProvidersForWorkspace({ organizationSlug: slug }),
         ],
+        linkedInCompanyPagesEnabled: false,
         logo: null,
         websiteUrl: null,
         preferred: slug === null,

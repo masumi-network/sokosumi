@@ -5,6 +5,7 @@ import {
   ComposioConfigError,
   ComposioIdentityError,
 } from "@/clients/composio.client";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import {
   badRequest,
   integrationNotConfigured,
@@ -19,6 +20,9 @@ export function mapProjectSocialConnectionServiceError(error: unknown): never {
   }
   if (error instanceof ComposioIdentityError) {
     throw badRequest(error.message, error.kind ? { kind: error.kind } : {});
+  }
+  if (error instanceof ComposioToolError) {
+    throw serviceUnavailable("The social network did not answer. Try again.");
   }
   if (error instanceof ComposioApiError) {
     if (

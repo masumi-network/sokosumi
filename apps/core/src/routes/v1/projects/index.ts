@@ -67,6 +67,8 @@ import mountAddNewsletterSubscriber from "./[id]/newsletter/subscribers/post.js"
 import mountPatchProject from "./[id]/patch.js";
 import mountRecycleSocialAccountPost from "./[id]/social-account-posts/[accountPostId]/recycle/post.js";
 import mountDeleteProjectSocialConnection from "./[id]/social-connections/[connectionId]/delete.js";
+import mountListSocialConnectionPages from "./[id]/social-connections/[connectionId]/pages/get.js";
+import mountAddSocialConnectionPage from "./[id]/social-connections/[connectionId]/pages/post.js";
 import mountRefreshSocialAccountStatistics from "./[id]/social-connections/[connectionId]/statistics/refresh/post.js";
 import mountGetSocialConnectionSubscription from "./[id]/social-connections/[connectionId]/subscription/get.js";
 import mountListSocialConnectionSuggestedTimes from "./[id]/social-connections/[connectionId]/suggested-times/get.js";
@@ -156,6 +158,8 @@ mountPostProjectHide(app);
 mountDeleteProjectHide(app);
 mountListProjectSocialConnections(app);
 mountGetSocialConnectionSubscription(app);
+mountListSocialConnectionPages(app);
+mountAddSocialConnectionPage(app);
 mountListSocialAccountStatistics(app);
 mountExportSocialAccountStatistics(app);
 mountRefreshSocialAccountStatistics(app);

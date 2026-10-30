@@ -5,6 +5,7 @@ import {
   socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 
+import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
@@ -68,6 +69,8 @@ export async function listUserWorkspaces(
   });
 
   const workspaces: UserWorkspace[] = [];
+  const linkedInCompanyPagesEnabled =
+    getEnv().SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED;
 
   if (personalWorkspace) {
     workspaces.push({
@@ -81,6 +84,7 @@ export async function listUserWorkspaces(
       enabledSocialProviders: [
         ...socialProvidersForWorkspace({ organizationSlug: null }),
       ],
+      linkedInCompanyPagesEnabled,
       logo: null,
       websiteUrl: null,
       preferred: preferredOrganizationId === null,
@@ -106,6 +110,7 @@ export async function listUserWorkspaces(
       enabledSocialProviders: [
         ...socialProvidersForWorkspace({ organizationSlug: organization.slug }),
       ],
+      linkedInCompanyPagesEnabled,
       logo: organization.logo,
       websiteUrl: getOrganizationMetadata(organization.metadata).url,
       preferred: organization.id === preferredOrganizationId,

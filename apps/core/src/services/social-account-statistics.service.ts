@@ -1,5 +1,6 @@
 import { Prisma } from "@sokosumi/database";
 import { fetchSocialAccountStatisticsPage } from "@/clients/social-post-providers/account-statistics";
+import { socialConnectionAccountType } from "@/clients/social-post-providers/linkedin-author";
 import {
   isProjectSocialProvider,
   type ProjectSocialProvider,
@@ -194,6 +195,10 @@ function accountFromRecord(record: StatisticsConnection) {
     displayName: record.displayName,
     avatarUrl: record.avatarUrl,
     subscriptionType: record.subscriptionType,
+    accountType: socialConnectionAccountType(
+      record.provider,
+      record.externalAccountId,
+    ),
     status: record.status,
     connectedAt: record.connectedAt,
     disconnectedAt: record.disconnectedAt,

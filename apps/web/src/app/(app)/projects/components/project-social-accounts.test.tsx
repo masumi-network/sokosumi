@@ -105,6 +105,10 @@ const MESSAGES: Record<string, string> = {
     "Facebook needs an account that manages exactly one Page.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
   "errors.sync": "Couldn't start sync.",
+  "linkedInPages.companyPage": "Company page",
+  "linkedInPages.addCompanyPages": "Add company pages",
+  "linkedInPages.connectHint":
+    "Personal profile or company pages you administer",
 };
 
 vi.mock("next-intl", () => ({
@@ -139,6 +143,14 @@ vi.mock("@/lib/actions/project/action", () => ({
   refreshProjectSocialAccountStatistics: vi.fn(),
 }));
 
+vi.mock("@/app/projects/components/social-account-page-picker", () => ({
+  SocialAccountPagePicker: ({
+    connection,
+  }: {
+    connection: ProjectSocialConnection;
+  }) => <div data-testid="page-picker">{connection.id}</div>,
+}));
+
 vi.mock("@/lib/actions/composio/action", () => ({
   completeComposioAuthCallbackAction: vi.fn(),
 }));
@@ -170,6 +182,7 @@ function buildConnection(
     displayName: null,
     avatarUrl: null,
     subscriptionType: null,
+    accountType: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -487,6 +500,7 @@ describe("ProjectSocialAccounts", () => {
               id: "linkedin-1",
               provider: "linkedin",
               externalHandle: "alice",
+              accountType: "personal",
             }),
             buildConnection({ id: "x-1" }),
           ]}
@@ -1714,5 +1728,114 @@ describe("ProjectSocialAccounts", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  describe("LinkedIn company pages", () => {
+    const person = buildConnection({
+      id: "person-row",
+      provider: "linkedin",
+      displayName: "Ada Example",
+      externalHandle: null,
+      accountType: "personal",
+    });
+    const page = buildConnection({
+      id: "page-row",
+      provider: "linkedin",
+      displayName: "Example Company",
+      externalHandle: null,
+      accountType: "organization",
+    });
+
+    function renderAccounts(linkedInCompanyPagesEnabled: boolean) {
+      render(
+        <SocialProviderAvailabilityProvider
+          enabledProviders={SOCIAL_POST_PROVIDERS}
+          linkedInCompanyPagesEnabled={linkedInCompanyPagesEnabled}
+        >
+          <ProjectSocialAccounts
+            projectId={PROJECT_ID}
+            connections={[person, page]}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+    }
+
+    it("labels a page row and keeps Replace off it", async () => {
+      const user = userEvent.setup();
+      renderAccounts(true);
+
+      const pageRow = screen.getByTestId("project-social-connection-page-row");
+      expect(within(pageRow).getByText("Company page")).toBeVisible();
+      expect(
+        within(
+          screen.getByTestId("project-social-connection-person-row"),
+        ).queryByText("Company page"),
+      ).toBeNull();
+      await user.click(
+        screen.getByRole("button", { name: "Actions for Example Company" }),
+      );
+      expect(screen.queryByRole("menuitem", { name: "Replace" })).toBeNull();
+      expect(
+        screen.queryByRole("menuitem", { name: "Add company pages" }),
+      ).toBeNull();
+    });
+
+    it("opens the page picker from the personal profile", async () => {
+      const user = userEvent.setup();
+      renderAccounts(true);
+
+      await user.click(
+        screen.getByRole("button", { name: "Actions for Ada Example" }),
+      );
+      await user.click(
+        screen.getByRole("menuitem", { name: "Add company pages" }),
+      );
+      expect(screen.getByTestId("page-picker")).toHaveTextContent("person-row");
+    });
+
+    it("labels only the personal row as a personal profile", () => {
+      renderAccounts(true);
+
+      expect(
+        within(
+          screen.getByTestId("project-social-connection-person-row"),
+        ).getByText("Personal profile"),
+      ).toBeVisible();
+      expect(
+        within(
+          screen.getByTestId("project-social-connection-page-row"),
+        ).queryByText("Personal profile"),
+      ).toBeNull();
+    });
+
+    it.each([
+      [true, "Personal profile or company pages you administer"],
+      [false, "Personal profile only. Company pages aren't supported yet."],
+    ])(
+      "shows the LinkedIn connect hint for company pages %s",
+      async (enabled, hint) => {
+        const user = userEvent.setup();
+        renderAccounts(enabled);
+
+        await user.click(
+          screen.getByRole("button", { name: "Connect account" }),
+        );
+        expect(screen.getByTestId("linkedin-personal-only")).toHaveTextContent(
+          hint,
+        );
+      },
+    );
+
+    it("hides the page picker while company pages are off", async () => {
+      const user = userEvent.setup();
+      renderAccounts(false);
+
+      await user.click(
+        screen.getByRole("button", { name: "Actions for Ada Example" }),
+      );
+      expect(
+        screen.queryByRole("menuitem", { name: "Add company pages" }),
+      ).toBeNull();
+    });
   });
 });

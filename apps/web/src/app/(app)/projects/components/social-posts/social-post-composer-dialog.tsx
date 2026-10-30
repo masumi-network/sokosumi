@@ -1404,13 +1404,19 @@ export function SocialPostComposerDialog({
                         connection,
                         t("composer.unknownHandle"),
                       );
+                      const isPage = connection.accountType === "organization";
+                      const companyPage = accountsT(
+                        "linkedInPages.companyPage",
+                      );
                       return (
                         <button
                           aria-label={t("composer.accountOption", {
                             provider: socialPostProviderLabel(
                               connection.provider,
                             ),
-                            handle,
+                            handle: isPage
+                              ? `${handle} (${companyPage})`
+                              : handle,
                           })}
                           aria-pressed={selected}
                           className={cn(
@@ -1431,6 +1437,14 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {isPage ? (
+                            <span
+                              className="text-muted-foreground text-2xs"
+                              data-testid="social-post-account-company-page"
+                            >
+                              {companyPage}
+                            </span>
+                          ) : null}
                           {!isProviderEnabled(connection.provider) ? (
                             <Badge variant="secondary">
                               {accountsT("comingSoon")}
