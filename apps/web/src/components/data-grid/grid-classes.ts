@@ -19,7 +19,7 @@ export const GRID_HEAD_CHROME =
  * first column would cover the screen and leave nothing to scroll into view.
  */
 export const GRID_ROW_BACKGROUND =
-  "bg-card-background group-hover/row:bg-card-background-hover group-data-[state=selected]/row:bg-muted";
+  "bg-card-background group-hover/row:bg-accent group-data-[state=selected]/row:bg-muted transition-colors";
 export const GRID_STICKY_ROW_NUMBER = "sticky start-0 z-10";
 export const GRID_STICKY_FIRST_COLUMN = "md:sticky md:start-16 md:z-10";
 /**

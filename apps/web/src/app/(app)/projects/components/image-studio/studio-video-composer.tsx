@@ -13,6 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { creditsForVideo, videoModelsFor } from "./catalog";
@@ -258,7 +259,10 @@ export function StudioVideoComposer({
                     return (
                       <button
                         aria-checked={checked}
-                        className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
+                        className={cn(
+                          POPOVER_ROW_CLASS,
+                          "flex w-full cursor-pointer items-start gap-2 px-2 py-1.5 text-left",
+                        )}
                         key={candidate.id}
                         onClick={() =>
                           onDraftChange({

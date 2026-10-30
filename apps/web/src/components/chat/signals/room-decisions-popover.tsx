@@ -14,7 +14,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface RoomDecisionsPopoverProps {
   room: ChatRoom;
@@ -117,7 +119,10 @@ function DecisionsList({
             <li key={message.id}>
               <button
                 type="button"
-                className="hover:bg-muted flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-start"
+                className={cn(
+                  POPOVER_ROW_CLASS,
+                  "flex w-full flex-col gap-0.5 px-2 py-1.5 text-start",
+                )}
                 onClick={() => onJump(message)}
               >
                 <span className="text-muted-foreground flex items-center gap-1.5 text-xs">

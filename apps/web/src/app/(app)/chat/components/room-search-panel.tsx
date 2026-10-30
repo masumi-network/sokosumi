@@ -479,7 +479,7 @@ export function RoomSearchPanel({
                 aria-selected={isActive}
                 tabIndex={-1}
                 className={cn(
-                  "flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm transition-colors press",
+                  "flex w-full cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-2 text-left text-sm transition-colors press",
                   isActive && "bg-accent",
                 )}
                 onClick={() => handleSelect(message)}

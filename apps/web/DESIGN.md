@@ -371,6 +371,13 @@ prop/state-driven.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
+- **Menu rows** — `bg-accent`, `rounded-sm` and one colour fade on hover, whatever draws the row.
+  Primitives carry it; a row a popover draws for itself takes `POPOVER_ROW_CLASS`.
+- **Page rows** — the same `hover:bg-accent` and fade. A row between divider lines, as in a table,
+  stays square so the fill meets the lines; every other row keeps its rounded corners. Sticky cells
+  paint their row's fill (`GRID_ROW_BACKGROUND`). Holder items take it too, through
+  `HOLDER_ITEM_HOVER_CLASS`, whether they read as a row or a card. Agent cards, image tiles and chips
+  keep `--card-background-hover`.
 - **Segmented controls** (ToggleGroup) — switch the view of the same content; Tabs move
   between panels and keep their own look. One look for every segmented control: a
   `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3` options in

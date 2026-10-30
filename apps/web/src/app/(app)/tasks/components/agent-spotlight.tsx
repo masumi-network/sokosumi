@@ -106,7 +106,7 @@ function RailItem({
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
         FOCUS_RING,
-        active ? "bg-muted" : "hover:bg-card-background",
+        active ? "bg-muted" : "hover:bg-accent",
         className,
       )}
     >

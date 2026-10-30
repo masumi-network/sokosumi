@@ -70,7 +70,7 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
             return (
               <li key={turn.id}>
                 <details className="group">
-                  <summary className="hover:bg-card-background grid cursor-pointer grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-4 py-2 text-sm sm:grid-cols-[10rem_1fr_auto]">
+                  <summary className="hover:bg-accent transition-colors grid cursor-pointer grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-4 py-2 text-sm sm:grid-cols-[10rem_1fr_auto]">
                     <span className="text-muted-foreground text-xs tabular-nums">
                       {dateTime(turn.createdAt)}
                     </span>
