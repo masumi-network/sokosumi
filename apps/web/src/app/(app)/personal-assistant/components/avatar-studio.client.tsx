@@ -94,6 +94,21 @@ function isRendering({ ready, failed, total }: Progress): boolean {
   return total > 0 && ready + failed < total;
 }
 
+/**
+ * A state whose still never landed stays null in the avatar view. Once every
+ * render has settled and some failed, those empty tiles are the ones Core can
+ * restart from PENDING, so the owner can pick them and retry.
+ */
+function isFailedEmptyState(
+  still: string | null,
+  progress: Progress,
+  rendering: boolean,
+): boolean {
+  return (
+    still === null && !rendering && progress.failed > 0 && progress.total > 0
+  );
+}
+
 /** "wizard-hat" → "Wizard hat": a style option that has no translation yet. */
 function humanise(id: string): string {
   const words = id.replace(/[-_]+/g, " ");
@@ -294,12 +309,18 @@ export function AvatarStudio({
   }
   const pickedAssets = studio.avatar?.states[pick.state] ?? null;
   const pickedMaking = isMaking(pick.state);
+  const pickedFailedEmpty = isFailedEmptyState(
+    pickedAssets?.stillUrl ?? null,
+    studio.progress,
+    rendering,
+  );
   // A first loop still on its way has nothing to redo yet; its tile says so.
+  // A settled failure with no still is retryable via Core's regenerate path.
   const canRedo =
     draft === null &&
     isCraftedAvatar(studio.avatar) &&
     studio.progress.total > 0 &&
-    pickedAssets !== null &&
+    (pickedAssets !== null || pickedFailedEmpty) &&
     (!pickedMaking || pick.state in redoing);
 
   const crafted = draft !== null || isCraftedAvatar(studio.avatar);
@@ -568,6 +589,11 @@ export function AvatarStudio({
                 {STATES.map((state) => {
                   const still = studio.avatar?.states[state]?.stillUrl ?? null;
                   const selected = !draft && pick.state === state;
+                  const failedEmpty = isFailedEmptyState(
+                    still,
+                    studio.progress,
+                    rendering,
+                  );
                   // While the look renders: no still yet, or a still whose loop is on its way.
                   const progress =
                     draft || !isMaking(state)
@@ -579,7 +605,7 @@ export function AvatarStudio({
                     <button
                       key={state}
                       type="button"
-                      disabled={draft !== null || !still}
+                      disabled={draft !== null || (!still && !failedEmpty)}
                       aria-pressed={selected}
                       onClick={() =>
                         setPick((prev) => ({ state, n: prev.n + 1 }))

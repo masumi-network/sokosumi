@@ -14,7 +14,7 @@ vi.mock("@/lib/soko-bot-avatar/media", () => ({
 }));
 
 import { planChange } from "./draw";
-import { CRAFTED_DESK_STYLE as style, freshLook } from "./style";
+import { freshLook, CRAFTED_DESK_STYLE as style } from "./style";
 
 describe("planChange", () => {
   const base = freshLook(style);

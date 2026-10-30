@@ -464,6 +464,40 @@ describe("AvatarStudio", () => {
       expect(screen.queryByRole("button", { name: "redo" })).toBeNull();
     });
 
+    it("lets the owner pick and retry a state whose still never landed", async () => {
+      regenerateMock.mockResolvedValue({
+        ok: true,
+        value: {
+          ...studio,
+          avatar: {
+            ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+            states: { ...NO_STATES, idle: assets("idle") },
+          },
+          progress: { ready: 5, failed: 0, total: 6 },
+        },
+      });
+      renderStudio({
+        ...studio,
+        avatar: {
+          ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+          states: { ...NO_STATES, idle: assets("idle") },
+        },
+        progress: { ready: 5, failed: 1, total: 6 },
+      });
+
+      const offline = screen.getByRole("button", { name: "label.offline" });
+      expect(offline).toBeEnabled();
+      await click(offline);
+
+      expect(screen.getByRole("button", { name: "retry" })).toBeEnabled();
+      await click(screen.getByRole("button", { name: "retry" }));
+
+      expect(regenerateMock).toHaveBeenCalledWith({
+        botId: undefined,
+        state: "offline",
+      });
+    });
+
     it("is hidden while a draft is open", async () => {
       createMock.mockResolvedValue({
         ok: true,
