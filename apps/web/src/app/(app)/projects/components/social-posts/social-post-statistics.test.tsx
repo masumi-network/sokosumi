@@ -249,7 +249,7 @@ describe("SocialPostStatistics account history", () => {
     ).toHaveLength(2);
     expect(screen.queryByText(post.text)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Last \d+ days/ }),
+      screen.queryByRole("radio", { name: /Last \d+ days/ }),
     ).not.toBeInTheDocument();
   });
   it("shows a retryable error for a successful HTTP response containing an error body", async () => {
@@ -332,7 +332,7 @@ describe("SocialPostStatistics account history", () => {
     );
     for (const days of [7, 30, 90]) {
       expect(
-        screen.getByRole("button", { name: `Last ${days} days` }),
+        screen.getByRole("radio", { name: `Last ${days} days` }),
       ).toHaveClass("h-11", "md:h-8");
     }
     expect(

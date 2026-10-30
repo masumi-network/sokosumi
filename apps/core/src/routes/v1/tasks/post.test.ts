@@ -189,8 +189,11 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
   requireTaskAssignableUser: requireTaskAssignableUserMock,
+}));
+
+vi.mock("@/helpers/soko-bot-task-assign", () => ({
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({

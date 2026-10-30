@@ -1,6 +1,16 @@
+import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import {
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  googleCampaignEditSpecSchema,
+  googleCampaignSpecSchema,
+} from "@/schemas/project-ad-account.schema";
+import {
+  AD_RANGES,
   buildAdCampaign,
   completeDaysRange,
   fromMinorUnits,
@@ -68,5 +78,159 @@ describe("buildAdCampaign", () => {
         { spend: 2.349, impressions: 0, clicks: 0, conversions: null },
       ),
     ).toMatchObject({ dailyBudget: 1.13, spend: 2.35, ctr: null, cpc: null });
+  });
+});
+
+describe("Soko Bot list_ad_campaigns", () => {
+  // The bot's contract cannot import Core, so it lists the ranges itself.
+  it.each(AD_RANGES)("accepts the %s range", (range) => {
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.safeParse({
+        projectId: "01960001-0001-7001-8001-000000000001",
+        accountId: "01960001-0001-7001-8001-000000000002",
+        range,
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("Soko Bot create_ad_campaign", () => {
+  const botSchema = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign;
+  const common = {
+    locationIds: ["1003854"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com/spring",
+  };
+  const search = {
+    type: "SEARCH",
+    ...common,
+    keywords: GOOGLE_KEYWORD_MATCH_TYPES.map((matchType) => ({
+      text: `shoes ${matchType.toLowerCase()}`,
+      matchType,
+    })),
+    headlines: ["Run faster", "Light shoes", "Free returns"],
+    descriptions: ["Shoes that carry you.", "Order today, run tomorrow."],
+    sitelinks: [{ text: "Sale", finalUrl: "https://example.com/sale" }],
+    callouts: ["Free shipping"],
+  };
+  const display = {
+    type: "DISPLAY",
+    ...common,
+    businessName: "Sokosumi",
+    headlines: ["Run faster"],
+    longHeadline: "Light shoes that carry you further",
+    descriptions: ["Order today, run tomorrow."],
+  };
+  const fileIds = [
+    "01960001-0001-7001-8001-000000000041",
+    "01960001-0001-7001-8001-000000000042",
+    "01960001-0001-7001-8001-000000000043",
+  ];
+  const base = {
+    projectId: "01960001-0001-7001-8001-000000000001",
+    accountId: "01960001-0001-7001-8001-000000000002",
+    name: "Spring",
+    dailyBudget: 25,
+  };
+
+  // The bot's contract cannot import Core, so a spec the bot accepts must
+  // stay one Core accepts once the bot's file ids are resolved to Drive refs.
+  it("accepts the same Search spec as Core", () => {
+    expect(botSchema.safeParse({ ...base, google: search }).success).toBe(true);
+    expect(googleCampaignSpecSchema.safeParse(search).success).toBe(true);
+    const unknownMatch = {
+      ...search,
+      keywords: [{ text: "a", matchType: "FUZZY" }],
+    };
+    expect(botSchema.safeParse({ ...base, google: unknownMatch }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts the same Display spec as Core, once images are resolved", () => {
+    const roles = GOOGLE_DISPLAY_IMAGE_ROLES;
+    const bot = {
+      ...display,
+      images: roles.map((role, index) => ({ fileId: fileIds[index], role })),
+    };
+    const core = {
+      ...display,
+      images: roles.map((role, index) => ({
+        pathname: `drive/users/u/${index}.png`,
+        fileUrl: `https://x.public.blob.vercel-storage.com/${index}.png`,
+        name: `${index}.png`,
+        size: 1000,
+        mimeType: "image/png",
+        role,
+      })),
+    };
+    expect(botSchema.safeParse({ ...base, google: bot }).success).toBe(true);
+    expect(googleCampaignSpecSchema.safeParse(core).success).toBe(true);
+  });
+});
+
+describe("Soko Bot edit_ad_campaign", () => {
+  const botSchema = SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign;
+  const base = {
+    projectId: "01960001-0001-7001-8001-000000000001",
+    accountId: "01960001-0001-7001-8001-000000000002",
+    campaignId: "23850000000000000",
+    name: "Spring",
+    dailyBudget: 25,
+  };
+  const display = {
+    type: "DISPLAY",
+    locationIds: ["1003854"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com/spring",
+    businessName: "Sokosumi",
+    headlines: ["Run faster"],
+    longHeadline: "Light shoes that carry you further",
+    descriptions: ["Order today, run tomorrow."],
+  };
+  const kept = { assetId: "123456", role: "LANDSCAPE" };
+
+  // As for create: a spec the bot accepts must stay one Core accepts once
+  // its new images are resolved; kept images pass through unchanged.
+  it("accepts the same Display spec as Core, kept images and resolved new ones", () => {
+    const bot = {
+      ...display,
+      images: [
+        kept,
+        { fileId: "01960001-0001-7001-8001-000000000041", role: "SQUARE" },
+      ],
+    };
+    const core = {
+      ...display,
+      images: [
+        kept,
+        {
+          pathname: "drive/users/u/1.png",
+          fileUrl: "https://x.public.blob.vercel-storage.com/1.png",
+          name: "1.png",
+          size: 1000,
+          mimeType: "image/png",
+          role: "SQUARE",
+        },
+      ],
+    };
+    expect(botSchema.safeParse({ ...base, google: bot }).success).toBe(true);
+    expect(googleCampaignEditSpecSchema.safeParse(core).success).toBe(true);
+  });
+
+  it("refuses a kept image with no asset id, as Core does", () => {
+    const image = { role: "SQUARE" };
+    expect(
+      botSchema.safeParse({
+        ...base,
+        google: { ...display, images: [kept, image] },
+      }).success,
+    ).toBe(false);
+    expect(
+      googleCampaignEditSpecSchema.safeParse({
+        ...display,
+        images: [kept, image],
+      }).success,
+    ).toBe(false);
   });
 });

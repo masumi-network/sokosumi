@@ -176,7 +176,6 @@
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceptable",
       "settings": "Configuración",
-      "expandSidebar": "Expandir barra lateral",
       "creditsSummary": "Resumen de créditos:",
       "monthlyUsageLimit": "Límite de uso mensual",
       "additionalCreditsHero": "{credits, number}",
@@ -196,7 +195,11 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createWorkspace": "Crear espacio de trabajo",
-      "userAvatarAlt": "Avatar del usuario"
+      "userAvatarAlt": "Avatar del usuario",
+      "inviteMembers": "Invitar miembros",
+      "organizationSettings": "Ajustes",
+      "membersAndSettings": "Miembros y ajustes",
+      "roleAndMemberCount": "{role, select, owner {Propietario} admin {Admin} other {Miembro}} · {count, plural, =1 {1 miembro} other {# miembros}}"
     },
     "DataTable": {
       "Data": {
@@ -255,7 +258,8 @@
             "changeRole": "No se pudo cambiar el rol",
             "remove": "No se pudo eliminar al miembro",
             "assignSeat": "No se pudo asignar el Seat",
-            "unassignSeat": "No se pudo quitar el Seat"
+            "unassignSeat": "No se pudo quitar el Seat",
+            "manageSeats": "Gestionar Seats"
           },
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
@@ -285,50 +289,6 @@
         "resendError": "No se pudo reenviar la invitación",
         "open": "Acciones de la invitación"
       }
-    },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agentes",
-      "credits": "Credits",
-      "coupon": "Cupón",
-      "subscriptions": "Suscripciones",
-      "billing": "Billing",
-      "account": "Cuenta",
-      "admin": "Administración",
-      "organizations": "Organizaciones",
-      "users": "Usuarios",
-      "edit": "Editar",
-      "editor": "Editor",
-      "enterprise-contracts": "Contratos empresariales",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Tareas",
-      "connections": "Conexiones",
-      "developer": "Desarrollador",
-      "personal-assistant": "Asistente personal",
-      "history": "Historial de créditos",
-      "new": "Nuevo",
-      "notifications": "Notificaciones",
-      "projects": "Proyectos",
-      "invoices": "Facturas",
-      "oauth-clients": "Clientes OAuth",
-      "api-keys": "Claves API",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Documentación",
-      "drive": "Archivos",
-      "soko-bots": "Soko Bots",
-      "calendar": "Calendario",
-      "schedules": "Programaciones",
-      "threads": "Hilos",
-      "studio": "Content Studio",
-      "design-md": "Diseño",
-      "memory": "Memoria",
-      "social": "Programación social",
-      "ads": "Anuncios",
-      "evaluations": "Evaluaciones de modelos",
-      "catch-up": "Ponerse al día",
-      "contacts": "Contactos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -761,8 +721,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Invitar miembros en bloque",
-        "description": "Pega direcciones de email para invitar a varios miembros a la vez.",
+        "title": "Invitar miembros",
+        "description": "Pega una o varias direcciones de email.",
         "label": "Direcciones de email",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separa los emails con comas, punto y coma o saltos de línea.",
@@ -2297,8 +2257,9 @@
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
-        "pin": "Fijar proyecto",
-        "unpin": "Desfijar proyecto",
+        "pin": "Fijar",
+        "unpin": "Desfijar",
+        "pinned": "Fijado",
         "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
@@ -2334,6 +2295,54 @@
             "dispute_pending": "Disputa",
             "dispute_resolved": "Resuelto"
           }
+        },
+        "emptyClosed": {
+          "title": "No hay proyectos cerrados",
+          "description": "Un proyecto que cierras pasa aquí y conserva su historial."
+        },
+        "emptyHidden": {
+          "title": "No hay proyectos ocultos",
+          "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
+        },
+        "onlyClosed": {
+          "title": "Todos los proyectos están cerrados",
+          "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
+          "action": "Ver proyectos cerrados"
+        },
+        "state": {
+          "label": "Mostrar proyectos",
+          "open": "Abiertos",
+          "hidden": "Ocultos",
+          "closed": "Cerrados"
+        },
+        "closed": "Cerrado",
+        "hide": {
+          "hide": "Ocultar",
+          "show": "Mostrar",
+          "hidden": "Proyecto oculto",
+          "undo": "Deshacer",
+          "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
+          "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Te necesita",
+          "empty": "Nada te está esperando.",
+          "error": "No se pudo cargar lo que te necesita.",
+          "showAll": "Ver todo"
+        },
+        "activity": {
+          "title": "Actividad reciente",
+          "empty": "Todavía no hay actividad en proyectos abiertos.",
+          "emptyProject": "Todavía no hay actividad en este proyecto.",
+          "error": "No se pudo cargar la actividad reciente.",
+          "showAll": "Ver todo",
+          "untitledJob": "Trabajo sin nombre",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Tarea creada} COMMENT {Comentario añadido} READY {Tarea lista} QUEUED {Tarea programada} RUNNING {Tarea en curso} INPUT_REQUIRED {La tarea necesita datos} APPROVAL_REQUIRED {La tarea necesita aprobación} AUTHENTICATION_REQUIRED {La tarea necesita inicio de sesión} OUT_OF_CREDITS {Tarea en pausa por créditos} COMPLETED {Tarea completada} FAILED {Tarea fallida} CANCELED {Tarea cancelada} other {Tarea actualizada}}",
+          "job": "{status, select, INITIATED {Trabajo iniciado} AWAITING_PAYMENT {Trabajo pendiente de pago} AWAITING_INPUT {El trabajo necesita datos} RUNNING {Trabajo en curso} COMPLETED {Trabajo completado} FAILED {Trabajo fallido} other {Trabajo actualizado}}",
+          "project": "{event, select, CLOSE_REQUESTED {Cierre solicitado} BATCH_FAILED {Cierre fallido} RETRY_REQUESTED {Cierre reintentado} SERIES_RESOLVED {Trabajo programado detenido} CLOSE_FINALIZED {Proyecto cerrado} other {Proyecto actualizado}}"
         }
       },
       "Briefing": {
@@ -2789,6 +2798,7 @@
           },
           "performance": {
             "lastDays": "Últimos {days} días",
+            "rangeLabel": "Periodo",
             "moreFilters": "Más filtros",
             "activeFilters": "{count} activos",
             "posts": "Publicaciones",
@@ -2988,6 +2998,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
+        "stats": {
+          "label": "Recuento de tareas",
+          "running": "En ejecución",
+          "waiting": "En espera",
+          "done": "Hecho"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",
@@ -3064,7 +3080,7 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
-          "close": "Cerrar proyecto",
+          "close": "Cerrar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
@@ -3144,7 +3160,7 @@
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
-        "emptyDescription": "Elige un nombre, un remitente y una marca a continuación. Después, guarda los ajustes para crear el boletín.",
+        "emptyDescription": "Elige un nombre, un remitente y una marca. Después, guarda los ajustes para crear el boletín.",
         "general": "General",
         "brand": "Marca",
         "welcome": "Correo de bienvenida",
@@ -3159,7 +3175,7 @@
           "name": "Nombre del boletín",
           "senderName": "Nombre del remitente",
           "replyTo": "Correo de respuesta",
-          "logoUrl": "URL del logotipo",
+          "logoUrl": "Logotipo",
           "primaryColor": "Color principal",
           "accentColor": "Color de acento",
           "fontFamily": "Familia tipográfica",
@@ -3315,6 +3331,17 @@
             }
           }
         },
+        "Calendar": {
+          "title": "Calendario",
+          "description": "Consulta cuándo está programada o se envió cada edición del boletín.",
+          "navigation": "Cambiar de mes",
+          "previous": "Mes anterior",
+          "next": "Mes siguiente",
+          "today": "Hoy",
+          "emptyTitle": "No hay boletines este mes",
+          "emptyDescription": "Las ediciones programadas y enviadas aparecen aquí en su fecha de envío. Programa una edición para planificar tu próximo envío.",
+          "viewIssues": "Ver ediciones"
+        },
         "Issues": {
           "title": "Ediciones",
           "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
@@ -3467,7 +3494,7 @@
             "humanRequired": "Una persona debe aprobar o enviar esta edición desde una sesión iniciada en el navegador.",
             "invalidSchedule": "Elige una fecha entre un minuto y un año a partir de ahora y una zona horaria válida.",
             "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
-            "noSender": "El envío de boletines no está configurado. Pide a un administrador del espacio de trabajo que complete la configuración.",
+            "noSender": "Conecta un dominio de envío en la configuración del boletín, en «Dominio de envío», antes de programar o enviar.",
             "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
           },
           "viewOnWeb": "Ver en la web"
@@ -3527,6 +3554,129 @@
             "bounced": "Rebotados",
             "net": "Crecimiento neto",
             "runningTotal": "Total de suscriptores activos"
+          }
+        },
+        "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
+        "brandDescription": "El logotipo, los colores y la fuente de tus números.",
+        "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
+        "unsavedChanges": "Tienes cambios sin guardar.",
+        "colorPlaceholder": "Sin color",
+        "presetColors": "Colores predefinidos",
+        "clearColor": {
+          "primaryColor": "Quitar color principal",
+          "accentColor": "Quitar color de acento"
+        },
+        "Logo": {
+          "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
+          "upload": "Subir",
+          "replace": "Reemplazar",
+          "remove": "Quitar logotipo",
+          "previewAlt": "Logotipo del boletín",
+          "uploadError": "No se pudo subir el logotipo. Inténtalo de nuevo.",
+          "fileTooLarge": "El archivo es demasiado grande",
+          "fileTypeNotAccepted": "Este tipo de archivo no se admite",
+          "maxFilesExceeded": "Sube un solo logotipo a la vez"
+        },
+        "Preview": {
+          "title": "Vista previa",
+          "description": "Un boceto de cómo se ve tu marca en un número. Se actualiza mientras escribes.",
+          "from": "De {sender}",
+          "sampleHeading": "Tu próximo número",
+          "sampleBody": "Aquí aparece el contenido de tu número, con la fuente de tu marca.",
+          "button": "Leer más",
+          "unsubscribe": "Darse de baja",
+          "primary": "Principal",
+          "accent": "Acento",
+          "unset": "Predeterminado",
+          "welcome": "Correo de bienvenida",
+          "noSubject": "Aún sin asunto"
+        },
+        "SendingDomain": {
+          "title": "Dominio de envío",
+          "description": "Envía el boletín de este proyecto desde tu propia dirección, como news@news.tumarca.com.",
+          "fromAddress": "Dirección del remitente",
+          "fromAddressPlaceholder": "news@news.tumarca.com",
+          "fromAddressHint": "Usa un subdominio, como news.tumarca.com. Así la reputación de tus boletines queda separada de tu correo habitual.",
+          "add": "Añadir dominio",
+          "added": "Dominio añadido. Ahora añade sus registros DNS.",
+          "fallback": "Hasta que se verifique, los boletines se envían desde la dirección de Sokosumi como «tu nombre de remitente via Sokosumi».",
+          "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
+          "status": {
+            "PENDING": "Pendiente",
+            "VERIFIED": "Verificado",
+            "FAILED": "Fallido"
+          },
+          "lastChecked": "Última comprobación: {time}",
+          "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
+          "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
+          "checked": "Comprobado. Tus registros DNS aún no son visibles. Los cambios de DNS pueden tardar unas horas.",
+          "checkNow": "Comprobar ahora",
+          "connectTitle": "Añadir los registros DNS",
+          "dmarc": {
+            "title": "No se encontró ninguna política DMARC",
+            "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
+          },
+          "oneClick": {
+            "title": "Configuración con un clic",
+            "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
+            "lookup": "Buscar mi proveedor de DNS",
+            "found": "Tu dominio usa {provider}.",
+            "connect": "Conectar con {provider}",
+            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Usa un token de Cloudflare o añade los registros de abajo."
+          },
+          "cloudflare": {
+            "title": "Token de la API de Cloudflare",
+            "description": "Crea un token con Zone · DNS · Edit para la zona de este dominio y pégalo aquí. Sokosumi lo usa una vez para añadir los registros y nunca lo guarda.",
+            "submit": "Añadir registros en Cloudflare",
+            "success": "Registros añadidos en Cloudflare. La comprobación puede tardar unos minutos."
+          },
+          "records": {
+            "title": "Registros DNS",
+            "description": "O añade estos registros tú mismo en tu proveedor de DNS.",
+            "name": "Nombre",
+            "value": "Valor",
+            "priority": "Prioridad",
+            "found": "Registro encontrado",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Demuestra que el correo viene de ti."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Permite que Sokosumi envíe en tu nombre."
+              },
+              "bounce": {
+                "label": "Ruta de retorno (MX)",
+                "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Indica a los buzones qué hacer con el correo que no supera estas comprobaciones. p=none solo supervisa."
+              },
+              "other": {
+                "label": "Registro adicional",
+                "explanation": "Lo exige el proveedor de correo."
+              }
+            }
+          },
+          "remove": {
+            "action": "Quitar dominio",
+            "title": "¿Quitar el dominio de envío?",
+            "description": "Los boletines dejan de enviarse desde {domain}. Sus registros DNS siguen en tu proveedor de DNS hasta que los borres.",
+            "cancel": "Cancelar",
+            "success": "Dominio de envío quitado."
+          },
+          "errors": {
+            "generic": "No se pudo actualizar el dominio de envío. Inténtalo de nuevo.",
+            "invalidAddress": "Introduce una dirección de correo, como news@news.tumarca.com.",
+            "forbidden": "No tienes acceso al dominio de envío de este proyecto. Recarga la página.",
+            "notFound": "Este dominio de envío se quitó. Recarga la página.",
+            "conflict": "Este dominio ya está conectado. Quita primero el dominio actual o usa un dominio que no use otro proyecto.",
+            "domainRejected": "Este dominio no se puede usar. Revisa la dirección e inténtalo de nuevo.",
+            "providerFailed": "El proveedor de correo no respondió. Inténtalo de nuevo en un minuto.",
+            "cloudflareRejected": "Cloudflare rechazó el token. Comprueba que tenga Zone · DNS · Edit para la zona de este dominio.",
+            "cloudflareFailed": "Cloudflare no respondió. Inténtalo de nuevo en un minuto."
           }
         }
       }
@@ -4283,7 +4433,7 @@
       }
     },
     "Social": {
-      "title": "Programación social",
+      "title": "Publicaciones sociales",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
         "label": "Nueva publicación",
@@ -4343,15 +4493,18 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",
+        "compactCredits": "{count, plural, =0 {Sin Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
-        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Abrir el resumen de la cuenta: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "Nuevo",
           "newTask": "Nueva tarea",
           "search": "Buscar",
+          "home": "Inicio",
+          "projects": "Proyectos",
+          "overview": "Resumen",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
@@ -4365,10 +4518,15 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Programación social",
+          "social": "Publicaciones sociales",
           "ads": "Anuncios",
           "newsletter": "Boletín",
-          "contacts": "Contactos"
+          "contacts": "Contactos",
+          "groups": {
+            "work": "Trabajo",
+            "records": "Registros",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -4380,9 +4538,20 @@
           "title": "Se requiere un Seat asignado",
           "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
           "hint": "Pide a un propietario o admin que te asigne un Seat."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Trabajando ahora",
+          "needsAttention": "Requiere atención",
+          "activeAgo": "Activo {time}",
+          "ready": "Listo",
+          "team": "Los Soko Bots de tu equipo"
         }
       },
-      "toggle": "Mostrar u ocultar la barra lateral"
+      "show": "Mostrar barra lateral",
+      "hide": "Ocultar barra lateral",
+      "resize": "Cambiar el tamaño de la barra lateral",
+      "unreadChats": "Chats sin leer"
     },
     "HistorySearchDialog": {
       "title": "Buscar",
@@ -4620,7 +4789,8 @@
           "accounts": "Cuentas",
           "billing": "Facturación y comercial",
           "catalog": "Catálogo del marketplace",
-          "operations": "Operaciones"
+          "operations": "Operaciones",
+          "reference": "Referencia"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4674,6 +4844,10 @@
           "badgeCampaigns": {
             "title": "Insignias de funciones",
             "description": "Muestra una insignia Nuevo en una función de la barra lateral a los usuarios existentes durante un tiempo fijo."
+          },
+          "designSystem": {
+            "title": "Sistema de diseño",
+            "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales."
           }
         }
       },
@@ -5986,6 +6160,141 @@
           "deleteFailed": "No se pudo eliminar la campaña",
           "started": "Campaña iniciada"
         }
+      },
+      "DesignSystem": {
+        "title": "Sistema de diseño",
+        "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales y los tokens de la app. Cambia el tema de la app para ver el modo oscuro.",
+        "guideLink": "Guía de marca",
+        "backToAdmin": "Volver al admin",
+        "Theme": {
+          "light": "Claro",
+          "dark": "Oscuro"
+        },
+        "Color": {
+          "title": "Color",
+          "lead": "Superficies neutras. Un rosa por vista.",
+          "primaryName": "Iris Flower · principal",
+          "primaryRuleTitle": "El texto sobre Iris Flower siempre es Neutral 950",
+          "primaryRule": "El blanco sobre Iris Flower no tiene contraste suficiente. Nunca uses Iris Flower como color de texto sobre una página blanca. Úsalo para rellenos, acentos y estados activos.",
+          "palette": "Paleta Masumi",
+          "paletteRule": "Compartida por todas las marcas. Todo salvo Iris Flower es secundario. Nunca uses Scarlet ni Persimmon para estados.",
+          "neutrals": "Neutros",
+          "roles": "Roles del tema",
+          "Roles": {
+            "page": "Página",
+            "panel": "Panel",
+            "border": "Borde",
+            "fieldBorder": "Borde de campo",
+            "text": "Texto",
+            "mutedText": "Texto atenuado",
+            "primary": "Principal",
+            "component": "Componente sobre un panel",
+            "disabledText": "Texto deshabilitado",
+            "textOnPrimary": "Texto sobre el principal",
+            "scrim": "Oscurecimiento de capa"
+          },
+          "darkPrimaryRule": "En modo oscuro, el color primario reposa en Dark Iris (#D141D1, propuesta). Iris Flower se ve tres veces más intenso sobre casi negro. Al pasar el cursor vuelve Iris Flower.",
+          "status": "Estado",
+          "Status": {
+            "done": "Positivo",
+            "needsInput": "Advertencia",
+            "failed": "Destructivo"
+          },
+          "statusRule": "Cada estado combina color con un símbolo y una etiqueta. Nunca solo color.",
+          "gradients": "Degradados",
+          "gradientRule": "Por decidir. Solo en fondos y zonas hero, nunca detrás de una interfaz densa.",
+          "alpha": "Tonos alfa",
+          "alphaRule": "Negro con opacidad reducida. Solo para capas y oscurecimientos sobre imágenes, nunca para superficies de la interfaz.",
+          "alphaStep": "Alfa {step}"
+        },
+        "Type": {
+          "title": "Tipografía",
+          "lead": "Solo Inter. Light desde 20px, para titulares.",
+          "sample": "Agentes trabajando",
+          "Roles": {
+            "display": "Titular",
+            "heading": "Encabezado",
+            "subheading": "Subencabezado",
+            "body": "Cuerpo",
+            "label": "Etiqueta",
+            "caption": "Leyenda",
+            "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Forma y profundidad",
+          "lead": "Primero bordes. Sombras solo en capas flotantes. Sin brillo ni desenfoque.",
+          "border": "Borde",
+          "overlay": "Capa flotante"
+        },
+        "Components": {
+          "title": "Componentes",
+          "lead": "Un botón principal relleno por vista. El verbo primero.",
+          "schedule": "Programar publicación",
+          "duplicate": "Duplicar",
+          "cancel": "Cancelar",
+          "delete": "Eliminar",
+          "showAll": "Ver todo",
+          "small": "Pequeño",
+          "addTask": "Añadir tarea",
+          "saving": "Guardando",
+          "postTitle": "Título de la publicación",
+          "postTitlePlaceholder": "p. ej. Tres lecciones de nuestro lanzamiento",
+          "budget": "Presupuesto diario",
+          "budgetError": "Introduce un importe mayor que 0, como 25.",
+          "notify": "Avisarme cuando una tarea necesite datos",
+          "review": "Revisar las publicaciones antes de que salgan",
+          "calendar": "Calendario",
+          "drafts": "Borradores",
+          "cardTitle": "Panorama de la competencia",
+          "cardBody": "Para alinearnos mejor: ¿en qué región vendes?",
+          "answer": "Responder",
+          "openTask": "Abrir tarea",
+          "toast": "Publicación programada",
+          "undo": "Deshacer",
+          "dialogTitle": "¿Eliminar 3 borradores?",
+          "dialogBody": "No se publicarán y no se podrán recuperar.",
+          "deleteDrafts": "Eliminar borradores"
+        },
+        "Motion": {
+          "title": "Movimiento",
+          "lead": "El movimiento explica un cambio. Nada más.",
+          "rules": "Anima transform y opacidad, nunca el diseño. Nombra las propiedades que animas. Sin bucles decorativos. El movimiento reducido elimina lo que no es esencial.",
+          "feedback": {
+            "title": "Respuesta",
+            "body": "Pulsar y pasar el cursor en cada control, ease-out."
+          },
+          "enter": {
+            "title": "Entrada",
+            "body": "Listas, páginas, diálogos y menús que aparecen."
+          }
+        },
+        "States": {
+          "title": "Estado",
+          "lead": "Cada estado está diseñado, no es un resto.",
+          "todo": "Pendiente",
+          "inProgress": "En curso",
+          "needsInput": "Necesita datos",
+          "done": "Hecho",
+          "failed": "Fallido",
+          "loading": "Redactando tus publicaciones",
+          "emptyTitle": "Borradores",
+          "emptyBody": "Las publicaciones que empiezas pero no programas esperan aquí.",
+          "emptyAction": "Escribir una publicación",
+          "errorTitle": "LinkedIn no aceptó la publicación",
+          "errorBody": "La imagen supera los 5 MB. Elige una más pequeña y vuelve a intentarlo.",
+          "errorAction": "Cambiar imagen",
+          "doneTitle": "5 publicaciones programadas",
+          "doneBody": "La primera sale el jueves a las 09:00 en tu zona horaria.",
+          "doneAction": "Abrir calendario"
+        }
       }
     },
     "Billing": {
@@ -6878,12 +7187,12 @@
           "currentSeatsLabel": "Seats actuales",
           "membersLabel": "Miembros activos",
           "seatsInputLabel": "Seats comprados",
-          "seatsInputHint": "El mínimo es {minimum} para cubrir los Seats de pago en uso. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
+          "seatsInputHint": "Elige cuántos Seats comprar con un plan de pago. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sin plan activo",
-          "seatsUpdatedSuccess": "Seats actualizados correctamente.",
+          "seatsUpdatedSuccess": "Seats actualizados.",
+          "seatsScheduledSuccess": "Los Seats se quitarán en la próxima renovación.",
           "currentPlanCta": "Plan actual",
-          "updateSeatsCta": "Actualizar Seats",
           "choosePlanCta": "Elegir plan",
           "Errors": {
             "unauthenticated": "Por favor, inicia sesión para continuar",
@@ -6891,8 +7200,42 @@
             "unauthorized": "Solo los propietarios y admins pueden gestionar las suscripciones",
             "badInput": "Proporciona valores válidos de plan y Seats",
             "general": "No se pudo gestionar la suscripción de la organización",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
-          }
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "El pago no se completó, así que tus Seats no han cambiado. Actualiza tu método de pago e inténtalo de nuevo.",
+            "paymentFailedAction": "Actualizar método de pago"
+          },
+          "seatsCard": {
+            "summary": "{assigned} de {purchased, plural, =1 {# Seat} other {# Seats}} asignados, {unused} sin usar. Los Seats añadidos se facturan de inmediato. Los Seats quitados terminan en la renovación.",
+            "scheduledNote": "{count, plural, =1 {Se quitará # Seat} other {Se quitarán # Seats}} el {date}. Cambiar de plan lo cancela.",
+            "removeBlocked": "Tu plan termina el {date}, y todos los Seats terminan con él. Reactiva tu plan para quitar Seats.",
+            "keepCta": "{count, plural, =1 {Conservar # Seat} other {Conservar # Seats}}",
+            "addIdleCta": "Añadir Seats",
+            "addCta": "{count, plural, =1 {Añadir # Seat} other {Añadir # Seats}}",
+            "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
+            "decrease": "Quitar un Seat",
+            "increase": "Añadir un Seat",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
+              "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
+              "keepTitle": "{count, plural, =1 {¿Conservar # Seat?} other {¿Conservar # Seats?}}",
+              "addDescription": "Este cambio se aplica de inmediato.",
+              "removeDescription": "Conservas todos los Seats hasta la próxima renovación y no se reembolsa nada.",
+              "keepDescription": "Esto cancela los Seats que se iban a quitar. Tu factura no cambia.",
+              "addCancelsReduction": "Esto también cancela los Seats que se iban a quitar.",
+              "loading": "Obteniendo el precio…",
+              "previewError": "No se pudo obtener el precio, así que aún no se pueden cambiar tus Seats.",
+              "previewRetry": "Intentar de nuevo",
+              "dueNow": "A pagar ahora",
+              "effectiveAt": "Se aplica el",
+              "approximate": "Aproximadamente {amount}",
+              "newMonthly": "Nuevo precio mensual",
+              "newMonthlyHint": "Con impuestos y descuentos incluidos",
+              "seatsLost": "{count, plural, =1 {En la renovación, el miembro que se unió más recientemente pierde su Seat.} other {En la renovación, los # miembros que se unieron más recientemente pierden su Seat.}}",
+              "cancellationNote": "Tu plan termina el {date}, y estos Seats terminan con él.",
+              "cancel": "Cancelar"
+            }
+          },
+          "seatsCheckoutLabel": "Seats a comprar"
         },
         "Seats": {
           "title": "Resumen de Seats",
@@ -7458,7 +7801,11 @@
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Mensaje directo",
+      "headerSelfDirect": "Solo tú",
+      "headerVisitSwitch": "Cambiar a {workspace}",
       "participantOverflowCount": "{count} participantes más",
+      "chats": "Chats",
       "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
@@ -7474,13 +7821,13 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "Convertir a archivo",
       "NoOrganization": {
-        "title": "Canales próximamente",
         "description": "Los canales están en fase de prueba para espacios de organización. El uso personal llegará pronto."
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
+        "peopleLoadFailedDescription": "Las personas a las que puedes escribir no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
         "noMessagesDescription": "Empieza el canal con un mensaje o menciona a un coworker de IA.",
         "noDirectMessagesDescription": "Envía un mensaje para empezar la conversación.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -7535,7 +7882,6 @@
         "title": "New direct message",
         "empty": "Elige a quién escribir.",
         "chooseRecipientError": "Elige un destinatario.",
-        "organizationRequiredForGroup": "Cambia a una organización para escribir a un compañero.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Los mensajes directos de grupo son solo entre personas.",
         "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1.",
@@ -7622,7 +7968,9 @@
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "justRead": "Recién leídos"
+        "justRead": "Recién leídos",
+        "elsewhereLabel": "Sin leer en otros espacios de trabajo",
+        "elsewhereMore": "{count} más en otros espacios de trabajo"
       },
       "ThreadsView": {
         "title": "Hilos",
@@ -7840,12 +8188,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
         "unreadMessagesCapped": "Más de {max} mensajes no leídos",
-        "railUnread": "Sin leer"
+        "unread": "Sin leer"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "mentionsCapped": "Más de {max} menciones",
-        "railMention": "Te menciona"
+        "mentionsYou": "Te menciona"
       },
       "MembershipStatus": {
         "joined": "{name} se unió",
@@ -7986,6 +8334,7 @@
       "SelfDirect": {
         "messageYourself": "Enviarte un mensaje",
         "you": "Tú",
+        "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
@@ -8020,12 +8369,14 @@
         "editTagsNote": "Tu corrección vale para todos en la sala.",
         "taskDue": "Vence {date}",
         "taskSource": "Del chat:",
+        "taskFrom": "{name} escribió:",
         "Buckets": {
           "needsYou": "{count, plural, one {# pregunta para ti} other {# preguntas para ti}}",
           "escalation": "{count, plural, one {# escalada} other {# escaladas}}",
           "urgent": "{count, plural, one {# urgente} other {# urgentes}}",
           "blocker": "{count, plural, one {# bloqueo} other {# bloqueos}}",
           "decisionMade": "{count, plural, one {# decisión} other {# decisiones}}",
+          "announcement": "{count, plural, one {# anuncio} other {# anuncios}}",
           "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
           "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
           "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
@@ -8045,6 +8396,7 @@
           "urgent": "Urgente",
           "blocker": "Bloqueo",
           "decisionMade": "Decisión",
+          "announcement": "Anuncio",
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
@@ -8054,6 +8406,7 @@
           "question": "Hace una pregunta a alguien",
           "needsDecision": "Necesita una decisión",
           "decisionMade": "Decisión tomada",
+          "announcement": "Anuncio",
           "commitment": "Compromiso",
           "blocker": "Bloqueo",
           "urgent": "Urgente",
@@ -8074,10 +8427,22 @@
           "overview": "Resumen",
           "threads": "Hilos"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG o WebP, hasta 2 MiB. Selecciona un sticker y envíalo.",
+        "upload": "Subir sticker",
+        "invalid": "Elige una imagen PNG, JPEG o WebP de hasta 2 MiB.",
+        "uploadFailed": "No se pudo guardar el sticker. Intenta subirlo de nuevo.",
+        "loading": "Cargando stickers…",
+        "loadFailed": "No se pudieron cargar los stickers.",
+        "retry": "Reintentar",
+        "empty": "Sube un sticker para empezar tu colección.",
+        "collection": "Stickers guardados",
+        "select": "Seleccionar {name}"
       }
     },
     "Drive": {
-      "breadcrumb": "Archivos",
       "breadcrumbNavLabel": "Navegación de carpetas de Archivos",
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
@@ -8774,6 +9139,17 @@
       "Disabled": {
         "title": "Soko Bot no está disponible temporalmente",
         "description": "Un administrador ha desactivado Soko Bot por ahora. No se pierde nada de lo que hizo tu asistente; retomará donde lo dejó."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Tu asistente usa las cuentas publicitarias del proyecto de la página de Ads.",
+        "open": "Abrir",
+        "empty": "Aún no hay cuentas publicitarias conectadas.",
+        "connectOnAds": "Conecta una en la página de Ads.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
@@ -8862,6 +9238,7 @@
       "today": "Hoy",
       "weekNumber": "Semana {week}",
       "view": {
+        "label": "Vista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"
@@ -8922,8 +9299,7 @@
       },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros.",
-        "socialOnly": "No hay publicaciones sociales programadas en este periodo.",
-        "publications": "No hay publicaciones ni boletines programados en este periodo."
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -8968,11 +9344,7 @@
         "past": "Elige una hora en el futuro."
       },
       "socialOnly": {
-        "label": "Solo publicaciones sociales",
-        "newslettersLabel": "Solo publicaciones y boletines"
-      },
-      "newsletter": {
-        "label": "Boletín"
+        "label": "Solo publicaciones sociales"
       }
     },
     "You": {
@@ -9147,13 +9519,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
+      "clearProject": "Quitar proyecto",
       "close": "Cerrar",
       "label": "Proyecto",
+      "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceView": "Todo",
-      "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
-      "recent": "Recientes",
       "all": "Proyectos",
       "searchPlaceholder": "Buscar un proyecto...",
       "empty": "No se encontraron proyectos.",
@@ -9161,7 +9532,7 @@
       "error": "No se pudieron cargar los proyectos.",
       "retry": "Reintentar",
       "create": "Crear proyecto",
-      "manage": "Gestionar proyectos",
+      "closed": "Cerrado",
       "current": "(actual)",
       "searching": "Buscando proyectos..."
     },

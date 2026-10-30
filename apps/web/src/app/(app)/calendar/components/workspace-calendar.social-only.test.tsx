@@ -552,18 +552,21 @@ describe("WorkspaceCalendar Social-only view", () => {
       );
 
       expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
-      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-        "view.month",
-        "view.week",
-      ]);
+      expect(
+        within(screen.getByTestId("calendar-views"))
+          .getAllByRole("radio")
+          .map((view) => view.textContent),
+      ).toEqual(["view.month", "view.week"]);
     });
 
     it("gives the view tabs and filters 44px phone targets", () => {
       renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
 
       expect(screen.getByTestId("calendar-views")).toHaveClass("min-h-11");
-      for (const tab of screen.getAllByRole("tab")) {
-        expect(tab).toHaveClass("min-h-11");
+      for (const view of within(
+        screen.getByTestId("calendar-views"),
+      ).getAllByRole("radio")) {
+        expect(view).toHaveClass("min-h-11");
       }
       expect(filterDropdownMenuMock).toHaveBeenCalledWith(
         expect.objectContaining({

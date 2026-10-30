@@ -36,6 +36,7 @@ describe("chatSignalRequest", () => {
     expect(Object.keys(questions).sort()).toEqual(
       [
         "m0_addressee",
+        "m0_announcement",
         "m0_blocker",
         "m0_chitChat",
         "m0_commitment",
@@ -89,6 +90,7 @@ function answers(overrides: Record<string, unknown> = {}) {
     m0_commitment: { probability: 0.01 },
     m0_blocker: { probability: 0.01 },
     m0_decisionMade: { probability: 0.01 },
+    m0_announcement: { probability: 0.02 },
     m0_fyi: { probability: 0.05 },
     m0_urgent: { probability: 0.1 },
     m0_chitChat: { probability: 0.01 },
@@ -182,7 +184,7 @@ describe("tagChatSignalBatch", () => {
     });
     expect(evaluate).toHaveBeenCalledOnce();
     expect(evaluate.mock.calls[0][0].timeoutMs).toBe(1_000);
-    expect(result.questionCount).toBe(11);
+    expect(result.questionCount).toBe(12);
     expect(result.costUsd).toBe(0.0000335);
     expect(result.readings).toHaveLength(1);
   });

@@ -8,7 +8,6 @@ import {
 import { CORE_API_ERROR_KINDS, canArchiveTaskStatus } from "@sokosumi/utils";
 import slugify from "slugify";
 
-import { getEnv } from "@/config/env";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   createPaginationMeta,
@@ -26,6 +25,7 @@ import {
   getNewsletter,
   type NewsletterScope,
 } from "@/services/newsletter.service";
+import { assertNewsletterSenderConfigured } from "@/services/newsletter-sending-domain.service";
 import {
   archiveTaskRecord,
   createTaskForActor,
@@ -61,7 +61,19 @@ export async function listNewsletterIssues(
 ) {
   const newsletter = await getNewsletter(scope);
   const { cursor, take, skip } = parseCursorPagination(query);
-  const where = { ...scope, newsletterId: newsletter.id, status: query.status };
+  const range =
+    query.from && query.to
+      ? { gte: new Date(query.from), lt: new Date(query.to) }
+      : null;
+  const where: Prisma.NewsletterIssueWhereInput = {
+    ...scope,
+    newsletterId: newsletter.id,
+    status: query.status,
+    // An issue is delivered at its schedule; an issue sent without one, at sentAt.
+    ...(range
+      ? { OR: [{ scheduledAt: range }, { scheduledAt: null, sentAt: range }] }
+      : {}),
+  };
   const [issues, total] = await Promise.all([
     prisma.newsletterIssue.findMany({
       where,
@@ -351,12 +363,7 @@ export function scheduleNewsletterIssue(
           kind: CORE_API_ERROR_KINDS.NEWSLETTER_APPROVAL_REQUIRED,
         });
       }
-      if (!getEnv().NEWSLETTER_FROM_DOMAIN) {
-        throw conflict(
-          "NEWSLETTER_FROM_DOMAIN is required to send newsletters",
-          { kind: CORE_API_ERROR_KINDS.NEWSLETTER_SENDER_NOT_CONFIGURED },
-        );
-      }
+      await assertNewsletterSenderConfigured(issue.projectId, tx);
       const subscribers = await tx.newsletterSubscriber.count({
         where: { newsletterId: issue.newsletterId, status: "ACTIVE" },
       });

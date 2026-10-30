@@ -16,6 +16,10 @@ import { createAppColumnHelper } from "@/components/data-table/create-data-table
 import DataTable from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { AddFromContactsDialog } from "./add-from-contacts-dialog";
 import { AddSubscriberDialog } from "./add-subscriber-dialog";
 import { ImportSubscribersDialog } from "./import-subscribers-dialog";
@@ -186,10 +191,13 @@ export function Subscribers({
         </div>
         {total > 0 ? actions : null}
       </div>
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <dl className={cn(HOLDER_CLASS, "grid grid-cols-2 gap-2 lg:grid-cols-4")}>
         {STATUSES.map((status) => (
-          <div key={status} className="space-y-1">
-            <dt className="text-muted-foreground text-sm">
+          <div
+            key={status}
+            className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-1 px-4 py-3")}
+          >
+            <dt className="text-muted-foreground truncate text-sm">
               {t(`statuses.${status}`)}
             </dt>
             <dd className="text-2xl font-semibold tabular-nums">
@@ -199,12 +207,14 @@ export function Subscribers({
         ))}
       </dl>
       {total === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={t("emptyTitle")}
-          description={t("emptyDescription")}
-          action={actions}
-        />
+        <div className={HOLDER_CLASS}>
+          <EmptyState
+            icon={Users}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={actions}
+          />
+        </div>
       ) : (
         <>
           <div className="flex flex-wrap items-end gap-3">
@@ -278,13 +288,14 @@ export function Subscribers({
               </Button>
             ) : null}
           </div>
-          <div aria-busy={pending}>
+          <div aria-busy={pending} className={cn(HOLDER_CLASS, "min-w-0")}>
             <DataTable
               columns={columns}
               data={data.subscribers}
               enableRowSelection={false}
               showPagination={false}
               manualSorting
+              tableClassName={HOLDER_ITEM_CLASS}
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -294,7 +305,7 @@ export function Subscribers({
             >
               {t("results", { count: pagination.total })}
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 disabled={!pagination.cursor || pending}

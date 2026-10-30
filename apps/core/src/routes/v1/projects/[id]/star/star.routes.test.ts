@@ -19,15 +19,21 @@ const {
   projectFindFirstMock,
   projectStarUpsertMock,
   projectStarDeleteManyMock,
+  projectHideDeleteManyMock,
+  transactionMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   projectStarUpsertMock: vi.fn(),
   projectStarDeleteManyMock: vi.fn(),
+  projectHideDeleteManyMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
     project: { findFirst: projectFindFirstMock },
+    projectHide: { deleteMany: projectHideDeleteManyMock },
     projectStar: {
       upsert: projectStarUpsertMock,
       deleteMany: projectStarDeleteManyMock,
@@ -83,6 +89,11 @@ beforeEach(() => {
   projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
   projectStarUpsertMock.mockResolvedValue({ starredAt: STARRED_AT });
   projectStarDeleteManyMock.mockResolvedValue({ count: 1 });
+  projectHideDeleteManyMock.mockResolvedValue({ count: 0 });
+  transactionMock.mockImplementation(
+    async (operations: Array<Promise<unknown>>) =>
+      await Promise.all(operations),
+  );
 });
 
 describe("POST /projects/{id}/star", () => {
@@ -111,6 +122,16 @@ describe("POST /projects/{id}/star", () => {
         update: {},
       }),
     );
+  });
+
+  it("shows a Hidden project again, in the same transaction", async () => {
+    await star("POST");
+
+    // A Hide is the opposite of a Pin, so a reader never holds both.
+    expect(projectHideDeleteManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_123", projectId: PROJECT_ID },
+    });
+    expect(transactionMock).toHaveBeenCalledOnce();
   });
 
   it("scopes the lookup to the active workspace", async () => {

@@ -44,14 +44,13 @@ struct ComposerMentionTests {
                                            createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
                                            userMembers: [user, peer], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
     #expect(ComposerMention.catalog(room: room, currentUserId: "me").map(\.id) == ["all", "peer"])
-    #expect(!DirectRecipient.human("me").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
-    #expect(DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
-    #expect(!DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: false))
+    // Any workspace, any room the person is in: Core decides who is reachable.
+    #expect(!DirectRecipient.human("me").canOpen(from: room, currentUserId: "me"))
+    #expect(DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me"))
     room.myAccess = .init(value1: .guest, value2: "guest")
-    #expect(!DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
     room.discoverability = .external
-    #expect(DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: false))
-    #expect(!DirectRecipient.human("unknown").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
+    #expect(DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me"))
+    #expect(!DirectRecipient.human("unknown").canOpen(from: room, currentUserId: "me"))
     room.kind = .direct
     #expect(ComposerMention.catalog(room: room, currentUserId: "me").isEmpty)
     room.coworkerMembers = [.init(id: "cow", name: "Helper", slug: "helper", caption: nil, image: nil, presence: .online)]

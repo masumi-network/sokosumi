@@ -37,6 +37,7 @@ const m = vi.hoisted(() => ({
   taskMetadata: vi.fn(),
   event: vi.fn(),
   subscribers: vi.fn(),
+  sendingDomain: vi.fn(),
   send: vi.fn(),
 }));
 vi.mock("@/config/env", async (original) => {
@@ -76,6 +77,7 @@ vi.mock("@/lib/db/prisma", () => {
       findUniqueOrThrow: m.read,
     },
     newsletterSubscriber: { count: m.subscribers },
+    newsletterSendingDomain: { findUnique: m.sendingDomain },
     task: {
       findFirst: m.task,
       updateMany: m.taskUpdate,
@@ -177,6 +179,7 @@ beforeEach(() => {
     closedAt: null,
   });
   m.newsletter.mockResolvedValue(NEWSLETTER);
+  m.sendingDomain.mockResolvedValue(null);
   m.users.mockResolvedValue([{ id: "user_1", name: "Ada" }]);
   m.issue.mockResolvedValue(NEWSLETTER_ISSUE);
   m.updateMany.mockResolvedValue({ count: 1 });
@@ -448,6 +451,25 @@ describe("newsletter approval and delivery", () => {
       expect(m.send).not.toHaveBeenCalled();
     },
   );
+  it("schedules from this project's verified domain without the shared fallback", async () => {
+    issue("NEEDS_APPROVAL", true);
+    m.subscribers.mockResolvedValue(1);
+    m.domain = "";
+    m.sendingDomain.mockResolvedValue({
+      fromAddress: "news@brand.example",
+      status: "VERIFIED",
+    });
+    const response = await request("schedule", {
+      revision: 0,
+      scheduledAt: "2026-10-24T10:00:00Z",
+      timezone: "UTC",
+    });
+    expect(response.status).toBe(200);
+    expect(m.sendingDomain).toHaveBeenCalledWith({
+      where: { projectId: NEWSLETTER_PROJECT_ID },
+      select: { fromAddress: true, status: true },
+    });
+  });
   it.each(["2026-10-23T10:00:59Z", "2027-10-23T10:00:01Z"])(
     "rejects scheduledAt outside the permitted range: %s",
     async (scheduledAt) => {

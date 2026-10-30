@@ -72,9 +72,12 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
   requireTaskAssignableUser: requireTaskAssignableUserMock,
   requireMutableTaskWriteAccess: requireTaskWriteAccessMock,
+}));
+
+vi.mock("@/helpers/soko-bot-task-assign", () => ({
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {

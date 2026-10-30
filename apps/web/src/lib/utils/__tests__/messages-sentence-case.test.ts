@@ -19,7 +19,6 @@ const PROPER_PHRASES = [
   "Soko Bot",
   "Soko Bots",
   "Content Studio",
-  "Social Scheduling",
   "Sokosumi Projects",
   "Agent Identities",
   // Ad platforms.
@@ -41,7 +40,6 @@ const PROPER_PHRASES = [
   "Acceptable Use",
   "Data Processing Agreement",
   // Other names.
-  "Model Context Protocol",
   "Mistral Medium",
   "Florian Haller",
   "Serviceplan Group",

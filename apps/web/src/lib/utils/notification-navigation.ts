@@ -22,6 +22,22 @@ async function getMembersForAccountName() {
   return await coreClient.getMyMembersWithOrganizations();
 }
 
+/**
+ * A room the reader belongs to opens where the reader is, as a Room visit
+ * (ADR-0061), even though its notification names the host Organization's
+ * workspace. Core answers a read only to a member, so a room they have left
+ * switches as before; its page then says it is unavailable.
+ */
+async function canReadRoom(roomId: string): Promise<boolean> {
+  try {
+    await coreClient.getChatRoom(roomId);
+    return true;
+  } catch (error) {
+    console.warn("Failed to read notification room", { roomId, error });
+    return false;
+  }
+}
+
 function getWorkspaceIdFromMetadata(
   metadata: Record<string, unknown> | null,
 ): string | null {
@@ -74,7 +90,11 @@ export async function handleNotificationNavigation(
     return;
   }
 
-  if (activeOrgId === organizationId) {
+  if (
+    activeOrgId === organizationId ||
+    (notification.kind === "CHAT" &&
+      (await canReadRoom(notification.referenceId)))
+  ) {
     router.push(href);
     return;
   }

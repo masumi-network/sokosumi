@@ -56,6 +56,7 @@ import {
 } from "@/components/chat/room-message-composer";
 import { ComposerSkillChips } from "@/components/chat/skill-chip";
 import { SkillPicker } from "@/components/chat/skill-picker";
+import { StickerPicker } from "@/components/chat/sticker-picker";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -209,7 +210,7 @@ function PendingQuotePreview({
       role="status"
       aria-label={t("previewLabel", { author: quote.authorName })}
     >
-      <div className="border-primary-tertiary min-w-0 flex-1 border-l-2 pl-2.5">
+      <div className="border-border min-w-0 flex-1 border-l-2 pl-2.5">
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
@@ -783,6 +784,24 @@ export function RoomComposer({
                 editorRef.current?.insertText(emoji);
               }}
             />
+            {allowAttachments && currentUserId ? (
+              <StickerPicker
+                userId={currentUserId}
+                triggerClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                disabled={isSending}
+                onPick={(sticker) => {
+                  onAttachmentsChange((current) => [
+                    ...current,
+                    {
+                      url: sticker.url,
+                      fileName: sticker.name,
+                      mediaType: null,
+                    },
+                  ]);
+                  editorRef.current?.focus();
+                }}
+              />
+            ) : null}
             {onSkillsChange ? (
               <SkillPicker
                 selected={skills}

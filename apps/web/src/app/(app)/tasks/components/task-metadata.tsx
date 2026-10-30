@@ -1,6 +1,6 @@
 import type { Task } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { Box, Building2, Lock, Repeat, UserRound } from "lucide-react";
+import { Building2, FolderKanban, Lock, Repeat, UserRound } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -148,7 +148,7 @@ export function TaskMetadata({
             icon={
               <StatusMarker
                 spec={statusMarker}
-                tone={getToneStyle(statusMarker.tone).labelOnSurface}
+                tone={getToneStyle(statusMarker.tone).onSurface}
               />
             }
           >
@@ -211,12 +211,12 @@ export function TaskMetadata({
         <PropertyRow
           label={labels.project}
           value={project?.name ?? labels.noProject}
-          icon={<Box className="text-muted-foreground size-4" />}
+          icon={<FolderKanban className="text-muted-foreground size-4" />}
         >
           {project ? (
             <Link
               href={`/projects/${project.id}`}
-              className="hover:text-primary truncate transition-colors"
+              className="hover:text-foreground truncate transition-colors"
             >
               {project.name}
             </Link>

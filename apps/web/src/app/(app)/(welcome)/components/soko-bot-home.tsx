@@ -1,6 +1,7 @@
 import type { TaskActivitySummary } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import { BotFace } from "@/app/soko-bots/components/bot-face";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 
@@ -23,12 +24,16 @@ interface SokoBotHomeProps {
   summary: TaskActivitySummary | null;
   /** Tasks the team moved in the last 24 hours, newest first. */
   teamTasks: SokoBotHomeTask[];
+  /** What waits on the reader, above the team's day; one line when nothing
+   * does. */
+  needsYou?: ReactNode;
 }
 
 /**
  * `/` for a user with a personal Soko Bot, laid out as an entry page: the bot
  * and a greeting over a centered composer, a few things to ask, and a quiet
- * list of what the team moved in the last day. The conversation itself lives
+ * list of what the team moved in the last day. What needs the reader sits
+ * above that list, in the same quiet style. The conversation itself lives
  * in the bot's Direct, which every send opens.
  */
 export async function SokoBotHome({
@@ -38,6 +43,7 @@ export async function SokoBotHome({
   userName,
   summary,
   teamTasks,
+  needsYou,
 }: SokoBotHomeProps) {
   const [t, tStats, tStatus, format] = await Promise.all([
     getTranslations("App.Chat.Landing.SokoBotHome"),
@@ -90,64 +96,67 @@ export async function SokoBotHome({
         awaitingInput > 0 ? (
           <Link
             href="/tasks"
-            className="bg-primary-quinary text-primary hover:bg-primary-quaternary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
+            className="bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
           >
-            <span aria-hidden className="bg-primary size-1.5 rounded-full" />
+            <span aria-hidden className="bg-foreground size-1.5 rounded-full" />
             {tStats("awaiting", { count: awaitingInput })}
           </Link>
         ) : null
       }
     >
-      <section aria-labelledby="soko-bot-home-day">
-        <h2
-          id="soko-bot-home-day"
-          className="text-foreground px-3 pb-2 text-sm font-medium"
-        >
-          {tStats("recent")}
-          {stats.length > 0 ? (
-            <span className="text-muted-foreground font-normal">
-              {" "}
-              · {stats.join(" · ")}
-            </span>
-          ) : null}
-        </h2>
-        {teamTasks.length > 0 ? (
-          <ul className="flex flex-col">
-            {teamTasks.map((task) => (
-              <li key={task.id}>
-                <Link
-                  href={`/tasks/${encodeURIComponent(task.id)}`}
-                  className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2"
-                >
-                  <TaskStatusBadge
-                    status={task.status}
-                    label={tStatus(task.status)}
-                    showLabel={false}
-                    className="border-0 bg-transparent p-0"
-                  />
-                  <span className="text-foreground min-w-0 flex-1 truncate text-sm">
-                    {task.name}
-                  </span>
-                  <span className="text-muted-foreground hidden shrink-0 truncate text-sm sm:inline">
-                    {task.who}
-                  </span>
-                  <time
-                    dateTime={task.updatedAt.toISOString()}
-                    title={format.dateTime(task.updatedAt, "dateTimeMedium")}
-                    className="text-muted-foreground shrink-0 text-end text-sm whitespace-nowrap tabular-nums"
+      <div className="flex flex-col gap-10">
+        {needsYou}
+        <section aria-labelledby="soko-bot-home-day">
+          <h2
+            id="soko-bot-home-day"
+            className="text-foreground px-3 pb-2 text-sm font-medium"
+          >
+            {tStats("recent")}
+            {stats.length > 0 ? (
+              <span className="text-muted-foreground font-normal">
+                {" "}
+                · {stats.join(" · ")}
+              </span>
+            ) : null}
+          </h2>
+          {teamTasks.length > 0 ? (
+            <ul className="flex flex-col">
+              {teamTasks.map((task) => (
+                <li key={task.id}>
+                  <Link
+                    href={`/tasks/${encodeURIComponent(task.id)}`}
+                    className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2"
                   >
-                    {format.relativeTime(task.updatedAt, { now })}
-                  </time>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground px-3 py-2 text-sm">
-            {t("quietDay", { name: botName })}
-          </p>
-        )}
-      </section>
+                    <TaskStatusBadge
+                      status={task.status}
+                      label={tStatus(task.status)}
+                      showLabel={false}
+                      className="border-0 bg-transparent p-0"
+                    />
+                    <span className="text-foreground min-w-0 flex-1 truncate text-sm">
+                      {task.name}
+                    </span>
+                    <span className="text-muted-foreground hidden shrink-0 truncate text-sm sm:inline">
+                      {task.who}
+                    </span>
+                    <time
+                      dateTime={task.updatedAt.toISOString()}
+                      title={format.dateTime(task.updatedAt, "dateTimeMedium")}
+                      className="text-muted-foreground shrink-0 text-end text-sm whitespace-nowrap tabular-nums"
+                    >
+                      {format.relativeTime(task.updatedAt, { now })}
+                    </time>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-3 py-2 text-sm">
+              {t("quietDay", { name: botName })}
+            </p>
+          )}
+        </section>
+      </div>
     </SokoBotHomeComposer>
   );
 }

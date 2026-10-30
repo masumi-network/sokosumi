@@ -5,6 +5,7 @@ import type {
   AddChatRoomMembersRequest,
   ChannelSlugAvailability,
   ChatEarlierThread,
+  ChatPerson,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -140,6 +141,12 @@ export const chatRoomService = (() => {
     },
   );
 
+  /** Unread rooms of the reader's other workspaces, in Core's order (ADR-0061). */
+  async function listElsewhereRooms(): Promise<ChatRoom[]> {
+    const response = await coreClient.getElsewhereChatRooms();
+    return response.data;
+  }
+
   /** Pending room invitations for the signed-in invitee (External sidebar). */
   const listPendingInvitations = cache(
     async function listPendingInvitations(): Promise<ChatRoomInvitation[]> {
@@ -243,6 +250,18 @@ export const chatRoomService = (() => {
   ): Promise<AcceptChatRoomGuestInviteLink> {
     const response = await coreClient.acceptChatRoomGuestInviteLink(token);
     return response.data;
+  }
+
+  /** Everyone the user may start a Personal Direct with, in any workspace. */
+  async function listPeople(): Promise<ChatPerson[]> {
+    const people: ChatPerson[] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await coreClient.listChatPeople({ cursor, limit: 100 });
+      people.push(...response.data);
+      cursor = response.meta?.pagination?.nextCursor ?? undefined;
+    } while (cursor);
+    return people;
   }
 
   const getRoom = cache(async function getRoom(
@@ -694,6 +713,7 @@ export const chatRoomService = (() => {
   }
 
   return {
+    listPeople,
     acceptInvitation,
     acceptRoomGuestInviteLink,
     archiveRoom,
@@ -710,6 +730,7 @@ export const chatRoomService = (() => {
     joinRoom,
     listArchivedRooms,
     listDiscoverableChannels,
+    listElsewhereRooms,
     listMessages,
     listPendingInvitations,
     listRoomGuestInviteLinks,

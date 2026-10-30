@@ -150,6 +150,8 @@ describe("triageMail", () => {
     expect(questions.mail0.instructions).toMatch(/ownerPreferences/);
     expect(questions.mail0.instructions).toMatch(/alreadyFlaggedToday/);
     expect(MAIL_TRIAGE_CRITERIA.URGENT).toMatch(/DigitalOcean.*never urgent/);
+    expect(MAIL_TRIAGE_CRITERIA.BULK).toMatch(/Sentry.*are bulk/);
+    expect(MAIL_TRIAGE_CRITERIA.BULK).toMatch(/Cold pitches from strangers/);
   });
 
   it("marks mail a saved rule asks the bot to act on, only when Jev is sure", async () => {

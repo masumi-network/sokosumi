@@ -739,6 +739,7 @@ export type ChatMessageSignal = {
         commitment?: number;
         blocker?: number;
         decisionMade?: number;
+        announcement?: number;
         fyi?: number;
         urgent?: number;
         chitChat?: number;
@@ -765,7 +766,7 @@ export type ChatMessageSignal = {
 };
 
 /**
- * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
  */
 export const ChatSignalTag = {
     QUESTION: 'question',
@@ -773,6 +774,7 @@ export const ChatSignalTag = {
     COMMITMENT: 'commitment',
     BLOCKER: 'blocker',
     DECISION_MADE: 'decisionMade',
+    ANNOUNCEMENT: 'announcement',
     FYI: 'fyi',
     URGENT: 'urgent',
     CHIT_CHAT: 'chitChat',
@@ -781,7 +783,7 @@ export const ChatSignalTag = {
 } as const;
 
 /**
- * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
  */
 export type ChatSignalTag = typeof ChatSignalTag[keyof typeof ChatSignalTag];
 
@@ -2742,6 +2744,13 @@ export const ChatRoomInvitationStatus = {
 
 export type ChatRoomInvitationStatus = typeof ChatRoomInvitationStatus[keyof typeof ChatRoomInvitationStatus];
 
+export type ChatPerson = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+};
+
 export type ChatRoom = {
     /**
      * Room ID
@@ -2934,7 +2943,7 @@ export type CreateChatRoomRequest = {
     sokoBotIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -3532,6 +3541,7 @@ export const ChatCatchUpBucket = {
     URGENT: 'urgent',
     BLOCKER: 'blocker',
     DECISION_MADE: 'decisionMade',
+    ANNOUNCEMENT: 'announcement',
     NEEDS_DECISION: 'needsDecision',
     COMMITMENT: 'commitment',
     WORK_REQUEST: 'workRequest',
@@ -3615,6 +3625,11 @@ export type ChatSkillCatalogItem = {
     source: string;
     description: string | null;
     installs: number;
+};
+
+export type ChatSticker = {
+    url: string;
+    name: string;
 };
 
 export type ChatUnreadThread = {
@@ -5566,6 +5581,14 @@ export type UserWorkspace = {
      */
     websiteUrl: string | null;
     /**
+     * The person's role in the organization, or null for a personal workspace or a role this API does not know
+     */
+    role: MemberRole | null;
+    /**
+     * How many people are members of the organization, or null for a personal workspace
+     */
+    memberCount: number | null;
+    /**
      * Social providers enabled for projects owned by this workspace
      */
     enabledSocialProviders: Array<ProjectSocialProvider>;
@@ -6098,6 +6121,42 @@ export type OrganizationSubscriptionSeats = {
      * Purchased seat count on the active subscription
      */
     seats: number;
+    /**
+     * Null when no reduction is pending
+     */
+    scheduledReduction: {
+        /**
+         * When the reduction takes effect: the next renewal
+         */
+        effectiveAt: Date;
+        /**
+         * Seat count the subscription drops to
+         */
+        seats: number;
+    } | null;
+};
+
+export type OrganizationSubscriptionSeatsPreview = {
+    /**
+     * Charged to the payment method right away, including tax. Zero unless seats are added
+     */
+    amountDue: number;
+    /**
+     * Lowercase ISO currency code
+     */
+    currency: string;
+    /**
+     * When a reduction takes effect: the next renewal. Null when the change applies right away
+     */
+    effectiveAt: Date | null;
+    /**
+     * Next regular invoice at the new seat count, including tax and discounts
+     */
+    newMonthlyAmount: number;
+    /**
+     * The seat count this preview is for
+     */
+    seats: number;
 };
 
 export type UpdateOrganizationSubscriptionSeats = {
@@ -6213,7 +6272,7 @@ export type ProjectListItem = Project & {
      */
     lastActivityAt: Date;
     /**
-     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.
+     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.
      */
     starredAt: Date | null;
 };
@@ -6336,6 +6395,88 @@ export type ProjectJobStatusCount = {
     count: number;
     status: SokosumiJobStatus;
 };
+
+export type ProjectActivityItem = ({
+    kind: 'task';
+} & ProjectTaskActivity) | ({
+    kind: 'job';
+} & ProjectJobActivity) | ({
+    kind: 'project';
+} & ProjectLifecycleActivity);
+
+export type ProjectTaskActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'task';
+    taskId: string;
+    title: string;
+    /**
+     * The status the event set. Null for an event that only added a comment.
+     */
+    status: TaskEventStatus | null;
+};
+
+export type ProjectJobActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'job';
+    jobId: string;
+    agentId: string;
+    /**
+     * The job's name, else its agent's display name. Null when neither resolves.
+     */
+    title: string | null;
+    status: AgentJobStatus;
+};
+
+export const AgentJobStatus = {
+    INITIATED: 'INITIATED',
+    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+    AWAITING_INPUT: 'AWAITING_INPUT',
+    RUNNING: 'RUNNING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED'
+} as const;
+
+export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
+
+export type ProjectLifecycleActivity = {
+    /**
+     * ID of the event this row is about
+     */
+    id: string;
+    /**
+     * When the event happened
+     */
+    createdAt: Date;
+    project: ProjectSummary;
+    kind: 'project';
+    event: ProjectEventKind;
+};
+
+export const ProjectEventKind = {
+    CLOSE_REQUESTED: 'CLOSE_REQUESTED',
+    BATCH_FAILED: 'BATCH_FAILED',
+    RETRY_REQUESTED: 'RETRY_REQUESTED',
+    SERIES_RESOLVED: 'SERIES_RESOLVED',
+    CLOSE_FINALIZED: 'CLOSE_FINALIZED'
+} as const;
+
+export type ProjectEventKind = typeof ProjectEventKind[keyof typeof ProjectEventKind];
 
 export type StarredProject = Project & {
     /**
@@ -6751,6 +6892,57 @@ export type PutNewsletterRequest = {
     welcomeBody?: string | null;
 };
 
+export type NewsletterSendingDomainState = {
+    /**
+     * Null until a member adds a sending domain to this Project.
+     */
+    sendingDomain: NewsletterSendingDomain | null;
+    canManage: boolean;
+    fallbackAvailable: boolean;
+};
+
+export type NewsletterSendingDomain = {
+    id: string;
+    domain: string;
+    fromAddress: string;
+    status: NewsletterSendingDomainStatus;
+    dnsRecords: Array<NewsletterDnsRecord>;
+    lastCheckedAt: Date | null;
+    failureReason: string | null;
+    createdAt: Date;
+};
+
+export const NewsletterSendingDomainStatus = {
+    PENDING: 'PENDING',
+    VERIFIED: 'VERIFIED',
+    FAILED: 'FAILED'
+} as const;
+
+export type NewsletterSendingDomainStatus = typeof NewsletterSendingDomainStatus[keyof typeof NewsletterSendingDomainStatus];
+
+export type NewsletterDnsRecord = {
+    record: string;
+    type: string;
+    name: string;
+    value: string;
+    ttl: string;
+    priority: number | null;
+    status: string;
+};
+
+export type PutNewsletterSendingDomainRequest = {
+    fromAddress: string;
+};
+
+export type ConnectNewsletterSendingDomainCloudflareRequest = {
+    apiToken: string;
+};
+
+export type NewsletterSendingDomainConnect = {
+    providerName: string;
+    applyUrl: string;
+} | null;
+
 export type NewsletterSubscriberList = {
     subscribers: Array<NewsletterSubscriber>;
     counts: {
@@ -6851,6 +7043,19 @@ export type PatchNewsletterSubscriberRequest = {
 export type ProjectStar = {
     projectId: string;
     starredAt: Date | null;
+};
+
+export type ProjectHide = {
+    projectId: string;
+    hiddenAt: Date | null;
+};
+
+export type ProjectHideResult = ProjectHide & {
+    hiddenAt?: Date;
+    /**
+     * True when the project was Pinned and hiding it removed the Pin.
+     */
+    unpinned: boolean;
 };
 
 export type ProjectSocialConnection = {
@@ -8157,7 +8362,7 @@ export type Job = {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: AgentJobStatus;
+        status: AgentJobStatus & unknown;
         inputSchema?: string | null;
         input?: {
             id: string;
@@ -8171,17 +8376,6 @@ export type Job = {
     }>;
     share: JobShare | null;
 };
-
-export const AgentJobStatus = {
-    INITIATED: 'INITIATED',
-    AWAITING_PAYMENT: 'AWAITING_PAYMENT',
-    AWAITING_INPUT: 'AWAITING_INPUT',
-    RUNNING: 'RUNNING',
-    COMPLETED: 'COMPLETED',
-    FAILED: 'FAILED'
-} as const;
-
-export type AgentJobStatus = typeof AgentJobStatus[keyof typeof AgentJobStatus];
 
 export type File = {
     id: string;
@@ -19460,6 +19654,73 @@ export type PostChatsInvitationsByIdDeclineResponses = {
 
 export type PostChatsInvitationsByIdDeclineResponse = PostChatsInvitationsByIdDeclineResponses[keyof PostChatsInvitationsByIdDeclineResponses];
 
+export type ListChatPeopleData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/people';
+};
+
+export type ListChatPeopleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListChatPeopleError = ListChatPeopleErrors[keyof ListChatPeopleErrors];
+
+export type ListChatPeopleResponses = {
+    /**
+     * People
+     */
+    200: {
+        data: Array<ChatPerson>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListChatPeopleResponse = ListChatPeopleResponses[keyof ListChatPeopleResponses];
+
 export type GetChatsRoomsData = {
     body?: never;
     headers?: {
@@ -19828,6 +20089,85 @@ export type GetChatsRoomsDiscoverableResponses = {
 };
 
 export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
+
+export type GetChatsRoomsElsewhereData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/rooms/elsewhere';
+};
+
+export type GetChatsRoomsElsewhereErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsElsewhereError = GetChatsRoomsElsewhereErrors[keyof GetChatsRoomsElsewhereErrors];
+
+export type GetChatsRoomsElsewhereResponses = {
+    /**
+     * Unread rooms of the user's other workspaces
+     */
+    200: {
+        data: Array<ChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsElsewhereResponse = GetChatsRoomsElsewhereResponses[keyof GetChatsRoomsElsewhereResponses];
 
 export type GetChatsRoomsChannelSlugAvailabilityData = {
     body?: never;
@@ -26542,6 +26882,199 @@ export type SearchChatSkillsResponses = {
 };
 
 export type SearchChatSkillsResponse = SearchChatSkillsResponses[keyof SearchChatSkillsResponses];
+
+export type ListChatStickersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/chats/stickers';
+};
+
+export type ListChatStickersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListChatStickersError = ListChatStickersErrors[keyof ListChatStickersErrors];
+
+export type ListChatStickersResponses = {
+    /**
+     * Saved stickers
+     */
+    200: {
+        data: Array<ChatSticker>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListChatStickersResponse = ListChatStickersResponses[keyof ListChatStickersResponses];
+
+export type UploadChatStickerData = {
+    body: Blob | File;
+    path?: never;
+    query: {
+        filename: string;
+    };
+    url: '/chats/stickers';
+};
+
+export type UploadChatStickerErrors = {
+    /**
+     * Invalid image
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid filename
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UploadChatStickerError = UploadChatStickerErrors[keyof UploadChatStickerErrors];
+
+export type UploadChatStickerResponses = {
+    /**
+     * Sticker saved
+     */
+    201: {
+        data: ChatSticker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UploadChatStickerResponse = UploadChatStickerResponses[keyof UploadChatStickerResponses];
 
 export type GetChatsThreadsUnreadData = {
     body?: never;
@@ -44885,6 +45418,114 @@ export type GetOrganizationsByIdSubscriptionResponses = {
 
 export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
 
+export type GetOrganizationsByIdSubscriptionSeatsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription/seats';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsErrors = {
+    /**
+     * Bad Request - No active subscription
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsError = GetOrganizationsByIdSubscriptionSeatsErrors[keyof GetOrganizationsByIdSubscriptionSeatsErrors];
+
+export type GetOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seats and the pending reduction
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsResponse = GetOrganizationsByIdSubscriptionSeatsResponses[keyof GetOrganizationsByIdSubscriptionSeatsResponses];
+
 export type PutOrganizationsByIdSubscriptionSeatsData = {
     body?: UpdateOrganizationSubscriptionSeats;
     path: {
@@ -44899,7 +45540,135 @@ export type PutOrganizationsByIdSubscriptionSeatsData = {
 
 export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     /**
-     * Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity
+     * Bad Request - No active subscription, invalid seat count, enterprise contract exclusivity, or a reduction while the plan is ending or another change is scheduled
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payment Required - Stripe could not collect the payment; the seat count is unchanged
+     */
+    402: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+
+export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seat count after the update
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query: {
+        /**
+         * Desired purchased seat count
+         */
+        seats: number;
+    };
+    url: '/organizations/{id}/subscription/seats/preview';
+};
+
+export type GetOrganizationsByIdSubscriptionSeatsPreviewErrors = {
+    /**
+     * Bad Request - No active Stripe subscription, or enterprise contract exclusivity
      */
     400: {
         error: string;
@@ -44959,21 +45728,6 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         };
     };
     /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Internal Server Error
      */
     500: {
@@ -44990,14 +45744,14 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     };
 };
 
-export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+export type GetOrganizationsByIdSubscriptionSeatsPreviewError = GetOrganizationsByIdSubscriptionSeatsPreviewErrors[keyof GetOrganizationsByIdSubscriptionSeatsPreviewErrors];
 
-export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponses = {
     /**
-     * The purchased seat count after the update
+     * What the seat change would cost
      */
     200: {
-        data: OrganizationSubscriptionSeats;
+        data: OrganizationSubscriptionSeatsPreview;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -45006,7 +45760,7 @@ export type PutOrganizationsByIdSubscriptionSeatsResponses = {
     };
 };
 
-export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+export type GetOrganizationsByIdSubscriptionSeatsPreviewResponse = GetOrganizationsByIdSubscriptionSeatsPreviewResponses[keyof GetOrganizationsByIdSubscriptionSeatsPreviewResponses];
 
 export type PutOrganizationsByIdDesignMdData = {
     body?: DesignMdWrite;
@@ -45740,6 +46494,14 @@ export type GetProjectsData = {
          * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
          */
         q?: string;
+        /**
+         * open: projects without closedAt, including closing and close-failed ones, minus the acting user's Hidden projects. hidden: the acting user's Hidden projects without closedAt (ADR 0036). closed: projects with closedAt, Hidden or not. Omitted: every project. Non-user actors have no Hidden projects.
+         */
+        state?: 'open' | 'hidden' | 'closed';
+        /**
+         * true: the acting user's Pinned projects lead, by starredAt ascending, before the rest in activity order. Ignored for non-user actors, whose rows are never Pinned.
+         */
+        pinnedFirst?: 'true' | 'false';
     };
     url: '/projects';
 };
@@ -46010,6 +46772,132 @@ export type GetProjectsStatsResponses = {
 };
 
 export type GetProjectsStatsResponse = GetProjectsStatsResponses[keyof GetProjectsStatsResponses];
+
+export type GetProjectsActivityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * How many rows to return, newest first
+         */
+        limit?: number;
+        /**
+         * Only this project's events. It may be Closed or one of the reader's Hidden projects: its history stays readable.
+         */
+        projectId?: string;
+    };
+    url: '/projects/activity';
+};
+
+export type GetProjectsActivityErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsActivityError = GetProjectsActivityErrors[keyof GetProjectsActivityErrors];
+
+export type GetProjectsActivityResponses = {
+    /**
+     * Recent activity across open projects
+     */
+    200: {
+        data: Array<ProjectActivityItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsActivityResponse = GetProjectsActivityResponses[keyof GetProjectsActivityResponses];
 
 export type GetProjectsStarredData = {
     body?: never;
@@ -47958,6 +48846,14 @@ export type GetProjectsByIdNewsletterIssuesData = {
          */
         limit?: number;
         status?: NewsletterIssueStatus;
+        /**
+         * Inclusive start of a delivery range: only issues scheduled (or, without a schedule, sent) at or after this time. Requires to.
+         */
+        from?: Date;
+        /**
+         * Exclusive end of the delivery range, at most 62 days after from. Requires from.
+         */
+        to?: Date;
     };
     url: '/projects/{id}/newsletter/issues';
 };
@@ -49550,6 +50446,758 @@ export type PatchProjectsByIdNewsletterIssuesByIssueIdResponses = {
 
 export type PatchProjectsByIdNewsletterIssuesByIssueIdResponse = PatchProjectsByIdNewsletterIssuesByIssueIdResponses[keyof PatchProjectsByIdNewsletterIssuesByIssueIdResponses];
 
+export type DeleteProjectsByIdNewsletterSendingDomainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain';
+};
+
+export type DeleteProjectsByIdNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Resend could not remove the domain
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdNewsletterSendingDomainError = DeleteProjectsByIdNewsletterSendingDomainErrors[keyof DeleteProjectsByIdNewsletterSendingDomainErrors];
+
+export type DeleteProjectsByIdNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain removed
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdNewsletterSendingDomainResponse = DeleteProjectsByIdNewsletterSendingDomainResponses[keyof DeleteProjectsByIdNewsletterSendingDomainResponses];
+
+export type GetProjectsByIdNewsletterSendingDomainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain';
+};
+
+export type GetProjectsByIdNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainError = GetProjectsByIdNewsletterSendingDomainErrors[keyof GetProjectsByIdNewsletterSendingDomainErrors];
+
+export type GetProjectsByIdNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain
+     */
+    200: {
+        data: NewsletterSendingDomainState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainResponse = GetProjectsByIdNewsletterSendingDomainResponses[keyof GetProjectsByIdNewsletterSendingDomainResponses];
+
+export type PutProjectsByIdNewsletterSendingDomainData = {
+    body: PutNewsletterSendingDomainRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain';
+};
+
+export type PutProjectsByIdNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdNewsletterSendingDomainError = PutProjectsByIdNewsletterSendingDomainErrors[keyof PutProjectsByIdNewsletterSendingDomainErrors];
+
+export type PutProjectsByIdNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain saved
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdNewsletterSendingDomainResponse = PutProjectsByIdNewsletterSendingDomainResponses[keyof PutProjectsByIdNewsletterSendingDomainResponses];
+
+export type PostProjectsByIdNewsletterSendingDomainCheckData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/check';
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCheckErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCheckError = PostProjectsByIdNewsletterSendingDomainCheckErrors[keyof PostProjectsByIdNewsletterSendingDomainCheckErrors];
+
+export type PostProjectsByIdNewsletterSendingDomainCheckResponses = {
+    /**
+     * Newsletter sending domain checked
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCheckResponse = PostProjectsByIdNewsletterSendingDomainCheckResponses[keyof PostProjectsByIdNewsletterSendingDomainCheckResponses];
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareData = {
+    body: ConnectNewsletterSendingDomainCloudflareRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/cloudflare';
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cloudflare request failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareError = PostProjectsByIdNewsletterSendingDomainCloudflareErrors[keyof PostProjectsByIdNewsletterSendingDomainCloudflareErrors];
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareResponses = {
+    /**
+     * DNS records created in Cloudflare
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareResponse = PostProjectsByIdNewsletterSendingDomainCloudflareResponses[keyof PostProjectsByIdNewsletterSendingDomainCloudflareResponses];
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/domain-connect';
+};
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectError = GetProjectsByIdNewsletterSendingDomainDomainConnectErrors[keyof GetProjectsByIdNewsletterSendingDomainDomainConnectErrors];
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponses = {
+    /**
+     * Domain Connect apply URL, or null
+     */
+    200: {
+        data: NewsletterSendingDomainConnect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponse = GetProjectsByIdNewsletterSendingDomainDomainConnectResponses[keyof GetProjectsByIdNewsletterSendingDomainDomainConnectResponses];
+
 export type GetProjectsByIdNewsletterSubscribersData = {
     body?: never;
     headers?: {
@@ -50578,6 +52226,294 @@ export type PostProjectsByIdStarResponses = {
 };
 
 export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
+
+export type DeleteProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type DeleteProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdHideError = DeleteProjectsByIdHideErrors[keyof DeleteProjectsByIdHideErrors];
+
+export type DeleteProjectsByIdHideResponses = {
+    /**
+     * Project shown
+     */
+    200: {
+        data: ProjectHide;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdHideResponse = DeleteProjectsByIdHideResponses[keyof DeleteProjectsByIdHideResponses];
+
+export type GetProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type GetProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdHideError = GetProjectsByIdHideErrors[keyof GetProjectsByIdHideErrors];
+
+export type GetProjectsByIdHideResponses = {
+    /**
+     * The reader's Hide
+     */
+    200: {
+        data: ProjectHide;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdHideResponse = GetProjectsByIdHideResponses[keyof GetProjectsByIdHideResponses];
+
+export type PostProjectsByIdHideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/hide';
+};
+
+export type PostProjectsByIdHideErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdHideError = PostProjectsByIdHideErrors[keyof PostProjectsByIdHideErrors];
+
+export type PostProjectsByIdHideResponses = {
+    /**
+     * Project hidden
+     */
+    200: {
+        data: ProjectHideResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdHideResponse = PostProjectsByIdHideResponses[keyof PostProjectsByIdHideResponses];
 
 export type GetProjectsByIdSocialConnectionsData = {
     body?: never;
@@ -59570,6 +61506,10 @@ export type GetNotificationsData = {
          * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
          */
         needsAction?: 'true' | 'false';
+        /**
+         * With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.
+         */
+        projectId?: string;
         /**
          * When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.
          */

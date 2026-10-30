@@ -97,6 +97,12 @@ describe("newsletter issues page", () => {
       `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(
+      screen.getByRole("link", { name: "Calendar.title" }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/calendar?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
+    expect(
       screen.getByRole("link", { name: "Analytics.title" }),
     ).toHaveAttribute(
       "href",

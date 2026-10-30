@@ -31,8 +31,9 @@ describe("HeaderChrome", () => {
     // Desktop hairline is on the h-16 row (matches SidebarHeader), not outer.
     expect(tokens).not.toContain("md:border-b");
 
-    // Glass stays on the full outer chrome (Apple mock).
-    expect(header.className).toMatch(/backdrop-blur-2xl/);
+    // The chrome is opaque on Apple too: the overlay is a scrim, not glass.
+    expect(tokens).toContain("bg-background");
+    expect(tokens).not.toContain("bg-overlay");
 
     const underlay = header.querySelector(
       "[data-testid='header-safe-area-underlay']",

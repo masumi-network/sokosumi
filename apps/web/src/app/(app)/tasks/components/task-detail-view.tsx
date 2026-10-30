@@ -184,7 +184,7 @@ export async function TaskDetailView({
                           },
                           relatedTaskHrefBasePath,
                         )}
-                        className="text-primary hover:underline"
+                        className="text-foreground underline underline-offset-4"
                       >
                         {t("clonedFrom", { name: parentTask.name })}
                       </Link>

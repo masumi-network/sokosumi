@@ -7,7 +7,7 @@ import type {
 } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
+import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import {
@@ -25,11 +25,7 @@ function useThreadRowNames(
 ): { label: string; roomName: string } {
   const t = useTranslations("App.Channels.ThreadRows");
   const tChannels = useTranslations("App.Channels");
-  const roomName = getRoomDisplayName(
-    room,
-    currentUserId,
-    tChannels("SelfDirect.you"),
-  );
+  const roomName = useRoomDisplayName()(room, currentUserId);
   return {
     label:
       formatUnreadThreadsPreview(

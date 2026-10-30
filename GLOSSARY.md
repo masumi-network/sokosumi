@@ -261,17 +261,17 @@ _Avoid_: Notification opt-in (that phrase gates email today), subscription (when
 ### Header identity
 
 **App chrome**:
-The persistent sidebar and header on authenticated pages: nav, membership-visible rooms, Workspace switcher, and Notification Center.
-_Avoid_: Topbar, shell (unless meaning the loading frame)
+The persistent sidebar and header on authenticated pages: nav, membership-visible rooms, Workspace switcher, and Notification Center. On desktop the sidebar's header holds the Workspace switcher at its start and Search and New task at its end, as Linear's does, and the header ends in Notification Center; the Sokosumi wordmark is not part of it (Home is a nav row instead), and stays on sign-in, marketing and the loading screen. On desktop the sidebar is either shown in full or hidden completely, never a strip of icons; the sidebar toggle at the start of the header shows and hides it, and while it is hidden the toggle carries a dot whenever a chat has something unread ([ADR-0058](docs/adr/0058-the-sidebar-hides-instead-of-collapsing-to-a-rail.md)). The phone keeps its own top bar: the Sokosumi icon at the start on tab roots, and the Workspace switcher, avatar only, at the end; its sidebar sheet keeps the wordmark in its header.
+_Avoid_: Topbar, shell (unless meaning the loading frame), rail or collapsed sidebar (there is no icon rail)
 
 **Workspace switcher**:
-The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
-_Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
+The control at the start of the sidebar's header, before Search and New task, that shows the active personal or organization workspace (avatar, name shortened with "…", the switch arrows the project title also carries), as wide as its content and no wider than the room the buttons leave, and lets the user switch between them, as Linear's does. It hides with the sidebar; nothing stands in for it in the header. On the phone it sits at the end of the top bar as the avatar alone. This is the identity/context control, not the Notification Center entry point or the account chip, which keeps the account actions. It only lists workspaces the user actually has, and opens even when there is one, because Create workspace lives in it. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
+_Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar, header switcher
 
 ### Feature badges
 
 **Announced feature**:
-An item of the sidebar menu that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
+An item of the sidebar that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
 _Avoid_: Feature (alone; collides with beta and feature flags), badge target, route
 
 **Badge campaign**:
@@ -279,7 +279,7 @@ One time-boxed announcement of an Announced feature, with a start and an end set
 _Avoid_: Announcement, release, feature flag
 
 **New badge**:
-The "New" pill on an Announced feature's nav row while a Badge campaign runs. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
+The "New" mark on an Announced feature while a Badge campaign runs: a pill on its nav row, or a dot on the sidebar header's New task button. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
 _Avoid_: NEW tag, beta badge, unread badge
 
 ### Account access
@@ -342,20 +342,52 @@ _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboa
 The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish. CMO has its own gate, which sends a person with pending invitations to Sokosumi to resolve them.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
-### Project pins
+### Projects
+
+**Project scope**:
+The one project the reader is working in, or `All projects` (the workspace, including work without a project). Opening a project selects it: there is no way to view one project while scoped to another or to none.
+_Avoid_: Active project, current project filter, opening a project as something separate from selecting it
+
+**Project switcher**:
+The header control that shows and changes the Project scope: one searchable list with no group headings, Pinned projects first, then Recently visited projects, then the rest in activity order, and Create project at the end. An X beside it returns to `All projects`. Closed projects and the reader's Hidden projects never appear in it.
+_Avoid_: Flyout, project picker, project selector, Manage projects as a way into the list
+
+**Project Overview**:
+The selected project's own page (Overview, Design, Memory, Bots). Reached from the Work group's first item, which reads **Projects** and opens the Projects list while the scope is `All projects`, and reads **Overview** with the project's avatar while a project is selected. The nav never shows both. Its Overview tab opens with the project's Running, Waiting and Done task counts, the In progress, Input required and Done columns of the project's Tasks board, each a link to that board, and shows the Workspace column's two panels under the project's Properties, scoped to the project.
+_Avoid_: Project detail page, project settings, Manage project
+
+**Projects list**:
+Every project in the workspace as a grid of cards, one view at a time: Open (the default), Hidden, or Closed. A project that is both Closed and Hidden shows under Closed. Pinned projects come first, then the rest in activity order, the same order as the Project switcher.
+_Avoid_: Manage projects, project management page, All projects (that is the scope, not this page)
+
+**Workspace column**:
+The two panels beside the Projects list's Open view: Needs you (the Notification Center view's rows, newest first) and Recent activity. Only what the reader can act on or just changed; the recap of what happened while they were away stays on Home. Not shown in the Closed view. Project Overview shows the same two panels scoped to its project: Needs you lists only requests about the project's tasks and jobs, and Recent activity only the project's events, including when the project is Closed or Hidden, so its history stays readable.
+_Avoid_: Dashboard, team overview, sidebar (that is the app's nav), usage panel
+
+**Recent activity**:
+The newest task, job and project events across the workspace's open projects, minus the reader's Hidden projects, whoever caused them: the same events that set a project's last activity. Distinct from Notifications, which are only what was sent to the reader.
+_Avoid_: Activity feed (when meaning the Notification Center), history (the full searchable record), notifications
+
+**Closed project**:
+A project whose close has finished: its scheduled work is stopped, its history kept, and it cannot be reopened. Out of the Project switcher's list, and in the Projects list only under its Closed view; the Open view is the default. Opening one still makes it the Project scope, so its history stays readable, and the switcher then marks it Closed. A project that is closing, or whose close failed, is not yet Closed. Closed is the archive: there is no separate archived state.
+_Avoid_: Archived project, deleted project, inactive project
 
 **Pinned project**:
-The current user's personal pin of a project they can read. Not shared, and not capped — but the sidebar's Projects flyout is five rows in total, so pins claim those slots first and the rest are reached through `All projects`. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the projects list row or the project header, never from the flyout, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the flyout, so reopening restores it. Distinct from a Pinned room and a Pinned message.
+The current user's personal pin of a project they can read. Not shared, and not capped. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the Projects list row or the project header, never from the Project switcher, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the switcher for good. Distinct from a Pinned room and a Pinned message.
 _Avoid_: Starred project (API-only name), favorite, treating this as a Pinned room
 
+**Hidden project**:
+A project the current user has set aside as not theirs: personal like a pin, never shared, and the opposite of one, so hiding a Pinned project unpins it. It leaves the Project switcher's list, the Projects list's Open view and Recent activity, and appears only in the Hidden view, where Show project brings it back. Hiding never hides a request: Needs you still lists one from a Hidden project.
+_Avoid_: Archived project, muted project, unfollowed project, leaving a project (membership does not change)
+
 **Recently visited project**:
-A project this reader opened, newest first, tracked per device rather than on the server. Fills whatever flyout slots their Pinned projects leave, ahead of a backfill in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
+A project this reader opened, newest first, tracked per device rather than on the server. Follows the Pinned projects in the Project switcher's list, ahead of the rest in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
 _Avoid_: Recent project (says nothing about whose), active project, last activity
 
 ### Billing
 
 **Seat**:
-A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is a license to use the product (Tasks, projects, files, jobs, spend). It is not a private credit grant. Purchased count is the cap on assigned Seats: if it drops, the newest seated members lose the Seat immediately and the oldest stay. On **free**, every member is seated; there is nothing to assign. Unseated members can use **chat**. Other product areas stay in the sidebar but explain that an assigned Seat is required. Owner and admin also keep settings, billing, and Seat assignment. A Task created while seated stays org work: schedule fire continues; the unseated creator cannot open it. Coworkers must check whether they can bill (usage / Task writes fail closed without a Seat).
+A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is a license to use the product (Tasks, projects, files, jobs, spend). It is not a private credit grant. Purchased count is the cap on assigned Seats. Added Seats apply and bill right away. Removed Seats stay until the next renewal, with no refund; at that renewal the newest seated members lose the Seat and the oldest stay. On **free**, every member is seated; there is nothing to assign. Unseated members can use **chat**. Other product areas stay in the sidebar but explain that an assigned Seat is required. Owner and admin also keep settings, billing, and Seat assignment. A Task created while seated stays org work: schedule fire continues; the unseated creator cannot open it. Coworkers must check whether they can bill (usage / Task writes fail closed without a Seat).
 _Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a personal credit balance, treating Task assignee as a human, unpaid seat flags, unlimited-on-free as an admin control
 
 **Organization credit pool**:
@@ -380,33 +412,29 @@ _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s 
 An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
 _Avoid_: Description, purpose, bio, treating a Direct as having a topic
 
-**Channel tile**:
-How a Channel identifies itself in the collapsed sidebar rail: the first letters of its name on a neutral 20px square, the size every mark in this sidebar is. A private, external, or matched Channel carries its kind as a small corner mark; a public one carries none. A Direct shows participant faces instead: up to three overlapping when several people are in the room, the first alone on the rail, where a 32px square cannot hold the rest and the tooltip already names them. Every mark in this sidebar is 20px — both faces and the tile, the Soko Bot row's face included — because a filled circle that fills the 24px slot edge to edge outweighs the 16px hairline glyph a Channel row carries beside it. An expanded stack pays 2px of leading padding a lone face does not, so its first face lands on the same line: the slot centres a mark narrower than itself, while a stack is wider and starts flush at the slot's edge. The rail drops that padding again, because the extra faces are gone there. The expanded list keeps the plain kind glyph beside the name.
-_Avoid_: Channel avatar (Channels have no image), channel icon (nothing is chosen by a person), a colour per Channel (tried, five hues repeat across a dozen Channels and the repeats read as meaning), showing it beside the name in the expanded list
-
 **Sidebar row**:
-Any one-line item in the app sidebar: Soko Bots, a nav destination, a chat section heading, a room row, an archived row. One height in both states — 32px with a pointer, 44px on the phone sheet, which is never the rail — so an ordinary row keeps its vertical position when the sidebar toggles and only the panel's width changes. Its leading mark sits in one 24px slot centred 28px from the sidebar's left edge, and its label starts on one column at 48px; the mark keeps its horizontal position across the toggle too. The slot's left edge is what is fixed, not its width: a group Direct's stack of up to three faces grows it to the right, so that row's first face still sits on the axis and only its name starts later than the column. Height and slot belong to the row primitive (`SidebarMenuButton`, `SidebarRowSlot`), not to each list, so a new kind of row cannot drift from the rule. The one separator in the list, under New Task, stays on the rail with them: it sets the one action apart from the destinations, and dropping it there moved everything below it. Not a Sidebar row: the 64px header, the account chip (footer chrome pinned to the bottom edge, 48px, its face still on the 28px axis), and four items that may differ between states because a 32px row cannot hold what they say — a guest room's host organisation line, a pending External invitation's card with Accept and Decline, a section's empty text, and a room's inset unread Thread rows ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)). The first three still use the slot and the label column. The inset Thread rows sit under their room's row rather than in it, present only while a Thread is unread and never more than three and an overflow row; the rail has no room for them, so there they ride a flyout beside the room's mark, in place of its name tooltip.
-_Avoid_: A taller featured row, a card in the row list, a per-list leading box, a mark that grows outward from its centre (the toggle then slides it), a gap between rows (the rail has none), zero movement as the goal (the four exceptions still shift what is below them)
+Any one-line item in the app sidebar: Soko Bots, a nav destination, a section heading (a nav group's, Chats, or a chat section's), Catch up, a room row, an archived row. 28px with a pointer, 44px on the phone sheet. Its leading mark sits in one 24px slot centred 28px from the sidebar's left edge, and its label starts on one column at 48px; the denser row moved neither, because a 24px slot still fits a 28px row. An icon in the slot is 14px with a pointer and 16px on the phone sheet, so a 14px glyph leaves 5px of the slot on each side and the label 13px clear of it. A section heading is the one row with no leading mark: its title starts at the slot's left edge, and its chevron follows the title, hidden at rest and kept, pointing right, while the section is closed. The slot's left edge is what is fixed, not its width: a group Direct's stack of up to three faces grows it to the right, so that row's first face still sits on the axis and only its name starts later than the column. A Channel row's mark is its kind glyph; every face in the sidebar is 20px, the Soko Bot row's included, because a filled circle that fills the 24px slot edge to edge outweighs the 14px hairline glyph beside it. A stack pays 2px of leading padding a lone face does not, so its first face lands on the same line. Height, slot and icon size belong to the row primitive (`SidebarMenuButton`, `SidebarRowSlot`), not to each list, so a new kind of row cannot drift from the rule. Not a Sidebar row: the 64px header with its Workspace switcher, Search and New task buttons (controls in the header, not nav rows), the project title under the Soko Bot row (the project scope's name, semibold, shortened with "…", with switch arrows, not a chevron, so it does not read as a section's fold; it opens the project menu; it titles Work, Records and Marketing, which hang from a hairline down their leading side 16px in, under its first letter, so their rows keep the slot and the label column but sit 17px further in than the Chats block, which is outside it; its name starts at 16px like a section heading's title, with no mark and no slot), the account chip (footer chrome pinned to the bottom edge, 48px, its face still on the 28px axis), and six items that may take more than one line because a 28px row cannot hold what they say — the Soko Bot row while it shows a bot's name and status line, a guest room's host organisation line, an Elsewhere row's workspace line, a pending External invitation's card with Accept and Decline, a section's empty text, and a room's inset unread Thread rows ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)). The first five still use the slot and the label column. A row that takes more than one line keeps its own height, never less than a row's, and its hover covers every line. The inset Thread rows sit under their room's row rather than in it, present only while a Thread is unread and never more than three and an overflow row.
+_Avoid_: A taller featured row, a card in the row list, a per-list leading box, a mark that grows outward from its centre, a Channel avatar or a colour per Channel (Channels have no image, and five hues repeat across a dozen Channels so the repeats read as meaning)
 
-**Rail attention pill**:
-The collapsed sidebar rail's single attention mark, a short bar on the rail's left edge beside a room's Channel tile or Direct avatar: 8px primary for an unread User mention or direct, 6px neutral for Room unread (including marked unread), none when read or Muted. Mention wins; never two marks and never a number. Off the mark itself, so the presence dot and the kind corner mark keep their corners. Derived from the same attention rules as the expanded row's bold and badge. A pending External invitation rides the rail the same way: the Channel tile the room will have once joined, under the 8px primary pill, because an invitation is addressed to the reader. Pressing it expands the sidebar, where Accept and Decline live.
-_Avoid_: Unread badge, attention dot, notification dot, a second mark for mention plus unread, a mark on the expanded list
+**Chats** (sidebar):
+The sidebar's chat area as one block under a heading that reads like Work, Records and Marketing: Catch up first, then any Elsewhere rows, then Pinned, Channels, External, Archived and Direct Messages. The heading folds the whole block, in memory only like the nav groups, and while folded it is marked when a room inside holds something for the reader, as a folded chat section is. It carries the Unreads filter's chip at its end, and while the filter is on, Mark all as read just before the chip. Outside the project scope's hairline, so its heading starts at 16px. The phone's Chats page is this list titled by the page itself, so it draws no second heading.
+_Avoid_: A rule between the nav and the chat area, Catch up floating between them
 
-**Rail selection bar**:
-The collapsed sidebar rail's mark for whatever the reader has open — a Chat room or a nav destination such as Tasks or Projects: a 20px primary bar on the rail's **right** edge, pointing at the panel it opened. The mirror of the Rail attention pill, which owns the left edge, so a room can be both unread and open without the two marks arguing. How it looks belongs to `SidebarRailSelectionBar`; _when_ it shows is each rail list's own call, so every rail item states itself the same way without the primitive guessing what "open" means for a row. Collapsed, every rail item is one 32px square (the logo, Soko Bots, nav, rooms and the account chip alike) and the rail's neutral fill belongs to hover alone (drawn as a ring around that square, deepened on press) — `--muted`, `--accent` and `--sidebar-accent` are one value in dark, so hover, selection and the Channel tile's own plate all read as the same 15% wash. Decorative; `aria-current` already announces it.
-_Avoid_: Active pill, selected dot, a left-edge selection bar (that edge is the attention pill's), a selected fill or tile recolour on the rail
+**Catch up**:
+The first row of the Chats block: one entry for everything the reader missed, opening the written overview and the unread Threads. A plain Sidebar row whose one count is what waits on the reader (the needs-you pill), else the unread Threads mark, and none at zero; its accessible name states the count in words. While the Unreads filter is on, the count is hidden and Mark all as read stands beside the chip, on the Chats heading (on the phone's Chats page, which has no heading, at this row's end in the count's place). Its page also lists the unread rooms of the reader's other workspaces.
+_Avoid_: Inbox, a second count, the Unreads chip on this row in the sidebar
 
-**Rail section header**:
-A chat sidebar section's heading on the collapsed sidebar rail: one 32px square holding the section's icon (Channels `#`, External a building, Direct Messages a speech bubble, Archived a box), named by its tooltip, which opens and closes the section there as the titled heading does expanded. Every section has one, so the sections below keep their place when the sidebar toggles. It stands where the expanded heading's row stood, so it also marks where one section ends and the next begins. Dimmed while its section is closed. A closed section that holds something for the reader says so on its heading, by the rules its rooms follow: the Rail attention pill beside the rail square, bold on the expanded title; a pending External invitation counts as a mention. Archived's square is the one that expands the sidebar instead of opening in place: its rows never reach the rail, because they are static and their Restore and Delete live in a menu no 32px square has room for, so opening it there would dim a square and show nothing.
-_Avoid_: Forcing sections open on the rail, a hairline divider between sections, the globe as the External icon (that is the Channel tile's corner mark), archived rows on the rail, a section with no rail square (everything under it then jumps on a toggle)
+**Elsewhere row**:
+A Sidebar row under Catch up for a room of another of the reader's workspaces that holds something unread, naming the room and its workspace; opening it starts a Room visit. At most five show, mentions first, except that every room naming the reader always gets one; the rest share one row that opens Catch up. Muted rooms and rooms shown in every workspace get none.
+_Avoid_: External row (External channels are something else), other-workspace row
+
+**Room visit**:
+Working in a room of another of the reader's workspaces while the active workspace stays as it is. The room works in full, and its header names the workspace it belongs to; choosing that name switches there.
+_Avoid_: Peek, chat-only workspace, switching to read
 
 **Unreads filter**:
-The chat list's switch between All and Unreads: on, it keeps only rooms with Room unread or an unread Thread, with Pinned always shown. The reader's choice is remembered per browser — one value for every organisation, shared by the sidebar and the phone's Chats page — and never flips by itself: with nothing unread it stays on and the list reads All caught up.
+The chat list's switch between All and Unreads: on, it keeps only rooms with Room unread or an unread Thread, with Pinned always shown. Its switch is the Unreads chip (⌘⇧U): at the end of the Chats heading in the sidebar, at the end of the Catch up row on the phone's Chats page, which has no Chats heading. The reader's choice is remembered per browser — one value for every organisation, shared by the sidebar and the phone's Chats page — and never flips by itself: with nothing unread it stays on and the list reads All caught up.
 _Avoid_: Inbox, unread view, resetting to All when caught up, a per-organisation or per-account setting
-
-**Rail actions**:
-What the collapsed sidebar rail lets the reader do: go somewhere (a nav destination, a Chat room), open or close a chat section, and expand the sidebar (the logo, a pending External invitation's tile, or the Archived section's square). Everything that changes a room or makes one lives in the expanded sidebar only: the room menu (mark unread, pin, mute, edit, leave), Create channel, Browse channels, Start a Direct, and an invitation's Accept and Decline. A 32px square has no room for a second control beside its mark, and one press on the logo brings all of them back. Decided, not an oversight.
-_Avoid_: A right-click or long-press room menu on the rail, a `+` square under a Rail section header, Accept and Decline in a rail popover
 
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
@@ -417,7 +445,7 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it. A Direct with only humans is a Personal Direct and shows in every workspace; a Direct with any coworker or Soko Bot belongs to one workspace and shows only there.
 _Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Group name**:
@@ -425,7 +453,7 @@ An optional shared label on a group Direct, seen by every member in place of the
 _Avoid_: Channel name, nickname (a Group name is shared, not per-reader), room title
 
 **Self Direct**:
-One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.
+One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “{name} (you)”; sending notes triggers no self-notifications or AI work.
 _Avoid_: Notes channel, per-workspace self-chat, treating a former group with one remaining member as Self Direct
 
 **Send to yourself**:
@@ -437,19 +465,15 @@ A durable copy of one room message (author, snippet, first attachment) carried o
 _Avoid_: Reply (that is a thread), forward, Unfurl of an internal link, quoting into a room with readers outside the source room
 
 **Coworker 1:1**:
-A Direct with exactly one human member and exactly one coworker.
-_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape
-
-**Org Direct**:
-A Direct owned by an Organization. Human 1:1 is an Org Direct only when both people are Members of that Organization. Organization exit removes the leaving member from them.
-_Avoid_: Team DM, workspace DM
+A Direct with exactly one human member and exactly one coworker. It belongs to the workspace it was started in, which pays for the coworker's work, and shows only in that workspace; a Soko Bot 1:1 is scoped the same way.
+_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape, treating it as a Personal Direct
 
 **Personal Direct**:
-A Direct not owned by an Organization. Survives Organization exit. Human 1:1 from a shared External channel is a Personal Direct; coworker 1:1 may also be personal.
-_Avoid_: Account DM, global DM
+A Direct whose members are all human: Self Direct, human 1:1 or group. Owned by no Organization or workspace, so it shows in every workspace and survives Organization exit ([ADR-0059](docs/adr/0059-human-directs-belong-to-no-workspace.md)). A user may start one, 1:1 or group, with anyone they share an Organization or an External channel with, whichever workspace is active; a group may mix people from different Organizations. Once started it stays writable even when its members no longer share anything. There is one per participant set.
+_Avoid_: Org Direct (retired: every human Direct is personal), team DM, workspace DM, account DM, global DM
 
 **External** (sidebar):
-The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Guest rooms appear in every workspace. Human Directs list under Direct Messages, including Personal Directs with a Guest.
+The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Every External channel the reader is on appears in every workspace, whether their Organization hosts it or they are a Guest; browsing the host Organization's External channels to join one happens only in its workspace. Directs list under Direct Messages, including Personal Directs with a Guest.
 _Avoid_: External channel (that is the room), guest sidebar
 
 ### Chat membership
@@ -471,15 +495,15 @@ The event that the current user is no longer a member of a room — by remote re
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
 
 **Organization exit (chat)**:
-When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships; it does restore the Org Directs that still exist and were started with them (see Former member). Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
+When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (Channels, including External ones it hosts, and the Coworker 1:1s and Soko Bot 1:1s of its workspace). They do not keep host-org rooms as guests. Personal Directs and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships. Channels left with no human members are soft-archived. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
 
 **Former member** (Direct):
-A human a Direct was started for who is no longer in it, usually through Organization exit. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
+A human a Direct was started for who is no longer in it. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
 _Avoid_: Ex-member, removed user (when meaning the Direct's view of them), treating the remaining reader as the Direct's other party
 
 **Read-only Direct**:
-A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable. When a Former member rejoins the Organization they are put back in with their Room last-read set to that moment (Thread Look markers are kept), and the Direct is writable again.
+A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable.
 _Avoid_: Archived direct (archiving is a different, reversible action), locked chat
 
 ### Chat pins
@@ -660,7 +684,7 @@ A human room member is composing a message to a room's main transcript right now
 _Avoid_: Presence (reachability in the organization, not activity in one room), Draft (a saved composer string that outlives the session and is restored on open — restoring one is not Typing), Thought (a coworker's reasoning), Online, treating an attachment or an emoji picker as Typing (the signal is about text, so that it never lies)
 
 **Typing line**:
-How a room says who is Typing: one name, two names, or the fact that there are more than two. Named in the order people started, so a new typist joins the end rather than resorting the line; somebody who went quiet long enough to disappear and then types again is starting afresh, and joins the end. Sits below the composer where there is already room beneath it, and above the composer where there is not — narrow layouts, where it holds its space, because the composer must not move under someone mid-sentence. Either way it costs the transcript nothing it was not already spending. The open room only — Typing never reaches the sidebar, where bold, the mention badge and the Rail attention pill already compete for a row.
+How a room says who is Typing: one name, two names, or the fact that there are more than two. Named in the order people started, so a new typist joins the end rather than resorting the line; somebody who went quiet long enough to disappear and then types again is starting afresh, and joins the end. Sits below the composer where there is already room beneath it, and above the composer where there is not — narrow layouts, where it holds its space, because the composer must not move under someone mid-sentence. Either way it costs the transcript nothing it was not already spending. The open room only — Typing never reaches the sidebar, where bold, the mention badge and the unread count already compete for a row.
 _Avoid_: "N users are typing" (rooms hold people, and a count is not what the reader wants), an animated indicator (it reads as a coworker thinking), a Typing dot on a sidebar row, spelling out three or more names (they truncate, and a truncated name is worse than none)
 
 ### Mac app releases

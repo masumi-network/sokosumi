@@ -56,7 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           userId,
           starredAt: { not: null },
-          room: membershipVisibleActiveRoomWhere(userId, organizationId),
+          room: membershipVisibleActiveRoomWhere(organizationId),
         },
         orderBy: [{ starredAt: "asc" }, { roomId: "asc" }],
         select: { roomId: true, starredAt: true },

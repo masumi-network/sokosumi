@@ -174,7 +174,6 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
       "settings": "Settings",
-      "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "lowCreditsLabel": "Low credits {credits, number}",
       "creditsSummary": "Credits summary:",
@@ -196,7 +195,11 @@
       "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or join organization",
-      "userAvatarAlt": "User avatar"
+      "userAvatarAlt": "User avatar",
+      "inviteMembers": "Invite members",
+      "organizationSettings": "Settings",
+      "membersAndSettings": "Members & settings",
+      "roleAndMemberCount": "{role, select, owner {Owner} admin {Admin} other {Member}} · {count, plural, =1 {1 member} other {# members}}"
     },
     "DataTable": {
       "Data": {
@@ -259,7 +262,8 @@
             "assignSeat": "Failed to assign seat",
             "changeRole": "Failed to change role",
             "remove": "Failed to remove member",
-            "unassignSeat": "Failed to remove seat"
+            "unassignSeat": "Failed to remove seat",
+            "manageSeats": "Manage seats"
           },
           "Errors": {
             "unauthorizedAction": "Log in"
@@ -301,50 +305,6 @@
       "loading": "Searching…",
       "error": "Search failed. Try again.",
       "idle": "Type to search users."
-    },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agents",
-      "credits": "Credits",
-      "coupon": "Coupon",
-      "subscriptions": "Subscriptions",
-      "billing": "Billing",
-      "account": "Account",
-      "admin": "Admin",
-      "organizations": "Organizations",
-      "users": "Users",
-      "edit": "Edit",
-      "editor": "Editor",
-      "enterprise-contracts": "Enterprise contracts",
-      "invoices": "Invoices",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Tasks",
-      "connections": "Connections",
-      "developer": "Developer",
-      "personal-assistant": "Personal assistant",
-      "history": "Credit history",
-      "new": "New",
-      "notifications": "Notifications",
-      "projects": "Projects",
-      "oauth-clients": "OAuth clients",
-      "api-keys": "API keys",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Documentation",
-      "drive": "Files",
-      "soko-bots": "Soko Bots",
-      "calendar": "Calendar",
-      "schedules": "Schedules",
-      "threads": "Threads",
-      "studio": "Content Studio",
-      "design-md": "Design",
-      "memory": "Memory",
-      "social": "Social Scheduling",
-      "ads": "Ads",
-      "evaluations": "Model evaluations",
-      "catch-up": "Catch up",
-      "contacts": "Contacts"
     },
     "Jobs": {
       "StatusBadge": {
@@ -777,8 +737,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Bulk invite members",
-        "description": "Paste email addresses to invite multiple members at once.",
+        "title": "Invite members",
+        "description": "Paste one or more email addresses.",
         "label": "Email addresses",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Separate emails with commas, semicolons, or new lines.",
@@ -2297,8 +2257,9 @@
         },
         "lastActivity": "Last activity",
         "created": "Created",
-        "pin": "Pin project",
-        "unpin": "Unpin project",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "pinned": "Pinned",
         "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
@@ -2334,6 +2295,54 @@
             "dispute_pending": "Dispute",
             "dispute_resolved": "Resolved"
           }
+        },
+        "emptyClosed": {
+          "title": "No closed projects",
+          "description": "A project you close moves here, with its history kept."
+        },
+        "emptyHidden": {
+          "title": "No hidden projects",
+          "description": "Hide a project that isn't yours from its menu. It leaves Open, the project switcher and Recent activity, and waits here."
+        },
+        "onlyClosed": {
+          "title": "All projects are closed",
+          "description": "Closed projects keep their history in the Closed view.",
+          "action": "Show closed projects"
+        },
+        "state": {
+          "label": "Show projects",
+          "open": "Open",
+          "hidden": "Hidden",
+          "closed": "Closed"
+        },
+        "closed": "Closed",
+        "hide": {
+          "hide": "Hide",
+          "show": "Show",
+          "hidden": "Project hidden",
+          "undo": "Undo",
+          "hideError": "Could not hide the project. Try again.",
+          "showError": "Could not show the project. Try again."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Needs you",
+          "empty": "Nothing waits on you.",
+          "error": "Failed to load what needs you.",
+          "showAll": "Show all"
+        },
+        "activity": {
+          "title": "Recent activity",
+          "empty": "No activity in open projects yet.",
+          "emptyProject": "No activity in this project yet.",
+          "error": "Failed to load recent activity.",
+          "showAll": "Show all",
+          "untitledJob": "Untitled job",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Task created} COMMENT {Comment added} READY {Task ready} QUEUED {Task scheduled} RUNNING {Task running} INPUT_REQUIRED {Task needs input} APPROVAL_REQUIRED {Task needs approval} AUTHENTICATION_REQUIRED {Task needs sign-in} OUT_OF_CREDITS {Task paused for credits} COMPLETED {Task completed} FAILED {Task failed} CANCELED {Task canceled} other {Task updated}}",
+          "job": "{status, select, INITIATED {Job started} AWAITING_PAYMENT {Job awaiting payment} AWAITING_INPUT {Job needs input} RUNNING {Job running} COMPLETED {Job completed} FAILED {Job failed} other {Job updated}}",
+          "project": "{event, select, CLOSE_REQUESTED {Close requested} BATCH_FAILED {Close failed} RETRY_REQUESTED {Close retried} SERIES_RESOLVED {Scheduled work stopped} CLOSE_FINALIZED {Project closed} other {Project updated}}"
         }
       },
       "Briefing": {
@@ -2789,6 +2798,7 @@
           },
           "performance": {
             "lastDays": "Last {days} days",
+            "rangeLabel": "Time range",
             "moreFilters": "More filters",
             "activeFilters": "{count} active",
             "posts": "Posts",
@@ -2988,6 +2998,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Latest update",
+        "stats": {
+          "label": "Task counts",
+          "running": "Running",
+          "waiting": "Waiting",
+          "done": "Done"
+        },
         "emptyBriefing": "No briefing yet.",
         "writeBriefing": "Write briefing",
         "showMore": "Show more",
@@ -3064,7 +3080,7 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
-          "close": "Close project",
+          "close": "Close",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
@@ -3144,7 +3160,7 @@
         "navigation": "Newsletter sections",
         "settings": "Settings",
         "emptyTitle": "Set up your newsletter",
-        "emptyDescription": "Choose a name, sender, and brand below, then save your settings to create the newsletter.",
+        "emptyDescription": "Choose a name, sender, and brand, then save your settings to create the newsletter.",
         "general": "General",
         "brand": "Brand",
         "welcome": "Welcome email",
@@ -3159,7 +3175,7 @@
           "name": "Newsletter name",
           "senderName": "Sender name",
           "replyTo": "Reply-to email",
-          "logoUrl": "Logo URL",
+          "logoUrl": "Logo",
           "primaryColor": "Primary color",
           "accentColor": "Accent color",
           "fontFamily": "Font family",
@@ -3315,6 +3331,17 @@
             }
           }
         },
+        "Calendar": {
+          "title": "Calendar",
+          "description": "See when each newsletter issue is scheduled or was sent.",
+          "navigation": "Change month",
+          "previous": "Previous month",
+          "next": "Next month",
+          "today": "Today",
+          "emptyTitle": "No newsletters this month",
+          "emptyDescription": "Scheduled and sent issues appear here on their delivery date. Schedule an issue to plan your next send.",
+          "viewIssues": "View issues"
+        },
         "Issues": {
           "title": "Issues",
           "description": "Write newsletter issues and preview how they look in an inbox.",
@@ -3467,7 +3494,7 @@
             "humanRequired": "A person must approve or send this issue from a signed-in browser session.",
             "invalidSchedule": "Choose a time between one minute and one year from now and a valid time zone.",
             "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
-            "noSender": "Newsletter sending is not configured. Ask a workspace administrator to finish setup.",
+            "noSender": "Connect a sending domain in Newsletter settings, under Sending domain, before scheduling or sending.",
             "approvalRequired": "Submit this issue and get a person’s approval before scheduling or sending."
           },
           "viewOnWeb": "View on web"
@@ -3527,6 +3554,129 @@
             "bounced": "Bounced",
             "net": "Net growth",
             "runningTotal": "Active subscriber total"
+          }
+        },
+        "generalDescription": "Who the newsletter comes from and where replies go.",
+        "brandDescription": "The logo, colors, and font your issues use.",
+        "welcomeCardDescription": "An optional first email for new subscribers.",
+        "unsavedChanges": "You have unsaved changes.",
+        "colorPlaceholder": "No color",
+        "presetColors": "Preset colors",
+        "clearColor": {
+          "primaryColor": "Clear primary color",
+          "accentColor": "Clear accent color"
+        },
+        "Logo": {
+          "description": "Upload an image up to {maxSize}. Save settings to use it in your issues.",
+          "upload": "Upload",
+          "replace": "Replace",
+          "remove": "Remove logo",
+          "previewAlt": "Newsletter logo",
+          "uploadError": "Failed to upload the logo. Try again.",
+          "fileTooLarge": "File is too large",
+          "fileTypeNotAccepted": "File type is not accepted",
+          "maxFilesExceeded": "Upload one logo at a time"
+        },
+        "Preview": {
+          "title": "Preview",
+          "description": "A sketch of how your brand looks in an issue. Updates as you type.",
+          "from": "From {sender}",
+          "sampleHeading": "Your next issue",
+          "sampleBody": "Your issue content appears here, in your brand font.",
+          "button": "Read more",
+          "unsubscribe": "Unsubscribe",
+          "primary": "Primary",
+          "accent": "Accent",
+          "unset": "Default",
+          "welcome": "Welcome email",
+          "noSubject": "No subject yet"
+        },
+        "SendingDomain": {
+          "title": "Sending domain",
+          "description": "Send this project’s newsletter from your own address, like news@news.yourbrand.com.",
+          "fromAddress": "From address",
+          "fromAddressPlaceholder": "news@news.yourbrand.com",
+          "fromAddressHint": "Use a subdomain, like news.yourbrand.com. It keeps newsletter reputation separate from your everyday email.",
+          "add": "Add domain",
+          "added": "Domain added. Now add its DNS records.",
+          "fallback": "Until it’s verified, newsletters go out from Sokosumi’s address as “your sender name via Sokosumi”.",
+          "noFallback": "Newsletters can’t be sent until this domain is verified.",
+          "status": {
+            "PENDING": "Pending",
+            "VERIFIED": "Verified",
+            "FAILED": "Failed"
+          },
+          "lastChecked": "Last checked {time}",
+          "verifiedDescription": "This project’s newsletter now sends from this address.",
+          "verifiedToast": "Domain verified. Newsletters now send from your address.",
+          "checked": "Checked. Your DNS records aren’t visible yet. DNS changes can take up to a few hours.",
+          "checkNow": "Check now",
+          "connectTitle": "Add the DNS records",
+          "dmarc": {
+            "title": "No DMARC policy found",
+            "description": "DMARC tells inboxes what to do with mail that fails these checks. Add the suggested DMARC record below. It starts with p=none, which only monitors and never blocks mail."
+          },
+          "oneClick": {
+            "title": "One-click setup",
+            "description": "Sign in to your DNS provider and confirm. Sokosumi adds the records for you.",
+            "lookup": "Find my DNS provider",
+            "found": "Your domain uses {provider}.",
+            "connect": "Connect with {provider}",
+            "unavailable": "One-click setup isn’t available for your DNS provider yet. Use a Cloudflare token or add the records below."
+          },
+          "cloudflare": {
+            "title": "Cloudflare API token",
+            "description": "Create a token with Zone · DNS · Edit for this domain’s zone and paste it here. Sokosumi uses it once to add the records and never stores it.",
+            "submit": "Add records in Cloudflare",
+            "success": "Records added in Cloudflare. Checking can take a few minutes."
+          },
+          "records": {
+            "title": "DNS records",
+            "description": "Or add these records at your DNS provider yourself.",
+            "name": "Name",
+            "value": "Value",
+            "priority": "Priority",
+            "found": "Record found",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Proves the mail comes from you."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Lets Sokosumi send for you."
+              },
+              "bounce": {
+                "label": "Return path (MX)",
+                "explanation": "Receives bounces, so Sokosumi can stop mailing addresses that fail."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Tells inboxes what to do with mail that fails these checks. p=none only monitors."
+              },
+              "other": {
+                "label": "Extra record",
+                "explanation": "Required by the email provider."
+              }
+            }
+          },
+          "remove": {
+            "action": "Remove domain",
+            "title": "Remove sending domain?",
+            "description": "Newsletters stop sending from {domain}. Its DNS records stay at your DNS provider until you delete them.",
+            "cancel": "Cancel",
+            "success": "Sending domain removed."
+          },
+          "errors": {
+            "generic": "Unable to update the sending domain. Try again.",
+            "invalidAddress": "Enter an email address, like news@news.yourbrand.com.",
+            "forbidden": "You don’t have access to this project’s sending domain. Refresh the page.",
+            "notFound": "This sending domain was removed. Refresh the page.",
+            "conflict": "This domain is already connected. Remove the current domain first, or use a domain no other project uses.",
+            "domainRejected": "This domain can’t be used. Check the address and try again.",
+            "providerFailed": "The email provider didn’t respond. Try again in a minute.",
+            "cloudflareRejected": "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain’s zone.",
+            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute."
           }
         }
       }
@@ -4283,7 +4433,7 @@
       }
     },
     "Social": {
-      "title": "Social Scheduling",
+      "title": "Social posts",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
         "label": "New post",
@@ -4343,15 +4493,18 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",
+        "compactCredits": "{count, plural, =0 {No credits} =1 {# credit} other {{credits} credits}}",
         "planLabel": "Plan",
-        "openSummary": "Open account summary: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Open account summary: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "New",
           "newTask": "New task",
           "search": "Search",
+          "home": "Home",
+          "projects": "Projects",
+          "overview": "Overview",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and outputs",
           "taskManager": "Tasks",
@@ -4365,10 +4518,15 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social Scheduling",
+          "social": "Social posts",
           "ads": "Ads",
           "newsletter": "Newsletter",
-          "contacts": "Contacts"
+          "contacts": "Contacts",
+          "groups": {
+            "work": "Work",
+            "records": "Records",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -4380,9 +4538,20 @@
           "title": "Assigned seat required",
           "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
           "hint": "Ask an owner or admin to assign you a Seat."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "workingNow": "Working now",
+          "needsAttention": "Needs attention",
+          "activeAgo": "Active {time}",
+          "ready": "Ready",
+          "team": "Your team's Soko Bots"
         }
       },
-      "toggle": "Toggle sidebar"
+      "show": "Show sidebar",
+      "hide": "Hide sidebar",
+      "resize": "Resize sidebar",
+      "unreadChats": "Unread chats"
     },
     "HistorySearchDialog": {
       "title": "Search",
@@ -4799,7 +4968,8 @@
           "accounts": "Accounts",
           "billing": "Billing & commercial",
           "catalog": "Marketplace catalog",
-          "operations": "Operations"
+          "operations": "Operations",
+          "reference": "Reference"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4853,6 +5023,10 @@
           "badgeCampaigns": {
             "title": "Feature badges",
             "description": "Show a New badge on a sidebar feature for existing users, for a set time."
+          },
+          "designSystem": {
+            "title": "Design system",
+            "description": "Masumi Family brand and UI rules, rendered with our real components."
           }
         }
       },
@@ -6022,6 +6196,141 @@
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
         }
+      },
+      "DesignSystem": {
+        "title": "Design system",
+        "description": "Masumi Family brand and UI rules, rendered with our real components and the app's own tokens. Switch the app theme to see dark.",
+        "guideLink": "Brand guide",
+        "backToAdmin": "Back to admin",
+        "Theme": {
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "Color": {
+          "title": "Color",
+          "lead": "Neutral surfaces. One pink per view.",
+          "primaryName": "Iris Flower · primary",
+          "primaryRuleTitle": "Text on Iris Flower is always Neutral 950",
+          "primaryRule": "White on Iris Flower fails contrast. Never set Iris Flower text on a white page. Use it for fills, accents and active states.",
+          "palette": "Masumi palette",
+          "paletteRule": "Shared by all brands. Everything but Iris Flower is secondary. Never use Scarlet or Persimmon for status.",
+          "neutrals": "Neutrals",
+          "roles": "Theme roles",
+          "Roles": {
+            "page": "Page",
+            "panel": "Panel",
+            "border": "Border",
+            "fieldBorder": "Field border",
+            "text": "Text",
+            "mutedText": "Muted text",
+            "primary": "Primary",
+            "component": "Component on a panel",
+            "disabledText": "Disabled text",
+            "textOnPrimary": "Text on primary",
+            "scrim": "Overlay scrim"
+          },
+          "darkPrimaryRule": "In dark, the primary rests on Dark Iris (#D141D1, proposed). Iris Flower reads three times louder on near-black. Hover returns to Iris Flower.",
+          "status": "Status",
+          "Status": {
+            "done": "Positive",
+            "needsInput": "Warning",
+            "failed": "Destructive"
+          },
+          "statusRule": "Every status pairs color with a symbol and a label. Never color alone.",
+          "gradients": "Gradients",
+          "gradientRule": "To be decided. Backgrounds and hero areas only, never behind dense UI.",
+          "alpha": "Alpha tones",
+          "alphaRule": "Black at reduced opacity. Overlays and scrims over imagery only, never UI surfaces.",
+          "alphaStep": "Alpha {step}"
+        },
+        "Type": {
+          "title": "Typography",
+          "lead": "Inter only. Light from 20px, for display.",
+          "sample": "Agents at work",
+          "Roles": {
+            "display": "Display",
+            "heading": "Heading",
+            "subheading": "Subheading",
+            "body": "Body",
+            "label": "Label",
+            "caption": "Caption",
+            "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Shape and depth",
+          "lead": "Borders first. Shadows only on floating overlays. No glow, no blur.",
+          "border": "Border",
+          "overlay": "Overlay"
+        },
+        "Components": {
+          "title": "Components",
+          "lead": "One filled primary per view. Verb first.",
+          "schedule": "Schedule post",
+          "duplicate": "Duplicate",
+          "cancel": "Cancel",
+          "delete": "Delete",
+          "showAll": "Show all",
+          "small": "Small",
+          "addTask": "Add task",
+          "saving": "Saving",
+          "postTitle": "Post title",
+          "postTitlePlaceholder": "e.g. Three lessons from our launch",
+          "budget": "Daily budget",
+          "budgetError": "Enter an amount above 0, like 25.",
+          "notify": "Notify me when a task needs input",
+          "review": "Review posts before they go out",
+          "calendar": "Calendar",
+          "drafts": "Drafts",
+          "cardTitle": "Competitor landscape",
+          "cardBody": "To get better aligned: which region do you sell in?",
+          "answer": "Answer",
+          "openTask": "Open task",
+          "toast": "Post scheduled",
+          "undo": "Undo",
+          "dialogTitle": "Delete 3 drafts?",
+          "dialogBody": "They will not be posted and cannot be restored.",
+          "deleteDrafts": "Delete drafts"
+        },
+        "Motion": {
+          "title": "Motion",
+          "lead": "Motion explains a change. Nothing more.",
+          "rules": "Animate transform and opacity, never layout. Name the properties you transition. No decorative loops. Reduced motion removes non-essential movement.",
+          "feedback": {
+            "title": "Feedback",
+            "body": "Press and hover on every control, ease-out."
+          },
+          "enter": {
+            "title": "Enter",
+            "body": "Lists, pages, dialogs and menus arriving."
+          }
+        },
+        "States": {
+          "title": "State",
+          "lead": "Every state is designed, not left over.",
+          "todo": "To do",
+          "inProgress": "In progress",
+          "needsInput": "Needs input",
+          "done": "Done",
+          "failed": "Failed",
+          "loading": "Drafting your posts",
+          "emptyTitle": "Drafts",
+          "emptyBody": "Posts you start but do not schedule wait here.",
+          "emptyAction": "Write a post",
+          "errorTitle": "LinkedIn did not accept the post",
+          "errorBody": "The image is over 5 MB. Choose a smaller one and try again.",
+          "errorAction": "Replace image",
+          "doneTitle": "5 posts scheduled",
+          "doneBody": "The first one goes out Thursday at 09:00, your time zone.",
+          "doneAction": "Open calendar"
+        }
       }
     },
     "Billing": {
@@ -6914,12 +7223,12 @@
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover paid seats in use. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
+          "seatsInputHint": "Choose how many seats to buy with a paid plan. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
-          "seatsUpdatedSuccess": "Seats updated successfully.",
+          "seatsUpdatedSuccess": "Seats updated.",
+          "seatsScheduledSuccess": "Seat removal scheduled for your next renewal.",
           "currentPlanCta": "Current plan",
-          "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
           "Errors": {
             "unauthenticated": "Please log in to continue",
@@ -6927,8 +7236,42 @@
             "unauthorized": "Only organization owners and admins can manage subscriptions",
             "badInput": "Please provide valid plan and seat values",
             "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
-            "general": "Failed to manage organization subscription"
-          }
+            "general": "Failed to manage organization subscription",
+            "paymentFailed": "The payment didn't go through, so your seats haven't changed. Update your payment method and try again.",
+            "paymentFailedAction": "Update payment method"
+          },
+          "seatsCard": {
+            "summary": "{assigned} of {purchased, plural, =1 {# seat} other {# seats}} assigned, {unused} unused. Added seats are billed right away. Removed seats end at renewal.",
+            "scheduledNote": "{count, plural, =1 {Removing # seat} other {Removing # seats}} on {date}. Changing plans cancels this.",
+            "removeBlocked": "Your plan ends on {date}, and all seats end with it. Reactivate your plan to remove seats.",
+            "keepCta": "{count, plural, =1 {Keep # seat} other {Keep # seats}}",
+            "addIdleCta": "Add seats",
+            "addCta": "{count, plural, =1 {Add # seat} other {Add # seats}}",
+            "removeCta": "{count, plural, =1 {Remove # seat} other {Remove # seats}}",
+            "decrease": "Remove one seat",
+            "increase": "Add one seat",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {Add # seat?} other {Add # seats?}}",
+              "removeTitle": "{count, plural, =1 {Remove # seat?} other {Remove # seats?}}",
+              "keepTitle": "{count, plural, =1 {Keep # seat?} other {Keep # seats?}}",
+              "addDescription": "This change applies right away.",
+              "removeDescription": "You keep every seat until your next renewal, and nothing is refunded.",
+              "keepDescription": "This cancels the scheduled seat removal. Your bill stays the same.",
+              "addCancelsReduction": "This also cancels the scheduled seat removal.",
+              "loading": "Getting the price…",
+              "previewError": "Unable to get the price, so your seats can't be changed yet.",
+              "previewRetry": "Try again",
+              "dueNow": "Due now",
+              "effectiveAt": "Takes effect",
+              "approximate": "About {amount}",
+              "newMonthly": "New monthly price",
+              "newMonthlyHint": "Including tax and discounts",
+              "seatsLost": "{count, plural, =1 {At renewal, the most recently joined member loses their seat.} other {At renewal, the # most recently joined members lose their seat.}}",
+              "cancellationNote": "Your plan ends on {date}, and these seats end with it.",
+              "cancel": "Cancel"
+            }
+          },
+          "seatsCheckoutLabel": "Seats to purchase"
         },
         "Seats": {
           "title": "Seats overview",
@@ -7458,7 +7801,11 @@
       "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Direct message",
+      "headerSelfDirect": "Only you",
+      "headerVisitSwitch": "Switch to {workspace}",
       "participantOverflowCount": "{count} more participants",
+      "chats": "Chats",
       "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
@@ -7474,13 +7821,13 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "Convert to file",
       "NoOrganization": {
-        "title": "Channels coming soon",
         "description": "Channels are in testing for organization workspaces. Support for personal use is coming soon."
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
+        "peopleLoadFailedDescription": "People you can message are temporarily unavailable. Try again in a moment.",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "noDirectMessagesDescription": "Send a message to start the conversation.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -7535,7 +7882,6 @@
         "title": "New direct message",
         "empty": "Choose who to message.",
         "chooseRecipientError": "Choose a recipient.",
-        "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
@@ -7622,7 +7968,9 @@
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
-        "justRead": "Read just now"
+        "justRead": "Read just now",
+        "elsewhereLabel": "Unread in other workspaces",
+        "elsewhereMore": "{count} more in other workspaces"
       },
       "ThreadsView": {
         "title": "Threads",
@@ -7840,12 +8188,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "unreadMessagesCapped": "More than {max} unread messages",
-        "railUnread": "Unread"
+        "unread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "mentionsCapped": "More than {max} mentions",
-        "railMention": "Mentions you"
+        "mentionsYou": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",
@@ -7986,6 +8334,7 @@
       "SelfDirect": {
         "messageYourself": "Message yourself",
         "you": "You",
+        "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
       },
@@ -8020,12 +8369,14 @@
         "editTagsNote": "Your correction applies for everyone in the room.",
         "taskDue": "Due {date}",
         "taskSource": "From the chat:",
+        "taskFrom": "{name} wrote:",
         "Buckets": {
           "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
           "escalation": "{count, plural, one {# escalation} other {# escalations}}",
           "urgent": "{count, plural, one {# urgent} other {# urgent}}",
           "blocker": "{count, plural, one {# blocker} other {# blockers}}",
           "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "announcement": "{count, plural, one {# announcement} other {# announcements}}",
           "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
           "commitment": "{count, plural, one {# commitment} other {# commitments}}",
           "workRequest": "{count, plural, one {# work request} other {# work requests}}",
@@ -8045,6 +8396,7 @@
           "urgent": "Urgent",
           "blocker": "Blocker",
           "decisionMade": "Decision",
+          "announcement": "Announcement",
           "needsDecision": "Needs a decision",
           "commitment": "Commitment",
           "commitmentDue": "Commitment · due {date}",
@@ -8054,6 +8406,7 @@
           "question": "Asks someone a question",
           "needsDecision": "Needs a decision",
           "decisionMade": "Decision made",
+          "announcement": "Announcement",
           "commitment": "Commitment",
           "blocker": "Blocker",
           "urgent": "Urgent",
@@ -8074,10 +8427,22 @@
           "overview": "Overview",
           "threads": "Threads"
         }
+      },
+      "Stickers": {
+        "title": "Stickers",
+        "hint": "PNG, JPEG or WebP images up to 2 MiB. Select a sticker, then send.",
+        "upload": "Upload sticker",
+        "invalid": "Choose a PNG, JPEG or WebP image no larger than 2 MiB.",
+        "uploadFailed": "Unable to save sticker. Try uploading again.",
+        "loading": "Loading stickers…",
+        "loadFailed": "Unable to load stickers.",
+        "retry": "Try again",
+        "empty": "Upload a sticker to start your collection.",
+        "collection": "Saved stickers",
+        "select": "Select {name}"
       }
     },
     "Drive": {
-      "breadcrumb": "Files",
       "breadcrumbNavLabel": "Files folder navigation",
       "myDrive": "My files",
       "uploadButton": "Upload",
@@ -8774,6 +9139,17 @@
       "Disabled": {
         "title": "Soko Bot is temporarily unavailable",
         "description": "An administrator has switched Soko Bot off for now. Nothing your assistant has done is lost, and it will pick up where it left off."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Your assistant uses the Project's ad accounts from the Ads page.",
+        "open": "Open",
+        "empty": "No ad accounts connected yet.",
+        "connectOnAds": "Connect one on the Ads page.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
@@ -8862,6 +9238,7 @@
       "today": "Today",
       "weekNumber": "Week {week}",
       "view": {
+        "label": "View",
         "month": "Month",
         "week": "Week",
         "agenda": "Agenda"
@@ -8922,8 +9299,7 @@
       },
       "empty": {
         "title": "No scheduled releases match these filters.",
-        "socialOnly": "No social posts are scheduled in this period.",
-        "publications": "No posts or newsletters are scheduled in this period."
+        "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
         "link": "Schedules"
@@ -8968,11 +9344,7 @@
         "past": "Choose a time in the future."
       },
       "socialOnly": {
-        "label": "Social posts only",
-        "newslettersLabel": "Posts and newsletters only"
-      },
-      "newsletter": {
-        "label": "Newsletter"
+        "label": "Social posts only"
       }
     },
     "You": {
@@ -9147,13 +9519,12 @@
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
+      "clearProject": "Clear project",
       "close": "Close",
       "label": "Project",
+      "allProjects": "All projects",
       "switchLabel": "Switch project",
-      "workspaceView": "Everything",
-      "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
-      "recent": "Recent",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",
       "empty": "No projects found.",
@@ -9161,7 +9532,7 @@
       "error": "Projects could not load.",
       "retry": "Try again",
       "create": "Create project",
-      "manage": "Manage projects",
+      "closed": "Closed",
       "current": "(current)",
       "searching": "Searching projects..."
     },

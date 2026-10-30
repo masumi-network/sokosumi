@@ -1,13 +1,20 @@
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
+import {
+  type ComponentProps,
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  use,
+} from "react";
 import { vi } from "vitest";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import { ElsewhereRoomsLive } from "@/components/chat/use-elsewhere-rooms";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
   serializeChatUnreadsFilterCookie,
 } from "@/lib/ui-preferences/chat-unreads-filter";
-
-import { OrganizationChatList } from "../organization-chat-list.client";
 
 /** The route the list reads, so a test can open a room. Reset per test.
  *  Selection is the optimistic highlight, which moves before the route. */
@@ -20,23 +27,37 @@ const {
   acceptInvitationMock,
   listRoomsMock,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
+  markAllReadMock,
   reorderPinnedMock,
+  harnessRealCatchUp,
+  harnessRowProps,
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
+  listElsewhereMock: vi.fn(),
   listPendingMock: vi.fn(),
+  markAllReadMock: vi.fn(),
   reorderPinnedMock: vi.fn(),
+  /** On, Catch up and Mark all as read are the real ones, not markers. */
+  harnessRealCatchUp: { current: false },
+  /** What each room row last received, by room id. */
+  harnessRowProps: new Map<string, Record<string, unknown>>(),
 }));
 
 export {
   acceptInvitationMock,
   harnessPathname,
+  harnessRealCatchUp,
+  harnessRowProps,
   harnessSelection,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
   listRoomsMock,
+  markAllReadMock,
   reorderPinnedMock,
 };
 
@@ -59,9 +80,14 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Values ride after the key, so a test can see what a label was given.
 vi.mock("next-intl", () => ({
-  useTranslations: (namespace?: string) => (key: string) =>
-    namespace ? `${namespace}.${key}` : key,
+  useTranslations:
+    (namespace?: string) => (key: string, values?: Record<string, unknown>) =>
+      [
+        namespace ? `${namespace}.${key}` : key,
+        ...Object.values(values ?? {}),
+      ].join(" "),
 }));
 
 vi.mock("sonner", () => ({
@@ -74,6 +100,8 @@ vi.mock("@/app/chat/actions", () => ({
   ) => acceptInvitationMock(...args),
   declineChatRoomInvitationAction: vi.fn(),
   deleteRoomAction: vi.fn(),
+  markAllChatUnreadReadAction: (...args: Parameters<typeof markAllReadMock>) =>
+    markAllReadMock(...args),
   restoreRoomAction: vi.fn(),
 }));
 
@@ -97,76 +125,105 @@ vi.mock("@/app/chat/components/create-direct-dialog", () => ({
   ),
 }));
 
-vi.mock("@/app/chat/components/room-helpers", () => ({
-  getRoomDisplayName: () => "room",
-}));
+// Every Direct reads "room" but the Self Direct, which keeps its real name.
+vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
+  const actual =
+    await importActual<typeof import("@/app/chat/components/room-helpers")>();
+  return {
+    getRoomDisplayName: (
+      ...args: Parameters<typeof actual.getRoomDisplayName>
+    ) => (args[0].isSelfDirect ? actual.getRoomDisplayName(...args) : "room"),
+  };
+});
 
-vi.mock("../chat-room-sidebar-row", () => ({
+vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
+    subtitle,
     reorderHandle,
     itemProps,
+    ...props
   }: {
+    room: ChatRoom;
     label: string;
+    subtitle?: string;
     reorderHandle?: ReactNode;
     itemProps?: ComponentProps<"li">;
-  }) => (
-    <li {...itemProps} data-testid="room-row">
-      <span>{label}</span>
-      {reorderHandle}
-    </li>
-  ),
-  RailAttentionPill: () => null,
+  }) => {
+    harnessRowProps.set(props.room.id, props);
+    return (
+      <li {...itemProps} data-testid="room-row">
+        <span>{label}</span>
+        {subtitle ? <span>{subtitle}</span> : null}
+        {reorderHandle}
+      </li>
+    );
+  },
 }));
 
 // A marker, not the rows: what they count belongs to
 // `chat-unread-nav-rows.test.tsx`. The list decides where they stand and
 // what the All unreads filter does to the sections, so the marker keeps the
-// toggle.
-vi.mock("../chat-unread-nav-rows", () => ({
-  ChatUnreadNavRows: ({
-    unreadOnly,
-    onUnreadOnlyChange,
-  }: {
-    unreadOnly: boolean;
-    onUnreadOnlyChange: (unreadOnly: boolean) => void;
-  }) => (
-    <li data-testid="chat-unread-nav-rows">
-      <button
-        type="button"
-        aria-pressed={unreadOnly}
-        onClick={() => onUnreadOnlyChange(!unreadOnly)}
-      >
-        All unreads
-      </button>
-    </li>
-  ),
-}));
+// toggle — on the row where the row carries it, and as the chip where a
+// Chats heading does.
+function UnreadsToggleMarker({
+  unreadOnly,
+  onUnreadOnlyChange,
+}: {
+  unreadOnly: boolean;
+  onUnreadOnlyChange: (unreadOnly: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={unreadOnly}
+      onClick={() => onUnreadOnlyChange(!unreadOnly)}
+    >
+      All unreads
+    </button>
+  );
+}
 
-vi.mock("../pending-invitation-rail-button", () => ({
-  PendingInvitationRailButton: ({
-    roomName,
-    label,
-    acceptButtonId,
-  }: {
-    roomName: string;
-    label: string;
-    acceptButtonId: string;
-  }) => (
-    <span
-      data-testid="rail-invitation"
-      data-room-name={roomName}
-      data-label={label}
-      data-accept-button-id={acceptButtonId}
-    />
-  ),
-}));
+vi.mock("@/components/chat/chat-unread-nav-rows", async (importActual) => {
+  const actual =
+    await importActual<
+      typeof import("@/components/chat/chat-unread-nav-rows")
+    >();
+  return {
+    ChatUnreadNavRows: (
+      props: ComponentProps<typeof actual.ChatUnreadNavRows>,
+    ) =>
+      harnessRealCatchUp.current ? (
+        <actual.ChatUnreadNavRows {...props} />
+      ) : (
+        <li data-testid="chat-unread-nav-rows">
+          {props.onUnreadOnlyChange ? (
+            <UnreadsToggleMarker
+              unreadOnly={props.unreadOnly}
+              onUnreadOnlyChange={props.onUnreadOnlyChange}
+            />
+          ) : null}
+        </li>
+      ),
+    ChatUnreadsFilterChip: UnreadsToggleMarker,
+    // When it shows past the filter is the row's test's; the list decides only
+    // where it stands.
+    ChatMarkAllReadButton: (
+      props: ComponentProps<typeof actual.ChatMarkAllReadButton>,
+    ) =>
+      harnessRealCatchUp.current ? (
+        <actual.ChatMarkAllReadButton {...props} />
+      ) : props.unreadOnly ? (
+        <button type="button">Mark all as read</button>
+      ) : null,
+  };
+});
 
-vi.mock("../direct-room-avatar-stack", () => ({
+vi.mock("@/components/chat/direct-room-avatar-stack", () => ({
   DirectRoomAvatarStack: () => null,
 }));
 
-vi.mock("../organization-chat-list.actions", () => ({
+vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: (
     ...args: Parameters<typeof listRoomsMock>
   ) => listRoomsMock(...args),
@@ -175,8 +232,11 @@ vi.mock("../organization-chat-list.actions", () => ({
   ) => reorderPinnedMock(...args),
 }));
 
-vi.mock("../fetch-sidebar-room-collection", () => ({
+vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async (collection: string) => {
+    if (collection === "elsewhere") {
+      return listElsewhereMock();
+    }
     const result =
       collection === "active"
         ? await listRoomsMock()
@@ -200,12 +260,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
     "@/components/ui/sidebar",
   )),
-  // The section header's rail square, as a bare marker: its children repeat
-  // the title the expanded heading already renders, which would double every
-  // `getByText`. `chat-sidebar-section-header.test.tsx` covers the square.
-  SidebarMenuButton: ({ tooltip }: { tooltip?: string }) => (
-    <span data-testid="section-rail-button" data-tooltip={tooltip} />
-  ),
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
@@ -222,9 +276,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
-  // The list reads it to expand the sidebar from Archived's rail square;
-  // there is no provider around these renders.
-  useSidebar: () => ({ setOpen: vi.fn() }),
 }));
 
 vi.mock("@/components/ui/alert-dialog", () => ({
@@ -252,14 +303,59 @@ vi.mock("@/components/ui/alert-dialog", () => ({
   ),
 }));
 
+// Open state as Radix keeps it — `aria-expanded` on the trigger, `data-state`
+// on the content — but a closed section's rows stay rendered, so a test can
+// still reach Archived, which starts folded.
+const CollapsibleMockContext = createContext<{
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+}>({ open: true });
+
 vi.mock("@/components/ui/collapsible", () => ({
-  Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  CollapsibleContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
+  Collapsible: ({
+    children,
+    open = true,
+    onOpenChange,
+  }: {
+    children: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
+    <CollapsibleMockContext.Provider value={{ open, onOpenChange }}>
+      <div>{children}</div>
+    </CollapsibleMockContext.Provider>
   ),
-  CollapsibleTrigger: ({ children }: { children: ReactNode }) => (
-    <button type="button">{children}</button>
-  ),
+  CollapsibleContent: function CollapsibleContent({
+    children,
+  }: {
+    children: ReactNode;
+  }) {
+    const { open } = use(CollapsibleMockContext);
+    return (
+      <div
+        data-slot="collapsible-content"
+        data-state={open ? "open" : "closed"}
+      >
+        {children}
+      </div>
+    );
+  },
+  CollapsibleTrigger: function CollapsibleTrigger({
+    children,
+  }: {
+    children: ReactNode;
+  }) {
+    const { open, onOpenChange } = use(CollapsibleMockContext);
+    return (
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => onOpenChange?.(!open)}
+      >
+        {children}
+      </button>
+    );
+  },
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
@@ -277,12 +373,21 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 
 export const emptyRooms: ChatRoom[] = [];
 
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+/** One per test, as the app has one per tab, so a test's rooms stay its own. */
+let harnessQueryClient = makeQueryClient();
+
 export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
   archivedRooms?: ChatRoom[];
   pendingInvitations?: ChatRoomInvitation[];
   organizationId?: string | null;
   paintOnly?: boolean;
+  /** As the sidebar mounts it; the phone's Chats page leaves it out. */
+  withChatsHeading?: boolean;
 }
 
 export function emptyListResult(rooms: ChatRoom[] = []) {
@@ -348,11 +453,18 @@ export function resetOrganizationChatListMocks() {
   document.documentElement.removeAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE);
   harnessPathname.current = "/chat";
   harnessSelection.current = null;
+  harnessRealCatchUp.current = false;
+  markAllReadMock.mockReset();
+  markAllReadMock.mockResolvedValue({ ok: true, value: null });
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
   listPendingMock.mockReset();
+  listElsewhereMock.mockReset();
   reorderPinnedMock.mockReset();
+  harnessRowProps.clear();
+  harnessQueryClient = makeQueryClient();
+  listElsewhereMock.mockResolvedValue([]);
   listRoomsMock.mockResolvedValue(emptyListResult());
   listArchivedMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });
@@ -368,18 +480,23 @@ export function createOrganizationChatList({
   pendingInvitations,
   organizationId = "org-1",
   paintOnly = false,
+  withChatsHeading = false,
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
-    <OrganizationChatList
-      rooms={rooms}
-      archivedRooms={archivedRooms}
-      {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
-      currentUserId="user-1"
-      organizationId={organizationId}
-      isOrgOwnerOrAdmin={false}
-      dismissSheetOnNavigate={false}
-      paintOnly={paintOnly}
-    />
+    <QueryClientProvider client={harnessQueryClient}>
+      <ElsewhereRoomsLive />
+      <OrganizationChatList
+        rooms={rooms}
+        archivedRooms={archivedRooms}
+        {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
+        currentUserId="user-1"
+        organizationId={organizationId}
+        isOrgOwnerOrAdmin={false}
+        dismissSheetOnNavigate={false}
+        paintOnly={paintOnly}
+        withChatsHeading={withChatsHeading}
+      />
+    </QueryClientProvider>
   );
 }
 

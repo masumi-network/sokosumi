@@ -72,14 +72,13 @@ export function NewsletterIssuePreview({
           onValueChange={(value) => {
             if (value) setDevice(value);
           }}
-          variant="outline"
           aria-label={t("Preview.title")}
         >
-          <ToggleGroupItem value="mobile" className="min-h-10 gap-2">
+          <ToggleGroupItem value="mobile">
             <Smartphone className="size-4" />
             {t("Preview.mobile")}
           </ToggleGroupItem>
-          <ToggleGroupItem value="desktop" className="min-h-10 gap-2">
+          <ToggleGroupItem value="desktop">
             <Monitor className="size-4" />
             {t("Preview.desktop")}
           </ToggleGroupItem>
@@ -94,7 +93,7 @@ export function NewsletterIssuePreview({
       </p>
       {preview.isError && parsed.success ? (
         <div className="space-y-2">
-          <p role="alert" className="text-semantic-destructive-label text-sm">
+          <p role="alert" className="text-foreground text-sm">
             {t("Preview.error")}
           </p>
           <Button variant="outline" onClick={() => void preview.refetch()}>

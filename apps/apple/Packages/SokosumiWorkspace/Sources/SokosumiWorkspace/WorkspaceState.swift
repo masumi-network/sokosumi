@@ -70,7 +70,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   /// Selected room. Launch and workspace switches restore the saved room,
-  /// else the first room. Revoking the open room can leave this nil while
+  /// else the first room; a switch keeps a room shown in every workspace. Revoking the open room can leave this nil while
   /// others remain: the saved pick is left alone so relaunch does not
   /// reopen a room that is gone.
   public var selectedRoomId: String? {
@@ -82,6 +82,15 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var switchError: String?
   public var currentUserId: String {
     workspaceSession.currentUser?.id ?? ""
+  }
+
+  /// Where a room's drafts are saved: under no workspace for a room shown in every workspace, so its draft is the
+  /// same in each of them (its drafts used to be under the active Organization), else under the active one.
+  public func draftScope(roomId: String) -> ComposeDraftScope {
+    let organizationId = selection?.workspace.organizationId
+    return rooms.isShownInEveryWorkspace(roomId: roomId)
+      ? .init(organizationId: nil, legacyOrganizationId: organizationId)
+      : .init(organizationId: organizationId)
   }
 
   public var currentUserName: String {
@@ -462,7 +471,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
     guard phase == .ready, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return false }
-    return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
+    return recipient.canOpen(from: room, currentUserId: currentUserId)
   }
 
   public func loadDirectRecipients(context: UUID) async throws -> ChatRecipientRoster {
@@ -470,16 +479,14 @@ public final class WorkspaceState: ObservableObject {
       userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
     )
     return try await workspaceOperation(context: context) { client, slug in
-      try await service.directRecipients(
-        client: client, yourself: yourself, organizationId: selection?.workspace.organizationId, organizationSlug: slug
-      )
+      try await service.directRecipients(client: client, yourself: yourself, organizationSlug: slug)
     }
   }
 
   @discardableResult
   public func openParticipantDirect(_ recipient: DirectRecipient) async throws -> Bool {
     guard canOpenDirect(recipient) else { return false }
-    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil, currentUserId: currentUserId)
+    var recipients = DirectConversationSelection(currentUserId: currentUserId)
     recipients.add(recipient)
     return try await openDirect(recipients, context: compositionContext)
   }
@@ -910,13 +917,15 @@ public final class WorkspaceState: ObservableObject {
     guard let client = resolveClient() else { return }
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), context == compositionContext else { return }
+      // A room shown in every workspace is the same room in the new one, so it stays selected (ADR 0059).
+      let kept = selectedRoomId.flatMap { rooms.isShownInEveryWorkspace(roomId: $0) ? $0 : nil }
       sidebar.dropPendingActions()
       archivedChannels.reset()
       pendingInvitations.reset()
       readAttention.reset()
       leaveRoom()
       crossRoomThreads.reset()
-      selectedRoomId = nil
+      selectedRoomId = kept
       rooms = loaded
       switchError = nil
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)

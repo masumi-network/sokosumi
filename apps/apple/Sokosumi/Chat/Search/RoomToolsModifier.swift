@@ -165,7 +165,7 @@ import SwiftUI
                 Text(roomCountLabel(workspaces.openRoom.threadOverview.unreadCount))
                   .font(.caption).monospacedDigit()
               } else {
-                Circle().fill(Color.accentColor).frame(width: 6, height: 6)
+                Circle().fill(Color("BrandSolid")).frame(width: 6, height: 6)
               }
             }
           }

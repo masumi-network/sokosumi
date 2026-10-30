@@ -8,15 +8,27 @@ import { useProjectScope } from "@/app/components/project-scope/use-project-scop
 import { Button } from "@/components/ui/button";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 
-/** Opens the New Task wizard, like the sidebar "New task" item. */
-export function NewTaskButton({ className }: { className?: string }) {
-  const t = useTranslations("App.Sidebar.Content.MenuItems");
+/**
+ * Opens the New Task wizard scoped to the reader's project, or null when the
+ * reader cannot create a Task here: outside the wizard's provider (the Instant
+ * Nav shell) or without an assigned Organization seat, since Core rejects task
+ * creation without one and the wizard would only fail.
+ */
+export function useNewTaskOpener(): (() => void) | null {
   const wizard = useOptionalNewTaskWizard();
   const { projectId } = useProjectScope();
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
 
-  // Core rejects task creation without a seat, so the wizard would only fail.
   if (!wizard || !hasAssignedSeat) return null;
+  return () => wizard.openNewTaskWizard({ projectId });
+}
+
+/** Opens the New Task wizard, like the sidebar header's New task button. */
+export function NewTaskButton({ className }: { className?: string }) {
+  const t = useTranslations("App.Sidebar.Content.MenuItems");
+  const openNewTask = useNewTaskOpener();
+
+  if (!openNewTask) return null;
 
   return (
     <Button
@@ -24,7 +36,7 @@ export function NewTaskButton({ className }: { className?: string }) {
       variant="primary"
       size="sm"
       className={className}
-      onClick={() => wizard.openNewTaskWizard({ projectId })}
+      onClick={openNewTask}
     >
       <Plus aria-hidden />
       {t("newTask")}

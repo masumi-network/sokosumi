@@ -52,6 +52,7 @@ import type {
   GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsActivityData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
   GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData,
@@ -80,6 +81,7 @@ import type {
   GetWorkspacesCalendarSourcesData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
+  ListChatPeopleData,
   NewsletterIssueRevisionRequest,
   Notice,
   PaginationMetadata,
@@ -145,6 +147,7 @@ import type {
   PutChatsSignalsMessagesByMessageIdLoopData,
   PutJobsByIdShareError,
   PutNewsletterRequest,
+  PutNewsletterSendingDomainRequest,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   PutProjectsByIdAdsMarketData,
@@ -200,8 +203,10 @@ import {
   deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
   deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdHide as coreDeleteProjectsByIdHide,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdNewsletterIssuesByIssueId as coreDeleteProjectsByIdNewsletterIssuesByIssueId,
+  deleteProjectsByIdNewsletterSendingDomain as coreDeleteProjectsByIdNewsletterSendingDomain,
   deleteProjectsByIdNewsletterSubscribersBySubscriberId as coreDeleteProjectsByIdNewsletterSubscribersBySubscriberId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -243,9 +248,8 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
-  getChatsSignalsNeedsYou as coreGetChatsSignalsNeedsYou,
-  getChatsSignalsOpenLoops as coreGetChatsSignalsOpenLoops,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
   getChatsSignalsSummary as coreGetChatsSignalsSummary,
@@ -284,8 +288,11 @@ import {
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
+  getOrganizationsByIdSubscriptionSeats as coreGetOrganizationsByIdSubscriptionSeats,
+  getOrganizationsByIdSubscriptionSeatsPreview as coreGetOrganizationsByIdSubscriptionSeatsPreview,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
+  getProjectsActivity as coreGetProjectsActivity,
   getProjectsById as coreGetProjectsById,
   getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
   getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
@@ -298,6 +305,7 @@ import {
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdHide as coreGetProjectsByIdHide,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
@@ -306,6 +314,8 @@ import {
   getProjectsByIdNewsletterIssues as coreGetProjectsByIdNewsletterIssues,
   getProjectsByIdNewsletterIssuesByIssueId as coreGetProjectsByIdNewsletterIssuesByIssueId,
   getProjectsByIdNewsletterIssuesByIssueIdAnalytics as coreGetProjectsByIdNewsletterIssuesByIssueIdAnalytics,
+  getProjectsByIdNewsletterSendingDomain as coreGetProjectsByIdNewsletterSendingDomain,
+  getProjectsByIdNewsletterSendingDomainDomainConnect as coreGetProjectsByIdNewsletterSendingDomainDomainConnect,
   getProjectsByIdNewsletterSubscribers as coreGetProjectsByIdNewsletterSubscribers,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
@@ -365,6 +375,7 @@ import {
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
   listAdminVendors as coreListAdminVendors,
+  listChatPeople as coreListChatPeople,
   listCoworkerAssignments as coreListCoworkerAssignments,
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
@@ -446,6 +457,7 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdHide as corePostProjectsByIdHide,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
@@ -458,6 +470,8 @@ import {
   postProjectsByIdNewsletterIssuesByIssueIdSubmit as corePostProjectsByIdNewsletterIssuesByIssueIdSubmit,
   postProjectsByIdNewsletterIssuesDraftWithAi as corePostProjectsByIdNewsletterIssuesDraftWithAi,
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
+  postProjectsByIdNewsletterSendingDomainCheck as corePostProjectsByIdNewsletterSendingDomainCheck,
+  postProjectsByIdNewsletterSendingDomainCloudflare as corePostProjectsByIdNewsletterSendingDomainCloudflare,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersFromContacts as corePostProjectsByIdNewsletterSubscribersFromContacts,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
@@ -513,6 +527,7 @@ import {
   putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putProjectsByIdNewsletter as corePutProjectsByIdNewsletter,
+  putProjectsByIdNewsletterSendingDomain as corePutProjectsByIdNewsletterSendingDomain,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -950,6 +965,88 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdNewsletterSendingDomain(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletterSendingDomain({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to read the newsletter sending domain",
+    );
+  }
+
+  async function putProjectsByIdNewsletterSendingDomain(
+    id: string,
+    body: PutNewsletterSendingDomainRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutProjectsByIdNewsletterSendingDomain({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to save the newsletter sending domain",
+    );
+  }
+
+  async function deleteProjectsByIdNewsletterSendingDomain(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdNewsletterSendingDomain({ client, path: { id } }),
+      "Failed to remove the newsletter sending domain",
+    );
+  }
+
+  async function postProjectsByIdNewsletterSendingDomainCheck(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterSendingDomainCheck({
+          client,
+          path: { id },
+        }),
+      "Failed to check the newsletter sending domain",
+    );
+  }
+
+  /** The token passes straight through to Core, which uses it once. */
+  async function postProjectsByIdNewsletterSendingDomainCloudflare(
+    id: string,
+    apiToken: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterSendingDomainCloudflare({
+          client,
+          path: { id },
+          body: { apiToken },
+        }),
+      "Failed to connect the newsletter sending domain with Cloudflare",
+    );
+  }
+
+  async function getProjectsByIdNewsletterSendingDomainDomainConnect(
+    id: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletterSendingDomainDomainConnect({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to read the newsletter Domain Connect link",
+    );
+  }
+
   async function getProjectsByIdNewsletter(id: string) {
     return executeCoreOperation(
       getClient,
@@ -1257,6 +1354,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getElsewhereChatRooms() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsElsewhere({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch unread chat rooms of other workspaces",
+    );
+  }
+
   async function getDiscoverableChatRooms(
     query?: GetChatsRoomsDiscoverableData["query"],
   ) {
@@ -1316,6 +1425,14 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat room",
+    );
+  }
+
+  async function listChatPeople(query?: ListChatPeopleData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListChatPeople({ client, query, cache: "no-store" }),
+      "Failed to fetch chat people",
     );
   }
 
@@ -1563,22 +1680,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch pinned messages",
-    );
-  }
-
-  async function getChatNeedsYou() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetChatsSignalsNeedsYou({ client, cache: "no-store" }),
-      "Failed to fetch messages that need you",
-    );
-  }
-
-  async function getChatOpenLoops() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetChatsSignalsOpenLoops({ client, cache: "no-store" }),
-      "Failed to fetch open loops",
     );
   }
 
@@ -2984,6 +3085,43 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectHide(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdHide({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch project hide",
+    );
+  }
+
+  async function hideProject(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdHide({
+          client,
+          path: { id },
+        }),
+      "Failed to hide project",
+    );
+  }
+
+  async function showProject(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdHide({
+          client,
+          path: { id },
+        }),
+      "Failed to show project",
+    );
+  }
+
   async function getPinnedProjects() {
     return executeCoreOperation(
       getClient,
@@ -3006,6 +3144,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch projects",
+    );
+  }
+
+  async function getProjectsActivity(query?: GetProjectsActivityData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsActivity({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch project activity",
     );
   }
 
@@ -3445,11 +3596,11 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Immediately updates the purchased seat count on an organization's active
+   * Changes the purchased seat count on an organization's active
    * subscription. Core enforces that the caller is an organization owner or
    * admin, blocks self-serve changes while an enterprise contract is active,
-   * and requires at least 1 purchased seat. Stripe-backed subscriptions are
-   * invoiced for the change right away.
+   * and requires at least 1 purchased seat. Added seats are invoiced right
+   * away; removed seats end at the next renewal.
    */
   async function updateOrganizationSubscriptionSeats(
     organizationId: string,
@@ -3464,6 +3615,41 @@ export function createCoreClient(getClient: GetCoreClient) {
           body: { seats },
         }),
       "Failed to update organization subscription seats",
+    );
+  }
+
+  /** Purchased seats now, and the reduction waiting for the next renewal. */
+  async function getOrganizationSubscriptionSeats(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionSeats({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization subscription seats",
+    );
+  }
+
+  /**
+   * What changing the purchased seat count would cost, from Stripe. Changes
+   * nothing; `updateOrganizationSubscriptionSeats` applies it.
+   */
+  async function getOrganizationSubscriptionSeatsPreview(
+    organizationId: string,
+    seats: number,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionSeatsPreview({
+          client,
+          path: { id: organizationId },
+          query: { seats },
+          cache: "no-store",
+        }),
+      "Failed to preview organization subscription seats",
     );
   }
 
@@ -6410,6 +6596,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     subscribeTaskParticipant,
     getChatRoom,
+    listChatPeople,
     getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomMessage,
@@ -6424,6 +6611,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,
+    getElsewhereChatRooms,
     markChatRoomRead,
     markChatRoomThreadsRead,
     markChatRoomThreadRead,
@@ -6433,8 +6621,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     unpinChatRoom,
     reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
-    getChatNeedsYou,
-    getChatOpenLoops,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
     getChatRoomDecisions,
@@ -6619,6 +6805,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjects,
     pinProject,
     unpinProject,
+    getProjectHide,
+    hideProject,
+    showProject,
     getProjectsById,
     postProjectsByIdNewsletterIssuesDraftWithAi,
     getProjectsByIdCalendar,
@@ -6662,6 +6851,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
+    getProjectsActivity,
     getProjectsStats,
     getSharedResourceByToken,
     moveJobToWorkspace,
@@ -6705,6 +6895,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskScheduleRun,
     changeTaskScheduleRun,
     unassignOrganizationSeat,
+    getOrganizationSubscriptionSeats,
+    getOrganizationSubscriptionSeatsPreview,
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
@@ -6713,6 +6905,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPublicNewslettersByPublicSlugIssues,
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
+    getProjectsByIdNewsletterSendingDomain,
+    putProjectsByIdNewsletterSendingDomain,
+    deleteProjectsByIdNewsletterSendingDomain,
+    postProjectsByIdNewsletterSendingDomainCheck,
+    postProjectsByIdNewsletterSendingDomainCloudflare,
+    getProjectsByIdNewsletterSendingDomainDomainConnect,
     getProjectsByIdNewsletterAnalytics,
     getProjectsByIdNewsletterIssuesByIssueIdAnalytics,
     getProjectsByIdNewsletterIssues,

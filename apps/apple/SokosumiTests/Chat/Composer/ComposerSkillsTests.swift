@@ -97,7 +97,7 @@
           state.rooms = [room]
           let saved = SavedComposeDraft(userId: userId, organizationId: nil, roomId: room.id, parentMessageId: parent)
           defer { saved.save("") }
-          let content = ChatComposerView(userId: userId, organizationId: nil, roomId: room.id, parentMessageId: parent)
+          let content = ChatComposerView(userId: userId, draftScope: .init(organizationId: nil), roomId: room.id, parentMessageId: parent)
             .environmentObject(state).environmentObject(AuthState())
             .environmentObject(ComposeUploads(savedDraft: saved)).environmentObject(ComposerAttachmentIngress())
           let (window, host) = Self.window(content, size: NSSize(width: 520, height: 160))

@@ -245,10 +245,7 @@ export function NewsletterIssueEditor({
               <section className="space-y-4" aria-label={t("blocks")}>
                 <h3 className="text-base font-semibold">{t("blocks")}</h3>
                 {errors.content?.message || errors.content?.root?.message ? (
-                  <p
-                    role="alert"
-                    className="text-semantic-destructive-label text-sm"
-                  >
+                  <p role="alert" className="text-foreground text-sm">
                     {errors.content.message ?? errors.content.root?.message}
                   </p>
                 ) : null}
@@ -343,10 +340,7 @@ export function NewsletterIssueEditor({
               </section>
             </fieldset>
             {errors.root?.message ? (
-              <p
-                role="alert"
-                className="text-semantic-destructive-label text-sm"
-              >
+              <p role="alert" className="text-foreground text-sm">
                 {errors.root.message}
               </p>
             ) : null}

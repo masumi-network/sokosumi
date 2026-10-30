@@ -162,10 +162,6 @@ vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
   useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
 }));
 
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
 vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -235,11 +231,15 @@ vi.mock("../chat-participant-hover-card", () => ({
   ),
 }));
 
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => (
-    <span data-testid="channel-discoverability-icon" />
-  ),
-}));
+vi.mock(
+  import("@/components/chat/channel-discoverability-icon"),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    ChannelDiscoverabilityIcon: () => (
+      <span data-testid="channel-discoverability-icon" />
+    ),
+  }),
+);
 
 vi.mock("@/components/chat/live-member-presence-dot", () => ({
   LiveMemberPresenceDot: () => null,

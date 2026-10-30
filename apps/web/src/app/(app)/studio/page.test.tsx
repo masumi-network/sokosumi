@@ -162,8 +162,8 @@ describe("StudioPage", () => {
   /**
    * The identity row is gone, and the page outline is not.
    *
-   * The mark, the product name and the project name repeated the sidebar row,
-   * the breadcrumb and the project switcher, in the one band of the page the
+   * The mark, the product name and the project name repeated the sidebar row
+   * and the project selector, in the one band of the page the
    * composer wanted — so they went. What must not go with them is the page's
    * `h1`: everything the studio renders below it is a section *of* something,
    * and an outline that starts at `h2` leaves a screen-reader reader with no

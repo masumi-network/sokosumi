@@ -44,7 +44,7 @@ function LastUsedBadge({ label }: { label: string }) {
   return (
     <span
       aria-hidden="true"
-      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium group-has-[:disabled]/provider:opacity-50"
+      className="text-foreground pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium group-has-[:disabled]/provider:opacity-50"
     >
       {label}
     </span>
@@ -241,7 +241,7 @@ export default function SocialButtons({
                 "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
                 isPending && "cursor-progress!",
                 isLastUsed
-                  ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
+                  ? "border-border! bg-muted! hover:bg-quinary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",
               )}
               align="center"
@@ -266,7 +266,7 @@ export default function SocialButtons({
             className={cn(
               "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
               lastUsedMethod === "passkey"
-                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
+                ? "border-border bg-muted hover:bg-quinary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
             disabled={isWaiting}

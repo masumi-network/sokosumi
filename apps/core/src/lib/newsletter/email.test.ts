@@ -32,23 +32,63 @@ beforeEach(() => {
 });
 
 describe("newsletter email configuration", () => {
-  it("uses only the newsletter domain and strips sender header delimiters", () => {
+  it("sends from the project's verified address under the sender name", () => {
     expect(
-      newsletterSenderOptions({
-        senderName: 'Ada"\\\r\nTest',
-        replyTo: "ada@example.com",
-      }),
+      newsletterSenderOptions(
+        { senderName: 'Ada"\\\r\nTest', replyTo: "ada@example.com" },
+        { fromAddress: "news@brand.example", status: "VERIFIED" },
+      ),
     ).toEqual({
-      from: '"Ada    Test" <newsletter@news.example.com>',
+      from: '"Ada    Test" <news@brand.example>',
       replyTo: "ada@example.com",
     });
   });
 
+  it.each(["PENDING", "FAILED"] as const)(
+    "falls back to the shared domain via Sokosumi while the domain is %s",
+    (status) => {
+      expect(
+        newsletterSenderOptions(NEWSLETTER, {
+          fromAddress: "news@brand.example",
+          status,
+        }),
+      ).toEqual({
+        from: `"${NEWSLETTER.senderName} via Sokosumi" <newsletter@news.example.com>`,
+        replyTo: NEWSLETTER.replyTo,
+      });
+    },
+  );
+
+  it("falls back to the shared domain without a sending domain", () => {
+    expect(newsletterSenderOptions(NEWSLETTER, null).from).toBe(
+      `"${NEWSLETTER.senderName} via Sokosumi" <newsletter@news.example.com>`,
+    );
+  });
+
   it("refuses to fall back to the product domain", () => {
     m.domain = undefined;
-    expect(() => newsletterSenderOptions(NEWSLETTER)).toThrow(
-      "NEWSLETTER_FROM_DOMAIN",
+    expect(() => newsletterSenderOptions(NEWSLETTER, null)).toThrow(
+      expect.objectContaining({
+        status: 409,
+        message: expect.stringContaining("sending domain"),
+      }),
     );
+    expect(() =>
+      newsletterSenderOptions(NEWSLETTER, {
+        fromAddress: "news@brand.example",
+        status: "PENDING",
+      }),
+    ).toThrow("sending domain");
+  });
+
+  it("needs no shared domain once the project domain is verified", () => {
+    m.domain = undefined;
+    expect(
+      newsletterSenderOptions(NEWSLETTER, {
+        fromAddress: "news@brand.example",
+        status: "VERIFIED",
+      }).from,
+    ).toBe(`"${NEWSLETTER.senderName}" <news@brand.example>`);
   });
 
   it.each(["confirm", "unsubscribe"] as const)(

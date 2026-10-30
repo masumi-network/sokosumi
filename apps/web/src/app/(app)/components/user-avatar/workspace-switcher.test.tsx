@@ -1,3 +1,4 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import {
 } from "@/app/components/user-avatar/workspace-switcher";
 import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
+import { coreClient } from "@/lib/clients/core.browser.client";
 
 const replaceMock = vi.fn();
 const refreshMock = vi.fn();
@@ -40,6 +42,10 @@ vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/clients/core.browser.client", () => ({
+  coreClient: { getChatRoom: vi.fn() },
 }));
 
 function WorkspaceSwitcherTestComponent() {
@@ -117,6 +123,73 @@ describe("workspace switcher", () => {
       expect(
         getOrganizationSettingsPath("/admin/organizations/acme"),
       ).toBeNull();
+    });
+  });
+
+  describe("with a room open", () => {
+    const openRoom = (organizationId: string | null) => ({
+      data: {
+        organizationId,
+        kind: "channel",
+        discoverability: "public",
+        myAccess: "member",
+        coworkerMembers: [],
+        sokoBotMembers: [],
+      } as Partial<ChatRoom> as ChatRoom,
+      meta: { timestamp: new Date(), requestId: "req-1" },
+    });
+
+    async function switchToOrgOne() {
+      pathnameMock = "/chat/rooms/room-1";
+      vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+      vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+        ok: true,
+        value: { organizationId: "org-1" },
+      });
+      const user = userEvent.setup();
+      render(<WorkspaceSwitcherTestComponent />);
+      await user.click(
+        screen.getByRole("button", { name: "Switch workspace" }),
+      );
+      await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    }
+
+    it("keeps the room open on a switch to the workspace it belongs to", async () => {
+      vi.mocked(coreClient.getChatRoom).mockResolvedValueOnce(
+        openRoom("org-1"),
+      );
+
+      await switchToOrgOne();
+
+      expect(replaceMock).not.toHaveBeenCalled();
+    });
+
+    it("closes the room on a switch to any other workspace", async () => {
+      vi.mocked(coreClient.getChatRoom).mockResolvedValueOnce(
+        openRoom("org-2"),
+      );
+
+      await switchToOrgOne();
+
+      expect(replaceMock).toHaveBeenCalledWith("/");
+    });
+
+    // The room's own page says so if the room is really gone.
+    it("keeps the room open when it cannot be read after the switch", async () => {
+      const warn = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      vi.mocked(coreClient.getChatRoom).mockRejectedValueOnce(
+        new Error("gone"),
+      );
+
+      await switchToOrgOne();
+
+      expect(replaceMock).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
   });
 
