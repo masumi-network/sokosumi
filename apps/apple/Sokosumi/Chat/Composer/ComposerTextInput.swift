@@ -91,7 +91,7 @@ import SwiftUI
         if cancelEdit == nil {
           Button("Send", systemImage: "arrow.up") { _ = submit() }
             .labelStyle(.iconOnly)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.brandPrimary)
             .buttonBorderShape(.circle)
             .disabled(!canSend)
             .help("Send message")
