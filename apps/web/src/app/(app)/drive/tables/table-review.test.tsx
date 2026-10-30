@@ -1012,7 +1012,7 @@ it("R5: rows still show a hover that is not the panel's own colour", () => {
   expect(row).not.toBeNull();
   const classes = [...(row?.classList ?? [])];
   expect(classes).toContain("hover:bg-accent");
-  // The primitive's default would now be the panel's own colour.
+  // The panel paints --card-background, so that fill would not show.
   expect(classes).not.toContain("hover:bg-card-background");
 });
 

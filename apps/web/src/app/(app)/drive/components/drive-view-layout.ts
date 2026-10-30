@@ -86,7 +86,7 @@ export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? "group bg-background relative flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-accent transition-colors"
     : cn(
-        "bg-background relative flex items-center gap-1 rounded-lg border border-border px-2 hover:bg-accent",
+        "bg-background relative flex items-center gap-1 rounded-lg border border-border px-2 hover:bg-accent transition-colors",
         DRIVE_LIST_ROW_LAYOUT_CLASS,
       );
 }

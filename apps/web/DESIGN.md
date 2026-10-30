@@ -375,7 +375,9 @@ prop/state-driven.
   Primitives carry it; a row a popover draws for itself takes `POPOVER_ROW_CLASS`.
 - **Page rows** — the same `hover:bg-accent` and fade. A row between divider lines, as in a table,
   stays square so the fill meets the lines; every other row keeps its rounded corners. Sticky cells
-  paint their row's fill (`GRID_ROW_BACKGROUND`). Cards and chips keep `--card-background-hover`.
+  paint their row's fill (`GRID_ROW_BACKGROUND`). Holder items take it too, through
+  `HOLDER_ITEM_HOVER_CLASS`, whether they read as a row or a card. Agent cards, image tiles and chips
+  keep `--card-background-hover`.
 - **Segmented controls** (ToggleGroup) — switch the view of the same content; Tabs move
   between panels and keep their own look. One look for every segmented control: a
   `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3` options in
