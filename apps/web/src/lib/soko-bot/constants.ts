@@ -49,6 +49,14 @@ export const SOKO_BOT_BUSY_ERROR_CODE = "SOKO_BOT_BUSY";
 export const SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE =
   "SOKO_BOT_AVATAR_RATE_LIMITED";
 
+/** Action error code when Core answers 429: the person's daily animation redos are spent. */
+export const SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE =
+  "SOKO_BOT_AVATAR_REDO_LIMIT";
+
+/** Action error code when Core answers 409: that state's animation is still being made. */
+export const SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE =
+  "SOKO_BOT_AVATAR_STATE_RENDERING";
+
 /** Action error code when Core cannot draw avatars at all (no image provider configured). */
 export const SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE =
   "SOKO_BOT_AVATAR_UNAVAILABLE";

@@ -6,6 +6,7 @@ import {
   type SokoBot,
   SokoBotAvatar,
   type SokoBotAvatarDraftResult,
+  SokoBotAvatarState,
   type SokoBotAvatarStudio,
   type SokoBotDeletionResult,
   type SokoBotLabRun,
@@ -35,6 +36,8 @@ import {
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
+  SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE,
   SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOTS_ROUTE,
@@ -122,6 +125,25 @@ function invalidInput(): ActionError {
 // A spent hourly allowance is a wait, not a breakage. Give the picker its own
 // code so the picker and the studio can say so instead of the generic failure.
 function mapAvatarError(error: unknown): ActionError {
+  // The redo has its own allowance and its own 409: say which one it was.
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === "avatar_regenerate_rate_limited"
+  ) {
+    return {
+      code: SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
+      message: error.message,
+    };
+  }
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === "avatar_state_rendering"
+  ) {
+    return {
+      code: SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE,
+      message: error.message,
+    };
+  }
   if (error instanceof CoreApiRequestError && error.status === 429) {
     return {
       code: SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
@@ -455,6 +477,31 @@ export const discardSokoBotAvatarDraftsAction = withSession<
   if (!parsedBot.success) return toActionResult(err(invalidInput()));
   try {
     const studio = await sokoBotService.discardAvatarDrafts(parsedBot.data);
+    return toActionResult(ok(studio));
+  } catch (error) {
+    return toActionResult(err(mapAvatarError(error)));
+  }
+});
+
+interface RegenerateAvatarStateParams extends BotScopedParams {
+  state: unknown;
+}
+
+/** Redoes one state's animation of the kept look. */
+export const regenerateSokoBotAvatarStateAction = withSession<
+  RegenerateAvatarStateParams,
+  ActionResultDto<SokoBotAvatarStudio, ActionError>
+>(async ({ state, botId }) => {
+  const parsedState = z.enum(SokoBotAvatarState).safeParse(state);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedState.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const studio = await sokoBotService.regenerateAvatarState(
+      parsedState.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
     return toActionResult(ok(studio));
   } catch (error) {
     return toActionResult(err(mapAvatarError(error)));

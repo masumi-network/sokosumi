@@ -30,11 +30,14 @@ import {
   createSokoBotAvatarDraftAction,
   discardSokoBotAvatarDraftsAction,
   keepSokoBotAvatarDraftAction,
+  regenerateSokoBotAvatarStateAction,
 } from "@/lib/actions/soko-bot/action";
 import { avatarSources, isCraftedAvatar } from "@/lib/soko-bot/avatar";
 import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
+  SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE,
   SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
 } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -47,6 +50,17 @@ const POLL_ENDPOINT = "/api/personal-assistant/avatar";
 const POLL_MS = 5_000;
 
 type Progress = SokoBotAvatarStudio["progress"];
+
+/** Plain words for the errors that are not a generic "try again". */
+const FAILURE_COPY = {
+  [SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE]: "rateLimited",
+  [SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE]: "unavailable",
+  [SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE]: "redoLimit",
+  [SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE]: "redoBusy",
+} as const;
+
+/** The loops being redone, each with the loop it had when the redo began. */
+type Redoing = Partial<Record<SokoBotAvatarState, string | null>>;
 
 const stateAssetsSchema = z.object({
   stillUrl: z.string(),
@@ -120,7 +134,9 @@ export function AvatarStudio({
   const [isDrafting, startDrafting] = useTransition();
   const [isKeeping, startKeeping] = useTransition();
   const [isCancelling, startCancelling] = useTransition();
-  const busy = isDrafting || isKeeping || isCancelling;
+  const [isRedoing, startRedoing] = useTransition();
+  const [redoing, setRedoing] = useState<Redoing>({});
+  const busy = isDrafting || isKeeping || isCancelling || isRedoing;
   // Picking a state plays it once, then it rests on its still.
   const pickKey = `${pick.state}:${pick.n}`;
   const [playing, stop] = usePlayOnce(pickKey, false);
@@ -162,13 +178,26 @@ export function AvatarStudio({
   }
 
   function toastFailure(code: string, fallback: string) {
-    toast.error(
-      code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
-        ? t("rateLimited")
-        : code === SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE
-          ? t("unavailable")
-          : fallback,
-    );
+    const copy = FAILURE_COPY[code as keyof typeof FAILURE_COPY];
+    toast.error(copy ? t(copy) : fallback);
+  }
+
+  /** Redoes the picked state's animation; its old loop keeps playing meanwhile. */
+  function handleRedo() {
+    const state = pick.state;
+    const oldLoop = studio.avatar?.states[state]?.loopLargeUrl ?? null;
+    startRedoing(async () => {
+      const result = await regenerateSokoBotAvatarStateAction({
+        botId: botId ?? undefined,
+        state,
+      });
+      if (!result.ok) {
+        toastFailure(result.error.code, t("redoError"));
+        return;
+      }
+      setRedoing((prev) => ({ ...prev, [state]: oldLoop }));
+      setStudio(result.value);
+    });
   }
 
   function handleChange(next: SokoBotAvatarChange) {
@@ -233,6 +262,43 @@ export function AvatarStudio({
       router.refresh();
     });
   }
+
+  // A state is being made while the look renders and it has no new loop yet.
+  const loopOf = (state: SokoBotAvatarState) =>
+    studio.avatar?.states[state]?.loopLargeUrl ?? null;
+  const isMaking = (state: SokoBotAvatarState) =>
+    rendering &&
+    (state in redoing
+      ? loopOf(state) === redoing[state]
+      : loopOf(state) === null);
+  // A redone state whose new loop has landed plays once, picked or not.
+  const landed = STATES.filter((state) => state in redoing && !isMaking(state));
+  if (landed.length > 0) {
+    setRedoing((prev) =>
+      Object.fromEntries(
+        Object.entries(prev).filter(
+          ([state]) => !landed.includes(state as SokoBotAvatarState),
+        ),
+      ),
+    );
+    if (
+      landed.some(
+        (state) =>
+          state === pick.state &&
+          loopOf(state) !== null &&
+          loopOf(state) !== redoing[state],
+      )
+    ) {
+      setPick((prev) => ({ ...prev, n: prev.n + 1 }));
+    }
+  }
+  const pickedAssets = studio.avatar?.states[pick.state] ?? null;
+  const canRedo =
+    draft === null &&
+    isCraftedAvatar(studio.avatar) &&
+    studio.progress.total > 0 &&
+    pickedAssets !== null;
+  const pickedMaking = isMaking(pick.state);
 
   const crafted = draft !== null || isCraftedAvatar(studio.avatar);
   const sources = avatarSources(
@@ -534,10 +600,31 @@ export function AvatarStudio({
                       >
                         {stateLabel(state)}
                       </span>
+                      {state in redoing && isMaking(state) ? (
+                        <span className="text-muted-foreground text-2xs">
+                          {t("redoing")}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}
               </div>
+              {canRedo ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="self-start"
+                  disabled={busy || pickedMaking}
+                  onClick={handleRedo}
+                >
+                  {pickedMaking
+                    ? t("redoing")
+                    : pickedAssets?.loopLargeUrl
+                      ? t("redo")
+                      : t("retry")}
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

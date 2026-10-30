@@ -8,6 +8,8 @@ const sdk = vi.hoisted(() => ({
   claimMySokoBotAvatar: vi.fn(),
   discardMySokoBotAvatarDrafts: vi.fn(),
   discardSokoBotAvatarDrafts: vi.fn(),
+  regenerateMySokoBotAvatarState: vi.fn(),
+  regenerateSokoBotAvatarState: vi.fn(),
 }));
 
 vi.mock("@sokosumi/core-client", async (importOriginal) => ({
@@ -59,6 +61,21 @@ describe("Soko Bot avatar methods on the Core client", () => {
     expect(sdk.discardSokoBotAvatarDrafts).toHaveBeenCalledWith({
       client,
       path: { sokoBotId: "bot-7" },
+    });
+  });
+
+  it("redoes one state of the caller's own bot, or of a shared bot by id", async () => {
+    await core.regenerateSokoBotAvatarState("working");
+    expect(sdk.regenerateMySokoBotAvatarState).toHaveBeenCalledWith({
+      client,
+      path: { state: "working" },
+    });
+    expect(sdk.regenerateSokoBotAvatarState).not.toHaveBeenCalled();
+
+    await core.regenerateSokoBotAvatarState("done", "bot-7");
+    expect(sdk.regenerateSokoBotAvatarState).toHaveBeenCalledWith({
+      client,
+      path: { sokoBotId: "bot-7", state: "done" },
     });
   });
 

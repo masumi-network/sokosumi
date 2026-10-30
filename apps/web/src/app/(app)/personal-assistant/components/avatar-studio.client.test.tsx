@@ -5,14 +5,21 @@ import type {
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createMock, keepMock, discardMock, refreshMock, toastErrorMock } =
-  vi.hoisted(() => ({
-    createMock: vi.fn(),
-    keepMock: vi.fn(),
-    discardMock: vi.fn(),
-    refreshMock: vi.fn(),
-    toastErrorMock: vi.fn(),
-  }));
+const {
+  createMock,
+  keepMock,
+  discardMock,
+  regenerateMock,
+  refreshMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  createMock: vi.fn(),
+  keepMock: vi.fn(),
+  discardMock: vi.fn(),
+  regenerateMock: vi.fn(),
+  refreshMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
 
 const reduceMotion = vi.hoisted(() => ({ current: false }));
 vi.mock("motion/react", () => ({
@@ -36,6 +43,7 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   createSokoBotAvatarDraftAction: createMock,
   keepSokoBotAvatarDraftAction: keepMock,
   discardSokoBotAvatarDraftsAction: discardMock,
+  regenerateSokoBotAvatarStateAction: regenerateMock,
 }));
 
 import { AvatarStudio } from "./avatar-studio.client";
@@ -363,6 +371,187 @@ describe("AvatarStudio", () => {
 
       expect(video()).toBeNull();
       expect(look()).toHaveAttribute("src", "https://blob/working.png");
+    });
+  });
+
+  describe("Redo animation", () => {
+    const video = () => document.querySelector("video");
+    const rendering = { ready: 5, failed: 0, total: 6 };
+
+    /** The kept look with `done` having a still but no loop: its render failed. */
+    const withFailedDone: SokoBotAvatarStudio = {
+      ...studio,
+      avatar: {
+        ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+        states: {
+          ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>)
+            .states,
+          done: {
+            stillUrl: "https://blob/done.png",
+            loopUrl: null,
+            loopLargeUrl: null,
+          },
+        },
+      },
+      progress: { ready: 5, failed: 1, total: 6 },
+    };
+
+    it("is offered for the picked state of the kept look", () => {
+      renderStudio();
+      expect(screen.getByRole("button", { name: "redo" })).toBeEnabled();
+    });
+
+    it("says Try again for a state whose animation failed", async () => {
+      renderStudio(withFailedDone);
+      await click(screen.getByRole("button", { name: "label.done" }));
+
+      expect(screen.getByRole("button", { name: "retry" })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: "redo" })).toBeNull();
+    });
+
+    it("is hidden while a draft is open", async () => {
+      createMock.mockResolvedValue({
+        ok: true,
+        value: { draft: draft("frog"), note: "" },
+      });
+      renderStudio();
+      await click(screen.getByRole("button", { name: "Frog" }));
+
+      expect(screen.queryByRole("button", { name: "redo" })).toBeNull();
+    });
+
+    it("is hidden for a legacy mascot and for a look with no renders", () => {
+      const { unmount } = renderStudio({
+        ...studio,
+        avatar: {
+          styleId: "mascot",
+          styleVersion: 1,
+          stillUrl: "https://blob/mascot.png",
+          states: NO_STATES,
+        },
+        look: null,
+        progress: { ready: 0, failed: 0, total: 0 },
+      });
+      expect(screen.queryByRole("button", { name: /redo|retry/ })).toBeNull();
+      unmount();
+
+      renderStudio({ ...studio, progress: { ready: 0, failed: 0, total: 0 } });
+      expect(screen.queryByRole("button", { name: /redo|retry/ })).toBeNull();
+    });
+
+    it("is hidden when the picked state has no render at all", () => {
+      renderStudio({
+        ...studio,
+        avatar: {
+          ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+          states: { ...NO_STATES },
+        },
+      });
+      expect(screen.queryByRole("button", { name: /redo|retry/ })).toBeNull();
+    });
+
+    it("redoes the picked state of this bot and shows it is being made", async () => {
+      regenerateMock.mockResolvedValue({
+        ok: true,
+        value: { ...studio, progress: rendering },
+      });
+      renderStudio(studio, BOT_ID);
+      await click(screen.getByRole("button", { name: "label.working" }));
+      fireEvent.ended(video() as HTMLVideoElement);
+
+      await click(screen.getByRole("button", { name: "redo" }));
+
+      expect(regenerateMock).toHaveBeenCalledWith({
+        botId: BOT_ID,
+        state: "working",
+      });
+      // The tile and the button both say so; the old loop is not touched.
+      expect(screen.getAllByText("redoing")).toHaveLength(2);
+      expect(screen.getByRole("button", { name: "redoing" })).toBeDisabled();
+    });
+
+    it("polls, then plays the new loop once when it lands", async () => {
+      regenerateMock.mockResolvedValue({
+        ok: true,
+        value: { ...studio, progress: rendering },
+      });
+      const landedAvatar = {
+        ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>),
+        states: {
+          ...(studio.avatar as NonNullable<SokoBotAvatarStudio["avatar"]>)
+            .states,
+          working: {
+            stillUrl: "https://blob/working.png",
+            loopUrl: "https://blob/working-new-480.mp4",
+            loopLargeUrl: "https://blob/working-new-960.mp4",
+          },
+        },
+      };
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          studio: {
+            avatar: landedAvatar,
+            progress: { ready: 6, failed: 0, total: 6 },
+          },
+        }),
+      }));
+      vi.stubGlobal("fetch", fetchMock);
+      renderStudio(studio, BOT_ID);
+      await click(screen.getByRole("button", { name: "label.working" }));
+      fireEvent.ended(video() as HTMLVideoElement);
+      await click(screen.getByRole("button", { name: "redo" }));
+      expect(video()).toBeNull();
+
+      await act(async () => {
+        vi.advanceTimersByTime(5_000);
+      });
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(screen.queryByText("redoing")).toBeNull();
+      expect(video()).toHaveAttribute(
+        "src",
+        "https://blob/working-new-960.mp4",
+      );
+      fireEvent.ended(video() as HTMLVideoElement);
+      expect(video()).toBeNull();
+    });
+
+    it("says plainly when that animation is still being made", async () => {
+      regenerateMock.mockResolvedValue({
+        ok: false,
+        error: { code: "SOKO_BOT_AVATAR_STATE_RENDERING", message: "busy" },
+      });
+      renderStudio();
+
+      await click(screen.getByRole("button", { name: "redo" }));
+
+      expect(toastErrorMock).toHaveBeenCalledWith("redoBusy");
+      expect(screen.getByRole("button", { name: "redo" })).toBeEnabled();
+    });
+
+    it("says plainly when the day's redos are spent", async () => {
+      regenerateMock.mockResolvedValue({
+        ok: false,
+        error: { code: "SOKO_BOT_AVATAR_REDO_LIMIT", message: "limit" },
+      });
+      renderStudio();
+
+      await click(screen.getByRole("button", { name: "redo" }));
+
+      expect(toastErrorMock).toHaveBeenCalledWith("redoLimit");
+    });
+
+    it("reports any other failure", async () => {
+      regenerateMock.mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL", message: "boom" },
+      });
+      renderStudio();
+
+      await click(screen.getByRole("button", { name: "redo" }));
+
+      expect(toastErrorMock).toHaveBeenCalledWith("redoError");
     });
   });
 

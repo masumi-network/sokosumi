@@ -10,7 +10,10 @@ import {
   keepMySokoBotAvatarDraft as coreKeepMySokoBotAvatarDraft,
   keepSokoBotAvatarDraft as coreKeepSokoBotAvatarDraft,
   listSokoBotAvatars as coreListSokoBotAvatars,
+  regenerateMySokoBotAvatarState as coreRegenerateMySokoBotAvatarState,
+  regenerateSokoBotAvatarState as coreRegenerateSokoBotAvatarState,
   topUpSokoBotAvatars as coreTopUpSokoBotAvatars,
+  type SokoBotAvatarState,
 } from "@sokosumi/core-client";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
 
@@ -105,6 +108,24 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
     );
   }
 
+  /** Redoes one state's animation of the kept look. */
+  async function regenerateSokoBotAvatarState(
+    state: SokoBotAvatarState,
+    sokoBotId?: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreRegenerateSokoBotAvatarState({
+              client,
+              path: { sokoBotId, state },
+            })
+          : coreRegenerateMySokoBotAvatarState({ client, path: { state } }),
+      "Failed to redo the Soko Bot avatar animation",
+    );
+  }
+
   return {
     listSokoBotAvatars,
     topUpSokoBotAvatars,
@@ -113,5 +134,6 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
     createSokoBotAvatarDraft,
     keepSokoBotAvatarDraft,
     discardSokoBotAvatarDrafts,
+    regenerateSokoBotAvatarState,
   };
 }

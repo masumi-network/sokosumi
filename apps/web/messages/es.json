@@ -9029,6 +9029,12 @@
           "error": "No se pudo cambiar el aspecto. Inténtalo de nuevo.",
           "keepError": "No se pudo conservar este aspecto. Inténtalo de nuevo.",
           "cancelError": "No se pudo volver a tu aspecto actual. Inténtalo de nuevo.",
+          "redo": "Rehacer animación",
+          "retry": "Intentar de nuevo",
+          "redoing": "Creándola…",
+          "redoError": "No se pudo rehacer esta animación. Inténtalo de nuevo.",
+          "redoLimit": "Hoy has rehecho muchas animaciones. Inténtalo de nuevo mañana.",
+          "redoBusy": "Esa animación aún se está creando.",
           "empty": "Todavía no hay aspecto. Elige una criatura o pulsa «Al azar» para empezar.",
           "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde.",
           "unavailable": "Ahora mismo no se puede cambiar el aspecto."

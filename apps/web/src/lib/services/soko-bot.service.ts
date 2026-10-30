@@ -13,6 +13,7 @@ import type {
   SokoBotAvatar,
   SokoBotAvatarChange,
   SokoBotAvatarDraftResult,
+  SokoBotAvatarState,
   SokoBotAvatarStudio,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
@@ -345,6 +346,18 @@ export const sokoBotService = {
   /** Drops every open draft; the studio comes back showing the kept look. */
   async discardAvatarDrafts(botId?: string): Promise<SokoBotAvatarStudio> {
     const response = await coreClient.discardSokoBotAvatarDrafts(botId);
+    return response.data;
+  },
+
+  /** Redoes one state's animation; the old loop plays until the new one is ready. */
+  async regenerateAvatarState(
+    state: SokoBotAvatarState,
+    botId?: string,
+  ): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.regenerateSokoBotAvatarState(
+      state,
+      botId,
+    );
     return response.data;
   },
 
