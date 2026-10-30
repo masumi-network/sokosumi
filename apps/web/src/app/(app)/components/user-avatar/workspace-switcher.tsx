@@ -87,7 +87,8 @@ async function roomStaysOpen(
       roomId,
       error,
     });
-    return false;
+    // A failed read is not an answer: the refreshed page says if the room is gone.
+    return true;
   }
 }
 

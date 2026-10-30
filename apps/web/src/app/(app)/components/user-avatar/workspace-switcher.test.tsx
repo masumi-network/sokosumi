@@ -177,7 +177,8 @@ describe("workspace switcher", () => {
       expect(replaceMock).toHaveBeenCalledWith("/");
     });
 
-    it("closes the room when it cannot be read after the switch", async () => {
+    // The room's own page says so if the room is really gone.
+    it("keeps the room open when it cannot be read after the switch", async () => {
       const warn = vi
         .spyOn(console, "warn")
         .mockImplementation(() => undefined);
@@ -187,7 +188,7 @@ describe("workspace switcher", () => {
 
       await switchToOrgOne();
 
-      expect(replaceMock).toHaveBeenCalledWith("/");
+      expect(replaceMock).not.toHaveBeenCalled();
       warn.mockRestore();
     });
   });
