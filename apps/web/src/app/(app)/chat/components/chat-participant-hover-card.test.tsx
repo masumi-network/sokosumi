@@ -150,6 +150,50 @@ describe("ChatParticipantHoverCard", () => {
     );
   });
 
+  it("loops a crafted Soko Bot's Idle state while the card is open", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChatParticipantHoverCard
+        profile={{
+          ...sokoBotProfile,
+          image: "https://blob/idle.png",
+          avatarStyleId: "crafted-desk",
+          idleLoopUrl: "https://blob/idle-480.mp4",
+        }}
+      >
+        <span>Soko</span>
+      </ChatParticipantHoverCard>,
+    );
+    await user.hover(screen.getByRole("button", { name: "Soko" }));
+
+    const video = screen
+      .getByTestId("chat-participant-hover-card")
+      .querySelector("video");
+    expect(video).toHaveAttribute("src", "https://blob/idle-480.mp4");
+    expect(video).toHaveAttribute("loop");
+  });
+
+  it("shows the still until the Idle loop is rendered", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChatParticipantHoverCard
+        profile={{
+          ...sokoBotProfile,
+          image: "https://blob/idle.png",
+          avatarStyleId: "crafted-desk",
+          idleLoopUrl: null,
+        }}
+      >
+        <span>Soko</span>
+      </ChatParticipantHoverCard>,
+    );
+    await user.hover(screen.getByRole("button", { name: "Soko" }));
+
+    const card = screen.getByTestId("chat-participant-hover-card");
+    expect(card.querySelector("video")).toBeNull();
+    expect(card.querySelector('img[src="https://blob/idle.png"]')).toBeTruthy();
+  });
+
   it("crops a crafted Soko Bot avatar to its face, but not a mascot", async () => {
     const user = userEvent.setup();
     const { rerender } = render(

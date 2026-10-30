@@ -314,7 +314,15 @@ export function ChatParticipantHoverCard({
             ) : isSokoBot &&
               profile.image &&
               isCraftedStyle(profile.avatarStyleId) ? (
-              <AvatarFace src={profile.image} crafted className="size-12" />
+              // Radix mounts this only while open, so the loop stops with the card.
+              <AvatarFace
+                src={profile.image}
+                crafted
+                className="size-12"
+                loopSrc={profile.idleLoopUrl}
+                playing
+                loop
+              />
             ) : (
               <Avatar className="size-12">
                 <AvatarImage src={profile.image ?? undefined} alt="" />

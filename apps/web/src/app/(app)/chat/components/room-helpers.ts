@@ -91,6 +91,8 @@ export type ChatParticipantHoverProfile =
       avatarSeed: string | null;
       /** The style of the bot's claimed avatar; a crafted one is cropped to the face. */
       avatarStyleId?: string | null;
+      /** The Idle loop, played on the face while its hover card is open. */
+      idleLoopUrl?: string | null;
       /** The Working loop, played on the face while a reply is in progress. */
       workingLoopUrl?: string | null;
       presence: ChatRoomPresence;
@@ -448,6 +450,7 @@ export function senderProfile(
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
       avatarStyleId: sokoBot.avatarStyleId,
+      idleLoopUrl: sokoBot.idleLoopUrl,
       workingLoopUrl: sokoBot.workingLoopUrl,
       presence: sokoBot.presence,
     };
@@ -757,6 +760,7 @@ export function getRoomParticipantPreviews(
         image: sokoBot.image,
         avatarSeed: sokoBot.avatarSeed,
         avatarStyleId: sokoBot.avatarStyleId,
+        idleLoopUrl: sokoBot.idleLoopUrl,
         presence: sokoBot.presence,
       }),
     )
@@ -876,6 +880,7 @@ export function chatParticipantProfileForDirectTarget(
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
       avatarStyleId: sokoBot.avatarStyleId,
+      idleLoopUrl: sokoBot.idleLoopUrl,
       presence: sokoBot.presence,
     };
   }
