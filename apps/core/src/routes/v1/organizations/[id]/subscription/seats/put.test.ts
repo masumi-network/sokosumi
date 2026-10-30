@@ -224,7 +224,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toContain(
-      "An active organization subscription is required before updating seats.",
+      "An active organization subscription is required to change seats.",
     );
     expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();

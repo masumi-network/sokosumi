@@ -7065,7 +7065,7 @@
             "paymentFailedAction": "Zahlungsmethode aktualisieren"
           },
           "seatsCard": {
-            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen. Änderungen werden sofort abgerechnet.",
+            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Änderungen werden sofort abgerechnet.",
             "addIdleCta": "Seats hinzufügen",
             "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
             "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
@@ -7082,7 +7082,7 @@
               "credit": "Gutschrift auf dein Abrechnungsguthaben",
               "approximate": "Etwa {amount}",
               "newMonthly": "Neuer Monatspreis",
-              "newMonthlyHint": "Vor Steuern und Rabatten",
+              "newMonthlyHint": "Inklusive Steuern und Rabatten",
               "seatsLost": "{count, plural, =1 {Das zuletzt beigetretene Mitglied verliert seinen Seat.} other {Die # zuletzt beigetretenen Mitglieder verlieren ihren Seat.}}",
               "creditNote": "Der ungenutzte Betrag geht auf dein Abrechnungsguthaben, nicht zurück auf deine Karte.",
               "cancellationNote": "Dein Plan endet am {date}, und diese Seats enden damit.",

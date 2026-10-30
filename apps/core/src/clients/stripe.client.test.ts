@@ -220,6 +220,28 @@ describe("stripeClient", () => {
     );
   });
 
+  it("previews the next invoice at a quantity even when a cancellation is scheduled", async () => {
+    stripeInvoicesCreatePreviewMock.mockResolvedValue({ total: 14875 });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.previewSubscriptionRenewalAtQuantity("sub_1", "si_1", 5),
+    ).resolves.toEqual({ total: 14875 });
+
+    expect(stripeInvoicesCreatePreviewMock).toHaveBeenCalledWith(
+      {
+        automatic_tax: { enabled: true },
+        subscription: "sub_1",
+        subscription_details: {
+          cancel_at: "",
+          items: [{ id: "si_1", quantity: 5 }],
+          proration_behavior: "none",
+        },
+      },
+      undefined,
+    );
+  });
+
   it("enables automatic tax when updating subscription item quantity", async () => {
     stripeSubscriptionsUpdateMock.mockResolvedValue({ id: "sub_1" });
     const { stripeClient } = await import("./stripe.client");

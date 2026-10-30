@@ -7101,7 +7101,7 @@
             "paymentFailedAction": "Update payment method"
           },
           "seatsCard": {
-            "summary": "{assigned} of {purchased, plural, =1 {# seat} other {# seats}} assigned. Changes are billed right away.",
+            "summary": "{assigned} of {purchased, plural, =1 {# seat} other {# seats}} assigned, {unused} unused. Changes are billed right away.",
             "addIdleCta": "Add seats",
             "addCta": "{count, plural, =1 {Add # seat} other {Add # seats}}",
             "removeCta": "{count, plural, =1 {Remove # seat} other {Remove # seats}}",
@@ -7118,7 +7118,7 @@
               "credit": "Credit to your billing balance",
               "approximate": "About {amount}",
               "newMonthly": "New monthly price",
-              "newMonthlyHint": "Before tax and discounts",
+              "newMonthlyHint": "Including tax and discounts",
               "seatsLost": "{count, plural, =1 {The most recently joined member loses their seat.} other {The # most recently joined members lose their seat.}}",
               "creditNote": "The unused amount goes to your billing balance, not back to your card.",
               "cancellationNote": "Your plan ends on {date}, and these seats end with it.",

@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { badRequest, internalServerError } from "@/helpers/error";
+import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
   resolveSubscriptionForSeatChange,
@@ -43,7 +43,7 @@ const route = createRoute({
           amountDue: 1234,
           creditAmount: 0,
           currency: "eur",
-          newMonthlyAmount: 12500,
+          newMonthlyAmount: 14875,
           seats: 5,
         },
         meta: {
@@ -84,18 +84,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const seatItem = await retrieveStripeSeatItem(
       subscription.stripeSubscriptionId,
     );
-    const unitAmount = seatItem.price.unit_amount;
-    if (unitAmount === null) {
-      throw internalServerError(
-        "Unable to preview organization subscription seats: Stripe price has no unit amount",
-      );
-    }
-
-    const invoice = await stripeClient.previewSubscriptionItemQuantity(
-      subscription.stripeSubscriptionId,
-      seatItem.id,
-      seats,
-    );
+    const [invoice, renewalInvoice] = await Promise.all([
+      stripeClient.previewSubscriptionItemQuantity(
+        subscription.stripeSubscriptionId,
+        seatItem.id,
+        seats,
+      ),
+      stripeClient.previewSubscriptionRenewalAtQuantity(
+        subscription.stripeSubscriptionId,
+        seatItem.id,
+        seats,
+      ),
+    ]);
 
     return ok(
       c,
@@ -103,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         amountDue: invoice.amount_due,
         creditAmount: Math.max(-invoice.total, 0),
         currency: invoice.currency,
-        newMonthlyAmount: unitAmount * seats,
+        newMonthlyAmount: renewalInvoice.total,
         seats,
       }),
     );

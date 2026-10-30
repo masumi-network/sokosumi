@@ -241,7 +241,6 @@ export function OrganizationSubscriptionSection({
         <OrganizationSeatsCard
           assignedCount={assignedCount}
           currentSeats={currentSeats}
-          key={currentSeats}
           onError={handleSubscriptionActionError}
           organizationId={organizationId}
           scheduledCancelDate={scheduledCancelDate}

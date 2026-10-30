@@ -52,22 +52,22 @@ export async function upgradeOrganizationSubscription({
   });
 }
 
-const updateOrganizationSubscriptionSeatsSchema = z.object({
+const organizationSubscriptionSeatsActionSchema = z.object({
   organizationId: z.string().min(1),
   seats: z.number().int().min(1),
 });
 
-interface UpdateOrganizationSubscriptionSeatsParameters
+interface OrganizationSubscriptionSeatsActionParameters
   extends AuthenticatedRequest {
   organizationId: string;
   seats: number;
 }
 
 export const previewOrganizationSubscriptionSeats = withSession<
-  UpdateOrganizationSubscriptionSeatsParameters,
+  OrganizationSubscriptionSeatsActionParameters,
   ActionResultDto<OrganizationSubscriptionSeatsPreview, ActionError>
 >(async ({ organizationId, seats }) => {
-  const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
+  const parsed = organizationSubscriptionSeatsActionSchema.safeParse({
     organizationId,
     seats,
   });
@@ -92,10 +92,10 @@ export const previewOrganizationSubscriptionSeats = withSession<
 });
 
 export const updateOrganizationSubscriptionSeats = withSession<
-  UpdateOrganizationSubscriptionSeatsParameters,
+  OrganizationSubscriptionSeatsActionParameters,
   ActionResultDto<{ seats: number }, ActionError>
 >(async ({ organizationId, seats, session }) => {
-  const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
+  const parsed = organizationSubscriptionSeatsActionSchema.safeParse({
     organizationId,
     seats,
   });

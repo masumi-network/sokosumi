@@ -6181,7 +6181,7 @@ export type OrganizationSubscriptionSeatsPreview = {
      */
     currency: string;
     /**
-     * Monthly price for the new seat count, before tax and discounts
+     * Next regular invoice at the new seat count, including tax and discounts
      */
     newMonthlyAmount: number;
     /**

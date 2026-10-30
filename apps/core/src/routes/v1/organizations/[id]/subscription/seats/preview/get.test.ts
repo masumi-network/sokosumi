@@ -19,6 +19,7 @@ const {
   resolveActiveSubscriptionByReferenceIdMock,
   retrieveSubscriptionWithItemsMock,
   previewSubscriptionItemQuantityMock,
+  previewSubscriptionRenewalAtQuantityMock,
   updateSubscriptionItemQuantityMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
   previewSubscriptionItemQuantityMock: vi.fn(),
+  previewSubscriptionRenewalAtQuantityMock: vi.fn(),
   updateSubscriptionItemQuantityMock: vi.fn(),
 }));
 
@@ -47,6 +49,8 @@ vi.mock("@/clients/stripe.client", () => ({
       retrieveSubscriptionWithItemsMock(...args),
     previewSubscriptionItemQuantity: (...args: unknown[]) =>
       previewSubscriptionItemQuantityMock(...args),
+    previewSubscriptionRenewalAtQuantity: (...args: unknown[]) =>
+      previewSubscriptionRenewalAtQuantityMock(...args),
     updateSubscriptionItemQuantity: (...args: unknown[]) =>
       updateSubscriptionItemQuantityMock(...args),
   },
@@ -117,12 +121,15 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       stripeSubscriptionId: "sub_stripe_1",
     });
     retrieveSubscriptionWithItemsMock.mockResolvedValue({
-      items: { data: [{ id: "si_1", price: { unit_amount: 2500 } }] },
+      items: { data: [{ id: "si_1" }] },
     });
     previewSubscriptionItemQuantityMock.mockResolvedValue({
       amount_due: 1234,
       currency: "eur",
       total: 1234,
+    });
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      total: 14875,
     });
   });
 
@@ -137,10 +144,15 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       amountDue: 1234,
       creditAmount: 0,
       currency: "eur",
-      newMonthlyAmount: 12500,
+      newMonthlyAmount: 14875,
       seats: 5,
     });
     expect(previewSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      5,
+    );
+    expect(previewSubscriptionRenewalAtQuantityMock).toHaveBeenCalledWith(
       "sub_stripe_1",
       "si_1",
       5,
@@ -155,6 +167,9 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       currency: "eur",
       total: -800,
     });
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      total: 2975,
+    });
 
     const response = await previewSeats("org_123", 1);
     const body = await response.json();
@@ -164,7 +179,7 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       amountDue: 0,
       creditAmount: 800,
       currency: "eur",
-      newMonthlyAmount: 2500,
+      newMonthlyAmount: 2975,
       seats: 1,
     });
   });

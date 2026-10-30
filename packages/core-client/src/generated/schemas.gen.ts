@@ -21023,8 +21023,8 @@ export const OrganizationSubscriptionSeatsPreviewSchema = {
         },
         newMonthlyAmount: {
             type: 'integer',
-            description: 'Monthly price for the new seat count, before tax and discounts',
-            example: 12500
+            description: 'Next regular invoice at the new seat count, including tax and discounts',
+            example: 14875
         },
         seats: {
             type: 'integer',

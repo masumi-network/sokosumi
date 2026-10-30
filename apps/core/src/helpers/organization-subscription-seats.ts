@@ -45,7 +45,7 @@ export async function resolveSubscriptionForSeatChange(params: {
     );
   if (!subscription) {
     throw badRequest(
-      "An active organization subscription is required before updating seats.",
+      "An active organization subscription is required to change seats.",
       { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
     );
   }
@@ -61,7 +61,7 @@ export async function retrieveStripeSeatItem(stripeSubscriptionId: string) {
   const firstItem = stripeSubscription.items.data[0];
   if (!firstItem) {
     throw internalServerError(
-      "Unable to update organization subscription seats: missing Stripe subscription item",
+      "Unable to change organization subscription seats: missing Stripe subscription item",
     );
   }
 

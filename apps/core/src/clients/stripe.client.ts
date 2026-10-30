@@ -339,6 +339,36 @@ export const stripeClient = {
     );
   },
 
+  /**
+   * Stripe's next regular invoice at `quantity`, with tax and discounts. A
+   * scheduled cancellation leaves no next invoice (Stripe answers 404), so this
+   * preview clears it. Nothing is applied.
+   */
+  async previewSubscriptionRenewalAtQuantity(
+    subscriptionId: string,
+    itemId: string,
+    quantity: number,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Invoice> {
+    return await stripe.invoices.createPreview(
+      {
+        automatic_tax: { enabled: true },
+        subscription: subscriptionId,
+        subscription_details: {
+          cancel_at: "",
+          items: [
+            {
+              id: itemId,
+              quantity,
+            },
+          ],
+          proration_behavior: "none",
+        },
+      },
+      requestOptions,
+    );
+  },
+
   async updateSubscriptionItemQuantity(
     subscriptionId: string,
     itemId: string,

@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -240,11 +246,124 @@ describe("OrganizationSeatsCard", () => {
     await userEvent.click(screen.getByRole("button", { name: ADD_TWO }));
 
     const dialog = await screen.findByRole("alertdialog");
+    await within(dialog).findByText(
+      'seatsCard.dialog.approximate:{"amount":"EUR 12.34"}',
+    );
     expect(
       within(dialog).getByText(
         'seatsCard.dialog.cancellationNote:{"date":"Apr 1, 2026"}',
       ),
     ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("seatsCard.dialog.newMonthly"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("states the assigned and unused counts", () => {
+    renderCard({ assignedCount: 1 });
+
+    expect(
+      screen.getByText(
+        'seatsCard.summary:{"assigned":1,"purchased":3,"unused":2}',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("does not report negative unused seats when over capacity", () => {
+    renderCard({ assignedCount: 4 });
+
+    expect(
+      screen.getByText(
+        'seatsCard.summary:{"assigned":4,"purchased":3,"unused":0}',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("returns focus to the button when the dialog closes", async () => {
+    renderCard();
+    await setSeats("5");
+    const button = screen.getByRole("button", { name: ADD_TWO });
+
+    await userEvent.click(button);
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "seatsCard.dialog.cancel" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(button).toHaveFocus();
+    });
+  });
+
+  it("announces the loading, price and failure states through one live region", async () => {
+    let resolvePreview: (value: unknown) => void = () => {};
+    previewMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePreview = resolve;
+      }),
+    );
+    renderCard();
+    await setSeats("5");
+
+    await userEvent.click(screen.getByRole("button", { name: ADD_TWO }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    const status = within(dialog).getByRole("status");
+    expect(status).toHaveTextContent("seatsCard.dialog.loading");
+
+    resolvePreview({ ok: false, error: { code: "INTERNAL_SERVER_ERROR" } });
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent("seatsCard.dialog.previewError");
+    });
+    expect(within(dialog).getByRole("status")).toBe(status);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: "seatsCard.dialog.previewRetry",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent("EUR 125.00");
+    });
+    expect(within(dialog).getByRole("status")).toBe(status);
+  });
+
+  it("returns to idle once the new seat count arrives", () => {
+    const { rerender } = render(
+      <TestQueryProvider>
+        <OrganizationSeatsCard
+          assignedCount={1}
+          currentSeats={3}
+          onError={vi.fn()}
+          organizationId="org-1"
+          scheduledCancelDate={null}
+        />
+      </TestQueryProvider>,
+    );
+    fireEvent.change(screen.getByRole("spinbutton"), {
+      target: { value: "5" },
+    });
+    expect(screen.getByRole("button", { name: ADD_TWO })).toBeEnabled();
+
+    rerender(
+      <TestQueryProvider>
+        <OrganizationSeatsCard
+          assignedCount={1}
+          currentSeats={5}
+          onError={vi.fn()}
+          organizationId="org-1"
+          scheduledCancelDate={null}
+        />
+      </TestQueryProvider>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "seatsCard.addIdleCta" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("spinbutton")).toHaveValue(5);
   });
 
   it("reports a failed update and closes the dialog", async () => {

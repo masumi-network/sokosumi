@@ -404,7 +404,7 @@ describe("subscription actions", () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new CoreApiRequestError(
-        "An active organization subscription is required before updating seats.",
+        "An active organization subscription is required to change seats.",
         {
           kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
           status: 400,
@@ -427,7 +427,7 @@ describe("subscription actions", () => {
       error: {
         code: CommonErrorCode.BAD_INPUT,
         message:
-          "An active organization subscription is required before updating seats.",
+          "An active organization subscription is required to change seats.",
       },
       ok: false,
     });

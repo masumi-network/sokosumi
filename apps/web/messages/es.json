@@ -7065,7 +7065,7 @@
             "paymentFailedAction": "Actualizar método de pago"
           },
           "seatsCard": {
-            "summary": "{assigned} de {purchased, plural, =1 {# Seat} other {# Seats}} asignados. Los cambios se facturan de inmediato.",
+            "summary": "{assigned} de {purchased, plural, =1 {# Seat} other {# Seats}} asignados, {unused} sin usar. Los cambios se facturan de inmediato.",
             "addIdleCta": "Añadir Seats",
             "addCta": "{count, plural, =1 {Añadir # Seat} other {Añadir # Seats}}",
             "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
@@ -7082,7 +7082,7 @@
               "credit": "Crédito en tu saldo de facturación",
               "approximate": "Aproximadamente {amount}",
               "newMonthly": "Nuevo precio mensual",
-              "newMonthlyHint": "Antes de impuestos y descuentos",
+              "newMonthlyHint": "Con impuestos y descuentos incluidos",
               "seatsLost": "{count, plural, =1 {El miembro que se unió más recientemente pierde su Seat.} other {Los # miembros que se unieron más recientemente pierden su Seat.}}",
               "creditNote": "El importe no utilizado pasa a tu saldo de facturación, no vuelve a tu tarjeta.",
               "cancellationNote": "Tu plan termina el {date}, y estos Seats terminan con él.",
