@@ -24,6 +24,9 @@ export async function loadRoomShellRoster(
 ): Promise<RoomShellRosterPage> {
   const [membersPage, coworkers, bot, t] = await Promise.all([
     loadOrganizationMembers(organizationId),
+    // shortcut: Core's `available` scope reads the active workspace, so on a
+    // Room visit the add-member picker lists its Coworkers and Core refuses one
+    // the room's workspace lacks. Scope the read by room if visits need more.
     coworkerService.listCoworkers("chat"),
     sokoBotService.getMine().catch(() => null),
     getTranslations("App.Channels"),

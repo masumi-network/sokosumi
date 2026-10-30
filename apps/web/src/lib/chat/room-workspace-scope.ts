@@ -31,3 +31,15 @@ export function isShownInEveryWorkspace(
     room.sokoBotMembers.length === 0
   );
 }
+
+/**
+ * Whether a room belongs to this workspace. Reading one that does not is a
+ * Room visit (ADR-0061). It stays open across a switch to a workspace it
+ * belongs to, and closes on a switch to any other.
+ */
+export function isRoomOfWorkspace(
+  room: Parameters<typeof isShownInEveryWorkspace>[0],
+  workspaceId: string | null,
+): boolean {
+  return isShownInEveryWorkspace(room) || room.organizationId === workspaceId;
+}

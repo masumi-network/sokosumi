@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
   CHAT_TITLE_MARK_CLASS,
   ChannelDiscoverabilityIcon,
@@ -133,8 +134,47 @@ function RoomParticipantStack({
   );
 }
 
+/**
+ * A Room visit's workspace, on the line under the title (ADR-0061). Inline so
+ * it truncates with that line. Choosing it switches there, and the room stays
+ * open.
+ */
+function RoomVisitWorkspaceName({
+  organizationId,
+  organizationName,
+}: Pick<ChatRoom, "organizationId" | "organizationName">) {
+  const t = useTranslations("App.Channels");
+  const tTask = useTranslations("App.Tasks.Detail");
+  const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
+  const name =
+    organizationId === null ? tTask("personalWorkspace") : organizationName;
+  if (!name) return null;
+  const label = t("headerVisitSwitch", { workspace: name });
+
+  return (
+    <>
+      <button
+        type="button"
+        className="inline cursor-pointer outline-none focus-visible:text-foreground focus-visible:underline [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:underline"
+        aria-label={label}
+        title={label}
+        disabled={isPending}
+        onClick={() => {
+          // The switcher logs a failure; the reader stays on the visit.
+          handleSelectWorkspace(organizationId).catch(() => undefined);
+        }}
+      >
+        {name}
+      </button>
+      {" · "}
+    </>
+  );
+}
+
 export interface RoomHeaderChromeProps {
   room: ChatRoom;
+  /** The room is not one of the active workspace's (ADR-0061). */
+  isRoomVisit: boolean;
   displayName: string;
   isDirectRoom: boolean;
   onJumpToMessage: (hit: ChatRoomMessage) => void;
@@ -165,6 +205,7 @@ export interface RoomHeaderChromeProps {
 
 export function RoomHeaderChrome({
   room,
+  isRoomVisit,
   displayName,
   isDirectRoom,
   onJumpToMessage,
@@ -277,6 +318,12 @@ export function RoomHeaderChrome({
           title={subtitle}
           data-testid="room-open-subtitle"
         >
+          {isRoomVisit ? (
+            <RoomVisitWorkspaceName
+              organizationId={room.organizationId}
+              organizationName={room.organizationName}
+            />
+          ) : null}
           {subtitle}
         </p>
       </div>
