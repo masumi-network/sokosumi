@@ -465,6 +465,26 @@ describe("Project social connection routes", () => {
     );
   });
 
+  it("lets a first-party app finish a connection and nothing else", async () => {
+    const app = createApp(FIRST_PARTY_OAUTH_AUTH);
+    const finalized = await app.request(
+      `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId: CONNECTION_ID }),
+      },
+    );
+    expect(finalized.status).toBe(201);
+
+    const disconnected = await app.request(
+      `http://localhost/${PROJECT_ID}/social-connections/${SOCIAL_CONNECTION_ID}`,
+      { method: "DELETE" },
+    );
+    expect(disconnected.status).toBe(403);
+    expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
+  });
+
   it("refuses a return address outside the first-party apps", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/social-connections/initiate`,

@@ -34,8 +34,8 @@ export interface UserAuthenticationContext {
   authenticationMethod?: "session" | "api_key" | "oauth";
   /**
    * An OAuth token from a first-party client (`skipConsent`, ADR 0046), such
-   * as CMO or the Apple app: a person signed in right there, so it counts as
-   * interactive.
+   * as CMO or the Apple app: a person signed in right there, so the routes
+   * that use {@link requireFirstPartyUserAuthContext} accept it.
    */
   firstPartyClient?: boolean;
   /**
@@ -407,15 +407,31 @@ export function requireInteractiveUserAuthContext(
 ): UserAuthenticationContext {
   const userAuthContext = requireUserAuthContext(authContext);
 
-  const interactive =
-    userAuthContext.authenticationMethod === "session" ||
-    (userAuthContext.authenticationMethod === "oauth" &&
-      userAuthContext.firstPartyClient === true);
-  if (!interactive) {
+  if (userAuthContext.authenticationMethod !== "session") {
     throw forbidden("Interactive session required to manage credentials");
   }
 
   return userAuthContext;
+}
+
+/**
+ * Like {@link requireInteractiveUserAuthContext}, but a first-party client's
+ * OAuth token passes too. Routes opt in one by one, so a stolen CMO or Apple
+ * token can only do what those routes do, and can never mint a credential.
+ */
+export function requireFirstPartyUserAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  const userAuthContext = requireUserAuthContext(authContext);
+
+  if (
+    userAuthContext.authenticationMethod === "oauth" &&
+    userAuthContext.firstPartyClient === true
+  ) {
+    return userAuthContext;
+  }
+
+  return requireInteractiveUserAuthContext(authContext);
 }
 
 /** Requires a browser-backed interactive admin session for sensitive actions. */
