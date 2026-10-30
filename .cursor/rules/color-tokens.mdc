@@ -151,7 +151,7 @@ pickers are data, not UI color. Those keep their literals.
 ### Guard
 
 `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails the build on
-five things. Each is its own test case, and a call-site failure prints the
+six things. Each is its own test case, and a call-site failure prints the
 file, the line number, and the offending line:
 
 1. A raw Tailwind palette class on any colour utility, `ring-offset` included.
@@ -161,6 +161,11 @@ file, the line number, and the offending line:
 3. A colour literal in a component.
 4. A bridged token that nothing defines.
 5. A token defined in one theme block but not the other.
+6. A text or edge use of the primary (`text-` / `border-` / `ring-` / `fill-` /
+   `stroke-` / `decoration-` / `outline-` / `caret-` / `divide-primary…`). Iris
+   Flower is fill-only; thin marks and labels take a foreground role. Fill-side
+   steps (`text-primary-foreground`, `border-primary-tertiary`,
+   `bg-primary-solid`) stay legal.
 
 A hex counts only when it is quote-delimited or sits inside an arbitrary
 Tailwind value, so an issue number in a comment is not a color. The allowlist

@@ -265,7 +265,7 @@ function TextAction({
     <button
       type="button"
       onClick={onClick}
-      className="text-foreground h-6 rounded-md px-1.5 text-xs font-medium hover:underline"
+      className="text-foreground h-6 rounded-md px-1.5 text-xs font-medium underline underline-offset-4"
     >
       {children}
     </button>
@@ -363,7 +363,7 @@ function HandOffPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="text-foreground h-6 rounded-md px-1.5 text-xs font-medium hover:underline"
+          className="text-foreground h-6 rounded-md px-1.5 text-xs font-medium underline underline-offset-4"
           data-testid="message-signal-hand-off"
         >
           {t("handOff")}
