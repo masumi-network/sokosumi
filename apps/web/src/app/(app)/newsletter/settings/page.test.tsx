@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
+  getSendingDomain: vi.fn(),
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
 }));
@@ -32,6 +33,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   newsletterService: {
     isEnabled: mocks.enabled,
     getSettings: mocks.getSettings,
+    getSendingDomain: mocks.getSendingDomain,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -50,6 +52,11 @@ vi.mock("../newsletter-settings-form", () => ({
 import NewsletterSettingsPage, { generateMetadata } from "./page";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const SENDING_DOMAIN_STATE = {
+  sendingDomain: null,
+  canManage: true,
+  fallbackAvailable: true,
+};
 const PAGE = messages.App.Newsletter;
 const SETTINGS = messages.App.Projects.Newsletter;
 
@@ -67,6 +74,7 @@ beforeEach(() => {
     logo: "https://example.com/logo.png",
   });
   mocks.getSettings.mockResolvedValue(null);
+  mocks.getSendingDomain.mockResolvedValue(SENDING_DOMAIN_STATE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 
@@ -86,7 +94,7 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("with a project", () => {
-    it("shows setup for the named project with only a Settings tab", async () => {
+    it("shows setup for the named project without a lone Settings tab", async () => {
       render(
         await NewsletterSettingsPage(props({ projectId: ` ${PROJECT_ID} ` })),
       );
@@ -95,16 +103,11 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: "Launch newsletter" }),
       ).toBeInTheDocument();
+      // The form introduces setup itself; one tab is not navigation.
       expect(
-        screen.getByRole("heading", { name: SETTINGS.emptyTitle }),
-      ).toBeInTheDocument();
-      const tabs = screen.getAllByRole("link");
-      expect(tabs).toHaveLength(1);
-      expect(tabs[0]).toHaveAttribute(
-        "href",
-        `/newsletter/settings?projectId=${PROJECT_ID}`,
-      );
-      expect(tabs[0]).toHaveAttribute("aria-current", "page");
+        screen.queryByRole("navigation", { name: SETTINGS.navigation }),
+      ).toBeNull();
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({
           newsletter: null,
@@ -122,7 +125,7 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.getProject).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
     });
 
-    it("loads existing settings and offers Issues, Subscribers, Settings", async () => {
+    it("loads existing settings and offers Issues, Calendar, Subscribers, Settings", async () => {
       const newsletter: Pick<Newsletter, "id" | "name"> = {
         id: "n1",
         name: "Weekly",
@@ -131,12 +134,16 @@ describe("NewsletterSettingsPage", () => {
       render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
 
       expect(mocks.getSettings).toHaveBeenCalledWith(PROJECT_ID);
-      expect(
-        screen.queryByRole("heading", { name: SETTINGS.emptyTitle }),
-      ).not.toBeInTheDocument();
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({ newsletter }),
       );
+      // The selected project's sending domain card rides along with its settings.
+      expect(mocks.getSendingDomain).toHaveBeenCalledWith(PROJECT_ID);
+      const { sendingDomain } = mocks.form.mock.calls[0]![0];
+      expect(sendingDomain.props).toEqual({
+        state: SENDING_DOMAIN_STATE,
+        projectId: PROJECT_ID,
+      });
       const nav = screen.getByRole("navigation", {
         name: SETTINGS.navigation,
       });
@@ -148,8 +155,16 @@ describe("NewsletterSettingsPage", () => {
       ).toEqual([
         [SETTINGS.Issues.title, `/newsletter/issues?projectId=${PROJECT_ID}`],
         [
+          SETTINGS.Calendar.title,
+          `/newsletter/calendar?projectId=${PROJECT_ID}`,
+        ],
+        [
           SETTINGS.Subscribers.title,
           `/newsletter/subscribers?projectId=${PROJECT_ID}`,
+        ],
+        [
+          SETTINGS.Analytics.title,
+          `/newsletter/analytics?projectId=${PROJECT_ID}`,
         ],
         [SETTINGS.settings, `/newsletter/settings?projectId=${PROJECT_ID}`],
       ]);

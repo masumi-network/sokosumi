@@ -10,6 +10,8 @@ const getSessionMock = vi.fn();
 const hasSocialBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
+// Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
+vi.mock("temporal-polyfill", () => import("temporal-polyfill/implementation"));
 vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
 }));

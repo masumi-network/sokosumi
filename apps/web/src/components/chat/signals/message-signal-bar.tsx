@@ -6,7 +6,7 @@ import type {
   ChatSignalRoutingSuggestion,
   ChatSignalTag,
 } from "@sokosumi/core-client";
-import { buildChatMessagePreview } from "@sokosumi/utils";
+import { chatMessageTextWithNames } from "@sokosumi/utils";
 import {
   AlertTriangle,
   Ban,
@@ -16,6 +16,7 @@ import {
   Gavel,
   ListChecks,
   Loader2,
+  Megaphone,
   Tags,
   X,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provi
 import {
   CHAT_SIGNAL_TAG_ORDER,
   type ChatSignalChip,
+  chatMessageSenderName,
   chipTags,
   signalChips,
 } from "@/components/chat/signals/signal-chips";
@@ -41,6 +43,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
@@ -50,6 +53,7 @@ const CHIP_ICONS: Record<ChatSignalChip, typeof Gavel> = {
   urgent: Flame,
   blocker: Ban,
   decisionMade: Gavel,
+  announcement: Megaphone,
   needsDecision: CircleHelp,
   commitment: CalendarClock,
   workRequest: ListChecks,
@@ -121,7 +125,18 @@ export function MessageSignalBar({
     const names = new Map(
       [...(usersById ?? new Map())].map(([id, user]) => [id, user.name]),
     );
-    const text = buildChatMessagePreview(message.content, names);
+    // The whole message: a Coworker that cannot read the chat works from
+    // this text alone.
+    const author = chatMessageSenderName(message);
+    const text = [
+      author ? t("taskFrom", { name: author }) : "",
+      chatMessageTextWithNames(message.content, names),
+      message.quote
+        ? `> ${message.quote.authorName}: ${message.quote.snippet}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     const due = signal?.commitmentDueAt
       ? `\n\n${t("taskDue", {
           date: format.dateTime(signal.commitmentDueAt, {
@@ -131,7 +146,12 @@ export function MessageSignalBar({
           }),
         })}`
       : "";
-    return `${text}${due}\n\n${t("taskSource")} ${chatRoomMessageHref(message.roomId, message.id)}`;
+    // Absolute, since a Coworker reading the Task is not inside the app.
+    const source = new URL(
+      chatRoomMessageHref(message.roomId, message.id),
+      window.location.origin,
+    );
+    return `${text}${due}\n\n${t("taskSource")} ${source}`;
   }
 
   function openTask(assigneeId?: string) {
@@ -280,27 +300,32 @@ function TagEditor({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3">
         <p className="mb-2 text-xs font-medium">{t("editTagsTitle")}</p>
-        <ul className="flex flex-col gap-1.5">
+        <ul className="-mx-2 flex flex-col">
           {CHAT_SIGNAL_TAG_ORDER.map((tag) => {
             const applies = signal.tags.includes(tag);
             const probability = signal.probabilities[tag];
-            const id = `signal-${tag}`;
             return (
-              <li key={tag} className="flex items-center gap-2">
-                <Checkbox
-                  id={id}
-                  checked={applies}
-                  disabled={disabled}
-                  onCheckedChange={(checked) => onToggle(tag, checked === true)}
-                />
-                <label htmlFor={id} className="flex-1 text-sm">
-                  {t(`Tags.${tag}`)}
+              <li key={tag}>
+                <label
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1 text-sm",
+                    !disabled && cn(POPOVER_ROW_CLASS, "cursor-pointer"),
+                  )}
+                >
+                  <Checkbox
+                    checked={applies}
+                    disabled={disabled}
+                    onCheckedChange={(checked) =>
+                      onToggle(tag, checked === true)
+                    }
+                  />
+                  <span className="flex-1">{t(`Tags.${tag}`)}</span>
+                  {probability != null ? (
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {format.number(probability, { style: "percent" })}
+                    </span>
+                  ) : null}
                 </label>
-                {probability != null ? (
-                  <span className="text-muted-foreground text-xs tabular-nums">
-                    {format.number(probability, { style: "percent" })}
-                  </span>
-                ) : null}
               </li>
             );
           })}
@@ -365,7 +390,10 @@ function HandOffPopover({
               <li key={suggestion.coworkerId}>
                 <button
                   type="button"
-                  className="hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start"
+                  className={cn(
+                    POPOVER_ROW_CLASS,
+                    "flex w-full items-center gap-2 px-2 py-1.5 text-start",
+                  )}
                   onClick={() => {
                     setOpen(false);
                     onPick(suggestion.coworkerId);
@@ -397,7 +425,10 @@ function HandOffPopover({
             <li>
               <button
                 type="button"
-                className="hover:bg-muted text-primary-variant w-full rounded-md px-2 py-1.5 text-start text-sm font-medium"
+                className={cn(
+                  POPOVER_ROW_CLASS,
+                  "text-primary-variant w-full px-2 py-1.5 text-start text-sm font-medium",
+                )}
                 onClick={() => {
                   setOpen(false);
                   onPick();

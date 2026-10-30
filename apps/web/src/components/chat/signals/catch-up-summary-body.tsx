@@ -8,7 +8,20 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
 import { CatchUpLine } from "@/components/chat/signals/catch-up-line";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
+import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
+
+/** Nothing written and nothing listed: the reader has read it all. */
+export function isCatchUpSummaryEmpty(summary: ChatCatchUpSummary): boolean {
+  return (
+    summary.headline == null &&
+    summary.needsYou.length === 0 &&
+    summary.decisions.length === 0 &&
+    summary.openLoops.length === 0 &&
+    summary.highlights.length === 0
+  );
+}
 
 interface CatchUpSummaryBodyProps {
   summary: ChatCatchUpSummary;
@@ -56,7 +69,10 @@ export function CatchUpSummaryBody({
             <li key={room.roomId}>
               <Link
                 href={`/chat/rooms/${encodeURIComponent(room.roomId)}`}
-                className="hover:bg-muted flex flex-col gap-0.5 rounded-md px-2 py-1.5"
+                className={cn(
+                  POPOVER_ROW_CLASS,
+                  "flex flex-col gap-0.5 px-2 py-1.5",
+                )}
               >
                 <span className="text-sm font-medium">{room.roomName}</span>
                 <span className="text-muted-foreground text-sm text-pretty">
@@ -167,8 +183,10 @@ function CatchUpItemRow({
       <span className="line-clamp-2 text-sm text-pretty">{item.excerpt}</span>
     </>
   );
-  const className =
-    "hover:bg-muted flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-start";
+  const className = cn(
+    POPOVER_ROW_CLASS,
+    "flex w-full flex-col gap-0.5 px-2 py-1.5 text-start",
+  );
   // A reply lives in its Thread, which the room-level jump cannot open, so
   // it links to the message like the global view does.
   if (onJump && item.parentMessageId == null) {

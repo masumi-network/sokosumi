@@ -3,12 +3,10 @@ import Foundation
 /// Recipient selection shared by the native Direct picker and its request validation.
 public struct DirectConversationSelection: Equatable, Sendable {
   public private(set) var recipients: [DirectRecipient] = []
-  public let hasOrganization: Bool
   /// The reader: `.human(currentUserId)` is Message yourself.
   public let currentUserId: String
 
-  public init(hasOrganization: Bool, currentUserId: String) {
-    self.hasOrganization = hasOrganization
+  public init(currentUserId: String) {
     self.currentUserId = currentUserId
   }
 
@@ -28,12 +26,10 @@ public struct DirectConversationSelection: Equatable, Sendable {
       return "Self-chat cannot include other recipients."
     }
     switch (first, recipient) {
-    case (.human, .human):
-      return hasOrganization ? nil : "Select an organization to start a group Direct."
+    case (.human, .human), (.coworker, .coworker), (.sokoBot, .sokoBot):
+      return nil
     case (.human, _):
       return "Group Directs can only include people."
-    case (.coworker, .coworker), (.sokoBot, .sokoBot):
-      return nil
     case (.coworker, _):
       return "Coworker Directs are one-to-one."
     case (.sokoBot, _):

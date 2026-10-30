@@ -10,6 +10,7 @@ import {
   useEffectEvent,
   useState,
 } from "react";
+import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
 import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
@@ -103,9 +104,11 @@ export function RoomCacheProvider({
   workspaceId: string | null;
   children: ReactNode;
 }) {
+  // A workspace switch swaps the cache, not the tree: a room shown in every
+  // workspace stays mounted with its draft.
   return (
     <RoomCacheSession
-      key={JSON.stringify([currentUserId, workspaceId])}
+      key={currentUserId}
       currentUserId={currentUserId}
       workspaceId={workspaceId}
     >
@@ -133,13 +136,15 @@ function RoomCacheSession({
     navigation.pathname === pathname ? navigation.target : pathname;
   const replace = useEffectEvent((href: string) => router.replace(href));
   const [generation, setGeneration] = useState(0);
-  const [cache] = useState(
+  const [cache, setCache] = useState(
     () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
+  if (!cache.matchesScope(currentUserId, workspaceId))
+    setCache(cache.forWorkspace(workspaceId, roomIdFromPath(pathname)));
   useEffect(() => {
     const select = (url: URL) => {
       setNavigation({ pathname, target: url.pathname + url.search });
-      const roomId = url.pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+      const roomId = roomIdFromPath(url.pathname);
       if (!roomId) return;
       cache.prefetch(roomId, () =>
         provisionalRoomBootstrap(roomId, currentUserId, workspaceId),

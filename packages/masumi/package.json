@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -77,7 +77,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.6",
     "@typescript/typescript6": "6.0.2",
     "typescript": "7.0.2",
     "vitest": "5.0.5"

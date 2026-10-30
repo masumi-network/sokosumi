@@ -8,7 +8,8 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Brand**: Read [`apps/web/DESIGN.md`](../../apps/web/DESIGN.md) for visual intent (tone, elevation, motion, voice) before styling. Token values live in `apps/web/src/app/globals.css`, which wins on conflict.
 - **Page layout**: Every app page is white, holds its content in borderless light-gray panels
   (`HOLDER_CLASS` in `apps/web/src/components/ui/holder-surface.ts`), puts white bordered components on them, and fills the width: no centred
-  `mx-auto max-w-*` page column. See **Page surfaces** and **Fill the width** in
+  `mx-auto max-w-*` page column, except the entry page and the chat room reading column.
+  See **Page surfaces** and **Fill the width** in
   [`apps/web/DESIGN.md`](../../apps/web/DESIGN.md).
 - **Components**: Use Shadcn UI and Radix UI primitives
 - **Styling**: Tailwind CSS with responsive design

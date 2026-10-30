@@ -730,6 +730,28 @@ describe("ContextPacketBuilder", () => {
     expect(serialized).toContain("[Sensitive value removed]");
   });
 
+  it("names every Project past the detailed ones, so the owner can name any", async () => {
+    projectFindManyMock
+      .mockResolvedValueOnce([project("project-new")])
+      .mockResolvedValueOnce([{ id: "project-quiet", name: "Outreach" }]);
+    projectCountMock.mockResolvedValue(2);
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.projects).toEqual([
+      expect.objectContaining({ id: "project-new", status: expect.anything() }),
+      { id: "project-quiet", name: "Outreach", trust: "untrusted-data" },
+    ]);
+    expect(projectFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [expect.anything(), { id: { notIn: ["project-new"] } }],
+        },
+        take: 100,
+      }),
+    );
+  });
+
   it("deterministically drops least-relevant tails under hard byte budget", async () => {
     const longText = "界".repeat(2_000);
     const blockers = Array.from({ length: 5 }, (_, index) => ({

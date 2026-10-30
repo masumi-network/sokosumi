@@ -40,7 +40,7 @@ export default async function NewsletterIssuesPage({
 
   const query = await loadIssueSearchParams(searchParams);
   const cursor = z.uuid().safeParse(query.cursor);
-  const [response, page, t] = await Promise.all([
+  const [response, subscribers, page, t] = await Promise.all([
     newsletterService
       .listIssues(project.id, {
         limit: 25,
@@ -51,6 +51,10 @@ export default async function NewsletterIssuesPage({
           notFound();
         throw error;
       }),
+    newsletterService.listSubscribers(project.id, {
+      limit: 1,
+      status: "ACTIVE",
+    }),
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
@@ -67,6 +71,7 @@ export default async function NewsletterIssuesPage({
         projectId={project.id}
         issues={response.data}
         pagination={response.meta.pagination}
+        activeSubscribers={subscribers.data.counts.ACTIVE}
       />
     </NewsletterPageShell>
   );

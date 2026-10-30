@@ -59,7 +59,11 @@ beforeEach(() => {
   mocks.enabled.mockResolvedValue(true);
   mocks.project.mockResolvedValue({ id: P1, name: "Launch" });
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
-  mocks.settings.mockResolvedValue({ id: "n1" });
+  mocks.settings.mockResolvedValue({
+    id: "n1",
+    name: "Weekly",
+    contactListId: "list1",
+  });
   mocks.list.mockResolvedValue(RESPONSE);
 });
 
@@ -95,6 +99,8 @@ describe("newsletter subscribers page", () => {
     expect(mocks.list).toHaveBeenCalledWith(P1, { limit: 25 });
     expect(mocks.subscribers).toHaveBeenCalledWith({
       projectId: P1,
+      newsletterName: "Weekly",
+      contactListId: "list1",
       data: RESPONSE.data,
       pagination: RESPONSE.meta.pagination,
     });

@@ -81,6 +81,7 @@ export const CHAT_CATCH_UP_BUCKETS = [
   "urgent",
   "blocker",
   "decisionMade",
+  "announcement",
   "needsDecision",
   "commitment",
   "workRequest",

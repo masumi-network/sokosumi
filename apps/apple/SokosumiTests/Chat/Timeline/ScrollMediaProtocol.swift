@@ -33,7 +33,7 @@
               let response = HTTPURLResponse(url: url, statusCode: failure ? 500 : 200, httpVersion: nil,
                                              headerFields: ["Content-Type": svg ? "image/svg+xml" : "image/png"]) else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: svg ? Self.svgData(shape: shape) : Self.imageData)
+        client?.urlProtocol(self, didLoad: svg ? Self.svgData(shape: shape) : shape == "portrait" ? Self.portraitImageData : Self.imageData)
         client?.urlProtocolDidFinishLoading(self)
         Self.completions.withLock { $0 += 1 }
       }
@@ -56,13 +56,17 @@
       }
     }
 
-    private static let imageData: Data = {
-      guard let context = CGContext(data: nil, width: 2400, height: 1600, bitsPerComponent: 8,
+    private static let imageData = pngData(width: 2400, height: 1600)
+    /// `shape=portrait` without `format=svg`: tall enough to reach the large image's 320 pt cap.
+    private static let portraitImageData = pngData(width: 1600, height: 2400)
+
+    private static func pngData(width: Int, height: Int) -> Data {
+      guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
                                     bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
                                     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return Data() }
-      for row in 0 ..< 1600 {
+      for row in 0 ..< height {
         context.setFillColor(CGColor(red: CGFloat(row % 255) / 255, green: 0.85, blue: 0.15, alpha: 1))
-        context.fill(CGRect(x: 0, y: row, width: 2400, height: 1))
+        context.fill(CGRect(x: 0, y: row, width: width, height: 1))
       }
       let data = NSMutableData()
       guard let image = context.makeImage(),
@@ -70,6 +74,6 @@
       CGImageDestinationAddImage(destination, image, nil)
       guard CGImageDestinationFinalize(destination) else { return Data() }
       return data as Data
-    }()
+    }
   }
 #endif

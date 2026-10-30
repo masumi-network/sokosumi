@@ -10,6 +10,7 @@ import {
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
   NEWSLETTER_SUBSCRIBER_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import router from "../index";
@@ -54,6 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: m.updateMany,
     },
     newsletterEvent: { create: m.eventCreate },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
 }));
@@ -147,6 +149,26 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("public newsletter confirmation", () => {
+  it.each(["other", null])(
+    "hides confirmation in workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.findUnique.mockImplementation(({ where }) =>
+        where.newsletter?.project.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? pending()
+          : null,
+      );
+      for (const method of ["GET", "POST"]) {
+        expect((await app().request(url(token()), { method })).status).toBe(
+          404,
+        );
+      }
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
   it("GET renders a self-contained POST form without mutating or sending mail", async () => {
     const signed = token();
     const response = await app().request(url(signed));
@@ -212,7 +234,7 @@ describe("public newsletter confirmation", () => {
     const [email, options] = m.send.mock.calls[0]!;
     expect(email).toMatchObject({
       to: "reader@example.com",
-      from: '"Ada" <newsletter@news.example.com>',
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
       replyTo: "ada@example.com",
       subject: "Welcome aboard",
       headers: { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },

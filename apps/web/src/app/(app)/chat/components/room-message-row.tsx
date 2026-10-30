@@ -29,6 +29,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
@@ -91,6 +92,7 @@ import { ResultPreviews } from "@/components/chat/result-previews";
 import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
+import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,12 +144,14 @@ import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import { MessageClampToggle } from "./message-clamp-toggle";
 import { MessageEditComposer } from "./message-edit-composer";
 import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatRoomComposerTooLongFailure,
+  MESSAGE_BODY_CLAMP_CLASS,
   type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
@@ -171,9 +175,6 @@ import {
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
-
-/** Collapsed preview height for primary message bodies (taller than quotes). */
-const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
 
 /**
  * Keeps the last line of a body clear of the Seen by faces in the row's
@@ -308,13 +309,6 @@ function messageImageGallery(
     }
   }
   return [...imagesBySrc.values()];
-}
-
-function hasLargeSoloImageAttachment(content: string): boolean {
-  return segmentRoomMessageContent(content).some(
-    (segment) =>
-      segment.kind === "files" && isLargeSoloImageFilesSegment(segment),
-  );
 }
 
 function MessageQuoteAttachmentThumb({
@@ -770,18 +764,32 @@ export function ChannelMessageText({
                 className="my-2 flex w-full min-w-0 max-w-full flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
-                {segment.links.map((link) => (
-                  <FileChipMiniPreviewFrame
-                    key={`${link.index}-${link.url}`}
-                    url={link.url}
-                    fileName={link.fileName}
-                    variant={useLargeImage ? "large" : "thumb"}
-                    sizeClass={useLargeImage ? undefined : "size-16"}
-                    onOpenImage={() => {
-                      setOpenImageSrc(link.url);
-                    }}
-                  />
-                ))}
+                {segment.links.map((link) =>
+                  /^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\/stickers\//.test(
+                    link.url,
+                  ) ? (
+                    <Image
+                      key={`${link.index}-${link.url}`}
+                      src={link.url}
+                      alt={link.fileName}
+                      width={160}
+                      height={160}
+                      unoptimized
+                      className="size-40 object-contain"
+                    />
+                  ) : (
+                    <FileChipMiniPreviewFrame
+                      key={`${link.index}-${link.url}`}
+                      url={link.url}
+                      fileName={link.fileName}
+                      variant={useLargeImage ? "large" : "thumb"}
+                      sizeClass={useLargeImage ? undefined : "size-16"}
+                      onOpenImage={() => {
+                        setOpenImageSrc(link.url);
+                      }}
+                    />
+                  ),
+                )}
               </div>
             );
           }
@@ -833,10 +841,8 @@ function ChannelMessageBody({
   openingDirectParticipantKey?: string | null;
   trailing?: ReactNode;
 }) {
-  const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
-  const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
 
@@ -873,7 +879,9 @@ function ChannelMessageBody({
         data-testid="room-message-body"
         className={cn(
           "min-w-0 max-w-full",
-          expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
+          expanded ? null : MESSAGE_BODY_CLAMP_CLASS,
+          // Softens the cut, which can land mid-line.
+          !expanded && overflows ? COLLAPSED_FADE_CLASS : null,
           // Last p is inline so the reserve shares its last line. Inline
           // boxes drop vertical margin, which would swallow [&_p+p]:mt-3
           // (the blank line). The previous block p keeps that gap.
@@ -898,14 +906,12 @@ function ChannelMessageBody({
         />
         {trailing}
       </div>
-      {!skipBodyClamp && (expanded || overflows) ? (
-        <button
-          type="button"
-          className="text-primary press hover:text-primary-hover mt-1 text-xs font-medium outline-none focus-visible:underline"
-          onClick={toggleExpanded}
-        >
-          {expanded ? t("showLess") : t("showMore")}
-        </button>
+      {expanded || overflows ? (
+        <MessageClampToggle
+          expanded={expanded}
+          onToggle={toggleExpanded}
+          className="mt-1"
+        />
       ) : null}
     </div>
   );
@@ -2884,6 +2890,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   {brief ? (
                     <>
                       <SokoBotBriefCard
+                        messageId={message.id}
                         brief={brief}
                         metadata={message.metadata}
                         createdAt={message.createdAt}

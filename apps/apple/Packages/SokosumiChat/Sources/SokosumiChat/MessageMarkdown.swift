@@ -36,8 +36,6 @@ public struct MessageMarkdownSegment: Identifiable, Equatable, Sendable {
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
   public let segments: [MessageMarkdownSegment]
-  /// True unless some whitespace-only run of file links is exactly one image.
-  public let clampsLongBody: Bool
   /// The images the body's viewer steps through.
   public let imageGallery: MessageImageGallery
 
@@ -77,13 +75,10 @@ public struct MessageMarkdown: Equatable, Sendable {
       appendText(through: characters.count)
       segments = rendered
     }
-    // Rendering, clamping and the gallery share the same source runs. A file link left in the text is a link
+    // Rendering and the gallery share the same source runs. A file link left in the text is a link
     // (row 15c); images embedded in the text (Markdown or HTML) still join through their text segment's blocks.
-    clampsLongBody = runs.isEmpty
-      ? !Self.attachmentRows(in: built).contains { $0.count == 1 && $0[0].kind == .image }
-      : !segments.contains(where: \.usesLargeImage)
     imageGallery = MessageImageGallery(segments.flatMap { segment in
-      segment.attachments + Self.attachmentRows(in: segment.blocks).flatMap(\.self)
+      segment.attachments + Self.embeddedAttachments(in: segment.blocks)
     })
   }
 

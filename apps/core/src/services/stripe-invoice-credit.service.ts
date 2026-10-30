@@ -24,9 +24,6 @@ import { getSubscriptionCatalog } from "@/services/subscription-catalog.service"
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /**
- * Port of the web app's `handleInvoicePaidEvent`
- * (Core `stripe-backed-subscription.service.ts`).
- *
  * Unknown `cus_` is not a silent 200: retrieve the Stripe Customer and try
  * metadata / email write-back (same owner fields as `customer.created`).
  * Permanent misses (deleted customer, no metadata, no email match) ack after

@@ -26,3 +26,14 @@ export const newsletterBlockSchema = z.discriminatedUnion("type", [
 
 export const newsletterContentSchema = z.array(newsletterBlockSchema).max(200);
 export type NewsletterBlock = z.infer<typeof newsletterBlockSchema>;
+
+/** Drafting accepts source choices only, never delivery or approval state. */
+export const newsletterDraftInputSchema = z
+  .object({
+    brief: z.string().trim().min(1).max(10_000),
+    useProjectMemory: z.boolean().default(false),
+    useRecentSocialPosts: z.boolean().default(false),
+    template: z.enum(["TEXT", "IMAGES", "BUTTONS"]).default("TEXT"),
+    imageIds: z.array(z.uuid()).max(10).default([]),
+  })
+  .strict();

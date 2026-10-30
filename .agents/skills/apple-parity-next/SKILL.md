@@ -23,13 +23,13 @@ One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merge
    Done when you know whether this session's row already has an open PR.
 3. **Pick the row.** With a row id: that row, when its status is exactly `Todo` and its dependencies are `Done` or `Merged`; otherwise stop and report why. Without one: the first Work order entry that qualifies and has no open row PR; `node apps/apple/scripts/parity-status.mjs` lists them, with open row PRs and merged rows still `In review`. Never take M6. No `Todo` left: open one docs PR marking the last row `Done`, then stop.
 4. **Dispatch one subagent** (`general-purpose`, `isolation: worktree`, background) with the brief below, filled in for the row. When it reports, relay to the user: the PR link, the render, the deviations from web, and anything that needs their decision. Show the render with `SendUserFile`.
-5. **Shepherd the PR until the user merges it.** Watch CI with a Monitor. Notify the user when the PR is up and when CI is green. For each review:
+5. **Shepherd the PR until the user merges it.** CI skips draft PRs, so mark the PR ready for review (`gh pr ready <PR>`) once the subagent reports, then watch CI with a Monitor. Notify the user when the PR is up and when CI is green. For each review:
    - verify every claim against the code;
    - push valid fixes as one commit from the subagent that owns the worktree. Resume this session's subagent when it is still alive; otherwise dispatch a new one (`general-purpose`, `isolation: worktree`, background) onto the open PR branch. It fetches that branch and merges `origin/main` before the push;
    - answer once with technical reasoning;
    - never re-request review.
 
-   Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `scripts/update-core-api.py`; never hand-merge it. Re-run a CI job once when its log shows an infrastructure flake, a known-flaky test listed in the Resume checkpoint, or a failing test in code this PR did not touch; report a second failure instead of re-running again. Done when the user has merged the PR.
+   Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `apps/apple/scripts/update-core-api.py`; never hand-merge it. Re-run a CI job once when its log shows an infrastructure flake, a known-flaky test listed in the Resume checkpoint, or a failing test in code this PR did not touch; report a second failure instead of re-running again. Done when the user has merged the PR.
 6. **Mark the row Done.** From a fresh branch on the new `origin/main`, open one draft docs PR (`docs(apple): mark parity <row> done`) that sets this row's Status cell to `Done — [#<PR>](…)` with its merge date and squash SHA, keeping its unverified list. Then remove the row's subagent worktree with `git worktree remove --force <path>`, and its Xcode derived data: the `~/Library/Developer/Xcode/DerivedData/Sokosumi-*` folder whose `info.plist` `WorkspacePath` lies inside that worktree. Done when that PR is open and both are gone.
 
 ## Subagent brief

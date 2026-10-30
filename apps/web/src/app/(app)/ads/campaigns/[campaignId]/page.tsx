@@ -3,14 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
-import {
-  CORE_RANGE_BY_PARAM,
-  campaignDetailsHref,
-  campaignsHref,
-} from "@/app/ads/ads-query";
+import { CORE_RANGE_BY_PARAM, campaignsHref } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
-import { AdsCampaignBreadcrumb } from "@/app/ads/components/ads-campaign-breadcrumb";
 import { AdsCampaignDetails } from "@/app/ads/components/ads-campaign-details";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { adsService } from "@/lib/services/ads.service";
@@ -48,7 +43,6 @@ export default async function AdsCampaignDetailsPage({
   const t = await getTranslations("App.Ads.campaignDetails");
 
   let body: React.ReactNode;
-  let name: string | undefined;
   try {
     const details = await adsService.getCampaignDetails(
       project.id,
@@ -56,7 +50,6 @@ export default async function AdsCampaignDetailsPage({
       campaignId,
       CORE_RANGE_BY_PARAM[query.range],
     );
-    name = details.campaign.name;
     body = (
       <AdsCampaignDetails
         accountId={account.id}
@@ -75,22 +68,6 @@ export default async function AdsCampaignDetailsPage({
   return (
     <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "pt-2 md:pt-3")}>
       <div className="flex max-w-180 flex-col gap-3 pb-16">
-        <AdsCampaignBreadcrumb
-          adsHref={campaignsHref(project.id, account.id, query.range)}
-          campaign={
-            name
-              ? {
-                  name,
-                  href: campaignDetailsHref(
-                    project.id,
-                    account.id,
-                    campaignId,
-                    query.range,
-                  ),
-                }
-              : undefined
-          }
-        />
         <Link
           className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 self-start text-sm transition-colors"
           href={campaignsHref(project.id, account.id, query.range)}

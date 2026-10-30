@@ -1,7 +1,8 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { DailyBarChart } from "@/components/performance/daily-bar-chart";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -10,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 export type TrendMetric =
   | "interactions"
@@ -58,7 +58,6 @@ export function PerformanceTrendChart({
   impressionBased: boolean;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
-  const format = useFormatter();
   const metrics = visibleTrendMetrics(days, impressionBased);
   const [metric, setMetric] = useState<TrendMetric>(
     metrics.includes("interactions")
@@ -72,7 +71,6 @@ export function PerformanceTrendChart({
     date: dayKey(day.date),
     value: active === "postCount" ? day.postCount : day[active],
   }));
-  const peak = Math.max(0, ...points.map((point) => point.value ?? 0));
 
   function label(value: TrendMetric) {
     return value === "interactions"
@@ -80,14 +78,6 @@ export function PerformanceTrendChart({
       : value === "postCount"
         ? t("performance.posts")
         : t(`metrics.${value}`);
-  }
-
-  function dateLabel(date: string) {
-    return format.dateTime(new Date(`${date}T12:00:00Z`), {
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    });
   }
 
   return (
@@ -131,47 +121,11 @@ export function PerformanceTrendChart({
           </Select>
         </div>
       </div>
-      <figure className="min-w-0 space-y-3" aria-label={label(active)}>
-        <div className="flex h-40 items-end gap-px border-b" aria-hidden="true">
-          {points.map((point) => (
-            <div
-              key={point.date}
-              className="flex h-full min-w-0 flex-1 items-end"
-              title={`${dateLabel(point.date)}: ${
-                point.value == null
-                  ? t("unavailable")
-                  : format.number(point.value)
-              }`}
-            >
-              <div
-                className={cn(
-                  "w-full rounded-t-sm",
-                  point.value == null
-                    ? "border-border h-2 border border-dashed"
-                    : point.value === 0
-                      ? "bg-border h-px"
-                      : "bg-chart-1",
-                )}
-                style={
-                  point.value == null || point.value === 0
-                    ? undefined
-                    : {
-                        height: `${Math.max(2, peak ? (point.value / peak) * 100 : 0)}%`,
-                      }
-                }
-              />
-            </div>
-          ))}
-        </div>
-        <div className="text-muted-foreground flex justify-between gap-3 text-xs">
-          <span>
-            {points[0] ? dateLabel(points[0].date) : t("unavailable")}
-          </span>
-          <span>
-            {points.at(-1) ? dateLabel(points.at(-1)?.date ?? "") : ""}
-          </span>
-        </div>
-      </figure>
+      <DailyBarChart
+        label={label(active)}
+        points={points}
+        unavailable={t("unavailable")}
+      />
     </section>
   );
 }

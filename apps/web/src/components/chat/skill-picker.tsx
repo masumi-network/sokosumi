@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
@@ -166,7 +167,8 @@ function SkillPickerPanel({
                     disabled={picked}
                     onClick={() => onPick(item)}
                     className={cn(
-                      "hover:bg-muted focus-visible:ring-ring flex w-full items-start gap-2 rounded-md px-2 py-2 text-start outline-none focus-visible:ring-2",
+                      POPOVER_ROW_CLASS,
+                      "flex w-full items-start gap-2 px-2 py-2 text-start",
                       picked && "opacity-60",
                     )}
                   >

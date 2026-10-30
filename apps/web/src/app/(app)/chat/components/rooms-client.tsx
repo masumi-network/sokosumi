@@ -171,7 +171,6 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
@@ -198,7 +197,6 @@ import {
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
 import {
-  canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
@@ -214,7 +212,6 @@ import {
   appendMessage,
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
-  getRoomDisplayName,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -258,6 +255,7 @@ import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
+import { useRoomDisplayName } from "./use-room-display-name";
 
 /** The active organization as a room reads it. */
 export interface RoomWorkspace {
@@ -606,7 +604,7 @@ function RoomView({
   registerRefresh?: MutableRefObject<() => void>;
 }) {
   const t = useTranslations("App.Channels");
-  const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const roomDisplayName = useRoomDisplayName();
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -1207,7 +1205,7 @@ function RoomView({
     return selectedRoomIdRef.current === roomId;
   }
   const selectedRoomDisplayName = selectedRoom
-    ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
+    ? roomDisplayName(selectedRoom, currentUserId)
     : "";
   const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 
@@ -1225,12 +1223,8 @@ function RoomView({
   if (rosterOpen && !showRoomRosterControl) {
     setRosterOpen(false);
   }
-  const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
-    kind: selectedRoom?.kind,
-    discoverability: selectedRoom?.discoverability,
-    myAccess: selectedRoom?.myAccess,
-    hasActiveOrganization: Boolean(activeOrganization),
-  });
+  // Message on a person works from any workspace; Core decides who is reachable.
+  const canOpenHumanDirect = true;
   // Name/topic/visibility and archive: organization owner/admin only. Everyone
   // else manages membership from the members panel instead.
   const canManageSelectedRoomSettings =
@@ -1712,27 +1706,6 @@ function RoomView({
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
   // start lost the draft when the request failed after submit.
 
-  const breadcrumbOverride = useMemo(
-    () => ({
-      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/",
-      segments: [
-        {
-          label: tBreadcrumb("chat"),
-          href: "/",
-        },
-        ...(selectedRoom
-          ? [
-              {
-                label: selectedRoomDisplayName,
-                href: `/chat/rooms/${selectedRoom.id}`,
-              },
-            ]
-          : []),
-      ],
-    }),
-    [selectedRoom, selectedRoomDisplayName, tBreadcrumb],
-  );
-  useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
     return new Map(
       (selectedRoom?.coworkerMembers ?? []).map((coworker) => [

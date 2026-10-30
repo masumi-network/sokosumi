@@ -1,23 +1,46 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import { NEWSLETTER_ISSUE } from "@/test/newsletter";
+import {
+  NEWSLETTER_ANALYTICS,
+  NEWSLETTER_ISSUE,
+  PUBLIC_NEWSLETTER,
+  PUBLIC_NEWSLETTER_ISSUE,
+  PUBLIC_NEWSLETTER_ISSUE_SUMMARY,
+  PUBLIC_NEWSLETTER_SLUG,
+} from "@/test/newsletter";
 
 const core = vi.hoisted(() => ({
+  postPublicNewslettersByPublicSlugSubscribe: vi.fn(),
+  getPublicNewslettersByPublicSlug: vi.fn(),
+  getPublicNewslettersByPublicSlugIssues: vi.fn(),
+  getPublicNewslettersByPublicSlugIssuesByIssueSlug: vi.fn(),
   getProjectsByIdNewsletterIssues: vi.fn(),
+  getProjectsByIdNewsletterAnalytics: vi.fn(),
+  getProjectsByIdNewsletterIssuesByIssueIdAnalytics: vi.fn(),
   getProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssues: vi.fn(),
+  postProjectsByIdNewsletterIssuesDraftWithAi: vi.fn(),
   patchProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   deleteProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssuesPreview: vi.fn(),
   getNewsletterAvailability: vi.fn(),
   getProjectsByIdNewsletter: vi.fn(),
   putProjectsByIdNewsletter: vi.fn(),
+  getProjectsByIdNewsletterSendingDomain: vi.fn(),
+  putProjectsByIdNewsletterSendingDomain: vi.fn(),
+  deleteProjectsByIdNewsletterSendingDomain: vi.fn(),
+  postProjectsByIdNewsletterSendingDomainCheck: vi.fn(),
+  postProjectsByIdNewsletterSendingDomainCloudflare: vi.fn(),
+  getProjectsByIdNewsletterSendingDomainDomainConnect: vi.fn(),
   getProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribersImport: vi.fn(),
+  postProjectsByIdNewsletterSubscribersFromContacts: vi.fn(),
   patchProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
   deleteProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
 }));
+const requestHeaders = vi.hoisted(() => vi.fn());
+vi.mock("next/headers", () => ({ headers: requestHeaders }));
 vi.mock("@/lib/clients/core.client", async () => {
   const { CoreApiRequestError } = await import("@/lib/clients/core.request");
   return { coreClient: core, CoreApiRequestError };
@@ -25,9 +48,204 @@ vi.mock("@/lib/clients/core.client", async () => {
 
 import { newsletterService } from "./newsletter.service";
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  requestHeaders.mockResolvedValue(new Headers());
+});
 
 describe("newsletterService", () => {
+  it("drafts through the generated endpoint and preserves Core failures", async () => {
+    const input = { brief: "Launch" };
+    core.postProjectsByIdNewsletterIssuesDraftWithAi.mockResolvedValue({
+      data: NEWSLETTER_ISSUE,
+    });
+    expect(
+      await newsletterService.draftIssue(NEWSLETTER_ISSUE.projectId, input),
+    ).toBe(NEWSLETTER_ISSUE);
+    expect(
+      core.postProjectsByIdNewsletterIssuesDraftWithAi,
+    ).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_ISSUE.projectId, input);
+    const error = new CoreApiRequestError("Unavailable", { status: 503 });
+    core.postProjectsByIdNewsletterIssuesDraftWithAi.mockRejectedValue(error);
+    await expect(
+      newsletterService.draftIssue(NEWSLETTER_ISSUE.projectId, input),
+    ).rejects.toBe(error);
+  });
+  it("loads scoped analytics through the generated Core operations", async () => {
+    core.getProjectsByIdNewsletterAnalytics.mockResolvedValue({
+      data: NEWSLETTER_ANALYTICS,
+    });
+    const query = { from: "2026-10-01", to: "2026-10-02" };
+    expect(
+      await newsletterService.getAnalytics(NEWSLETTER_ISSUE.projectId, query),
+    ).toBe(NEWSLETTER_ANALYTICS);
+    expect(
+      core.getProjectsByIdNewsletterAnalytics,
+    ).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_ISSUE.projectId, query);
+    const issue = { totals: NEWSLETTER_ANALYTICS.totals, topLinks: [] };
+    core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics.mockResolvedValue({
+      data: issue,
+    });
+    expect(
+      await newsletterService.getIssueAnalytics(
+        NEWSLETTER_ISSUE.projectId,
+        NEWSLETTER_ISSUE.id,
+      ),
+    ).toBe(issue);
+    expect(
+      core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics,
+    ).toHaveBeenCalledExactlyOnceWith(
+      NEWSLETTER_ISSUE.projectId,
+      NEWSLETTER_ISSUE.id,
+    );
+  });
+  it("preserves analytics errors for the page to handle", async () => {
+    const error = new CoreApiRequestError("Invalid date range", {
+      status: 422,
+    });
+    core.getProjectsByIdNewsletterAnalytics.mockRejectedValue(error);
+    await expect(
+      newsletterService.getAnalytics(NEWSLETTER_ISSUE.projectId, {}),
+    ).rejects.toBe(error);
+    core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics.mockRejectedValue(
+      error,
+    );
+    await expect(
+      newsletterService.getIssueAnalytics(
+        NEWSLETTER_ISSUE.projectId,
+        NEWSLETTER_ISSUE.id,
+      ),
+    ).rejects.toBe(error);
+  });
+  it.each(["x-vercel-forwarded-for", "x-forwarded-for"])(
+    "forwards signup inputs and visitor IP for Core rate limiting: %s",
+    async (header) => {
+      requestHeaders.mockResolvedValue(
+        new Headers({ [header]: "203.0.113.4", cookie: "private-session" }),
+      );
+      const accepted = { status: "check_your_inbox" } as const;
+      core.postPublicNewslettersByPublicSlugSubscribe.mockResolvedValue(
+        accepted,
+      );
+      const input = {
+        email: "reader@example.com",
+        locale: "es",
+        source: "SIGNUP_FORM",
+      } as const;
+      expect(
+        await newsletterService.subscribe(PUBLIC_NEWSLETTER_SLUG, input),
+      ).toBe(accepted);
+      expect(
+        core.postPublicNewslettersByPublicSlugSubscribe,
+      ).toHaveBeenCalledExactlyOnceWith(PUBLIC_NEWSLETTER_SLUG, input, {
+        "x-vercel-forwarded-for": "203.0.113.4",
+        "x-forwarded-for": "203.0.113.4",
+      });
+    },
+  );
+
+  it("prefers the platform visitor address and does not invent an IP", async () => {
+    core.postPublicNewslettersByPublicSlugSubscribe.mockResolvedValue({
+      status: "check_your_inbox",
+    });
+    const input = { email: "reader@example.com", locale: "en" } as const;
+    requestHeaders.mockResolvedValue(
+      new Headers({
+        "x-vercel-forwarded-for": "203.0.113.4",
+        "x-forwarded-for": "198.51.100.3",
+      }),
+    );
+    await newsletterService.subscribe(PUBLIC_NEWSLETTER_SLUG, input);
+    expect(
+      core.postPublicNewslettersByPublicSlugSubscribe,
+    ).toHaveBeenLastCalledWith(PUBLIC_NEWSLETTER_SLUG, input, {
+      "x-vercel-forwarded-for": "203.0.113.4",
+      "x-forwarded-for": "203.0.113.4",
+    });
+    requestHeaders.mockResolvedValue(new Headers());
+    await newsletterService.subscribe(PUBLIC_NEWSLETTER_SLUG, input);
+    expect(
+      core.postPublicNewslettersByPublicSlugSubscribe,
+    ).toHaveBeenLastCalledWith(PUBLIC_NEWSLETTER_SLUG, input, {});
+  });
+
+  it("preserves signup errors for the public action", async () => {
+    const error = new CoreApiRequestError("Rate limited", { status: 429 });
+    core.postPublicNewslettersByPublicSlugSubscribe.mockRejectedValue(error);
+    await expect(
+      newsletterService.subscribe(PUBLIC_NEWSLETTER_SLUG, {
+        email: "reader@example.com",
+        locale: "en",
+      }),
+    ).rejects.toBe(error);
+  });
+  it("loads public newsletter info, cursor pages and localized issue HTML through Core", async () => {
+    core.getPublicNewslettersByPublicSlug.mockResolvedValue({
+      data: PUBLIC_NEWSLETTER,
+    });
+    expect(
+      await newsletterService.getPublicNewsletter(PUBLIC_NEWSLETTER_SLUG),
+    ).toBe(PUBLIC_NEWSLETTER);
+    expect(core.getPublicNewslettersByPublicSlug).toHaveBeenCalledWith(
+      PUBLIC_NEWSLETTER_SLUG,
+    );
+    const response = {
+      data: [PUBLIC_NEWSLETTER_ISSUE_SUMMARY],
+      meta: { pagination: { nextCursor: "next" } },
+    };
+    core.getPublicNewslettersByPublicSlugIssues.mockResolvedValue(response);
+    expect(
+      await newsletterService.listPublicIssues(PUBLIC_NEWSLETTER_SLUG, {
+        cursor: "previous",
+      }),
+    ).toBe(response);
+    expect(core.getPublicNewslettersByPublicSlugIssues).toHaveBeenCalledWith(
+      PUBLIC_NEWSLETTER_SLUG,
+      { cursor: "previous" },
+    );
+    core.getPublicNewslettersByPublicSlugIssuesByIssueSlug.mockResolvedValue({
+      data: PUBLIC_NEWSLETTER_ISSUE,
+    });
+    expect(
+      await newsletterService.getPublicIssue(
+        PUBLIC_NEWSLETTER_SLUG,
+        "issue",
+        "de",
+      ),
+    ).toBe(PUBLIC_NEWSLETTER_ISSUE);
+    expect(
+      core.getPublicNewslettersByPublicSlugIssuesByIssueSlug,
+    ).toHaveBeenCalledWith(PUBLIC_NEWSLETTER_SLUG, "issue", "de");
+    await newsletterService.getPublicIssue(
+      PUBLIC_NEWSLETTER_SLUG,
+      "issue",
+      "invalid",
+    );
+    expect(
+      core.getPublicNewslettersByPublicSlugIssuesByIssueSlug,
+    ).toHaveBeenLastCalledWith(PUBLIC_NEWSLETTER_SLUG, "issue", "en");
+  });
+
+  it.each([404, 503])(
+    "maps public 404s to null and propagates other errors: %s",
+    async (status) => {
+      const error = new CoreApiRequestError("Unavailable", { status });
+      core.getPublicNewslettersByPublicSlug.mockRejectedValue(error);
+      core.getPublicNewslettersByPublicSlugIssues.mockRejectedValue(error);
+      core.getPublicNewslettersByPublicSlugIssuesByIssueSlug.mockRejectedValue(
+        error,
+      );
+      const reads = [
+        newsletterService.getPublicNewsletter("missing"),
+        newsletterService.listPublicIssues("missing", {}),
+        newsletterService.getPublicIssue("missing", "issue", "en"),
+      ];
+      for (const read of reads) {
+        if (status === 404) expect(await read).toBeNull();
+        else await expect(read).rejects.toBe(error);
+      }
+    },
+  );
   it("preserves issue DTOs and cursor metadata from Core", async () => {
     const response = {
       data: [NEWSLETTER_ISSUE],
@@ -178,6 +396,110 @@ describe("newsletterService", () => {
     ).rejects.toThrow("Save failed");
   });
 
+  it("keeps every sending-domain operation scoped to the selected project", async () => {
+    const domain = { id: "domain-1" };
+    const state = {
+      sendingDomain: domain,
+      canManage: true,
+      fallbackAvailable: true,
+    };
+    const connect = {
+      providerName: "Cloudflare",
+      applyUrl: "https://example.com/apply",
+    };
+    core.getProjectsByIdNewsletterSendingDomain.mockResolvedValue({
+      data: state,
+    });
+    core.putProjectsByIdNewsletterSendingDomain.mockResolvedValue({
+      data: domain,
+    });
+    core.postProjectsByIdNewsletterSendingDomainCheck.mockResolvedValue({
+      data: domain,
+    });
+    core.postProjectsByIdNewsletterSendingDomainCloudflare.mockResolvedValue({
+      data: domain,
+    });
+    core.getProjectsByIdNewsletterSendingDomainDomainConnect.mockResolvedValue({
+      data: connect,
+    });
+
+    expect(await newsletterService.getSendingDomain("project-2")).toBe(state);
+    expect(core.getProjectsByIdNewsletterSendingDomain).toHaveBeenCalledWith(
+      "project-2",
+    );
+    expect(
+      await newsletterService.saveSendingDomain(
+        "project-2",
+        "news@brand.example",
+      ),
+    ).toBe(domain);
+    expect(core.putProjectsByIdNewsletterSendingDomain).toHaveBeenCalledWith(
+      "project-2",
+      { fromAddress: "news@brand.example" },
+    );
+    expect(await newsletterService.checkSendingDomain("project-2")).toBe(
+      domain,
+    );
+    expect(
+      core.postProjectsByIdNewsletterSendingDomainCheck,
+    ).toHaveBeenCalledWith("project-2");
+    expect(
+      await newsletterService.connectSendingDomainWithCloudflare(
+        "project-2",
+        "one-time-token",
+      ),
+    ).toBe(domain);
+    expect(
+      core.postProjectsByIdNewsletterSendingDomainCloudflare,
+    ).toHaveBeenCalledWith("project-2", "one-time-token");
+    expect(await newsletterService.getSendingDomainConnect("project-2")).toBe(
+      connect,
+    );
+    expect(
+      core.getProjectsByIdNewsletterSendingDomainDomainConnect,
+    ).toHaveBeenCalledWith("project-2");
+    await newsletterService.removeSendingDomain("project-2");
+    expect(core.deleteProjectsByIdNewsletterSendingDomain).toHaveBeenCalledWith(
+      "project-2",
+    );
+  });
+
+  it("propagates sending-domain access failures", async () => {
+    const error = new CoreApiRequestError("Forbidden", { status: 403 });
+    core.getProjectsByIdNewsletterSendingDomain.mockRejectedValue(error);
+    core.putProjectsByIdNewsletterSendingDomain.mockRejectedValue(error);
+    core.deleteProjectsByIdNewsletterSendingDomain.mockRejectedValue(error);
+    core.postProjectsByIdNewsletterSendingDomainCheck.mockRejectedValue(error);
+    core.postProjectsByIdNewsletterSendingDomainCloudflare.mockRejectedValue(
+      error,
+    );
+    core.getProjectsByIdNewsletterSendingDomainDomainConnect.mockRejectedValue(
+      error,
+    );
+
+    await expect(newsletterService.getSendingDomain("project-2")).rejects.toBe(
+      error,
+    );
+    await expect(
+      newsletterService.saveSendingDomain("project-2", "news@brand.example"),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.removeSendingDomain("project-2"),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.checkSendingDomain("project-2"),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.connectSendingDomainWithCloudflare(
+        "project-2",
+        "one-time-token",
+      ),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.getSendingDomainConnect("project-2"),
+    ).rejects.toBe(error);
+  });
+
   it("preserves subscriber counts and cursor metadata from Core", async () => {
     const response = {
       data: { subscribers: [], counts: { ACTIVE: 2 } },
@@ -199,7 +521,7 @@ describe("newsletterService", () => {
 
   it("forwards subscriber mutations to generated Core operations", async () => {
     const subscriber = { id: "s1" };
-    const input = { email: "one@example.com", consent: true } as const;
+    const input = { email: "one@example.com", consent: "CONFIRMED" } as const;
     core.postProjectsByIdNewsletterSubscribers.mockResolvedValue({
       data: subscriber,
     });
@@ -209,7 +531,10 @@ describe("newsletterService", () => {
       input,
     );
     const summary = { imported: 1, skippedExisting: 0, invalid: [] };
-    const csv = { csv: "email\none@example.com", consent: true } as const;
+    const csv = {
+      csv: "email\none@example.com",
+      consent: "CONFIRMED",
+    } as const;
     core.postProjectsByIdNewsletterSubscribersImport.mockResolvedValue({
       data: summary,
     });
@@ -250,13 +575,13 @@ describe("newsletterService", () => {
     await expect(
       newsletterService.addSubscriber("p1", {
         email: "one@example.com",
-        consent: true,
+        consent: "CONFIRMED",
       }),
     ).rejects.toBe(error);
     await expect(
       newsletterService.importSubscribers("p1", {
         csv: "email",
-        consent: true,
+        consent: "CONFIRMED",
       }),
     ).rejects.toBe(error);
     await expect(
@@ -265,5 +590,37 @@ describe("newsletterService", () => {
     await expect(newsletterService.removeSubscriber("p1", "s1")).rejects.toBe(
       error,
     );
+  });
+
+  it("adds from Contacts through Core, preserves counts and propagates failures", async () => {
+    const summary = {
+      added: 1,
+      alreadySubscribed: 2,
+      skippedUnsubscribed: 3,
+      skippedBounced: 4,
+      skippedNoEmail: 5,
+      pendingConfirmation: 6,
+    };
+    const body = {
+      contactIds: ["c1"],
+      listIds: ["l1"],
+      consent: "ASK" as const,
+    };
+    core.postProjectsByIdNewsletterSubscribersFromContacts.mockResolvedValue({
+      data: summary,
+    });
+    expect(await newsletterService.addSubscribersFromContacts("p1", body)).toBe(
+      summary,
+    );
+    expect(
+      core.postProjectsByIdNewsletterSubscribersFromContacts,
+    ).toHaveBeenCalledWith("p1", body);
+    const error = new CoreApiRequestError("Unavailable", { status: 503 });
+    core.postProjectsByIdNewsletterSubscribersFromContacts.mockRejectedValue(
+      error,
+    );
+    await expect(
+      newsletterService.addSubscribersFromContacts("p1", body),
+    ).rejects.toBe(error);
   });
 });
