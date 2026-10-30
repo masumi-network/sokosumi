@@ -202,7 +202,7 @@ Beyond the above, `globals.css` exposes:
 - **Status:** `--status-working` (Iris, Dark Iris in dark, a fill only), `--status-external`, `--status-done`
   (neutral, no steps), `--presence-offline`, `--risk-high` (Golden Yellow, a fill only).
   `src-walk-guards.test.ts` fails on a fill-only status colour used as text or an edge.
-- **Overlay:** `--overlay` (the Alpha 50 scrim behind a dialog),
+- **Overlay:** `--overlay` (Alpha 50 scrim behind a dialog; pair with an opaque panel, not a blur),
   `--overlay-primary`, `--scrim`, `--scrim-soft`, `--scrim-strong` (alpha lives in the token, not
   at the call site). Floating chips and sticky headers are opaque: `bg-popover`, `bg-background`.
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
@@ -310,9 +310,9 @@ Borders first (guide 5.5). No glow, no blur. Shadows stop at `shadow-lg`.
   arbitrary `shadow-[inset_…]` hairline is a border and stays. No shadow **token scale**
   exists — use Tailwind `shadow-*` defaults. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
-- **Overlays use a scrim:** the dialog overlay is `bg-overlay`, nothing more. `backdrop-blur`
-  and `blur-*` are out everywhere; the guard fails on them. A floating chip over content is
-  `bg-popover border`, opaque.
+- **Overlays use a scrim:** the dialog overlay is `bg-overlay` (Alpha 50) with an opaque panel.
+  `backdrop-blur` and `blur-*` are out everywhere; the guard fails on them. A floating chip
+  over content is `bg-popover border`, opaque. Mobile chrome is opaque `bg-background`.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
   modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
   takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
@@ -370,7 +370,7 @@ prop/state-driven.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
-  `bg-overlay`; built-in close button; open/close = fade + zoom-95.
+  `bg-overlay` (Alpha 50, no blur); built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:border-ring`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-secondary text-secondary-foreground text-xs` (neutral, never Iris).
@@ -546,7 +546,8 @@ primary on a neutral background. Brand names are always lowercase.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
   `color-mix(…, transparent)` tints — use a neutral step (`--border`,
-  `--quinary`, `--muted`) or a named token (`--overlay`).
+  `--quinary`, `--muted`) or a named token (`--overlay`, `--scrim`).
+- Glow or `backdrop-blur` on product chrome (guide 5.5).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
 - A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
   directly on the white page.

@@ -2,7 +2,7 @@ import { Check, Plus, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -179,7 +179,7 @@ export default async function DesignSystemPage() {
           </div>
         </div>
 
-        <div style={DESIGN_SYSTEM_VARS as CSSProperties} className="space-y-16">
+        <div style={{ ...DESIGN_SYSTEM_VARS }} className="space-y-16">
           <Section title={t("Color.title")} lead={t("Color.lead")}>
             <div className="grid gap-6 md:grid-cols-[2fr_3fr]">
               <div
