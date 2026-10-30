@@ -15,6 +15,12 @@ import {
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
 
+interface ChatElsewhereOverflowRowProps {
+  count: number;
+  /** When false, render a plain Link (page-mounted list outside a Sheet). */
+  dismissSheetOnNavigate: boolean;
+}
+
 /**
  * The last Elsewhere row: the rooms past the cap, as one row into Catch up,
  * whose page lists them all. A plain sidebar row, its count in words so the link
@@ -23,11 +29,7 @@ import {
 export function ChatElsewhereOverflowRow({
   count,
   dismissSheetOnNavigate,
-}: {
-  count: number;
-  /** When false, render a plain Link (page-mounted list outside a Sheet). */
-  dismissSheetOnNavigate: boolean;
-}) {
+}: ChatElsewhereOverflowRowProps) {
   const t = useTranslations("App.Channels.UnreadNav");
   const link = (
     <Link href={CHAT_CATCH_UP_PATH} className={SIDEBAR_ROW_LINK_CLASS}>

@@ -4,11 +4,12 @@ import { describe, expect, it } from "vitest";
 import {
   isRoomOfWorkspace,
   isShownInEveryWorkspace,
+  type RoomWorkspaceScope,
 } from "./room-workspace-scope";
 
-type ScopedRoom = Parameters<typeof isShownInEveryWorkspace>[0];
-
-const channel = (overrides: Partial<ScopedRoom>): ScopedRoom => ({
+const channel = (
+  overrides: Partial<RoomWorkspaceScope>,
+): RoomWorkspaceScope => ({
   organizationId: "org-1",
   kind: "channel",
   discoverability: "public",
@@ -18,7 +19,7 @@ const channel = (overrides: Partial<ScopedRoom>): ScopedRoom => ({
   ...overrides,
 });
 
-const direct = (overrides: Partial<ScopedRoom>): ScopedRoom =>
+const direct = (overrides: Partial<RoomWorkspaceScope>): RoomWorkspaceScope =>
   channel({ kind: "direct", discoverability: null, ...overrides });
 
 const coworker = { id: "cow-1" } as ChatRoom["coworkerMembers"][number];

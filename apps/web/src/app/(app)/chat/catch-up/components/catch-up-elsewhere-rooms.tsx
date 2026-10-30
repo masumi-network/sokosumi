@@ -4,7 +4,10 @@ import type { ChatRoom } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
-import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
+import {
+  useRoomDisplayName,
+  useRoomWorkspaceName,
+} from "@/app/chat/components/use-room-display-name";
 import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { RowCountMark } from "@/components/chat/mention-count-pill";
 import {
@@ -20,6 +23,11 @@ import {
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { cn } from "@/lib/utils";
 
+interface CatchUpElsewhereRoomsProps {
+  rooms: readonly ChatRoom[];
+  currentUserId: string;
+}
+
 /**
  * Every unread room of the reader's other workspaces, by workspace (ADR-0061):
  * what the sidebar's overflow row promises. Only other workspaces, because the
@@ -29,12 +37,9 @@ import { cn } from "@/lib/utils";
 export function CatchUpElsewhereRooms({
   rooms,
   currentUserId,
-}: {
-  rooms: readonly ChatRoom[];
-  currentUserId: string;
-}) {
+}: CatchUpElsewhereRoomsProps) {
   const t = useTranslations("App.Channels.UnreadNav");
-  const tTask = useTranslations("App.Tasks.Detail");
+  const roomWorkspaceName = useRoomWorkspaceName();
   const headingId = useId();
 
   if (rooms.length === 0) {
@@ -63,11 +68,7 @@ export function CatchUpElsewhereRooms({
         {[...workspaces].map(([organizationId, workspaceRooms]) => (
           <CatchUpElsewhereWorkspace
             key={organizationId}
-            label={
-              organizationId === null
-                ? tTask("personalWorkspace")
-                : workspaceRooms[0].organizationName
-            }
+            label={roomWorkspaceName(workspaceRooms[0])}
             rooms={workspaceRooms}
             currentUserId={currentUserId}
           />
@@ -77,15 +78,17 @@ export function CatchUpElsewhereRooms({
   );
 }
 
+interface CatchUpElsewhereWorkspaceProps {
+  label: string | null | undefined;
+  rooms: readonly ChatRoom[];
+  currentUserId: string;
+}
+
 function CatchUpElsewhereWorkspace({
   label,
   rooms,
   currentUserId,
-}: {
-  label: string | null;
-  rooms: readonly ChatRoom[];
-  currentUserId: string;
-}) {
+}: CatchUpElsewhereWorkspaceProps) {
   const headingId = useId();
   return (
     <div className="flex flex-col gap-1">
@@ -106,14 +109,16 @@ function CatchUpElsewhereWorkspace({
   );
 }
 
+interface CatchUpElsewhereRowProps {
+  room: ChatRoom;
+  currentUserId: string;
+}
+
 /** A plain room link: opening it starts a Room visit, like any room link. */
 function CatchUpElsewhereRow({
   room,
   currentUserId,
-}: {
-  room: ChatRoom;
-  currentUserId: string;
-}) {
+}: CatchUpElsewhereRowProps) {
   const roomDisplayName = useRoomDisplayName();
   const { bold, mentionCount, needsYouCount, unreadTextCount } =
     useRoomRowAttention(room);
