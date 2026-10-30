@@ -19,6 +19,7 @@ const {
   resolveActiveSubscriptionByReferenceIdMock,
   retrieveSubscriptionWithItemsMock,
   previewSubscriptionItemQuantityMock,
+  previewSubscriptionRenewalAtQuantityMock,
   updateSubscriptionItemQuantityMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
   previewSubscriptionItemQuantityMock: vi.fn(),
+  previewSubscriptionRenewalAtQuantityMock: vi.fn(),
   updateSubscriptionItemQuantityMock: vi.fn(),
 }));
 
@@ -47,6 +49,8 @@ vi.mock("@/clients/stripe.client", () => ({
       retrieveSubscriptionWithItemsMock(...args),
     previewSubscriptionItemQuantity: (...args: unknown[]) =>
       previewSubscriptionItemQuantityMock(...args),
+    previewSubscriptionRenewalAtQuantity: (...args: unknown[]) =>
+      previewSubscriptionRenewalAtQuantityMock(...args),
     updateSubscriptionItemQuantity: (...args: unknown[]) =>
       updateSubscriptionItemQuantityMock(...args),
   },
@@ -117,17 +121,17 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       stripeSubscriptionId: "sub_stripe_1",
     });
     retrieveSubscriptionWithItemsMock.mockResolvedValue({
+      id: "sub_stripe_1",
       items: {
-        data: [
-          {
-            current_period_end: 1_767_225_600,
-            id: "si_1",
-            price: { currency: "eur", unit_amount: 2500 },
-          },
-        ],
+        data: [{ current_period_end: 1_767_225_600, id: "si_1" }],
       },
+      schedule: null,
     });
     previewSubscriptionItemQuantityMock.mockResolvedValue({ amount_due: 1234 });
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      currency: "eur",
+      total: 14875,
+    });
   });
 
   it("returns what adding seats costs without changing the subscription", async () => {
@@ -141,10 +145,15 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       amountDue: 1234,
       currency: "eur",
       effectiveAt: null,
-      newMonthlyAmount: 12500,
+      newMonthlyAmount: 14875,
       seats: 5,
     });
     expect(previewSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      5,
+    );
+    expect(previewSubscriptionRenewalAtQuantityMock).toHaveBeenCalledWith(
       "sub_stripe_1",
       "si_1",
       5,
@@ -154,6 +163,10 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
 
   it("charges and refunds nothing when removing seats, and says when it applies", async () => {
     setMembership("owner");
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      currency: "eur",
+      total: 2975,
+    });
 
     const response = await previewSeats("org_123", 1);
     const body = await response.json();
@@ -163,7 +176,7 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       amountDue: 0,
       currency: "eur",
       effectiveAt: "2026-01-01T00:00:00.000Z",
-      newMonthlyAmount: 2500,
+      newMonthlyAmount: 2975,
       seats: 1,
     });
     expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();
@@ -171,6 +184,10 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
 
   it("costs nothing to keep the current seats", async () => {
     setMembership("owner");
+    previewSubscriptionRenewalAtQuantityMock.mockResolvedValue({
+      currency: "eur",
+      total: 5950,
+    });
 
     const response = await previewSeats("org_123", 2);
     const body = await response.json();
@@ -180,7 +197,7 @@ describe("GET /organizations/{id}/subscription/seats/preview", () => {
       amountDue: 0,
       currency: "eur",
       effectiveAt: null,
-      newMonthlyAmount: 5000,
+      newMonthlyAmount: 5950,
       seats: 2,
     });
     expect(previewSubscriptionItemQuantityMock).not.toHaveBeenCalled();

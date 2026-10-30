@@ -46,7 +46,7 @@ export async function resolveSubscriptionForSeatChange(params: {
     );
   if (!subscription) {
     throw badRequest(
-      "An active organization subscription is required before updating seats.",
+      "An active organization subscription is required to change seats.",
       { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
     );
   }
@@ -67,7 +67,7 @@ export async function retrieveStripeSeatSubscription(
   const seatItem = stripeSubscription.items.data[0];
   if (!seatItem) {
     throw internalServerError(
-      "Unable to update organization subscription seats: missing Stripe subscription item",
+      "Unable to change organization subscription seats: missing Stripe subscription item",
     );
   }
 
@@ -131,32 +131,97 @@ export function resolveScheduledSeatReduction(
   };
 }
 
-function buildSeatReductionPhaseSettings(
-  phase: Stripe.SubscriptionSchedule.Phase,
+/**
+ * The running phase unchanged, then `seats` from the next renewal. Prices come
+ * from the last phase, which is where a scheduled plan change would be.
+ */
+function buildPhasesWithRenewalSeats(
+  schedule: Stripe.SubscriptionSchedule,
+  seats: number,
 ) {
-  return {
+  // A schedule keeps its finished phases, so find the running one by its start.
+  const currentPhase = schedule.phases.find(
+    (phase) => phase.start_date === schedule.current_phase?.start_date,
+  );
+  const lastPhase = schedule.phases.at(-1);
+  if (!currentPhase || !lastPhase) {
+    throw internalServerError(
+      "Unable to change organization subscription seats: Stripe schedule has no current phase",
+    );
+  }
+
+  const settings = {
     automatic_tax: { enabled: true },
     // Omitting a setting here clears it, so a discount has to be carried over.
-    discounts: phase.discounts.map(({ coupon, discount, promotion_code }) => {
-      if (discount) {
+    discounts: currentPhase.discounts.map(
+      ({ coupon, discount, promotion_code }) => {
+        if (discount) {
+          return {
+            discount: typeof discount === "string" ? discount : discount.id,
+          };
+        }
+        if (promotion_code) {
+          return {
+            promotion_code:
+              typeof promotion_code === "string"
+                ? promotion_code
+                : promotion_code.id,
+          };
+        }
         return {
-          discount: typeof discount === "string" ? discount : discount.id,
+          coupon: typeof coupon === "string" ? coupon : coupon?.id,
         };
-      }
-      if (promotion_code) {
-        return {
-          promotion_code:
-            typeof promotion_code === "string"
-              ? promotion_code
-              : promotion_code.id,
-        };
-      }
-      return {
-        coupon: typeof coupon === "string" ? coupon : coupon?.id,
-      };
-    }),
+      },
+    ),
     proration_behavior: "none" as const,
   };
+  const priceId = ({ price }: { price: string | { id: string } }) =>
+    typeof price === "string" ? price : price.id;
+
+  return [
+    {
+      ...settings,
+      end_date: currentPhase.end_date,
+      items: currentPhase.items.map((item) => ({
+        price: priceId(item),
+        quantity: item.quantity,
+      })),
+      start_date: currentPhase.start_date,
+    },
+    {
+      ...settings,
+      items: lastPhase.items.map((item) => ({
+        price: priceId(item),
+        quantity: seats,
+      })),
+    },
+  ];
+}
+
+/**
+ * Stripe's next regular invoice at `seats`. While a schedule manages the
+ * subscription, Stripe bills what the schedule says and ignores a quantity
+ * passed for the subscription, so the preview has to go through the schedule.
+ */
+export async function previewRenewalAtSeats(params: {
+  seatItemId: string;
+  seats: number;
+  stripeSubscription: Pick<Stripe.Subscription, "id" | "schedule">;
+}): Promise<Stripe.Invoice> {
+  const scheduleId = resolveStripeScheduleId(params.stripeSubscription);
+  if (!scheduleId) {
+    return await stripeClient.previewSubscriptionRenewalAtQuantity(
+      params.stripeSubscription.id,
+      params.seatItemId,
+      params.seats,
+    );
+  }
+
+  const schedule = await stripeClient.retrieveSubscriptionSchedule(scheduleId);
+  return await stripeClient.previewSubscriptionScheduleRenewal(
+    scheduleId,
+    buildPhasesWithRenewalSeats(schedule, params.seats),
+  );
 }
 
 /**
@@ -183,38 +248,11 @@ export async function scheduleSeatReduction(
     );
   }
 
-  // A schedule keeps its finished phases, so find the running one by its start.
-  const currentPhase = schedule.phases.find(
-    (phase) => phase.start_date === schedule.current_phase?.start_date,
-  );
-  if (!currentPhase) {
-    throw internalServerError(
-      "Unable to schedule organization subscription seats: Stripe schedule has no current phase",
-    );
-  }
-
-  const prices = currentPhase.items.map(({ price, quantity }) => ({
-    price: typeof price === "string" ? price : price.id,
-    quantity,
-  }));
-  const settings = buildSeatReductionPhaseSettings(currentPhase);
-
   try {
     const updated = await stripeClient.updateSubscriptionSchedule(schedule.id, {
       end_behavior: "release",
       metadata: SEAT_REDUCTION_SCHEDULE_METADATA,
-      phases: [
-        {
-          ...settings,
-          end_date: currentPhase.end_date,
-          items: prices,
-          start_date: currentPhase.start_date,
-        },
-        {
-          ...settings,
-          items: prices.map(({ price }) => ({ price, quantity: seats })),
-        },
-      ],
+      phases: buildPhasesWithRenewalSeats(schedule, seats),
       proration_behavior: "none",
     });
 

@@ -76,8 +76,8 @@ interface SendingDomainCardProps {
 }
 
 /**
- * The workspace's own From address. It belongs to the workspace, so every
- * project's newsletter settings show the same card.
+ * This project's own From address. Project members can connect and manage
+ * its sending domain from the newsletter settings.
  */
 export function SendingDomainCard({
   state,
@@ -104,11 +104,12 @@ export function SendingDomainCard({
               projectId={projectId}
             />
           ) : canManage ? (
-            <AddDomainForm fallbackAvailable={fallbackAvailable} />
+            <AddDomainForm
+              fallbackAvailable={fallbackAvailable}
+              projectId={projectId}
+            />
           ) : (
-            <p className="text-muted-foreground text-sm text-pretty">
-              {t("managedByAdmins")}
-            </p>
+            <FallbackNote fallbackAvailable={fallbackAvailable} />
           )}
         </CardContent>
       </Card>
@@ -125,7 +126,13 @@ function FallbackNote({ fallbackAvailable }: { fallbackAvailable: boolean }) {
   );
 }
 
-function AddDomainForm({ fallbackAvailable }: { fallbackAvailable: boolean }) {
+function AddDomainForm({
+  fallbackAvailable,
+  projectId,
+}: {
+  fallbackAvailable: boolean;
+  projectId: string;
+}) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const router = useRouter();
   const [fromAddress, setFromAddress] = useState("");
@@ -137,7 +144,10 @@ function AddDomainForm({ fallbackAvailable }: { fallbackAvailable: boolean }) {
     setPending(true);
     setError("");
     try {
-      const result = await saveNewsletterSendingDomain({ fromAddress });
+      const result = await saveNewsletterSendingDomain({
+        projectId,
+        fromAddress,
+      });
       if (!result.ok) {
         setError(result.error.message);
         return;
@@ -228,7 +238,7 @@ function ConnectedDomain({
   async function handleCheck() {
     setChecking(true);
     try {
-      const result = await checkNewsletterSendingDomain({});
+      const result = await checkNewsletterSendingDomain({ projectId });
       if (!result.ok) {
         toast.error(result.error.message);
         return;
@@ -305,7 +315,7 @@ function ConnectedDomain({
         <div className="min-w-0 space-y-4">
           <h4 className="text-sm font-medium">{t("connectTitle")}</h4>
           <DomainConnectOption projectId={projectId} />
-          <CloudflareOption />
+          <CloudflareOption projectId={projectId} />
         </div>
       ) : null}
 
@@ -323,7 +333,7 @@ function ConnectedDomain({
               {t("checkNow")}
             </Button>
           ) : null}
-          <RemoveDomainButton domain={domain.domain} />
+          <RemoveDomainButton domain={domain.domain} projectId={projectId} />
         </div>
       ) : null}
     </div>
@@ -403,7 +413,7 @@ function DomainConnectOption({ projectId }: { projectId: string }) {
   );
 }
 
-function CloudflareOption() {
+function CloudflareOption({ projectId }: { projectId: string }) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const router = useRouter();
   const [apiToken, setApiToken] = useState("");
@@ -416,6 +426,7 @@ function CloudflareOption() {
     setError("");
     try {
       const result = await connectNewsletterSendingDomainWithCloudflare({
+        projectId,
         apiToken,
       });
       if (!result.ok) {
@@ -555,7 +566,13 @@ function RecordField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RemoveDomainButton({ domain }: { domain: string }) {
+function RemoveDomainButton({
+  domain,
+  projectId,
+}: {
+  domain: string;
+  projectId: string;
+}) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -566,7 +583,7 @@ function RemoveDomainButton({ domain }: { domain: string }) {
     setPending(true);
     setError("");
     try {
-      const result = await removeNewsletterSendingDomain({});
+      const result = await removeNewsletterSendingDomain({ projectId });
       if (!result.ok) {
         setError(result.error.message);
         return;

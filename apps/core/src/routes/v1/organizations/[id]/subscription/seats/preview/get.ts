@@ -3,9 +3,10 @@ import { resolvePurchasedSeats } from "@sokosumi/database/helpers";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { badRequest, internalServerError } from "@/helpers/error";
+import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
+  previewRenewalAtSeats,
   resolveSubscriptionForSeatChange,
   retrieveStripeSeatSubscription,
 } from "@/helpers/organization-subscription-seats";
@@ -44,7 +45,7 @@ const route = createRoute({
           amountDue: 1234,
           currency: "eur",
           effectiveAt: null,
-          newMonthlyAmount: 12500,
+          newMonthlyAmount: 14875,
           seats: 5,
         },
         meta: {
@@ -82,36 +83,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const { seatItem } = await retrieveStripeSeatSubscription(
-      subscription.stripeSubscriptionId,
-    );
-    const unitAmount = seatItem.price.unit_amount;
-    if (unitAmount === null) {
-      throw internalServerError(
-        "Unable to preview organization subscription seats: Stripe price has no unit amount",
-      );
-    }
-
+    const { seatItem, stripeSubscription } =
+      await retrieveStripeSeatSubscription(subscription.stripeSubscriptionId);
     const currentSeats = resolvePurchasedSeats(subscription.seats);
-    const invoice =
+    const [invoice, renewalInvoice] = await Promise.all([
       seats > currentSeats
-        ? await stripeClient.previewSubscriptionItemQuantity(
+        ? stripeClient.previewSubscriptionItemQuantity(
             subscription.stripeSubscriptionId,
             seatItem.id,
             seats,
           )
-        : null;
+        : null,
+      previewRenewalAtSeats({
+        seatItemId: seatItem.id,
+        seats,
+        stripeSubscription,
+      }),
+    ]);
 
     return ok(
       c,
       organizationSubscriptionSeatsPreviewSchema.parse({
         amountDue: invoice?.amount_due ?? 0,
-        currency: seatItem.price.currency,
+        currency: renewalInvoice.currency,
         effectiveAt:
           seats < currentSeats
             ? new Date(seatItem.current_period_end * 1000)
             : null,
-        newMonthlyAmount: unitAmount * seats,
+        newMonthlyAmount: renewalInvoice.total,
         seats,
       }),
     );

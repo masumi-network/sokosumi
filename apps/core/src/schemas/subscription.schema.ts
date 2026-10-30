@@ -112,8 +112,8 @@ export const organizationSubscriptionSeatsPreviewSchema = z
     }),
     newMonthlyAmount: z.number().int().openapi({
       description:
-        "Monthly price for the new seat count, before tax and discounts",
-      example: 12500,
+        "Next regular invoice at the new seat count, including tax and discounts",
+      example: 14875,
     }),
     seats: z.number().int().openapi({
       description: "The seat count this preview is for",

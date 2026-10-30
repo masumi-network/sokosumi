@@ -14,6 +14,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,7 +43,7 @@ interface OrganizationSeatsCardProps {
   scheduledSeatsAt: Date | null;
 }
 
-interface SeatChangeDialogProps {
+interface SeatChangeDialogContentProps {
   actionLabel: string;
   assignedCount: number;
   currentSeats: number;
@@ -68,7 +69,7 @@ export function OrganizationSeatsCard({
   const formatter = useFormatter();
   const committedSeats = scheduledSeats ?? currentSeats;
   const [targetSeats, setTargetSeats] = useState<number | null>(committedSeats);
-  const [dialogSeats, setDialogSeats] = useState<number | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const validTargetSeats =
     targetSeats !== null && targetSeats >= resolveMinimumOrganizationSeats()
@@ -97,6 +98,11 @@ export function OrganizationSeatsCard({
     });
   }
 
+  function handleKeepSeats() {
+    setTargetSeats(currentSeats);
+    setIsDialogOpen(true);
+  }
+
   return (
     <Card>
       <CardContent className="space-y-4 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-6 md:space-y-0">
@@ -108,6 +114,7 @@ export function OrganizationSeatsCard({
             {t("seatsCard.summary", {
               assigned: assignedCount,
               purchased: currentSeats,
+              unused: Math.max(currentSeats - assignedCount, 0),
             })}
           </p>
           {scheduledSeats !== null && scheduledSeatsAt ? (
@@ -118,7 +125,7 @@ export function OrganizationSeatsCard({
               })}{" "}
               <Button
                 className="h-auto p-0 text-xs"
-                onClick={() => setDialogSeats(currentSeats)}
+                onClick={handleKeepSeats}
                 variant="link"
               >
                 {keepLabel}
@@ -141,38 +148,41 @@ export function OrganizationSeatsCard({
               value={targetSeats}
             />
           </div>
-          <Button
-            className="sm:min-w-44"
-            disabled={
-              validTargetSeats === null ||
-              validTargetSeats === committedSeats ||
-              isRemovalBlocked
-            }
-            onClick={() => setDialogSeats(validTargetSeats)}
-            variant="primary"
-          >
-            {actionLabel}
-          </Button>
+          <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                className="sm:min-w-44"
+                disabled={
+                  validTargetSeats === null ||
+                  validTargetSeats === committedSeats ||
+                  isRemovalBlocked
+                }
+                variant="primary"
+              >
+                {actionLabel}
+              </Button>
+            </AlertDialogTrigger>
+            {isDialogOpen && validTargetSeats !== null ? (
+              <SeatChangeDialogContent
+                actionLabel={actionLabel}
+                assignedCount={assignedCount}
+                currentSeats={currentSeats}
+                onClose={() => setIsDialogOpen(false)}
+                onError={onError}
+                organizationId={organizationId}
+                scheduledCancelDate={scheduledCancelDate}
+                seats={validTargetSeats}
+              />
+            ) : null}
+          </AlertDialog>
         </div>
       </CardContent>
-      {dialogSeats !== null ? (
-        <SeatChangeDialog
-          actionLabel={dialogSeats === currentSeats ? keepLabel : actionLabel}
-          assignedCount={assignedCount}
-          currentSeats={currentSeats}
-          onClose={() => setDialogSeats(null)}
-          onError={onError}
-          organizationId={organizationId}
-          scheduledCancelDate={scheduledCancelDate}
-          seats={dialogSeats}
-        />
-      ) : null}
     </Card>
   );
 }
 
 /** Mounted only while open, so every opening asks Stripe for a fresh price. */
-function SeatChangeDialog({
+function SeatChangeDialogContent({
   actionLabel,
   assignedCount,
   currentSeats,
@@ -181,7 +191,7 @@ function SeatChangeDialog({
   organizationId,
   scheduledCancelDate,
   seats,
-}: SeatChangeDialogProps) {
+}: SeatChangeDialogContentProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
   );
@@ -259,37 +269,25 @@ function SeatChangeDialog({
   }
 
   return (
-    <AlertDialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !isUpdating) onClose();
+    <AlertDialogContent
+      onEscapeKeyDown={(event) => {
+        if (isUpdating) event.preventDefault();
       }}
     >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{title}</AlertDialogTitle>
+        <AlertDialogDescription>{description}</AlertDialogDescription>
+      </AlertDialogHeader>
 
-        <div className="space-y-3 text-sm">
+      <div className="space-y-3 text-sm">
+        {/* One region for every state, so its changes are announced. */}
+        <div role="status">
           {preview.isPending ? (
-            <p className="text-muted-foreground" role="status">
+            <p className="text-muted-foreground">
               {t("seatsCard.dialog.loading")}
             </p>
           ) : null}
-          {preview.isError ? (
-            <div className="space-y-2">
-              <p role="alert">{t("seatsCard.dialog.previewError")}</p>
-              <Button
-                loading={preview.isFetching}
-                onClick={() => void preview.refetch()}
-                size="sm"
-                variant="outline"
-              >
-                {t("seatsCard.dialog.previewRetry")}
-              </Button>
-            </div>
-          ) : null}
+          {preview.isError ? <p>{t("seatsCard.dialog.previewError")}</p> : null}
           {preview.data ? (
             <dl className="space-y-2">
               {isAdding ? (
@@ -321,61 +319,74 @@ function SeatChangeDialog({
                   </dd>
                 </div>
               ) : null}
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-muted-foreground">
-                  {t("seatsCard.dialog.newMonthly")}
-                  <span className="block text-xs">
-                    {t("seatsCard.dialog.newMonthlyHint")}
-                  </span>
-                </dt>
-                <dd className="font-medium tabular-nums">
-                  {formatAmount(
-                    preview.data.newMonthlyAmount,
-                    preview.data.currency,
-                  )}
-                </dd>
-              </div>
+              {/* A plan that is ending has no next monthly invoice to show. */}
+              {scheduledCancelDate ? null : (
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted-foreground">
+                    {t("seatsCard.dialog.newMonthly")}
+                    <span className="block text-xs">
+                      {t("seatsCard.dialog.newMonthlyHint")}
+                    </span>
+                  </dt>
+                  <dd className="font-medium tabular-nums">
+                    {formatAmount(
+                      preview.data.newMonthlyAmount,
+                      preview.data.currency,
+                    )}
+                  </dd>
+                </div>
+              )}
             </dl>
           ) : null}
-          {seatsLost > 0 ? (
-            <p className="font-medium">
-              {t("seatsCard.dialog.seatsLost", { count: seatsLost })}
-            </p>
-          ) : null}
-          {scheduledCancelDate && isAdding ? (
-            <p className="text-muted-foreground">
-              {t("seatsCard.dialog.cancellationNote", {
-                date: formatter.dateTime(scheduledCancelDate, {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                }),
-              })}
-            </p>
-          ) : null}
         </div>
-
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isUpdating}>
-            {t("seatsCard.dialog.cancel")}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            className={
-              seatsLost > 0
-                ? buttonVariants({ variant: "destructive" })
-                : undefined
-            }
-            disabled={!preview.data}
-            loading={isUpdating}
-            onClick={(event) => {
-              event.preventDefault();
-              void handleConfirm();
-            }}
+        {preview.isError ? (
+          <Button
+            loading={preview.isFetching}
+            onClick={() => void preview.refetch()}
+            size="sm"
+            variant="outline"
           >
-            {actionLabel}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            {t("seatsCard.dialog.previewRetry")}
+          </Button>
+        ) : null}
+        {seatsLost > 0 ? (
+          <p className="font-medium">
+            {t("seatsCard.dialog.seatsLost", { count: seatsLost })}
+          </p>
+        ) : null}
+        {scheduledCancelDate ? (
+          <p className="text-muted-foreground">
+            {t("seatsCard.dialog.cancellationNote", {
+              date: formatter.dateTime(scheduledCancelDate, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+            })}
+          </p>
+        ) : null}
+      </div>
+
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={isUpdating}>
+          {t("seatsCard.dialog.cancel")}
+        </AlertDialogCancel>
+        <AlertDialogAction
+          className={
+            seatsLost > 0
+              ? buttonVariants({ variant: "destructive" })
+              : undefined
+          }
+          disabled={!preview.data}
+          loading={isUpdating}
+          onClick={(event) => {
+            event.preventDefault();
+            void handleConfirm();
+          }}
+        >
+          {actionLabel}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
   );
 }

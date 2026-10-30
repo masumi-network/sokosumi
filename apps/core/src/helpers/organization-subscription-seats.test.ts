@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createScheduleMock,
+  previewRenewalAtQuantityMock,
+  previewScheduleRenewalMock,
   releaseScheduleMock,
   retrieveScheduleMock,
   updateScheduleMock,
 } = vi.hoisted(() => ({
   createScheduleMock: vi.fn(),
+  previewRenewalAtQuantityMock: vi.fn(),
+  previewScheduleRenewalMock: vi.fn(),
   releaseScheduleMock: vi.fn(),
   retrieveScheduleMock: vi.fn(),
   updateScheduleMock: vi.fn(),
@@ -18,6 +22,10 @@ vi.mock("@/clients/stripe.client", () => ({
   stripeClient: {
     createSubscriptionScheduleFromSubscription: (...args: unknown[]) =>
       createScheduleMock(...args),
+    previewSubscriptionRenewalAtQuantity: (...args: unknown[]) =>
+      previewRenewalAtQuantityMock(...args),
+    previewSubscriptionScheduleRenewal: (...args: unknown[]) =>
+      previewScheduleRenewalMock(...args),
     releaseSubscriptionSchedule: (...args: unknown[]) =>
       releaseScheduleMock(...args),
     retrieveSubscriptionSchedule: (...args: unknown[]) =>
@@ -28,6 +36,7 @@ vi.mock("@/clients/stripe.client", () => ({
 }));
 
 import {
+  previewRenewalAtSeats,
   releaseAppliedSeatReduction,
   releaseSeatReduction,
   resolveScheduledSeatReduction,
@@ -224,6 +233,70 @@ describe("scheduleSeatReduction", () => {
     ).rejects.toThrow("Stripe is unavailable");
 
     expect(releaseScheduleMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("previewRenewalAtSeats", () => {
+  it("previews the subscription when no schedule manages it", async () => {
+    previewRenewalAtQuantityMock.mockResolvedValue({ total: 8925 });
+
+    await expect(
+      previewRenewalAtSeats({
+        seatItemId: "si_1",
+        seats: 3,
+        stripeSubscription: SUBSCRIPTION,
+      }),
+    ).resolves.toEqual({ total: 8925 });
+
+    expect(previewRenewalAtQuantityMock).toHaveBeenCalledWith(
+      "sub_1",
+      "si_1",
+      3,
+    );
+    expect(previewScheduleRenewalMock).not.toHaveBeenCalled();
+  });
+
+  it("goes through the schedule, which would otherwise override the count", async () => {
+    retrieveScheduleMock.mockResolvedValue(schedule());
+    previewScheduleRenewalMock.mockResolvedValue({ total: 8925 });
+
+    await previewRenewalAtSeats({
+      seatItemId: "si_1",
+      seats: 3,
+      stripeSubscription: { id: "sub_1", schedule: "sub_sched_1" },
+    });
+
+    expect(previewRenewalAtQuantityMock).not.toHaveBeenCalled();
+    const [scheduleId, phases] = previewScheduleRenewalMock.mock.calls[0] ?? [];
+    expect(scheduleId).toBe("sub_sched_1");
+    expect(phases[0].items).toEqual([{ price: "price_starter", quantity: 6 }]);
+    expect(phases[1].items).toEqual([{ price: "price_starter", quantity: 3 }]);
+    expect(updateScheduleMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the price of a scheduled plan change", async () => {
+    retrieveScheduleMock.mockResolvedValue(
+      schedule({
+        metadata: {},
+        phases: [
+          phase(PERIOD_START, PERIOD_END, 6),
+          {
+            ...phase(PERIOD_END, NEXT_PERIOD_END, 6),
+            items: [{ price: "price_pro", quantity: 6 }],
+          },
+        ],
+      }),
+    );
+    previewScheduleRenewalMock.mockResolvedValue({ total: 1 });
+
+    await previewRenewalAtSeats({
+      seatItemId: "si_1",
+      seats: 8,
+      stripeSubscription: { id: "sub_1", schedule: "sub_sched_portal" },
+    });
+
+    const [, phases] = previewScheduleRenewalMock.mock.calls[0] ?? [];
+    expect(phases[1].items).toEqual([{ price: "price_pro", quantity: 8 }]);
   });
 });
 

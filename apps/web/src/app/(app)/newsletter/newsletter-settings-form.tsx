@@ -77,7 +77,7 @@ interface NewsletterSettingsFormProps {
   projectName: string;
   projectLogo: string | null;
   newsletter: Newsletter | null;
-  /** The workspace's sending domain card, shown below these settings. */
+  /** The project's sending domain card, shown below these settings. */
   sendingDomain?: ReactNode;
 }
 
