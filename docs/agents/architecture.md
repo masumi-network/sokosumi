@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Tech Stack & Architecture
 
-**Core Stack**: Next.js 16 (App Router), React 19.3, TypeScript, pnpm workspace, Node.js 24.x  
+**Core Stack**: Next.js 16 (App Router), React 19.3, TypeScript, pnpm workspace, Node.js 26.x  
 **Task runner**: Turborepo (`turbo.json`) orchestrates `build` / `typecheck` / `test`. pnpm remains the package manager. Do not restore app-level `prebuild` or Core `build:workspace-deps` — the graph is `dependsOn` in `turbo.json`. Per-package `prepare` still emits `dist` for Vercel filtered installs, except `@sokosumi/database`, which has no build at all — Core consumes its source and bundles it ([ADR 0035](../../docs/adr/0035-database-consumed-from-source.md)); its Prisma client comes from turbo `prisma:generate` on local machines and in CI, and from Core `vercel-build` on Vercel. `dev` and Biome stay outside turbo. See [ADR 0008](../../docs/adr/0008-turbo-task-runner-on-pnpm.md).
 **Web Architecture**: Three-layer pattern with services (`apps/web/src/lib/services/`) coordinating domain flows and actions (`apps/web/src/lib/actions/`) exposing typed server mutations. Web reaches data **only through the Core API** — it never touches Prisma/Postgres directly (see [Database Access](#database-access)).
 **API Architecture**: Hono with OpenAPI validation and standardized response helpers. Core owns all database access via Prisma (`@sokosumi/database`). New Core routes use direct Prisma; repositories remain for some legacy Core services. Web never touches the DB.

@@ -2,7 +2,7 @@
   "name": "web",
   "version": "0.1.0",
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "private": true,
   "portless": {
@@ -126,7 +126,7 @@
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.8",
     "@types/humanize-duration": "3.27.4",
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/react-file-icon": "1.0.5",

@@ -8,6 +8,9 @@ import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 import { NewsletterCalendar } from "./calendar";
 import { getMonthGridDays, getMonthGridRange, resolveMonth } from "./month";
 
+// Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
+vi.mock("temporal-polyfill", () => import("temporal-polyfill/implementation"));
+
 const url = vi.fn();
 const COPY = en.App.Projects.Newsletter.Calendar;
 const SCOPE = `projectId=${NEWSLETTER_PROJECT_ID}`;
