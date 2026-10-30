@@ -49,7 +49,9 @@ export function SeatCountInput({ id, value, onChange }: SeatCountInputProps) {
         <Minus aria-hidden />
       </Button>
       <Input
-        className="text-center tabular-nums"
+        // The +/- buttons replace the browser's spinner, which also pushes the
+        // number off-center.
+        className="text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         id={id}
         min={minimumSeats}
         onChange={(event) => {
@@ -85,17 +87,13 @@ export function OrganizationSeatSettingsFields({
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
   );
-  const minimumSeats = resolveMinimumOrganizationSeats();
-  const hintText = t("seatsInputHint", {
-    members: memberCount,
-    minimum: minimumSeats,
-  });
+  const hintText = t("seatsInputHint", { members: memberCount });
 
   return (
     <div className="space-y-2 md:grid md:grid-cols-[minmax(0,1fr)_240px] md:items-start md:gap-6 md:space-y-0">
       <div className="space-y-1">
         <label htmlFor={inputId} className="text-sm font-medium">
-          {t("seatsInputLabel")}
+          {t("seatsCheckoutLabel")}
         </label>
         <p className="text-muted-foreground hidden text-xs md:block">
           {hintText}

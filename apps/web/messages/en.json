@@ -7083,7 +7083,7 @@
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover paid seats in use. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
+          "seatsInputHint": "Choose how many seats to buy with a paid plan. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated.",
@@ -7130,7 +7130,8 @@
               "cancellationNote": "Your plan ends on {date}, and these seats end with it.",
               "cancel": "Cancel"
             }
-          }
+          },
+          "seatsCheckoutLabel": "Seats to purchase"
         },
         "Seats": {
           "title": "Seats overview",

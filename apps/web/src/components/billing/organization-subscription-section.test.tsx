@@ -308,7 +308,7 @@ describe("OrganizationSubscriptionSection", () => {
   });
 
   it("keeps the checkout seat field when no paid plan is current", () => {
-    const { getByRole } = render(
+    const { getByRole, getByText, queryByText } = render(
       <OrganizationSubscriptionSection
         assignedCount={0}
         isEnterpriseConsumable={false}
@@ -328,6 +328,8 @@ describe("OrganizationSubscriptionSection", () => {
 
     expect(organizationSeatsCardMock).not.toHaveBeenCalled();
     expect(getByRole("spinbutton")).toHaveValue(1);
+    expect(getByText("seatsCheckoutLabel")).toBeInTheDocument();
+    expect(queryByText("seatsInputLabel")).not.toBeInTheDocument();
   });
 
   it("hides the seats card during a consumable enterprise contract", () => {
