@@ -7669,6 +7669,7 @@
       "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
+      "inWorkspace": "in {workspace}",
       "reorderPinnedDone": "Done reordering",
       "SectionLimit": {
         "showMore": "Show {count} more",

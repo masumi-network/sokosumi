@@ -137,7 +137,7 @@ describe("OrganizationChatList Elsewhere rows", () => {
     expect(await screen.findByText(PERSONAL_LABEL)).toBeTruthy();
   });
 
-  it("offers no Pin, and leaves who may manage the room to the room", async () => {
+  it("leaves who may manage the room to the room", async () => {
     listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
 
     renderOrganizationChatList();

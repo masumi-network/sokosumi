@@ -319,6 +319,10 @@ export interface MapChatRoomAttentionOptions {
   myAccess?: "member" | "guest";
   /** Host org display name when batch-loaded (Task 5+); null for directs. */
   organizationName?: string | null;
+  /** Host org logo when batch-loaded for the sidebar's Workspace tile. */
+  organizationLogo?: string | null;
+  /** Host org website when batch-loaded for the sidebar's Workspace tile. */
+  organizationWebsiteUrl?: string | null;
   /** Other humans on this Direct are Members of the caller's active org. */
   peerInActiveOrganization?: boolean;
   /** Profiles of this Direct's former members, from `loadFormerDirectUserMembers`. */
@@ -367,6 +371,8 @@ export function mapChatRoom(
     markedUnread = false,
     myAccess: myAccessOverride,
     organizationName = null,
+    organizationLogo,
+    organizationWebsiteUrl,
     peerInActiveOrganization = false,
     formerUserMembers = [],
   } = attention;
@@ -384,6 +390,8 @@ export function mapChatRoom(
     id: room.id,
     organizationId: room.organizationId,
     organizationName,
+    organizationLogo,
+    organizationWebsiteUrl,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",

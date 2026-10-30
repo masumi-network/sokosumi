@@ -378,14 +378,36 @@ export function OrganizationChatList({
   const activeRoomId = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath)
     : getActiveRoomIdFromPathname(pathname);
-  const { rooms: heldElsewhereRooms, replaceRoom: replaceElsewhereRoom } =
-    useElsewhereRooms({
-      currentUserId,
-      organizationId,
-      activeRoomId,
-      enabled: !paintOnly,
-    });
-  const elsewhereRooms = paintOnly ? [] : heldElsewhereRooms;
+  const {
+    rooms: heldElsewhereRooms,
+    pinnedRooms: elsewherePinnedRooms,
+    replaceRoom: replaceElsewhereRoom,
+    applyPinnedOrder: applyElsewherePinnedOrder,
+    readAgain: readElsewhereAgain,
+  } = useElsewhereRooms({
+    currentUserId,
+    organizationId,
+    activeRoomId,
+    enabled: !paintOnly,
+  });
+  // An instant paint draws no Elsewhere rows, so only the pins it draws count.
+  const elsewhereRooms = paintOnly
+    ? heldElsewhereRooms.filter((room) => room.starredAt != null)
+    : heldElsewhereRooms;
+  // Core's two answers share no room. The active list can still be the old
+  // workspace's for a moment after a switch, and no room may show twice.
+  const otherWorkspacePins = useMemo(
+    () =>
+      elsewherePinnedRooms.filter(
+        (room) => !roomRows.some((row) => row.id === room.id),
+      ),
+    [elsewherePinnedRooms, roomRows],
+  );
+  // What is on screen under the filter, which Elsewhere rows are not.
+  const markAllRooms = useMemo(
+    () => [...roomRows, ...otherWorkspacePins],
+    [roomRows, otherWorkspacePins],
+  );
   const { rows: elsewhereRows, overflowCount: elsewhereOverflowCount } =
     selectElsewhereRows(elsewhereRooms, activeRoomId);
   // All unreads (SOK-1159): the rooms a read would still change, newest
@@ -403,8 +425,8 @@ export function OrganizationChatList({
     [roomRows],
   );
   const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
-    () => partitionRoomsForSidebar(roomRows),
-    [roomRows],
+    () => partitionRoomsForSidebar(markAllRooms),
+    [markAllRooms],
   );
   // The filter is one flat list with Pinned under it, not the sections: a
   // heading over one or two rooms is noise. Pinned stays last, so the
@@ -448,7 +470,11 @@ export function OrganizationChatList({
   const otherInboxRooms = inboxRooms.filter(
     (room) => !needsYouInboxRooms.includes(room),
   );
-  const unreadRoomIds = new Set(unreadRooms.map((room) => room.id));
+  const unreadRoomIds = new Set(
+    [...unreadRooms, ...otherWorkspacePins.filter(roomHasUnread)].map(
+      (room) => room.id,
+    ),
+  );
   const isUnreadRoom = (room: ChatRoom) => unreadRoomIds.has(room.id);
   // Past the limit a section still lists what is unread and the open room,
   // so nothing new waits behind "Show more".
@@ -510,12 +536,12 @@ export function OrganizationChatList({
     // Local sort keys only; Core writes its own and the next list load
     // brings them. The order is what matters, and it is the same.
     const base = Date.now() - roomIds.length;
-    applyPinnedOrder(
-      roomIds.map((roomId, index) => ({
-        roomId,
-        starredAt: new Date(base + index),
-      })),
-    );
+    const localOrder = roomIds.map((roomId, index) => ({
+      roomId,
+      starredAt: new Date(base + index),
+    }));
+    applyPinnedOrder(localOrder);
+    applyElsewherePinnedOrder(localOrder);
 
     async function reloadAfterFailure() {
       // A newer reorder owns the list now.
@@ -523,6 +549,7 @@ export function OrganizationChatList({
       toast.error(tActions("actionFailed"));
       // What Core holds is the truth: an earlier overlapping reorder may
       // have landed, so no local snapshot is safe to put back.
+      readElsewhereAgain();
       const requestRevision = beginRoomAttentionRefresh();
       const roomsResult = await listOrganizationChatRoomsAction();
       if (roomsResult.ok && request === reorderRequestRef.current) {
@@ -532,11 +559,19 @@ export function OrganizationChatList({
 
     void reorderPinnedOrganizationChatRoomsAction(roomIds).then((result) => {
       if (!result.ok) return reloadAfterFailure();
+      if (request !== reorderRequestRef.current) return;
+      // Core's keys in both stores: the next read of one sorts against the
+      // other, which still holds these. That read also brings what a dropped
+      // read held, and the other workspaces' copies are stale now.
+      applyPinnedOrder(result.value);
+      applyElsewherePinnedOrder(result.value);
+      readElsewhereAgain();
     }, reloadAfterFailure);
   }
 
   function roomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
     const isDirect = room.kind === "direct";
+    const isOtherWorkspacePin = otherWorkspacePins.includes(room);
     return {
       room,
       href: `/chat/rooms/${room.id}`,
@@ -553,9 +588,13 @@ export function OrganizationChatList({
       ) : (
         <ChannelKindGlyph discoverability={room.discoverability} />
       ),
-      onRoomUpdated: replaceRoom,
+      onRoomUpdated: isOtherWorkspacePin ? replaceElsewhereRoom : replaceRoom,
       dismissSheetOnNavigate,
-      canManageSettings: canManageChannelSettings(room, isOrgOwnerOrAdmin),
+      // As on an Elsewhere row: the room works out its own role once it opens.
+      canManageSettings:
+        !isOtherWorkspacePin &&
+        canManageChannelSettings(room, isOrgOwnerOrAdmin),
+      workspaceName: isOtherWorkspacePin ? roomWorkspaceName(room) : undefined,
     };
   }
 
@@ -570,6 +609,7 @@ export function OrganizationChatList({
     <SidebarGroupContent className="space-y-2">
       <ChatUnreadNavRows
         rooms={roomRows}
+        markAllRooms={markAllRooms}
         dismissSheetOnNavigate={dismissSheetOnNavigate}
         unreadOnly={unreadOnly}
         onUnreadOnlyChange={
@@ -1169,7 +1209,7 @@ export function OrganizationChatList({
               inlineAction={
                 <>
                   <ChatMarkAllReadButton
-                    rooms={roomRows}
+                    rooms={markAllRooms}
                     unreadOnly={unreadOnly}
                   />
                   <ChatUnreadsFilterChip

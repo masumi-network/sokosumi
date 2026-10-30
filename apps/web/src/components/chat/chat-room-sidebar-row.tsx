@@ -56,6 +56,7 @@ import {
   RoomUnreadCount,
   useRoomRowAttention,
 } from "@/components/chat/room-row-attention";
+import { RoomWorkspaceTile } from "@/components/chat/room-workspace-tile";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -150,12 +151,15 @@ export interface ChatRoomSidebarRowProps {
    */
   canManageSettings?: boolean;
   /**
-   * An Elsewhere row. Leaves Pin out of the menu, where pinning would seem to
-   * do nothing, because Pinned lists the active workspace's rooms. Unpin stays
-   * on a pinned room: Mute waits on it. Draws what `useRoomRowAttention` says
-   * of an Elsewhere room, with no inset Thread rows.
+   * An Elsewhere row. Draws what `useRoomRowAttention` says of an Elsewhere
+   * room, with no inset Thread rows.
    */
   elsewhere?: boolean;
+  /**
+   * A Pinned room of another workspace: the workspace's name, for the row's
+   * tooltip and accessible name. Given, the row carries its Workspace tile.
+   */
+  workspaceName?: string | null | undefined;
 }
 
 /**
@@ -251,6 +255,7 @@ export function ChatRoomSidebarRow({
   reorderHandle,
   canManageSettings = false,
   elsewhere = false,
+  workspaceName,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
@@ -277,6 +282,7 @@ export function ChatRoomSidebarRow({
   // the hole that keeps the name clear of it has to be held open for either.
   const hasRowCount =
     mentionCount > 0 || needsYouCount > 0 || unreadTextCount > 0;
+  const hasTile = workspaceName != null;
 
   function runRoomAction(
     action: (
@@ -314,6 +320,14 @@ export function ChatRoomSidebarRow({
           return;
         }
         applyResult(result.value);
+        // Every workspace's list changed: what shows under Pinned here, and what
+        // a later switch shows there.
+        if (
+          action === pinOrganizationChatRoomAction ||
+          action === unpinOrganizationChatRoomAction
+        ) {
+          notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+        }
       } catch {
         if (applyResult(null)) toast.error(tActions("actionFailed"));
       }
@@ -398,6 +412,7 @@ export function ChatRoomSidebarRow({
       )}
       href={href}
       tabIndex={reorderHandle ? -1 : undefined}
+      title={workspaceName ?? undefined}
     >
       <SidebarRowSlot>{leading}</SidebarRowSlot>
       <span className={SIDEBAR_ROW_LABEL_CLASS}>
@@ -414,6 +429,11 @@ export function ChatRoomSidebarRow({
         >
           {label}
         </span>
+        {hasTile ? (
+          <span className="sr-only">
+            {tChannels("inWorkspace", { workspace: workspaceName })}
+          </span>
+        ) : null}
         <RoomUnreadCount count={unreadTextCount} />
         {subtitle ? (
           <span className="text-muted-foreground block truncate text-xs leading-tight">
@@ -432,6 +452,12 @@ export function ChatRoomSidebarRow({
           // hole holds two boxes. They are the same 32px box, and a muted room
           // carries no badge, so one width serves both.
           (isMuted || hasRowCount) && "[@media(hover:none)]:w-16",
+          // The Workspace tile stands in flow to the left of all that. These
+          // carry `md:` too, or the `md:size-7` above would win at that width.
+          hasTile &&
+            (hasRowCount
+              ? "[@media(hover:none)]:w-18 [@media(hover:none)]:md:w-16"
+              : "[@media(hover:none)]:w-10 [@media(hover:none)]:md:w-8"),
           // A muted row shows its glyph at rest, a badged row shows its badge,
           // and the open room is the row being read, so all three hold the
           // 16px hole in every state. The name is `flex-1 min-w-0`, so a hole
@@ -448,16 +474,22 @@ export function ChatRoomSidebarRow({
           // the menu's column and crossfades with it. Reorder mode is the
           // exception: its handle never fades, so the badge stays in flow
           // beside it and the hole holds both.
+          //
+          // A Workspace tile rests in the menu's column as the bell does. Beside
+          // a count or a handle it stands just left of that column, so the hole
+          // grows by the tile. With both, `w-16` already clears all three.
           hasRowCount && reorderHandle
             ? "[@media(hover:hover)]:w-16"
-            : isMuted || isActive || reorderHandle || hasRowCount
-              ? "[@media(hover:hover)]:size-4"
-              : [
-                  "[@media(hover:hover)]:size-0",
-                  "[@media(hover:hover)]:group-hover/room-row:size-4",
-                  "[@media(hover:hover)]:group-focus-within/room-row:size-4",
-                  "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
-                ],
+            : hasTile && (hasRowCount || reorderHandle)
+              ? "[@media(hover:hover)]:w-8"
+              : isMuted || isActive || reorderHandle || hasRowCount || hasTile
+                ? "[@media(hover:hover)]:size-4"
+                : [
+                    "[@media(hover:hover)]:size-0",
+                    "[@media(hover:hover)]:group-hover/room-row:size-4",
+                    "[@media(hover:hover)]:group-focus-within/room-row:size-4",
+                    "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
+                  ],
         )}
         aria-hidden
       />
@@ -492,6 +524,13 @@ export function ChatRoomSidebarRow({
       <div data-slot="room-row-main" className="group/room-row relative">
         {roomButton}
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
+          {hasTile ? (
+            <RoomWorkspaceTile
+              room={room}
+              workspaceName={workspaceName}
+              takesMenuColumn={!hasRowCount && reorderHandle == null}
+            />
+          ) : null}
           <MentionBadge
             count={mentionCount}
             needsYouCount={needsYouCount}
@@ -543,31 +582,29 @@ export function ChatRoomSidebarRow({
                     <MessageSquare className="size-4" aria-hidden />
                     {tActions("markUnread")}
                   </DropdownMenuItem>
-                  {!elsewhere || isPinned ? (
-                    <DropdownMenuItem
-                      disabled={isPending || isMuted}
-                      onSelect={() => {
-                        if (isPinned) {
-                          runRoomAction(unpinOrganizationChatRoomAction, {
-                            ...room,
-                            starredAt: null,
-                          });
-                          return;
-                        }
-                        runRoomAction(pinOrganizationChatRoomAction, {
+                  <DropdownMenuItem
+                    disabled={isPending || isMuted}
+                    onSelect={() => {
+                      if (isPinned) {
+                        runRoomAction(unpinOrganizationChatRoomAction, {
                           ...room,
-                          starredAt: new Date(),
+                          starredAt: null,
                         });
-                      }}
-                    >
-                      {isPinned ? (
-                        <PinOff className="size-4" aria-hidden />
-                      ) : (
-                        <Pin className="size-4" aria-hidden />
-                      )}
-                      {isPinned ? tActions("unpin") : tActions("pin")}
-                    </DropdownMenuItem>
-                  ) : null}
+                        return;
+                      }
+                      runRoomAction(pinOrganizationChatRoomAction, {
+                        ...room,
+                        starredAt: new Date(),
+                      });
+                    }}
+                  >
+                    {isPinned ? (
+                      <PinOff className="size-4" aria-hidden />
+                    ) : (
+                      <Pin className="size-4" aria-hidden />
+                    )}
+                    {isPinned ? tActions("unpin") : tActions("pin")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={isPending || isPinned}
                     onSelect={() => {

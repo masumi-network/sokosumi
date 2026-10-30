@@ -232,11 +232,13 @@ function arrange({
   unread = [],
   mentions = {},
   markedUnread = [],
+  pinned = [],
 }: {
   rooms: Row[];
   unread?: UnreadFixture[];
   mentions?: Record<string, number>;
   markedUnread?: string[];
+  pinned?: string[];
 }) {
   roomFindManyMock.mockImplementation(
     async ({
@@ -269,7 +271,13 @@ function arrange({
       _count: { _all: count },
     })),
   );
-  membershipFindManyMock.mockResolvedValue([]);
+  membershipFindManyMock.mockResolvedValue(
+    pinned.map((roomId) => ({
+      roomId,
+      starredAt: new Date("2026-01-03T00:00:00.000Z"),
+      mutedAt: null,
+    })),
+  );
   readStateFindManyMock.mockImplementation(
     async ({ select }: { select: Record<string, unknown> }) =>
       "markedUnreadAt" in select
@@ -280,7 +288,12 @@ function arrange({
         : [],
   );
   organizationFindManyMock.mockResolvedValue([
-    { id: OTHER_ORG, name: "Other Org" },
+    {
+      id: OTHER_ORG,
+      name: "Other Org",
+      logo: "https://cdn.example/other.png",
+      metadata: JSON.stringify({ url: "https://other.example" }),
+    },
   ]);
 }
 
@@ -315,6 +328,9 @@ async function listElsewhere(authContext = reader) {
       unreadCount: number;
       threadUnreadCount?: number;
       unreadMentionCount: number;
+      starredAt: string | null;
+      organizationLogo: string | null;
+      organizationWebsiteUrl: string | null;
     }>;
   };
   return body.data;
@@ -525,6 +541,79 @@ describe("GET /chats/rooms/elsewhere", () => {
     expect((await listElsewhere())[0]).toMatchObject({
       id: room.id,
       unreadMentionCount: 1,
+    });
+  });
+
+  it("lists a read room the reader pinned, with what its Workspace tile draws", async () => {
+    const pinned = roomRow();
+    arrange({ rooms: [pinned], pinned: [pinned.id] });
+
+    const rooms = await listElsewhere();
+
+    expect(rooms.map((row) => row.id)).toEqual([pinned.id]);
+    expect(rooms[0]).toMatchObject({
+      starredAt: "2026-01-03T00:00:00.000Z",
+      unreadCount: 0,
+      organizationName: "Other Org",
+      organizationLogo: "https://cdn.example/other.png",
+      organizationWebsiteUrl: "https://other.example",
+    });
+  });
+
+  it("lists an unread pinned room once", async () => {
+    const pinned = roomRow();
+    arrange({
+      rooms: [pinned],
+      pinned: [pinned.id],
+      unread: [{ roomId: pinned.id, channel: 2 }],
+    });
+
+    const rooms = await listElsewhere();
+
+    expect(rooms.map((row) => row.id)).toEqual([pinned.id]);
+    expect(rooms[0].unreadCount).toBe(2);
+  });
+
+  it("gives a muted pinned room no place", async () => {
+    const muted = roomRow();
+    muted.userMembers[0].mutedAt = new Date("2026-01-03T00:00:00.000Z");
+    arrange({ rooms: [muted], pinned: [muted.id] });
+
+    expect(await listElsewhere()).toEqual([]);
+  });
+
+  it("gives a pinned room the active workspace lists no place", async () => {
+    const own = roomRow({ organizationId: ACTIVE_ORG });
+    const external = roomRow({ discoverability: "external" });
+    arrange({ rooms: [own, external], pinned: [own.id, external.id] });
+
+    expect(await listElsewhere()).toEqual([]);
+  });
+
+  it("gives a pinned room of an Organization the reader left, or an archived one, no place", async () => {
+    const left = roomRow({ organizationId: FORMER_ORG });
+    const archived = roomRow({
+      archivedAt: new Date("2026-01-03T00:00:00.000Z"),
+    });
+    arrange({ rooms: [left, archived], pinned: [left.id, archived.id] });
+
+    expect(await listElsewhere()).toEqual([]);
+  });
+
+  it("lists a pinned coworker Direct of the personal workspace, with no Organization to draw", async () => {
+    const coworkerDirect = roomRow({
+      organizationId: null,
+      kind: "direct",
+      discoverability: null,
+      coworkerMembers: [COWORKER_MEMBER],
+    });
+    arrange({ rooms: [coworkerDirect], pinned: [coworkerDirect.id] });
+
+    expect((await listElsewhere())[0]).toMatchObject({
+      id: coworkerDirect.id,
+      organizationName: null,
+      organizationLogo: null,
+      organizationWebsiteUrl: null,
     });
   });
 

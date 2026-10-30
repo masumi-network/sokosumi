@@ -2,6 +2,7 @@ import type { ChatRoom } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  isListedInWorkspace,
   isRoomOfWorkspace,
   isShownInEveryWorkspace,
   type RoomWorkspaceScope,
@@ -108,5 +109,37 @@ describe("isRoomOfWorkspace", () => {
     ],
   ])("is a Room visit from %s", (_name, room, workspaceId) => {
     expect(isRoomOfWorkspace(room, workspaceId)).toBe(false);
+  });
+});
+
+describe("isListedInWorkspace", () => {
+  const pinned = { starredAt: new Date("2026-08-01T00:00:00.000Z") };
+  const unpinned = { starredAt: null };
+
+  it("lists a pinned room in every workspace", () => {
+    expect(isListedInWorkspace({ ...channel({}), ...pinned }, "org-3")).toBe(
+      true,
+    );
+    expect(isListedInWorkspace({ ...channel({}), ...pinned }, null)).toBe(true);
+  });
+
+  it("lists an unpinned room only where it belongs", () => {
+    const room = { ...channel({}), ...unpinned };
+    expect(isListedInWorkspace(room, "org-3")).toBe(false);
+    expect(isListedInWorkspace(room, "org-1")).toBe(true);
+    expect(
+      isListedInWorkspace(
+        { ...channel({ discoverability: "external" }), ...unpinned },
+        "org-3",
+      ),
+    ).toBe(true);
+  });
+
+  // The room's own Organization still decides its roster and role, and a
+  // `#general` in it must not resolve to the active workspace's.
+  it("leaves a pinned room of another workspace a Room visit", () => {
+    expect(isRoomOfWorkspace({ ...channel({}), ...pinned }, "org-3")).toBe(
+      false,
+    );
   });
 });

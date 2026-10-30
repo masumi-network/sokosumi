@@ -1,4 +1,4 @@
-import type { ChatRoomMessage } from "@sokosumi/core-client";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
@@ -422,5 +422,51 @@ describe("room open prefetched on click", () => {
     vi.advanceTimersByTime(10_001);
     await cache.refresh("room", seed(), () => true);
     expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("RoomTranscriptCache.forWorkspace", () => {
+  function cacheWithOpenRoom(starredAt: Date | null) {
+    const cache = new RoomTranscriptCache(new QueryClient(), "reader", "org-2");
+    const entry = cache.seed({
+      activeOrganization: null,
+      rooms: [
+        {
+          id: "room",
+          organizationId: "org-2",
+          kind: "channel",
+          discoverability: "public",
+          myAccess: "member",
+          coworkerMembers: [],
+          sokoBotMembers: [],
+          starredAt,
+        } as Partial<ChatRoom> as ChatRoom,
+      ],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [message(1)],
+      messagesNextCursor: null,
+    });
+    cache.client.setQueryData(cache.key("room"), entry);
+    return { cache, entry };
+  }
+
+  it("keeps a pinned room painted on a switch to a third workspace", () => {
+    const { cache, entry } = cacheWithOpenRoom(
+      new Date("2026-08-01T00:00:00.000Z"),
+    );
+
+    expect(cache.forWorkspace("org-3", "room").get("room")).toBe(entry);
+  });
+
+  it("drops an unpinned room on a switch to a third workspace", () => {
+    const { cache } = cacheWithOpenRoom(null);
+
+    expect(cache.forWorkspace("org-3", "room").get("room")).toBeUndefined();
   });
 });

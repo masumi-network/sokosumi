@@ -119,6 +119,7 @@ function renderRows(
     <NextIntlClientProvider locale="en" messages={messages}>
       <ChatUnreadNavRows
         rooms={rooms}
+        markAllRooms={rooms}
         dismissSheetOnNavigate={false}
         unreadOnly={filter.unreadOnly ?? false}
         onUnreadOnlyChange={filter.onUnreadOnlyChange ?? vi.fn()}
@@ -203,6 +204,37 @@ describe("ChatUnreadNavRows", () => {
     await userEvent.click(toggle);
 
     expect(onUnreadOnlyChange).toHaveBeenCalledWith(true);
+  });
+
+  // The phone's Chats page: Pinned rooms of other workspaces are on screen, so
+  // the button clears them, and the row's counts stay on the active workspace.
+  it("clears what `markAllRooms` holds, and counts only `rooms`", async () => {
+    const pinned = makeRoom({
+      id: "pinned-elsewhere",
+      unreadCount: 2,
+      channelUnreadCount: 2,
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatUnreadNavRows
+          rooms={[]}
+          markAllRooms={[pinned]}
+          dismissSheetOnNavigate={false}
+          unreadOnly
+          onUnreadOnlyChange={vi.fn()}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mark all as read" }),
+    );
+
+    await waitFor(() =>
+      expect(markAllActionMock).toHaveBeenCalledWith([
+        { roomId: "pinned-elsewhere", readRoom: true, lookThreads: false },
+      ]),
+    );
   });
 
   it("offers Mark all as read only while the filter is on", async () => {
@@ -300,6 +332,7 @@ describe("ChatUnreadNavRows", () => {
       <NextIntlClientProvider locale="en" messages={messages}>
         <ChatUnreadNavRows
           rooms={[makeRoom({ id: "a", unreadNeedsYouCount: 3 })]}
+          markAllRooms={[makeRoom({ id: "a", unreadNeedsYouCount: 3 })]}
           dismissSheetOnNavigate={false}
           unreadOnly={false}
         />
@@ -324,6 +357,9 @@ describe("ChatUnreadNavRows", () => {
       <NextIntlClientProvider locale="en" messages={messages}>
         <ChatUnreadNavRows
           rooms={[makeRoom({ id: "a", unreadCount: 2, channelUnreadCount: 2 })]}
+          markAllRooms={[
+            makeRoom({ id: "a", unreadCount: 2, channelUnreadCount: 2 }),
+          ]}
           dismissSheetOnNavigate={false}
           unreadOnly
         />

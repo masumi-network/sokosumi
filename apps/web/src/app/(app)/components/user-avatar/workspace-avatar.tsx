@@ -3,6 +3,7 @@
 import type { SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import {
   OrganizationLogo,
@@ -16,6 +17,8 @@ interface WorkspaceAvatarProps {
   organization?: OrganizationLogoSource | null;
   className?: string;
   logoSize?: number;
+  /** Stands in for an organization with no logo or favicon. */
+  logoFallback?: ReactNode;
   /**
    * When true, the avatar is purely visual (e.g. closed switcher trigger that
    * already exposes the workspace name in text). Hides the image from AT.
@@ -33,12 +36,17 @@ export function WorkspaceAvatar({
   organization,
   className = "size-8",
   logoSize = 18,
+  logoFallback,
   decorative = false,
 }: WorkspaceAvatarProps) {
   const t = useTranslations("Components.OrganizationSwitcher");
   const avatar = organization ? (
     <Avatar className={cn("bg-muted items-center justify-center", className)}>
-      <OrganizationLogo organization={organization} size={logoSize} />
+      <OrganizationLogo
+        organization={organization}
+        size={logoSize}
+        fallback={logoFallback}
+      />
     </Avatar>
   ) : (
     <UserAvatarContent
