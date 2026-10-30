@@ -50,7 +50,7 @@ export default async function NewsletterSettingsPage({
 
   const [newsletter, sendingDomain, page, t] = await Promise.all([
     newsletterService.getSettings(project.id),
-    newsletterService.getSendingDomain(),
+    newsletterService.getSendingDomain(project.id),
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);

@@ -5393,57 +5393,6 @@ export type NewsletterAvailability = {
     enabled: boolean;
 };
 
-export type NewsletterSendingDomainState = {
-    /**
-     * Null until a workspace owner or admin adds one.
-     */
-    sendingDomain: NewsletterSendingDomain | null;
-    canManage: boolean;
-    fallbackAvailable: boolean;
-};
-
-export type NewsletterSendingDomain = {
-    id: string;
-    domain: string;
-    fromAddress: string;
-    status: NewsletterSendingDomainStatus;
-    dnsRecords: Array<NewsletterDnsRecord>;
-    lastCheckedAt: Date | null;
-    failureReason: string | null;
-    createdAt: Date;
-};
-
-export const NewsletterSendingDomainStatus = {
-    PENDING: 'PENDING',
-    VERIFIED: 'VERIFIED',
-    FAILED: 'FAILED'
-} as const;
-
-export type NewsletterSendingDomainStatus = typeof NewsletterSendingDomainStatus[keyof typeof NewsletterSendingDomainStatus];
-
-export type NewsletterDnsRecord = {
-    record: string;
-    type: string;
-    name: string;
-    value: string;
-    ttl: string;
-    priority: number | null;
-    status: string;
-};
-
-export type PutNewsletterSendingDomainRequest = {
-    fromAddress: string;
-};
-
-export type ConnectNewsletterSendingDomainCloudflareRequest = {
-    apiToken: string;
-};
-
-export type NewsletterSendingDomainConnect = {
-    providerName: string;
-    applyUrl: string;
-} | null;
-
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -6893,6 +6842,57 @@ export type PutNewsletterRequest = {
     welcomeSubject?: string | null;
     welcomeBody?: string | null;
 };
+
+export type NewsletterSendingDomainState = {
+    /**
+     * Null until a member adds a sending domain to this Project.
+     */
+    sendingDomain: NewsletterSendingDomain | null;
+    canManage: boolean;
+    fallbackAvailable: boolean;
+};
+
+export type NewsletterSendingDomain = {
+    id: string;
+    domain: string;
+    fromAddress: string;
+    status: NewsletterSendingDomainStatus;
+    dnsRecords: Array<NewsletterDnsRecord>;
+    lastCheckedAt: Date | null;
+    failureReason: string | null;
+    createdAt: Date;
+};
+
+export const NewsletterSendingDomainStatus = {
+    PENDING: 'PENDING',
+    VERIFIED: 'VERIFIED',
+    FAILED: 'FAILED'
+} as const;
+
+export type NewsletterSendingDomainStatus = typeof NewsletterSendingDomainStatus[keyof typeof NewsletterSendingDomainStatus];
+
+export type NewsletterDnsRecord = {
+    record: string;
+    type: string;
+    name: string;
+    value: string;
+    ttl: string;
+    priority: number | null;
+    status: string;
+};
+
+export type PutNewsletterSendingDomainRequest = {
+    fromAddress: string;
+};
+
+export type ConnectNewsletterSendingDomainCloudflareRequest = {
+    apiToken: string;
+};
+
+export type NewsletterSendingDomainConnect = {
+    providerName: string;
+    applyUrl: string;
+} | null;
 
 export type NewsletterSubscriberList = {
     subscribers: Array<NewsletterSubscriber>;
@@ -38178,558 +38178,6 @@ export type GetNewsletterAvailabilityResponses = {
 
 export type GetNewsletterAvailabilityResponse = GetNewsletterAvailabilityResponses[keyof GetNewsletterAvailabilityResponses];
 
-export type DeleteNewsletterSendingDomainData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/newsletter/sending-domain';
-};
-
-export type DeleteNewsletterSendingDomainErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Resend could not remove the domain
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteNewsletterSendingDomainError = DeleteNewsletterSendingDomainErrors[keyof DeleteNewsletterSendingDomainErrors];
-
-export type DeleteNewsletterSendingDomainResponses = {
-    /**
-     * Newsletter sending domain removed
-     */
-    204: void;
-};
-
-export type DeleteNewsletterSendingDomainResponse = DeleteNewsletterSendingDomainResponses[keyof DeleteNewsletterSendingDomainResponses];
-
-export type GetNewsletterSendingDomainData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
-         */
-        'X-Context-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/newsletter/sending-domain';
-};
-
-export type GetNewsletterSendingDomainErrors = {
-    /**
-     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetNewsletterSendingDomainError = GetNewsletterSendingDomainErrors[keyof GetNewsletterSendingDomainErrors];
-
-export type GetNewsletterSendingDomainResponses = {
-    /**
-     * Newsletter sending domain
-     */
-    200: {
-        data: NewsletterSendingDomainState;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetNewsletterSendingDomainResponse = GetNewsletterSendingDomainResponses[keyof GetNewsletterSendingDomainResponses];
-
-export type PutNewsletterSendingDomainData = {
-    body: PutNewsletterSendingDomainRequest;
-    path?: never;
-    query?: never;
-    url: '/newsletter/sending-domain';
-};
-
-export type PutNewsletterSendingDomainErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PutNewsletterSendingDomainError = PutNewsletterSendingDomainErrors[keyof PutNewsletterSendingDomainErrors];
-
-export type PutNewsletterSendingDomainResponses = {
-    /**
-     * Newsletter sending domain saved
-     */
-    200: {
-        data: NewsletterSendingDomain;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PutNewsletterSendingDomainResponse = PutNewsletterSendingDomainResponses[keyof PutNewsletterSendingDomainResponses];
-
-export type PostNewsletterSendingDomainCheckData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/newsletter/sending-domain/check';
-};
-
-export type PostNewsletterSendingDomainCheckErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostNewsletterSendingDomainCheckError = PostNewsletterSendingDomainCheckErrors[keyof PostNewsletterSendingDomainCheckErrors];
-
-export type PostNewsletterSendingDomainCheckResponses = {
-    /**
-     * Newsletter sending domain checked
-     */
-    200: {
-        data: NewsletterSendingDomain;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostNewsletterSendingDomainCheckResponse = PostNewsletterSendingDomainCheckResponses[keyof PostNewsletterSendingDomainCheckResponses];
-
-export type PostNewsletterSendingDomainCloudflareData = {
-    body: ConnectNewsletterSendingDomainCloudflareRequest;
-    path?: never;
-    query?: never;
-    url: '/newsletter/sending-domain/cloudflare';
-};
-
-export type PostNewsletterSendingDomainCloudflareErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cloudflare request failed
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostNewsletterSendingDomainCloudflareError = PostNewsletterSendingDomainCloudflareErrors[keyof PostNewsletterSendingDomainCloudflareErrors];
-
-export type PostNewsletterSendingDomainCloudflareResponses = {
-    /**
-     * DNS records created in Cloudflare
-     */
-    200: {
-        data: NewsletterSendingDomain;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostNewsletterSendingDomainCloudflareResponse = PostNewsletterSendingDomainCloudflareResponses[keyof PostNewsletterSendingDomainCloudflareResponses];
-
-export type GetNewsletterSendingDomainDomainConnectData = {
-    body?: never;
-    path?: never;
-    query?: {
-        projectId?: string;
-    };
-    url: '/newsletter/sending-domain/domain-connect';
-};
-
-export type GetNewsletterSendingDomainDomainConnectErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetNewsletterSendingDomainDomainConnectError = GetNewsletterSendingDomainDomainConnectErrors[keyof GetNewsletterSendingDomainDomainConnectErrors];
-
-export type GetNewsletterSendingDomainDomainConnectResponses = {
-    /**
-     * Domain Connect apply URL, or null
-     */
-    200: {
-        data: NewsletterSendingDomainConnect;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetNewsletterSendingDomainDomainConnectResponse = GetNewsletterSendingDomainDomainConnectResponses[keyof GetNewsletterSendingDomainDomainConnectResponses];
-
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;
@@ -50647,6 +50095,758 @@ export type PatchProjectsByIdNewsletterIssuesByIssueIdResponses = {
 };
 
 export type PatchProjectsByIdNewsletterIssuesByIssueIdResponse = PatchProjectsByIdNewsletterIssuesByIssueIdResponses[keyof PatchProjectsByIdNewsletterIssuesByIssueIdResponses];
+
+export type DeleteProjectsByIdNewsletterSendingDomainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain';
+};
+
+export type DeleteProjectsByIdNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Resend could not remove the domain
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdNewsletterSendingDomainError = DeleteProjectsByIdNewsletterSendingDomainErrors[keyof DeleteProjectsByIdNewsletterSendingDomainErrors];
+
+export type DeleteProjectsByIdNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain removed
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdNewsletterSendingDomainResponse = DeleteProjectsByIdNewsletterSendingDomainResponses[keyof DeleteProjectsByIdNewsletterSendingDomainResponses];
+
+export type GetProjectsByIdNewsletterSendingDomainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain';
+};
+
+export type GetProjectsByIdNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainError = GetProjectsByIdNewsletterSendingDomainErrors[keyof GetProjectsByIdNewsletterSendingDomainErrors];
+
+export type GetProjectsByIdNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain
+     */
+    200: {
+        data: NewsletterSendingDomainState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainResponse = GetProjectsByIdNewsletterSendingDomainResponses[keyof GetProjectsByIdNewsletterSendingDomainResponses];
+
+export type PutProjectsByIdNewsletterSendingDomainData = {
+    body: PutNewsletterSendingDomainRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain';
+};
+
+export type PutProjectsByIdNewsletterSendingDomainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdNewsletterSendingDomainError = PutProjectsByIdNewsletterSendingDomainErrors[keyof PutProjectsByIdNewsletterSendingDomainErrors];
+
+export type PutProjectsByIdNewsletterSendingDomainResponses = {
+    /**
+     * Newsletter sending domain saved
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdNewsletterSendingDomainResponse = PutProjectsByIdNewsletterSendingDomainResponses[keyof PutProjectsByIdNewsletterSendingDomainResponses];
+
+export type PostProjectsByIdNewsletterSendingDomainCheckData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/check';
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCheckErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCheckError = PostProjectsByIdNewsletterSendingDomainCheckErrors[keyof PostProjectsByIdNewsletterSendingDomainCheckErrors];
+
+export type PostProjectsByIdNewsletterSendingDomainCheckResponses = {
+    /**
+     * Newsletter sending domain checked
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCheckResponse = PostProjectsByIdNewsletterSendingDomainCheckResponses[keyof PostProjectsByIdNewsletterSendingDomainCheckResponses];
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareData = {
+    body: ConnectNewsletterSendingDomainCloudflareRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/cloudflare';
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cloudflare request failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareError = PostProjectsByIdNewsletterSendingDomainCloudflareErrors[keyof PostProjectsByIdNewsletterSendingDomainCloudflareErrors];
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareResponses = {
+    /**
+     * DNS records created in Cloudflare
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainCloudflareResponse = PostProjectsByIdNewsletterSendingDomainCloudflareResponses[keyof PostProjectsByIdNewsletterSendingDomainCloudflareResponses];
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/domain-connect';
+};
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectError = GetProjectsByIdNewsletterSendingDomainDomainConnectErrors[keyof GetProjectsByIdNewsletterSendingDomainDomainConnectErrors];
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponses = {
+    /**
+     * Domain Connect apply URL, or null
+     */
+    200: {
+        data: NewsletterSendingDomainConnect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponse = GetProjectsByIdNewsletterSendingDomainDomainConnectResponses[keyof GetProjectsByIdNewsletterSendingDomainDomainConnectResponses];
 
 export type GetProjectsByIdNewsletterSubscribersData = {
     body?: never;

@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 describe("newsletter email configuration", () => {
-  it("sends from the workspace's verified address under the sender name", () => {
+  it("sends from the project's verified address under the sender name", () => {
     expect(
       newsletterSenderOptions(
         { senderName: 'Ada"\\\r\nTest', replyTo: "ada@example.com" },
@@ -81,7 +81,7 @@ describe("newsletter email configuration", () => {
     ).toThrow("sending domain");
   });
 
-  it("needs no shared domain once the workspace domain is verified", () => {
+  it("needs no shared domain once the project domain is verified", () => {
     m.domain = undefined;
     expect(
       newsletterSenderOptions(NEWSLETTER, {

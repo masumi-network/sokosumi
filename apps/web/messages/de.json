@@ -3592,8 +3592,7 @@
         },
         "SendingDomain": {
           "title": "Absenderdomain",
-          "description": "Versende Newsletter von deiner eigenen Adresse, etwa news@news.deinemarke.de. Jedes Projekt in diesem Workspace nutzt sie.",
-          "managedByAdmins": "Nur Workspace-Inhaber oder -Admins können eine Absenderdomain verbinden.",
+          "description": "Versende den Newsletter dieses Projekts von deiner eigenen Adresse, etwa news@news.deinemarke.de.",
           "fromAddress": "Absenderadresse",
           "fromAddressPlaceholder": "news@news.deinemarke.de",
           "fromAddressHint": "Nutze eine Subdomain wie news.deinemarke.de. So bleibt die Reputation deiner Newsletter getrennt von deinen alltäglichen E-Mails.",
@@ -3607,7 +3606,7 @@
             "FAILED": "Fehlgeschlagen"
           },
           "lastChecked": "Zuletzt geprüft {time}",
-          "verifiedDescription": "Die Newsletter aller Projekte in diesem Workspace werden jetzt von dieser Adresse versendet.",
+          "verifiedDescription": "Der Newsletter dieses Projekts wird jetzt von dieser Adresse versendet.",
           "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
           "checked": "Geprüft. Deine DNS-Einträge sind noch nicht sichtbar. DNS-Änderungen können einige Stunden dauern.",
           "checkNow": "Jetzt prüfen",
@@ -3670,9 +3669,9 @@
           "errors": {
             "generic": "Die Absenderdomain konnte nicht aktualisiert werden. Versuche es erneut.",
             "invalidAddress": "Gib eine E-Mail-Adresse ein, etwa news@news.deinemarke.de.",
-            "forbidden": "Nur Workspace-Inhaber oder -Admins können die Absenderdomain ändern.",
+            "forbidden": "Du hast keinen Zugriff auf die Absenderdomain dieses Projekts. Lade die Seite neu.",
             "notFound": "Diese Absenderdomain wurde entfernt. Lade die Seite neu.",
-            "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderer Workspace nutzt.",
+            "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderes Projekt nutzt.",
             "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
             "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
             "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
