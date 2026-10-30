@@ -20996,9 +20996,76 @@ export const OrganizationSubscriptionSeatsSchema = {
             type: 'integer',
             description: 'Purchased seat count on the active subscription',
             example: 3
+        },
+        scheduledReduction: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                effectiveAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2025-02-01T00:00:00.000Z',
+                    description: 'When the reduction takes effect: the next renewal'
+                },
+                seats: {
+                    type: 'integer',
+                    description: 'Seat count the subscription drops to',
+                    example: 2
+                }
+            },
+            required: [
+                'effectiveAt',
+                'seats'
+            ],
+            description: 'Null when no reduction is pending'
         }
     },
     required: [
+        'seats',
+        'scheduledReduction'
+    ]
+} as const;
+
+export const OrganizationSubscriptionSeatsPreviewSchema = {
+    type: 'object',
+    properties: {
+        amountDue: {
+            type: 'integer',
+            description: 'Charged to the payment method right away, including tax. Zero unless seats are added',
+            example: 1234
+        },
+        currency: {
+            type: 'string',
+            description: 'Lowercase ISO currency code',
+            example: 'eur'
+        },
+        effectiveAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When a reduction takes effect: the next renewal. Null when the change applies right away'
+        },
+        newMonthlyAmount: {
+            type: 'integer',
+            description: 'Next regular invoice at the new seat count, including tax and discounts',
+            example: 14875
+        },
+        seats: {
+            type: 'integer',
+            description: 'The seat count this preview is for',
+            example: 5
+        }
+    },
+    required: [
+        'amountDue',
+        'currency',
+        'effectiveAt',
+        'newMonthlyAmount',
         'seats'
     ]
 } as const;

@@ -7,6 +7,10 @@ import {
   resolveBillingWalletByStripeCustomerId,
 } from "@/helpers/billing-notifications";
 import {
+  isCancellationScheduled,
+  releaseAppliedSeatReduction,
+} from "@/helpers/organization-subscription-seats";
+import {
   handleCheckoutSessionCompletedEvent,
   handleSubscriptionCreatedEvent,
   handleSubscriptionDeletedEvent,
@@ -96,9 +100,9 @@ export async function handleStripeAuthWebhookOnEvent(
     return;
   }
 
-  // The two notifications below are best-effort and never throw: a retry
-  // from Stripe would replay the plugin's own subscription handling for a
-  // notification that cannot be worth it.
+  // The two notifications and the schedule release below are best-effort and
+  // never throw: a retry from Stripe would replay the plugin's own subscription
+  // handling for work that cannot be worth it.
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object;
     const wallet = await resolveWalletOrReport(invoice.customer, event);
@@ -144,20 +148,22 @@ export async function handleStripeAuthWebhookOnEvent(
         });
       }
     }
+
+    try {
+      await releaseAppliedSeatReduction(subscription);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: {
+          stripeEventType: event.type,
+          stripeSubscriptionId: subscription.id,
+        },
+        extra: { eventId: event.id },
+      });
+    }
     return;
   }
 
   console.info(`Unhandled Stripe event type: ${event.type}`);
-}
-
-function isCancellationScheduled(
-  subscription: Partial<
-    Pick<Stripe.Subscription, "cancel_at" | "cancel_at_period_end">
-  >,
-): boolean {
-  return (
-    subscription.cancel_at_period_end === true || subscription.cancel_at != null
-  );
 }
 
 /** The wallet behind a Stripe customer field, or null with the miss reported. */

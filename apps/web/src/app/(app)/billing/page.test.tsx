@@ -79,6 +79,7 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/services/organization-seat.service", () => ({
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
+    getSubscriptionSeats: async () => null,
   },
 }));
 vi.mock("@/lib/services/user.service", () => ({
@@ -633,7 +634,7 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        currentPlan: "free",
+        assignedCount: 2,
         currentSeats: 5,
         isEnterpriseConsumable: false,
         isEnterpriseContract: false,

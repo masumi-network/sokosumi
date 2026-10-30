@@ -287,6 +287,8 @@ import {
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
+  getOrganizationsByIdSubscriptionSeats as coreGetOrganizationsByIdSubscriptionSeats,
+  getOrganizationsByIdSubscriptionSeatsPreview as coreGetOrganizationsByIdSubscriptionSeatsPreview,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsActivity as coreGetProjectsActivity,
@@ -3581,11 +3583,11 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Immediately updates the purchased seat count on an organization's active
+   * Changes the purchased seat count on an organization's active
    * subscription. Core enforces that the caller is an organization owner or
    * admin, blocks self-serve changes while an enterprise contract is active,
-   * and requires at least 1 purchased seat. Stripe-backed subscriptions are
-   * invoiced for the change right away.
+   * and requires at least 1 purchased seat. Added seats are invoiced right
+   * away; removed seats end at the next renewal.
    */
   async function updateOrganizationSubscriptionSeats(
     organizationId: string,
@@ -3600,6 +3602,41 @@ export function createCoreClient(getClient: GetCoreClient) {
           body: { seats },
         }),
       "Failed to update organization subscription seats",
+    );
+  }
+
+  /** Purchased seats now, and the reduction waiting for the next renewal. */
+  async function getOrganizationSubscriptionSeats(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionSeats({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization subscription seats",
+    );
+  }
+
+  /**
+   * What changing the purchased seat count would cost, from Stripe. Changes
+   * nothing; `updateOrganizationSubscriptionSeats` applies it.
+   */
+  async function getOrganizationSubscriptionSeatsPreview(
+    organizationId: string,
+    seats: number,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionSeatsPreview({
+          client,
+          path: { id: organizationId },
+          query: { seats },
+          cache: "no-store",
+        }),
+      "Failed to preview organization subscription seats",
     );
   }
 
@@ -6844,6 +6881,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskScheduleRun,
     changeTaskScheduleRun,
     unassignOrganizationSeat,
+    getOrganizationSubscriptionSeats,
+    getOrganizationSubscriptionSeatsPreview,
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
