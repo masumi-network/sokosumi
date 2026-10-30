@@ -6,7 +6,7 @@ Core API service for Sokosumi, built with Hono and Node.js.
 
 ### Prerequisites
 
-- Node.js 24.x (see `engines` in `package.json`)
+- Node.js 26.x (see `engines` in `package.json`)
 - pnpm (workspace package manager)
 
 ### Installation

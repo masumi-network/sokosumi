@@ -233,7 +233,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 
 - **CSS-first, no JS config.** Breakpoints are Tailwind defaults (`sm 640 · md 768 · lg 1024 ·
   xl 1280 · 2xl 1536`); **`md` is the primary mobile/desktop split** (sidebar hidden→flex,
-  header sticky). `2xl` is effectively unused.
+  header sticky). `2xl` is rare: Organization billing uses it to fit every plan on one row.
 - **App shell:** sidebar + a sticky header, `<main data-app-main class="… p-4 …">`
   (overflow-y-auto). That `p-4` is the only horizontal gutter (see Shapes).
 - **Container:** the custom `.container` (centered, capped at 1400px) is for marketing pages
@@ -283,12 +283,16 @@ inside a full-width panel.
   app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
   little above the middle of the screen, prompt chips, then a quiet list with no panel or
   borders.
-- **Chat room:** the transcript and composer share one centred `max-w-4xl` reading
-  column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`, applied by
-  `RoomShellLayout`); the header and scroller stay full width. The thread panel stays full width.
-  A docked side panel (thread, threads, pinned, members) does not re-centre the column: it
-  keeps its left edge while it fits, moves left only as far as it must, and slides there
-  with a transform (`useRoomColumnSlide`, off under reduced motion; see **Motion**).
+- **Chat room:** the header row, transcript and composer share one centred `max-w-4xl`
+  reading column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`,
+  applied by `RoomShellLayout`); the header's bottom rule and the scroller stay full width.
+  The title's mark starts at the transcript avatars' left edge and the header actions end at
+  the column's right edge. The title always has a second line, so it never moves between rooms:
+  a Channel's topic, else the member count, "Direct message" or "Only you". The thread panel
+  stays full width. A docked side panel (thread, threads, pinned, members) does not re-centre
+  the column: it keeps its left edge while it fits, moves left only as far as it must, and
+  slides there with a transform (`useRoomColumnSlide`, off under reduced motion; see
+  **Motion**).
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).

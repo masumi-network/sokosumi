@@ -156,6 +156,41 @@ describe("OrganizationSubscriptionSection", () => {
     expect(subscriptionFreePlanRowMock).toHaveBeenCalled();
   });
 
+  it.each([
+    { cards: 4, columns: "2xl:grid-cols-4", isEnterpriseContract: false },
+    { cards: 3, columns: "2xl:grid-cols-3", isEnterpriseContract: true },
+  ])(
+    "fits $cards plan cards on one wide row with $columns",
+    ({ cards, columns, isEnterpriseContract }) => {
+      const { getAllByTestId } = render(
+        <OrganizationSubscriptionSection
+          currentPlan="starter"
+          isEnterpriseConsumable={false}
+          isEnterpriseContract={isEnterpriseContract}
+          scheduledCancelDate={null}
+          currentSeats={2}
+          memberCount={2}
+          organizationId="org-1"
+          plans={[
+            ...createPlans(),
+            {
+              credits: 15000,
+              currency: "eur",
+              isCurrent: false,
+              monthlyAmount: 20000,
+              name: "pro" as const,
+            },
+          ]}
+          returnPath="/billing?tab=subscription"
+        />,
+      );
+
+      const grid = getAllByTestId("subscription-plan-card")[0].parentElement;
+      expect(grid).toHaveClass(columns);
+      expect(grid?.children).toHaveLength(cards);
+    },
+  );
+
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <OrganizationSubscriptionSection

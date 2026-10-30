@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/soko-bot`
 **Purpose**: Shared Soko Bot **contracts** — capabilities, persona, memory, tool schemas, versions, wire types, and the `SokoBotRuntime` port. Not a runtime and not a deployable.
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/soko-bot/` within the pnpm workspace
 
 ## Layout
