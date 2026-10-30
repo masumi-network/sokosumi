@@ -44,10 +44,10 @@ interface ProjectScopeMenuProps {
 
 /**
  * The one project list every switcher shows: search, one list of projects
- * (Pinned projects first, each with a pin, then recently visited, then the
- * rest), then Create. Search narrows that same list and asks Core, so the
- * list filters itself off. All projects is not a row: the trigger's ×
- * returns to it.
+ * (Pinned projects first, each with a pin unless the current project's check
+ * takes its place, then recently visited, then the rest), then Create. Search
+ * narrows that same list and asks Core, so the list filters itself off. All
+ * projects is not a row: the trigger's × returns to it.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
@@ -96,10 +96,7 @@ export function ProjectScopeMenu({
         {project.id === selectedProjectId ? (
           <CurrentMark />
         ) : pinned ? (
-          <Pin
-            className="text-muted-foreground size-3.5 shrink-0"
-            aria-hidden
-          />
+          <Pin className="text-muted-foreground size-3.5 shrink-0" />
         ) : null}
         {pinned ? <span className="sr-only">{t("pinned")}</span> : null}
       </CommandItem>
@@ -229,7 +226,7 @@ function CurrentMark() {
   const t = useTranslations("App.ProjectScope");
   return (
     <>
-      <Check className="size-4 shrink-0" aria-hidden />
+      <Check className="size-4 shrink-0" />
       <span className="sr-only">{t("current")}</span>
     </>
   );
