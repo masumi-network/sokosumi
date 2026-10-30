@@ -170,6 +170,25 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_A);
   });
 
+  // Its Pinned row lists it here, but it is not of here (ADR-0062).
+  it("opens a pinned room of another workspace as a Room visit", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_B,
+      name: "Org B",
+      slug: "org-b",
+    });
+    getRoomMock.mockResolvedValue({
+      ...room({ organizationId: ORG_A }),
+      starredAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    });
+
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_A);
+  });
+
   it("opens a room of an Organization from the personal workspace as a Room visit", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));

@@ -8,7 +8,7 @@ import type {
 import type { ChatRoomCollection } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
-
+import { withPinnedOrder } from "./chat-room-activity-sort";
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
@@ -157,18 +157,7 @@ export function useOrganizationChatRooms({
   const applyPinnedOrder = useCallback((order: StarredChatRoomOrder[]) => {
     // A list fetch already in flight predates this order; drop it on arrival.
     latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
-    const starredAtByRoomId = new Map(
-      order.map((row) => [row.roomId, row.starredAt]),
-    );
-    setRoomRows((current) =>
-      current.map((room) => {
-        const starredAt = starredAtByRoomId.get(room.id);
-        // A room unpinned meanwhile stays unpinned.
-        return starredAt && room.starredAt != null
-          ? { ...room, starredAt }
-          : room;
-      }),
-    );
+    setRoomRows((current) => withPinnedOrder(current, order));
   }, []);
 
   /** Replace the whole live list with a freshly fetched one. */

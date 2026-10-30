@@ -2,6 +2,7 @@ import type { OrganizationRecord } from "@sokosumi/core-client";
 import { getOrganizationMetadata, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Building2 } from "lucide-react";
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { Favicon } from "@/components/ui/favicon";
 import { buildFaviconCandidates } from "@/lib/utils/url";
 
@@ -15,11 +16,14 @@ export type OrganizationLogoSource = Pick<OrganizationRecord, "name" | "logo"> &
 interface OrganizationLogoProps {
   organization: OrganizationLogoSource;
   size?: number | undefined;
+  /** Stands in when there is no logo or favicon. Defaults to a building icon. */
+  fallback?: ReactNode;
 }
 
 export function OrganizationLogo({
   organization,
   size = 24,
+  fallback = <Building2 size={size} />,
 }: OrganizationLogoProps) {
   const { name, logo } = organization;
   const url =
@@ -47,10 +51,10 @@ export function OrganizationLogo({
         alt={name}
         size={size}
         className="size-full rounded-sm"
-        fallback={<Building2 size={size} />}
+        fallback={fallback}
       />
     );
   }
 
-  return <Building2 size={size} />;
+  return fallback;
 }

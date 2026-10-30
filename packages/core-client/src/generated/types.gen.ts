@@ -2870,6 +2870,14 @@ export type ChatRoom = {
      * Host organization display name. Required for guest rows in list; may be null for personal directs.
      */
     organizationName: string | null;
+    /**
+     * Host organization logo, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.
+     */
+    organizationLogo?: string | null;
+    /**
+     * Host organization website, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.
+     */
+    organizationWebsiteUrl?: string | null;
     name: string;
     /**
      * Channel slug unique among Channels in the organization. Null for Directs.
@@ -20871,7 +20879,7 @@ export type GetChatsRoomsElsewhereError = GetChatsRoomsElsewhereErrors[keyof Get
 
 export type GetChatsRoomsElsewhereResponses = {
     /**
-     * Unread rooms of the user's other workspaces
+     * Unread and pinned rooms of the user's other workspaces
      */
     200: {
         data: Array<ChatRoom>;

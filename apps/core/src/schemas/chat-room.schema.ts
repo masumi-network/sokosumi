@@ -186,6 +186,16 @@ export const chatRoomSchema = z
         "Host organization display name. Required for guest rows in list; may be null for personal directs.",
       example: "Acme Corp",
     }),
+    organizationLogo: z.string().nullable().optional().openapi({
+      description:
+        "Host organization logo, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://example.com/acme.png",
+    }),
+    organizationWebsiteUrl: z.string().nullable().optional().openapi({
+      description:
+        "Host organization website, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://acme.com",
+    }),
     name: z.string().openapi({ example: "Launch Room" }),
     slug: z.string().nullable().openapi({
       description:

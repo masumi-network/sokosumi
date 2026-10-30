@@ -7884,6 +7884,7 @@
       "directMessages": "Direktnachrichten",
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
+      "inWorkspace": "in {workspace}",
       "reorderPinnedDone": "Sortieren beenden",
       "SectionLimit": {
         "showMore": "{count} weitere anzeigen",

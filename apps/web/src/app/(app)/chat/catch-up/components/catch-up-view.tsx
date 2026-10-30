@@ -12,7 +12,7 @@ import {
   CatchUpSummaryBody,
   isCatchUpSummaryEmpty,
 } from "@/components/chat/signals/catch-up-summary-body";
-import { useElsewhereRooms } from "@/components/chat/use-elsewhere-rooms";
+import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -42,7 +42,7 @@ export function CatchUpView({
 }: CatchUpViewProps) {
   const t = useTranslations("App.Channels.Signals");
   const { rooms: elsewhereRooms, answered: elsewhereAnswered } =
-    useElsewhereRooms({
+    useOtherWorkspaceRooms({
       currentUserId,
       organizationId,
       enabled: true,

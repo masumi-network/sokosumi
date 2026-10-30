@@ -7884,6 +7884,7 @@
       "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
+      "inWorkspace": "en {workspace}",
       "reorderPinnedDone": "Terminar de reordenar",
       "SectionLimit": {
         "showMore": "Mostrar {count} más",
