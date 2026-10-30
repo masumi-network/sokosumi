@@ -233,7 +233,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 
 - **CSS-first, no JS config.** Breakpoints are Tailwind defaults (`sm 640 · md 768 · lg 1024 ·
   xl 1280 · 2xl 1536`); **`md` is the primary mobile/desktop split** (sidebar hidden→flex,
-  header sticky). `2xl` is effectively unused.
+  header sticky). `2xl` is rare: Organization billing uses it to fit every plan on one row.
 - **App shell:** sidebar + a sticky header, `<main data-app-main class="… p-4 …">`
   (overflow-y-auto). That `p-4` is the only horizontal gutter (see Shapes).
 - **Container:** the custom `.container` (centered, capped at 1400px) is for marketing pages
