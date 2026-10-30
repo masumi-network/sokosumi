@@ -371,6 +371,8 @@ prop/state-driven.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
+- **Menu rows** — `bg-accent`, `rounded-sm` and one colour fade on hover, whatever draws the row.
+  Primitives carry it; a row a popover draws for itself takes `POPOVER_ROW_CLASS`.
 - **Segmented controls** (ToggleGroup) — switch the view of the same content; Tabs move
   between panels and keep their own look. One look for every segmented control: a
   `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3` options in
