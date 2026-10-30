@@ -769,6 +769,23 @@
   --risk-high-foreground: hsla(0, 0%, 4%, 1);
 }
 
+/* CMO.xyz's Log in and Register: its black and white look in place of the
+   Sokosumi blue. The accent is the text colour, so it flips with the theme. */
+[data-brand="cmo"] {
+  --primary: var(--foreground);
+  --primary-variant: var(--foreground);
+  --primary-solid: var(--foreground);
+  --primary-solid-foreground: var(--background);
+  --primary-solid-hover: hsla(0, 0%, 20%, 1);
+  --ring: var(--foreground);
+  --ring-halo: hsla(0, 0%, 4%, 0.18);
+}
+
+.dark [data-brand="cmo"] {
+  --primary-solid-hover: hsla(0, 0%, 83%, 1);
+  --ring-halo: hsla(0, 0%, 96%, 0.22);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;

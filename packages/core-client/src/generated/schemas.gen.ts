@@ -909,6 +909,13 @@ export const AdminSokoBotListItemSchema = {
                 'null'
             ]
         },
+        kind: {
+            type: 'string',
+            enum: [
+                'assistant',
+                'cmo'
+            ]
+        },
         runtimeVersion: {
             type: [
                 'string',
@@ -991,6 +998,7 @@ export const AdminSokoBotListItemSchema = {
         'status',
         'archivedAt',
         'versionId',
+        'kind',
         'runtimeVersion',
         'runtimeDeployment',
         'lastActivityAt',
@@ -1875,6 +1883,161 @@ export const AdminSokoBotVersionUsageSchema = {
     },
     required: [
         'versions'
+    ]
+} as const;
+
+export const AdminCmoSpendSchema = {
+    type: 'object',
+    properties: {
+        since: {
+            type: 'string'
+        },
+        bots: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    sokoBotId: {
+                        type: 'string'
+                    },
+                    businessName: {
+                        type: 'string'
+                    },
+                    ownerEmail: {
+                        type: 'string'
+                    },
+                    turns: {
+                        type: 'integer'
+                    },
+                    totalUsd: {
+                        type: 'number'
+                    },
+                    overheadUsd: {
+                        type: 'number'
+                    },
+                    imagesCredits: {
+                        type: 'number'
+                    },
+                    chargedCredits: {
+                        type: 'number'
+                    },
+                    bySource: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                source: {
+                                    type: 'string'
+                                },
+                                costUsd: {
+                                    type: 'number'
+                                },
+                                calls: {
+                                    type: 'integer'
+                                },
+                                inputTokens: {
+                                    type: 'number'
+                                },
+                                outputTokens: {
+                                    type: 'number'
+                                }
+                            },
+                            required: [
+                                'source',
+                                'costUsd',
+                                'calls',
+                                'inputTokens',
+                                'outputTokens'
+                            ]
+                        }
+                    },
+                    tools: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                capability: {
+                                    type: 'string'
+                                },
+                                calls: {
+                                    type: 'integer'
+                                }
+                            },
+                            required: [
+                                'capability',
+                                'calls'
+                            ]
+                        }
+                    },
+                    planChecks: {
+                        type: 'object',
+                        properties: {
+                            checked: {
+                                type: 'integer'
+                            },
+                            withProblems: {
+                                type: 'integer'
+                            },
+                            drifted: {
+                                type: 'integer'
+                            },
+                            unavailable: {
+                                type: 'integer'
+                            },
+                            last: {
+                                anyOf: [
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            at: {
+                                                type: 'string'
+                                            },
+                                            problems: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string'
+                                                }
+                                            }
+                                        },
+                                        required: [
+                                            'at',
+                                            'problems'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            }
+                        },
+                        required: [
+                            'checked',
+                            'withProblems',
+                            'drifted',
+                            'unavailable',
+                            'last'
+                        ]
+                    }
+                },
+                required: [
+                    'sokoBotId',
+                    'businessName',
+                    'ownerEmail',
+                    'turns',
+                    'totalUsd',
+                    'overheadUsd',
+                    'imagesCredits',
+                    'chargedCredits',
+                    'bySource',
+                    'tools',
+                    'planChecks'
+                ]
+            }
+        }
+    },
+    required: [
+        'since',
+        'bots'
     ]
 } as const;
 
@@ -11560,7 +11723,8 @@ export const ChatResultAvailableSchema = {
                 'job',
                 'file',
                 'decision',
-                'project_selection'
+                'project_selection',
+                'cmo_report'
             ]
         },
         title: {
@@ -21941,6 +22105,6287 @@ export const ProjectContextMdSchema = {
     ]
 } as const;
 
+export const BrandBrainSchema = {
+    type: 'object',
+    properties: {
+        brandBrain: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        voice: {
+                            type: 'object',
+                            properties: {
+                                tone: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                do: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                dont: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                examples: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    maxItems: 8
+                                }
+                            },
+                            required: [
+                                'tone',
+                                'do',
+                                'dont',
+                                'examples'
+                            ]
+                        },
+                        audience: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 8
+                        },
+                        products: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        offers: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    what: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    forWhom: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'name',
+                                    'what',
+                                    'price'
+                                ]
+                            },
+                            maxItems: 10,
+                            default: []
+                        },
+                        competitors: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        alternatives: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 12
+                        },
+                        profile: {
+                            type: 'object',
+                            properties: {
+                                company: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                offer: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                problems: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                customers: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                buyers: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                value: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                pricing: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                positioning: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                competition: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                sales: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                marketing: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                content: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                proof: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                reputation: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                momentum: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                opportunities: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                }
+                            },
+                            default: {}
+                        },
+                        reveal: {
+                            type: 'object',
+                            properties: {
+                                positioning: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 120
+                                },
+                                insights: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            title: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 60
+                                            },
+                                            detail: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 200
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            }
+                                        },
+                                        required: [
+                                            'title',
+                                            'detail'
+                                        ]
+                                    },
+                                    maxItems: 3
+                                },
+                                map: {
+                                    type: 'object',
+                                    properties: {
+                                        x: {
+                                            type: 'object',
+                                            properties: {
+                                                low: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                high: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                }
+                                            },
+                                            required: [
+                                                'low',
+                                                'high'
+                                            ]
+                                        },
+                                        y: {
+                                            type: 'object',
+                                            properties: {
+                                                low: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                high: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                }
+                                            },
+                                            required: [
+                                                'low',
+                                                'high'
+                                            ]
+                                        },
+                                        players: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    name: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 40
+                                                    },
+                                                    x: {
+                                                        type: 'number',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    y: {
+                                                        type: 'number',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    you: {
+                                                        type: 'boolean'
+                                                    }
+                                                },
+                                                required: [
+                                                    'name',
+                                                    'x',
+                                                    'y'
+                                                ]
+                                            },
+                                            minItems: 2,
+                                            maxItems: 6
+                                        }
+                                    },
+                                    required: [
+                                        'x',
+                                        'y',
+                                        'players'
+                                    ]
+                                },
+                                buyers: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            role: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 50
+                                            },
+                                            wants: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 120
+                                            },
+                                            worry: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 120
+                                            }
+                                        },
+                                        required: [
+                                            'role',
+                                            'wants',
+                                            'worry'
+                                        ]
+                                    },
+                                    maxItems: 3
+                                }
+                            },
+                            required: [
+                                'positioning',
+                                'insights',
+                                'buyers'
+                            ]
+                        },
+                        marketingToday: {
+                            type: 'object',
+                            properties: {
+                                summary: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                channels: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            name: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            url: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            followers: {
+                                                type: 'string',
+                                                maxLength: 20
+                                            },
+                                            postsPerMonth: {
+                                                type: 'integer',
+                                                minimum: 0,
+                                                maximum: 10000
+                                            },
+                                            lastPost: {
+                                                type: 'string',
+                                                maxLength: 40
+                                            },
+                                            formats: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 4,
+                                                default: []
+                                            },
+                                            themes: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
+                                                },
+                                                maxItems: 4,
+                                                default: []
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'measured',
+                                                    'estimated',
+                                                    'unknown'
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'name',
+                                            'basis'
+                                        ]
+                                    },
+                                    maxItems: 10,
+                                    default: []
+                                },
+                                website: {
+                                    type: 'object',
+                                    properties: {
+                                        blog: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        newsletter: {
+                                            type: 'boolean'
+                                        },
+                                        notes: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 4,
+                                            default: []
+                                        }
+                                    }
+                                },
+                                ads: {
+                                    type: 'object',
+                                    properties: {
+                                        status: {
+                                            type: 'string',
+                                            enum: [
+                                                'running',
+                                                'none_found',
+                                                'unknown'
+                                            ]
+                                        },
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'status'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'summary'
+                            ]
+                        },
+                        questions: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    question: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 160
+                                    },
+                                    statement: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    section: {
+                                        type: 'string',
+                                        enum: [
+                                            'company',
+                                            'offer',
+                                            'problems',
+                                            'customers',
+                                            'buyers',
+                                            'value',
+                                            'pricing',
+                                            'positioning',
+                                            'competition',
+                                            'sales',
+                                            'marketing',
+                                            'content',
+                                            'proof',
+                                            'reputation',
+                                            'momentum',
+                                            'opportunities'
+                                        ]
+                                    },
+                                    answer: {
+                                        type: 'string',
+                                        enum: [
+                                            'yes',
+                                            'no',
+                                            'unsure'
+                                        ]
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'question',
+                                    'statement',
+                                    'section'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'summary',
+                        'voice',
+                        'audience',
+                        'products',
+                        'competitors',
+                        'channels'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until its essentials are saved.'
+        },
+        updatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the essentials were last saved.'
+        },
+        confirmedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        confirmedBy: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string'
+                        },
+                        name: {
+                            type: 'string'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The member who last confirmed it.'
+        }
+    },
+    required: [
+        'brandBrain',
+        'updatedAt',
+        'confirmedAt',
+        'confirmedBy'
+    ]
+} as const;
+
+export const BrandBrainRequestSchema = {
+    type: 'object',
+    properties: {
+        brandBrain: {
+            type: 'object',
+            properties: {
+                summary: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                voice: {
+                    type: 'object',
+                    properties: {
+                        tone: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        do: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        dont: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        examples: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            maxItems: 8
+                        }
+                    },
+                    required: [
+                        'tone',
+                        'do',
+                        'dont',
+                        'examples'
+                    ]
+                },
+                audience: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 8
+                },
+                products: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 12
+                },
+                offers: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            what: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            price: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            forWhom: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'name',
+                            'what',
+                            'price'
+                        ]
+                    },
+                    maxItems: 10,
+                    default: []
+                },
+                competitors: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 10
+                },
+                alternatives: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 6,
+                    default: []
+                },
+                channels: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 12
+                },
+                profile: {
+                    type: 'object',
+                    properties: {
+                        company: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        offer: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        problems: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        customers: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        buyers: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        value: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        pricing: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        positioning: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        competition: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        sales: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        marketing: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        content: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        proof: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        reputation: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        momentum: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        },
+                        opportunities: {
+                            type: 'object',
+                            properties: {
+                                headline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                answer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                findings: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            point: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            evidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'claim',
+                                                    'inference'
+                                                ]
+                                            },
+                                            confidence: {
+                                                type: 'string',
+                                                enum: [
+                                                    'high',
+                                                    'medium',
+                                                    'low'
+                                                ]
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            asOf: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                            },
+                                            implication: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'point',
+                                            'evidence',
+                                            'confidence'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                },
+                                openQuestions: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'answer'
+                            ]
+                        }
+                    },
+                    default: {}
+                },
+                reveal: {
+                    type: 'object',
+                    properties: {
+                        positioning: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 120
+                        },
+                        insights: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
+                                    detail: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 200
+                                    },
+                                    sourceUrl: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'title',
+                                    'detail'
+                                ]
+                            },
+                            maxItems: 3
+                        },
+                        map: {
+                            type: 'object',
+                            properties: {
+                                x: {
+                                    type: 'object',
+                                    properties: {
+                                        low: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        high: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        }
+                                    },
+                                    required: [
+                                        'low',
+                                        'high'
+                                    ]
+                                },
+                                y: {
+                                    type: 'object',
+                                    properties: {
+                                        low: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        high: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        }
+                                    },
+                                    required: [
+                                        'low',
+                                        'high'
+                                    ]
+                                },
+                                players: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            name: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            x: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 100
+                                            },
+                                            y: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 100
+                                            },
+                                            you: {
+                                                type: 'boolean'
+                                            }
+                                        },
+                                        required: [
+                                            'name',
+                                            'x',
+                                            'y'
+                                        ]
+                                    },
+                                    minItems: 2,
+                                    maxItems: 6
+                                }
+                            },
+                            required: [
+                                'x',
+                                'y',
+                                'players'
+                            ]
+                        },
+                        buyers: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    role: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 50
+                                    },
+                                    wants: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 120
+                                    },
+                                    worry: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 120
+                                    }
+                                },
+                                required: [
+                                    'role',
+                                    'wants',
+                                    'worry'
+                                ]
+                            },
+                            maxItems: 3
+                        }
+                    },
+                    required: [
+                        'positioning',
+                        'insights',
+                        'buyers'
+                    ]
+                },
+                marketingToday: {
+                    type: 'object',
+                    properties: {
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    followers: {
+                                        type: 'string',
+                                        maxLength: 20
+                                    },
+                                    postsPerMonth: {
+                                        type: 'integer',
+                                        minimum: 0,
+                                        maximum: 10000
+                                    },
+                                    lastPost: {
+                                        type: 'string',
+                                        maxLength: 40
+                                    },
+                                    formats: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4,
+                                        default: []
+                                    },
+                                    themes: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 4,
+                                        default: []
+                                    },
+                                    basis: {
+                                        type: 'string',
+                                        enum: [
+                                            'measured',
+                                            'estimated',
+                                            'unknown'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'name',
+                                    'basis'
+                                ]
+                            },
+                            maxItems: 10,
+                            default: []
+                        },
+                        website: {
+                            type: 'object',
+                            properties: {
+                                blog: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                newsletter: {
+                                    type: 'boolean'
+                                },
+                                notes: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            }
+                        },
+                        ads: {
+                            type: 'object',
+                            properties: {
+                                status: {
+                                    type: 'string',
+                                    enum: [
+                                        'running',
+                                        'none_found',
+                                        'unknown'
+                                    ]
+                                },
+                                note: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'status'
+                            ]
+                        }
+                    },
+                    required: [
+                        'summary'
+                    ]
+                },
+                questions: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            question: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 160
+                            },
+                            statement: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            section: {
+                                type: 'string',
+                                enum: [
+                                    'company',
+                                    'offer',
+                                    'problems',
+                                    'customers',
+                                    'buyers',
+                                    'value',
+                                    'pricing',
+                                    'positioning',
+                                    'competition',
+                                    'sales',
+                                    'marketing',
+                                    'content',
+                                    'proof',
+                                    'reputation',
+                                    'momentum',
+                                    'opportunities'
+                                ]
+                            },
+                            answer: {
+                                type: 'string',
+                                enum: [
+                                    'yes',
+                                    'no',
+                                    'unsure'
+                                ]
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'id',
+                            'question',
+                            'statement',
+                            'section'
+                        ]
+                    },
+                    maxItems: 6,
+                    default: []
+                }
+            },
+            required: [
+                'summary',
+                'voice',
+                'audience',
+                'products',
+                'competitors',
+                'channels'
+            ]
+        }
+    },
+    required: [
+        'brandBrain'
+    ]
+} as const;
+
+export const QuestionAnswerRequestSchema = {
+    type: 'object',
+    properties: {
+        questionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 40
+        },
+        answer: {
+            type: 'string',
+            enum: [
+                'yes',
+                'no',
+                'unsure'
+            ]
+        },
+        note: {
+            type: 'string',
+            maxLength: 400,
+            description: 'After a no: what is true instead, in the member\'s words.'
+        }
+    },
+    required: [
+        'questionId',
+        'answer'
+    ]
+} as const;
+
+export const MarketingStrategyVersionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        projectId: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        authorSokoBotId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        authorUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        approvedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When an owner or admin approved this version; at most one version per Project is approved, and only it is carried out.'
+        },
+        approvedByUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'createdAt',
+        'updatedAt',
+        'authorSokoBotId',
+        'authorUserId',
+        'approvedAt',
+        'approvedByUserId'
+    ]
+} as const;
+
+export const MarketingStrategySchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/MarketingStrategyVersion'
+        },
+        {
+            type: 'object',
+            properties: {
+                plan: {
+                    type: 'object',
+                    properties: {
+                        month: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}$'
+                        },
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        goals: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            minItems: 1,
+                            maxItems: 6
+                        },
+                        audience: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        contentLanguage: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        positioning: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        pillars: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 6
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    cadence: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'cadence'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        idea: {
+                            type: 'object',
+                            properties: {
+                                who: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                position: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                attract: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                offer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                sentence: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 2000
+                                }
+                            },
+                            required: [
+                                'who',
+                                'position',
+                                'attract',
+                                'offer',
+                                'sentence'
+                            ]
+                        },
+                        alternatives: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    sentence: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'sentence',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 2,
+                            default: []
+                        },
+                        ladder: {
+                            type: 'object',
+                            properties: {
+                                entry: {
+                                    type: 'object',
+                                    properties: {
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        why: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'what'
+                                    ]
+                                },
+                                core: {
+                                    type: 'object',
+                                    properties: {
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        why: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'what'
+                                    ]
+                                },
+                                next: {
+                                    type: 'object',
+                                    properties: {
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        why: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'what'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'core'
+                            ]
+                        },
+                        pace: {
+                            type: 'object',
+                            properties: {
+                                level: {
+                                    type: 'string',
+                                    enum: [
+                                        'steady',
+                                        'active',
+                                        'all_in'
+                                    ]
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                perWeek: {
+                                    type: 'integer',
+                                    minimum: 1,
+                                    maximum: 200
+                                }
+                            },
+                            required: [
+                                'level',
+                                'why',
+                                'perWeek'
+                            ]
+                        },
+                        ads: {
+                            type: 'object',
+                            properties: {
+                                monthly: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 10000000
+                                },
+                                currency: {
+                                    type: 'string',
+                                    minLength: 3,
+                                    maxLength: 3
+                                },
+                                expect: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                without: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                setByOwner: {
+                                    type: 'boolean',
+                                    default: false
+                                }
+                            },
+                            required: [
+                                'monthly',
+                                'currency',
+                                'expect',
+                                'without'
+                            ]
+                        },
+                        beforeAfter: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    before: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    after: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'before',
+                                    'after'
+                                ]
+                            },
+                            maxItems: 8,
+                            default: []
+                        },
+                        improvements: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    area: {
+                                        type: 'string',
+                                        enum: [
+                                            'landing',
+                                            'pricing',
+                                            'checkout',
+                                            'site',
+                                            'seo',
+                                            'product'
+                                        ]
+                                    },
+                                    idea: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'area',
+                                    'idea',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
+                        start: {
+                            type: 'object',
+                            properties: {
+                                working: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            text: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'assumption'
+                                                ],
+                                                default: 'fact'
+                                            }
+                                        },
+                                        required: [
+                                            'text'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                gaps: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            text: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'assumption'
+                                                ],
+                                                default: 'fact'
+                                            }
+                                        },
+                                        required: [
+                                            'text'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                resources: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            text: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'assumption'
+                                                ],
+                                                default: 'fact'
+                                            }
+                                        },
+                                        required: [
+                                            'text'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            }
+                        },
+                        objective: {
+                            type: 'object',
+                            properties: {
+                                outcome: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                metric: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                baseline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                baselineBasis: {
+                                    type: 'string',
+                                    enum: [
+                                        'fact',
+                                        'assumption'
+                                    ]
+                                },
+                                target: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            }
+                        },
+                        barrier: {
+                            type: 'object',
+                            properties: {
+                                kind: {
+                                    type: 'string',
+                                    enum: [
+                                        'awareness',
+                                        'understanding',
+                                        'trust'
+                                    ]
+                                },
+                                text: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'kind',
+                                'text'
+                            ]
+                        },
+                        mix: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    approach: {
+                                        type: 'string',
+                                        enum: [
+                                            'educational',
+                                            'thought-leadership',
+                                            'problem-solution',
+                                            'product-led',
+                                            'social-proof',
+                                            'people-led',
+                                            'community-led',
+                                            'entertainment',
+                                            'research-led',
+                                            'promotional'
+                                        ]
+                                    },
+                                    share: {
+                                        type: 'integer',
+                                        minimum: 5,
+                                        maximum: 100
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'approach',
+                                    'share',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        focus: {
+                            type: 'object',
+                            properties: {
+                                segment: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                problem: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                trigger: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                objections: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                },
+                                where: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'segment',
+                                'problem'
+                            ]
+                        },
+                        offer: {
+                            type: 'object',
+                            properties: {
+                                what: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                proof: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                },
+                                action: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'what',
+                                'why',
+                                'action'
+                            ]
+                        },
+                        campaigns: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    message: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    audience: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    offer: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    channels: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4,
+                                        default: []
+                                    },
+                                    assets: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    },
+                                    start: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    end: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    budget: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    metric: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'name',
+                                    'message',
+                                    'start',
+                                    'end',
+                                    'metric'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        funnel: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    stage: {
+                                        type: 'string',
+                                        enum: [
+                                            'awareness',
+                                            'consideration',
+                                            'conversion',
+                                            'loyalty'
+                                        ]
+                                    },
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    goal: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    channels: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    },
+                                    metric: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    target: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    owner: {
+                                        type: 'string',
+                                        enum: [
+                                            'cuso',
+                                            'you',
+                                            'shared'
+                                        ]
+                                    },
+                                    plays: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                channel: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                what: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                cadence: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                }
+                                            },
+                                            required: [
+                                                'channel',
+                                                'what'
+                                            ]
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    },
+                                    measure: {
+                                        type: 'object',
+                                        properties: {
+                                            value: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'measured',
+                                                    'estimated',
+                                                    'unknown'
+                                                ]
+                                            },
+                                            source: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'basis'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'stage',
+                                    'name',
+                                    'goal',
+                                    'metric'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        proposals: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    what: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    perMonth: {
+                                        type: 'integer',
+                                        minimum: 1,
+                                        maximum: 40
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'why',
+                                    'what',
+                                    'perMonth'
+                                ]
+                            },
+                            maxItems: 3,
+                            default: []
+                        },
+                        journey: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    step: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    fix: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'step'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
+                        weeks: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    focus: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    tasks: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                task: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                owner: {
+                                                    type: 'string',
+                                                    enum: [
+                                                        'cuso',
+                                                        'you'
+                                                    ]
+                                                },
+                                                due: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                approval: {
+                                                    type: 'boolean',
+                                                    default: false
+                                                }
+                                            },
+                                            required: [
+                                                'task',
+                                                'owner'
+                                            ]
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    }
+                                },
+                                required: [
+                                    'focus'
+                                ]
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
+                        budget: {
+                            type: 'object',
+                            properties: {
+                                total: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                basis: {
+                                    type: 'string',
+                                    enum: [
+                                        'fact',
+                                        'assumption'
+                                    ],
+                                    default: 'fact'
+                                },
+                                lines: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            item: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            amount: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'item',
+                                            'amount'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'total'
+                            ]
+                        },
+                        measurement: {
+                            type: 'object',
+                            properties: {
+                                primary: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                supporting: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                tracking: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                rules: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            when: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            then: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'when',
+                                            'then'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'primary'
+                            ]
+                        },
+                        openQuestions: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
+                        questions: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    question: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 160
+                                    },
+                                    statement: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    answer: {
+                                        type: 'string',
+                                        enum: [
+                                            'yes',
+                                            'no',
+                                            'unsure'
+                                        ]
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'question',
+                                    'statement'
+                                ]
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
+                        calendar: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    date: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    time: {
+                                        type: 'string',
+                                        pattern: '^\\d{2}:\\d{2}$'
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    format: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'idea',
+                                            'draft',
+                                            'scheduled',
+                                            'published',
+                                            'skipped'
+                                        ]
+                                    },
+                                    hook: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    brief: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    draft: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    socialPostId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    imageFileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    slideFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 10
+                                    },
+                                    taskId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    approach: {
+                                        type: 'string',
+                                        enum: [
+                                            'educational',
+                                            'thought-leadership',
+                                            'problem-solution',
+                                            'product-led',
+                                            'social-proof',
+                                            'people-led',
+                                            'community-led',
+                                            'entertainment',
+                                            'research-led',
+                                            'promotional'
+                                        ]
+                                    },
+                                    pillar: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'date',
+                                    'channel',
+                                    'title',
+                                    'format',
+                                    'status'
+                                ]
+                            },
+                            maxItems: 120
+                        },
+                        previews: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'post',
+                                            'ad',
+                                            'seo',
+                                            'newsletter'
+                                        ]
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    body: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    }
+                                },
+                                required: [
+                                    'kind',
+                                    'channel',
+                                    'title',
+                                    'body'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        changes: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 10,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'month',
+                        'summary',
+                        'goals',
+                        'pillars',
+                        'channels',
+                        'calendar'
+                    ],
+                    description: 'The plan with its yes/no questions and their answers.'
+                }
+            },
+            required: [
+                'plan'
+            ]
+        }
+    ]
+} as const;
+
+export const MarketingStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        plan: {
+            type: 'object',
+            properties: {
+                month: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}$'
+                },
+                summary: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                why: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                goals: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    minItems: 1,
+                    maxItems: 6
+                },
+                audience: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                contentLanguage: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                positioning: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                pillars: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 6
+                },
+                channels: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            cadence: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'cadence'
+                        ]
+                    },
+                    maxItems: 10
+                },
+                idea: {
+                    type: 'object',
+                    properties: {
+                        who: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        position: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        attract: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        offer: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        sentence: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        }
+                    },
+                    required: [
+                        'who',
+                        'position',
+                        'attract',
+                        'offer',
+                        'sentence'
+                    ]
+                },
+                alternatives: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            sentence: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'sentence',
+                            'why'
+                        ]
+                    },
+                    maxItems: 2,
+                    default: []
+                },
+                ladder: {
+                    type: 'object',
+                    properties: {
+                        entry: {
+                            type: 'object',
+                            properties: {
+                                what: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'what'
+                            ]
+                        },
+                        core: {
+                            type: 'object',
+                            properties: {
+                                what: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'what'
+                            ]
+                        },
+                        next: {
+                            type: 'object',
+                            properties: {
+                                what: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'what'
+                            ]
+                        }
+                    },
+                    required: [
+                        'core'
+                    ]
+                },
+                pace: {
+                    type: 'object',
+                    properties: {
+                        level: {
+                            type: 'string',
+                            enum: [
+                                'steady',
+                                'active',
+                                'all_in'
+                            ]
+                        },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        perWeek: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 200
+                        }
+                    },
+                    required: [
+                        'level',
+                        'why',
+                        'perWeek'
+                    ]
+                },
+                ads: {
+                    type: 'object',
+                    properties: {
+                        monthly: {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: 10000000
+                        },
+                        currency: {
+                            type: 'string',
+                            minLength: 3,
+                            maxLength: 3
+                        },
+                        expect: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        without: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        setByOwner: {
+                            type: 'boolean',
+                            default: false
+                        }
+                    },
+                    required: [
+                        'monthly',
+                        'currency',
+                        'expect',
+                        'without'
+                    ]
+                },
+                beforeAfter: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            before: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            after: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'before',
+                            'after'
+                        ]
+                    },
+                    maxItems: 8,
+                    default: []
+                },
+                improvements: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            area: {
+                                type: 'string',
+                                enum: [
+                                    'landing',
+                                    'pricing',
+                                    'checkout',
+                                    'site',
+                                    'seo',
+                                    'product'
+                                ]
+                            },
+                            idea: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'area',
+                            'idea',
+                            'why'
+                        ]
+                    },
+                    maxItems: 6,
+                    default: []
+                },
+                start: {
+                    type: 'object',
+                    properties: {
+                        working: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    text: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    basis: {
+                                        type: 'string',
+                                        enum: [
+                                            'fact',
+                                            'assumption'
+                                        ],
+                                        default: 'fact'
+                                    }
+                                },
+                                required: [
+                                    'text'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        gaps: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    text: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    basis: {
+                                        type: 'string',
+                                        enum: [
+                                            'fact',
+                                            'assumption'
+                                        ],
+                                        default: 'fact'
+                                    }
+                                },
+                                required: [
+                                    'text'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        resources: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    text: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    basis: {
+                                        type: 'string',
+                                        enum: [
+                                            'fact',
+                                            'assumption'
+                                        ],
+                                        default: 'fact'
+                                    }
+                                },
+                                required: [
+                                    'text'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        }
+                    }
+                },
+                objective: {
+                    type: 'object',
+                    properties: {
+                        outcome: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        metric: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        baseline: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        baselineBasis: {
+                            type: 'string',
+                            enum: [
+                                'fact',
+                                'assumption'
+                            ]
+                        },
+                        target: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        }
+                    }
+                },
+                barrier: {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'awareness',
+                                'understanding',
+                                'trust'
+                            ]
+                        },
+                        text: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'text'
+                    ]
+                },
+                mix: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            approach: {
+                                type: 'string',
+                                enum: [
+                                    'educational',
+                                    'thought-leadership',
+                                    'problem-solution',
+                                    'product-led',
+                                    'social-proof',
+                                    'people-led',
+                                    'community-led',
+                                    'entertainment',
+                                    'research-led',
+                                    'promotional'
+                                ]
+                            },
+                            share: {
+                                type: 'integer',
+                                minimum: 5,
+                                maximum: 100
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'approach',
+                            'share',
+                            'why'
+                        ]
+                    },
+                    maxItems: 4,
+                    default: []
+                },
+                focus: {
+                    type: 'object',
+                    properties: {
+                        segment: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        problem: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        trigger: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        objections: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 3,
+                            default: []
+                        },
+                        where: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 4,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'segment',
+                        'problem'
+                    ]
+                },
+                offer: {
+                    type: 'object',
+                    properties: {
+                        what: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        proof: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 3,
+                            default: []
+                        },
+                        action: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        }
+                    },
+                    required: [
+                        'what',
+                        'why',
+                        'action'
+                    ]
+                },
+                campaigns: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            message: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            audience: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            offer: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            channels: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4,
+                                default: []
+                            },
+                            assets: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                maxItems: 6,
+                                default: []
+                            },
+                            start: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            end: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            budget: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            metric: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name',
+                            'message',
+                            'start',
+                            'end',
+                            'metric'
+                        ]
+                    },
+                    maxItems: 4,
+                    default: []
+                },
+                funnel: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            stage: {
+                                type: 'string',
+                                enum: [
+                                    'awareness',
+                                    'consideration',
+                                    'conversion',
+                                    'loyalty'
+                                ]
+                            },
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            goal: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            channels: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 6,
+                                default: []
+                            },
+                            metric: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            target: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            owner: {
+                                type: 'string',
+                                enum: [
+                                    'cuso',
+                                    'you',
+                                    'shared'
+                                ]
+                            },
+                            plays: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        channel: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        cadence: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'channel',
+                                        'what'
+                                    ]
+                                },
+                                maxItems: 6,
+                                default: []
+                            },
+                            measure: {
+                                type: 'object',
+                                properties: {
+                                    value: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    basis: {
+                                        type: 'string',
+                                        enum: [
+                                            'measured',
+                                            'estimated',
+                                            'unknown'
+                                        ]
+                                    },
+                                    source: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'basis'
+                                ]
+                            }
+                        },
+                        required: [
+                            'stage',
+                            'name',
+                            'goal',
+                            'metric'
+                        ]
+                    },
+                    maxItems: 4,
+                    default: []
+                },
+                proposals: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            what: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            perMonth: {
+                                type: 'integer',
+                                minimum: 1,
+                                maximum: 40
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'why',
+                            'what',
+                            'perMonth'
+                        ]
+                    },
+                    maxItems: 3,
+                    default: []
+                },
+                journey: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            step: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            fix: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'step'
+                        ]
+                    },
+                    maxItems: 6,
+                    default: []
+                },
+                weeks: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            focus: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            tasks: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        task: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        owner: {
+                                            type: 'string',
+                                            enum: [
+                                                'cuso',
+                                                'you'
+                                            ]
+                                        },
+                                        due: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        approval: {
+                                            type: 'boolean',
+                                            default: false
+                                        }
+                                    },
+                                    required: [
+                                        'task',
+                                        'owner'
+                                    ]
+                                },
+                                maxItems: 6,
+                                default: []
+                            }
+                        },
+                        required: [
+                            'focus'
+                        ]
+                    },
+                    maxItems: 5,
+                    default: []
+                },
+                budget: {
+                    type: 'object',
+                    properties: {
+                        total: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        basis: {
+                            type: 'string',
+                            enum: [
+                                'fact',
+                                'assumption'
+                            ],
+                            default: 'fact'
+                        },
+                        lines: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    item: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    amount: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'item',
+                                    'amount'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'total'
+                    ]
+                },
+                measurement: {
+                    type: 'object',
+                    properties: {
+                        primary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        supporting: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        tracking: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        rules: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    when: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    then: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'when',
+                                    'then'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'primary'
+                    ]
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 5,
+                    default: []
+                },
+                questions: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            question: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 160
+                            },
+                            statement: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            answer: {
+                                type: 'string',
+                                enum: [
+                                    'yes',
+                                    'no',
+                                    'unsure'
+                                ]
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'id',
+                            'question',
+                            'statement'
+                        ]
+                    },
+                    maxItems: 5,
+                    default: []
+                },
+                calendar: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            date: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            time: {
+                                type: 'string',
+                                pattern: '^\\d{2}:\\d{2}$'
+                            },
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            title: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            format: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'idea',
+                                    'draft',
+                                    'scheduled',
+                                    'published',
+                                    'skipped'
+                                ]
+                            },
+                            hook: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            brief: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            draft: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 4000
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            socialPostId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            imageFileId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            slideFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 10
+                            },
+                            taskId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            campaignId: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            approach: {
+                                type: 'string',
+                                enum: [
+                                    'educational',
+                                    'thought-leadership',
+                                    'problem-solution',
+                                    'product-led',
+                                    'social-proof',
+                                    'people-led',
+                                    'community-led',
+                                    'entertainment',
+                                    'research-led',
+                                    'promotional'
+                                ]
+                            },
+                            pillar: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'id',
+                            'date',
+                            'channel',
+                            'title',
+                            'format',
+                            'status'
+                        ]
+                    },
+                    maxItems: 120
+                },
+                previews: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'post',
+                                    'ad',
+                                    'seo',
+                                    'newsletter'
+                                ]
+                            },
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            title: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            body: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'channel',
+                            'title',
+                            'body'
+                        ]
+                    },
+                    maxItems: 4,
+                    default: []
+                },
+                changes: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 10,
+                    default: []
+                }
+            },
+            required: [
+                'month',
+                'summary',
+                'goals',
+                'pillars',
+                'channels',
+                'calendar'
+            ],
+            description: 'The whole plan, with its calendar and any yes/no questions.'
+        }
+    },
+    required: [
+        'plan'
+    ]
+} as const;
+
 export const ProjectDesignMdWriteSchema = {
     type: 'object',
     properties: {
@@ -24838,6 +31283,13 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 },
                 provider: {
                     $ref: '#/components/schemas/ProjectSocialProvider'
+                },
+                callbackUrl: {
+                    type: 'string',
+                    maxLength: 2048,
+                    format: 'uri',
+                    description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
+                    example: 'https://app.cmo.xyz/connect/callback'
                 }
             },
             required: [
@@ -24857,6 +31309,13 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 socialConnectionId: {
                     type: 'string',
                     format: 'uuid'
+                },
+                callbackUrl: {
+                    type: 'string',
+                    maxLength: 2048,
+                    format: 'uri',
+                    description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
+                    example: 'https://app.cmo.xyz/connect/callback'
                 }
             },
             required: [
@@ -24876,6 +31335,13 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 socialConnectionId: {
                     type: 'string',
                     format: 'uuid'
+                },
+                callbackUrl: {
+                    type: 'string',
+                    maxLength: 2048,
+                    format: 'uri',
+                    description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
+                    example: 'https://app.cmo.xyz/connect/callback'
                 }
             },
             required: [
@@ -27083,6 +33549,83 @@ export const SocialPostSchema = {
             minimum: 0,
             example: 2
         },
+        marketingStrategyId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Marketing strategy version whose calendar planned this post; null for a post planned by hand.'
+        },
+        planning: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 64
+                },
+                title: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                format: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                hook: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                brief: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                why: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                approach: {
+                    type: 'string',
+                    enum: [
+                        'educational',
+                        'thought-leadership',
+                        'problem-solution',
+                        'product-led',
+                        'social-proof',
+                        'people-led',
+                        'community-led',
+                        'entertainment',
+                        'research-led',
+                        'promotional'
+                    ]
+                },
+                pillar: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                campaignId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 64
+                }
+            },
+            required: [
+                'id',
+                'title',
+                'format'
+            ],
+            description: 'What the plan intends with the post: its calendar entry\'s title, format, hook, brief, why, approach, pillar and campaign.'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -27585,7 +34128,7 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
+            maxItems: 10,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         threadParts: {
@@ -27602,7 +34145,7 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 4,
+                        maxItems: 10,
                         description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
                     }
                 },
@@ -27712,7 +34255,7 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
+            maxItems: 10,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         threadParts: {
@@ -27729,7 +34272,7 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 4,
+                        maxItems: 10,
                         description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
                     }
                 },
@@ -30103,6 +36646,4069 @@ export const PublicSharedTaskFileSchema = {
         'mimeType',
         'size',
         'createdAt'
+    ]
+} as const;
+
+export const CmoOverviewSchema = {
+    type: 'object',
+    properties: {
+        businessName: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: 'string'
+        },
+        organizationSlug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        projectName: {
+            type: 'string'
+        },
+        workspaceId: {
+            type: 'string'
+        },
+        sokoBotId: {
+            type: 'string'
+        },
+        projectId: {
+            type: 'string'
+        },
+        roomId: {
+            type: 'string'
+        },
+        botStatus: {
+            type: 'string'
+        },
+        learning: {
+            type: 'string',
+            enum: [
+                'running',
+                'failed',
+                'done'
+            ],
+            description: 'Cuso\'s first look at the business: still running, failed or stuck (offer a retry), or done.'
+        },
+        subscriptionActive: {
+            type: 'boolean'
+        },
+        viewerCanApprove: {
+            type: 'boolean',
+            description: 'Whether this member may approve the strategy and start the paid month: the organization\'s owners and admins only. Every other member works with Cuso but cannot.'
+        },
+        work: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoWork'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandVisual: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoBrandVisual'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        projectLogo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        onboardingStep: {
+            type: 'string',
+            enum: [
+                'brandBrain',
+                'strategy',
+                'accounts',
+                'plan',
+                'done'
+            ],
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan or this person chose to subscribe later. CMO opens on the chat once done; Cuso makes and spends nothing until a plan is active.'
+        },
+        mockBilling: {
+            type: 'boolean',
+            description: 'CMO offers its own mock tiers instead of Sokosumi checkout.'
+        },
+        mockPlan: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mockPlanActivatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        routines: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoRoutine'
+            }
+        },
+        brandBrain: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        voice: {
+                            type: 'object',
+                            properties: {
+                                tone: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                do: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                dont: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                examples: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    maxItems: 8
+                                }
+                            },
+                            required: [
+                                'tone',
+                                'do',
+                                'dont',
+                                'examples'
+                            ]
+                        },
+                        audience: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 8
+                        },
+                        products: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        offers: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    what: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    forWhom: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'name',
+                                    'what',
+                                    'price'
+                                ]
+                            },
+                            maxItems: 10,
+                            default: []
+                        },
+                        competitors: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        alternatives: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 12
+                        },
+                        profile: {
+                            type: 'object',
+                            properties: {
+                                company: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                offer: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                problems: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                customers: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                buyers: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                value: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                pricing: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                positioning: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                competition: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                sales: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                marketing: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                content: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                proof: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                reputation: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                momentum: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                },
+                                opportunities: {
+                                    type: 'object',
+                                    properties: {
+                                        headline: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        answer: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        findings: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    point: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    },
+                                                    evidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'fact',
+                                                            'claim',
+                                                            'inference'
+                                                        ]
+                                                    },
+                                                    confidence: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'high',
+                                                            'medium',
+                                                            'low'
+                                                        ]
+                                                    },
+                                                    sourceUrl: {
+                                                        type: 'string',
+                                                        maxLength: 500,
+                                                        format: 'uri'
+                                                    },
+                                                    asOf: {
+                                                        type: 'string',
+                                                        pattern: '^\\d{4}-\\d{2}(-\\d{2})?$'
+                                                    },
+                                                    implication: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 400
+                                                    }
+                                                },
+                                                required: [
+                                                    'point',
+                                                    'evidence',
+                                                    'confidence'
+                                                ]
+                                            },
+                                            maxItems: 6,
+                                            default: []
+                                        },
+                                        openQuestions: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 3,
+                                            default: []
+                                        }
+                                    },
+                                    required: [
+                                        'answer'
+                                    ]
+                                }
+                            },
+                            default: {}
+                        },
+                        reveal: {
+                            type: 'object',
+                            properties: {
+                                positioning: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 120
+                                },
+                                insights: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            title: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 60
+                                            },
+                                            detail: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 200
+                                            },
+                                            sourceUrl: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            }
+                                        },
+                                        required: [
+                                            'title',
+                                            'detail'
+                                        ]
+                                    },
+                                    maxItems: 3
+                                },
+                                map: {
+                                    type: 'object',
+                                    properties: {
+                                        x: {
+                                            type: 'object',
+                                            properties: {
+                                                low: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                high: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                }
+                                            },
+                                            required: [
+                                                'low',
+                                                'high'
+                                            ]
+                                        },
+                                        y: {
+                                            type: 'object',
+                                            properties: {
+                                                low: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                high: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                }
+                                            },
+                                            required: [
+                                                'low',
+                                                'high'
+                                            ]
+                                        },
+                                        players: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    name: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 40
+                                                    },
+                                                    x: {
+                                                        type: 'number',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    y: {
+                                                        type: 'number',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    you: {
+                                                        type: 'boolean'
+                                                    }
+                                                },
+                                                required: [
+                                                    'name',
+                                                    'x',
+                                                    'y'
+                                                ]
+                                            },
+                                            minItems: 2,
+                                            maxItems: 6
+                                        }
+                                    },
+                                    required: [
+                                        'x',
+                                        'y',
+                                        'players'
+                                    ]
+                                },
+                                buyers: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            role: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 50
+                                            },
+                                            wants: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 120
+                                            },
+                                            worry: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 120
+                                            }
+                                        },
+                                        required: [
+                                            'role',
+                                            'wants',
+                                            'worry'
+                                        ]
+                                    },
+                                    maxItems: 3
+                                }
+                            },
+                            required: [
+                                'positioning',
+                                'insights',
+                                'buyers'
+                            ]
+                        },
+                        marketingToday: {
+                            type: 'object',
+                            properties: {
+                                summary: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                channels: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            name: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            url: {
+                                                type: 'string',
+                                                maxLength: 500,
+                                                format: 'uri'
+                                            },
+                                            followers: {
+                                                type: 'string',
+                                                maxLength: 20
+                                            },
+                                            postsPerMonth: {
+                                                type: 'integer',
+                                                minimum: 0,
+                                                maximum: 10000
+                                            },
+                                            lastPost: {
+                                                type: 'string',
+                                                maxLength: 40
+                                            },
+                                            formats: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 4,
+                                                default: []
+                                            },
+                                            themes: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
+                                                },
+                                                maxItems: 4,
+                                                default: []
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'measured',
+                                                    'estimated',
+                                                    'unknown'
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'name',
+                                            'basis'
+                                        ]
+                                    },
+                                    maxItems: 10,
+                                    default: []
+                                },
+                                website: {
+                                    type: 'object',
+                                    properties: {
+                                        blog: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        newsletter: {
+                                            type: 'boolean'
+                                        },
+                                        notes: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            maxItems: 4,
+                                            default: []
+                                        }
+                                    }
+                                },
+                                ads: {
+                                    type: 'object',
+                                    properties: {
+                                        status: {
+                                            type: 'string',
+                                            enum: [
+                                                'running',
+                                                'none_found',
+                                                'unknown'
+                                            ]
+                                        },
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'status'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'summary'
+                            ]
+                        },
+                        questions: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    question: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 160
+                                    },
+                                    statement: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    section: {
+                                        type: 'string',
+                                        enum: [
+                                            'company',
+                                            'offer',
+                                            'problems',
+                                            'customers',
+                                            'buyers',
+                                            'value',
+                                            'pricing',
+                                            'positioning',
+                                            'competition',
+                                            'sales',
+                                            'marketing',
+                                            'content',
+                                            'proof',
+                                            'reputation',
+                                            'momentum',
+                                            'opportunities'
+                                        ]
+                                    },
+                                    answer: {
+                                        type: 'string',
+                                        enum: [
+                                            'yes',
+                                            'no',
+                                            'unsure'
+                                        ]
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'question',
+                                    'statement',
+                                    'section'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'summary',
+                        'voice',
+                        'audience',
+                        'products',
+                        'competitors',
+                        'channels'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandBrainUpdatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandBrainConfirmedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandMedia: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoBrandMedia'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strategy: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        month: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}$'
+                        },
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        goals: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            minItems: 1,
+                            maxItems: 6
+                        },
+                        audience: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        contentLanguage: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        positioning: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        pillars: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 6
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    cadence: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'cadence'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        idea: {
+                            type: 'object',
+                            properties: {
+                                who: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                position: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                attract: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                offer: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                sentence: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 2000
+                                }
+                            },
+                            required: [
+                                'who',
+                                'position',
+                                'attract',
+                                'offer',
+                                'sentence'
+                            ]
+                        },
+                        alternatives: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    sentence: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'sentence',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 2,
+                            default: []
+                        },
+                        ladder: {
+                            type: 'object',
+                            properties: {
+                                entry: {
+                                    type: 'object',
+                                    properties: {
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        why: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'what'
+                                    ]
+                                },
+                                core: {
+                                    type: 'object',
+                                    properties: {
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        why: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'what'
+                                    ]
+                                },
+                                next: {
+                                    type: 'object',
+                                    properties: {
+                                        what: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        why: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'what'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'core'
+                            ]
+                        },
+                        pace: {
+                            type: 'object',
+                            properties: {
+                                level: {
+                                    type: 'string',
+                                    enum: [
+                                        'steady',
+                                        'active',
+                                        'all_in'
+                                    ]
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                perWeek: {
+                                    type: 'integer',
+                                    minimum: 1,
+                                    maximum: 200
+                                }
+                            },
+                            required: [
+                                'level',
+                                'why',
+                                'perWeek'
+                            ]
+                        },
+                        ads: {
+                            type: 'object',
+                            properties: {
+                                monthly: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 10000000
+                                },
+                                currency: {
+                                    type: 'string',
+                                    minLength: 3,
+                                    maxLength: 3
+                                },
+                                expect: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                without: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                setByOwner: {
+                                    type: 'boolean',
+                                    default: false
+                                }
+                            },
+                            required: [
+                                'monthly',
+                                'currency',
+                                'expect',
+                                'without'
+                            ]
+                        },
+                        beforeAfter: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    before: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    after: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'before',
+                                    'after'
+                                ]
+                            },
+                            maxItems: 8,
+                            default: []
+                        },
+                        improvements: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    area: {
+                                        type: 'string',
+                                        enum: [
+                                            'landing',
+                                            'pricing',
+                                            'checkout',
+                                            'site',
+                                            'seo',
+                                            'product'
+                                        ]
+                                    },
+                                    idea: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'area',
+                                    'idea',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
+                        start: {
+                            type: 'object',
+                            properties: {
+                                working: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            text: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'assumption'
+                                                ],
+                                                default: 'fact'
+                                            }
+                                        },
+                                        required: [
+                                            'text'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                gaps: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            text: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'assumption'
+                                                ],
+                                                default: 'fact'
+                                            }
+                                        },
+                                        required: [
+                                            'text'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                resources: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            text: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'fact',
+                                                    'assumption'
+                                                ],
+                                                default: 'fact'
+                                            }
+                                        },
+                                        required: [
+                                            'text'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            }
+                        },
+                        objective: {
+                            type: 'object',
+                            properties: {
+                                outcome: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                metric: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                baseline: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                baselineBasis: {
+                                    type: 'string',
+                                    enum: [
+                                        'fact',
+                                        'assumption'
+                                    ]
+                                },
+                                target: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            }
+                        },
+                        barrier: {
+                            type: 'object',
+                            properties: {
+                                kind: {
+                                    type: 'string',
+                                    enum: [
+                                        'awareness',
+                                        'understanding',
+                                        'trust'
+                                    ]
+                                },
+                                text: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'kind',
+                                'text'
+                            ]
+                        },
+                        mix: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    approach: {
+                                        type: 'string',
+                                        enum: [
+                                            'educational',
+                                            'thought-leadership',
+                                            'problem-solution',
+                                            'product-led',
+                                            'social-proof',
+                                            'people-led',
+                                            'community-led',
+                                            'entertainment',
+                                            'research-led',
+                                            'promotional'
+                                        ]
+                                    },
+                                    share: {
+                                        type: 'integer',
+                                        minimum: 5,
+                                        maximum: 100
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'approach',
+                                    'share',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        focus: {
+                            type: 'object',
+                            properties: {
+                                segment: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                problem: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                trigger: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                objections: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                },
+                                where: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'segment',
+                                'problem'
+                            ]
+                        },
+                        offer: {
+                            type: 'object',
+                            properties: {
+                                what: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                why: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                proof: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 3,
+                                    default: []
+                                },
+                                action: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'what',
+                                'why',
+                                'action'
+                            ]
+                        },
+                        campaigns: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    message: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    audience: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    offer: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    channels: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4,
+                                        default: []
+                                    },
+                                    assets: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    },
+                                    start: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    end: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    budget: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    metric: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'name',
+                                    'message',
+                                    'start',
+                                    'end',
+                                    'metric'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        funnel: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    stage: {
+                                        type: 'string',
+                                        enum: [
+                                            'awareness',
+                                            'consideration',
+                                            'conversion',
+                                            'loyalty'
+                                        ]
+                                    },
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    goal: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    channels: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    },
+                                    metric: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    target: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    owner: {
+                                        type: 'string',
+                                        enum: [
+                                            'cuso',
+                                            'you',
+                                            'shared'
+                                        ]
+                                    },
+                                    plays: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                channel: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                what: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                cadence: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                }
+                                            },
+                                            required: [
+                                                'channel',
+                                                'what'
+                                            ]
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    },
+                                    measure: {
+                                        type: 'object',
+                                        properties: {
+                                            value: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            basis: {
+                                                type: 'string',
+                                                enum: [
+                                                    'measured',
+                                                    'estimated',
+                                                    'unknown'
+                                                ]
+                                            },
+                                            source: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'basis'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'stage',
+                                    'name',
+                                    'goal',
+                                    'metric'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        proposals: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    what: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    perMonth: {
+                                        type: 'integer',
+                                        minimum: 1,
+                                        maximum: 40
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'why',
+                                    'what',
+                                    'perMonth'
+                                ]
+                            },
+                            maxItems: 3,
+                            default: []
+                        },
+                        journey: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    step: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    fix: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'step'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
+                        weeks: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    focus: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    tasks: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                task: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                owner: {
+                                                    type: 'string',
+                                                    enum: [
+                                                        'cuso',
+                                                        'you'
+                                                    ]
+                                                },
+                                                due: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                approval: {
+                                                    type: 'boolean',
+                                                    default: false
+                                                }
+                                            },
+                                            required: [
+                                                'task',
+                                                'owner'
+                                            ]
+                                        },
+                                        maxItems: 6,
+                                        default: []
+                                    }
+                                },
+                                required: [
+                                    'focus'
+                                ]
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
+                        budget: {
+                            type: 'object',
+                            properties: {
+                                total: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                basis: {
+                                    type: 'string',
+                                    enum: [
+                                        'fact',
+                                        'assumption'
+                                    ],
+                                    default: 'fact'
+                                },
+                                lines: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            item: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            amount: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'item',
+                                            'amount'
+                                        ]
+                                    },
+                                    maxItems: 6,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'total'
+                            ]
+                        },
+                        measurement: {
+                            type: 'object',
+                            properties: {
+                                primary: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                supporting: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                tracking: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                },
+                                rules: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            when: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            then: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'when',
+                                            'then'
+                                        ]
+                                    },
+                                    maxItems: 4,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'primary'
+                            ]
+                        },
+                        openQuestions: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
+                        questions: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    question: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 160
+                                    },
+                                    statement: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    answer: {
+                                        type: 'string',
+                                        enum: [
+                                            'yes',
+                                            'no',
+                                            'unsure'
+                                        ]
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'question',
+                                    'statement'
+                                ]
+                            },
+                            maxItems: 5,
+                            default: []
+                        },
+                        calendar: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    date: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    time: {
+                                        type: 'string',
+                                        pattern: '^\\d{2}:\\d{2}$'
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    format: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'idea',
+                                            'draft',
+                                            'scheduled',
+                                            'published',
+                                            'skipped'
+                                        ]
+                                    },
+                                    hook: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    brief: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    draft: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    socialPostId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    imageFileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    slideFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 10
+                                    },
+                                    taskId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    approach: {
+                                        type: 'string',
+                                        enum: [
+                                            'educational',
+                                            'thought-leadership',
+                                            'problem-solution',
+                                            'product-led',
+                                            'social-proof',
+                                            'people-led',
+                                            'community-led',
+                                            'entertainment',
+                                            'research-led',
+                                            'promotional'
+                                        ]
+                                    },
+                                    pillar: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'date',
+                                    'channel',
+                                    'title',
+                                    'format',
+                                    'status'
+                                ]
+                            },
+                            maxItems: 120
+                        },
+                        previews: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'post',
+                                            'ad',
+                                            'seo',
+                                            'newsletter'
+                                        ]
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    body: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    }
+                                },
+                                required: [
+                                    'kind',
+                                    'channel',
+                                    'title',
+                                    'body'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        changes: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 10,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'month',
+                        'summary',
+                        'goals',
+                        'pillars',
+                        'channels',
+                        'calendar'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        media: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    entryId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'image',
+                            'video'
+                        ]
+                    },
+                    url: {
+                        type: 'string'
+                    },
+                    slides: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    }
+                },
+                required: [
+                    'entryId',
+                    'kind',
+                    'url'
+                ]
+            },
+            description: 'The image or video Cuso attached to each calendar piece, by entry id.'
+        },
+        strategyVersion: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MarketingStrategyVersion'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.'
+        },
+        strategyVersions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/MarketingStrategyVersion'
+            },
+            description: 'Every version, newest first. At most one is approved; approving an older one reverts to it.'
+        },
+        updates: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoUpdate'
+            }
+        },
+        channels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChannel'
+            }
+        },
+        upNext: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoUpNextItem'
+            }
+        },
+        connectChannelUrl: {
+            type: 'string'
+        },
+        adProviders: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        connectAdsUrl: {
+            type: 'string'
+        },
+        measurement: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMeasurement'
+            },
+            description: 'Where Cuso reads the funnel\'s numbers: Google Analytics, Search Console and Shopify.'
+        },
+        production: {
+            $ref: '#/components/schemas/CmoProduction'
+        },
+        mailingListSize: {
+            type: 'integer'
+        },
+        subscribeUrl: {
+            type: 'string'
+        },
+        billing: {
+            type: 'object',
+            properties: {
+                plan: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                subscriptionStatus: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                availableCredits: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'plan',
+                'subscriptionStatus',
+                'availableCredits'
+            ]
+        },
+        posts: {
+            type: 'object',
+            properties: {
+                draft: {
+                    type: 'number'
+                },
+                scheduled: {
+                    type: 'number'
+                },
+                published: {
+                    type: 'number'
+                },
+                failed: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'draft',
+                'scheduled',
+                'published',
+                'failed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'businessName',
+        'websiteUrl',
+        'organizationSlug',
+        'projectName',
+        'workspaceId',
+        'sokoBotId',
+        'projectId',
+        'roomId',
+        'botStatus',
+        'learning',
+        'subscriptionActive',
+        'viewerCanApprove',
+        'work',
+        'brandVisual',
+        'projectLogo',
+        'onboardingStep',
+        'mockBilling',
+        'mockPlan',
+        'mockPlanActivatedAt',
+        'routines',
+        'brandBrain',
+        'brandBrainUpdatedAt',
+        'brandBrainConfirmedAt',
+        'brandMedia',
+        'strategy',
+        'media',
+        'strategyVersion',
+        'strategyVersions',
+        'updates',
+        'channels',
+        'upNext',
+        'connectChannelUrl',
+        'adProviders',
+        'connectAdsUrl',
+        'measurement',
+        'production',
+        'mailingListSize',
+        'subscribeUrl',
+        'billing',
+        'posts',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoWorkSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'research',
+                'strategy'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'failed',
+                'done'
+            ]
+        },
+        startedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoWorkStep'
+            }
+        },
+        sectionsSaved: {
+            type: 'integer',
+            minimum: 0
+        },
+        sectionsTotal: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'kind',
+        'status',
+        'startedAt',
+        'steps',
+        'sectionsSaved',
+        'sectionsTotal'
+    ]
+} as const;
+
+export const CmoWorkStepSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'search',
+                'read',
+                'study',
+                'brain',
+                'strategy',
+                'other'
+            ]
+        },
+        label: {
+            type: 'string'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'done',
+                'failed'
+            ]
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'label',
+        'url',
+        'status',
+        'at'
+    ]
+} as const;
+
+export const CmoBrandVisualSchema = {
+    type: 'object',
+    properties: {
+        logoUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        siteName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        designMdUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        images: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The brand\'s pictures from the Project\'s Brand research files, for post previews.'
+        }
+    },
+    required: [
+        'logoUrl',
+        'colors',
+        'fonts',
+        'siteName',
+        'designMdUrl',
+        'images'
+    ],
+    description: 'The brand\'s look, read from the Project\'s logo and DESIGN.md (colours, fonts and name).'
+} as const;
+
+export const CmoRoutineSchema = {
+    type: 'object',
+    properties: {
+        key: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        when: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        nextRunAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        timezone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'key',
+        'name',
+        'when',
+        'description',
+        'nextRunAt',
+        'timezone'
+    ]
+} as const;
+
+export const CmoBrandMediaSchema = {
+    type: 'object',
+    properties: {
+        capturedAt: {
+            type: 'string'
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'desktop',
+                            'mobile'
+                        ]
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'label',
+                    'pageUrl',
+                    'device'
+                ]
+            },
+            description: 'The brand\'s own pages, home first, then home on a phone.'
+        },
+        competitors: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'name',
+                    'pageUrl'
+                ]
+            },
+            description: 'Each competitor\'s homepage, in the Brand Brain\'s order.'
+        },
+        pictures: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    alt: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'alt'
+                ]
+            },
+            description: 'The large pictures on the brand\'s pages: products, screens, people.'
+        }
+    },
+    required: [
+        'capturedAt',
+        'pages',
+        'competitors',
+        'pictures'
+    ]
+} as const;
+
+export const CmoUpdateSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'daily',
+                'weekly',
+                'monthly',
+                'brand',
+                'request',
+                'production'
+            ]
+        },
+        headline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        done: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12,
+            default: []
+        },
+        upNext: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12,
+            default: []
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 10,
+            default: []
+        },
+        results: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        id: {
+            type: 'string'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revertible: {
+            type: 'boolean'
+        },
+        revertedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'headline',
+        'id',
+        'at',
+        'revertible',
+        'revertedAt'
+    ]
+} as const;
+
+export const CmoChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        handle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'handle',
+        'displayName',
+        'status'
+    ]
+} as const;
+
+export const CmoUpNextItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        date: {
+            type: 'string'
+        },
+        channel: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'date',
+        'channel',
+        'title',
+        'status'
+    ]
+} as const;
+
+export const CmoMeasurementSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'google_analytics',
+                'google_search_console',
+                'shopify'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        measures: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'connected',
+                'pending',
+                'none'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'name',
+        'measures',
+        'status'
+    ]
+} as const;
+
+export const CmoProductionSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'waiting',
+                'running',
+                'ready',
+                'stuck'
+            ]
+        },
+        ready: {
+            type: 'integer'
+        },
+        total: {
+            type: 'integer'
+        },
+        finishedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'state',
+        'ready',
+        'total',
+        'finishedAt'
+    ],
+    description: 'After payment Cuso makes the whole month at once: how many of its pieces are made.'
+} as const;
+
+export const CmoOnboardingRequestSchema = {
+    type: 'object',
+    properties: {
+        websiteUrl: {
+            type: 'string',
+            maxLength: 500,
+            format: 'uri',
+            description: 'The business\'s website. Cuso is hired into a new organization named after it.'
+        }
+    },
+    required: [
+        'websiteUrl'
+    ]
+} as const;
+
+export const CmoMockPlanRequestSchema = {
+    type: 'object',
+    properties: {
+        plan: {
+            type: 'string',
+            pattern: '^[a-z][a-z0-9-]{0,31}$',
+            description: 'A CMO tier id from CMO\'s own plan config.'
+        }
+    },
+    required: [
+        'plan'
+    ]
+} as const;
+
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const CmoStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
+} as const;
+
+export const CmoAdBudgetRequestSchema = {
+    type: 'object',
+    properties: {
+        monthly: {
+            type: 'number',
+            minimum: 0,
+            maximum: 10000000
+        },
+        currency: {
+            type: 'string',
+            pattern: '^[A-Za-z]{3}$',
+            description: 'ISO 4217, such as EUR.'
+        }
+    },
+    required: [
+        'monthly',
+        'currency'
+    ]
+} as const;
+
+export const CmoMeasurementConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
     ]
 } as const;
 

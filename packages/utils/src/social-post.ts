@@ -365,7 +365,8 @@ export const SOCIAL_POST_MEDIA_RULES = {
     videoMimeTypes: ["video/mp4"],
   },
   instagram: {
-    maxImages: 1,
+    // Two to ten images publish as one carousel.
+    maxImages: 10,
     maxGifs: 0,
     maxVideos: 1,
     maxImageBytes: SOCIAL_POST_IMAGE_MAX_BYTES,

@@ -33,6 +33,12 @@ export interface UserAuthenticationContext {
   /** Credential class used to authenticate this request. */
   authenticationMethod?: "session" | "api_key" | "oauth";
   /**
+   * An OAuth token from a first-party client (`skipConsent`, ADR 0046), such
+   * as CMO or the Apple app: a person signed in right there, so the routes
+   * that use {@link requireFirstPartyUserAuthContext} accept it.
+   */
+  firstPartyClient?: boolean;
+  /**
    * Admin user id when this session impersonates another user (Better Auth
    * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
    * effective (target) user.
@@ -408,6 +414,26 @@ export function requireInteractiveUserAuthContext(
   return userAuthContext;
 }
 
+/**
+ * Like {@link requireInteractiveUserAuthContext}, but a first-party client's
+ * OAuth token passes too. Routes opt in one by one, so a stolen CMO or Apple
+ * token can only do what those routes do, and can never mint a credential.
+ */
+export function requireFirstPartyUserAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  const userAuthContext = requireUserAuthContext(authContext);
+
+  if (
+    userAuthContext.authenticationMethod === "oauth" &&
+    userAuthContext.firstPartyClient === true
+  ) {
+    return userAuthContext;
+  }
+
+  return requireInteractiveUserAuthContext(authContext);
+}
+
 /** Requires a browser-backed interactive admin session for sensitive actions. */
 export function requireInteractiveAdminAuthContext(
   authContext: AuthenticationContext,
@@ -607,6 +633,7 @@ async function verifyOAuthToken(
       organizationId: null,
       role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
+      ...(client.skipConsent ? { firstPartyClient: true } : {}),
     },
   });
   return true;

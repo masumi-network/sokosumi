@@ -1,0 +1,533 @@
+"use client";
+
+import "./onboarding.css";
+
+import type { CmoOverview, SubscriptionCatalog } from "@sokosumi/core-client";
+import { Check, ChevronDown, LogOut } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { CusoMessage } from "../../lib/chat-messages";
+import { strategyApproved } from "../../lib/strategy";
+import { BusinessMark } from "../business-mark";
+import { Logo } from "../logo";
+import { ThemeToggle } from "../theme-toggle";
+import { BrainStep } from "./brain-step";
+import { CheckStep } from "./check-step";
+import { ConnectStep, needsAccounts } from "./connect-step";
+import { PricingStep } from "./pricing-step";
+import { QuestionsStep } from "./questions-step";
+import { ResearchStep } from "./research-step";
+import { ResultsStep } from "./results-step";
+import { StrategyStep } from "./strategy-step";
+
+export interface OnboardingActions {
+  loadState: () => Promise<{
+    overview: CmoOverview | null;
+    messages: CusoMessage[];
+  }>;
+  sendMessage: (content: string) => Promise<void>;
+  retryLearning: () => Promise<{
+    overview: CmoOverview;
+    error: string | null;
+  }>;
+  requestStrategy: (note?: string) => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
+  approveStrategy: () => Promise<CmoOverview>;
+  /** The owner's own monthly ad budget; Cuso re-plans around it. */
+  setAdBudget: (
+    monthly: number,
+    currency: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+  /** The founder approved the Brand Brain; Cuso's questions come next. */
+  approveBrandBrain: () => Promise<CmoOverview>;
+  answerBrandQuestion: (answer: {
+    questionId: string;
+    answer: "yes" | "no" | "unsure";
+    note?: string;
+  }) => Promise<CmoOverview>;
+  saveBrandBrain: (
+    brandBrain: NonNullable<CmoOverview["brandBrain"]>,
+  ) => Promise<CmoOverview>;
+  answerPlanQuestion: (answer: {
+    questionId: string;
+    answer: "yes" | "no" | "unsure";
+    note?: string;
+  }) => Promise<CmoOverview>;
+  applyPlanAnswers: () => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
+  chooseMockPlan: (
+    plan: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+  /** Records that the founder connected or skipped the Accounts step. */
+  finishAccounts: () => Promise<CmoOverview>;
+  /** Adds the founder's mailing list for the newsletter. */
+  addMailingList: (
+    text: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+  connectChannel: (
+    provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+  ) => Promise<{ url: string | null; error: string | null }>;
+  connectMeasurement: (
+    provider: CmoOverview["measurement"][number]["provider"],
+    from: "onboarding" | "app",
+  ) => Promise<{ url: string | null; error: string | null }>;
+  completeOnboarding: () => Promise<void>;
+  subscribeLater: () => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+export type OnboardingStep =
+  | "research"
+  | "brain"
+  | "questions"
+  | "planning"
+  | "strategy"
+  | "check"
+  | "results"
+  | "connect"
+  | "pricing";
+
+const STEPS: { id: OnboardingStep; label: string }[] = [
+  { id: "research", label: "Research" },
+  { id: "brain", label: "Brand Brain" },
+  { id: "questions", label: "Questions" },
+  { id: "strategy", label: "Strategy" },
+  { id: "check", label: "Check" },
+  { id: "results", label: "Results" },
+  { id: "connect", label: "Accounts" },
+  { id: "pricing", label: "Pricing" },
+];
+
+/** Where the founder is, from what Cuso has done so far. */
+export function onboardingStep(overview: CmoOverview): OnboardingStep {
+  const work = overview.work;
+  if (!overview.brandBrain) return "research";
+  // Once a plan exists it stays on screen while Cuso writes or changes it.
+  if (!overview.strategy) {
+    if (work?.kind === "strategy" && work.status !== "done") return "planning";
+    return overview.brandBrainConfirmedAt ? "questions" : "brain";
+  }
+  if (!strategyApproved(overview)) {
+    // Part way through the plan's questions, a reload resumes on them.
+    const questions = overview.strategy.questions ?? [];
+    const answered = questions.filter((question) => question.answer).length;
+    return answered > 0 && answered < questions.length ? "check" : "strategy";
+  }
+  // Core reads it from a connection, and CMO's cookie from the person's skip,
+  // so a reload after the Accounts step resumes on the plan.
+  return overview.onboardingStep === "accounts" && needsAccounts(overview)
+    ? "connect"
+    : "pricing";
+}
+
+/** Steps the founder can open again once past them; research only leads to the Brand Brain. */
+function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
+  if (step === "brain" || step === "strategy") return true;
+  if (step === "check") return (overview.strategy?.questions ?? []).length > 0;
+  if (step === "questions") return overview.brandBrainConfirmedAt !== null;
+  if (step === "results") return strategyApproved(overview);
+  return step === "connect" && needsAccounts(overview);
+}
+
+function stepIndex(step: OnboardingStep): number {
+  return STEPS.findIndex(
+    (candidate) => candidate.id === (step === "planning" ? "strategy" : step),
+  );
+}
+
+const POLL_MS = 2_500;
+/** A hidden tab still checks in, so coming back shows where Cuso is now. */
+const HIDDEN_POLL_MS = 20_000;
+
+/** Who is signed in, with the way out; closes on a click outside or Escape. */
+function AccountMenu({
+  overview,
+  name,
+  signOut,
+}: {
+  overview: CmoOverview;
+  name: string;
+  signOut: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
+      if (
+        event instanceof MouseEvent &&
+        root.current?.contains(event.target as Node)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
+  return (
+    <div className="ob-who" ref={root}>
+      <button
+        type="button"
+        className="ob-who-button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <BusinessMark overview={overview} />
+        <span className="ob-who-name">{name}</span>
+        <ChevronDown size={14} aria-hidden="true" />
+      </button>
+      {open ? (
+        <form className="ob-who-menu" role="menu" action={signOut}>
+          <ThemeToggle className="ob-who-item" role="menuitem" withLabel />
+          <button type="submit" role="menuitem" className="ob-who-item">
+            <LogOut size={14} aria-hidden="true" />
+            Sign out
+          </button>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+interface OnboardingFlowProps {
+  overview: CmoOverview;
+  messages: CusoMessage[];
+  plans: SubscriptionCatalog | null;
+  name: string;
+  /** "connect" or "results" when a connection sends the founder back. */
+  initialStep?: string;
+  actions: OnboardingActions;
+}
+
+/**
+ * CMO's first run: full-screen steps from Cuso's research to the plan. The
+ * chat becomes home once the founder starts.
+ */
+export function OnboardingFlow({
+  overview: initialOverview,
+  messages: initialMessages,
+  plans,
+  name,
+  initialStep,
+  actions,
+}: OnboardingFlowProps) {
+  const [overview, setOverview] = useState(initialOverview);
+  const [messages, setMessages] = useState(initialMessages);
+  // A finished step opened again from the rail, or Accounts after a connection.
+  const [viewing, setViewing] = useState<OnboardingStep | null>(
+    initialStep === "connect" || initialStep === "results" ? initialStep : null,
+  );
+
+  // The connection redirect's query has been read; a reload routes from Core.
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, "", "/");
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const state = await actions.loadState().catch(() => null);
+    if (!state?.overview) return;
+    setOverview(state.overview);
+    setMessages(state.messages);
+  }, [actions]);
+
+  useEffect(() => {
+    let last = Date.now();
+    const poll = () => {
+      const visible = document.visibilityState === "visible";
+      if (!visible && Date.now() - last < HIDDEN_POLL_MS) return;
+      last = Date.now();
+      void refresh();
+    };
+    const timer = window.setInterval(poll, POLL_MS);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+    };
+  }, [refresh]);
+
+  const derived = onboardingStep(overview);
+  // The essentials save before Cuso writes the reveal and his notes, so
+  // research stays live until his turn ends.
+  const researchRunning =
+    overview.work?.kind === "research" && overview.work.status === "running";
+  const researchLive =
+    derived === "research" || (derived === "brain" && researchRunning);
+  // Research that ends in this session stays on screen, finished, until the
+  // founder moves on: jumping ahead hid everything Cuso just did.
+  const [heldResearch, setHeldResearch] = useState(false);
+  const wasLive = useRef(researchLive);
+  useEffect(() => {
+    if (wasLive.current && !researchLive && derived === "brain") {
+      setHeldResearch(true);
+    }
+    wasLive.current = researchLive;
+  }, [researchLive, derived]);
+  const reached = stepIndex(derived);
+  // The plan's questions are the one step the founder moves on to by hand.
+  const checking =
+    viewing === "check" &&
+    derived === "strategy" &&
+    canRevisit("check", overview);
+  const revisiting =
+    checking ||
+    (viewing !== null &&
+      canRevisit(viewing, overview) &&
+      stepIndex(viewing) < reached);
+  const step: OnboardingStep =
+    revisiting && viewing
+      ? viewing
+      : researchLive || (heldResearch && derived === "brain")
+        ? "research"
+        : derived;
+  const current = stepIndex(step);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
+  // Each step's head sticks right under the top bar, whatever its height.
+  const root = useRef<HTMLDivElement>(null);
+  const top = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = top.current;
+    if (!bar) return;
+    const measure = () =>
+      root.current?.style.setProperty("--ob-top-h", `${bar.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
+
+  // A finished step opened again leads forward to where the founder was.
+  const ahead = revisiting
+    ? {
+        label: STEPS[reached]?.label ?? "",
+        onClick: () => setViewing(null),
+      }
+    : undefined;
+
+  return (
+    <div className="ob" ref={root}>
+      <header className="ob-top" ref={top}>
+        <Logo />
+        <ol className="ob-steps" aria-label="Onboarding">
+          {STEPS.map((candidate, index) => {
+            const content = (
+              <>
+                <span className="ob-dot" aria-hidden="true">
+                  {index < reached && index !== current ? (
+                    <Check size={11} strokeWidth={3} />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                <span className="ob-step-label">{candidate.label}</span>
+              </>
+            );
+            const open =
+              index === current
+                ? null
+                : index === reached
+                  ? () => setViewing(null)
+                  : index < reached && canRevisit(candidate.id, overview)
+                    ? () => setViewing(candidate.id)
+                    : null;
+            return (
+              <li
+                key={candidate.id}
+                className={
+                  index === current
+                    ? "now"
+                    : index < reached
+                      ? "done"
+                      : undefined
+                }
+                aria-current={index === current ? "step" : undefined}
+              >
+                {open ? (
+                  <button type="button" className="ob-step" onClick={open}>
+                    {content}
+                  </button>
+                ) : (
+                  <span className="ob-step">{content}</span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+        <AccountMenu
+          overview={overview}
+          name={name}
+          signOut={actions.signOut}
+        />
+      </header>
+
+      <main className="ob-main" key={step}>
+        {step === "research" ? (
+          <ResearchStep
+            overview={overview}
+            messages={messages}
+            onContinue={
+              heldResearch && !researchLive
+                ? () => setHeldResearch(false)
+                : undefined
+            }
+            onRetry={async () => {
+              const result = await actions.retryLearning();
+              setOverview(result.overview);
+              return result.error;
+            }}
+            onReply={async (text) => {
+              await actions.sendMessage(text);
+              await refresh();
+            }}
+          />
+        ) : step === "brain" ? (
+          <BrainStep
+            overview={overview}
+            messages={messages}
+            onCorrect={async (text) => {
+              await actions.sendMessage(text);
+              await refresh();
+            }}
+            onSave={async (brandBrain) => {
+              setOverview(await actions.saveBrandBrain(brandBrain));
+            }}
+            ahead={ahead}
+            onApprove={async () => {
+              const approved = await actions.approveBrandBrain();
+              setOverview(approved);
+              // Nothing to ask: straight on to the plan.
+              if ((approved.brandBrain?.questions ?? []).length > 0) {
+                return null;
+              }
+              const result = await actions.requestStrategy();
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+          />
+        ) : step === "questions" ? (
+          <QuestionsStep
+            overview={overview}
+            ahead={ahead}
+            onAnswer={async (questionId, answer, note) => {
+              setOverview(
+                await actions.answerBrandQuestion({ questionId, answer, note }),
+              );
+            }}
+            onPlan={async () => {
+              const result = await actions.requestStrategy();
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+          />
+        ) : step === "planning" ? (
+          <ResearchStep
+            overview={overview}
+            messages={messages}
+            onRetry={async () => {
+              const result = await actions.requestStrategy();
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+            onReply={async (text) => {
+              await actions.sendMessage(text);
+              await refresh();
+            }}
+          />
+        ) : step === "strategy" ? (
+          <StrategyStep
+            overview={overview}
+            onChange={async (note) => {
+              const result = await actions.requestStrategy(note);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+            onSetAds={async (monthly, currency) => {
+              const result = await actions.setAdBudget(monthly, currency);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+            ahead={ahead}
+            onCheck={() => setViewing("check")}
+            onApprove={async () => {
+              setOverview(await actions.approveStrategy());
+              // Approving opens Results: how the plan is measured and adjusted.
+              setViewing("results");
+            }}
+          />
+        ) : step === "check" ? (
+          <CheckStep
+            overview={overview}
+            onAnswer={async (questionId, answer, note) => {
+              setOverview(
+                await actions.answerPlanQuestion({ questionId, answer, note }),
+              );
+            }}
+            onUpdate={async () => {
+              const result = await actions.applyPlanAnswers();
+              if (result.overview) setOverview(result.overview);
+              // Back to the plan while Cuso fits it; approving happens there.
+              if (!result.error) setViewing("strategy");
+              return result.error;
+            }}
+            onApprove={async () => {
+              setOverview(await actions.approveStrategy());
+              setViewing("results");
+            }}
+          />
+        ) : step === "results" ? (
+          <ResultsStep
+            overview={overview}
+            next={STEPS[reached]?.label.toLowerCase() ?? "accounts"}
+            onContinue={() => setViewing(null)}
+            onConnectMeasurement={(provider) =>
+              actions.connectMeasurement(provider, "onboarding")
+            }
+          />
+        ) : step === "connect" ? (
+          <ConnectStep
+            overview={overview}
+            onConnect={actions.connectChannel}
+            onMailingList={async (text) => {
+              const result = await actions.addMailingList(text);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+            onContinue={async () => {
+              setOverview(await actions.finishAccounts());
+              setViewing(null);
+            }}
+          />
+        ) : (
+          <PricingStep
+            overview={overview}
+            plans={plans}
+            onStart={actions.completeOnboarding}
+            onSubscribeLater={actions.subscribeLater}
+            onRefresh={refresh}
+            onChooseMockPlan={async (plan) => {
+              const result = await actions.chooseMockPlan(plan);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+          />
+        )}
+      </main>
+    </div>
+  );
+}

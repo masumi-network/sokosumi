@@ -122,10 +122,14 @@ model User {
   badgeCampaignsSeen               BadgeCampaignSeen[]
   projectStars                     ProjectStar[]
   projectHides                     ProjectHide[]
+  confirmedBrandBrains             BrandBrain[]                  @relation("BrandBrainConfirmedBy")
 
   imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")
   imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
   imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
+
+  authoredMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyAuthor")
+  approvedMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyApprover")
 
   // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]

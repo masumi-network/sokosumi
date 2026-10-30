@@ -14,17 +14,23 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   type ChatResultReference,
+  CMO_PRODUCTION_MEDIA_PER_RUN,
+  CMO_PRODUCTION_TURN_PREFIX,
+  cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
+  getSokoBotVersion,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotListTasksInputSchema as listTasksInputSchema,
+  type MarketingStrategyPlan,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
+  parseCmoStrategySave,
   parseSokoBotMemory,
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   redactSokoBotSensitiveText,
@@ -58,6 +64,7 @@ import {
   sokoBotRemoveSkillInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSaveEmailAttachmentInputSchema,
+  sokoBotSearchExaInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotSendEmailDraftInputSchema,
   sokoBotStartBackgroundRunInputSchema,
@@ -152,6 +159,7 @@ import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
 import { fitDisplayImage } from "@/lib/ads/display-image-fit";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { tryUseLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   FILE_CHUNK_OVERLAP_CHARS,
@@ -179,6 +187,7 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
+import { readSocialProfile } from "@/lib/social-profile";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
@@ -229,6 +238,8 @@ import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
+import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   mailSendRefusal,
@@ -246,6 +257,11 @@ import {
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import {
+  RuntimeEventLog,
+  runtimeEvent,
+  WEB_TAINT_EVENT,
+} from "@/lib/soko-bot/turn-loop";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
@@ -272,9 +288,32 @@ import {
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
+  brandBrainSectionsSaved,
+  getBrandBrain,
+  parseBrandBrain,
+  saveBrandBrain,
+} from "@/services/brand-brain.service";
+import {
   hydrateChatResultSnapshots,
   resolveChatResultReference,
 } from "@/services/chat-result-preview.service";
+import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
+import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
+import { CmoNotFoundError } from "@/services/cmo-cuso.service";
+import {
+  CMO_PLAN_REVIEWS_PER_TURN,
+  type CmoPlanOfferVerdict,
+  type CmoPlanReview,
+  cmoDraftProblems,
+  cmoPlanDrift,
+  cmoPlanProblems,
+  cmoReplySafety,
+} from "@/services/cmo-plan-review.service";
+import { reportCmoUpdate } from "@/services/cmo-reports.service";
+import {
+  cmoTurnExecutesPlan,
+  saveCmoStrategy,
+} from "@/services/cmo-strategy.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
@@ -298,6 +337,10 @@ import {
   type ImageJobSettings,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
+import {
+  approvedMarketingStrategy,
+  readMarketingPlan,
+} from "@/services/marketing-strategy.service";
 import { getNewsletter } from "@/services/newsletter.service";
 import {
   generateNewsletterDraft,
@@ -327,6 +370,12 @@ import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
 } from "@/services/social-account-statistics.service";
+import {
+  collectNewSocialComments,
+  handleSocialComment,
+  SocialCommentRefusedError,
+  socialCommentText,
+} from "@/services/social-comments.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 import {
   listSocialPostStatistics,
@@ -455,6 +504,9 @@ export function sokoBotToolCallLimit(turn: {
  * background run, a provider refresh) counts against the turn's limit; sandbox
  * tools are recorded but not counted.
  */
+/** Exa searches one turn may run: a full research uses about twenty-five. */
+const EXA_SEARCHES_PER_TURN = 30;
+
 const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
   SOKO_BOT_CAPABILITIES.filter(
     (capability) =>
@@ -589,6 +641,56 @@ export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   reader: SokoBotTurnReader;
 }
 
+/** Tools whose work belongs to a Project; a project bot's go to its own. */
+const PROJECT_SCOPED_TOOLS: ReadonlySet<string> = new Set([
+  "list_tasks",
+  "create_task",
+  "hire_agent",
+  "generate_image",
+  "get_image",
+  "list_project_social_accounts",
+  "list_social_posts",
+  "get_social_post",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+]);
+
+/**
+ * A Project bot (a shared bot of one Project, such as CMO.xyz's Cuso) works in
+ * that Project only: its project-scoped tools default to it and refuse any
+ * other.
+ */
+export async function pinToBotProject(
+  input: ExecuteSokoBotToolInput,
+  sokoBotId: string,
+): Promise<ExecuteSokoBotToolInput> {
+  if (!PROJECT_SCOPED_TOOLS.has(input.capability)) return input;
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { projectId: true },
+  });
+  if (!bot?.projectId) return input;
+  const fields =
+    input.input &&
+    typeof input.input === "object" &&
+    !Array.isArray(input.input)
+      ? (input.input as Record<string, unknown>)
+      : {};
+  if (
+    fields.projectId !== undefined &&
+    fields.projectId !== null &&
+    fields.projectId !== bot.projectId
+  ) {
+    throw new SokoBotRuntimeValidationError(
+      "This bot works in its own Project only; use that Project.",
+    );
+  }
+  return { ...input, input: { ...fields, projectId: bot.projectId } };
+}
+
 export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
   capability: SokoBotCapability;
   toolCallId: string;
@@ -694,6 +796,19 @@ function actingMemberOf(authorized: {
       "This action runs as a member, and nobody asked for this turn. Say what you would do in your chat; a member's request starts a turn that can do it.",
     );
   return actingUserId;
+}
+
+/**
+ * Whether a turn acts in its owner's name. On Cuso, a shared CMO bot, every
+ * member's turn does: he works for the whole business (ADR 0061). On any other
+ * shared bot a member is a teammate, and an assistant never is the owner.
+ */
+function actsForOwner(authorized: AuthorizedSokoBotRuntime): boolean {
+  if (authorized.askedByKind === "OWNER") return true;
+  return (
+    authorized.askedByKind === "TEAMMATE" &&
+    getSokoBotVersion(authorized.turn.versionId).profile === "cmo"
+  );
 }
 
 /** A Drive folder a tool may write into, normalized; "" is the top level. */
@@ -2000,17 +2115,173 @@ export class SokoBotRuntimeService {
    * `executeTool` runs it before the external-effect reservation, so a
    * refusal is recorded as rejected rather than as an unknown outcome.
    */
+  /**
+   * Spending credits on media and replying in the brand's name need a person
+   * asking in chat. Cuso's own routines are the exception once the owner
+   * approved his plan: it lists the media, and the daily run makes it and
+   * answers comments.
+   */
+  private async mayActForOwner(
+    authorized: AuthorizedSokoBotRuntime,
+  ): Promise<boolean> {
+    const { turn } = authorized;
+    if (
+      turn.source === "CHAT" &&
+      turn.chainDepth === 0 &&
+      authorized.askedByKind !== "ASSISTANT"
+    )
+      return true;
+    // Cuso's own rhythms and the month's production run (an EVENT run Core
+    // starts after payment) act once the owner approved the plan.
+    if (
+      (turn.source !== "SCHEDULE" && turn.source !== "EVENT") ||
+      getSokoBotVersion(turn.versionId).profile !== "cmo"
+    )
+      return false;
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: turn.sokoBotId },
+      select: { projectId: true },
+    });
+    return (
+      !!bot?.projectId &&
+      (await approvedMarketingStrategy(bot.projectId)) !== null
+    );
+  }
+
+  /**
+   * Images and videos one turn may start. Cuso's production run makes a
+   * whole month at once; four images a turn left it 33 short.
+   */
+  private async mediaPerTurn(
+    authorized: AuthorizedSokoBotRuntime,
+  ): Promise<{ images: number; videos: number }> {
+    const chat = { images: MAX_IMAGES_PER_TURN, videos: MAX_VIDEOS_PER_TURN };
+    if (authorized.turn.source !== "EVENT") return chat;
+    const turn = await prisma.sokoBotTurn.findUnique({
+      where: { id: authorized.turn.id },
+      select: { clientTurnId: true },
+    });
+    return turn?.clientTurnId.startsWith(CMO_PRODUCTION_TURN_PREFIX)
+      ? CMO_PRODUCTION_MEDIA_PER_RUN
+      : chat;
+  }
+
+  /**
+   * The Project whose Social comments a bot handles: its own, as a Project
+   * bot such as Cuso. A Brand Brain, when the bot has one, informs the reply
+   * check.
+   */
+  private async socialCommentScopeOf(authorized: AuthorizedSokoBotRuntime) {
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: {
+        projectId: true,
+        project: { select: { brandBrain: { select: { body: true } } } },
+      },
+    });
+    if (!bot?.projectId)
+      throw new SokoBotRuntimeValidationError(
+        "Social comments belong to a Project, and this bot has none.",
+      );
+    return {
+      projectId: bot.projectId,
+      brandBrain: bot.project?.brandBrain?.body ?? null,
+    };
+  }
+
+  /**
+   * Cuso's daily reply round, one comment at a time. Replies post on his own
+   * runs once the owner approved his plan, or when the owner asks in chat;
+   * each passes a safety check first, and a held one goes to the owner.
+   */
+  private async handleCmoComment(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+  ) {
+    const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS.handle_social_comment.parse(
+      input.input,
+    );
+    // As with the plan: only the owner's own turns act in the brand's name,
+    // and a cancelled or paused turn acts on nothing.
+    if (!actsForOwner(authorized)) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only the owner's turns answer comments in the brand's name",
+      );
+    }
+    await prisma.$transaction((tx) =>
+      this.requireMutationAuthority(tx, authorized, false, input.capability),
+    );
+    const scope = await this.socialCommentScopeOf(authorized);
+    try {
+      if (parsed.action !== "reply") {
+        return await handleSocialComment({
+          projectId: scope.projectId,
+          commentId: parsed.commentId,
+          action: parsed.action,
+          note: parsed.note,
+        });
+      }
+      if (!(await this.mayActForOwner(authorized)))
+        throw new SokoBotRuntimeAuthorizationError(
+          "Replies post on your approved daily run or when the owner asks in chat.",
+        );
+      const comment = await socialCommentText(
+        scope.projectId,
+        parsed.commentId,
+      );
+      if (comment === null)
+        throw new SokoBotRuntimeValidationError("No such comment.");
+      const check = await cmoReplySafety({
+        brain: parseBrandBrain(scope.brandBrain),
+        comment,
+        reply: parsed.reply ?? "",
+      });
+      if (check.costUsd > 0) {
+        await prisma.sokoBotTurn.update({
+          where: { id: authorized.turn.id },
+          data: {
+            overheadCostUsdMicros: {
+              increment: BigInt(Math.round(check.costUsd * 1_000_000)),
+            },
+          },
+        });
+      }
+      if (!check.safe) {
+        await handleSocialComment({
+          projectId: scope.projectId,
+          commentId: parsed.commentId,
+          action: "owner",
+          note: `Held for you. Cuso's draft reply: ${parsed.reply ?? ""}`,
+        });
+        return {
+          status: "owner",
+          note: "The safety check held this reply; it now waits for the owner. Mention it in your report.",
+        };
+      }
+      return await handleSocialComment({
+        projectId: scope.projectId,
+        commentId: parsed.commentId,
+        action: "reply",
+        reply: parsed.reply,
+      });
+    } catch (error) {
+      if (error instanceof SocialCommentRefusedError)
+        throw new SokoBotRuntimeValidationError(error.message);
+      if (error instanceof ComposioToolError)
+        throw new SokoBotRuntimeValidationError(
+          "The network refused this reply. Hand the comment to the owner.",
+        );
+      throw error;
+    }
+  }
+
   private async checkImageRequest(
     authorized: AuthorizedSokoBotRuntime,
     raw: unknown,
     toolCallId: string,
   ) {
     const input = generateImageInputSchema.parse(raw);
-    if (
-      authorized.turn.source !== "CHAT" ||
-      authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT"
-    )
+    if (!(await this.mayActForOwner(authorized)))
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
@@ -2022,9 +2293,10 @@ export class SokoBotRuntimeService {
         NOT: { toolCallId },
       },
     });
-    if (started >= MAX_IMAGES_PER_TURN)
+    const { images } = await this.mediaPerTurn(authorized);
+    if (started >= images)
       throw new SokoBotRuntimeValidationError(
-        `One turn may start at most ${MAX_IMAGES_PER_TURN} images. Show your owner these first.`,
+        `One turn may start at most ${images} images. Show your owner these first.`,
       );
     const aspectRatio = z
       .enum(IMAGE_ASPECT_RATIOS)
@@ -2048,17 +2320,23 @@ export class SokoBotRuntimeService {
         );
       throw error;
     }
+    const referenceFileIds = await this.imageReferenceFiles(
+      authorized,
+      input.referenceFileIds ?? [],
+    );
     await ensureImageCatalogFresh();
     const model = imageModel();
     const settings: ImageJobSettings = {
       ...DEFAULT_SETTINGS,
+      // Every network takes a JPEG; Instagram takes nothing else.
+      ...(model.outputFormats.includes("jpeg") ? { outputFormat: "jpeg" } : {}),
       ...(aspectRatio.data ? { aspectRatio: aspectRatio.data } : {}),
     };
     let credits: number;
     try {
       credits = creditsPerImage(
         model,
-        resolveImageSettings(model.id, settings, 0),
+        resolveImageSettings(model.id, settings, referenceFileIds.length),
       );
     } catch (error) {
       throw new SokoBotRuntimeValidationError(
@@ -2069,7 +2347,33 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeValidationError(
         `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
       );
-    return { input, model, settings, credits };
+    return { input, model, settings, credits, referenceFileIds };
+  }
+
+  /** Reference Files for an image: image Files the owner may open, in order. */
+  private async imageReferenceFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    ids: string[],
+  ): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: ids,
+    });
+    for (const id of ids) {
+      const file = files.find((candidate) => candidate.id === id);
+      if (
+        !file ||
+        file.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
+        !file.mimeType?.startsWith("image/")
+      )
+        throw new SokoBotRuntimeValidationError(
+          `File ${id} is not an image in the owner's Files; use a picture id from brandPictures, list_files or get_image`,
+        );
+    }
+    return ids;
   }
 
   /** Starts an image in a Project's Content Studio, once checked. */
@@ -2080,15 +2384,14 @@ export class SokoBotRuntimeService {
   ) {
     // Checked again here, after the reservation: a price or access change
     // since the preflight still refuses before anything is sent.
-    const { input, model, settings, credits } = await this.checkImageRequest(
-      authorized,
-      raw,
-      toolCallId,
-    ).catch((error: unknown) => {
-      throw new SokoBotImageRefusedError(
-        error instanceof Error ? error.message : "Image refused",
+    const { input, model, settings, credits, referenceFileIds } =
+      await this.checkImageRequest(authorized, raw, toolCallId).catch(
+        (error: unknown) => {
+          throw new SokoBotImageRefusedError(
+            error instanceof Error ? error.message : "Image refused",
+          );
+        },
       );
-    });
     const studioUrl = studioLink(input.projectId);
     let job: Awaited<ReturnType<typeof createImageJob>>;
     try {
@@ -2101,6 +2404,7 @@ export class SokoBotRuntimeService {
         modelId: model.id,
         settings,
         referenceAssetIds: [],
+        referenceFileIds,
         parentAssetId: null,
         idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
       });
@@ -2136,11 +2440,7 @@ export class SokoBotRuntimeService {
     toolCallId: string,
   ) {
     const input = generateVideoInputSchema.parse(raw);
-    if (
-      authorized.turn.source !== "CHAT" ||
-      authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT"
-    )
+    if (!(await this.mayActForOwner(authorized)))
       throw new SokoBotRuntimeAuthorizationError(
         "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
       );
@@ -2152,9 +2452,10 @@ export class SokoBotRuntimeService {
         NOT: { toolCallId },
       },
     });
-    if (started >= MAX_VIDEOS_PER_TURN)
+    const { videos } = await this.mediaPerTurn(authorized);
+    if (started >= videos)
       throw new SokoBotRuntimeValidationError(
-        `One turn may start at most ${MAX_VIDEOS_PER_TURN} videos. Show your owner these first.`,
+        `One turn may start at most ${videos} videos. Show your owner these first.`,
       );
     this.requireImageProject(authorized, input.projectId);
     const scope = {
@@ -4798,6 +5099,255 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  /** Cuso's Brand Brain, strategy and reports, written to his Project. */
+  /**
+   * The plan's review while it waits for approval: the strategy skill's hard
+   * rules, and whether it sells the main offer. Bounded per turn, so a plan
+   * that cannot be fixed still ends. Approved plans are the daily run's to
+   * change and are not reviewed.
+   */
+  private async reviewCmoPlan(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+    plan: {
+      /** The version saved is the approved one (pieces of the running plan). */
+      approved: boolean;
+      strategy: MarketingStrategyPlan | null;
+      planSent: boolean;
+    },
+  ): Promise<CmoPlanReview | null> {
+    const { strategy } = plan;
+    if (!strategy || plan.approved) return null;
+    const saves = await prisma.sokoBotToolCall.count({
+      where: { turnId: authorized.turn.id, capability: "save_strategy" },
+    });
+    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
+    const problems = cmoPlanProblems(strategy);
+    const bot = plan.planSent
+      ? await prisma.sokoBot.findUnique({
+          where: { id: authorized.turn.sokoBotId },
+          select: { projectId: true },
+        })
+      : null;
+    const brain = bot?.projectId
+      ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
+      : null;
+    let mainOffer: CmoPlanOfferVerdict = "skipped";
+    if (plan.planSent && brain) {
+      const drift = await cmoPlanDrift({ strategy, brain });
+      mainOffer = drift.verdict;
+      if (drift.problem) problems.push(drift.problem);
+      if (drift.costUsd > 0) {
+        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+          runtimeEvent("step.completed", {
+            modelId: SOKO_BOT_JEV_MODEL,
+            usage: { costUsd: drift.costUsd },
+          }),
+        );
+      }
+    }
+    const review = { save: saves, mainOffer, problems };
+    tryUseLogger()?.set({
+      cmoPlanReview: {
+        sokoBotId: authorized.turn.sokoBotId,
+        turnId: authorized.turn.id,
+        save: saves,
+        mainOffer,
+        problems: problems.length,
+      },
+    });
+    return review;
+  }
+
+  private async saveCmoRecord(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+  ) {
+    if (getSokoBotVersion(authorized.turn.versionId).profile !== "cmo") {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only a CMO assistant keeps a Brand Brain, strategy and reports",
+      );
+    }
+    // A teammate's turn never sees the plan (no marketing packet), so it may
+    // not rewrite it either.
+    if (!actsForOwner(authorized)) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only the owner's turns change the Brand Brain, strategy and reports",
+      );
+    }
+    const where = { sokoBotId: authorized.turn.sokoBotId };
+    // The write and the cancellation/pause check share one lock, so a
+    // cancelled or paused turn's save never lands.
+    const write = <T>(save: (tx: Prisma.TransactionClient) => Promise<T>) =>
+      prisma.$transaction(async (tx) => {
+        await this.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
+        );
+        return save(tx);
+      });
+    const run = async (): Promise<{
+      targetId: string;
+      result: Record<string, unknown>;
+    }> => {
+      switch (input.capability) {
+        case "save_brand_brain": {
+          const save = SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(
+            input.input,
+          );
+          // The Brand Brain is the Project's (ADR 0062): Cuso's own Project.
+          const saved = await write(async (tx) => {
+            const bot = await tx.sokoBot.findUnique({
+              where: { id: authorized.turn.sokoBotId },
+              select: { projectId: true },
+            });
+            if (!bot?.projectId)
+              throw new SokoBotRuntimeValidationError(
+                "A Brand Brain belongs to a Project, and this bot has none.",
+              );
+            return saveBrandBrain(bot.projectId, save, tx);
+          });
+          if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
+          const stored = parseBrandBrain(saved.body);
+          // The owner opens on the reveal and answers the questions next, so
+          // essentials without them leave two empty screens.
+          const missing = stored
+            ? [
+                ...(stored.reveal ? [] : ["reveal"]),
+                ...(stored.questions.length > 0 ? [] : ["questions"]),
+              ]
+            : [];
+          return {
+            targetId: saved.id,
+            result: {
+              saved: "brandBrain",
+              sections: brandBrainSectionsSaved(saved.body),
+              essentials: stored !== null,
+              updatedAt: saved.updatedAt?.toISOString(),
+              ...(missing.length > 0
+                ? {
+                    missing,
+                    next: `Save brandBrain again with ${missing.join(" and ")}: the owner opens on the reveal and answers the yes/no questions next.`,
+                  }
+                : {}),
+            },
+          };
+        }
+        case "save_strategy": {
+          const sent = parseCmoStrategySave(input.input);
+          const pieces = cmoStrategySavePart(input.input) === "pieces";
+          // A rhythm or production run builds on the approved version.
+          const turn = await prisma.sokoBotTurn.findUnique({
+            where: { id: authorized.turn.id },
+            select: { source: true, clientTurnId: true },
+          });
+          const executing = turn ? cmoTurnExecutesPlan(turn) : false;
+          const saved = await write((tx) =>
+            saveCmoStrategy(
+              where,
+              sent,
+              { turnId: authorized.turn.id, pieces, executing },
+              tx,
+            ),
+          );
+          // A running plan's social pieces are its Social posts.
+          const stored = await readMarketingPlan(saved);
+          const calendar = stored?.calendar ?? [];
+          const approved = saved.approvedAt !== null;
+          const review = await this.reviewCmoPlan(authorized, input, {
+            approved,
+            strategy: stored,
+            planSent: sent.summary !== undefined,
+          });
+          // Once the plan runs, the drafts are checked against the copy rules.
+          const draftProblems = approved ? cmoDraftProblems(calendar) : [];
+          // Says which pieces still have no draft.
+          const undrafted = calendar
+            .filter((entry) => entry.status !== "skipped" && !entry.draft)
+            .map((entry) => entry.date)
+            .sort();
+          return {
+            targetId: saved.id,
+            result: {
+              saved: "strategy",
+              versionId: saved.id,
+              approved,
+              updatedAt: saved.updatedAt.toISOString(),
+              entries: calendar.length,
+              drafted: calendar.filter((entry) => entry.draft).length,
+              undrafted: undrafted.length,
+              firstUndrafted: undrafted[0],
+              ...(review ? { review } : {}),
+              ...(review && review.problems.length > 0
+                ? {
+                    problems: review.problems,
+                    next: "Fix these and save again: part plan for the strategy, part calendar for the calendar.",
+                  }
+                : draftProblems.length > 0
+                  ? {
+                      problems: draftProblems,
+                      next: "Rewrite these drafts on their Social posts (the ids) with update_social_post.",
+                    }
+                  : {}),
+            },
+          };
+        }
+        default: {
+          const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.report_update.parse(
+            input.input,
+          );
+          const record = await write((tx) =>
+            reportCmoUpdate(
+              {
+                sokoBotId: authorized.turn.sokoBotId,
+                turnId: authorized.turn.id,
+                toolCallId: input.toolCallId,
+                update,
+              },
+              tx,
+            ),
+          );
+          const { publishChatRoomMessageRealtimeById } = await import(
+            "@/helpers/chat-room-message-realtime"
+          );
+          await publishChatRoomMessageRealtimeById(record.id, "create");
+          return {
+            targetId: record.id,
+            result: {
+              reported: record.kind,
+              id: record.id,
+              revertible: record.previousVersionId !== undefined,
+            },
+          };
+        }
+      }
+    };
+    const { targetId, result } = await run().catch((error: unknown) => {
+      if (error instanceof CmoNotFoundError) {
+        throw new SokoBotRuntimeValidationError(error.message);
+      }
+      throw error;
+    });
+    await serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        input.capability,
+      );
+      await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId: input.toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId,
+        result: persistedToolResult(result),
+      });
+    }, "CMO record changed concurrently");
+    return result;
+  }
+
   /** A shared bot writes only inside its scope; a personal bot is unchanged. */
   private async requireWriteScope(
     tx: Prisma.TransactionClient,
@@ -4894,8 +5444,9 @@ export class SokoBotRuntimeService {
     }, "Memory changed during turn");
   }
 
-  async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
-    const authorized = await this.authorize(input);
+  async executeTool(rawInput: ExecuteSokoBotToolInput): Promise<unknown> {
+    const authorized = await this.authorize(rawInput);
+    let input = await pinToBotProject(rawInput, authorized.turn.sokoBotId);
     if (input.capability === "newsletter_draft_issue") {
       const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(
         input.input,
@@ -5452,11 +6003,7 @@ export class SokoBotRuntimeService {
     tx: Prisma.TransactionClient = prisma,
     ownerMessage = "Project social tools are only available for the owner",
   ) {
-    if (
-      authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT" ||
-      authorized.askedByKind === "TEAMMATE"
-    ) {
+    if (authorized.turn.chainDepth > 0 || !actsForOwner(authorized)) {
       throw new SokoBotRuntimeAuthorizationError(ownerMessage);
     }
     const userId = actingMemberOf(authorized);
@@ -5477,6 +6024,19 @@ export class SokoBotRuntimeService {
     await requireAssignedOrganizationSeat(userId, workspace.organizationId, tx);
 
     return workspace;
+  }
+
+  /**
+   * CMO bots schedule and publish only once the owner approved the strategy
+   * and the workspace has an active CMO plan (`cmoMayExecute`). No-op for
+   * every other bot.
+   */
+  private async requireCmoExecution(authorized: AuthorizedSokoBotRuntime) {
+    const refusal = await cmoExecutionRefusal({
+      sokoBotId: authorized.turn.sokoBotId,
+      versionId: authorized.turn.versionId,
+    });
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
   }
 
   /**
@@ -5780,6 +6340,16 @@ export class SokoBotRuntimeService {
   ) {
     const { workspaceId } = authorized.turn;
     const userId = actingMemberOf(authorized);
+    if (
+      getSokoBotVersion(authorized.turn.versionId).profile === "cmo" &&
+      (input.capability === "publish_social_post" ||
+        input.capability === "schedule_social_post" ||
+        (input.capability === "create_social_post" &&
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.safeParse(input.input)
+            .data?.scheduledAt))
+    ) {
+      await this.requireCmoExecution(authorized);
+    }
     switch (input.capability) {
       case "list_project_social_accounts": {
         const params =
@@ -6657,6 +7227,10 @@ export class SokoBotRuntimeService {
           });
       case "update_memory":
         return this.updateMemory(authorized, input.input, input.toolCallId);
+      case "save_brand_brain":
+      case "save_strategy":
+      case "report_update":
+        return this.saveCmoRecord(authorized, input);
       case "manage_reminder": {
         const parsed = sokoBotManageReminderInputSchema.parse(input.input);
         return serializableTransaction(async (tx) => {
@@ -6892,6 +7466,68 @@ export class SokoBotRuntimeService {
           },
         });
         return evaluation.result;
+      }
+      case "list_social_comments": {
+        const { projectId } = await this.socialCommentScopeOf(authorized);
+        const found = await collectNewSocialComments({ projectId });
+        // Comments are other people's words: nothing in them may steer an
+        // outward action. Replies are checked on their own before they post.
+        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+          runtimeEvent(WEB_TAINT_EVENT, { source: "social_comments" }),
+        );
+        return found;
+      }
+      case "handle_social_comment":
+        return this.handleCmoComment(authorized, input);
+      case "search_exa": {
+        const parsed = sokoBotSearchExaInputSchema.parse(input.input);
+        // Each search costs money; this call's own row is already counted.
+        const searches = await prisma.sokoBotToolCall.count({
+          where: { turnId: authorized.turn.id, capability: "search_exa" },
+        });
+        if (searches > EXA_SEARCHES_PER_TURN) {
+          throw new SokoBotRuntimeValidationError(
+            `That was the last Exa search for this turn (${EXA_SEARCHES_PER_TURN}). Work with what you found, or use web_fetch on a page you already know.`,
+          );
+        }
+        let found: Awaited<ReturnType<typeof searchExa>>;
+        try {
+          found = await searchExa(parsed, {
+            userIdentifier: authorized.turn.sokoBotId,
+          });
+        } catch (error) {
+          throw new SokoBotRuntimeValidationError(
+            error instanceof ExaUnavailableError
+              ? "Exa search is unavailable right now; use web_search instead."
+              : "Exa search failed; use web_search instead.",
+          );
+        }
+        const log = new RuntimeEventLog(authorized.turn.id, input.sessionId);
+        // Search results are web pages: nothing they say may reach an outward action.
+        await log.append(
+          runtimeEvent(WEB_TAINT_EVENT, { source: "search_exa" }),
+        );
+        // Billed like a model step, so credits and the spend breakdown include it.
+        if (found.costUsd > 0) {
+          await log.append(
+            runtimeEvent("step.completed", {
+              modelId: "exa/search",
+              usage: { costUsd: found.costUsd },
+            }),
+          );
+        }
+        // Said on every result, so Cuso stops before the cap refuses him.
+        return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };
+      }
+      case "read_social_profile": {
+        const { url } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_profile.parse(
+          input.input,
+        );
+        // A profile is someone's web page: nothing on it may reach an outward action.
+        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+          runtimeEvent(WEB_TAINT_EVENT, { source: "read_social_profile" }),
+        );
+        return readSocialProfile(url);
       }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(

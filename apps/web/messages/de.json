@@ -1007,7 +1007,8 @@
         "studio_job": "Studio-Generierung",
         "job": "Agent-Ergebnis",
         "file": "Datei",
-        "decision": "Freigabe"
+        "decision": "Freigabe",
+        "cmo_report": "Bericht"
       },
       "status": {
         "DRAFT": "Entwurf",
@@ -1136,7 +1137,8 @@
       "termsOfServices": "Nutzungsbedingungen",
       "privacyPolicy": "Datenschutzrichtlinie",
       "imprint": "Impressum",
-      "acceptableUse": "Zulässige Nutzung"
+      "acceptableUse": "Zulässige Nutzung",
+      "usesSokosumi": "Nutzt dein Sokosumi-Konto."
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1195,7 +1197,9 @@
         "Header": {
           "title": "Anmelden",
           "description": "Agents auf unserer Plattform beauftragen",
-          "descriptionFor": "Melde dich mit deinem Sokosumi-Konto an, um mit {client} fortzufahren"
+          "descriptionFor": "Melde dich mit deinem Sokosumi-Konto an, um mit {client} fortzufahren",
+          "titleCmo": "Bei CMO.xyz anmelden",
+          "descriptionCmo": "Cuso macht dein Marketing."
         },
         "Form": {
           "submit": "Anmelden",
@@ -1253,7 +1257,9 @@
           "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
           "description": "Agents auf unserer Plattform beauftragen",
-          "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
+          "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren",
+          "titleCmo": "Erstelle dein CMO.xyz-Konto",
+          "descriptionCmo": "Cuso macht dein Marketing."
         },
         "Form": {
           "submit": "Registrieren",
@@ -4843,6 +4849,10 @@
           "badgeCampaigns": {
             "title": "Feature-Badges",
             "description": "Zeigt bestehenden Nutzern für eine feste Zeit ein Neu-Badge an einer Funktion in der Seitenleiste."
+          },
+          "cmoSpend": {
+            "title": "CMO-Kosten",
+            "description": "Was jeder CMO-Bot (Cuso) ausgegeben hat, was den Inhabern belastet wurde und wofür."
           }
         }
       },
@@ -5469,7 +5479,14 @@
           "archived": "Archiviert",
           "version": "Version",
           "showDormant": "Ungenutzte und archivierte anzeigen ({count})",
-          "chat": "Chat"
+          "chat": "Chat",
+          "kindLabel": "Anzeigen",
+          "kind": {
+            "all": "Alle",
+            "assistant": "Soko Bots",
+            "cmo": "Cuso"
+          },
+          "cmoBadge": "CMO"
         },
         "Detail": {
           "backToList": "Zurück zu Soko Bots",
@@ -6155,6 +6172,32 @@
           "deleteFailed": "Kampagne konnte nicht gelöscht werden",
           "started": "Kampagne gestartet"
         }
+      },
+      "CmoSpend": {
+        "title": "CMO-Kosten",
+        "description": "Was jeder CMO-Bot für seine Arbeit ausgegeben hat, was dem Inhaber belastet wurde und wofür: jedes Modell, Websuche, Exa, Overhead und Bilder.",
+        "summary": "{bots, plural, one {# CMO-Bot hat} other {# CMO-Bots haben}} {spent} ausgegeben und {charged} Credits belastet.",
+        "period": "Zeitraum",
+        "days": "{days} Tage",
+        "empty": "In diesem Zeitraum hat kein CMO-Bot gearbeitet.",
+        "business": "Unternehmen",
+        "turns": "Durchläufe",
+        "spent": "Ausgegeben",
+        "charged": "Belastet (Credits)",
+        "where": "Wofür",
+        "tools": "Genutzte Tools",
+        "calls": "{calls, plural, one {# Aufruf} other {# Aufrufe}}",
+        "exa": "Exa-Suche",
+        "webSearch": "Websuche",
+        "overhead": "Routing und Qualitätsprüfung (nicht belastet)",
+        "images": "Credits für Bilder",
+        "planChecks": "Plan-Prüfungen",
+        "checksNone": "Noch keine",
+        "checked": "{checked, plural, one {# Speicherung geprüft} other {# Speicherungen geprüft}}",
+        "sentBack": "{count} zur Korrektur zurück",
+        "drifted": "{count} weg vom Hauptangebot",
+        "unavailable": "{count} ohne Prüfmodell",
+        "lastProblems": "Zuletzt zurück {at}:"
       }
     },
     "Billing": {

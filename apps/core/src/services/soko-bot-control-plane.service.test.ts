@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  CMO_SOKO_BOT_VERSION_ID,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
@@ -864,6 +865,90 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it("runs a named bot, and otherwise the owner's personal assistant only", async () => {
+    jevEvaluate.mockResolvedValue(jevRoute("CLARIFY"));
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({ id: "t", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "s",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const plane = new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    );
+    await plane.startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "personal",
+      message: "Hi",
+    });
+    expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+    });
+    botFindFirstMock.mockClear();
+    await plane.startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      sokoBotId: BOT_ID,
+      clientTurnId: "named",
+      message: "Hi",
+    });
+    expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
+      id: BOT_ID,
+    });
+  });
+
+  it("gives Cuso his marketing tools for an owner's request the classifier read narrowly", async () => {
+    // Jev saw no write scope in "announce our product next Tuesday".
+    jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK"));
+    botFindFirstMock.mockResolvedValue(adminBot({ versionId: "cmo-v1" }));
+    botFindUniqueMock.mockResolvedValue(adminBot({ versionId: "cmo-v1" }));
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "cmo-turn",
+      leaseToken: "cmo-lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "cmo-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "cmo-client",
+      message: "Announce our new product next Tuesday",
+    });
+    const capabilities =
+      turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
+    expect(capabilities).toContain("create_social_post");
+    expect(capabilities).toContain("schedule_social_post");
+    expect(capabilities).toContain("save_strategy");
+    // He reads measurement sources connected to his own bot, never the owner's mail.
+    expect(capabilities).toContain("run_integration_tool");
+    expect(capabilities).not.toContain("search_inbox");
+    expect(capabilities).not.toContain("send_email_draft");
+  });
+
   it("keeps every tool and saves the preference when Jev only guesses the route", async () => {
     // "stop messaging me about these deployment failures": Jev read CLARIFY at
     // 51%, which used to steer the bot into asking instead of acting.
@@ -1488,7 +1573,9 @@ describe("SokoBotControlPlane lifecycle", () => {
         cursor: { id: "bot_4" },
         skip: 1,
         take: 3,
-        where: expect.objectContaining({ OR: expect.any(Array) }),
+        where: expect.objectContaining({
+          AND: [{}, expect.objectContaining({ OR: expect.any(Array) })],
+        }),
         include: expect.objectContaining({
           _count: {
             select: expect.objectContaining({
@@ -1501,12 +1588,40 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(result).toEqual({
       items: [
-        { id: "bot_3", userId: "u", outOfCredits: false },
-        { id: "bot_2", userId: "u", outOfCredits: true },
+        { id: "bot_3", userId: "u", kind: "assistant", outOfCredits: false },
+        { id: "bot_2", userId: "u", kind: "assistant", outOfCredits: true },
       ],
       total: 5,
       hasMore: true,
     });
+  });
+
+  it("filters the admin fleet to Cuso bots and marks them", async () => {
+    botFindManyMock.mockResolvedValue([
+      {
+        id: "bot_cmo",
+        userId: "u",
+        versionId: "cmo-v1",
+        workspace: { organizationId: null },
+      },
+    ]);
+    botCountMock.mockResolvedValue(1);
+    transactionMock.mockImplementationOnce(async (queries) =>
+      Promise.all(queries),
+    );
+
+    const result = await new SokoBotControlPlane().listForAdmin(undefined, {
+      kind: "cmo",
+    });
+
+    expect(botFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [{ versionId: { in: ["cmo-v1"] } }, {}],
+        }),
+      }),
+    );
+    expect(result.items[0]).toMatchObject({ id: "bot_cmo", kind: "cmo" });
   });
 
   it("reactivates an archived bot explicitly", async () => {
@@ -4464,6 +4579,28 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({ status: "CANCELLED" }),
       }),
     );
+  });
+});
+
+describe("updateVersion", () => {
+  it("never lets a member move Cuso off CMO's version", async () => {
+    // The member reaches Cuso (a shared bot) by id, like any member may.
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    await expect(
+      new SokoBotControlPlane().updateVersion(
+        "member_1",
+        "workspace_1",
+        "v19",
+        { allowUnpromoted: false },
+        { kind: "id", sokoBotId: BOT_ID },
+      ),
+    ).rejects.toThrow("CMO's own version");
   });
 });
 

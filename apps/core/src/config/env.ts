@@ -138,6 +138,18 @@ const baseEnvSchema = z.object({
 
   // Project memory (Vercel AI Gateway, Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
+  EXA_API_KEY: z.string().min(1).optional(),
+  /**
+   * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
+   * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
+   */
+  CHROMIUM_EXECUTABLE_PATH: z.string().min(1).optional(),
+  CHROMIUM_EXECUTABLE_URL: z
+    .url()
+    .default(
+      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
+    ),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**
@@ -209,6 +221,26 @@ const baseEnvSchema = z.object({
 
   // First-party Soko Bot control plane and Eve runtime.
   SOKO_BOT_ENABLED: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+
+  // CMO.xyz: subscription plans (Better Auth plan names, comma separated)
+  // that let Cuso schedule and publish for a CMO organization. solo, growth
+  // and scale are CMO's own tiers, which mock billing stores as Subscriptions.
+  CMO_SUBSCRIPTION_PLANS: z
+    .string()
+    .default("cmo,starter,standard,pro,solo,growth,scale")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((plan) => plan.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
+  // CMO.xyz mock billing for local and preview runs: a CMO tier picked in
+  // CMO counts as subscribed without real checkout. Never set in production.
+  CMO_MOCK_BILLING: z
     .string()
     .default("false")
     .transform((value) => value.trim().toLowerCase() === "true"),
@@ -310,6 +342,16 @@ const baseEnvSchema = z.object({
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * Masumi DESIGN.md API (the same service Web uses for brand DESIGN.md).
+   * CMO onboarding generates the brand's DESIGN.md with it when set; without
+   * it Cuso reads the logo, colours and fonts from the site directly.
+   */
+  MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
+  MASUMI_DESIGN_MD_API_URL: z
+    .string()
+    .url()
+    .default("https://www.masumi.network/api/v1"),
   /**
    * Read-write token for the image studio's **own, private-access** Blob
    * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.

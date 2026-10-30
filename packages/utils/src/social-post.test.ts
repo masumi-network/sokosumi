@@ -131,7 +131,7 @@ describe("per-provider limits and requirements", () => {
 
   it("exposes the strictest request bounds and the schedule lead", () => {
     expect(SOCIAL_POST_TEXT_MAX).toBe(SOCIAL_POST_TEXT_LIMITS.facebook);
-    expect(SOCIAL_POST_MEDIA_MAX).toBe(4);
+    expect(SOCIAL_POST_MEDIA_MAX).toBe(10);
     expect(SOCIAL_POST_MIN_SCHEDULE_LEAD_MS).toBe(60_000);
     expect(SOCIAL_POST_TEXT_MAX).toBeGreaterThan(SOCIAL_POST_TEXT_LIMITS.x);
   });

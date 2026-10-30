@@ -9,13 +9,15 @@ import {
   ensureProjectFilesToken,
   uploadProjectContextMdFile,
 } from "@/lib/project-files-blob";
-import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
+import {
+  isProjectMemoryConfigured,
+  PROJECT_MEMORY_LOCK_TTL_MS,
+} from "@/lib/project-memory-config";
 import {
   latestUpdateWindowFor,
   refreshProjectLatestUpdate,
 } from "./project-latest-update";
 
-const MEMORY_LOCK_TTL_MS = 5 * 60 * 1000;
 const MEMORY_GENERATION_TIMEOUT_MS = 60_000;
 const MAX_CONTEXT_WORDS = 800;
 const MAX_CONTEXT_BYTES = 8 * 1024;
@@ -285,7 +287,9 @@ async function refreshProjectMemoryIteration({
   env: ReturnType<typeof getEnv>;
 }): Promise<ProjectMemoryIterationResult> {
   const lockStartedAt = new Date();
-  const staleBefore = new Date(lockStartedAt.getTime() - MEMORY_LOCK_TTL_MS);
+  const staleBefore = new Date(
+    lockStartedAt.getTime() - PROJECT_MEMORY_LOCK_TTL_MS,
+  );
   const lockResult = await prisma.project.updateMany({
     where: {
       id: projectId,

@@ -9,6 +9,7 @@ import {
   ListTodo,
   type LucideIcon,
   MessagesSquare,
+  Receipt,
   Sparkles,
   Store,
   Users,
@@ -119,6 +120,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "sokoBots",
     href: "/admin/soko-bots",
     Icon: BrainCircuit,
+    group: "operations",
+  },
+  {
+    key: "cmoSpend",
+    href: "/admin/cmo-spend",
+    Icon: Receipt,
     group: "operations",
   },
   {

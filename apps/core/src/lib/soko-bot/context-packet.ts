@@ -13,6 +13,11 @@ import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
+import {
+  compactBrandBrain,
+  getBrandBrain,
+  parseBrandBrain,
+} from "@/services/brand-brain.service";
 import { listHireableAgents } from "./agent-search";
 import {
   type ContextPacketReaderInput,
@@ -101,6 +106,8 @@ interface ProjectStatusJob {
 
 export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
+  /** Tells a CMO rhythm or production run (approved strategy) from other turns. */
+  clientTurnId?: string;
   classification: TurnClassification;
   referencedTaskIds?: readonly string[];
   /** A person typed this turn: it holds every tool, and the route is a guess. */
@@ -502,6 +509,34 @@ export class ContextPacketBuilder {
     if (!workspace) throw new Error("Workspace is not accessible");
 
     const organizationId = workspace.organizationId;
+    // Cuso (CMO) reads its Brand Brain and strategy here on every turn; null
+    // for every other bot. A teammate's question never sees the plan, and a
+    // failed read leaves the plan out rather than failing the turn.
+    const marketing =
+      input.audience === "TEAMMATE"
+        ? null
+        : await Promise.all([
+            import("@/services/cmo-context.service"),
+            import("@/services/cmo-strategy.service"),
+          ])
+            .then(([{ loadCmoMarketingContext }, { cmoTurnExecutesPlan }]) =>
+              loadCmoMarketingContext(input.sokoBotId, undefined, {
+                executing: cmoTurnExecutesPlan({
+                  source: input.source,
+                  clientTurnId: input.clientTurnId ?? null,
+                }),
+              }),
+            )
+            .catch(() => null);
+    // Every bot of a Project reads its Brand Brain (ADR 0062); Cuso already
+    // has it in his marketing packet. A failed read leaves it out.
+    const brandBrainProjectId = input.sharedScope?.projectId ?? null;
+    const brandBrain =
+      marketing || !brandBrainProjectId
+        ? null
+        : await getBrandBrain(brandBrainProjectId)
+            .then((row) => compactBrandBrain(parseBrandBrain(row?.body)))
+            .catch(() => null);
     const referenceId = organizationId ?? input.userId;
     // Only a shared bot acts for nobody, and only in an Organization.
     if (referenceId === null) throw new Error("Workspace is not accessible");
@@ -894,6 +929,7 @@ export class ContextPacketBuilder {
       },
       workspace: {
         reminders,
+        ...(marketing ? { marketing } : {}),
         id: boundedIdentifier(workspace.id),
         scope: organizationId ? "organization" : "personal",
         plan: sanitizeText(
@@ -927,6 +963,9 @@ export class ContextPacketBuilder {
             jobs,
           ),
           updatedAt: project.updatedAt.toISOString(),
+          ...(brandBrain && project.id === brandBrainProjectId
+            ? { brandBrain }
+            : {}),
           trust: "untrusted-data",
         })),
         // Name only: enough to find a Project the owner names.

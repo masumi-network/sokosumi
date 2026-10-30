@@ -9,6 +9,11 @@ import {
   requireTaskReadForWorkspace,
 } from "@/helpers/access-control";
 import { readPreparedResultSnapshots } from "@/helpers/chat-result-metadata";
+import {
+  CMO_REPORT_MESSAGE_PREFIX,
+  cmoReportCard,
+  readCmoReport,
+} from "@/helpers/cmo-report-card";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
@@ -498,6 +503,29 @@ export async function resolveChatResultReference(
   }
   let data: ChatResultAvailable;
   switch (ref.kind) {
+    case "cmo_report": {
+      // Any member of the Workspace reads Cuso's shared room.
+      const message = await client.chatRoomMessage.findFirst({
+        where: {
+          id: ref.id,
+          deletedAt: null,
+          clientMessageId: { startsWith: CMO_REPORT_MESSAGE_PREFIX },
+          room: { sharedSokoBot: { workspaceId: actor.workspaceId } },
+        },
+        select: {
+          metadata: true,
+          room: { select: { sharedSokoBot: { select: { projectId: true } } } },
+        },
+      });
+      const report = readCmoReport(message?.metadata);
+      const projectId = message?.room.sharedSokoBot?.projectId;
+      if (!report || !projectId) throw notFound("Result unavailable");
+      data = chatResultAvailableSchema.parse({
+        ...base,
+        ...cmoReportCard(report, projectId),
+      });
+      break;
+    }
     case "project_selection": {
       const projects = await client.project.findMany({
         where: { workspaceId: actor.workspaceId, id: { in: ref.projectIds } },
@@ -935,6 +963,10 @@ export async function hydrateChatResultSnapshots(
                 details: current.data.details,
                 outputs: current.data.outputs,
               }
+            : {}),
+          // A report the owner reverted says so on its card.
+          ...(snapshot.data.kind === "cmo_report"
+            ? { status: current.data.status }
             : {}),
           // Auto tags, the project and the assignee usually land seconds
           // after the turn; the card keeps the name and status it reported.

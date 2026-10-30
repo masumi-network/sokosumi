@@ -148,6 +148,12 @@ export {
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
 export {
+  CMO_CHANNELS,
+  type CmoChannelKey,
+  isCmoChannelFormat,
+  normalizeCmoChannelFormat,
+} from "./cmo-channels.js";
+export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
   CONTACT_CONVERSATION_DAYS,

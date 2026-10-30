@@ -45,6 +45,11 @@ export type InitiateProjectSocialConnectionInput = {
   projectId: string;
   workspaceId: string;
   userId: string;
+  /**
+   * Where the provider sends the owner back. Defaults to Web's popup
+   * callback; a first-party app passes its own page, checked by the route.
+   */
+  callbackUrl?: string;
 } & (
   | {
       provider: ProjectSocialProvider;
@@ -355,7 +360,7 @@ export async function initiateProjectSocialConnection(
     authConfigId,
     connectorUserId: projectConnectorUserId(input.userId),
     executorUserId: projectExecutorUserId(input.projectId),
-    callbackUrl: `${getWebAppBaseUrl()}/composio/callback`,
+    callbackUrl: input.callbackUrl ?? `${getWebAppBaseUrl()}/composio/callback`,
   });
   try {
     await serializableTransaction(async (tx) => {

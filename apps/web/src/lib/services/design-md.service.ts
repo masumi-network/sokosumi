@@ -278,15 +278,18 @@ async function persistDonePayload(
   owner: DesignMdOwnerSchemaType,
   donePayload: DesignMdDonePayload,
 ): Promise<PersistedDesignMd> {
+  // Heuristic results carry no extraction id; "null" must not become one.
+  const extractionId =
+    donePayload.extractionId === null ? null : String(donePayload.extractionId);
   if (owner.type === "adhoc") {
     return storeAdHocDesignMd({
-      extractionId: String(donePayload.extractionId),
+      extractionId,
       content: donePayload.designMd,
     });
   }
 
   const persisted = await persistDesignMdToProfile(owner, {
-    extractionId: String(donePayload.extractionId),
+    extractionId,
     content: donePayload.designMd,
   });
 

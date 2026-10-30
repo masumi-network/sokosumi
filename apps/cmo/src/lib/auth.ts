@@ -529,6 +529,14 @@ const renewalsByAuth = new WeakMap<CmoAuth, Map<string, Promise<Response>>>();
  * Core cannot be reached or cannot check them, and 204 otherwise. A 503 is
  * replayed for a few seconds, so an outage does not send every page to Core.
  */
+/** Whether the request carries CMO's session cookie, valid or not. */
+export function hasSessionCookie(auth: CmoAuth, request: Request): boolean {
+  const { sessionToken } = getCookies(auth.options);
+  return parseCookies(request.headers.get("cookie") ?? "").has(
+    sessionToken.name,
+  );
+}
+
 export function renewSession(
   auth: CmoAuth,
   request: Request,

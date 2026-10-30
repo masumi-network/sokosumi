@@ -233,6 +233,7 @@ export type AdminSokoBotListItem = {
     status: SokoBotStatus;
     archivedAt: Date | null;
     versionId: string | null;
+    kind: 'assistant' | 'cmo';
     runtimeVersion: string | null;
     runtimeDeployment: string | null;
     lastActivityAt: Date | null;
@@ -451,6 +452,41 @@ export type AdminSokoBotVersionUsage = {
     versions: Array<{
         versionId: string;
         count: number;
+    }>;
+};
+
+export type AdminCmoSpend = {
+    since: string;
+    bots: Array<{
+        sokoBotId: string;
+        businessName: string;
+        ownerEmail: string;
+        turns: number;
+        totalUsd: number;
+        overheadUsd: number;
+        imagesCredits: number;
+        chargedCredits: number;
+        bySource: Array<{
+            source: string;
+            costUsd: number;
+            calls: number;
+            inputTokens: number;
+            outputTokens: number;
+        }>;
+        tools: Array<{
+            capability: string;
+            calls: number;
+        }>;
+        planChecks: {
+            checked: number;
+            withProblems: number;
+            drifted: number;
+            unavailable: number;
+            last: {
+                at: string;
+                problems: Array<string>;
+            } | null;
+        };
     }>;
 };
 
@@ -3263,7 +3299,7 @@ export type ChatResultAvailable = {
     id: string;
     state: 'available';
     capturedAt: Date;
-    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection';
+    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection' | 'cmo_report';
     title: string;
     status: string | null;
     summary?: string | null;
@@ -6497,6 +6533,1086 @@ export type ProjectContextMd = ProjectContextMdMetadata & {
     content: string;
 };
 
+export type BrandBrain = {
+    /**
+     * Null until its essentials are saved.
+     */
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
+        marketingToday?: {
+            summary: string;
+            channels?: Array<{
+                name: string;
+                url?: string;
+                followers?: string;
+                postsPerMonth?: number;
+                lastPost?: string;
+                formats?: Array<string>;
+                themes?: Array<string>;
+                basis: 'measured' | 'estimated' | 'unknown';
+            }>;
+            website?: {
+                blog?: string;
+                newsletter?: boolean;
+                notes?: Array<string>;
+            };
+            ads?: {
+                status: 'running' | 'none_found' | 'unknown';
+                note?: string;
+            };
+        };
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+    } | null;
+    /**
+     * When the essentials were last saved.
+     */
+    updatedAt: Date | null;
+    confirmedAt: Date | null;
+    /**
+     * The member who last confirmed it.
+     */
+    confirmedBy: {
+        id: string;
+        name: string;
+    } | null;
+};
+
+export type BrandBrainRequest = {
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
+        marketingToday?: {
+            summary: string;
+            channels?: Array<{
+                name: string;
+                url?: string;
+                followers?: string;
+                postsPerMonth?: number;
+                lastPost?: string;
+                formats?: Array<string>;
+                themes?: Array<string>;
+                basis: 'measured' | 'estimated' | 'unknown';
+            }>;
+            website?: {
+                blog?: string;
+                newsletter?: boolean;
+                notes?: Array<string>;
+            };
+            ads?: {
+                status: 'running' | 'none_found' | 'unknown';
+                note?: string;
+            };
+        };
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+    };
+};
+
+export type QuestionAnswerRequest = {
+    questionId: string;
+    answer: 'yes' | 'no' | 'unsure';
+    /**
+     * After a no: what is true instead, in the member's words.
+     */
+    note?: string;
+};
+
+export type MarketingStrategyVersion = {
+    id: string;
+    projectId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    authorSokoBotId: string | null;
+    authorUserId: string | null;
+    /**
+     * When an owner or admin approved this version; at most one version per Project is approved, and only it is carried out.
+     */
+    approvedAt: Date | null;
+    approvedByUserId: string | null;
+};
+
+export type MarketingStrategy = MarketingStrategyVersion & {
+    /**
+     * The plan with its yes/no questions and their answers.
+     */
+    plan: {
+        month: string;
+        summary: string;
+        why?: string;
+        goals: Array<string>;
+        audience?: string;
+        contentLanguage?: string;
+        positioning?: string;
+        pillars: Array<string>;
+        channels: Array<{
+            channel: string;
+            cadence: string;
+            why?: string;
+        }>;
+        idea?: {
+            who: string;
+            position: string;
+            attract: string;
+            offer: string;
+            sentence: string;
+        };
+        alternatives?: Array<{
+            sentence: string;
+            why: string;
+        }>;
+        ladder?: {
+            entry?: {
+                what: string;
+                why?: string;
+            };
+            core: {
+                what: string;
+                why?: string;
+            };
+            next?: {
+                what: string;
+                why?: string;
+            };
+        };
+        pace?: {
+            level: 'steady' | 'active' | 'all_in';
+            why: string;
+            perWeek: number;
+        };
+        ads?: {
+            monthly: number;
+            currency: string;
+            expect: string;
+            without: string;
+            setByOwner?: boolean;
+        };
+        beforeAfter?: Array<{
+            channel: string;
+            before: string;
+            after: string;
+        }>;
+        improvements?: Array<{
+            area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            idea: string;
+            why: string;
+            url?: string;
+        }>;
+        start?: {
+            working?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            gaps?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            resources?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+        };
+        objective?: {
+            outcome?: string;
+            metric?: string;
+            baseline?: string;
+            baselineBasis?: 'fact' | 'assumption';
+            target?: string;
+            why?: string;
+        };
+        barrier?: {
+            kind: 'awareness' | 'understanding' | 'trust';
+            text: string;
+        };
+        mix?: Array<{
+            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            share: number;
+            why: string;
+        }>;
+        focus?: {
+            segment: string;
+            problem: string;
+            trigger?: string;
+            objections?: Array<string>;
+            where?: Array<string>;
+        };
+        offer?: {
+            what: string;
+            why: string;
+            proof?: Array<string>;
+            action: string;
+        };
+        campaigns?: Array<{
+            id: string;
+            name: string;
+            message: string;
+            audience?: string;
+            offer?: string;
+            channels?: Array<string>;
+            assets?: Array<string>;
+            start: string;
+            end: string;
+            budget?: string;
+            metric: string;
+        }>;
+        funnel?: Array<{
+            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+            name: string;
+            goal: string;
+            channels?: Array<string>;
+            metric: string;
+            target?: string;
+            owner?: 'cuso' | 'you' | 'shared';
+            plays?: Array<{
+                channel: string;
+                what: string;
+                cadence?: string;
+            }>;
+            measure?: {
+                value?: string;
+                basis: 'measured' | 'estimated' | 'unknown';
+                source?: string;
+            };
+        }>;
+        proposals?: Array<{
+            channel: string;
+            why: string;
+            what: string;
+            perMonth: number;
+        }>;
+        journey?: Array<{
+            step: string;
+            fix?: string;
+        }>;
+        weeks?: Array<{
+            focus: string;
+            tasks?: Array<{
+                task: string;
+                owner: 'cuso' | 'you';
+                due?: string;
+                approval?: boolean;
+            }>;
+        }>;
+        budget?: {
+            total: string;
+            basis?: 'fact' | 'assumption';
+            lines?: Array<{
+                item: string;
+                amount: string;
+            }>;
+        };
+        measurement?: {
+            primary: string;
+            supporting?: Array<string>;
+            tracking?: Array<string>;
+            rules?: Array<{
+                when: string;
+                then: string;
+            }>;
+        };
+        openQuestions?: Array<string>;
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+        calendar: Array<{
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        }>;
+        previews?: Array<{
+            kind: 'post' | 'ad' | 'seo' | 'newsletter';
+            channel: string;
+            title: string;
+            body: string;
+        }>;
+        changes?: Array<string>;
+    };
+};
+
+export type MarketingStrategyRequest = {
+    /**
+     * The whole plan, with its calendar and any yes/no questions.
+     */
+    plan: {
+        month: string;
+        summary: string;
+        why?: string;
+        goals: Array<string>;
+        audience?: string;
+        contentLanguage?: string;
+        positioning?: string;
+        pillars: Array<string>;
+        channels: Array<{
+            channel: string;
+            cadence: string;
+            why?: string;
+        }>;
+        idea?: {
+            who: string;
+            position: string;
+            attract: string;
+            offer: string;
+            sentence: string;
+        };
+        alternatives?: Array<{
+            sentence: string;
+            why: string;
+        }>;
+        ladder?: {
+            entry?: {
+                what: string;
+                why?: string;
+            };
+            core: {
+                what: string;
+                why?: string;
+            };
+            next?: {
+                what: string;
+                why?: string;
+            };
+        };
+        pace?: {
+            level: 'steady' | 'active' | 'all_in';
+            why: string;
+            perWeek: number;
+        };
+        ads?: {
+            monthly: number;
+            currency: string;
+            expect: string;
+            without: string;
+            setByOwner?: boolean;
+        };
+        beforeAfter?: Array<{
+            channel: string;
+            before: string;
+            after: string;
+        }>;
+        improvements?: Array<{
+            area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            idea: string;
+            why: string;
+            url?: string;
+        }>;
+        start?: {
+            working?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            gaps?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            resources?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+        };
+        objective?: {
+            outcome?: string;
+            metric?: string;
+            baseline?: string;
+            baselineBasis?: 'fact' | 'assumption';
+            target?: string;
+            why?: string;
+        };
+        barrier?: {
+            kind: 'awareness' | 'understanding' | 'trust';
+            text: string;
+        };
+        mix?: Array<{
+            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            share: number;
+            why: string;
+        }>;
+        focus?: {
+            segment: string;
+            problem: string;
+            trigger?: string;
+            objections?: Array<string>;
+            where?: Array<string>;
+        };
+        offer?: {
+            what: string;
+            why: string;
+            proof?: Array<string>;
+            action: string;
+        };
+        campaigns?: Array<{
+            id: string;
+            name: string;
+            message: string;
+            audience?: string;
+            offer?: string;
+            channels?: Array<string>;
+            assets?: Array<string>;
+            start: string;
+            end: string;
+            budget?: string;
+            metric: string;
+        }>;
+        funnel?: Array<{
+            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+            name: string;
+            goal: string;
+            channels?: Array<string>;
+            metric: string;
+            target?: string;
+            owner?: 'cuso' | 'you' | 'shared';
+            plays?: Array<{
+                channel: string;
+                what: string;
+                cadence?: string;
+            }>;
+            measure?: {
+                value?: string;
+                basis: 'measured' | 'estimated' | 'unknown';
+                source?: string;
+            };
+        }>;
+        proposals?: Array<{
+            channel: string;
+            why: string;
+            what: string;
+            perMonth: number;
+        }>;
+        journey?: Array<{
+            step: string;
+            fix?: string;
+        }>;
+        weeks?: Array<{
+            focus: string;
+            tasks?: Array<{
+                task: string;
+                owner: 'cuso' | 'you';
+                due?: string;
+                approval?: boolean;
+            }>;
+        }>;
+        budget?: {
+            total: string;
+            basis?: 'fact' | 'assumption';
+            lines?: Array<{
+                item: string;
+                amount: string;
+            }>;
+        };
+        measurement?: {
+            primary: string;
+            supporting?: Array<string>;
+            tracking?: Array<string>;
+            rules?: Array<{
+                when: string;
+                then: string;
+            }>;
+        };
+        openQuestions?: Array<string>;
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+        calendar: Array<{
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        }>;
+        previews?: Array<{
+            kind: 'post' | 'ad' | 'seo' | 'newsletter';
+            channel: string;
+            title: string;
+            body: string;
+        }>;
+        changes?: Array<string>;
+    };
+};
+
 export type ProjectDesignMdWrite = {
     content: string;
     extractionId?: string | null;
@@ -7225,12 +8341,24 @@ export type InitiateProjectSocialConnectionResponse = {
 export type InitiateProjectSocialConnectionRequest = {
     action: 'connect';
     provider: ProjectSocialProvider;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 } | {
     action: 'replace';
     socialConnectionId: string;
+    /**
+     * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
+     */
+    callbackUrl?: string;
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
@@ -7944,6 +9072,24 @@ export type SocialPost = {
     lastAttemptAt: Date | null;
     lastAttempt: SocialPostLastAttempt | null;
     revision: number;
+    /**
+     * The Marketing strategy version whose calendar planned this post; null for a post planned by hand.
+     */
+    marketingStrategyId?: string | null;
+    /**
+     * What the plan intends with the post: its calendar entry's title, format, hook, brief, why, approach, pillar and campaign.
+     */
+    planning?: {
+        id: string;
+        title: string;
+        format: string;
+        hook?: string;
+        brief?: string;
+        why?: string;
+        approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+        pillar?: string;
+        campaignId?: string;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
     canEdit: boolean;
@@ -8729,6 +9875,751 @@ export type PublicSharedTaskFile = {
     mimeType: string | null;
     size: number | null;
     createdAt: Date;
+};
+
+export type CmoOverview = {
+    businessName: string;
+    websiteUrl: string;
+    organizationSlug: string | null;
+    projectName: string;
+    workspaceId: string;
+    sokoBotId: string;
+    projectId: string;
+    roomId: string;
+    botStatus: string;
+    /**
+     * Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.
+     */
+    learning: 'running' | 'failed' | 'done';
+    subscriptionActive: boolean;
+    /**
+     * Whether this member may approve the strategy and start the paid month: the organization's owners and admins only. Every other member works with Cuso but cannot.
+     */
+    viewerCanApprove: boolean;
+    work: CmoWork | null;
+    brandVisual: CmoBrandVisual | null;
+    projectLogo: string | null;
+    /**
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan or this person chose to subscribe later. CMO opens on the chat once done; Cuso makes and spends nothing until a plan is active.
+     */
+    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'plan' | 'done';
+    /**
+     * CMO offers its own mock tiers instead of Sokosumi checkout.
+     */
+    mockBilling: boolean;
+    mockPlan: string | null;
+    mockPlanActivatedAt: Date | null;
+    routines: Array<CmoRoutine>;
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
+        marketingToday?: {
+            summary: string;
+            channels?: Array<{
+                name: string;
+                url?: string;
+                followers?: string;
+                postsPerMonth?: number;
+                lastPost?: string;
+                formats?: Array<string>;
+                themes?: Array<string>;
+                basis: 'measured' | 'estimated' | 'unknown';
+            }>;
+            website?: {
+                blog?: string;
+                newsletter?: boolean;
+                notes?: Array<string>;
+            };
+            ads?: {
+                status: 'running' | 'none_found' | 'unknown';
+                note?: string;
+            };
+        };
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+    } | null;
+    brandBrainUpdatedAt: Date | null;
+    brandBrainConfirmedAt: Date | null;
+    brandMedia: CmoBrandMedia | null;
+    strategy: {
+        month: string;
+        summary: string;
+        why?: string;
+        goals: Array<string>;
+        audience?: string;
+        contentLanguage?: string;
+        positioning?: string;
+        pillars: Array<string>;
+        channels: Array<{
+            channel: string;
+            cadence: string;
+            why?: string;
+        }>;
+        idea?: {
+            who: string;
+            position: string;
+            attract: string;
+            offer: string;
+            sentence: string;
+        };
+        alternatives?: Array<{
+            sentence: string;
+            why: string;
+        }>;
+        ladder?: {
+            entry?: {
+                what: string;
+                why?: string;
+            };
+            core: {
+                what: string;
+                why?: string;
+            };
+            next?: {
+                what: string;
+                why?: string;
+            };
+        };
+        pace?: {
+            level: 'steady' | 'active' | 'all_in';
+            why: string;
+            perWeek: number;
+        };
+        ads?: {
+            monthly: number;
+            currency: string;
+            expect: string;
+            without: string;
+            setByOwner?: boolean;
+        };
+        beforeAfter?: Array<{
+            channel: string;
+            before: string;
+            after: string;
+        }>;
+        improvements?: Array<{
+            area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            idea: string;
+            why: string;
+            url?: string;
+        }>;
+        start?: {
+            working?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            gaps?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            resources?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+        };
+        objective?: {
+            outcome?: string;
+            metric?: string;
+            baseline?: string;
+            baselineBasis?: 'fact' | 'assumption';
+            target?: string;
+            why?: string;
+        };
+        barrier?: {
+            kind: 'awareness' | 'understanding' | 'trust';
+            text: string;
+        };
+        mix?: Array<{
+            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            share: number;
+            why: string;
+        }>;
+        focus?: {
+            segment: string;
+            problem: string;
+            trigger?: string;
+            objections?: Array<string>;
+            where?: Array<string>;
+        };
+        offer?: {
+            what: string;
+            why: string;
+            proof?: Array<string>;
+            action: string;
+        };
+        campaigns?: Array<{
+            id: string;
+            name: string;
+            message: string;
+            audience?: string;
+            offer?: string;
+            channels?: Array<string>;
+            assets?: Array<string>;
+            start: string;
+            end: string;
+            budget?: string;
+            metric: string;
+        }>;
+        funnel?: Array<{
+            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+            name: string;
+            goal: string;
+            channels?: Array<string>;
+            metric: string;
+            target?: string;
+            owner?: 'cuso' | 'you' | 'shared';
+            plays?: Array<{
+                channel: string;
+                what: string;
+                cadence?: string;
+            }>;
+            measure?: {
+                value?: string;
+                basis: 'measured' | 'estimated' | 'unknown';
+                source?: string;
+            };
+        }>;
+        proposals?: Array<{
+            channel: string;
+            why: string;
+            what: string;
+            perMonth: number;
+        }>;
+        journey?: Array<{
+            step: string;
+            fix?: string;
+        }>;
+        weeks?: Array<{
+            focus: string;
+            tasks?: Array<{
+                task: string;
+                owner: 'cuso' | 'you';
+                due?: string;
+                approval?: boolean;
+            }>;
+        }>;
+        budget?: {
+            total: string;
+            basis?: 'fact' | 'assumption';
+            lines?: Array<{
+                item: string;
+                amount: string;
+            }>;
+        };
+        measurement?: {
+            primary: string;
+            supporting?: Array<string>;
+            tracking?: Array<string>;
+            rules?: Array<{
+                when: string;
+                then: string;
+            }>;
+        };
+        openQuestions?: Array<string>;
+        questions?: Array<{
+            id: string;
+            question: string;
+            statement: string;
+            answer?: 'yes' | 'no' | 'unsure';
+            note?: string;
+        }>;
+        calendar: Array<{
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        }>;
+        previews?: Array<{
+            kind: 'post' | 'ad' | 'seo' | 'newsletter';
+            channel: string;
+            title: string;
+            body: string;
+        }>;
+        changes?: Array<string>;
+    } | null;
+    /**
+     * The image or video Cuso attached to each calendar piece, by entry id.
+     */
+    media: Array<{
+        entryId: string;
+        kind: 'image' | 'video';
+        url: string;
+        slides?: Array<string>;
+    }>;
+    /**
+     * The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.
+     */
+    strategyVersion: MarketingStrategyVersion | null;
+    /**
+     * Every version, newest first. At most one is approved; approving an older one reverts to it.
+     */
+    strategyVersions: Array<MarketingStrategyVersion>;
+    updates: Array<CmoUpdate>;
+    channels: Array<CmoChannel>;
+    upNext: Array<CmoUpNextItem>;
+    connectChannelUrl: string;
+    adProviders: Array<string>;
+    connectAdsUrl: string;
+    /**
+     * Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.
+     */
+    measurement: Array<CmoMeasurement>;
+    production: CmoProduction;
+    mailingListSize: number;
+    subscribeUrl: string;
+    billing: {
+        plan: string | null;
+        subscriptionStatus: string | null;
+        availableCredits: number;
+    };
+    posts: {
+        draft: number;
+        scheduled: number;
+        published: number;
+        failed: number;
+    };
+    createdAt: Date;
+};
+
+export type CmoWork = {
+    kind: 'research' | 'strategy';
+    status: 'running' | 'failed' | 'done';
+    startedAt: Date;
+    steps: Array<CmoWorkStep>;
+    sectionsSaved: number;
+    sectionsTotal: number;
+};
+
+export type CmoWorkStep = {
+    id: string;
+    kind: 'search' | 'read' | 'study' | 'brain' | 'strategy' | 'other';
+    label: string;
+    url: string | null;
+    status: 'running' | 'done' | 'failed';
+    at: Date;
+};
+
+/**
+ * The brand's look, read from the Project's logo and DESIGN.md (colours, fonts and name).
+ */
+export type CmoBrandVisual = {
+    logoUrl: string | null;
+    colors: Array<string>;
+    fonts: Array<string>;
+    siteName: string | null;
+    designMdUrl: string | null;
+    /**
+     * The brand's pictures from the Project's Brand research files, for post previews.
+     */
+    images: Array<string>;
+};
+
+export type CmoRoutine = {
+    key: string;
+    name: string;
+    when: string;
+    description: string;
+    nextRunAt: Date | null;
+    timezone: string | null;
+};
+
+export type CmoBrandMedia = {
+    capturedAt: string;
+    /**
+     * The brand's own pages, home first, then home on a phone.
+     */
+    pages: Array<{
+        url: string;
+        fileId: string | null;
+        label: string;
+        pageUrl: string;
+        device: 'desktop' | 'mobile';
+    }>;
+    /**
+     * Each competitor's homepage, in the Brand Brain's order.
+     */
+    competitors: Array<{
+        url: string;
+        fileId: string | null;
+        name: string;
+        pageUrl: string;
+    }>;
+    /**
+     * The large pictures on the brand's pages: products, screens, people.
+     */
+    pictures: Array<{
+        url: string;
+        fileId: string | null;
+        alt: string;
+    }>;
+};
+
+export type CmoUpdate = {
+    kind: 'daily' | 'weekly' | 'monthly' | 'brand' | 'request' | 'production';
+    headline: string;
+    done?: Array<string>;
+    upNext?: Array<string>;
+    changes?: Array<string>;
+    results?: string;
+    id: string;
+    at: Date;
+    revertible: boolean;
+    revertedAt: Date | null;
+};
+
+export type CmoChannel = {
+    id: string;
+    provider: string;
+    handle: string | null;
+    displayName: string | null;
+    status: string;
+};
+
+export type CmoUpNextItem = {
+    id: string;
+    date: string;
+    channel: string;
+    title: string;
+    status: string;
+};
+
+export type CmoMeasurement = {
+    provider: 'google_analytics' | 'google_search_console' | 'shopify';
+    name: string;
+    measures: string;
+    status: 'connected' | 'pending' | 'none';
+};
+
+/**
+ * After payment Cuso makes the whole month at once: how many of its pieces are made.
+ */
+export type CmoProduction = {
+    state: 'waiting' | 'running' | 'ready' | 'stuck';
+    ready: number;
+    total: number;
+    finishedAt: string | null;
+};
+
+export type CmoOnboardingRequest = {
+    /**
+     * The business's website. Cuso is hired into a new organization named after it.
+     */
+    websiteUrl: string;
+};
+
+export type CmoMockPlanRequest = {
+    /**
+     * A CMO tier id from CMO's own plan config.
+     */
+    plan: string;
+};
+
+export type CmoTurnStarted = {
+    turnId: string;
+};
+
+export type CmoStrategyRequest = {
+    note?: string;
+};
+
+export type CmoAdBudgetRequest = {
+    monthly: number;
+    /**
+     * ISO 4217, such as EUR.
+     */
+    currency: string;
+};
+
+export type CmoMeasurementConnect = {
+    redirectUrl: string;
 };
 
 export type SokoBotApiKey = {
@@ -11719,6 +13610,10 @@ export type ListAdminSokoBotsData = {
          */
         limit?: number;
         query?: string;
+        /**
+         * Personal Soko Bots, Cuso (CMO.xyz) bots, or both.
+         */
+        kind?: 'all' | 'assistant' | 'cmo';
     };
     url: '/admin/soko-bots';
 };
@@ -12702,6 +14597,66 @@ export type GetAdminSokoBotVersionUsageResponses = {
 };
 
 export type GetAdminSokoBotVersionUsageResponse = GetAdminSokoBotVersionUsageResponses[keyof GetAdminSokoBotVersionUsageResponses];
+
+export type GetAdminCmoSpendData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+    };
+    url: '/admin/soko-bots/cmo-spend';
+};
+
+export type GetAdminCmoSpendErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminCmoSpendError = GetAdminCmoSpendErrors[keyof GetAdminCmoSpendErrors];
+
+export type GetAdminCmoSpendResponses = {
+    /**
+     * Spend per CMO bot
+     */
+    200: {
+        data: AdminCmoSpend;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminCmoSpendResponse = GetAdminCmoSpendResponses[keyof GetAdminCmoSpendResponses];
 
 export type MigrateAdminSokoBotVersionsData = {
     body?: AdminSokoBotVersionMigrationRequest;
@@ -28150,6 +30105,142 @@ export type PostContactListsByIdMembersResponses = {
 };
 
 export type PostContactListsByIdMembersResponse = PostContactListsByIdMembersResponses[keyof PostContactListsByIdMembersResponses];
+
+export type PostContactListsByIdImportData = {
+    body?: {
+        text: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}/import';
+};
+
+export type PostContactListsByIdImportErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No addresses, too many, or a smart list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactListsByIdImportError = PostContactListsByIdImportErrors[keyof PostContactListsByIdImportErrors];
+
+export type PostContactListsByIdImportResponses = {
+    /**
+     * List
+     */
+    200: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactListsByIdImportResponse = PostContactListsByIdImportResponses[keyof PostContactListsByIdImportResponses];
 
 export type GetContactsData = {
     body?: never;
@@ -47360,6 +49451,897 @@ export type GetProjectsByIdContextMdResponses = {
 
 export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
 
+export type GetProjectBrandBrainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain';
+};
+
+export type GetProjectBrandBrainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectBrandBrainError = GetProjectBrandBrainErrors[keyof GetProjectBrandBrainErrors];
+
+export type GetProjectBrandBrainResponses = {
+    /**
+     * Brand Brain
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectBrandBrainResponse = GetProjectBrandBrainResponses[keyof GetProjectBrandBrainResponses];
+
+export type UpdateProjectBrandBrainData = {
+    body: BrandBrainRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain';
+};
+
+export type UpdateProjectBrandBrainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateProjectBrandBrainError = UpdateProjectBrandBrainErrors[keyof UpdateProjectBrandBrainErrors];
+
+export type UpdateProjectBrandBrainResponses = {
+    /**
+     * Brand Brain saved
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateProjectBrandBrainResponse = UpdateProjectBrandBrainResponses[keyof UpdateProjectBrandBrainResponses];
+
+export type ConfirmProjectBrandBrainData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain/confirm';
+};
+
+export type ConfirmProjectBrandBrainErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Brand Brain is still being built
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConfirmProjectBrandBrainError = ConfirmProjectBrandBrainErrors[keyof ConfirmProjectBrandBrainErrors];
+
+export type ConfirmProjectBrandBrainResponses = {
+    /**
+     * Brand Brain confirmed
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConfirmProjectBrandBrainResponse = ConfirmProjectBrandBrainResponses[keyof ConfirmProjectBrandBrainResponses];
+
+export type AnswerProjectBrandBrainQuestionData = {
+    body: QuestionAnswerRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/brand-brain/answers';
+};
+
+export type AnswerProjectBrandBrainQuestionErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found, or no such question
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerProjectBrandBrainQuestionError = AnswerProjectBrandBrainQuestionErrors[keyof AnswerProjectBrandBrainQuestionErrors];
+
+export type AnswerProjectBrandBrainQuestionResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerProjectBrandBrainQuestionResponse = AnswerProjectBrandBrainQuestionResponses[keyof AnswerProjectBrandBrainQuestionResponses];
+
+export type ListProjectMarketingStrategiesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/projects/{id}/marketing-strategies';
+};
+
+export type ListProjectMarketingStrategiesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListProjectMarketingStrategiesError = ListProjectMarketingStrategiesErrors[keyof ListProjectMarketingStrategiesErrors];
+
+export type ListProjectMarketingStrategiesResponses = {
+    /**
+     * Marketing strategy versions
+     */
+    200: {
+        data: Array<MarketingStrategyVersion>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListProjectMarketingStrategiesResponse = ListProjectMarketingStrategiesResponses[keyof ListProjectMarketingStrategiesResponses];
+
+export type CreateProjectMarketingStrategyData = {
+    body: MarketingStrategyRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies';
+};
+
+export type CreateProjectMarketingStrategyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateProjectMarketingStrategyError = CreateProjectMarketingStrategyErrors[keyof CreateProjectMarketingStrategyErrors];
+
+export type CreateProjectMarketingStrategyResponses = {
+    /**
+     * Marketing strategy version written
+     */
+    201: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateProjectMarketingStrategyResponse = CreateProjectMarketingStrategyResponses[keyof CreateProjectMarketingStrategyResponses];
+
+export type GetProjectMarketingStrategyData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies/{strategyId}';
+};
+
+export type GetProjectMarketingStrategyErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectMarketingStrategyError = GetProjectMarketingStrategyErrors[keyof GetProjectMarketingStrategyErrors];
+
+export type GetProjectMarketingStrategyResponses = {
+    /**
+     * Marketing strategy version
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectMarketingStrategyResponse = GetProjectMarketingStrategyResponses[keyof GetProjectMarketingStrategyResponses];
+
+export type ApproveProjectMarketingStrategyData = {
+    body?: never;
+    path: {
+        id: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies/{strategyId}/approve';
+};
+
+export type ApproveProjectMarketingStrategyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A new version is being written
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApproveProjectMarketingStrategyError = ApproveProjectMarketingStrategyErrors[keyof ApproveProjectMarketingStrategyErrors];
+
+export type ApproveProjectMarketingStrategyResponses = {
+    /**
+     * Marketing strategy version approved
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApproveProjectMarketingStrategyResponse = ApproveProjectMarketingStrategyResponses[keyof ApproveProjectMarketingStrategyResponses];
+
+export type AnswerProjectMarketingStrategyQuestionData = {
+    body: QuestionAnswerRequest;
+    path: {
+        id: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/marketing-strategies/{strategyId}/answers';
+};
+
+export type AnswerProjectMarketingStrategyQuestionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerProjectMarketingStrategyQuestionError = AnswerProjectMarketingStrategyQuestionErrors[keyof AnswerProjectMarketingStrategyQuestionErrors];
+
+export type AnswerProjectMarketingStrategyQuestionResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerProjectMarketingStrategyQuestionResponse = AnswerProjectMarketingStrategyQuestionResponses[keyof AnswerProjectMarketingStrategyQuestionResponses];
+
 export type DeleteProjectsByIdDesignMdData = {
     body?: never;
     headers?: {
@@ -62783,6 +65765,1057 @@ export type GetShareByTokenResponses = {
 };
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
+
+export type GetCmoOverviewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo';
+};
+
+export type GetCmoOverviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoOverviewError = GetCmoOverviewErrors[keyof GetCmoOverviewErrors];
+
+export type GetCmoOverviewResponses = {
+    /**
+     * The Cuso the caller works with
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoOverviewResponse = GetCmoOverviewResponses[keyof GetCmoOverviewResponses];
+
+export type StartCmoOnboardingData = {
+    body?: CmoOnboardingRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding';
+};
+
+export type StartCmoOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - The organization limit is reached
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartCmoOnboardingError = StartCmoOnboardingErrors[keyof StartCmoOnboardingErrors];
+
+export type StartCmoOnboardingResponses = {
+    /**
+     * Cuso hired; he is learning the business
+     */
+    201: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
+
+export type ChooseCmoMockPlanData = {
+    body: CmoMockPlanRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/mock-plan';
+};
+
+export type ChooseCmoMockPlanErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Mock billing is off on this server
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ChooseCmoMockPlanError = ChooseCmoMockPlanErrors[keyof ChooseCmoMockPlanErrors];
+
+export type ChooseCmoMockPlanResponses = {
+    /**
+     * Mock plan active
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ChooseCmoMockPlanResponse = ChooseCmoMockPlanResponses[keyof ChooseCmoMockPlanResponses];
+
+export type CompleteCmoOnboardingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding/complete';
+};
+
+export type CompleteCmoOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The strategy is not approved yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteCmoOnboardingError = CompleteCmoOnboardingErrors[keyof CompleteCmoOnboardingErrors];
+
+export type CompleteCmoOnboardingResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CompleteCmoOnboardingResponse = CompleteCmoOnboardingResponses[keyof CompleteCmoOnboardingResponses];
+
+export type RetryCmoOnboardingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding/retry';
+};
+
+export type RetryCmoOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is still learning or already done
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RetryCmoOnboardingError = RetryCmoOnboardingErrors[keyof RetryCmoOnboardingErrors];
+
+export type RetryCmoOnboardingResponses = {
+    /**
+     * Cuso is learning again
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
+
+export type RequestCmoStrategyData = {
+    body?: CmoStrategyRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy';
+};
+
+export type RequestCmoStrategyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Brand Brain is not ready yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoStrategyError = RequestCmoStrategyErrors[keyof RequestCmoStrategyErrors];
+
+export type RequestCmoStrategyResponses = {
+    /**
+     * Cuso started planning the month
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoStrategyResponse = RequestCmoStrategyResponses[keyof RequestCmoStrategyResponses];
+
+export type SetCmoAdBudgetData = {
+    body?: CmoAdBudgetRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy/ads';
+};
+
+export type SetCmoAdBudgetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * There is no strategy yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoAdBudgetError = SetCmoAdBudgetErrors[keyof SetCmoAdBudgetErrors];
+
+export type SetCmoAdBudgetResponses = {
+    /**
+     * Cuso is re-planning
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoAdBudgetResponse = SetCmoAdBudgetResponses[keyof SetCmoAdBudgetResponses];
+
+export type ApplyCmoPlanAnswersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy/answers/apply';
+};
+
+export type ApplyCmoPlanAnswersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The answers confirm the plan
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApplyCmoPlanAnswersError = ApplyCmoPlanAnswersErrors[keyof ApplyCmoPlanAnswersErrors];
+
+export type ApplyCmoPlanAnswersResponses = {
+    /**
+     * Cuso is changing the plan
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApplyCmoPlanAnswersResponse = ApplyCmoPlanAnswersResponses[keyof ApplyCmoPlanAnswersResponses];
+
+export type RevertCmoUpdateData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/updates/{id}/revert';
+};
+
+export type RevertCmoUpdateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Nothing to revert
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The version changed meanwhile
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevertCmoUpdateError = RevertCmoUpdateErrors[keyof RevertCmoUpdateErrors];
+
+export type RevertCmoUpdateResponses = {
+    /**
+     * Strategy reverted
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RevertCmoUpdateResponse = RevertCmoUpdateResponses[keyof RevertCmoUpdateResponses];
+
+export type PauseCmoCalendarEntryData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/calendar/{id}/pause';
+};
+
+export type PauseCmoCalendarEntryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a planned Social post, or it can no longer be canceled
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PauseCmoCalendarEntryError = PauseCmoCalendarEntryErrors[keyof PauseCmoCalendarEntryErrors];
+
+export type PauseCmoCalendarEntryResponses = {
+    /**
+     * Entry paused
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PauseCmoCalendarEntryResponse = PauseCmoCalendarEntryResponses[keyof PauseCmoCalendarEntryResponses];
+
+export type ConnectCmoMeasurementData = {
+    body?: {
+        returnUrl: string;
+    };
+    path: {
+        provider: 'google_analytics' | 'google_search_console' | 'shopify';
+    };
+    query?: never;
+    url: '/cmo/measurement/{provider}/connect';
+};
+
+export type ConnectCmoMeasurementErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unknown return address
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Connecting this is not set up
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConnectCmoMeasurementError = ConnectCmoMeasurementErrors[keyof ConnectCmoMeasurementErrors];
+
+export type ConnectCmoMeasurementResponses = {
+    /**
+     * Sign-in started
+     */
+    200: {
+        data: CmoMeasurementConnect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConnectCmoMeasurementResponse = ConnectCmoMeasurementResponses[keyof ConnectCmoMeasurementResponses];
+
+export type FinalizeCmoMeasurementData = {
+    body?: never;
+    path: {
+        provider: 'google_analytics' | 'google_search_console' | 'shopify';
+    };
+    query?: never;
+    url: '/cmo/measurement/{provider}/finalize';
+};
+
+export type FinalizeCmoMeasurementErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not connected
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Connecting this is not set up
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinalizeCmoMeasurementError = FinalizeCmoMeasurementErrors[keyof FinalizeCmoMeasurementErrors];
+
+export type FinalizeCmoMeasurementResponses = {
+    /**
+     * Connected
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinalizeCmoMeasurementResponse = FinalizeCmoMeasurementResponses[keyof FinalizeCmoMeasurementResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;

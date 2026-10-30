@@ -88,6 +88,7 @@ describe("GET /tasks/schedules/assignees", () => {
       where: {
         userId: OWNER_ID,
         workspaceId: ORG_WORKSPACE_ID,
+        projectId: null,
         archivedAt: null,
         deletedAt: null,
       },

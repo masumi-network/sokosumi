@@ -15,10 +15,13 @@ import type {
 } from "@/clients/social-post-providers/types";
 
 const INSTAGRAM_CREATE_CONTAINER_TOOL_SLUG = "INSTAGRAM_POST_IG_USER_MEDIA";
+const INSTAGRAM_CREATE_CAROUSEL_TOOL_SLUG =
+  "INSTAGRAM_CREATE_CAROUSEL_CONTAINER";
 const INSTAGRAM_PUBLISH_TOOL_SLUG = "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH";
 
 const INSTAGRAM_TOOL_SLUGS = [
   INSTAGRAM_CREATE_CONTAINER_TOOL_SLUG,
+  INSTAGRAM_CREATE_CAROUSEL_TOOL_SLUG,
   INSTAGRAM_PUBLISH_TOOL_SLUG,
 ];
 
@@ -33,7 +36,8 @@ function idOf(data: Record<string, unknown> | null): string | null {
 /**
  * Instagram's two-step publish: a media container carries the public Drive URL
  * and caption, then the publish tool waits for processing and returns the media
- * id. Meta fetches the media itself, so nothing is downloaded here.
+ * id. Meta fetches the media itself, so nothing is downloaded here. Two or more
+ * images make a carousel container, whose slides Meta fetches the same way.
  */
 export async function publishInstagramPost(
   context: SocialPostPublishContext,
@@ -50,20 +54,33 @@ export async function publishInstagramPost(
   const igUserId = context.externalAccountId;
   try {
     const video = context.media.find((ref) => ref.kind === "video");
+    const carousel = !video && context.media.length > 1;
+    const caption = context.text ? { caption: context.text } : {};
     const container = await executeComposioTool({
       sessionId,
-      toolSlug: INSTAGRAM_CREATE_CONTAINER_TOOL_SLUG,
-      arguments: {
-        ig_user_id: igUserId,
-        ...(context.text ? { caption: context.text } : {}),
-        ...(video ? { video_url: video.fileUrl } : {}),
-        ...(!video && context.media[0]
-          ? { image_url: context.media[0].fileUrl }
-          : {}),
-      },
-      context: "create Instagram media container",
+      toolSlug: carousel
+        ? INSTAGRAM_CREATE_CAROUSEL_TOOL_SLUG
+        : INSTAGRAM_CREATE_CONTAINER_TOOL_SLUG,
+      arguments: carousel
+        ? {
+            ig_user_id: igUserId,
+            ...caption,
+            child_image_urls: context.media.map((ref) => ref.fileUrl),
+          }
+        : {
+            ig_user_id: igUserId,
+            ...caption,
+            ...(video ? { video_url: video.fileUrl } : {}),
+            ...(!video && context.media[0]
+              ? { image_url: context.media[0].fileUrl }
+              : {}),
+          },
+      context: carousel
+        ? "create Instagram carousel container"
+        : "create Instagram media container",
       refused: "Instagram refused the media",
-      timeoutMs: 60_000,
+      // A carousel waits for each slide's container before it returns.
+      timeoutMs: carousel ? 180_000 : 60_000,
       signal: context.signal,
     });
     const containerId = idOf(container);

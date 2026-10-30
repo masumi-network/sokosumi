@@ -464,6 +464,9 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  /// What the website runs on when it is a shop system Cuso can measure
+  /// (only "shopify" today), learned once from the site; null otherwise.
+  sitePlatform            String?
   logo                    String?
   designMdUrl             String?
   designMdExtractionId    String?
@@ -485,11 +488,15 @@ model Project {
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
+  socialComments          SocialComment[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
+  brandBrain              BrandBrain?
   newsletter              Newsletter?
   newsletterSendingDomain NewsletterSendingDomain?
   newsletterIssues        NewsletterIssue[]
+
+  marketingStrategies MarketingStrategy[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -901,7 +908,17 @@ model SocialPost {
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
+  /// The Marketing strategy version whose calendar planned this post (ADR
+  /// 0062). Approving another version cancels its unpublished posts.
+  marketingStrategyId String?            @db.Uuid
+  marketingStrategy   MarketingStrategy? @relation(fields: [marketingStrategyId], references: [id], onDelete: SetNull)
+  /// What the plan intends with it: its calendar entry's id, title, format,
+  /// hook, brief, why, approach, pillar and campaign, validated by
+  /// `socialPostPlanningSchema` in `@sokosumi/soko-bot`.
+  planning            Json?
+
   attempts    SocialPostPublishAttempt[]
+  comments    SocialComment[]
   threadParts SocialPostThreadPart[]
 
   @@index([projectId, status, scheduledAt])
@@ -916,7 +933,51 @@ model SocialPost {
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
+  @@index([marketingStrategyId])
   @@map("social_post")
+}
+
+enum SocialCommentStatus {
+  /// Seen, not handled yet.
+  NEW
+  REPLIED
+  /// Spam, a bot, or a thread a reply would not help.
+  SKIPPED
+  /// Needs the owner: a complaint, refund, legal or press question.
+  OWNER
+}
+
+/// A comment someone left on one of the Project's published Social posts, as
+/// Cuso's daily reply round read it, and what he did with it. One row per
+/// provider comment, so nothing is answered twice.
+model SocialComment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId    String     @db.Uuid
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  socialPostId String     @db.Uuid
+  socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+
+  provider          String
+  externalCommentId String
+  authorName        String?
+  authorExternalId  String?
+  text              String
+  commentedAt       DateTime?
+
+  status          SocialCommentStatus @default(NEW)
+  reply           String?
+  replyExternalId String?
+  /// Why it was skipped or handed to the owner.
+  note            String?
+  handledAt       DateTime?
+
+  @@unique([provider, externalCommentId])
+  @@index([projectId, status])
+  @@index([socialPostId])
+  @@map("social_comment")
 }
 
 /// Additional X posts in one account's thread; position 1 remains on SocialPost.
@@ -2352,6 +2413,7 @@ model SokoBot {
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
+  marketingStrategies   MarketingStrategy[]
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
@@ -2612,14 +2674,16 @@ model SokoBotTurn {
   responseContract      Json?
   deliveries            SokoBotDelivery[]
 
-  contextSnapshot  SokoBotContextSnapshot?
-  events           SokoBotEvent[]
-  runtimeEvents    SokoBotRuntimeEvent[]
-  toolCalls        SokoBotToolCall[]
-  delegations      SokoBotDelegation[]
-  pendingDecisions SokoBotPendingDecision[]
-  memoryRevisions  SokoBotMemoryRevision[]
-  scheduleRun      SokoBotScheduleRun?
+  contextSnapshot     SokoBotContextSnapshot?
+  events              SokoBotEvent[]
+  runtimeEvents       SokoBotRuntimeEvent[]
+  toolCalls           SokoBotToolCall[]
+  delegations         SokoBotDelegation[]
+  pendingDecisions    SokoBotPendingDecision[]
+  memoryRevisions     SokoBotMemoryRevision[]
+  scheduleRun         SokoBotScheduleRun?
+  /// Marketing strategy versions this turn wrote.
+  marketingStrategies MarketingStrategy[]
 
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])
@@ -5115,6 +5179,9 @@ model ProjectImageJob {
   /// Assets whose bytes were sent as references. Stored as ids, never as URLs:
   /// a URL in this column would be a durable public handle on a private asset.
   referenceAssetIds String[] @db.Uuid
+  /// Files (a brand's product photos) sent as references after the assets,
+  /// readable by the person who asked. Ids for the same reason as above.
+  referenceFileIds  String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 

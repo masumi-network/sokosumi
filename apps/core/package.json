@@ -37,7 +37,8 @@
     "soko-bot:router-eval": "tsx --env-file=.env scripts/soko-bot-router-eval.mts",
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
-    "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts"
+    "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts",
+    "cmo:lab": "SOKO_BOT_IN_PROCESS_TURN_BUDGET_MS=900000 tsx --env-file=.env scripts/cmo-lab.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.14",
@@ -63,6 +64,7 @@
     "@sokosumi/net": "workspace:*",
     "@sokosumi/soko-bot": "workspace:*",
     "@sokosumi/utils": "workspace:*",
+    "@sparticuz/chromium-min": "153.0.0",
     "@vercel/blob": "2.8.2",
     "@vercel/functions": "3.10.5",
     "@vercel/related-projects": "1.1.1",
@@ -81,6 +83,7 @@
     "p-timeout": "8.0.0",
     "pdfjs-dist": "6.4.299",
     "pg": "8.23.1",
+    "puppeteer-core": "25.11.0",
     "resend": "6.35.0",
     "resumable-stream": "2.2.13",
     "sharp": "0.35.5",
