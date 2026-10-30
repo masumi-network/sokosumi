@@ -7,9 +7,7 @@ vi.mock("next/cache", () => ({
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: "App") => {
     const { createTranslator } = await import("next-intl");
-    const { default: messages } = await import(
-      "../../../../../messages/en.json"
-    );
+    const { default: messages } = await import("@/messages/en.json");
     return createTranslator({ locale: "en", messages, namespace });
   },
 }));
