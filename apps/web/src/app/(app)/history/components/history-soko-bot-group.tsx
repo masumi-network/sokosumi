@@ -52,7 +52,7 @@ export function HistorySokoBotGroup({
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger
         className={cn(
-          "group bg-background border-border hover:bg-card-background-hover press grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg border px-4 py-3 text-left transition-colors",
+          "group bg-background border-border hover:bg-accent press grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg border px-4 py-3 text-left transition-colors",
           showOwner
             ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_130px] sm:items-center sm:gap-4"
             : "sm:grid-cols-[100px_minmax(0,1fr)_110px_130px] sm:items-center sm:gap-4",

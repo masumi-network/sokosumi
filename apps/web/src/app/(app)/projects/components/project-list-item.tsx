@@ -65,7 +65,7 @@ export function ProjectListItem({
       className={cn(
         PROJECTS_CARD_LAYOUT_CLASS,
         PROJECTS_CARD_CLASS,
-        "group/card hover:bg-card-background-hover relative flex flex-col transition-[background-color]",
+        "group/card hover:bg-accent relative flex flex-col transition-[background-color]",
         // The link stops short of the menu button, so its own outline would cut
         // a line through the card. The ring goes around the whole card instead.
         // Forced colors drop box-shadow and the card's paint containment clips

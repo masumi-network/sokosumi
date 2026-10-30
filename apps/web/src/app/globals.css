@@ -302,11 +302,11 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
-  /* The hover for a row that sits on --card-background. The step is capped
+  /* The hover for a card or chip that sits on --card-background. The step is capped
      by the text riding on it, not by taste: --muted-foreground is 44% here,
      which measures 4.727:1 on the resting 98% and 4.521:1 at 96%. The
      floor is crossed just below that, at 95.8%, so there is no step worth
-     having between 96% and a fill that puts the row's own timestamps and
+     having between 96% and a fill that puts its own timestamps and
      captions under 4.5:1. */
   --card-background-hover: hsla(0, 0%, 96%, 1);
   /* Translucency with a role. These keep their alpha on purpose: each one
@@ -597,7 +597,7 @@
      base it only reaches 1.045:1, so it moves to 11% for 1.111:1. --popover
      and --sidebar hold the same value: one raised surface, one number. */
   --card-background: hsla(0, 0%, 11%, 1);
-  /* The hover moves towards the page to separate the row from its card.
+  /* The hover moves towards the page to separate a card from its surface.
      The earlier 50% text value required this darker fill for contrast.
      Muted text now uses 72% so it also remains readable on lighter control
      surfaces. Keep the existing darker hover direction on cards. Tracks the
