@@ -26,11 +26,13 @@ type LiveFields = z.infer<typeof activityResponseSchema>["activity"];
  */
 export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
   const [live, setLive] = useState<LiveFields | null>(null);
+  const [prevBot, setPrevBot] = useState(bot);
 
   // A fresh server render is at least as new as the last answer.
-  useEffect(() => {
+  if (bot !== prevBot) {
+    setPrevBot(bot);
     setLive(null);
-  }, [bot]);
+  }
 
   useEffect(() => {
     let stopped = false;

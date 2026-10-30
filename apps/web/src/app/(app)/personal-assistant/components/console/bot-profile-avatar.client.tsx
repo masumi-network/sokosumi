@@ -50,7 +50,7 @@ export function BotProfileAvatar({
         {sources.still ? (
           <AvatarLoop
             poster={sources.still}
-            src={sources.loop}
+            src={sources.loopLarge}
             playing={playing}
             onEnded={stop}
             alt={alt(name, state)}

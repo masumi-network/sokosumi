@@ -329,7 +329,7 @@ describe("SokoBotConsole header portrait", () => {
 
   it("plays the current state once on mount, then rests on its still", () => {
     renderConsole({ initialState: craftedState("working") });
-    expect(loop()).toHaveAttribute("src", "https://blob/working-480.mp4");
+    expect(loop()).toHaveAttribute("src", "https://blob/working-960.mp4");
     expect(loop()).toHaveAttribute("poster", "https://blob/working.png");
     expect(loop()).toHaveAttribute("aria-hidden", "true");
     expect(loop()).not.toHaveAttribute("loop");
@@ -349,7 +349,7 @@ describe("SokoBotConsole header portrait", () => {
     expect(loop()).toBeNull();
 
     rerender(consoleElement({ initialState: craftedState("done") }));
-    expect(loop()).toHaveAttribute("src", "https://blob/done-480.mp4");
+    expect(loop()).toHaveAttribute("src", "https://blob/done-960.mp4");
     expect(loop()).toHaveAttribute("poster", "https://blob/done.png");
 
     fireEvent.ended(loop() as HTMLVideoElement);
