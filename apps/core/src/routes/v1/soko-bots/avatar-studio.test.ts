@@ -9,7 +9,7 @@ const {
   getStudioMock,
   keepDraftMock,
   memberFindFirstMock,
-  reconcileMock,
+  renderNowMock,
   regenerateMock,
   resolveMock,
 } = vi.hoisted(() => ({
@@ -18,7 +18,7 @@ const {
   getStudioMock: vi.fn(),
   keepDraftMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
-  reconcileMock: vi.fn(),
+  renderNowMock: vi.fn(),
   regenerateMock: vi.fn(),
   resolveMock: vi.fn(),
 }));
@@ -95,7 +95,7 @@ vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
 }));
 
 vi.mock("@/services/soko-bot-avatar-render.service", () => ({
-  reconcileAvatarRenders: reconcileMock,
+  renderAvatarNow: renderNowMock,
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -167,7 +167,7 @@ describe("avatar studio routes", () => {
     keepDraftMock.mockResolvedValue(undefined);
     discardMock.mockResolvedValue(undefined);
     regenerateMock.mockResolvedValue(undefined);
-    reconcileMock.mockResolvedValue(undefined);
+    renderNowMock.mockResolvedValue(undefined);
   });
 
   describe("for your own bot", () => {
@@ -296,8 +296,9 @@ describe("avatar studio routes", () => {
       });
       expect((await response.json()).data).toEqual(STUDIO);
       // The new loop starts now, not at the next cron tick.
-      expect(reconcileMock).toHaveBeenCalledWith(
-        expect.objectContaining({ sokoBotId: BOT_ID }),
+      expect(renderNowMock).toHaveBeenCalledWith(
+        BOT_ID,
+        expect.objectContaining({ msRemaining: expect.any(Function) }),
       );
     });
 
@@ -329,7 +330,7 @@ describe("avatar studio routes", () => {
 
         expect(response.status).toBe(status);
         expect(JSON.stringify(await response.json())).toContain(message);
-        expect(reconcileMock).not.toHaveBeenCalled();
+        expect(renderNowMock).not.toHaveBeenCalled();
       },
     );
 
@@ -344,8 +345,9 @@ describe("avatar studio routes", () => {
       });
       expect((await response.json()).data).toEqual(STUDIO);
       // Its stills start now, not at the next cron tick.
-      expect(reconcileMock).toHaveBeenCalledWith(
-        expect.objectContaining({ sokoBotId: BOT_ID }),
+      expect(renderNowMock).toHaveBeenCalledWith(
+        BOT_ID,
+        expect.objectContaining({ msRemaining: expect.any(Function) }),
       );
     });
 

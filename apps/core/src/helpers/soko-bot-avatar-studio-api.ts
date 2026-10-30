@@ -9,7 +9,7 @@ import {
   sokoBotAvatarDraftResultSchema,
   sokoBotAvatarStudioSchema,
 } from "@/schemas/soko-bot-avatar.schema";
-import { reconcileAvatarRenders } from "@/services/soko-bot-avatar-render.service";
+import { renderAvatarNow } from "@/services/soko-bot-avatar-render.service";
 import {
   createAvatarDraft,
   discardAvatarDrafts,
@@ -78,21 +78,19 @@ export const keepAvatarDraftResponses = {
 };
 
 /** The function runs 300 s; the run must end well inside what is left of it. */
-const EARLY_RENDER_RUN_MS = 240_000;
+const RENDER_NOW_MS = 240_000;
 
 /**
- * Starts the bot's renders now instead of at the next cron tick, after the
- * response. Leases keep it apart from the cron, which picks up whatever this
- * run leaves.
+ * Renders the bot's look now instead of on cron ticks, after the response.
+ * Leases keep it apart from the cron, which picks up whatever this leaves.
  */
 function renderNow(sokoBotId: string) {
-  const deadline = Date.now() + EARLY_RENDER_RUN_MS;
+  const deadline = Date.now() + RENDER_NOW_MS;
   waitUntil(
-    reconcileAvatarRenders({
-      sokoBotId,
+    renderAvatarNow(sokoBotId, {
       msRemaining: () => Math.max(0, deadline - Date.now()),
     }).catch((error: unknown) => {
-      console.error("Soko Bot avatar early render run failed", {
+      console.error("Soko Bot avatar render-now run failed", {
         sokoBotId,
         error: error instanceof Error ? error.message : String(error),
       });

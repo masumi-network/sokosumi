@@ -519,3 +519,48 @@ export async function reconcileAvatarRenders(
   );
   return result;
 }
+
+/** How long the run Keep and Redo start waits between steps, for the provider. */
+const RENDER_NOW_PAUSE_MS = 15_000;
+
+/**
+ * Statuses a run can move forward within a minute or two. An uncertain submit
+ * waits out its lease instead, so it is left to the cron.
+ */
+const MOVING_STATUSES = [
+  "PENDING",
+  "STILL_READY",
+  "VIDEO_SUBMITTING",
+  "VIDEO_SUBMITTED",
+] as const;
+
+/**
+ * The run Keep and Redo start: one bot's renders, run after run with a pause
+ * between, until nothing is moving or the time is up. A look then finishes
+ * without waiting on cron ticks; the cron picks up whatever this leaves.
+ */
+export async function renderAvatarNow(
+  sokoBotId: string,
+  options: {
+    msRemaining: () => number;
+    pause?: (ms: number) => Promise<void>;
+  },
+): Promise<void> {
+  const pause =
+    options.pause ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  while (options.msRemaining() > 0) {
+    await reconcileAvatarRenders({
+      sokoBotId,
+      msRemaining: options.msRemaining,
+    });
+    const moving = await prisma.sokoBotAvatarRender.count({
+      where: {
+        status: { in: [...MOVING_STATUSES] },
+        avatar: { claimedBySokoBotId: sokoBotId },
+      },
+    });
+    if (moving === 0) return;
+    await pause(Math.min(RENDER_NOW_PAUSE_MS, options.msRemaining()));
+  }
+}

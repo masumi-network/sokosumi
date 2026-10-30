@@ -54,7 +54,7 @@ vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
 }));
 
 vi.mock("@/services/soko-bot-avatar-render.service", () => ({
-  reconcileAvatarRenders: vi.fn().mockResolvedValue(undefined),
+  renderAvatarNow: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@vercel/functions", () => ({

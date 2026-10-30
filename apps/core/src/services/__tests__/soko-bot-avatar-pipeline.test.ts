@@ -373,6 +373,7 @@ import {
   MAX_COLLECTS_PER_RUN,
   MAX_RENDER_ATTEMPTS,
   reconcileAvatarRenders,
+  renderAvatarNow,
   STILL_MIN_BUDGET_MS,
   UNCERTAIN_WAIT_MS,
 } from "@/services/soko-bot-avatar-render.service";
@@ -1494,6 +1495,56 @@ describe("reconciling renders", () => {
     expect(
       renders.rows.filter((row) => row.status === "VIDEO_SUBMITTED").length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe("the run Keep and Redo start", () => {
+  const plenty = () => 240_000;
+
+  it("walks a kept look to six ready loops without a cron tick", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+
+    await renderAvatarNow(BOT, {
+      msRemaining: plenty,
+      pause: async () => {},
+    });
+
+    expect(renders.rows.map((row) => row.status)).toEqual(
+      Array(6).fill("READY"),
+    );
+  });
+
+  it("stops when its time is up and leaves the rest to the cron", async () => {
+    pollsBeforeDone = 1_000_000;
+    await keptLook({ kind: "creature", creature: "otter" });
+    let left = 240_000;
+
+    await renderAvatarNow(BOT, {
+      msRemaining: () => left,
+      // Each pause spends a minute of the run.
+      pause: async () => {
+        left -= 60_000;
+      },
+    });
+
+    expect(left).toBeLessThanOrEqual(0);
+    expect(renders.rows.every((row) => row.status === "VIDEO_SUBMITTED")).toBe(
+      true,
+    );
+  });
+
+  it("does not wait on a submit whose outcome is unknown", async () => {
+    await keptLook({ kind: "creature", creature: "otter" });
+    // Each waits out its lease before it may be submitted again.
+    for (const row of renders.rows) {
+      row.status = "SUBMISSION_UNCERTAIN";
+      row.leaseUntil = new Date(Date.now() + UNCERTAIN_WAIT_MS);
+    }
+    const pause = vi.fn(async () => {});
+
+    await renderAvatarNow(BOT, { msRemaining: plenty, pause });
+
+    expect(pause).not.toHaveBeenCalled();
   });
 });
 
