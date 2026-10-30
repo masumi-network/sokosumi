@@ -5,10 +5,13 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 vi.mock("next-intl/server", () => ({
-  getTranslations: vi.fn(
-    async () => (key: string) =>
-      key === "personalAssistantBadge" ? "Personal assistant" : key,
-  ),
+  getTranslations: async (namespace: "App") => {
+    const { createTranslator } = await import("next-intl");
+    const { default: messages } = await import(
+      "../../../../../messages/en.json"
+    );
+    return createTranslator({ locale: "en", messages, namespace });
+  },
 }));
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   invalidatePrivateSidebarChrome: vi.fn(),
@@ -185,6 +188,15 @@ describe("loadChatComposeRosterAction", () => {
       memberUserIds: ["user-2", "user-eve"],
       coworkerIds: [],
       sokoBotIds: [],
+    });
+  });
+
+  it("names a Soko Bot without a name from the catalog", async () => {
+    getMineMock.mockResolvedValue({ id: "bot_1", name: null, avatarSeed: "s" });
+
+    await expect(loadChatComposeRosterAction()).resolves.toMatchObject({
+      ok: true,
+      value: { sokoBots: [{ id: "bot_1", name: "Personal assistant" }] },
     });
   });
 
