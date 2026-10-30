@@ -52,7 +52,7 @@ export const activeSubscriptionResponseSchema = z
   })
   .openapi("ActiveSubscriptionResponse");
 
-/** Request body for immediately updating an organization's purchased seats. */
+/** Request body for changing an organization's purchased seats. */
 export const updateOrganizationSubscriptionSeatsSchema = z
   .object({
     seats: z.number().int().min(1).openapi({
@@ -62,13 +62,26 @@ export const updateOrganizationSubscriptionSeatsSchema = z
   })
   .openapi("UpdateOrganizationSubscriptionSeats");
 
-/** Purchased seat count after an organization seat update. */
+/** Purchased seats now, and the reduction waiting for the next renewal. */
 export const organizationSubscriptionSeatsSchema = z
   .object({
     seats: z.number().int().openapi({
       description: "Purchased seat count on the active subscription",
       example: 3,
     }),
+    scheduledReduction: z
+      .object({
+        effectiveAt: dateTimeSchema.openapi({
+          description: "When the reduction takes effect: the next renewal",
+          example: "2025-02-01T00:00:00.000Z",
+        }),
+        seats: z.number().int().openapi({
+          description: "Seat count the subscription drops to",
+          example: 2,
+        }),
+      })
+      .nullable()
+      .openapi({ description: "Null when no reduction is pending" }),
   })
   .openapi("OrganizationSubscriptionSeats");
 
@@ -88,17 +101,18 @@ export const organizationSubscriptionSeatsPreviewQuerySchema = z.object({
 export const organizationSubscriptionSeatsPreviewSchema = z
   .object({
     amountDue: z.number().int().openapi({
-      description: "Charged to the payment method right away, including tax",
-      example: 1234,
-    }),
-    creditAmount: z.number().int().openapi({
       description:
-        "Unused amount added to the Stripe customer balance when seats are removed",
-      example: 0,
+        "Charged to the payment method right away, including tax. Zero unless seats are added",
+      example: 1234,
     }),
     currency: z.string().openapi({
       description: "Lowercase ISO currency code",
       example: "eur",
+    }),
+    effectiveAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a reduction takes effect: the next renewal. Null when the change applies right away",
+      example: null,
     }),
     newMonthlyAmount: z.number().int().openapi({
       description:

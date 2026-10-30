@@ -168,6 +168,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       seatSummary,
       organizationCredits,
       organizationStripeCustomerId,
+      subscriptionSeats,
     ] = await Promise.all([
       isEnterpriseContract
         ? getEnterpriseContractBillingSummary(activeOrganization.id)
@@ -195,6 +196,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           }
           throw error;
         }),
+      !isEnterpriseContract && currentPlan !== "free"
+        ? organizationSeatService.getSubscriptionSeats(activeOrganization.id)
+        : Promise.resolve(null),
     ]);
     // `getSeatSummary` resolves null when core reports a stale membership
     // (403/404); fall back to zero counts so the page still renders, matching
@@ -277,6 +281,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
                 scheduledCancelDate={resolveScheduledCancelDate(billingPlan)}
+                scheduledReduction={
+                  subscriptionSeats?.scheduledReduction ?? null
+                }
               />
             }
             creditsContent={

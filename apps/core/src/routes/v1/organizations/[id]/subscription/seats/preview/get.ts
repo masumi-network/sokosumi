@@ -1,12 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { resolvePurchasedSeats } from "@sokosumi/database/helpers";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
+  previewRenewalAtSeats,
   resolveSubscriptionForSeatChange,
-  retrieveStripeSeatItem,
+  retrieveStripeSeatSubscription,
 } from "@/helpers/organization-subscription-seats";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -28,7 +30,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/subscription/seats/preview",
   description:
-    "Preview what changing the purchased seat count would cost, using Stripe's own proration and tax. Nothing changes until `PUT /{id}/subscription/seats` is called. Stripe prorates by the second, so the charge can differ slightly from this preview. Only organization owners and admins may do this.",
+    "Preview what changing the purchased seat count would cost. Adding seats uses Stripe's own proration and tax; Stripe prorates by the second, so the charge can differ slightly from this preview. Removing seats charges and refunds nothing and takes effect at `effectiveAt`. Nothing changes until `PUT /{id}/subscription/seats` is called. Only organization owners and admins may do this.",
   tags: ["Organizations"],
   request: {
     params,
@@ -41,8 +43,8 @@ const route = createRoute({
       {
         data: {
           amountDue: 1234,
-          creditAmount: 0,
           currency: "eur",
+          effectiveAt: null,
           newMonthlyAmount: 14875,
           seats: 5,
         },
@@ -81,28 +83,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const seatItem = await retrieveStripeSeatItem(
-      subscription.stripeSubscriptionId,
-    );
+    const { seatItem, stripeSubscription } =
+      await retrieveStripeSeatSubscription(subscription.stripeSubscriptionId);
+    const currentSeats = resolvePurchasedSeats(subscription.seats);
     const [invoice, renewalInvoice] = await Promise.all([
-      stripeClient.previewSubscriptionItemQuantity(
-        subscription.stripeSubscriptionId,
-        seatItem.id,
+      seats > currentSeats
+        ? stripeClient.previewSubscriptionItemQuantity(
+            subscription.stripeSubscriptionId,
+            seatItem.id,
+            seats,
+          )
+        : null,
+      previewRenewalAtSeats({
+        seatItemId: seatItem.id,
         seats,
-      ),
-      stripeClient.previewSubscriptionRenewalAtQuantity(
-        subscription.stripeSubscriptionId,
-        seatItem.id,
-        seats,
-      ),
+        stripeSubscription,
+      }),
     ]);
 
     return ok(
       c,
       organizationSubscriptionSeatsPreviewSchema.parse({
-        amountDue: invoice.amount_due,
-        creditAmount: Math.max(-invoice.total, 0),
-        currency: invoice.currency,
+        amountDue: invoice?.amount_due ?? 0,
+        currency: renewalInvoice.currency,
+        effectiveAt:
+          seats < currentSeats
+            ? new Date(seatItem.current_period_end * 1000)
+            : null,
         newMonthlyAmount: renewalInvoice.total,
         seats,
       }),

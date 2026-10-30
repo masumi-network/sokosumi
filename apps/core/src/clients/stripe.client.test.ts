@@ -242,6 +242,29 @@ describe("stripeClient", () => {
     );
   });
 
+  it("previews a renewal through a schedule without a top-level tax setting", async () => {
+    stripeInvoicesCreatePreviewMock.mockResolvedValue({ total: 8925 });
+    const { stripeClient } = await import("./stripe.client");
+    const phases = [{ items: [{ price: "price_1", quantity: 3 }] }];
+
+    await stripeClient.previewSubscriptionScheduleRenewal(
+      "sub_sched_1",
+      phases,
+    );
+
+    expect(stripeInvoicesCreatePreviewMock).toHaveBeenCalledWith(
+      {
+        schedule: "sub_sched_1",
+        schedule_details: {
+          end_behavior: "release",
+          phases,
+          proration_behavior: "none",
+        },
+      },
+      undefined,
+    );
+  });
+
   it("enables automatic tax when updating subscription item quantity", async () => {
     stripeSubscriptionsUpdateMock.mockResolvedValue({ id: "sub_1" });
     const { stripeClient } = await import("./stripe.client");

@@ -7051,6 +7051,7 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
           "seatsUpdatedSuccess": "Seats aktualisiert.",
+          "seatsScheduledSuccess": "Seat-Entfernung für die nächste Verlängerung geplant.",
           "currentPlanCta": "Aktueller Plan",
           "choosePlanCta": "Plan auswählen",
           "Errors": {
@@ -7064,7 +7065,10 @@
             "paymentFailedAction": "Zahlungsmethode aktualisieren"
           },
           "seatsCard": {
-            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Änderungen werden sofort abgerechnet.",
+            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Hinzugefügte Seats werden sofort abgerechnet. Entfernte Seats enden bei der Verlängerung.",
+            "scheduledNote": "{count, plural, =1 {# Seat wird} other {# Seats werden}} am {date} entfernt. Ein Planwechsel bricht das ab.",
+            "removeBlocked": "Dein Plan endet am {date}, und alle Seats enden damit. Reaktiviere deinen Plan, um Seats zu entfernen.",
+            "keepCta": "{count, plural, =1 {# Seat behalten} other {# Seats behalten}}",
             "addIdleCta": "Seats hinzufügen",
             "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
             "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
@@ -7073,17 +7077,20 @@
             "dialog": {
               "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
               "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
-              "description": "Diese Änderung gilt sofort.",
+              "keepTitle": "{count, plural, =1 {# Seat behalten?} other {# Seats behalten?}}",
+              "addDescription": "Diese Änderung gilt sofort.",
+              "removeDescription": "Du behältst alle Seats bis zur nächsten Verlängerung, und es wird nichts erstattet.",
+              "keepDescription": "Damit wird die geplante Seat-Entfernung abgebrochen. Deine Rechnung bleibt gleich.",
+              "addCancelsReduction": "Damit wird auch die geplante Seat-Entfernung abgebrochen.",
               "loading": "Preis wird abgerufen…",
               "previewError": "Der Preis konnte nicht abgerufen werden, deine Seats können daher noch nicht geändert werden.",
               "previewRetry": "Erneut versuchen",
               "dueNow": "Jetzt fällig",
-              "credit": "Gutschrift auf dein Abrechnungsguthaben",
+              "effectiveAt": "Gilt ab",
               "approximate": "Etwa {amount}",
               "newMonthly": "Neuer Monatspreis",
               "newMonthlyHint": "Inklusive Steuern und Rabatten",
-              "seatsLost": "{count, plural, =1 {Das zuletzt beigetretene Mitglied verliert seinen Seat.} other {Die # zuletzt beigetretenen Mitglieder verlieren ihren Seat.}}",
-              "creditNote": "Der ungenutzte Betrag geht auf dein Abrechnungsguthaben, nicht zurück auf deine Karte.",
+              "seatsLost": "{count, plural, =1 {Bei der Verlängerung verliert das zuletzt beigetretene Mitglied seinen Seat.} other {Bei der Verlängerung verlieren die # zuletzt beigetretenen Mitglieder ihren Seat.}}",
               "cancellationNote": "Dein Plan endet am {date}, und diese Seats enden damit.",
               "cancel": "Abbrechen"
             }

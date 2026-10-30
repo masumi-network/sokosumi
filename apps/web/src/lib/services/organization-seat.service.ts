@@ -101,6 +101,27 @@ export const organizationSeatService = (() => {
      * e.g. a stale active organization after a revoked membership. Callers
      * render a no-seat-data fallback in that case.
      */
+    /**
+     * Purchased seats and the reduction waiting for renewal. Null for a stale
+     * membership or a subscription that just ended, which is not worth losing
+     * the billing page over.
+     */
+    async getSubscriptionSeats(organizationId: string) {
+      try {
+        const { data } =
+          await coreClient.getOrganizationSubscriptionSeats(organizationId);
+        return data;
+      } catch (error) {
+        if (
+          error instanceof CoreApiRequestError &&
+          (error.status === 400 || error.status === 403 || error.status === 404)
+        ) {
+          return null;
+        }
+        throw error;
+      }
+    },
+
     async getSeatSummary(
       organizationId: string,
     ): Promise<OrganizationSeatSummary | null> {

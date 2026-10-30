@@ -20,33 +20,29 @@ const {
   assertOrganizationSubscriptionChangeAllowedMock,
   resolveActiveSubscriptionByReferenceIdMock,
   subscriptionUpdateMock,
-  memberFindManyMock,
-  memberUpdateMock,
-  transactionMock,
-  captureExceptionMock,
   retrieveSubscriptionWithItemsMock,
   updateSubscriptionItemQuantityMock,
+  createSubscriptionScheduleFromSubscriptionMock,
+  retrieveSubscriptionScheduleMock,
+  updateSubscriptionScheduleMock,
+  releaseSubscriptionScheduleMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   assertOrganizationSubscriptionChangeAllowedMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   subscriptionUpdateMock: vi.fn(),
-  memberFindManyMock: vi.fn(),
-  memberUpdateMock: vi.fn(),
-  transactionMock: vi.fn(),
-  captureExceptionMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
   updateSubscriptionItemQuantityMock: vi.fn(),
-}));
-
-vi.mock("@sentry/node", () => ({
-  captureException: (...args: unknown[]) => captureExceptionMock(...args),
+  createSubscriptionScheduleFromSubscriptionMock: vi.fn(),
+  retrieveSubscriptionScheduleMock: vi.fn(),
+  updateSubscriptionScheduleMock: vi.fn(),
+  releaseSubscriptionScheduleMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: (...args: unknown[]) => transactionMock(...args),
+    $transaction: vi.fn(),
     organization: {
       findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
     },
@@ -65,6 +61,14 @@ vi.mock("@/clients/stripe.client", () => ({
       retrieveSubscriptionWithItemsMock(...args),
     updateSubscriptionItemQuantity: (...args: unknown[]) =>
       updateSubscriptionItemQuantityMock(...args),
+    createSubscriptionScheduleFromSubscription: (...args: unknown[]) =>
+      createSubscriptionScheduleFromSubscriptionMock(...args),
+    retrieveSubscriptionSchedule: (...args: unknown[]) =>
+      retrieveSubscriptionScheduleMock(...args),
+    updateSubscriptionSchedule: (...args: unknown[]) =>
+      updateSubscriptionScheduleMock(...args),
+    releaseSubscriptionSchedule: (...args: unknown[]) =>
+      releaseSubscriptionScheduleMock(...args),
   },
 }));
 
@@ -133,6 +137,61 @@ function updateSeats(
   );
 }
 
+const PERIOD_START = 1_764_547_200;
+const PERIOD_END = 1_767_225_600;
+
+function phase(start: number, end: number, quantity: number) {
+  return {
+    discounts: [],
+    end_date: end,
+    items: [{ price: "price_starter", quantity }],
+    start_date: start,
+  };
+}
+
+/** What Stripe returns from `from_subscription`: unmarked, one phase. */
+function singlePhaseSchedule() {
+  return {
+    current_phase: { end_date: PERIOD_END, start_date: PERIOD_START },
+    id: "sub_sched_1",
+    metadata: {},
+    phases: [phase(PERIOD_START, PERIOD_END, 6)],
+    status: "active",
+  };
+}
+
+function pendingSchedule(scheduledSeats = 2) {
+  return {
+    ...singlePhaseSchedule(),
+    metadata: { purpose: "seat_reduction", source: "@better-auth/stripe" },
+    phases: [
+      phase(PERIOD_START, PERIOD_END, 6),
+      phase(PERIOD_END, PERIOD_END + 2_592_000, scheduledSeats),
+    ],
+  };
+}
+
+function setSubscriptionSeats(seats: number, stripeScheduleId?: string) {
+  resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    id: "sub-row-1",
+    plan: "starter",
+    seats,
+    stripeScheduleId: stripeScheduleId ?? null,
+    stripeSubscriptionId: "sub_stripe_1",
+  });
+}
+
+function setStripeSubscription(overrides: Record<string, unknown>) {
+  retrieveSubscriptionWithItemsMock.mockResolvedValue({
+    id: "sub_stripe_1",
+    cancel_at: null,
+    cancel_at_period_end: false,
+    items: { data: [{ id: "si_1" }] },
+    schedule: null,
+    ...overrides,
+  });
+}
+
 beforeAll(async () => {
   const module = await import("./put");
   mountPutOrganizationSubscriptionSeats = module.default;
@@ -141,20 +200,6 @@ beforeAll(async () => {
 describe("PUT /organizations/{id}/subscription/seats", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) =>
-        callback({
-          organization: { findUnique: organizationFindUniqueMock },
-          member: {
-            findMany: (...args: unknown[]) => memberFindManyMock(...args),
-            findUnique: memberFindUniqueMock,
-            update: (...args: unknown[]) => memberUpdateMock(...args),
-          },
-          subscription: {
-            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
-          },
-        }),
-    );
     assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
       undefined,
     );
@@ -165,19 +210,25 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       stripeSubscriptionId: "sub_stripe_1",
     });
     retrieveSubscriptionWithItemsMock.mockResolvedValue({
+      id: "sub_stripe_1",
+      cancel_at: null,
+      cancel_at_period_end: false,
       items: { data: [{ id: "si_1" }] },
+      schedule: null,
     });
     updateSubscriptionItemQuantityMock.mockResolvedValue({});
     subscriptionUpdateMock.mockResolvedValue({});
-    memberFindManyMock.mockResolvedValue([]);
-    memberUpdateMock.mockResolvedValue({});
+    createSubscriptionScheduleFromSubscriptionMock.mockResolvedValue(
+      singlePhaseSchedule(),
+    );
+    updateSubscriptionScheduleMock.mockResolvedValue(pendingSchedule());
+    releaseSubscriptionScheduleMock.mockResolvedValue({});
   });
 
   it("returns 404 when the organization does not exist", async () => {
     organizationFindUniqueMock.mockResolvedValue(null);
     const response = await updateSeats("missing", 3);
     expect(response.status).toBe(404);
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -185,7 +236,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     setMembership(null);
     const response = await updateSeats("org_123", 3);
     expect(response.status).toBe(403);
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -193,7 +243,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     setMembership("member");
     const response = await updateSeats("org_123", 3);
     expect(response.status).toBe(403);
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -212,7 +261,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("active enterprise contract");
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -226,231 +274,139 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(await response.text()).toContain(
       "An active organization subscription is required to change seats.",
     );
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("allows decreasing purchased seats below the assigned member count", async () => {
+  it("schedules a reduction for renewal and changes nothing today", async () => {
     setMembership("owner");
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      id: "sub-row-1",
-      plan: "starter",
-      seats: 6,
-      stripeSubscriptionId: "sub_stripe_1",
-    });
-    memberFindManyMock.mockResolvedValue([
-      {
-        id: "m-oldest",
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      {
-        id: "m-middle",
-        createdAt: new Date("2026-02-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      {
-        id: "m-newest",
-        createdAt: new Date("2026-03-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-    ]);
+    setSubscriptionSeats(6);
 
-    const response = await updateSeats("org_123", 1);
+    const response = await updateSeats("org_123", 2);
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 1 });
-    expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+    expect(body.data).toEqual({
+      scheduledReduction: {
+        effectiveAt: "2026-01-01T00:00:00.000Z",
+        seats: 2,
+      },
+      seats: 6,
+    });
+    expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(createSubscriptionScheduleFromSubscriptionMock).toHaveBeenCalledWith(
       "sub_stripe_1",
-      "si_1",
-      1,
     );
     expect(subscriptionUpdateMock).toHaveBeenCalledWith({
       where: { id: "sub-row-1" },
-      data: { seats: 1 },
+      data: { stripeScheduleId: "sub_sched_1" },
     });
-    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
-      ["m-newest", "m-middle"],
-    );
-    expect(memberUpdateMock.mock.calls[0]?.[0].data.seatAssignedAt).toBeNull();
   });
 
-  it("persists the seat change in a serializable transaction", async () => {
+  it("rejects a reduction while the plan is set to end", async () => {
     setMembership("owner");
+    setSubscriptionSeats(6);
+    setStripeSubscription({ cancel_at_period_end: true });
 
-    const response = await updateSeats("org_123", 5);
+    const response = await updateSeats("org_123", 2);
+
+    expect(response.status).toBe(400);
+    expect(
+      createSubscriptionScheduleFromSubscriptionMock,
+    ).not.toHaveBeenCalled();
+    expect(updateSubscriptionScheduleMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels a pending reduction when the current count is sent", async () => {
+    setMembership("owner");
+    setSubscriptionSeats(6, "sub_sched_1");
+    setStripeSubscription({ schedule: "sub_sched_1" });
+    retrieveSubscriptionScheduleMock.mockResolvedValue(pendingSchedule());
+
+    const response = await updateSeats("org_123", 6);
+    const body = await response.json();
 
     expect(response.status).toBe(200);
-    // Not toHaveBeenCalledWith: that passes when any one call matches, so it
-    // would stay green if a later write dropped back to the default level.
-    expect(transactionMock.mock.calls).toHaveLength(1);
-    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
-      isolationLevel: "Serializable",
+    expect(body.data).toEqual({
+      scheduledReduction: null,
+      seats: 6,
+    });
+    expect(releaseSubscriptionScheduleMock).toHaveBeenCalledWith("sub_sched_1");
+    expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub-row-1" },
+      data: { stripeScheduleId: null },
     });
   });
 
-  it("unassigns overflow if the local seat write fails after Stripe", async () => {
+  it("adds seats and cancels a pending reduction", async () => {
     setMembership("owner");
-    memberFindManyMock.mockResolvedValue([
-      {
-        id: "m-oldest",
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      {
-        id: "m-newest",
-        createdAt: new Date("2026-03-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-    ]);
+    setSubscriptionSeats(6, "sub_sched_1");
+    setStripeSubscription({ schedule: "sub_sched_1" });
+    retrieveSubscriptionScheduleMock.mockResolvedValue(pendingSchedule());
 
-    let transactionCalls = 0;
-    transactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) => {
-        transactionCalls += 1;
-        const tx = {
-          organization: { findUnique: organizationFindUniqueMock },
-          member: {
-            findMany: (...args: unknown[]) => memberFindManyMock(...args),
-            findUnique: memberFindUniqueMock,
-            update: (...args: unknown[]) => memberUpdateMock(...args),
-          },
-          subscription: {
-            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
-          },
-        };
-        if (transactionCalls === 1 || transactionCalls === 2) {
-          throw new Error("local seat write failed");
-        }
-        return callback(tx);
-      },
+    const response = await updateSeats("org_123", 8);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({
+      scheduledReduction: null,
+      seats: 8,
+    });
+    expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      8,
+    );
+    expect(releaseSubscriptionScheduleMock).toHaveBeenCalledWith("sub_sched_1");
+  });
+
+  it("keeps a pending reduction when the card is declined", async () => {
+    setMembership("owner");
+    setSubscriptionSeats(6, "sub_sched_1");
+    setStripeSubscription({ schedule: "sub_sched_1" });
+    updateSubscriptionItemQuantityMock.mockRejectedValue(
+      new Stripe.errors.StripeCardError({
+        code: "card_declined",
+        message: "Your card was declined.",
+        statusCode: 402,
+        type: "card_error",
+      }),
     );
 
-    const response = await updateSeats("org_123", 1);
+    const response = await updateSeats("org_123", 8);
+
+    expect(response.status).not.toBe(200);
+    expect(releaseSubscriptionScheduleMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a schedule it did not create alone when adding seats", async () => {
+    setMembership("owner");
+    setSubscriptionSeats(6);
+    setStripeSubscription({ schedule: "sub_sched_portal" });
+    retrieveSubscriptionScheduleMock.mockResolvedValue({
+      ...singlePhaseSchedule(),
+      id: "sub_sched_portal",
+    });
+
+    const response = await updateSeats("org_123", 8);
+
+    expect(response.status).toBe(200);
+    expect(releaseSubscriptionScheduleMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when the local write fails after Stripe", async () => {
+    setMembership("owner");
+    subscriptionUpdateMock.mockRejectedValueOnce(
+      new Error("local seat write failed"),
+    );
+
+    const response = await updateSeats("org_123", 5);
 
     expect(response.status).toBe(500);
     expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
       "sub_stripe_1",
       "si_1",
-      1,
-    );
-    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
-    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
-      ["m-newest"],
-    );
-  });
-
-  it("returns 409 when every seat write loses the serialization race", async () => {
-    setMembership("owner");
-    memberFindManyMock.mockResolvedValue([]);
-    transactionMock.mockRejectedValue(
-      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
-    );
-
-    vi.useFakeTimers();
-    try {
-      const pending = updateSeats("org_123", 1);
-      await vi.runAllTimersAsync();
-      const response = await pending;
-
-      expect(response.status).toBe(409);
-      expect(await response.text()).toContain(
-        "Seat update lost a concurrent update. Try again.",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("reports the cleanup failure but still surfaces the persist error", async () => {
-    setMembership("owner");
-    memberFindManyMock.mockResolvedValue([]);
-
-    let transactionCalls = 0;
-    transactionMock.mockImplementation(async () => {
-      transactionCalls += 1;
-      // Both persist attempts fail, then the cleanup loses every
-      // serialization race and raises its own 409.
-      if (transactionCalls <= 2) {
-        throw new Error("local seat write failed");
-      }
-      throw Object.assign(new Error("Transaction failed"), { code: "P2034" });
-    });
-
-    vi.useFakeTimers();
-    try {
-      const pending = updateSeats("org_123", 1);
-      await vi.runAllTimersAsync();
-      const response = await pending;
-
-      // 500 from the persist failure, not the cleanup's 409: the caller needs
-      // the error that explains why the seat write never landed.
-      expect(response.status).toBe(500);
-    } finally {
-      vi.useRealTimers();
-    }
-
-    // The cleanup runs serializable too: a read committed cleanup can lose
-    // the race with a concurrent assignment and leave the organization above
-    // the seat count Stripe now bills for.
-    expect(transactionMock.mock.calls[2]?.[1]).toEqual({
-      isolationLevel: "Serializable",
-    });
-    expect(captureExceptionMock.mock.calls).toHaveLength(1);
-    expect(captureExceptionMock.mock.calls[0]?.[1]).toMatchObject({
-      tags: { context: "organization_seat_reduction_cleanup" },
-    });
-  });
-
-  it("persists seats on retry when the first local write fails after Stripe", async () => {
-    setMembership("owner");
-    memberFindManyMock.mockResolvedValue([
-      {
-        id: "m-oldest",
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      {
-        id: "m-newest",
-        createdAt: new Date("2026-03-01T00:00:00.000Z"),
-        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-    ]);
-
-    let transactionCalls = 0;
-    transactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) => {
-        transactionCalls += 1;
-        const tx = {
-          organization: { findUnique: organizationFindUniqueMock },
-          member: {
-            findMany: (...args: unknown[]) => memberFindManyMock(...args),
-            findUnique: memberFindUniqueMock,
-            update: (...args: unknown[]) => memberUpdateMock(...args),
-          },
-          subscription: {
-            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
-          },
-        };
-        if (transactionCalls === 1) {
-          throw new Error("local seat write failed");
-        }
-        return callback(tx);
-      },
-    );
-
-    const response = await updateSeats("org_123", 1);
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 1 });
-    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
-      where: { id: "sub-row-1" },
-      data: { seats: 1 },
-    });
-    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
-      ["m-newest"],
+      5,
     );
   });
 
@@ -467,10 +423,12 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 4 });
+    expect(body.data).toEqual({
+      scheduledReduction: null,
+      seats: 4,
+    });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -481,7 +439,10 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 6 });
+    expect(body.data).toEqual({
+      scheduledReduction: null,
+      seats: 6,
+    });
     expect(
       assertOrganizationSubscriptionChangeAllowedMock,
     ).toHaveBeenCalledWith(
@@ -538,7 +499,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(402);
     expect(body.kind).toBe("subscription_payment_failed");
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -568,7 +528,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(500);
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -585,10 +544,12 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 2 });
+    expect(body.data).toEqual({
+      scheduledReduction: null,
+      seats: 2,
+    });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -604,7 +565,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(403);
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 });

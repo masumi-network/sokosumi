@@ -114,6 +114,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedCount={1}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={5}
         isEnterpriseConsumable
         isEnterpriseContract
@@ -138,6 +139,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedCount={1}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={5}
         isEnterpriseConsumable={false}
         isEnterpriseContract
@@ -169,6 +171,7 @@ describe("OrganizationSubscriptionSection", () => {
           isEnterpriseConsumable={false}
           isEnterpriseContract={isEnterpriseContract}
           scheduledCancelDate={null}
+          scheduledReduction={null}
           currentSeats={2}
           memberCount={2}
           organizationId="org-1"
@@ -199,6 +202,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -232,6 +236,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -256,6 +261,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={3}
         organizationId="org-1"
@@ -280,6 +286,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -294,6 +301,7 @@ describe("OrganizationSubscriptionSection", () => {
         currentSeats: 2,
         organizationId: "org-1",
         scheduledCancelDate: null,
+        scheduledReduction: null,
       }),
     );
     expect(queryByRole("spinbutton")).not.toBeInTheDocument();
@@ -306,6 +314,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={1}
         memberCount={2}
         organizationId="org-1"
@@ -326,6 +335,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedCount={3}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={5}
         isEnterpriseConsumable
         isEnterpriseContract
@@ -349,6 +359,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -392,6 +403,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -438,6 +450,7 @@ describe("OrganizationSubscriptionSection", () => {
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         scheduledCancelDate={null}
+        scheduledReduction={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"

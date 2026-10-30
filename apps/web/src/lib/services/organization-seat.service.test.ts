@@ -17,11 +17,13 @@ vi.mock("better-auth/api", () => ({
 
 const {
   getOrganizationSeatSummaryMock,
+  getOrganizationSubscriptionSeatsMock,
   getOrganizationCallerSeatMock,
   assignOrganizationSeatMock,
   unassignOrganizationSeatMock,
 } = vi.hoisted(() => ({
   getOrganizationSeatSummaryMock: vi.fn(),
+  getOrganizationSubscriptionSeatsMock: vi.fn(),
   getOrganizationCallerSeatMock: vi.fn(),
   assignOrganizationSeatMock: vi.fn(),
   unassignOrganizationSeatMock: vi.fn(),
@@ -48,6 +50,8 @@ vi.mock("@/lib/clients/core.client", () => ({
       getOrganizationCallerSeatMock(...args),
     getOrganizationSeatSummary: (...args: unknown[]) =>
       getOrganizationSeatSummaryMock(...args),
+    getOrganizationSubscriptionSeats: (...args: unknown[]) =>
+      getOrganizationSubscriptionSeatsMock(...args),
     unassignOrganizationSeat: (...args: unknown[]) =>
       unassignOrganizationSeatMock(...args),
   },
@@ -130,6 +134,49 @@ describe("organizationSeatService", () => {
     await expect(organizationSeatService.getSeatSummary("org-1")).rejects.toBe(
       failure,
     );
+  });
+
+  it("returns the purchased seats and any pending reduction", async () => {
+    const data = { scheduledReduction: null, seats: 3 };
+    getOrganizationSubscriptionSeatsMock.mockResolvedValue({ data });
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.getSubscriptionSeats("org-1"),
+    ).resolves.toEqual(data);
+  });
+
+  it.each([400, 403, 404])(
+    "resolves subscription seats to null when core responds %i",
+    async (status) => {
+      getOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        coreError(status, "Not available"),
+      );
+
+      const { organizationSeatService } = await import(
+        "./organization-seat.service"
+      );
+
+      await expect(
+        organizationSeatService.getSubscriptionSeats("org-1"),
+      ).resolves.toBeNull();
+    },
+  );
+
+  it("rethrows other subscription seat errors", async () => {
+    const failure = coreError(500, "Internal Server Error");
+    getOrganizationSubscriptionSeatsMock.mockRejectedValue(failure);
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.getSubscriptionSeats("org-1"),
+    ).rejects.toBe(failure);
   });
 
   it("assigns a seat through core", async () => {
