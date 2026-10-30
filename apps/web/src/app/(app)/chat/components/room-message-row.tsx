@@ -56,6 +56,7 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
+  isPersistedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -2144,6 +2145,7 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
+  busy = false,
 }: {
   sender: MessageSenderProfile;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
@@ -2152,6 +2154,8 @@ function SenderFace({
   fallbackClassName: string;
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
+  /** Its reply is in progress: a crafted bot loops its Working state. */
+  busy?: boolean;
 }) {
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
@@ -2168,7 +2172,16 @@ function SenderFace({
     sender.image &&
     isCraftedStyle(sender.avatarStyleId)
   ) {
-    return <AvatarFace src={sender.image} crafted className={className} />;
+    return (
+      <AvatarFace
+        src={sender.image}
+        crafted
+        className={className}
+        loopSrc={sender.workingLoopUrl}
+        playing={busy}
+        loop
+      />
+    );
   }
   return (
     <Avatar className={className}>
@@ -2749,6 +2762,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
+              busy={
+                isStreamOverlay ||
+                isPersistedMentionThoughtShell(message.metadata)
+              }
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>

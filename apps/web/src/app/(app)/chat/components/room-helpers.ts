@@ -91,6 +91,8 @@ export type ChatParticipantHoverProfile =
       avatarSeed: string | null;
       /** The style of the bot's claimed avatar; a crafted one is cropped to the face. */
       avatarStyleId?: string | null;
+      /** The Working loop, played on the face while a reply is in progress. */
+      workingLoopUrl?: string | null;
       presence: ChatRoomPresence;
     };
 
@@ -446,6 +448,7 @@ export function senderProfile(
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
       avatarStyleId: sokoBot.avatarStyleId,
+      workingLoopUrl: sokoBot.workingLoopUrl,
       presence: sokoBot.presence,
     };
   }
