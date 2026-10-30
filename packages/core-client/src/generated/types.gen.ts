@@ -13738,6 +13738,112 @@ export type DiscardAdminSokoBotAvatarDraftResponses = {
 
 export type DiscardAdminSokoBotAvatarDraftResponse = DiscardAdminSokoBotAvatarDraftResponses[keyof DiscardAdminSokoBotAvatarDraftResponses];
 
+export type RegenerateAdminSokoBotAvatarStateData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+        state: 'idle' | 'thinking' | 'working' | 'done' | 'needs_you' | 'offline';
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar/states/{state}/regenerate';
+};
+
+export type RegenerateAdminSokoBotAvatarStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RegenerateAdminSokoBotAvatarStateError = RegenerateAdminSokoBotAvatarStateErrors[keyof RegenerateAdminSokoBotAvatarStateErrors];
+
+export type RegenerateAdminSokoBotAvatarStateResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RegenerateAdminSokoBotAvatarStateResponse = RegenerateAdminSokoBotAvatarStateResponses[keyof RegenerateAdminSokoBotAvatarStateResponses];
+
 export type ListAdminUsersData = {
     body?: never;
     path?: never;
@@ -66227,6 +66333,117 @@ export type DiscardMySokoBotAvatarDraftResponses = {
 
 export type DiscardMySokoBotAvatarDraftResponse = DiscardMySokoBotAvatarDraftResponses[keyof DiscardMySokoBotAvatarDraftResponses];
 
+export type RegenerateMySokoBotAvatarStateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        state: 'idle' | 'thinking' | 'working' | 'done' | 'needs_you' | 'offline';
+    };
+    query?: never;
+    url: '/soko-bots/me/avatar/states/{state}/regenerate';
+};
+
+export type RegenerateMySokoBotAvatarStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RegenerateMySokoBotAvatarStateError = RegenerateMySokoBotAvatarStateErrors[keyof RegenerateMySokoBotAvatarStateErrors];
+
+export type RegenerateMySokoBotAvatarStateResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RegenerateMySokoBotAvatarStateResponse = RegenerateMySokoBotAvatarStateResponses[keyof RegenerateMySokoBotAvatarStateResponses];
+
 export type ListSokoBotVersionsData = {
     body?: never;
     path?: never;
@@ -69184,6 +69401,118 @@ export type DiscardSokoBotAvatarDraftResponses = {
 };
 
 export type DiscardSokoBotAvatarDraftResponse = DiscardSokoBotAvatarDraftResponses[keyof DiscardSokoBotAvatarDraftResponses];
+
+export type RegenerateSokoBotAvatarStateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        sokoBotId: string;
+        state: 'idle' | 'thinking' | 'working' | 'done' | 'needs_you' | 'offline';
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/avatar/states/{state}/regenerate';
+};
+
+export type RegenerateSokoBotAvatarStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RegenerateSokoBotAvatarStateError = RegenerateSokoBotAvatarStateErrors[keyof RegenerateSokoBotAvatarStateErrors];
+
+export type RegenerateSokoBotAvatarStateResponses = {
+    /**
+     * The bot's look, its newest draft and render progress
+     */
+    200: {
+        data: SokoBotAvatarStudio;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RegenerateSokoBotAvatarStateResponse = RegenerateSokoBotAvatarStateResponses[keyof RegenerateSokoBotAvatarStateResponses];
 
 export type ListSokoBotIntegrationsData = {
     body?: never;
