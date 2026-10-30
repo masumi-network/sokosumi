@@ -23,6 +23,9 @@ const PULL_REQUEST = {
   base: { repo: { id: 99 } },
 };
 
+// A full SHA, so the fork refusal is not a usage reply.
+const FORK_HEAD_SHA = "a".repeat(40);
+
 const NEON_ENV = {
   NEON_API_KEY: "neon-key",
   NEON_PREVIEW_PROJECT_ID_MAINNET: "prj-mainnet",
@@ -168,10 +171,12 @@ describe("parseNetworkCommand for /reset-db", () => {
     assert.deepEqual(parseNetworkCommand("/reset-db all", "/reset-db"), {
       kind: "run",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseNetworkCommand("/reset-db preprod", "/reset-db"), {
       kind: "run",
       networks: ["preprod"],
+      sha: null,
     });
     assert.deepEqual(parseNetworkCommand("/reset-db", "/reset-db"), {
       kind: "usage",
@@ -263,6 +268,27 @@ describe("runPreviewDbResetComment", () => {
       "`/reset-db` is only available for branches in this repository, not forks.",
     ]);
     assert.deepEqual(neonCalls, []);
+  });
+
+  it("refuses fork pull requests even with the approved head SHA", async () => {
+    // A reset redeploys the current head, so a SHA cannot approve it.
+    const forkPull = async () => ({
+      ...PULL_REQUEST,
+      head: { ...PULL_REQUEST.head, sha: FORK_HEAD_SHA, repo: { id: 2 } },
+    });
+    for (const commentBody of [
+      `/reset-db preprod ${FORK_HEAD_SHA}`,
+      `/deploy preprod ${FORK_HEAD_SHA} --reset-db`,
+    ]) {
+      const { options, posted, neonCalls, created } = setup({
+        commentBody,
+        readPullRequest: forkPull,
+      });
+      assert.deepEqual(await runResetDbJobComment(options), { kind: "fork" });
+      assert.match(posted[0], /not forks/);
+      assert.deepEqual(neonCalls, []);
+      assert.deepEqual(created, []);
+    }
   });
 
   it("waits between operation polls with the given sleep", async () => {

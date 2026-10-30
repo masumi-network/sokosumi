@@ -1,7 +1,15 @@
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
+import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 export const ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS =
   "app-scrollbar bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md";
+
+/** A row of the account menu, on a ghost `Button`. Callers name its height. */
+export const ACCOUNT_MENU_ROW_CLASS = cn(
+  POPOVER_ROW_CLASS,
+  "[&_svg]:text-muted-foreground w-full justify-start gap-2 font-normal",
+);
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 

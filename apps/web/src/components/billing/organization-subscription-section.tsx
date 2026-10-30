@@ -1,8 +1,9 @@
 "use client";
 
-import type {
-  OrganizationBillingPlanName,
-  PaidSubscriptionPlanName,
+import type { OrganizationSubscriptionSeats } from "@sokosumi/core-client";
+import {
+  CORE_API_ERROR_KINDS,
+  type PaidSubscriptionPlanName,
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -11,16 +12,16 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import {
-  updateOrganizationSubscriptionSeats,
-  upgradeOrganizationSubscription,
-} from "@/lib/actions/subscription/action";
+import { upgradeOrganizationSubscription } from "@/lib/actions/subscription/action";
+import { buildBillingPortalRedirectPath } from "@/lib/billing/billing-portal-redirect";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import { cn } from "@/lib/utils";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
   resolveTargetOrganizationSeats,
 } from "./organization-seat-settings-fields";
+import { OrganizationSeatsCard } from "./organization-seats-card";
 import { SubscriptionEnterprisePlanCard } from "./subscription-enterprise-plan-card";
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -30,7 +31,7 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
-  currentPlan: OrganizationBillingPlanName;
+  assignedCount: number;
   currentSeats: number;
   isEnterpriseConsumable: boolean;
   isEnterpriseContract: boolean;
@@ -39,10 +40,11 @@ interface OrganizationSubscriptionSectionProps {
   plans: SubscriptionPlanView[];
   returnPath: string;
   scheduledCancelDate: Date | null;
+  scheduledReduction: OrganizationSubscriptionSeats["scheduledReduction"];
 }
 
 export function OrganizationSubscriptionSection({
-  currentPlan,
+  assignedCount,
   currentSeats,
   isEnterpriseConsumable,
   isEnterpriseContract,
@@ -51,6 +53,7 @@ export function OrganizationSubscriptionSection({
   plans,
   returnPath,
   scheduledCancelDate,
+  scheduledReduction,
 }: OrganizationSubscriptionSectionProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
@@ -64,7 +67,7 @@ export function OrganizationSubscriptionSection({
   );
 
   const minimumSeats = useMemo(() => resolveMinimumOrganizationSeats(), []);
-  const [targetSeats, setTargetSeats] = useState(
+  const [targetSeats, setTargetSeats] = useState<number | null>(
     resolveTargetOrganizationSeats(currentSeats),
   );
   const [pendingPlan, setPendingPlan] =
@@ -100,6 +103,13 @@ export function OrganizationSubscriptionSection({
     isEnterpriseContract && isEnterpriseConsumable;
   const showEnterprisePostTermUi =
     isEnterpriseContract && !isEnterpriseConsumable;
+  const hasCurrentPaidPlan = paidPlans.some((plan) => plan.isCurrent);
+  // A plan switch keeps the purchased seats; the seats card changes them.
+  const checkoutSeats = hasCurrentPaidPlan
+    ? resolveTargetOrganizationSeats(currentSeats)
+    : targetSeats;
+  const isCheckoutSeatsValid =
+    checkoutSeats !== null && checkoutSeats >= minimumSeats;
 
   const handleOpenLogin = useCallback(() => {
     router.push("/signin");
@@ -126,7 +136,7 @@ export function OrganizationSubscriptionSection({
   );
 
   const handleSubscriptionActionError = useCallback(
-    (error: { code: string; message?: string | null }) => {
+    (error: { code: string; kind?: string; message?: string | null }) => {
       if (error.code === CommonErrorCode.UNAUTHENTICATED) {
         toast.error(t("Errors.unauthenticated"), {
           action: {
@@ -137,43 +147,45 @@ export function OrganizationSubscriptionSection({
         return;
       }
 
+      if (error.kind === CORE_API_ERROR_KINDS.SUBSCRIPTION_PAYMENT_FAILED) {
+        toast.error(t("Errors.paymentFailed"), {
+          action: {
+            label: t("Errors.paymentFailedAction"),
+            onClick: () => {
+              window.location.assign(
+                buildBillingPortalRedirectPath({ organizationId, returnPath }),
+              );
+            },
+          },
+        });
+        return;
+      }
+
       toast.error(getSubscriptionActionErrorMessage(error));
     },
-    [getSubscriptionActionErrorMessage, handleOpenLogin, t],
+    [
+      getSubscriptionActionErrorMessage,
+      handleOpenLogin,
+      organizationId,
+      returnPath,
+      t,
+    ],
   );
 
   const handleUpgradePlan = useCallback(
     async (planName: PaidSubscriptionPlanName) => {
-      if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
+      if (checkoutSeats === null || checkoutSeats < minimumSeats) {
         toast.error(t("Errors.badInput"));
         return;
       }
 
       setPendingPlan(planName);
       try {
-        const isCurrentPlan = currentPlan === planName;
-        const isSeatOnlyUpdate = isCurrentPlan && currentSeats !== targetSeats;
-
-        if (isSeatOnlyUpdate) {
-          const seatUpdateResult = await updateOrganizationSubscriptionSeats({
-            organizationId,
-            seats: targetSeats,
-          });
-          if (!seatUpdateResult.ok) {
-            handleSubscriptionActionError(seatUpdateResult.error);
-            return;
-          }
-
-          toast.success(t("seatsUpdatedSuccess"));
-          router.refresh();
-          return;
-        }
-
         const result = await upgradeOrganizationSubscription({
           organizationId,
           plan: planName,
           returnPath,
-          seats: targetSeats,
+          seats: checkoutSeats,
         });
         if (!result.ok) {
           handleSubscriptionActionError(result.error);
@@ -181,7 +193,7 @@ export function OrganizationSubscriptionSection({
         }
 
         if (result.value.mode === "redirect") {
-          fireGTMEvent.beginCheckout({ plan: planName, seats: targetSeats });
+          fireGTMEvent.beginCheckout({ plan: planName, seats: checkoutSeats });
           window.location.href = result.value.url;
           return;
         }
@@ -193,15 +205,13 @@ export function OrganizationSubscriptionSection({
       }
     },
     [
-      currentPlan,
+      checkoutSeats,
       handleSubscriptionActionError,
-      currentSeats,
       minimumSeats,
       organizationId,
       returnPath,
       router,
       t,
-      targetSeats,
     ],
   );
 
@@ -209,13 +219,10 @@ export function OrganizationSubscriptionSection({
 
   function getPlanPresentationProps(plan: SubscriptionPlanView) {
     const isCurrentPlan = plan.isCurrent;
-    const hasSamePlanAndSeats = isCurrentPlan && currentSeats === targetSeats;
 
     let actionLabel: null | string = t("choosePlanCta");
     if (isCurrentPlan && isCancellationScheduled) {
       actionLabel = cancellationLabel;
-    } else if (isCurrentPlan && !hasSamePlanAndSeats) {
-      actionLabel = t("updateSeatsCta");
     } else if (isCurrentPlan) {
       actionLabel = tSubscriptions("currentPlanCta");
     }
@@ -226,17 +233,24 @@ export function OrganizationSubscriptionSection({
         credits: plan.credits,
       }),
       isDisabled:
-        pendingPlan !== null ||
-        (isCurrentPlan && isCancellationScheduled) ||
-        (isCurrentPlan && hasSamePlanAndSeats) ||
-        targetSeats < minimumSeats,
+        pendingPlan !== null || isCurrentPlan || !isCheckoutSeatsValid,
       isPlanPending: pendingPlan === plan.name,
     };
   }
 
   return (
     <div className="space-y-6">
-      {!showEnterpriseExclusiveUi ? (
+      {hasCurrentPaidPlan ? (
+        <OrganizationSeatsCard
+          assignedCount={assignedCount}
+          currentSeats={currentSeats}
+          onError={handleSubscriptionActionError}
+          organizationId={organizationId}
+          scheduledCancelDate={scheduledCancelDate}
+          scheduledReduction={scheduledReduction}
+        />
+      ) : null}
+      {!hasCurrentPaidPlan && !showEnterpriseExclusiveUi ? (
         <Card>
           <CardContent className="space-y-6">
             <OrganizationSeatSettingsFields
@@ -256,7 +270,13 @@ export function OrganizationSubscriptionSection({
             {showEnterprisePostTermUi ? (
               <SubscriptionEnterprisePlanCard isCurrent />
             ) : null}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div
+              className={cn(
+                "grid gap-4 md:grid-cols-2",
+                // Enterprise contracts drop the Enterprise card, leaving 3.
+                isEnterpriseContract ? "2xl:grid-cols-3" : "2xl:grid-cols-4",
+              )}
+            >
               {paidPlans.map((plan) => {
                 const planPresentationProps = getPlanPresentationProps(plan);
 

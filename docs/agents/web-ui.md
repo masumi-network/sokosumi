@@ -9,7 +9,8 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Brand direction**: The [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide) is the source of truth for brand and UI across Masumi, Sokosumi and CMO.XYZ: Iris Flower `#FF51FF` as the one primary with Neutral 950 text on it, shared neutrals, no glow or blur. `apps/web/src/app/globals.css` carries its values, so Iris is a fill only: never text or a thin mark on the page (2.67:1 on white). Preview the system, rendered with our real components, at `/admin/design-system` (platform admins).
 - **Page layout**: Every app page is white, holds its content in borderless light-gray panels
   (`HOLDER_CLASS` in `apps/web/src/components/ui/holder-surface.ts`), puts white bordered components on them, and fills the width: no centred
-  `mx-auto max-w-*` page column. See **Page surfaces** and **Fill the width** in
+  `mx-auto max-w-*` page column, except the entry page and the chat room reading column.
+  See **Page surfaces** and **Fill the width** in
   [`apps/web/DESIGN.md`](../../apps/web/DESIGN.md).
 - **Components**: Use Shadcn UI and Radix UI primitives
 - **Styling**: Tailwind CSS with responsive design

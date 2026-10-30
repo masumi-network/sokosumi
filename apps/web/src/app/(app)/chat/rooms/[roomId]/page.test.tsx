@@ -120,6 +120,7 @@ function roomsClientProps(element: ReactElement) {
     loadHistoryOnClient?: boolean;
     rosterPromise?: Promise<unknown>;
     selectedRoomId?: string;
+    activeOrganization?: unknown;
   };
 }
 
@@ -147,7 +148,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     listMessagesMock.mockReturnValue(neverResolvingPromise());
   });
 
-  it("redirects when room belongs to a different active org", async () => {
+  it("opens a room of another workspace as a Room visit", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_B,
       name: "Org B",
@@ -155,13 +156,33 @@ describe("ChatRoomPage org deep-link guard", () => {
     });
     getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
 
-    await expect(
-      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
 
-    expect(redirectMock).toHaveBeenCalledWith("/?notice=room-unavailable");
-    expect(listMessagesMock).not.toHaveBeenCalled();
-    expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+    const props = roomsClientProps(element);
+    expect(props.selectedRoomId).toBe(ROOM_ID);
+    // The active workspace stays as it is; the roster is the room's.
+    expect(props.activeOrganization).toEqual(
+      expect.objectContaining({ id: ORG_B }),
+    );
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_A);
+  });
+
+  it("opens a room of an Organization from the personal workspace as a Room visit", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    const props = roomsClientProps(element);
+    expect(props.selectedRoomId).toBe(ROOM_ID);
+    expect(props.activeOrganization).toBeNull();
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_A);
   });
 
   it("renders a personal Direct when another organization is active", async () => {
@@ -185,7 +206,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(props.selectedRoomId).toBe(ROOM_ID);
   });
 
-  it("redirects a coworker personal Direct when another organization is active", async () => {
+  it("opens a coworker personal Direct as a Room visit when an organization is active", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,
       name: "Org A",
@@ -205,15 +226,18 @@ describe("ChatRoomPage org deep-link guard", () => {
       ],
     });
 
-    await expect(
-      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
 
+    expect(redirectMock).not.toHaveBeenCalled();
     expect(listMessagesMock).not.toHaveBeenCalled();
-    expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
+    expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
+    // The personal workspace has no org roster to load.
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
   });
 
-  it("redirects a personal Soko Bot 1:1 when an organization is active", async () => {
+  it("opens a personal Soko Bot 1:1 as a Room visit when an organization is active", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,
       name: "Org A",
@@ -230,10 +254,13 @@ describe("ChatRoomPage org deep-link guard", () => {
       ],
     });
 
-    await expect(
-      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
-    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
-    expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
   });
 
   it("opens a hosted External channel from another organization's workspace", async () => {
@@ -549,6 +576,67 @@ describe("ChatRoomPage channel settings role", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
+    getMyMemberInOrganizationMock.mockRejectedValue(new Error("core down"));
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    const props = roomsClientProps(element);
+    expect(props.selectedRoomId).toBe(ROOM_ID);
+    expect(props.isOrgOwnerOrAdmin).toBe(false);
+    consoleError.mockRestore();
+  });
+
+  it.each([
+    ["an owner of the room's Organization", "owner", "member", true],
+    ["a plain member of the room's Organization", "member", "owner", false],
+  ])(
+    "on a Room visit, reads the role of %s",
+    async (_label, roomOrgRole, activeOrgRole, canManage) => {
+      getActiveOrganizationMock.mockResolvedValue({
+        id: ORG_B,
+        name: "Org B",
+        slug: "org-b",
+      });
+      getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+      getMyMemberInOrganizationMock.mockImplementation(
+        async (organizationId: string) => ({
+          role: organizationId === ORG_A ? roomOrgRole : activeOrgRole,
+        }),
+      );
+
+      const element = (await ChatRoomPageContent({
+        params: Promise.resolve({ roomId: ROOM_ID }),
+      })) as ReactElement;
+
+      expect(roomsClientProps(element).isOrgOwnerOrAdmin).toBe(canManage);
+    },
+  );
+
+  it("reads the room's Organization's role on a visit from the personal workspace", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+    getMyMemberInOrganizationMock.mockResolvedValue({ role: "admin" });
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(getMyMemberInOrganizationMock).toHaveBeenCalledWith(ORG_A);
+    expect(roomsClientProps(element).isOrgOwnerOrAdmin).toBe(true);
+  });
+
+  it("opens a Room visit without settings when the membership read fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_B,
+      name: "Org B",
+      slug: "org-b",
+    });
+    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
     getMyMemberInOrganizationMock.mockRejectedValue(new Error("core down"));
 
     const element = (await ChatRoomPageContent({

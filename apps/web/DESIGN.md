@@ -245,7 +245,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 
 - **CSS-first, no JS config.** Breakpoints are Tailwind defaults (`sm 640 · md 768 · lg 1024 ·
   xl 1280 · 2xl 1536`); **`md` is the primary mobile/desktop split** (sidebar hidden→flex,
-  header sticky). `2xl` is effectively unused.
+  header sticky). `2xl` is rare: Organization billing uses it to fit every plan on one row.
 - **App shell:** sidebar + a sticky header, `<main data-app-main class="… p-4 …">`
   (overflow-y-auto). That `p-4` is the only horizontal gutter (see Shapes).
 - **Container:** the custom `.container` (centered, capped at 1400px) is for marketing pages
@@ -295,6 +295,16 @@ inside a full-width panel.
   app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
   little above the middle of the screen, prompt chips, then a quiet list with no panel or
   borders.
+- **Chat room:** the header row, transcript and composer share one centred `max-w-4xl`
+  reading column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`,
+  applied by `RoomShellLayout`); the header's bottom rule and the scroller stay full width.
+  The title's mark starts at the transcript avatars' left edge and the header actions end at
+  the column's right edge. The title always has a second line, so it never moves between rooms:
+  a Channel's topic, else the member count, "Direct message" or "Only you". The thread panel
+  stays full width. A docked side panel (thread, threads, pinned, members) does not re-centre
+  the column: it keeps its left edge while it fits, moves left only as far as it must, and
+  slides there with a transform (`useRoomColumnSlide`, off under reduced motion; see
+  **Motion**).
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).
@@ -374,6 +384,13 @@ prop/state-driven.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:border-ring`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-secondary text-secondary-foreground text-xs` (neutral, never Iris).
+- **Menu rows** — `bg-accent`, `rounded-sm` and one colour fade on hover, whatever draws the row.
+  Primitives carry it; a row a popover draws for itself takes `POPOVER_ROW_CLASS`.
+- **Page rows** — the same `hover:bg-accent` and fade. A row between divider lines, as in a table,
+  stays square so the fill meets the lines; every other row keeps its rounded corners. Sticky cells
+  paint their row's fill (`GRID_ROW_BACKGROUND`). Holder items take it too, through
+  `HOLDER_ITEM_HOVER_CLASS`, whether they read as a row or a card. Agent cards, image tiles and chips
+  keep `--card-background-hover`.
 - **Segmented controls** (ToggleGroup) — switch the view of the same content; Tabs move
   between panels and keep their own look. One look for every segmented control: a
   `bg-card-background rounded-lg p-1` track holds `h-8 rounded-md px-3` options in
@@ -409,6 +426,10 @@ prop/state-driven.
   Active state nudges with `scale(0.995)`, shared as the `press` utility in `globals.css`
   (buttons, tabs, toggles, rows, cards; off under reduced motion); overlays use `animate-in/out` + `fade` + `zoom-95` +
   slide.
+  When layout must move, slide it with a transform from the old place (FLIP) instead of
+  animating the layout: `useRoomColumnSlide` does this for the chat column when a side panel
+  docks, with the Web Animations API at the dialog enter pairing (200ms, `--ease-out-strong`).
+  `motion`'s `layout` would also animate window resizes, which should stay instant.
 - **Tokens:** animations are `--animate-*` aliases in `@theme` (accordion, roll-up/down,
   rotate-once, reasoning and shimmer text, the button loading sweep, caret blink, the chat
   input border, and others). Add new keyframes there.
@@ -549,5 +570,5 @@ primary on a neutral background. Brand names are always lowercase.
   `--quinary`, `--muted`) or a named token (`--overlay`, `--scrim`).
 - Glow or `backdrop-blur` on product chrome (guide 5.5).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
-- A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
-  directly on the white page.
+- A centred `mx-auto max-w-*` page column (outside the entry page and chat room exceptions in
+  **Fill the width**), a bordered panel, or a white component sitting directly on the white page.

@@ -50,7 +50,7 @@ function TemplateButton({
   return (
     <button
       className={cn(
-        "bg-background hover:bg-card-background-hover focus-visible:ring-ring flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-2",
+        "bg-background hover:bg-accent focus-visible:ring-ring flex cursor-pointer gap-2 rounded-xl text-left transition-[background-color] outline-none focus-visible:ring-2",
         STUDIO_SELECT_NONE_CLASS,
         STUDIO_TOUCH_CALLOUT_NONE_CLASS,
         large

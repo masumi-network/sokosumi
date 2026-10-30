@@ -18685,184 +18685,6 @@ export const NewsletterAvailabilitySchema = {
     ]
 } as const;
 
-export const NewsletterSendingDomainStateSchema = {
-    type: 'object',
-    properties: {
-        sendingDomain: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/NewsletterSendingDomain'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Null until a workspace owner or admin adds one.'
-        },
-        canManage: {
-            type: 'boolean'
-        },
-        fallbackAvailable: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'sendingDomain',
-        'canManage',
-        'fallbackAvailable'
-    ]
-} as const;
-
-export const NewsletterSendingDomainSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        domain: {
-            type: 'string'
-        },
-        fromAddress: {
-            type: 'string'
-        },
-        status: {
-            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
-        },
-        dnsRecords: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/NewsletterDnsRecord'
-            }
-        },
-        lastCheckedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        failureReason: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'domain',
-        'fromAddress',
-        'status',
-        'dnsRecords',
-        'lastCheckedAt',
-        'failureReason',
-        'createdAt'
-    ]
-} as const;
-
-export const NewsletterSendingDomainStatusSchema = {
-    type: 'string',
-    enum: [
-        'PENDING',
-        'VERIFIED',
-        'FAILED'
-    ]
-} as const;
-
-export const NewsletterDnsRecordSchema = {
-    type: 'object',
-    properties: {
-        record: {
-            type: 'string'
-        },
-        type: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        value: {
-            type: 'string'
-        },
-        ttl: {
-            type: 'string'
-        },
-        priority: {
-            type: [
-                'number',
-                'null'
-            ]
-        },
-        status: {
-            type: 'string'
-        }
-    },
-    required: [
-        'record',
-        'type',
-        'name',
-        'value',
-        'ttl',
-        'priority',
-        'status'
-    ]
-} as const;
-
-export const PutNewsletterSendingDomainRequestSchema = {
-    type: 'object',
-    properties: {
-        fromAddress: {
-            type: 'string',
-            maxLength: 254,
-            format: 'email'
-        }
-    },
-    required: [
-        'fromAddress'
-    ]
-} as const;
-
-export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
-    type: 'object',
-    properties: {
-        apiToken: {
-            type: 'string',
-            minLength: 20,
-            maxLength: 256
-        }
-    },
-    required: [
-        'apiToken'
-    ]
-} as const;
-
-export const NewsletterSendingDomainConnectSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        providerName: {
-            type: 'string'
-        },
-        applyUrl: {
-            type: 'string',
-            format: 'uri'
-        }
-    },
-    required: [
-        'providerName',
-        'applyUrl'
-    ]
-} as const;
-
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -21010,9 +20832,76 @@ export const OrganizationSubscriptionSeatsSchema = {
             type: 'integer',
             description: 'Purchased seat count on the active subscription',
             example: 3
+        },
+        scheduledReduction: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                effectiveAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2025-02-01T00:00:00.000Z',
+                    description: 'When the reduction takes effect: the next renewal'
+                },
+                seats: {
+                    type: 'integer',
+                    description: 'Seat count the subscription drops to',
+                    example: 2
+                }
+            },
+            required: [
+                'effectiveAt',
+                'seats'
+            ],
+            description: 'Null when no reduction is pending'
         }
     },
     required: [
+        'seats',
+        'scheduledReduction'
+    ]
+} as const;
+
+export const OrganizationSubscriptionSeatsPreviewSchema = {
+    type: 'object',
+    properties: {
+        amountDue: {
+            type: 'integer',
+            description: 'Charged to the payment method right away, including tax. Zero unless seats are added',
+            example: 1234
+        },
+        currency: {
+            type: 'string',
+            description: 'Lowercase ISO currency code',
+            example: 'eur'
+        },
+        effectiveAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When a reduction takes effect: the next renewal. Null when the change applies right away'
+        },
+        newMonthlyAmount: {
+            type: 'integer',
+            description: 'Next regular invoice at the new seat count, including tax and discounts',
+            example: 14875
+        },
+        seats: {
+            type: 'integer',
+            description: 'The seat count this preview is for',
+            example: 5
+        }
+    },
+    required: [
+        'amountDue',
+        'currency',
+        'effectiveAt',
+        'newMonthlyAmount',
         'seats'
     ]
 } as const;
@@ -23500,6 +23389,184 @@ export const PutNewsletterRequestSchema = {
         'replyTo',
         'brand',
         'welcomeEmailEnabled'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStateSchema = {
+    type: 'object',
+    properties: {
+        sendingDomain: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/NewsletterSendingDomain'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a member adds a sending domain to this Project.'
+        },
+        canManage: {
+            type: 'boolean'
+        },
+        fallbackAvailable: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'sendingDomain',
+        'canManage',
+        'fallbackAvailable'
+    ]
+} as const;
+
+export const NewsletterSendingDomainSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        domain: {
+            type: 'string'
+        },
+        fromAddress: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
+        },
+        dnsRecords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/NewsletterDnsRecord'
+            }
+        },
+        lastCheckedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'domain',
+        'fromAddress',
+        'status',
+        'dnsRecords',
+        'lastCheckedAt',
+        'failureReason',
+        'createdAt'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'VERIFIED',
+        'FAILED'
+    ]
+} as const;
+
+export const NewsletterDnsRecordSchema = {
+    type: 'object',
+    properties: {
+        record: {
+            type: 'string'
+        },
+        type: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        value: {
+            type: 'string'
+        },
+        ttl: {
+            type: 'string'
+        },
+        priority: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'record',
+        'type',
+        'name',
+        'value',
+        'ttl',
+        'priority',
+        'status'
+    ]
+} as const;
+
+export const PutNewsletterSendingDomainRequestSchema = {
+    type: 'object',
+    properties: {
+        fromAddress: {
+            type: 'string',
+            maxLength: 254,
+            format: 'email'
+        }
+    },
+    required: [
+        'fromAddress'
+    ]
+} as const;
+
+export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
+    type: 'object',
+    properties: {
+        apiToken: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 256
+        }
+    },
+    required: [
+        'apiToken'
+    ]
+} as const;
+
+export const NewsletterSendingDomainConnectSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        providerName: {
+            type: 'string'
+        },
+        applyUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'providerName',
+        'applyUrl'
     ]
 } as const;
 

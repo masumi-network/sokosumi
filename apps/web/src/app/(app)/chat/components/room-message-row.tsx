@@ -2681,7 +2681,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // end of one line of a message you are already looking at — cheaper
         // than 16rem that every row gives up forever so that one hovered row
         // has somewhere to put eight buttons.
-        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-card-background",
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"

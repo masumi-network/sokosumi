@@ -1,5 +1,6 @@
 import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import type { Coworker } from "@/app/chat/utils/types";
 
 import { ActivityTrend } from "./activity-trend";
@@ -15,6 +16,8 @@ interface ChatLandingMobileProps {
   summary: TaskActivitySummary | null;
   /** Given name already resolved, or null for the nameless greeting. */
   userName: null | string;
+  /** Home's quiet Needs you list, below the coworkers; nothing when empty. */
+  needsYou?: ReactNode;
 }
 
 /**
@@ -36,6 +39,7 @@ export async function ChatLandingMobile({
   isOrganizationWorkspace,
   summary,
   userName,
+  needsYou,
 }: ChatLandingMobileProps) {
   const t = await getTranslations("App.Chat.Landing");
   const featured = resolveFeaturedCoworker(coworkers);
@@ -66,6 +70,11 @@ export async function ChatLandingMobile({
               />
             </OpenCoworkerRoomProvider>
           ) : null}
+
+          {/* Below the coworkers; the wrapper collapses while the list loads. */}
+          <div className="mt-8 w-full px-1 text-left empty:hidden">
+            {needsYou}
+          </div>
         </div>
       </div>
 

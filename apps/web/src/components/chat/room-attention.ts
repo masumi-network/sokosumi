@@ -310,3 +310,9 @@ export function roomUnreadReads(room: RoomUnreadSummary): {
       (room.unreadThreadCount ?? room.unreadThreads?.length ?? 0) > 0,
   };
 }
+
+/** Whether a read would still change this room. */
+export function roomHasUnread(room: RoomUnreadSummary): boolean {
+  const { readRoom, lookThreads } = roomUnreadReads(room);
+  return readRoom || lookThreads;
+}

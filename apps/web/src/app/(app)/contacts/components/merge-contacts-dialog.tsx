@@ -79,7 +79,7 @@ export function MergeContactsDialog({
                   "has-focus-visible:ring-ring flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors has-focus-visible:ring-2",
                   winnerId === contact.id
                     ? "border-border bg-muted"
-                    : "hover:bg-quinary",
+                    : "hover:bg-accent",
                 )}
               >
                 <input

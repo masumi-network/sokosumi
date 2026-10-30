@@ -149,6 +149,15 @@ describe("SokoBotHome", () => {
     expect(row.textContent).toContain("2h");
   });
 
+  it("puts what needs the user above the team's day", async () => {
+    await renderHome({ needsYou: <section>needs you</section> });
+    const needsYou = screen.getByText("needs you");
+    const day = screen.getByRole("heading", { level: 2 });
+    expect(
+      needsYou.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("counts long work in hours", async () => {
     await renderHome({
       summary: {

@@ -1,5 +1,11 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  render as renderInTest,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { type ReactElement, type ReactNode, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
@@ -32,7 +38,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 
-const { listRoomsMock } = vi.hoisted(() => ({ listRoomsMock: vi.fn() }));
+const { listRoomsMock, listElsewhereMock } = vi.hoisted(() => ({
+  listRoomsMock: vi.fn(),
+  listElsewhereMock: vi.fn(),
+}));
 
 /** Same `{ ok, value }` shape the action tests used; the GET helper maps it. */
 type ListResult =
@@ -40,7 +49,8 @@ type ListResult =
   | { ok: false; error?: unknown };
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
-  fetchSidebarRoomCollection: async () => {
+  fetchSidebarRoomCollection: async (collection: string) => {
+    if (collection === "elsewhere") return listElsewhereMock();
     const result = (await listRoomsMock()) as ListResult;
     return result.ok ? result.value : null;
   },
@@ -70,9 +80,9 @@ vi.mock("@/app/chat/components/chat-mobile-bottom-nav", () => ({
 }));
 
 import { AppMobileChrome } from "@/app/components/app-mobile-chrome.client";
+import { SidebarToggle } from "@/app/components/header/sidebar-toggle.client";
 
 import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
-
 import {
   clearMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
@@ -84,10 +94,30 @@ import {
   rememberRoomRead,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
+import {
+  ElsewhereRoomsLive,
+  useElsewhereRooms,
+} from "@/components/chat/use-elsewhere-rooms";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 
 let hasFocus: ReturnType<typeof vi.spyOn>;
+
+/** The app's frame: one client per tab, and the upkeep beside it. */
+function AppFrame({ children }: { children: ReactNode }) {
+  return (
+    <TestQueryProvider>
+      <ElsewhereRoomsLive />
+      {children}
+    </TestQueryProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return renderInTest(ui, { wrapper: AppFrame });
+}
 
 /**
  * Leave the foreground, learn the rooms changed while away, and come back.
@@ -126,6 +156,375 @@ function Harness() {
 // The tab bar's own reads are a phone's: a desktop waits for its sidebar.
 beforeEach(() => {
   window.innerWidth = 390;
+  listElsewhereMock.mockReset();
+  listElsewhereMock.mockResolvedValue([]);
+});
+
+function elsewhereRoom(partial: Partial<ChatRoom> & Pick<ChatRoom, "id">) {
+  return room({
+    organizationId: "org-2",
+    unreadCount: 1,
+    channelUnreadCount: 1,
+    ...partial,
+  });
+}
+
+/** Stands in for the sidebar's list: it shows the Elsewhere rooms too. */
+function SidebarList() {
+  useElsewhereRooms({
+    currentUserId: "user-1",
+    organizationId: "org-1",
+    enabled: true,
+  });
+  useEffect(() => registerMembershipVisibleRoomsPublisher(), []);
+  return null;
+}
+
+/** Stands in for Catch up's page, which lists the rooms too. */
+function CatchUpPage() {
+  useElsewhereRooms({
+    currentUserId: "user-1",
+    organizationId: "org-1",
+    enabled: true,
+  });
+  return null;
+}
+
+describe("Elsewhere rooms in the unread signals", () => {
+  beforeEach(() => {
+    setAblyConnectionHealthy(false);
+    mockPathname = "/chat";
+    mockUserId = "user-1";
+    mockOrganizationId = "org-1";
+    clearRoomReadOverlays();
+    clearMembershipVisibleRoomsSnapshot();
+    controlSubscribe.mockClear();
+    listRoomsMock.mockReset();
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: {
+        rooms: [room({ id: "here", unreadCount: 1 })],
+        nextCursor: null,
+      },
+    });
+    hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("counts them in the tab title, one per room", async () => {
+    document.title = "Chats";
+    listElsewhereMock.mockResolvedValue([
+      elsewhereRoom({ id: "launch" }),
+      elsewhereRoom({ id: "design", unreadMentionCount: 2 }),
+    ]);
+
+    render(
+      <AppMobileChrome>
+        <div>chat list</div>
+      </AppMobileChrome>,
+    );
+
+    await waitFor(() => expect(document.title).toBe("(3) Sokosumi - Chat"));
+  });
+
+  it("lights the Chats tab's dot for one alone", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+
+    render(<Harness />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+  });
+
+  it("leaves out a muted room, as the row does", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([
+      elsewhereRoom({
+        id: "launch",
+        mutedAt: new Date("2026-09-10T10:00:00Z"),
+      }),
+    ]);
+
+    render(<Harness />);
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+  });
+
+  it("clears the dot when the room is read", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("organization-chat-room-read", {
+          detail: { roomId: "launch" },
+        }),
+      );
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
+  });
+
+  it("reads again when a message arrives anywhere", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    render(<Harness />);
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+    await act(async () => {});
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+    await act(async () => {
+      window.dispatchEvent(new Event("organization-chat-rooms-changed"));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+  });
+
+  it("reads again when a lost connection comes back", async () => {
+    setAblyConnectionHealthy(true);
+    render(<Harness />);
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+    await act(async () => {});
+    listElsewhereMock.mockClear();
+
+    act(() => setAblyConnectionHealthy(false));
+    act(() => setAblyConnectionHealthy(true));
+
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+  });
+
+  it("shares the sidebar list's read instead of fetching twice", async () => {
+    window.innerWidth = 1280;
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+
+    render(
+      <>
+        <Harness />
+        <SidebarList />
+      </>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("organization-chat-room-read", {
+          detail: { roomId: "launch" },
+        }),
+      );
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
+    expect(listElsewhereMock).toHaveBeenCalledOnce();
+  });
+
+  describe("one read per event, however many surfaces show the rooms", () => {
+    async function aMessageArrives() {
+      listElsewhereMock.mockClear();
+      await act(async () => {
+        window.dispatchEvent(new Event("organization-chat-rooms-changed"));
+      });
+    }
+
+    it("reads once per event with Catch up beside the phone's chrome", async () => {
+      render(
+        <>
+          <Harness />
+          <CatchUpPage />
+        </>,
+      );
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+      await act(async () => {});
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+
+      await aMessageArrives();
+
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+    });
+
+    it("reads once per event with Catch up beside the sidebar", async () => {
+      window.innerWidth = 1280;
+      render(
+        <>
+          <SidebarList />
+          <CatchUpPage />
+        </>,
+      );
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+      await act(async () => {});
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+
+      await aMessageArrives();
+
+      expect(listElsewhereMock).toHaveBeenCalledOnce();
+    });
+
+    it("keeps reading when one of them unmounts", async () => {
+      const view = render(
+        <>
+          <CatchUpPage />
+          <Harness />
+        </>,
+      );
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+
+      view.rerender(<Harness />);
+      await act(async () => {});
+      await aMessageArrives();
+
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalled());
+    });
+  });
+
+  it("shares its read with a desktop sidebar that mounts after it", async () => {
+    window.innerWidth = 1280;
+    const view = render(<Harness />);
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+    await act(async () => {});
+
+    view.rerender(
+      <>
+        <Harness />
+        <SidebarList />
+      </>,
+    );
+    await act(async () => {});
+
+    expect(listElsewhereMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the count through the read that takes over from a closed list", async () => {
+    window.innerWidth = 1280;
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+    const view = render(
+      <>
+        <Harness />
+        <SidebarList />
+      </>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+
+    // The phone's sheet closes: the rooms hold until the tab's own read lands.
+    window.innerWidth = 390;
+    listElsewhereMock.mockImplementation(() => new Promise(() => {}));
+    view.rerender(<Harness />);
+    await act(async () => {});
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+  });
+
+  it("starts over in another workspace", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+    const view = render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+
+    mockOrganizationId = "org-2";
+    listElsewhereMock.mockImplementation(() => new Promise(() => {}));
+    view.rerender(<Harness />);
+    await act(async () => {});
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+  });
+
+  it("shows another user nothing the last one held", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+    const view = render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+
+    mockUserId = "";
+    view.rerender(<Harness />);
+    await act(async () => {});
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+
+    mockUserId = "user-2";
+    listElsewhereMock.mockImplementation(() => new Promise(() => {}));
+    view.rerender(<Harness />);
+    await act(async () => {});
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+  });
+
+  it("carries the hidden sidebar toggle's dot", async () => {
+    window.innerWidth = 1280;
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [], nextCursor: null },
+    });
+    listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
+
+    render(
+      <SidebarProvider defaultOpen={false}>
+        <SidebarToggle />
+        <SidebarList />
+      </SidebarProvider>,
+    );
+
+    const dot = await screen.findByText("unreadChats");
+    expect(dot.closest('[data-slot="sidebar-toggle-unread-dot"]')).toBeTruthy();
+  });
 });
 
 describe("useChatTabUnreadPresence", () => {

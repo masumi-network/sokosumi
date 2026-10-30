@@ -1,6 +1,6 @@
 # Sokosumi agent contract
 
-Sokosumi is a pnpm monorepo: Next.js Web, Hono Core, native Apple apps, and shared packages. Use Node.js 24 and the pnpm version in `package.json`.
+Sokosumi is a pnpm monorepo: Next.js Web, Hono Core, native Apple apps, and shared packages. Use Node.js 26 and the pnpm version in `package.json`.
 
 ## Load context for the task
 

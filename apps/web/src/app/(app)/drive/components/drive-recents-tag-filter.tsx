@@ -13,6 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { cn } from "@/lib/utils";
 import {
   type FileStore,
@@ -94,7 +95,10 @@ export function DriveRecentsTagFilter({
             tags.data.map((label) => (
               <label
                 key={label.id}
-                className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-9"
+                className={cn(
+                  POPOVER_ROW_CLASS,
+                  "-mx-2 flex min-h-11 cursor-pointer items-center gap-2 px-2 text-sm md:min-h-9",
+                )}
               >
                 <Checkbox
                   checked={selected.includes(label.id)}

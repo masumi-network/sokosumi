@@ -44,10 +44,10 @@ interface ProjectScopeMenuProps {
 
 /**
  * The one project list every switcher shows: search, one list of projects
- * (Pinned projects first, each with a pin, then recently visited, then the
- * rest), then Create. Search narrows that same list and asks Core, so the
- * list filters itself off. All projects is not a row: the trigger's ×
- * returns to it.
+ * (Pinned projects first, each with a pin unless the current project's check
+ * takes its place, then recently visited, then the rest), then Create. Search
+ * narrows that same list and asks Core, so the list filters itself off. All
+ * projects is not a row: the trigger's × returns to it.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
@@ -92,16 +92,13 @@ export function ProjectScopeMenu({
         <span className="min-w-0 flex-1 break-words leading-normal">
           {project.name}
         </span>
-        {pinned ? (
-          <>
-            <Pin
-              className="text-muted-foreground size-3.5 shrink-0"
-              aria-hidden
-            />
-            <span className="sr-only">{t("pinned")}</span>
-          </>
+        {/* One trailing icon per row, so neither mark moves off the edge. */}
+        {project.id === selectedProjectId ? (
+          <CurrentMark />
+        ) : pinned ? (
+          <Pin className="text-muted-foreground size-3.5 shrink-0" />
         ) : null}
-        <CurrentMark current={project.id === selectedProjectId} />
+        {pinned ? <span className="sr-only">{t("pinned")}</span> : null}
       </CommandItem>
     );
   }
@@ -225,15 +222,12 @@ export function ProjectScopeMenu({
 }
 
 /** The check on the current choice, with words for assistive tech. */
-function CurrentMark({ current }: { current: boolean }) {
+function CurrentMark() {
   const t = useTranslations("App.ProjectScope");
   return (
     <>
-      <Check
-        className={cn("size-4 shrink-0", current ? "opacity-100" : "opacity-0")}
-        aria-hidden
-      />
-      {current ? <span className="sr-only">{t("current")}</span> : null}
+      <Check className="size-4 shrink-0" />
+      <span className="sr-only">{t("current")}</span>
     </>
   );
 }

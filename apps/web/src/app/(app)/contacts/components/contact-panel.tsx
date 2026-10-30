@@ -302,7 +302,7 @@ function PanelBody({
             <div className="-ms-2 flex min-w-0 items-center">
               <a
                 href={`mailto:${email}`}
-                className="hover:bg-quinary flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm"
+                className="hover:bg-accent transition-colors flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm"
               >
                 <Mail
                   aria-hidden
@@ -436,7 +436,7 @@ function PanelBody({
                 aria-label={t("panel.changeStage", {
                   stage: t(`stages.${contact.stage}`),
                 })}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
               >
                 <StageChip stage={contact.stage} />
               </button>
@@ -462,7 +462,7 @@ function PanelBody({
               <button
                 type="button"
                 aria-label={t("importance.change")}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
               >
                 <ScoreMeter
                   value={importance}
@@ -518,7 +518,7 @@ function PanelBody({
               <button
                 type="button"
                 aria-label={t("panel.changeLists")}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
               >
                 {contact.lists.length ? (
                   contact.lists.map((list) => (
@@ -824,7 +824,7 @@ function ChannelsSection({
           return (
             <li
               key={channel.id}
-              className="group/channel hover:bg-quinary flex min-h-10 items-center gap-3 rounded-md px-2"
+              className="group/channel hover:bg-accent transition-colors flex min-h-10 items-center gap-3 rounded-md px-2"
             >
               <Tooltip>
                 <TooltipTrigger asChild>

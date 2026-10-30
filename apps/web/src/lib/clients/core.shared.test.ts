@@ -252,6 +252,82 @@ describe("createCoreClient newsletter analytics", () => {
   });
 });
 
+describe("createCoreClient newsletter sending domains", () => {
+  it("uses the current project path for every operation and keeps tokens out of URLs", async () => {
+    const requests: Request[] = [];
+    const domain = {
+      id: "domain-1",
+      domain: "brand.example",
+      fromAddress: "news@brand.example",
+      status: "PENDING",
+      dnsRecords: [],
+      lastCheckedAt: null,
+      failureReason: null,
+      createdAt: "2026-10-29T12:00:00Z",
+    };
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        if (request.method === "DELETE")
+          return new Response(null, { status: 204 });
+        const data = request.url.endsWith("/domain-connect")
+          ? null
+          : request.method === "GET"
+            ? {
+                sendingDomain: domain,
+                canManage: true,
+                fallbackAvailable: true,
+              }
+            : domain;
+        return new Response(
+          JSON.stringify({
+            data,
+            meta: { requestId: "domain-test", timestamp: new Date() },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    });
+    const core = createCoreClient(() => client);
+
+    await core.getProjectsByIdNewsletterSendingDomain("project-2");
+    await core.putProjectsByIdNewsletterSendingDomain("project-2", {
+      fromAddress: domain.fromAddress,
+    });
+    await core.postProjectsByIdNewsletterSendingDomainCheck("project-2");
+    await core.postProjectsByIdNewsletterSendingDomainCloudflare(
+      "project-2",
+      "one-time-token",
+    );
+    await core.getProjectsByIdNewsletterSendingDomainDomainConnect("project-2");
+    await core.deleteProjectsByIdNewsletterSendingDomain("project-2");
+    await core.getProjectsByIdNewsletterSendingDomain("project-3");
+
+    const path =
+      "https://core.example.com/v1/projects/project-2/newsletter/sending-domain";
+    expect(requests.map((request) => [request.method, request.url])).toEqual([
+      ["GET", path],
+      ["PUT", path],
+      ["POST", `${path}/check`],
+      ["POST", `${path}/cloudflare`],
+      ["GET", `${path}/domain-connect`],
+      ["DELETE", path],
+      [
+        "GET",
+        "https://core.example.com/v1/projects/project-3/newsletter/sending-domain",
+      ],
+    ]);
+    expect(await requests[1].json()).toEqual({
+      fromAddress: domain.fromAddress,
+    });
+    expect(await requests[3].json()).toEqual({ apiToken: "one-time-token" });
+    expect(requests[0].cache).toBe("no-store");
+    expect(requests[4].cache).toBe("no-store");
+  });
+});
+
 describe("createCoreClient calendar sources", () => {
   it("forwards Social scope without caching workspace data", async () => {
     vi.mocked(coreGetWorkspacesCalendarSources).mockResolvedValue({

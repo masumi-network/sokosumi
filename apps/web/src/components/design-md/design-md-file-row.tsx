@@ -77,7 +77,7 @@ export function DesignMdFileRow({
 
   return (
     <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
-      <div className="hover:bg-card-background focus-within:border-ring relative flex items-start gap-3 rounded-lg border p-4 transition-[color,background-color,border-color,transform]">
+      <div className="hover:bg-accent focus-within:border-ring relative flex items-start gap-3 rounded-lg border p-4 transition-[color,background-color,border-color,transform]">
         <a
           href={designMdUrl}
           target="_blank"

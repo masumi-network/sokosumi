@@ -258,7 +258,8 @@
             "changeRole": "Rolle konnte nicht geändert werden",
             "remove": "Mitglied konnte nicht entfernt werden",
             "assignSeat": "Seat konnte nicht zugewiesen werden",
-            "unassignSeat": "Seat konnte nicht entfernt werden"
+            "unassignSeat": "Seat konnte nicht entfernt werden",
+            "manageSeats": "Seats verwalten"
           },
           "Errors": {
             "unauthorizedAction": "Anmelden"
@@ -3592,8 +3593,7 @@
         },
         "SendingDomain": {
           "title": "Absenderdomain",
-          "description": "Versende Newsletter von deiner eigenen Adresse, etwa news@news.deinemarke.de. Jedes Projekt in diesem Workspace nutzt sie.",
-          "managedByAdmins": "Nur Workspace-Inhaber oder -Admins können eine Absenderdomain verbinden.",
+          "description": "Versende den Newsletter dieses Projekts von deiner eigenen Adresse, etwa news@news.deinemarke.de.",
           "fromAddress": "Absenderadresse",
           "fromAddressPlaceholder": "news@news.deinemarke.de",
           "fromAddressHint": "Nutze eine Subdomain wie news.deinemarke.de. So bleibt die Reputation deiner Newsletter getrennt von deinen alltäglichen E-Mails.",
@@ -3607,7 +3607,7 @@
             "FAILED": "Fehlgeschlagen"
           },
           "lastChecked": "Zuletzt geprüft {time}",
-          "verifiedDescription": "Die Newsletter aller Projekte in diesem Workspace werden jetzt von dieser Adresse versendet.",
+          "verifiedDescription": "Der Newsletter dieses Projekts wird jetzt von dieser Adresse versendet.",
           "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
           "checked": "Geprüft. Deine DNS-Einträge sind noch nicht sichtbar. DNS-Änderungen können einige Stunden dauern.",
           "checkNow": "Jetzt prüfen",
@@ -3670,9 +3670,9 @@
           "errors": {
             "generic": "Die Absenderdomain konnte nicht aktualisiert werden. Versuche es erneut.",
             "invalidAddress": "Gib eine E-Mail-Adresse ein, etwa news@news.deinemarke.de.",
-            "forbidden": "Nur Workspace-Inhaber oder -Admins können die Absenderdomain ändern.",
+            "forbidden": "Du hast keinen Zugriff auf die Absenderdomain dieses Projekts. Lade die Seite neu.",
             "notFound": "Diese Absenderdomain wurde entfernt. Lade die Seite neu.",
-            "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderer Workspace nutzt.",
+            "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderes Projekt nutzt.",
             "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
             "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
             "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
@@ -7187,12 +7187,12 @@
           "currentSeatsLabel": "Aktuelle Seats",
           "membersLabel": "Aktive Mitglieder",
           "seatsInputLabel": "Gekaufte Seats",
-          "seatsInputHint": "Das Minimum ist {minimum}, um genutzte bezahlte Seats abzudecken. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
+          "seatsInputHint": "Wähle, wie viele Seats du mit einem bezahlten Plan kaufst. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
-          "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
+          "seatsUpdatedSuccess": "Seats aktualisiert.",
+          "seatsScheduledSuccess": "Seat-Entfernung für die nächste Verlängerung geplant.",
           "currentPlanCta": "Aktueller Plan",
-          "updateSeatsCta": "Seats aktualisieren",
           "choosePlanCta": "Plan auswählen",
           "Errors": {
             "unauthenticated": "Bitte melde dich an, um fortzufahren",
@@ -7200,8 +7200,42 @@
             "unauthorized": "Nur Eigentümer und Admins der Organisation können Abonnements verwalten",
             "badInput": "Bitte gültige Plan- und Seat-Werte angeben",
             "general": "Organisations-Abonnement konnte nicht verwaltet werden",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
-          }
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "Die Zahlung ist fehlgeschlagen, deine Seats wurden nicht geändert. Aktualisiere deine Zahlungsmethode und versuche es erneut.",
+            "paymentFailedAction": "Zahlungsmethode aktualisieren"
+          },
+          "seatsCard": {
+            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Hinzugefügte Seats werden sofort abgerechnet. Entfernte Seats enden bei der Verlängerung.",
+            "scheduledNote": "{count, plural, =1 {# Seat wird} other {# Seats werden}} am {date} entfernt. Ein Planwechsel bricht das ab.",
+            "removeBlocked": "Dein Plan endet am {date}, und alle Seats enden damit. Reaktiviere deinen Plan, um Seats zu entfernen.",
+            "keepCta": "{count, plural, =1 {# Seat behalten} other {# Seats behalten}}",
+            "addIdleCta": "Seats hinzufügen",
+            "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
+            "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
+            "decrease": "Einen Seat entfernen",
+            "increase": "Einen Seat hinzufügen",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
+              "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
+              "keepTitle": "{count, plural, =1 {# Seat behalten?} other {# Seats behalten?}}",
+              "addDescription": "Diese Änderung gilt sofort.",
+              "removeDescription": "Du behältst alle Seats bis zur nächsten Verlängerung, und es wird nichts erstattet.",
+              "keepDescription": "Damit wird die geplante Seat-Entfernung abgebrochen. Deine Rechnung bleibt gleich.",
+              "addCancelsReduction": "Damit wird auch die geplante Seat-Entfernung abgebrochen.",
+              "loading": "Preis wird abgerufen…",
+              "previewError": "Der Preis konnte nicht abgerufen werden, deine Seats können daher noch nicht geändert werden.",
+              "previewRetry": "Erneut versuchen",
+              "dueNow": "Jetzt fällig",
+              "effectiveAt": "Gilt ab",
+              "approximate": "Etwa {amount}",
+              "newMonthly": "Neuer Monatspreis",
+              "newMonthlyHint": "Inklusive Steuern und Rabatten",
+              "seatsLost": "{count, plural, =1 {Bei der Verlängerung verliert das zuletzt beigetretene Mitglied seinen Seat.} other {Bei der Verlängerung verlieren die # zuletzt beigetretenen Mitglieder ihren Seat.}}",
+              "cancellationNote": "Dein Plan endet am {date}, und diese Seats enden damit.",
+              "cancel": "Abbrechen"
+            }
+          },
+          "seatsCheckoutLabel": "Zu kaufende Seats"
         },
         "Seats": {
           "title": "Seat Übersicht",
@@ -7767,6 +7801,9 @@
       "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Direktnachricht",
+      "headerSelfDirect": "Nur du",
+      "headerVisitSwitch": "Zu {workspace} wechseln",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
@@ -7784,7 +7821,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "In Datei umwandeln",
       "NoOrganization": {
-        "title": "Channels kommen bald",
         "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."
       },
       "Empty": {
@@ -7932,7 +7968,9 @@
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "justRead": "Gerade gelesen"
+        "justRead": "Gerade gelesen",
+        "elsewhereLabel": "Ungelesen in anderen Arbeitsbereichen",
+        "elsewhereMore": "{count} weitere in anderen Arbeitsbereichen"
       },
       "ThreadsView": {
         "title": "Threads",
