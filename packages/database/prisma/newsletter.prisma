@@ -224,14 +224,14 @@ model NewsletterEvent {
   @@map("newsletter_event")
 }
 
-/// The Workspace's own From address. Every Project newsletter in the Workspace sends from it once Resend verifies its domain.
+/// The Project's own From address. Only this Project's newsletter sends from it once Resend verifies its domain.
 model NewsletterSendingDomain {
   id        String   @id(map: "newsletter_sending_domain_pkey") @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  workspaceId String    @unique(map: "newsletter_sending_domain_workspaceId_key") @db.Uuid
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "newsletter_sending_domain_workspaceId_fkey")
+  projectId String  @unique(map: "newsletter_sending_domain_projectId_key") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "newsletter_sending_domain_projectId_fkey")
 
   /// Lowercased. Unique because one Resend account holds a domain only once.
   domain         String                        @unique(map: "newsletter_sending_domain_domain_key")

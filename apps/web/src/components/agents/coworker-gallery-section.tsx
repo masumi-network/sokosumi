@@ -298,7 +298,7 @@ function VendorDashboard({
                 className={cn(
                   "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors md:w-full",
                   FOCUS_RING,
-                  isActive ? "bg-muted" : "hover:bg-card-background",
+                  isActive ? "bg-muted" : "hover:bg-accent",
                 )}
               >
                 <CoworkerAvatar

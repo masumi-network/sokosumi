@@ -143,7 +143,7 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
                           pending && "cursor-default",
                           tableId === item.id
                             ? "border-primary-tertiary bg-primary-quinary"
-                            : "hover:bg-quinary",
+                            : "hover:bg-accent transition-colors",
                         )}
                       >
                         <input

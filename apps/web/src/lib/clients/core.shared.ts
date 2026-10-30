@@ -198,7 +198,6 @@ import {
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
-  deleteNewsletterSendingDomain as coreDeleteNewsletterSendingDomain,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
@@ -207,6 +206,7 @@ import {
   deleteProjectsByIdHide as coreDeleteProjectsByIdHide,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdNewsletterIssuesByIssueId as coreDeleteProjectsByIdNewsletterIssuesByIssueId,
+  deleteProjectsByIdNewsletterSendingDomain as coreDeleteProjectsByIdNewsletterSendingDomain,
   deleteProjectsByIdNewsletterSubscribersBySubscriberId as coreDeleteProjectsByIdNewsletterSubscribersBySubscriberId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -270,8 +270,6 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getNewsletterAvailability as coreGetNewsletterAvailability,
-  getNewsletterSendingDomain as coreGetNewsletterSendingDomain,
-  getNewsletterSendingDomainDomainConnect as coreGetNewsletterSendingDomainDomainConnect,
   getNotifications as coreGetNotifications,
   getNotificationsCounts as coreGetNotificationsCounts,
   getOrganizationBySlug as coreGetOrganizationBySlug,
@@ -313,6 +311,8 @@ import {
   getProjectsByIdNewsletterIssues as coreGetProjectsByIdNewsletterIssues,
   getProjectsByIdNewsletterIssuesByIssueId as coreGetProjectsByIdNewsletterIssuesByIssueId,
   getProjectsByIdNewsletterIssuesByIssueIdAnalytics as coreGetProjectsByIdNewsletterIssuesByIssueIdAnalytics,
+  getProjectsByIdNewsletterSendingDomain as coreGetProjectsByIdNewsletterSendingDomain,
+  getProjectsByIdNewsletterSendingDomainDomainConnect as coreGetProjectsByIdNewsletterSendingDomainDomainConnect,
   getProjectsByIdNewsletterSubscribers as coreGetProjectsByIdNewsletterSubscribers,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
@@ -434,8 +434,6 @@ import {
   postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
-  postNewsletterSendingDomainCheck as corePostNewsletterSendingDomainCheck,
-  postNewsletterSendingDomainCloudflare as corePostNewsletterSendingDomainCloudflare,
   postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
   postOrganizationsByIdCoworkerAccessByAccessIdApprove as corePostOrganizationsByIdCoworkerAccessByAccessIdApprove,
   postOrganizationsByIdCoworkerAccessByAccessIdDeny as corePostOrganizationsByIdCoworkerAccessByAccessIdDeny,
@@ -469,6 +467,8 @@ import {
   postProjectsByIdNewsletterIssuesByIssueIdSubmit as corePostProjectsByIdNewsletterIssuesByIssueIdSubmit,
   postProjectsByIdNewsletterIssuesDraftWithAi as corePostProjectsByIdNewsletterIssuesDraftWithAi,
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
+  postProjectsByIdNewsletterSendingDomainCheck as corePostProjectsByIdNewsletterSendingDomainCheck,
+  postProjectsByIdNewsletterSendingDomainCloudflare as corePostProjectsByIdNewsletterSendingDomainCloudflare,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersFromContacts as corePostProjectsByIdNewsletterSubscribersFromContacts,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
@@ -517,7 +517,6 @@ import {
   putChatsSignalsMessagesByMessageIdLoop as corePutChatsSignalsMessagesByMessageIdLoop,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
-  putNewsletterSendingDomain as corePutNewsletterSendingDomain,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
@@ -525,6 +524,7 @@ import {
   putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putProjectsByIdNewsletter as corePutProjectsByIdNewsletter,
+  putProjectsByIdNewsletterSendingDomain as corePutProjectsByIdNewsletterSendingDomain,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -962,60 +962,82 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getNewsletterSendingDomain() {
+  async function getProjectsByIdNewsletterSendingDomain(id: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetNewsletterSendingDomain({ client, cache: "no-store" }),
+      (client) =>
+        coreGetProjectsByIdNewsletterSendingDomain({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
       "Failed to read the newsletter sending domain",
     );
   }
 
-  async function putNewsletterSendingDomain(
+  async function putProjectsByIdNewsletterSendingDomain(
+    id: string,
     body: PutNewsletterSendingDomainRequest,
   ) {
     return executeCoreOperation(
       getClient,
-      (client) => corePutNewsletterSendingDomain({ client, body }),
+      (client) =>
+        corePutProjectsByIdNewsletterSendingDomain({
+          client,
+          path: { id },
+          body,
+        }),
       "Failed to save the newsletter sending domain",
     );
   }
 
-  async function deleteNewsletterSendingDomain() {
+  async function deleteProjectsByIdNewsletterSendingDomain(id: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreDeleteNewsletterSendingDomain({ client }),
+      (client) =>
+        coreDeleteProjectsByIdNewsletterSendingDomain({ client, path: { id } }),
       "Failed to remove the newsletter sending domain",
     );
   }
 
-  async function postNewsletterSendingDomainCheck() {
+  async function postProjectsByIdNewsletterSendingDomainCheck(id: string) {
     return executeCoreOperation(
       getClient,
-      (client) => corePostNewsletterSendingDomainCheck({ client }),
+      (client) =>
+        corePostProjectsByIdNewsletterSendingDomainCheck({
+          client,
+          path: { id },
+        }),
       "Failed to check the newsletter sending domain",
     );
   }
 
   /** The token passes straight through to Core, which uses it once. */
-  async function postNewsletterSendingDomainCloudflare(apiToken: string) {
+  async function postProjectsByIdNewsletterSendingDomainCloudflare(
+    id: string,
+    apiToken: string,
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePostNewsletterSendingDomainCloudflare({
+        corePostProjectsByIdNewsletterSendingDomainCloudflare({
           client,
+          path: { id },
           body: { apiToken },
         }),
       "Failed to connect the newsletter sending domain with Cloudflare",
     );
   }
 
-  async function getNewsletterSendingDomainDomainConnect(projectId?: string) {
+  async function getProjectsByIdNewsletterSendingDomainDomainConnect(
+    id: string,
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetNewsletterSendingDomainDomainConnect({
+        coreGetProjectsByIdNewsletterSendingDomainDomainConnect({
           client,
-          query: projectId ? { projectId } : {},
+          path: { id },
           cache: "no-store",
         }),
       "Failed to read the newsletter Domain Connect link",
@@ -6830,12 +6852,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPublicNewslettersByPublicSlugIssues,
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
-    getNewsletterSendingDomain,
-    putNewsletterSendingDomain,
-    deleteNewsletterSendingDomain,
-    postNewsletterSendingDomainCheck,
-    postNewsletterSendingDomainCloudflare,
-    getNewsletterSendingDomainDomainConnect,
+    getProjectsByIdNewsletterSendingDomain,
+    putProjectsByIdNewsletterSendingDomain,
+    deleteProjectsByIdNewsletterSendingDomain,
+    postProjectsByIdNewsletterSendingDomainCheck,
+    postProjectsByIdNewsletterSendingDomainCloudflare,
+    getProjectsByIdNewsletterSendingDomainDomainConnect,
     getProjectsByIdNewsletterAnalytics,
     getProjectsByIdNewsletterIssuesByIssueIdAnalytics,
     getProjectsByIdNewsletterIssues,

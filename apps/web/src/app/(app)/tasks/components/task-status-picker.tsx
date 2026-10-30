@@ -58,7 +58,7 @@ interface TaskStatusPickerProps {
 
 /** The quiet full-width row trigger shared by the task properties sidebar pickers. */
 export const ROW_TRIGGER_CLASS =
-  "hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm";
+  "hover:bg-accent transition-colors -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm";
 
 const DIGIT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as const;
 

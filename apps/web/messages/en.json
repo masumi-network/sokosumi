@@ -3598,8 +3598,7 @@
         },
         "SendingDomain": {
           "title": "Sending domain",
-          "description": "Send newsletters from your own address, like news@news.yourbrand.com. Every project in this workspace uses it.",
-          "managedByAdmins": "Only a workspace owner or admin can connect a sending domain.",
+          "description": "Send this project’s newsletter from your own address, like news@news.yourbrand.com.",
           "fromAddress": "From address",
           "fromAddressPlaceholder": "news@news.yourbrand.com",
           "fromAddressHint": "Use a subdomain, like news.yourbrand.com. It keeps newsletter reputation separate from your everyday email.",
@@ -3613,7 +3612,7 @@
             "FAILED": "Failed"
           },
           "lastChecked": "Last checked {time}",
-          "verifiedDescription": "Every project’s newsletter in this workspace now sends from this address.",
+          "verifiedDescription": "This project’s newsletter now sends from this address.",
           "verifiedToast": "Domain verified. Newsletters now send from your address.",
           "checked": "Checked. Your DNS records aren’t visible yet. DNS changes can take up to a few hours.",
           "checkNow": "Check now",
@@ -3676,9 +3675,9 @@
           "errors": {
             "generic": "Unable to update the sending domain. Try again.",
             "invalidAddress": "Enter an email address, like news@news.yourbrand.com.",
-            "forbidden": "Only a workspace owner or admin can change the sending domain.",
+            "forbidden": "You don’t have access to this project’s sending domain. Refresh the page.",
             "notFound": "This sending domain was removed. Refresh the page.",
-            "conflict": "This domain is already connected. Remove the current domain first, or use a domain no other workspace uses.",
+            "conflict": "This domain is already connected. Remove the current domain first, or use a domain no other project uses.",
             "domainRejected": "This domain can’t be used. Check the address and try again.",
             "providerFailed": "The email provider didn’t respond. Try again in a minute.",
             "cloudflareRejected": "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain’s zone.",

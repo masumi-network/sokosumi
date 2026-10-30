@@ -116,8 +116,9 @@ function ActiveOrganizationHeader({
     workspace.role !== null && isOrganizationOwnerOrAdmin(workspace.role);
 
   return (
-    // Covers the content's own padding too, so rows scroll under it unseen.
-    <div className="bg-popover sticky top-0 z-10 -mx-1 -mt-1 px-1 pt-1">
+    // Covers the content's own side padding too, and pt-1 stands in for its top
+    // padding, so rows scroll under it unseen.
+    <div className="bg-popover sticky top-0 z-10 -mx-1 px-1 pt-1">
       <div className="flex flex-col gap-3 p-2 pb-3">
         <div className="flex items-center gap-2.5">
           <WorkspaceAvatar
@@ -256,8 +257,9 @@ export default function WorkspaceSwitcherMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           // The pinned header's height, so a row focused by arrow keys
-          // scrolls into view below it, never under it.
-          className={cn("w-72", showOrganizationHeader && "scroll-pt-29")}
+          // scrolls into view below it, never under it. No top padding: sticky
+          // stops below it, which would push the header over the first row.
+          className={cn("w-72", showOrganizationHeader && "scroll-pt-29 pt-0")}
           align={MENU_ALIGN[placement]}
         >
           {showOrganizationHeader ? (
