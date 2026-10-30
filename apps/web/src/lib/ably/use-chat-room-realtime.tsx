@@ -25,6 +25,7 @@ import {
   type ChatMembershipRevokedEvent,
   chatMembershipRevokedEventSchema,
 } from "./chat-membership-revoked-event";
+import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
 import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
@@ -149,6 +150,7 @@ export function useChatRoomRealtime({
       return;
     }
 
+    const releaseRoomScope = registerAblyChatRoomScope(roomIdsRef.current);
     const handleMessage = handleMessageRef.current;
     const handlePinnedMessage = handlePinnedMessageRef.current;
     const handleRoomRead = handleRoomReadRef.current;
@@ -359,6 +361,7 @@ export function useChatRoomRealtime({
 
     return () => {
       syncGenerationRef.current += 1;
+      releaseRoomScope();
       syncQueued = false;
       clearTimeout(retryTimeout);
       window.removeEventListener("focus", onFocus);

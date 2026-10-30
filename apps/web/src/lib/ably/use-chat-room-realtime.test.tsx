@@ -50,7 +50,9 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
+import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
+import { useRoomTyping } from "./use-room-typing";
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);
@@ -106,6 +108,42 @@ describe("useChatRoomRealtime", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("registers room intent before minting and releases it when rooms change", async () => {
+    authorizeMock.mockImplementation(async () =>
+      tokenWithRooms(...getAblyChatRoomScope()),
+    );
+    const { rerender, unmount } = renderHook(
+      ({ roomId }) =>
+        useChatRoomRealtime({ roomIds: [roomId], currentUserId: "user_1" }),
+      { initialProps: { roomId: "room-a" } },
+    );
+    await waitFor(() =>
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-a"),
+    );
+    expect(getAblyChatRoomScope()).toEqual(["room-a"]);
+
+    rerender({ roomId: "room-b" });
+    await waitFor(() =>
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-b"),
+    );
+    expect(getAblyChatRoomScope()).toEqual(["room-b"]);
+
+    unmount();
+    expect(getAblyChatRoomScope()).toEqual([]);
+  });
+
+  it("retains typing scope when the message subscriber unmounts first", () => {
+    const messages = renderHook(() =>
+      useChatRoomRealtime({ roomIds: ["room-a"], currentUserId: "user_1" }),
+    );
+    const typing = renderHook(() => useRoomTyping("room-a", "user_1"));
+    messages.unmount();
+    expect(getAblyChatRoomScope()).toEqual(["room-a"]);
+
+    typing.unmount();
+    expect(getAblyChatRoomScope()).toEqual([]);
   });
 
   it("authorizes then subscribes to each membership room channel", async () => {

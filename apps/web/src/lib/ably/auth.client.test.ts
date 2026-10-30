@@ -1,9 +1,11 @@
+import { Rest } from "ably";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   AblyBrowserAuthError,
   fetchAblyBrowserAuthTokenRequest,
 } from "./auth.client";
+import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
 
 describe("fetchAblyBrowserAuthTokenRequest", () => {
   const fetchMock = vi.fn();
@@ -64,7 +66,7 @@ describe("fetchAblyBrowserAuthTokenRequest", () => {
     ).resolves.toEqual(tokenRequest);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/ably/auth?clientInstanceId=inst_test01",
+      "/api/ably/auth?clientInstanceId=inst_test01&roomIds=",
       expect.objectContaining({
         method: "POST",
         credentials: "include",
@@ -73,6 +75,88 @@ describe("fetchAblyBrowserAuthTokenRequest", () => {
         }),
       }),
     );
+  });
+
+  it("renews only mounted room grants and drops them after the last subscriber leaves", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ keyName: "app.key" }),
+    });
+    const release = registerAblyChatRoomScope(["room-b", "room-a"]);
+    try {
+      await fetchAblyBrowserAuthTokenRequest("inst_test01");
+      expect(fetchMock.mock.lastCall?.[0]).toBe(
+        "/api/ably/auth?clientInstanceId=inst_test01&roomIds=room-a%2Croom-b",
+      );
+    } finally {
+      release();
+    }
+    await fetchAblyBrowserAuthTokenRequest("inst_test01");
+    expect(fetchMock.mock.lastCall?.[0]).toBe(
+      "/api/ably/auth?clientInstanceId=inst_test01&roomIds=",
+    );
+  });
+
+  it("keeps the newest room scope when earlier SDK authorizations settle late", async () => {
+    const newCapability = '{"chat_rooms:room_room-b":["subscribe"]}';
+    function tokenResponse(capability: string) {
+      return Response.json({
+        token: "opaque-token",
+        issued: Date.now(),
+        expires: Date.now() + 60_000,
+        capability,
+      });
+    }
+    let resolveBase: (response: Response) => void = () => undefined;
+    let resolveOldRoom: (response: Response) => void = () => undefined;
+    fetchMock
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveBase = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveOldRoom = resolve;
+          }),
+      )
+      .mockImplementation(async () => tokenResponse(newCapability));
+    let settledCallbackCount = 0;
+    const client = new Rest({
+      authCallback: (_params, callback) => {
+        void fetchAblyBrowserAuthTokenRequest("inst_test01").then(
+          (token) => {
+            callback(null, token);
+            settledCallbackCount += 1;
+          },
+          (error: unknown) => callback(String(error), null),
+        );
+      },
+    });
+
+    const baseAuthorization = client.auth.authorize();
+    const releaseOldRoom = registerAblyChatRoomScope(["room-a"]);
+    const oldRoomAuthorization = client.auth.authorize();
+    releaseOldRoom();
+    const releaseNewRoom = registerAblyChatRoomScope(["room-b"]);
+    try {
+      const newestToken = await client.auth.authorize();
+      resolveOldRoom(tokenResponse('{"chat_rooms:room_room-a":["subscribe"]}'));
+      resolveBase(tokenResponse("{}"));
+      const earlierTokens = await Promise.all([
+        baseAuthorization,
+        oldRoomAuthorization,
+      ]);
+      await vi.waitFor(() => expect(settledCallbackCount).toBe(3));
+      expect(
+        [newestToken, ...earlierTokens].map((token) => token.capability),
+      ).toEqual([newCapability, newCapability, newCapability]);
+    } finally {
+      releaseNewRoom();
+    }
   });
 
   it("throws a 401 AblyBrowserAuthError when the session is gone", async () => {

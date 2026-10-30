@@ -13,6 +13,8 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/ably-token.schema";
 
+const roomIdSchema = z.uuid();
+
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
@@ -23,6 +25,22 @@ const route = withOrganizationSlugHeaderParameter(
     request: {
       query: z.object({
         clientInstanceId: z.string().optional(),
+        roomIds: z
+          .string()
+          .optional()
+          .refine(
+            (value) =>
+              value === undefined ||
+              value === "" ||
+              value
+                .split(",")
+                .every((id) => roomIdSchema.safeParse(id).success),
+            "roomIds must contain comma-separated UUIDs",
+          )
+          .openapi({
+            description:
+              "Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or comma-separated room UUIDs. Only current memberships receive grants.",
+          }),
       }),
     },
     responses: {
@@ -33,6 +51,7 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -53,9 +72,16 @@ export default function mount(
       throw badRequest("Invalid clientInstanceId");
     }
 
+    const { roomIds } = c.req.valid("query");
+    const requestedRoomIds =
+      roomIds === undefined ? undefined : roomIds.split(",").filter(Boolean);
+
     const [roomMemberships, orgMemberships, workspaces] = await Promise.all([
       prisma.chatRoomUserMember.findMany({
-        where: { userId: userContext.userId },
+        where: {
+          userId: userContext.userId,
+          ...(requestedRoomIds ? { roomId: { in: requestedRoomIds } } : {}),
+        },
         select: { roomId: true },
       }),
       prisma.member.findMany({
