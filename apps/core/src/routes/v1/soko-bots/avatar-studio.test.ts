@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +9,7 @@ const {
   getStudioMock,
   keepDraftMock,
   memberFindFirstMock,
+  regenerateMock,
   resolveMock,
 } = vi.hoisted(() => ({
   createDraftMock: vi.fn(),
@@ -15,6 +17,7 @@ const {
   getStudioMock: vi.fn(),
   keepDraftMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
+  regenerateMock: vi.fn(),
   resolveMock: vi.fn(),
 }));
 
@@ -86,6 +89,7 @@ vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
   discardAvatarDrafts: discardMock,
   getAvatarStudio: getStudioMock,
   keepAvatarDraft: keepDraftMock,
+  regenerateAvatarState: regenerateMock,
 }));
 
 import { tooManyRequests } from "@/helpers/error";
@@ -152,6 +156,7 @@ describe("avatar studio routes", () => {
     createDraftMock.mockResolvedValue({ draft: DRAFT, note: "" });
     keepDraftMock.mockResolvedValue(undefined);
     discardMock.mockResolvedValue(undefined);
+    regenerateMock.mockResolvedValue(undefined);
   });
 
   describe("for your own bot", () => {
@@ -266,6 +271,52 @@ describe("avatar studio routes", () => {
       expect(discardMock).toHaveBeenCalledTimes(2);
     });
 
+    it("regenerates one state's animation for the caller's allowance and returns the studio", async () => {
+      const response = await send(
+        "POST",
+        "/me/avatar/states/working/regenerate",
+      );
+
+      expect(response.status).toBe(200);
+      expect(regenerateMock).toHaveBeenCalledWith({
+        sokoBotId: BOT_ID,
+        userId: USER_ID,
+        state: "working",
+      });
+      expect((await response.json()).data).toEqual(STUDIO);
+    });
+
+    it("rejects a state that is not one of the six, before anything runs", async () => {
+      const response = await send(
+        "POST",
+        "/me/avatar/states/sleepy/regenerate",
+      );
+
+      expect(response.status).toBe(422);
+      expect(regenerateMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [409, "That animation is still being made."],
+      [429, "You can regenerate at most 12 animations per day."],
+      [404, "This bot has no animated avatar to regenerate"],
+    ])(
+      "passes %s from the service on, in plain words",
+      async (status, message) => {
+        regenerateMock.mockRejectedValue(
+          new HTTPException(status as 404 | 409 | 429, { message }),
+        );
+
+        const response = await send(
+          "POST",
+          "/me/avatar/states/done/regenerate",
+        );
+
+        expect(response.status).toBe(status);
+        expect(JSON.stringify(await response.json())).toContain(message);
+      },
+    );
+
     it("keeps a draft for the caller's allowance and returns the studio", async () => {
       const response = await send("POST", `/me/avatar/drafts/${DRAFT_ID}/keep`);
 
@@ -324,6 +375,10 @@ describe("avatar studio routes", () => {
           `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`,
         );
         const discardAll = await send("DELETE", `/${BOT_ID}/avatar/drafts`);
+        const regenerated = await send(
+          "POST",
+          `/${BOT_ID}/avatar/states/idle/regenerate`,
+        );
 
         expect([
           draft.status,
@@ -331,7 +386,13 @@ describe("avatar studio routes", () => {
           read.status,
           discard.status,
           discardAll.status,
-        ]).toEqual([200, 200, 200, 200, 200]);
+          regenerated.status,
+        ]).toEqual([200, 200, 200, 200, 200, 200]);
+        expect(regenerateMock).toHaveBeenCalledWith({
+          sokoBotId: BOT_ID,
+          userId: USER_ID,
+          state: "idle",
+        });
         expect(discardMock).toHaveBeenCalledWith({
           sokoBotId: BOT_ID,
           draftId: DRAFT_ID,
@@ -351,11 +412,13 @@ describe("avatar studio routes", () => {
         send("GET", `/${BOT_ID}/avatar`),
         send("DELETE", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`),
         send("DELETE", `/${BOT_ID}/avatar/drafts`),
+        send("POST", `/${BOT_ID}/avatar/states/idle/regenerate`),
       ]);
 
       expect(responses.map((response) => response.status)).toEqual([
-        403, 403, 403, 403, 403,
+        403, 403, 403, 403, 403, 403,
       ]);
+      expect(regenerateMock).not.toHaveBeenCalled();
       expect(createDraftMock).not.toHaveBeenCalled();
       expect(discardMock).not.toHaveBeenCalled();
       expect(keepDraftMock).not.toHaveBeenCalled();

@@ -13,6 +13,7 @@ import {
   discardAvatarDrafts,
   getAvatarStudio,
   keepAvatarDraft,
+  regenerateAvatarState,
 } from "@/services/soko-bot-avatar-studio.service";
 
 /**
@@ -54,6 +55,12 @@ export const createAvatarDraftResponses = {
 
 /** What discarding answers: the studio as it is after, so `draft` is null. */
 export const discardAvatarDraftsResponses = getAvatarStudioResponses;
+
+export const regenerateAvatarStateResponses = {
+  ...getAvatarStudioResponses,
+  409: jsonErrorResponse("Conflict"),
+  429: jsonErrorResponse("Too Many Requests"),
+};
 
 export const keepAvatarDraftResponses = {
   200: jsonSuccessResponse(
@@ -103,5 +110,14 @@ export async function respondWithDiscardedDrafts(
   input: Parameters<typeof discardAvatarDrafts>[0],
 ) {
   await discardAvatarDrafts(input);
+  return await respondWithAvatarStudio(c, input.sokoBotId);
+}
+
+/** Starts one state's animation over, then answers with the studio as it is. */
+export async function respondWithRegeneratedState(
+  c: Context<EnvVariables>,
+  input: Parameters<typeof regenerateAvatarState>[0],
+) {
+  await regenerateAvatarState(input);
   return await respondWithAvatarStudio(c, input.sokoBotId);
 }

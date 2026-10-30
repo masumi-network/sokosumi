@@ -1,8 +1,17 @@
+import { Prisma } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
-import { notFound, serviceUnavailable, tooManyRequests } from "@/helpers/error";
-import { buildAvatarView } from "@/helpers/soko-bot-avatar-state";
+import {
+  conflict,
+  notFound,
+  serviceUnavailable,
+  tooManyRequests,
+} from "@/helpers/error";
+import {
+  buildAvatarView,
+  toDbAvatarState,
+} from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -25,8 +34,10 @@ import {
 } from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarLook,
+  type AvatarState,
   alsoChangePrompt,
   CURRENT_AVATAR_STYLE,
+  findAvatarStyle,
   freshLook,
   type SokoBotAvatarStyle,
   traitKeyOf,
@@ -295,6 +306,107 @@ export async function createAvatarDraft(input: {
       { kind, reportToSentry: false },
     );
   }
+}
+
+const REGENERATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Spend one of the person's daily regenerations. Counted in the `rateLimit`
+ * table (a key, a count and the window's start in ms), which already exists
+ * for Better Auth; the key is ours and cannot clash with its paths. A fixed
+ * window that restarts on the first use after it ends, in the caller's
+ * Serializable transaction so a burst cannot all pass the same count.
+ */
+async function spendRegeneration(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const key = `soko-bot-avatar-regenerate:${userId}`;
+  const now = Date.now();
+  const row = await tx.rateLimit.findFirst({ where: { key } });
+  const windowStart = Number(row?.lastRequest ?? 0);
+  if (!row || now - windowStart >= REGENERATION_WINDOW_MS) {
+    const fresh = { count: 1, lastRequest: BigInt(now) };
+    if (row) await tx.rateLimit.update({ where: { id: row.id }, data: fresh });
+    else await tx.rateLimit.create({ data: { key, ...fresh } });
+    return;
+  }
+  if ((row.count ?? 0) >= LIMITS.SOKO_BOT_AVATAR_REGENERATIONS_PER_DAY) {
+    throw tooManyRequests(
+      `You can regenerate at most ${LIMITS.SOKO_BOT_AVATAR_REGENERATIONS_PER_DAY} animations per day. Try again tomorrow.`,
+      { kind: "avatar_regenerate_rate_limited" },
+    );
+  }
+  await tx.rateLimit.update({
+    where: { id: row.id },
+    data: { count: (row.count ?? 0) + 1 },
+  });
+}
+
+/**
+ * Make one state's animation again, for the bot's kept look. A clip is a
+ * random draw and now and then comes out ghosted; a render that failed gets
+ * its retry here too.
+ *
+ * The state's still stays, so only the loop is redone (a failed row with no
+ * still starts from the still). The row keeps its current loop URLs until the
+ * new loop is ready, so the old one keeps playing meanwhile; the studio counts
+ * the row as not ready while it renders. `userId` is whose daily allowance it
+ * spends; staff pass null and spend none.
+ */
+export async function regenerateAvatarState(input: {
+  sokoBotId: string;
+  state: AvatarState;
+  userId: string | null;
+}): Promise<void> {
+  await serializableTransaction(async (tx) => {
+    const avatar = await tx.sokoBotAvatar.findFirst({
+      where: {
+        claimedBySokoBotId: input.sokoBotId,
+        keptAt: { not: null },
+      },
+      select: { id: true, styleId: true },
+    });
+    // Only a kept crafted look has animations.
+    if (!avatar || !findAvatarStyle(avatar.styleId)) {
+      throw notFound("This bot has no animated avatar to regenerate");
+    }
+    const render = await tx.sokoBotAvatarRender.findUnique({
+      where: {
+        avatarId_state: {
+          avatarId: avatar.id,
+          state: toDbAvatarState(input.state),
+        },
+      },
+    });
+    if (!render)
+      throw notFound("This bot has no animated avatar to regenerate");
+    if (render.status !== "READY" && render.status !== "FAILED") {
+      throw conflict("That animation is still being made.", {
+        kind: "avatar_state_rendering",
+      });
+    }
+    if (input.userId) await spendRegeneration(tx, input.userId);
+    const restarted = await tx.sokoBotAvatarRender.updateMany({
+      where: { id: render.id, status: render.status },
+      data: {
+        // Keep the still: only the loop is redone. `loopUrl` and
+        // `loopLargeUrl` are left as they are until a new loop is ready.
+        status: render.stillUrl ? "STILL_READY" : "PENDING",
+        attempts: 0,
+        leaseUntil: null,
+        lastError: null,
+        // A fresh idempotency key on the next submit, not the old job.
+        providerOperation: Prisma.DbNull,
+        submittedAt: null,
+      },
+    });
+    if (restarted.count === 0) {
+      throw conflict("That animation is still being made.", {
+        kind: "avatar_state_rendering",
+      });
+    }
+  }, "Another change to this avatar is running. Try again.");
 }
 
 /**

@@ -8,10 +8,12 @@ import {
   discardAvatarDraftsResponses,
   getAvatarStudioResponses,
   keepAvatarDraftResponses,
+  regenerateAvatarStateResponses,
   respondWithAvatarDraft,
   respondWithAvatarStudio,
   respondWithDiscardedDrafts,
   respondWithKeptAvatar,
+  respondWithRegeneratedState,
 } from "@/helpers/soko-bot-avatar-studio-api";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
@@ -26,7 +28,10 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { keepSokoBotAvatarDraftParamsSchema } from "@/schemas/soko-bot-avatar.schema";
+import {
+  keepSokoBotAvatarDraftParamsSchema,
+  regenerateSokoBotAvatarStateParamsSchema,
+} from "@/schemas/soko-bot-avatar.schema";
 import { sokoBotIdParams, sokoBotIdSelector } from "./bot-selector.js";
 
 /**
@@ -87,6 +92,16 @@ const discardAllMeRoute = withOrganizationSlugHeaderParameter(
     responses: discardAvatarDraftsResponses,
   }),
 );
+const regenerateMeRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "post",
+    path: "/me/avatar/states/{state}/regenerate",
+    operationId: "regenerateMySokoBotAvatarState",
+    tags,
+    request: { params: regenerateSokoBotAvatarStateParamsSchema },
+    responses: regenerateAvatarStateResponses,
+  }),
+);
 const getByIdRoute = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
@@ -142,6 +157,19 @@ const discardAllByIdRoute = withOrganizationSlugHeaderParameter(
   }),
 );
 
+const regenerateByIdRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "post",
+    path: "/{sokoBotId}/avatar/states/{state}/regenerate",
+    operationId: "regenerateSokoBotAvatarState",
+    tags,
+    request: {
+      params: sokoBotIdParams.merge(regenerateSokoBotAvatarStateParamsSchema),
+    },
+    responses: regenerateAvatarStateResponses,
+  }),
+);
+
 /** The caller and the bot, once the caller is allowed to change its avatar. */
 async function managedBot(c: Context<EnvVariables>, selector: SokoBotSelector) {
   const auth = requireUserAuthContext(c.var.authContext);
@@ -189,6 +217,14 @@ export function mountSokoBotAvatarStudioMeRoutes(app: OpenAPIHonoWithAuth) {
   app.openapi(discardAllMeRoute, async (c) => {
     const { sokoBotId } = await managedBot(c, ME_SOKO_BOT);
     return await respondWithDiscardedDrafts(c, { sokoBotId });
+  });
+  app.openapi(regenerateMeRoute, async (c) => {
+    const { userId, sokoBotId } = await managedBot(c, ME_SOKO_BOT);
+    return await respondWithRegeneratedState(c, {
+      sokoBotId,
+      userId,
+      state: c.req.valid("param").state,
+    });
   });
 }
 
@@ -241,5 +277,16 @@ export function mountSokoBotAvatarStudioByIdRoutes(app: OpenAPIHonoWithAuth) {
       sokoBotIdSelector(c.req.valid("param")),
     );
     return await respondWithDiscardedDrafts(c, { sokoBotId });
+  });
+  app.openapi(regenerateByIdRoute, async (c) => {
+    const { userId, sokoBotId } = await managedBot(
+      c,
+      sokoBotIdSelector(c.req.valid("param")),
+    );
+    return await respondWithRegeneratedState(c, {
+      sokoBotId,
+      userId,
+      state: c.req.valid("param").state,
+    });
   });
 }

@@ -135,6 +135,12 @@ export const sokoBotAvatarDraftResultSchema = z
   })
   .openapi("SokoBotAvatarDraftResult");
 
+export const regenerateSokoBotAvatarStateParamsSchema = z.object({
+  state: z
+    .enum(AVATAR_STATES)
+    .openapi({ param: { name: "state", in: "path" } }),
+});
+
 export const keepSokoBotAvatarDraftParamsSchema = z.object({
   draftId: z
     .string()

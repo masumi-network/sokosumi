@@ -7,15 +7,20 @@ import {
   discardAvatarDraftsResponses,
   getAvatarStudioResponses,
   keepAvatarDraftResponses,
+  regenerateAvatarStateResponses,
   respondWithAvatarDraft,
   respondWithAvatarStudio,
   respondWithDiscardedDrafts,
   respondWithKeptAvatar,
+  respondWithRegeneratedState,
 } from "@/helpers/soko-bot-avatar-studio-api";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
-import { keepSokoBotAvatarDraftParamsSchema } from "@/schemas/soko-bot-avatar.schema";
+import {
+  keepSokoBotAvatarDraftParamsSchema,
+  regenerateSokoBotAvatarStateParamsSchema,
+} from "@/schemas/soko-bot-avatar.schema";
 import { botParams } from "../../helpers.js";
 
 const tags = ["Admin"];
@@ -63,6 +68,17 @@ const discardDraftsRoute = createRoute({
   tags,
   request: { params: botParams },
   responses: discardAvatarDraftsResponses,
+});
+
+const regenerateRoute = createRoute({
+  method: "post",
+  path: "/{sokoBotId}/avatar/states/{state}/regenerate",
+  operationId: "regenerateAdminSokoBotAvatarState",
+  tags,
+  request: {
+    params: botParams.merge(regenerateSokoBotAvatarStateParamsSchema),
+  },
+  responses: regenerateAvatarStateResponses,
 });
 
 async function requireBot(sokoBotId: string): Promise<string> {
@@ -118,5 +134,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireAdminAuthContext(c.var.authContext);
     const sokoBotId = await requireBot(c.req.valid("param").sokoBotId);
     return await respondWithDiscardedDrafts(c, { sokoBotId });
+  });
+  app.openapi(regenerateRoute, async (c) => {
+    requireAdminAuthContext(c.var.authContext);
+    const params = c.req.valid("param");
+    const sokoBotId = await requireBot(params.sokoBotId);
+    // Staff spend no allowance.
+    return await respondWithRegeneratedState(c, {
+      sokoBotId,
+      state: params.state,
+      userId: null,
+    });
   });
 }

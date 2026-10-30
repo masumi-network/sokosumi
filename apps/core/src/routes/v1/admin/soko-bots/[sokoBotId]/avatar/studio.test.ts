@@ -6,6 +6,7 @@ const {
   discardMock,
   getStudioMock,
   keepDraftMock,
+  regenerateMock,
   roleMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
   discardMock: vi.fn(),
   getStudioMock: vi.fn(),
   keepDraftMock: vi.fn(),
+  regenerateMock: vi.fn(),
   roleMock: { value: "admin" },
 }));
 
@@ -48,6 +50,7 @@ vi.mock("@/services/soko-bot-avatar-studio.service", () => ({
   discardAvatarDrafts: discardMock,
   getAvatarStudio: getStudioMock,
   keepAvatarDraft: keepDraftMock,
+  regenerateAvatarState: regenerateMock,
 }));
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -84,6 +87,22 @@ describe("admin avatar studio routes", () => {
     createDraftMock.mockResolvedValue({ draft: null, note: "" });
     keepDraftMock.mockResolvedValue(undefined);
     discardMock.mockResolvedValue(undefined);
+    regenerateMock.mockResolvedValue(undefined);
+  });
+
+  it("regenerates a state for staff, who spend no allowance", async () => {
+    const response = await send(
+      "POST",
+      `/${BOT_ID}/avatar/states/needs_you/regenerate`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(regenerateMock).toHaveBeenCalledWith({
+      sokoBotId: BOT_ID,
+      state: "needs_you",
+      userId: null,
+    });
+    expect((await response.json()).data).toEqual(STUDIO);
   });
 
   it("cancels one draft or all of a bot's drafts", async () => {
@@ -145,11 +164,13 @@ describe("admin avatar studio routes", () => {
       send("POST", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}/keep`),
       send("DELETE", `/${BOT_ID}/avatar/drafts/${DRAFT_ID}`),
       send("DELETE", `/${BOT_ID}/avatar/drafts`),
+      send("POST", `/${BOT_ID}/avatar/states/idle/regenerate`),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403,
     ]);
+    expect(regenerateMock).not.toHaveBeenCalled();
     expect(createDraftMock).not.toHaveBeenCalled();
     expect(discardMock).not.toHaveBeenCalled();
   });

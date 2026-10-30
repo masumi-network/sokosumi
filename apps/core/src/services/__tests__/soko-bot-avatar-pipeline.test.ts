@@ -203,7 +203,15 @@ class Table {
     return (await this.findMany({ where, orderBy, take: 1 }))[0] ?? null;
   }
   async findUnique({ where }: { where: Row }) {
-    return this.rows.find((row) => matches(row, where)) ?? null;
+    // A compound unique arrives as `{ avatarId_state: { avatarId, state } }`.
+    const flat = Object.fromEntries(
+      Object.entries(where).flatMap(([key, value]) =>
+        key === "avatarId_state"
+          ? Object.entries(value as Row)
+          : [[key, value]],
+      ),
+    );
+    return this.rows.find((row) => matches(row, flat)) ?? null;
   }
   async findMany({
     where,
@@ -310,11 +318,29 @@ const renders = new Table(
 );
 const bots: Row = { id: "bot-1", avatarImageUrl: null };
 const deletedBots = new Set<string>();
+// Better Auth's rate-limit table, where the regeneration allowance is counted.
+const rateLimits = new Table(() => ({
+  key: null,
+  count: null,
+  lastRequest: null,
+}));
 Object.assign(db, {
   sokoBotAvatar: avatars,
   sokoBotAvatarRender: renders,
+  rateLimit: rateLimits,
   sokoBot: {
     update: async ({ data }: { data: Row }) => Object.assign(bots, data),
+    // What the studio reads: the bot's avatar with its renders.
+    findUnique: async () => {
+      const avatar = avatars.rows.find((row) => row.claimedBySokoBotId === BOT);
+      return {
+        avatarImageUrl: bots.avatarImageUrl,
+        avatar: avatar && {
+          ...avatar,
+          renders: renders.rows.filter((row) => row.avatarId === avatar.id),
+        },
+      };
+    },
   },
 });
 
@@ -332,6 +358,7 @@ import {
 import {
   AVATAR_STATES,
   AVATAR_STYLES,
+  type AvatarState,
   CRAFTED_DESK_STYLE,
   lookFromSeed,
   traitKeyOf,
@@ -352,7 +379,9 @@ import {
 import {
   createAvatarDraft,
   discardAvatarDrafts,
+  getAvatarStudio,
   keepAvatarDraft,
+  regenerateAvatarState,
 } from "@/services/soko-bot-avatar-studio.service";
 
 // ---- real ffmpeg fixtures ----
@@ -513,6 +542,7 @@ function resetWorld() {
   vi.clearAllMocks();
   avatars.reset();
   renders.reset();
+  rateLimits.reset();
   blobFiles.clear();
   blobTypes.clear();
   bots.avatarImageUrl = null;
@@ -1624,6 +1654,263 @@ describe("keeping a run inside the function's time limit", () => {
     ).toHaveLength(6);
     info.mockRestore();
   });
+});
+
+describe("regenerating one animation", () => {
+  const regenerate = (
+    state: AvatarState = "working",
+    userId: string | null = USER,
+  ) => regenerateAvatarState({ sokoBotId: BOT, state, userId });
+  const rowOf = (state: string) =>
+    renders.rows.find((row) => row.state === state.toUpperCase())!;
+
+  /** A kept look with all six animations ready. */
+  async function allReady() {
+    await keptLook({ kind: "creature", creature: "otter" });
+    await reconcileUntilSettled();
+    expect(renders.rows.every((row) => row.status === "READY")).toBe(true);
+  }
+
+  it("starts a ready state over from its still, keeping the old loop meanwhile", async () => {
+    await allReady();
+    const before = { ...rowOf("working") };
+    rowOf("working").attempts = 2;
+
+    await regenerate("working");
+
+    expect(rowOf("working")).toMatchObject({
+      status: "STILL_READY",
+      stillUrl: before.stillUrl,
+      loopUrl: before.loopUrl,
+      loopLargeUrl: before.loopLargeUrl,
+      attempts: 0,
+      leaseUntil: null,
+      lastError: null,
+      providerOperation: null,
+      submittedAt: null,
+    });
+    // The app keeps playing the old loop, and the studio counts it as not ready.
+    const studio = await getAvatarStudio(BOT);
+    expect(studio.avatar?.states.working?.loopUrl).toBe(before.loopUrl);
+    expect(studio.progress).toEqual({ ready: 5, failed: 0, total: 6 });
+    // Nothing else moved.
+    expect(renders.rows.filter((row) => row.status === "READY")).toHaveLength(
+      5,
+    );
+  });
+
+  it("retries a failed state that has its still by redoing only the loop", async () => {
+    await allReady();
+    Object.assign(rowOf("done"), {
+      status: "FAILED",
+      attempts: 3,
+      lastError: "x",
+    });
+
+    await regenerate("done");
+
+    expect(rowOf("done")).toMatchObject({
+      status: "STILL_READY",
+      attempts: 0,
+      lastError: null,
+    });
+    expect(rowOf("done").stillUrl).toBeTruthy();
+  });
+
+  it("starts a failed state with no still from the still", async () => {
+    await allReady();
+    Object.assign(rowOf("offline"), {
+      status: "FAILED",
+      stillUrl: null,
+      loopUrl: null,
+      loopLargeUrl: null,
+    });
+
+    await regenerate("offline");
+
+    expect(rowOf("offline")).toMatchObject({ status: "PENDING", attempts: 0 });
+  });
+
+  it.each([
+    "PENDING",
+    "STILL_READY",
+    "VIDEO_SUBMITTING",
+    "VIDEO_SUBMITTED",
+    "SUBMISSION_UNCERTAIN",
+  ])(
+    "refuses with 409 while the state is %s, and spends nothing",
+    async (status) => {
+      await allReady();
+      rowOf("working").status = status;
+
+      await expect(regenerate("working")).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: "avatar_state_rendering" },
+      });
+
+      expect(rowOf("working").status).toBe(status);
+      expect(rateLimits.rows).toHaveLength(0);
+    },
+  );
+
+  it("answers 404 for a bot with no kept look", async () => {
+    await expect(regenerate()).rejects.toMatchObject({ status: 404 });
+    // A pool pick the bot holds was never kept.
+    await poolPick();
+    await expect(regenerate()).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("answers 404 for a legacy mascot", async () => {
+    const row = await avatars.create({
+      data: {
+        subject: "m",
+        background: "b",
+        seed: 1,
+        model: "m",
+        imageUrl: "https://blob.test/m.png",
+      },
+    });
+    await claimAvatar(BOT, row.id as string);
+
+    await expect(regenerate()).rejects.toMatchObject({ status: 404 });
+  });
+
+  async function poolPick() {
+    const row = await avatars.create({
+      data: {
+        subject: "x",
+        background: "pick",
+        seed: 9,
+        model: "m",
+        imageUrl: "https://blob.test/pick.webp",
+        styleId: "crafted-desk",
+        styleVersion: 1,
+        fromPool: true,
+        look: { creature: "owl", accessories: [], typed: [] },
+      },
+    });
+    await claimAvatar(BOT, row.id as string);
+    // Claiming a crafted look keeps it; this one models a pick that was not.
+    Object.assign(row, { keptAt: null });
+  }
+
+  describe("the daily allowance", () => {
+    it("counts each regeneration against the person, in the rate-limit table", async () => {
+      await allReady();
+
+      await regenerate("working");
+      rowOf("working").status = "READY";
+      await regenerate("working");
+
+      expect(rateLimits.rows).toEqual([
+        expect.objectContaining({
+          key: `soko-bot-avatar-regenerate:${USER}`,
+          count: 2,
+        }),
+      ]);
+    });
+
+    it("answers 429 once the day's twelve are spent, and leaves the state alone", async () => {
+      await allReady();
+      await rateLimits.create({
+        data: {
+          key: `soko-bot-avatar-regenerate:${USER}`,
+          count: LIMITS.SOKO_BOT_AVATAR_REGENERATIONS_PER_DAY,
+          lastRequest: BigInt(Date.now() - 60_000),
+        },
+      });
+
+      await expect(regenerate("working")).rejects.toMatchObject({
+        status: 429,
+        cause: { kind: "avatar_regenerate_rate_limited" },
+      });
+
+      expect(rowOf("working").status).toBe("READY");
+    });
+
+    it("starts a new day after the window ends", async () => {
+      await allReady();
+      await rateLimits.create({
+        data: {
+          key: `soko-bot-avatar-regenerate:${USER}`,
+          count: LIMITS.SOKO_BOT_AVATAR_REGENERATIONS_PER_DAY,
+          lastRequest: BigInt(Date.now() - 25 * 60 * 60 * 1000),
+        },
+      });
+
+      await regenerate("working");
+
+      expect(rateLimits.rows[0]).toMatchObject({ count: 1 });
+    });
+
+    it("keeps one person's count apart from another's", async () => {
+      await allReady();
+      await rateLimits.create({
+        data: {
+          key: "soko-bot-avatar-regenerate:someone-else",
+          count: LIMITS.SOKO_BOT_AVATAR_REGENERATIONS_PER_DAY,
+          lastRequest: BigInt(Date.now()),
+        },
+      });
+
+      await expect(regenerate("working")).resolves.toBeUndefined();
+    });
+
+    it("spends nothing for staff", async () => {
+      await allReady();
+
+      await regenerate("working", null);
+
+      expect(rateLimits.rows).toHaveLength(0);
+      expect(rowOf("working").status).toBe("STILL_READY");
+    });
+  });
+
+  it("goes through a whole cycle: a new job under a new key replaces the loop", async () => {
+    await allReady();
+    const old = { ...rowOf("working") };
+    const oldKey = (old.providerOperation as { submissionKey: string })
+      .submissionKey;
+    // The next clip is a different one, so its loops are different files.
+    const second = path.join(scratch, "second.mp4");
+    ffmpeg([
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=0xE0E0E0:s=960x960:d=1:r=24",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=0x2244AA:s=100x100:d=1:r=24",
+      "-filter_complex",
+      "[0][1]overlay=x='t*300':y=200:eval=frame",
+      "-c:v",
+      "libx264",
+      "-pix_fmt",
+      "yuv420p",
+      second,
+    ]);
+    providerMock.pollVideo.mockImplementation(async () => ({
+      status: "completed",
+      video: readFileSync(second),
+    }));
+    providerMock.startVideo.mockClear();
+    providerMock.editImage.mockClear();
+
+    await regenerate("working");
+    await reconcileUntilSettled();
+
+    const now = rowOf("working");
+    expect(now.status).toBe("READY");
+    expect(now.loopUrl).not.toBe(old.loopUrl);
+    expect(now.loopLargeUrl).not.toBe(old.loopLargeUrl);
+    // The still was not drawn again; only the loop was bought.
+    expect(providerMock.editImage).not.toHaveBeenCalled();
+    expect(providerMock.startVideo).toHaveBeenCalledTimes(1);
+    const newKey = providerMock.startVideo.mock.calls[0]?.[0].idempotencyKey;
+    expect(newKey).not.toBe(oldKey);
+    expect(now.stillUrl).toBe(old.stillUrl);
+  }, 120_000);
 });
 
 describe("cancelling drafts", () => {
