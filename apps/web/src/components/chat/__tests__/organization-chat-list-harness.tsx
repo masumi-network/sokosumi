@@ -1,4 +1,5 @@
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import {
   type ComponentProps,
@@ -9,7 +10,7 @@ import {
 } from "react";
 import { vi } from "vitest";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
-import { clearElsewhereRooms } from "@/components/chat/use-elsewhere-rooms";
+import { ElsewhereRoomsLive } from "@/components/chat/use-elsewhere-rooms";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
   serializeChatUnreadsFilterCookie,
@@ -372,6 +373,13 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 
 export const emptyRooms: ChatRoom[] = [];
 
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+/** One per test, as the app has one per tab, so a test's rooms stay its own. */
+let harnessQueryClient = makeQueryClient();
+
 export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
   archivedRooms?: ChatRoom[];
@@ -455,7 +463,7 @@ export function resetOrganizationChatListMocks() {
   listElsewhereMock.mockReset();
   reorderPinnedMock.mockReset();
   harnessRowProps.clear();
-  clearElsewhereRooms();
+  harnessQueryClient = makeQueryClient();
   listElsewhereMock.mockResolvedValue([]);
   listRoomsMock.mockResolvedValue(emptyListResult());
   listArchivedMock.mockResolvedValue(emptyListResult());
@@ -475,17 +483,20 @@ export function createOrganizationChatList({
   withChatsHeading = false,
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
-    <OrganizationChatList
-      rooms={rooms}
-      archivedRooms={archivedRooms}
-      {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
-      currentUserId="user-1"
-      organizationId={organizationId}
-      isOrgOwnerOrAdmin={false}
-      dismissSheetOnNavigate={false}
-      paintOnly={paintOnly}
-      withChatsHeading={withChatsHeading}
-    />
+    <QueryClientProvider client={harnessQueryClient}>
+      <ElsewhereRoomsLive />
+      <OrganizationChatList
+        rooms={rooms}
+        archivedRooms={archivedRooms}
+        {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
+        currentUserId="user-1"
+        organizationId={organizationId}
+        isOrgOwnerOrAdmin={false}
+        dismissSheetOnNavigate={false}
+        paintOnly={paintOnly}
+        withChatsHeading={withChatsHeading}
+      />
+    </QueryClientProvider>
   );
 }
 

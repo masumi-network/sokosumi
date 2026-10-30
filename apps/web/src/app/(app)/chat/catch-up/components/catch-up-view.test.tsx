@@ -4,7 +4,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
-import { clearElsewhereRooms } from "@/components/chat/use-elsewhere-rooms";
 
 import { CatchUpView } from "./catch-up-view";
 
@@ -122,7 +121,6 @@ function workspaceRooms(list: HTMLElement, workspace: string) {
 
 beforeEach(() => {
   clearRoomReadOverlays();
-  clearElsewhereRooms();
   listElsewhereMock.mockReset();
   summaryActionMock.mockReset();
   showRoomUnreadCountMock.mockReturnValue(true);

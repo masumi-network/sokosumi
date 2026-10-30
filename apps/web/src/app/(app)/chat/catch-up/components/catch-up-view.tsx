@@ -45,8 +45,7 @@ export function CatchUpView({
     useElsewhereRooms({
       currentUserId,
       organizationId,
-      activeRoomId: null,
-      mayRead: true,
+      enabled: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
     queryKey: ["chat-catch-up-summary"],

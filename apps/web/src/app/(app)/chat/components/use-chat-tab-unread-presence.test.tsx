@@ -1,6 +1,11 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { useEffect } from "react";
+import {
+  act,
+  render as renderInTest,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { type ReactElement, type ReactNode, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
@@ -90,14 +95,29 @@ import {
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
 import {
-  clearElsewhereRooms,
+  ElsewhereRoomsLive,
   useElsewhereRooms,
 } from "@/components/chat/use-elsewhere-rooms";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 
 let hasFocus: ReturnType<typeof vi.spyOn>;
+
+/** The app's frame: one client per tab, and the upkeep beside it. */
+function AppFrame({ children }: { children: ReactNode }) {
+  return (
+    <TestQueryProvider>
+      <ElsewhereRoomsLive />
+      {children}
+    </TestQueryProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return renderInTest(ui, { wrapper: AppFrame });
+}
 
 /**
  * Leave the foreground, learn the rooms changed while away, and come back.
@@ -136,7 +156,6 @@ function Harness() {
 // The tab bar's own reads are a phone's: a desktop waits for its sidebar.
 beforeEach(() => {
   window.innerWidth = 390;
-  clearElsewhereRooms();
   listElsewhereMock.mockReset();
   listElsewhereMock.mockResolvedValue([]);
 });
@@ -150,25 +169,23 @@ function elsewhereRoom(partial: Partial<ChatRoom> & Pick<ChatRoom, "id">) {
   });
 }
 
-/** Stands in for the sidebar's list: it reads the Elsewhere rooms itself. */
+/** Stands in for the sidebar's list: it shows the Elsewhere rooms too. */
 function SidebarList() {
   useElsewhereRooms({
     currentUserId: "user-1",
     organizationId: "org-1",
-    activeRoomId: null,
-    mayRead: true,
+    enabled: true,
   });
   useEffect(() => registerMembershipVisibleRoomsPublisher(), []);
   return null;
 }
 
-/** Stands in for Catch up's page, which lists the rooms whoever reads them. */
+/** Stands in for Catch up's page, which lists the rooms too. */
 function CatchUpPage() {
   useElsewhereRooms({
     currentUserId: "user-1",
     organizationId: "org-1",
-    activeRoomId: null,
-    mayRead: true,
+    enabled: true,
   });
   return null;
 }
@@ -271,7 +288,9 @@ describe("Elsewhere rooms in the unread signals", () => {
       );
     });
 
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
   });
 
   it("reads again when a message arrives anywhere", async () => {
@@ -295,6 +314,19 @@ describe("Elsewhere rooms in the unread signals", () => {
         "yes",
       ),
     );
+  });
+
+  it("reads again when a lost connection comes back", async () => {
+    setAblyConnectionHealthy(true);
+    render(<Harness />);
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+    await act(async () => {});
+    listElsewhereMock.mockClear();
+
+    act(() => setAblyConnectionHealthy(false));
+    act(() => setAblyConnectionHealthy(true));
+
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
   });
 
   it("shares the sidebar list's read instead of fetching twice", async () => {
@@ -321,11 +353,13 @@ describe("Elsewhere rooms in the unread signals", () => {
         }),
       );
     });
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
     expect(listElsewhereMock).toHaveBeenCalledOnce();
   });
 
-  describe("one reader at a time", () => {
+  describe("one read per event, however many surfaces show the rooms", () => {
     async function aMessageArrives() {
       listElsewhereMock.mockClear();
       await act(async () => {
@@ -366,7 +400,7 @@ describe("Elsewhere rooms in the unread signals", () => {
       expect(listElsewhereMock).toHaveBeenCalledOnce();
     });
 
-    it("hands the reads over when the reader unmounts", async () => {
+    it("keeps reading when one of them unmounts", async () => {
       const view = render(
         <>
           <CatchUpPage />
@@ -383,12 +417,21 @@ describe("Elsewhere rooms in the unread signals", () => {
     });
   });
 
-  it("waits for a desktop sidebar rather than reading first", async () => {
+  it("shares its read with a desktop sidebar that mounts after it", async () => {
     window.innerWidth = 1280;
-    render(<Harness />);
+    const view = render(<Harness />);
+    await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
     await act(async () => {});
 
-    expect(listElsewhereMock).not.toHaveBeenCalled();
+    view.rerender(
+      <>
+        <Harness />
+        <SidebarList />
+      </>,
+    );
+    await act(async () => {});
+
+    expect(listElsewhereMock).toHaveBeenCalledOnce();
   });
 
   it("keeps the count through the read that takes over from a closed list", async () => {

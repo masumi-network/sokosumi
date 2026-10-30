@@ -26,6 +26,7 @@ import {
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
 
@@ -41,42 +42,6 @@ function getInitialRoomsFromSessionSnapshot(): ChatRoom[] | null {
     return null;
   }
   return applyRoomReadOverlays([...snapshot.rooms]);
-}
-
-/**
- * Whether a surface outside the sidebar list should read for itself, or leave
- * it to the list. For what the list reads: the active collection, the Elsewhere
- * rooms.
- */
-export function useChatRoomsReadOwner(): {
-  sidebarOwnsReads: boolean;
-  ownershipSettled: boolean;
-} {
-  // A mounted sidebar list already reads the active collection on the same
-  // schedule; mirror its rows rather than run a second reader (desktop).
-  // The mirrored rows stay after the list unmounts until the own read lands.
-  const sidebarOwnsReads = useSyncExternalStore(
-    subscribeMembershipVisibleRooms,
-    hasLiveMembershipVisibleRoomsPublisher,
-    () => false,
-  );
-  // The desktop sidebar registers as the reader from an effect, often in a
-  // later streamed commit than this hook's. Reading at once would read the
-  // same collection twice, so on desktop this waits a moment for it; on a
-  // phone there is no sidebar to wait for.
-  const [ownershipSettled, setOwnershipSettled] = useState(false);
-  useEffect(() => {
-    if (window.innerWidth < MOBILE_BREAKPOINT) {
-      setOwnershipSettled(true);
-      return;
-    }
-    const timer = window.setTimeout(
-      () => setOwnershipSettled(true),
-      SIDEBAR_REGISTRATION_WAIT_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, []);
-  return { sidebarOwnsReads, ownershipSettled };
 }
 
 /**
@@ -101,7 +66,30 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     getInitialRoomsFromSessionSnapshot,
   );
 
-  const { sidebarOwnsReads, ownershipSettled } = useChatRoomsReadOwner();
+  // A mounted sidebar list already reads the active collection on the same
+  // schedule; mirror its rows rather than run a second reader (desktop).
+  // The mirrored rows stay after the list unmounts until the own read lands.
+  const sidebarOwnsReads = useSyncExternalStore(
+    subscribeMembershipVisibleRooms,
+    hasLiveMembershipVisibleRoomsPublisher,
+    () => false,
+  );
+  // The desktop sidebar registers as the reader from an effect, often in a
+  // later streamed commit than this hook's. Reading at once would read the
+  // same collection twice, so on desktop this waits a moment for it; on a
+  // phone there is no sidebar to wait for.
+  const [ownershipSettled, setOwnershipSettled] = useState(false);
+  useMountEffect(() => {
+    if (window.innerWidth < MOBILE_BREAKPOINT) {
+      setOwnershipSettled(true);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setOwnershipSettled(true),
+      SIDEBAR_REGISTRATION_WAIT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  });
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,
@@ -173,12 +161,10 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     refreshOnRecovery: true,
   });
 
-  useEffect(
-    () =>
-      subscribeOrganizationChatRoomRead((apply) =>
-        setRooms((current) => (current === null ? null : apply(current))),
-      ),
-    [],
+  useMountEffect(() =>
+    subscribeOrganizationChatRoomRead((apply) =>
+      setRooms((current) => (current === null ? null : apply(current))),
+    ),
   );
 
   useEffect(

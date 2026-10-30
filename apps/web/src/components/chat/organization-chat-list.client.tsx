@@ -383,7 +383,7 @@ export function OrganizationChatList({
       currentUserId,
       organizationId,
       activeRoomId,
-      mayRead: !paintOnly,
+      enabled: !paintOnly,
     });
   const elsewhereRooms = paintOnly ? [] : heldElsewhereRooms;
   const { rows: elsewhereRows, overflowCount: elsewhereOverflowCount } =
