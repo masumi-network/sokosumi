@@ -208,6 +208,54 @@ describe("OrganizationChatList Elsewhere rows", () => {
     expect(rowNames()).toEqual(["launch"]);
   });
 
+  describe("the Unreads filter's caught-up message", () => {
+    function caughtUpMessage() {
+      return document.querySelector('[data-slot="unread-caught-up"]');
+    }
+
+    it("stays away while an Elsewhere row is unread", async () => {
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "All unreads" }),
+      );
+
+      expect(rowNames()).toEqual(["launch"]);
+      expect(caughtUpMessage()).toBeNull();
+    });
+
+    it("stays away for an unread room past the cap", async () => {
+      listElsewhereMock.mockResolvedValue(
+        ["a", "b", "c", "d", "e", "f"].map((id) => elsewhereRoom(id)),
+      );
+      renderOrganizationChatList();
+      await findElsewhereRow("a");
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "All unreads" }),
+      );
+
+      expect(caughtUpMessage()).toBeNull();
+    });
+
+    it("shows when the only Elsewhere row left is the open room, read", async () => {
+      harnessPathname.current = "/chat/rooms/launch";
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      renderOrganizationChatList();
+      await findElsewhereRow("launch");
+
+      readRoom({ roomId: "launch" });
+      await userEvent.click(
+        screen.getByRole("button", { name: "All unreads" }),
+      );
+
+      expect(rowNames()).toEqual(["launch"]);
+      await waitFor(() => expect(caughtUpMessage()).not.toBeNull());
+    });
+  });
+
   it("reads nothing for an instant paint", async () => {
     listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
 

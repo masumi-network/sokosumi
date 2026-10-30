@@ -18,7 +18,7 @@ import {
   subscribeOrganizationChatRoomRead,
   subscribeOrganizationChatRoomsChanged,
 } from "./organization-chat-events";
-import { roomUnreadReads } from "./room-attention";
+import { roomHasUnread } from "./room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
@@ -124,11 +124,6 @@ function useIsElsewhereReader(mayRead: boolean): boolean {
     };
   }, [mayRead, self]);
   return reader === self;
-}
-
-function hasUnread(room: ChatRoom): boolean {
-  const { readRoom, lookThreads } = roomUnreadReads(room);
-  return readRoom || lookThreads;
 }
 
 /**
@@ -304,7 +299,7 @@ export function useElsewhereRooms({
     heldOpenRoomId = activeRoomId;
     if (leftRoomId !== null) {
       updateHeldRooms(scope, (current) =>
-        current.filter((room) => room.id !== leftRoomId || hasUnread(room)),
+        current.filter((room) => room.id !== leftRoomId || roomHasUnread(room)),
       );
     }
   }, [isReader, scope, activeRoomId]);
@@ -326,7 +321,7 @@ export function useElsewhereRooms({
   );
 
   const rooms = heldRooms.filter(
-    (room) => hasUnread(room) || room.id === activeRoomId,
+    (room) => roomHasUnread(room) || room.id === activeRoomId,
   );
 
   return { rooms, replaceRoom, answered };

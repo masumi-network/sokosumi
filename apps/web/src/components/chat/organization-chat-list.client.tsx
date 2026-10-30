@@ -100,7 +100,7 @@ import {
 import {
   resolveChatsAttention,
   resolveSectionAttention,
-  roomUnreadReads,
+  roomHasUnread,
 } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { selectElsewhereRows } from "./select-elsewhere-rows";
@@ -394,10 +394,7 @@ export function OrganizationChatList({
   const unreadRooms = useMemo(
     () =>
       roomRows
-        .filter((room) => {
-          const { readRoom, lookThreads } = roomUnreadReads(room);
-          return readRoom || lookThreads;
-        })
+        .filter(roomHasUnread)
         .sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime() ||
@@ -485,9 +482,13 @@ export function OrganizationChatList({
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
   // (`resolveSectionAttention`). Caught up is about what is unread, not what
-  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed.
+  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed. An
+  // Elsewhere room counts, or this would stand under its unread row.
   const caughtUp =
-    unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
+    unreadOnly &&
+    unreadRooms.length === 0 &&
+    pendingRows.length === 0 &&
+    !elsewhereRooms.some(roomHasUnread);
   const showsReadLabel = caughtUp && inboxRooms.length > 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
