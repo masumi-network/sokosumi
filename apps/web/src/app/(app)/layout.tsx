@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { ElsewhereRoomsLive } from "@/components/chat/use-elsewhere-rooms";
+import { OtherWorkspaceRoomsLive } from "@/components/chat/use-other-workspace-rooms";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
@@ -33,7 +33,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
         <AuthSessionGuard />
-        <ElsewhereRoomsLive />
+        <OtherWorkspaceRoomsLive />
         {/* Applies the hidden-sidebar preference to the streamed shell before
             paint; SidebarProvider takes over at hydration. */}
         <SidebarBootScript />

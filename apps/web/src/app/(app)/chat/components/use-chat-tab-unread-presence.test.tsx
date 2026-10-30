@@ -95,9 +95,9 @@ import {
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
 import {
-  ElsewhereRoomsLive,
-  useElsewhereRooms,
-} from "@/components/chat/use-elsewhere-rooms";
+  OtherWorkspaceRoomsLive,
+  useOtherWorkspaceRooms,
+} from "@/components/chat/use-other-workspace-rooms";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -109,7 +109,7 @@ let hasFocus: ReturnType<typeof vi.spyOn>;
 function AppFrame({ children }: { children: ReactNode }) {
   return (
     <TestQueryProvider>
-      <ElsewhereRoomsLive />
+      <OtherWorkspaceRoomsLive />
       {children}
     </TestQueryProvider>
   );
@@ -171,7 +171,7 @@ function elsewhereRoom(partial: Partial<ChatRoom> & Pick<ChatRoom, "id">) {
 
 /** Stands in for the sidebar's list: it shows the Elsewhere rooms too. */
 function SidebarList() {
-  useElsewhereRooms({
+  useOtherWorkspaceRooms({
     currentUserId: "user-1",
     organizationId: "org-1",
     enabled: true,
@@ -182,7 +182,7 @@ function SidebarList() {
 
 /** Stands in for Catch up's page, which lists the rooms too. */
 function CatchUpPage() {
-  useElsewhereRooms({
+  useOtherWorkspaceRooms({
     currentUserId: "user-1",
     organizationId: "org-1",
     enabled: true,
@@ -228,6 +228,78 @@ describe("Elsewhere rooms in the unread signals", () => {
     );
 
     await waitFor(() => expect(document.title).toBe("(3) Sokosumi - Chat"));
+  });
+
+  it("counts a pinned room once in the tab title, and a read one not at all", async () => {
+    document.title = "Chats";
+    const starredAt = new Date("2026-08-01T00:00:00.000Z");
+    listElsewhereMock.mockResolvedValue([
+      elsewhereRoom({ id: "pinned-unread", starredAt }),
+      elsewhereRoom({
+        id: "pinned-read",
+        starredAt,
+        unreadCount: 0,
+        channelUnreadCount: 0,
+      }),
+    ]);
+
+    render(
+      <AppMobileChrome>
+        <div>chat list</div>
+      </AppMobileChrome>,
+    );
+
+    await waitFor(() => expect(document.title).toBe("(2) Sokosumi - Chat"));
+  });
+
+  describe("the sidebar toggle's dot, for a pinned room", () => {
+    const starredAt = new Date("2026-08-01T00:00:00.000Z");
+
+    beforeEach(() => {
+      window.innerWidth = 1280;
+      listRoomsMock.mockResolvedValue({
+        ok: true,
+        value: { rooms: [], nextCursor: null },
+      });
+    });
+
+    function renderToggle() {
+      render(
+        <SidebarProvider defaultOpen={false}>
+          <SidebarToggle />
+          <SidebarList />
+        </SidebarProvider>,
+      );
+    }
+
+    it("lights for an unread one", async () => {
+      listElsewhereMock.mockResolvedValue([
+        elsewhereRoom({ id: "pinned-unread", starredAt }),
+      ]);
+
+      renderToggle();
+
+      expect(await screen.findByText("unreadChats")).toBeTruthy();
+    });
+
+    it("stays dark for a read one", async () => {
+      listElsewhereMock.mockResolvedValue([
+        elsewhereRoom({
+          id: "pinned-read",
+          starredAt,
+          unreadCount: 0,
+          channelUnreadCount: 0,
+        }),
+      ]);
+
+      renderToggle();
+
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalled());
+      await act(async () => {});
+      // The toggle itself is up, so its dot had the chance to show.
+      expect(screen.getByRole("button", { name: "show" })).toBeTruthy();
+      expect(screen.queryByText("unreadChats")).toBeNull();
+    });
   });
 
   it("lights the Chats tab's dot for one alone", async () => {

@@ -10096,6 +10096,22 @@ export const ChatRoomSchema = {
             description: 'Host organization display name. Required for guest rows in list; may be null for personal directs.',
             example: 'Acme Corp'
         },
+        organizationLogo: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Host organization logo, on rooms of the sidebar\'s lists only. Null when it has none, and for personal rooms.',
+            example: 'https://example.com/acme.png'
+        },
+        organizationWebsiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Host organization website, on rooms of the sidebar\'s lists only. Null when it has none, and for personal rooms.',
+            example: 'https://acme.com'
+        },
         name: {
             type: 'string',
             example: 'Launch Room'

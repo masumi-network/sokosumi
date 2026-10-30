@@ -425,7 +425,7 @@ The first row of the Chats block: one entry for everything the reader missed, op
 _Avoid_: Inbox, a second count, the Unreads chip on this row in the sidebar
 
 **Elsewhere row**:
-A Sidebar row under Catch up for a room of another of the reader's workspaces that holds something unread, naming the room and its workspace; opening it starts a Room visit. At most five show, mentions first, except that every room naming the reader always gets one; the rest share one row that opens Catch up. Muted rooms and rooms shown in every workspace get none.
+A Sidebar row under Catch up for a room of another of the reader's workspaces that holds something unread, naming the room and its workspace; opening it starts a Room visit. At most five show, mentions first, except that every room naming the reader always gets one; the rest share one row that opens Catch up. Muted rooms, Pinned rooms and rooms shown in every workspace get none. Pin on its menu moves the room to Pinned.
 _Avoid_: External row (External channels are something else), other-workspace row
 
 **Room visit**:
@@ -509,8 +509,12 @@ _Avoid_: Archived direct (archiving is a different, reversible action), locked c
 ### Chat pins
 
 **Pinned room**:
-The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's own order, and activity never moves it. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys); outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`) for the rooms of the sidebar it was made in only (a room in several sidebars, like a Personal Direct, has one key and moves in each), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
-_Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
+The current user's personal sidebar pin of a membership-visible room, which shows in every workspace ([ADR-0062](docs/adr/0062-a-pin-follows-the-reader-across-workspaces.md)). Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's one order across workspaces, and activity never moves it. A room of another workspace carries a Workspace tile, and opening it starts a Room visit. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys), which moves the same list in every workspace; outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
+_Avoid_: Starred room (API-only name), favorite, followed room, treating this as a Pinned message
+
+**Workspace tile**:
+The workspace's small face at the end of a Pinned row, for a room of another workspace only: its logo or favicon, else the initial of its name, or the reader's avatar for the personal workspace. Muted at rest, it stands in the column the room menu uses, and its full name is in the row's tooltip and accessible name. Not on an Elsewhere row, whose second line names the workspace.
+_Avoid_: Workspace badge, workspace indicator
 
 **Pinned message**:
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.

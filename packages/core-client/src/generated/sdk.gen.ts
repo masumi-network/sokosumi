@@ -858,7 +858,7 @@ export const getChatsRoomsDiscoverable = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * List the current user's rooms with something unread in their other workspaces (Elsewhere rows, ADR-0061): rooms of an Organization they belong to, or their personal coworker and Soko Bot Directs, that the active workspace does not list and they have not muted. Rooms naming the user come first, then the newest. Unpaginated: the whole list. Interactive user session only.
+ * List the current user's rooms in their other workspaces that hold something unread or that they pinned (Elsewhere rows, ADR-0061; Pinned rooms, ADR-0062): rooms of an Organization they belong to, or their personal coworker and Soko Bot Directs, that the active workspace does not list and they have not muted. Rooms naming the user come first, then the newest. Unpaginated: the whole list. Interactive user session only.
  */
 export const getChatsRoomsElsewhere = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsElsewhereData, ThrowOnError>): RequestResult<GetChatsRoomsElsewhereResponses, GetChatsRoomsElsewhereErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsElsewhereResponses, GetChatsRoomsElsewhereErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsElsewhereResponseTransformer,
@@ -876,7 +876,7 @@ export const getChatsRoomsChannelSlugAvailability = <ThrowOnError extends boolea
 });
 
 /**
- * Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.
+ * Set the order of the current user's starred chat rooms, one order across every workspace (ADR-0062). The listed rooms take the places those same rooms already hold in that order, and every other pin keeps its place, so a client listing every pin sets the whole order and one listing a single workspace's pins rearranges only those. Rewrites `starredAt`, the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room.
  */
 export const putChatsRoomsStarred = <ThrowOnError extends boolean = false>(options?: Options<PutChatsRoomsStarredData, ThrowOnError>): RequestResult<PutChatsRoomsStarredResponses, PutChatsRoomsStarredErrors, ThrowOnError> => (options?.client ?? client).put<PutChatsRoomsStarredResponses, PutChatsRoomsStarredErrors, ThrowOnError>({
     responseTransformer: putChatsRoomsStarredResponseTransformer,

@@ -71,6 +71,7 @@ export function SortablePinnedRoomRow({
   ...rowProps
 }: SortablePinnedRoomRowProps) {
   const t = useTranslations("App.Channels.Actions");
+  const tChannels = useTranslations("App.Channels");
   const roomId = rowProps.room.id;
   const { listeners, setNodeRef, transform, isDragging, active, over } =
     useDraggable({ id: roomId, data: { index } });
@@ -124,7 +125,14 @@ export function SortablePinnedRoomRow({
           type="button"
           {...listeners}
           onKeyDown={handleKeyDown}
-          aria-label={t("reorderHandle", { name: rowProps.label })}
+          // The link stands down here, so the handle says what it would.
+          title={rowProps.workspaceName ?? undefined}
+          aria-label={t("reorderHandle", {
+            name:
+              rowProps.workspaceName == null
+                ? rowProps.label
+                : `${rowProps.label} ${tChannels("inWorkspace", { workspace: rowProps.workspaceName })}`,
+          })}
           className={cn(
             // Same box and 44px touch target as the room menu it stands in for.
             "text-muted-foreground press hover:text-foreground ring-sidebar-ring relative flex size-8 touch-none items-center justify-center rounded-md outline-hidden after:absolute after:-inset-1.5 focus-visible:ring-2 md:size-7 md:after:-inset-0.5",
