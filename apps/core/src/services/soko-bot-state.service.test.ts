@@ -33,6 +33,14 @@ vi.mock("@/helpers/soko-bot-resolver", () => ({
   memberSokoBot: resolveMock,
 }));
 
+const availabilityMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ disabled: false }),
+);
+
+vi.mock("@/services/soko-bot-availability.service", () => ({
+  getSokoBotAvailability: availabilityMock,
+}));
+
 import {
   ACTIVE_TURN_STATUSES,
   FOREGROUND_TURN,
@@ -68,6 +76,7 @@ function botRow(userId: string | null) {
 describe("getSokoBotState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({ disabled: false });
   });
 
   it("reads the viewer's live personal bot for me, without an access read", async () => {
@@ -247,6 +256,7 @@ describe("getSokoBotState", () => {
 describe("listSharedSokoBots", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({ disabled: false });
   });
 
   it("lists only owner-less, undeleted bots of an organization workspace the viewer reaches", async () => {
@@ -287,6 +297,22 @@ describe("listSharedSokoBots", () => {
     expect(bots[0]).not.toHaveProperty("adminPausedAt");
   });
 
+  it("marks every shared bot offline when Soko Bots are switched off", async () => {
+    botFindManyMock.mockResolvedValue([
+      {
+        ...botRow(null),
+        projectId: "project_1",
+        turns: [{ status: "RUNNING", completedAt: null }],
+      },
+    ]);
+    memberFindFirstMock.mockResolvedValue({ role: "member" });
+    availabilityMock.mockResolvedValue({ disabled: true });
+
+    const bots = await listSharedSokoBots(VIEWER, WORKSPACE_ID);
+
+    expect(bots.map((bot) => bot.avatarState)).toEqual(["offline"]);
+  });
+
   it("maps the scope and reads the viewer's role once", async () => {
     botFindManyMock.mockResolvedValue([
       { ...botRow(null), projectId: "project_1" },
@@ -314,6 +340,7 @@ describe("listSharedSokoBots", () => {
 describe("getSokoBotAvatarFields", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({ disabled: false });
   });
 
   it("derives the state for the admin detail, offline when Soko Bots are off", async () => {
@@ -330,6 +357,18 @@ describe("getSokoBotAvatarFields", () => {
     });
   });
 
+  it("reads the kill switch when the caller does not pass it", async () => {
+    botFindUniqueMock.mockResolvedValue({
+      ...botRow(null),
+      turns: [{ status: "RUNNING", completedAt: null }],
+    });
+    availabilityMock.mockResolvedValue({ disabled: true });
+
+    expect(await getSokoBotAvatarFields(BOT_ID)).toMatchObject({
+      avatarState: "offline",
+    });
+  });
+
   it("adds nothing for a bot that is gone", async () => {
     botFindUniqueMock.mockResolvedValue(null);
 
@@ -340,6 +379,7 @@ describe("getSokoBotAvatarFields", () => {
 describe("getSokoBotActivity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({ disabled: false });
   });
 
   it("counts only chat turns, not background runs, as activity", async () => {
@@ -436,6 +476,18 @@ describe("getSokoBotActivity", () => {
     it("is offline when the bot is paused", async () => {
       botFindFirstMock.mockResolvedValue({ ...BOT, status: "PAUSED" });
       turnFindFirstMock.mockResolvedValue(null);
+
+      const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
+
+      expect(activity?.avatarState).toBe("offline");
+    });
+
+    it("is offline when Soko Bots are switched off", async () => {
+      botFindFirstMock.mockResolvedValue({
+        ...BOT,
+        turns: [{ id: "turn-1", status: "RUNNING", completedAt: null }],
+      });
+      availabilityMock.mockResolvedValue({ disabled: true });
 
       const activity = await getSokoBotActivity(VIEWER, WORKSPACE_ID);
 

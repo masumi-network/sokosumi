@@ -45,8 +45,6 @@ export function errorText(error: unknown): string {
   return (error instanceof Error ? error.message : "unknown").slice(0, 300);
 }
 
-export { creatureOf };
-
 /** One image edit, planned. `note` is the rewriter's sentence for the person editing. */
 export type AvatarPlan =
   | { kind: "edit"; look: AvatarLook; prompt: string; note: string }

@@ -7,7 +7,6 @@ import pLimit from "p-limit";
 import { fromDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
-  creatureOf,
   drawStill,
   errorText,
   storeAvatarAsset,
@@ -23,6 +22,7 @@ import {
   VideoSubmissionUncertainError,
 } from "@/lib/soko-bot-avatar/provider";
 import {
+  creatureOf,
   findAvatarStyle,
   freshLook,
   loopPrompt,
@@ -116,7 +116,7 @@ function leaseFree(now: Date): Prisma.SokoBotAvatarRenderWhereInput {
 }
 
 /** The creature a state prompt names, read from the avatar's stored look. */
-function creatureFor(style: SokoBotAvatarStyle, look: unknown) {
+function creatureFromLook(style: SokoBotAvatarStyle, look: unknown) {
   const parsed = sokoBotAvatarLookSchema.safeParse(look);
   return creatureOf(
     style,
@@ -164,14 +164,27 @@ async function settleFailure(
  * and the next attempt mints a new one: with the old key the Gateway would hand
  * back the job that already failed.
  */
-function storedSubmission(
-  value: Prisma.JsonValue,
-): { submissionKey: string; operation: Prisma.JsonValue } | null {
+/** Shape written into `SokoBotAvatarRender.providerOperation`. */
+export type AvatarRenderSubmission = {
+  submissionKey: string;
+  operation?: Prisma.InputJsonValue;
+};
+
+function storedSubmission(value: Prisma.JsonValue): {
+  submissionKey: string;
+  operation: Prisma.JsonValue | null;
+} | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const { submissionKey, operation } = value;
-  return typeof submissionKey === "string"
-    ? { submissionKey, operation: operation ?? null }
-    : null;
+  if (!("submissionKey" in value) || typeof value.submissionKey !== "string") {
+    return null;
+  }
+  return {
+    submissionKey: value.submissionKey,
+    operation:
+      "operation" in value && value.operation !== undefined
+        ? value.operation
+        : null,
+  };
 }
 
 async function drawStateStill(
@@ -192,7 +205,11 @@ async function drawStateStill(
   try {
     let timings = { editMs: 0, levelMs: 0 };
     const image = await drawStill(style, {
-      prompt: stillPrompt(style, state, creatureFor(style, row.avatar.look)),
+      prompt: stillPrompt(
+        style,
+        state,
+        creatureFromLook(style, row.avatar.look),
+      ),
       reference: await downloadAvatarAsset(row.avatar.imageUrl),
       target: style.backgroundTarget(state),
       timeoutMs: IMAGE_TIMEOUT_RENDER_MS,
@@ -251,22 +268,32 @@ async function submitLoop(
       leaseUntil: new Date(Date.now() + LEASE_MS),
       attempts: { increment: 1 },
       // Stored with the claim, so a submit that dies unanswered keeps its key.
-      providerOperation: { submissionKey },
+      providerOperation: {
+        submissionKey,
+      } satisfies AvatarRenderSubmission,
     },
   });
   if (claim.count === 0) return "skipped";
   const attempts = row.attempts + 1;
   try {
     const operation = await avatarProvider().startVideo({
-      prompt: loopPrompt(style, state, creatureFor(style, row.avatar.look)),
+      prompt: loopPrompt(
+        style,
+        state,
+        creatureFromLook(style, row.avatar.look),
+      ),
       imageUrl: row.stillUrl,
       idempotencyKey: submissionKey,
     });
+    const submitted = {
+      submissionKey,
+      operation,
+    } satisfies AvatarRenderSubmission;
     await prisma.sokoBotAvatarRender.updateMany({
       where: { id: row.id, status: "VIDEO_SUBMITTING" },
       data: {
         status: "VIDEO_SUBMITTED",
-        providerOperation: { submissionKey, operation },
+        providerOperation: submitted,
         submittedAt: new Date(),
         leaseUntil: null,
         lastError: null,
