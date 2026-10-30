@@ -23,8 +23,8 @@ import {
 } from "@/components/soko-bot/avatar-state";
 import {
   STATUS_TONE_DOT_CLASS,
-  STATUS_TONE_TEXT_CLASS,
   type StatusTone,
+  statusToneTextClass,
 } from "@/components/soko-bot/status-badge";
 import {
   HoverCard,
@@ -271,7 +271,7 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
       data-slot="soko-bot-status-line"
       className={cn(
         "truncate text-xs leading-tight",
-        STATUS_TONE_TEXT_CLASS[tone],
+        statusToneTextClass(tone),
       )}
     >
       {content}

@@ -124,12 +124,12 @@ export function TurnProgress({
                 {chip.done ? (
                   <Check
                     aria-hidden
-                    className="text-primary size-3.5 shrink-0"
+                    className="text-foreground size-3.5 shrink-0"
                   />
                 ) : (
                   <Loader2
                     aria-hidden
-                    className="text-primary size-3.5 shrink-0 animate-spin motion-reduce:animate-pulse"
+                    className="text-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-pulse"
                   />
                 )}
                 <span

@@ -231,7 +231,7 @@ export function IdentityOnboardingForm({
                     className={cn(
                       "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "personal" &&
-                        "border-primary bg-card-background",
+                        "border-foreground bg-card-background",
                     )}
                   >
                     <RadioGroupItem
@@ -253,7 +253,7 @@ export function IdentityOnboardingForm({
                     className={cn(
                       "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "organization" &&
-                        "border-primary bg-card-background",
+                        "border-foreground bg-card-background",
                     )}
                   >
                     <RadioGroupItem

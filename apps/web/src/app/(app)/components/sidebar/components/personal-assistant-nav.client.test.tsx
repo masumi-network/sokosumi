@@ -207,16 +207,18 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     expect(container.querySelector('[class*="animate-ping"]')).toBeNull();
   });
 
+  // Colour lives on the dot; the line is plain text except for idle/offline
+  // (neutral → muted), matching StatusBadge after the design-system pass.
   it.each([
-    ["thinking", /label\.thinking/, "status-working"],
-    ["working", /label\.working/, "status-working"],
-    ["done", /label\.done/, "semantic-success"],
-    ["needs_you", /label\.needs_you/, "semantic-warning"],
-    ["offline", /label\.offline/, "muted-foreground"],
-    ["idle", /ready/, "muted-foreground"],
+    ["thinking", /label\.thinking/, "status-working", "foreground"],
+    ["working", /label\.working/, "status-working", "foreground"],
+    ["done", /label\.done/, "semantic-success", "foreground"],
+    ["needs_you", /label\.needs_you/, "semantic-warning", "foreground"],
+    ["offline", /label\.offline/, "muted-foreground", "muted-foreground"],
+    ["idle", /ready/, "muted-foreground", "muted-foreground"],
   ] as const)(
-    "says a %s bot's state in its line and paints the dot and line to match",
-    (avatarState, line, hue) => {
+    "says a %s bot's state in its line and paints the dot to match",
+    (avatarState, line, hue, text) => {
       const { container } = renderNav({ bot: { ...bot, avatarState } });
 
       expect(row()).toHaveAccessibleName(line);
@@ -226,7 +228,7 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
       expect(
         container.querySelector('[data-slot="soko-bot-status-line"]')
           ?.className,
-      ).toMatch(new RegExp(`\\btext-${hue}(-label)?\\b`));
+      ).toMatch(new RegExp(`(^|\\s)text-${text}(\\s|$)`));
     },
   );
 
@@ -239,6 +241,9 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
     expect(
       container.querySelector('[data-slot="soko-bot-status-dot"]'),
     ).toHaveClass("bg-semantic-destructive");
+    expect(
+      container.querySelector('[data-slot="soko-bot-status-line"]')?.className,
+    ).toMatch(/(^|\s)text-foreground(\s|$)/);
   });
 
   it("says when an idle bot was last active, in the reader's locale", () => {

@@ -141,6 +141,12 @@ export const chatRoomService = (() => {
     },
   );
 
+  /** Unread rooms of the reader's other workspaces, in Core's order (ADR-0061). */
+  async function listElsewhereRooms(): Promise<ChatRoom[]> {
+    const response = await coreClient.getElsewhereChatRooms();
+    return response.data;
+  }
+
   /** Pending room invitations for the signed-in invitee (External sidebar). */
   const listPendingInvitations = cache(
     async function listPendingInvitations(): Promise<ChatRoomInvitation[]> {
@@ -724,6 +730,7 @@ export const chatRoomService = (() => {
     joinRoom,
     listArchivedRooms,
     listDiscoverableChannels,
+    listElsewhereRooms,
     listMessages,
     listPendingInvitations,
     listRoomGuestInviteLinks,

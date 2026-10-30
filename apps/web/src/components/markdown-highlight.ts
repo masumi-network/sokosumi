@@ -1,6 +1,6 @@
 const MAX_QUERY_LENGTH = 256;
 const MARK_CLASS_NAME = [
-  "bg-primary-tertiary",
+  "bg-quaternary",
   "text-foreground",
   "rounded-sm",
   "px-0.5",

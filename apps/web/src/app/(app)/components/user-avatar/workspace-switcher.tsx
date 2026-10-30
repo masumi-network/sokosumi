@@ -4,11 +4,16 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
+import {
+  CHAT_WELCOME_PATH,
+  roomIdFromPath,
+} from "@/app/chat/utils/chat-route-base";
 import {
   activateOrganizationWorkspace,
   isUserNotMemberOfOrganizationError,
 } from "@/lib/activate-organization-workspace";
+import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
+import { coreClient } from "@/lib/clients/core.browser.client";
 
 export function getAgentJobsBasePath(pathname: string): string | null {
   const jobsRouteMatch = pathname.match(/^\/agents\/([^/]+)\/jobs(?:\/.*)?$/);
@@ -68,6 +73,23 @@ function runRouterTransition(
   }
 
   callback();
+}
+
+async function roomStaysOpen(
+  roomId: string,
+  workspaceId: string | null,
+): Promise<boolean> {
+  try {
+    const { data } = await coreClient.getChatRoom(roomId);
+    return isRoomOfWorkspace(data, workspaceId);
+  } catch (error) {
+    console.warn("Failed to read the open room after a switch", {
+      roomId,
+      error,
+    });
+    // A failed read is not an answer: the refreshed page says if the room is gone.
+    return true;
+  }
 }
 
 export async function switchOrganizationWorkspace(
@@ -138,6 +160,21 @@ export async function switchOrganizationWorkspace(
       }, options.startTransition);
       return;
     }
+  }
+
+  // The room page opens any room the reader belongs to as a Room visit
+  // (ADR-0061), so refreshing in place would never close the one being left.
+  const openRoomId = roomIdFromPath(options?.pathname);
+  if (
+    options?.router &&
+    openRoomId &&
+    !(await roomStaysOpen(openRoomId, appliedOrganizationId))
+  ) {
+    runRouterTransition(() => {
+      options.router?.replace(CHAT_WELCOME_PATH);
+      options.router?.refresh();
+    }, options.startTransition);
+    return;
   }
 
   if (options?.router) {

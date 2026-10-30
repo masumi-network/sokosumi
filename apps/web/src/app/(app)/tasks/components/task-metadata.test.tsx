@@ -410,8 +410,8 @@ describe("TaskMetadata", () => {
       "px-2",
     );
     expect(trigger).toHaveTextContent("Running");
-    // A quiet row, not the coloured pill.
-    expect(trigger.querySelector("span.inline-flex")).toBeNull();
+    // A quiet row, not the bordered pill.
+    expect(trigger.querySelector("span.border")).toBeNull();
     expect(trigger.firstElementChild).toHaveClass("size-5", "justify-center");
     expect(trigger.querySelector("svg.lucide-chevron-down")).toBeNull();
 

@@ -88,9 +88,9 @@ function chipClass(active: boolean, disabled = false): string {
     // Selected wins over disabled: a row that is locked by the batch ceiling
     // still has to say which value is in force.
     active
-      ? "border-primary bg-primary text-primary-foreground"
-      : "border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary",
-    disabled && "cursor-not-allowed opacity-60 hover:border-border",
+      ? "border-foreground bg-primary text-primary-foreground"
+      : "border-border text-muted-foreground hover:text-foreground",
+    disabled && "cursor-not-allowed opacity-60",
   );
 }
 
@@ -972,7 +972,7 @@ export function StudioComposer({
                               })}
                             </p>
                             <a
-                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
+                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-2"
                               href={model.price.sourceUrl}
                               rel="noreferrer"
                               target="_blank"

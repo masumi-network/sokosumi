@@ -40,7 +40,7 @@ value (`p-[1.5px]`, `border-[0.5px]`, `ring-offset-[1.5px]`).
 Continuous values. The browser interpolates these rather than snapping them to
 a device pixel, so a fraction is meaningful:
 
-- blur and shadow radii — `blur(1.5px)`, `--chat-jump-dim-blur: 1.5px`
+- shadow radii — `shadow-[0_1px_1.5px_var(--x)]`
 - translations inside a keyframe — `translateY(-0.25px)`, which the
   compositor tweens anyway
 - unitless scale factors — `scale(0.96)`

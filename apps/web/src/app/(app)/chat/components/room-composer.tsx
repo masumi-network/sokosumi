@@ -216,7 +216,7 @@ function PendingQuotePreview({
       role="status"
       aria-label={t("previewLabel", { author: quote.authorName })}
     >
-      <div className="border-primary-tertiary min-w-0 flex-1 border-l-2 pl-2.5">
+      <div className="border-border min-w-0 flex-1 border-l-2 pl-2.5">
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>

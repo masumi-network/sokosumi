@@ -44,10 +44,9 @@ describe("TaskStatusBadge", () => {
       <TaskStatusBadge status={TaskStatus.APPROVAL_REQUIRED} />,
     );
 
-    expect(container.querySelector("svg")).toHaveClass(
-      "size-3.5",
-      "text-semantic-warning",
-    );
+    const glyph = container.querySelector("svg");
+    expect(glyph?.parentElement).toHaveClass("size-3.5", "bg-semantic-warning");
+    expect(glyph).toHaveClass("text-semantic-warning-foreground");
   });
 
   it("applies the attention ramp to the input-required icon", () => {
@@ -55,10 +54,9 @@ describe("TaskStatusBadge", () => {
       <TaskStatusBadge status={TaskStatus.INPUT_REQUIRED} />,
     );
 
-    expect(container.querySelector("svg")).toHaveClass(
-      "size-3.5",
-      "text-semantic-warning",
-    );
+    const glyph = container.querySelector("svg");
+    expect(glyph?.parentElement).toHaveClass("size-3.5", "bg-semantic-warning");
+    expect(glyph).toHaveClass("text-semantic-warning-foreground");
   });
 
   it("applies the attention ramp to the out-of-credits icon", () => {
@@ -66,9 +64,8 @@ describe("TaskStatusBadge", () => {
       <TaskStatusBadge status={TaskStatus.OUT_OF_CREDITS} />,
     );
 
-    expect(container.querySelector("svg")).toHaveClass(
-      "size-3.5",
-      "text-semantic-warning",
-    );
+    const glyph = container.querySelector("svg");
+    expect(glyph?.parentElement).toHaveClass("size-3.5", "bg-semantic-warning");
+    expect(glyph).toHaveClass("text-semantic-warning-foreground");
   });
 });

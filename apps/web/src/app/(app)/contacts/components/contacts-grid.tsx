@@ -514,13 +514,7 @@ export function ContactsGrid({
             onSave: (value) => onUpdate(contact, { followUpAt: value || null }),
           },
           node: contact.followUpAt ? (
-            <span
-              data-fit
-              className={cn(
-                "flex items-center gap-1.5 tabular-nums",
-                due ? "text-semantic-destructive-label" : "text-foreground",
-              )}
-            >
+            <span data-fit className="flex items-center gap-1.5 tabular-nums">
               {due ? <Dot className="bg-semantic-destructive" /> : null}
               {day(contact.followUpAt)}
               {due ? <span className="sr-only">{t("grid.due")}</span> : null}

@@ -152,7 +152,7 @@ export function SubscriberActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
+            <p role="alert" className="text-foreground text-sm">
               {error}
             </p>
           ) : null}
@@ -162,7 +162,7 @@ export function SubscriberActions({
             </AlertDialogCancel>
             <AlertDialogAction
               loading={pending}
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               onClick={(event) => {
                 event.preventDefault();
                 void handleRemove();

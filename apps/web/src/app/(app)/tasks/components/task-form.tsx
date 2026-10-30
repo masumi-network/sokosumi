@@ -1102,7 +1102,7 @@ export function TaskForm({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-primary -ml-2"
+                className="text-foreground -ml-2"
                 onClick={() => {
                   setIsCreateProjectModalOpen(false);
                   setStep(1);

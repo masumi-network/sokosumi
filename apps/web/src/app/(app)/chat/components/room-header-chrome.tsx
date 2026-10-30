@@ -3,8 +3,10 @@
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRoomWorkspaceName } from "@/app/chat/components/use-room-display-name";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
   CHAT_TITLE_MARK_CLASS,
   ChannelDiscoverabilityIcon,
@@ -14,6 +16,7 @@ import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-do
 import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
 import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -110,7 +113,7 @@ function RoomParticipantStack({
                   "text-2xs",
                   participant.kind === "coworker" ||
                     participant.kind === "sokoBot"
-                    ? "bg-primary-quinary text-primary"
+                    ? "bg-muted text-foreground"
                     : "bg-muted text-muted-foreground",
                 )}
               >
@@ -145,8 +148,60 @@ function RoomParticipantStack({
   );
 }
 
+interface RoomVisitWorkspaceNameProps {
+  organizationId: ChatRoom["organizationId"];
+  organizationName: ChatRoom["organizationName"];
+}
+
+/**
+ * A Room visit's workspace, on the line under the title (ADR-0061). Inline so
+ * it truncates with that line. Choosing it switches there, and the room stays
+ * open.
+ */
+function RoomVisitWorkspaceName({
+  organizationId,
+  organizationName,
+}: RoomVisitWorkspaceNameProps) {
+  const t = useTranslations("App.Channels");
+  const workspaceName = useRoomWorkspaceName();
+  const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
+  const name = workspaceName({ organizationId, organizationName });
+  if (!name) return null;
+  const label = t("headerVisitSwitch", { workspace: name });
+
+  return (
+    <>
+      <button
+        type="button"
+        // Inset, because the line's own truncation clips an outer ring. A bar
+        // needs a box to sweep inside, so only a running switch leaves `inline`.
+        className={cn(
+          "relative inline cursor-pointer rounded-sm outline-none focus-visible:text-foreground focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:underline",
+          isPending &&
+            "inline-block max-w-full cursor-progress truncate align-bottom",
+        )}
+        aria-label={label}
+        title={label}
+        aria-busy={isPending || undefined}
+        aria-disabled={isPending || undefined}
+        onClick={() => {
+          if (isPending) return;
+          // The switcher logs a failure; the reader stays on the visit.
+          handleSelectWorkspace(organizationId).catch(() => undefined);
+        }}
+      >
+        {name}
+        {isPending ? <ButtonLoadingBar label={label} /> : null}
+      </button>
+      {" · "}
+    </>
+  );
+}
+
 export interface RoomHeaderChromeProps {
   room: ChatRoom;
+  /** The room is not one of the active workspace's (ADR-0061). */
+  isRoomVisit: boolean;
   displayName: string;
   isDirectRoom: boolean;
   onJumpToMessage: (hit: ChatRoomMessage) => void;
@@ -177,6 +232,7 @@ export interface RoomHeaderChromeProps {
 
 export function RoomHeaderChrome({
   room,
+  isRoomVisit,
   displayName,
   isDirectRoom,
   onJumpToMessage,
@@ -289,6 +345,12 @@ export function RoomHeaderChrome({
           title={subtitle}
           data-testid="room-open-subtitle"
         >
+          {isRoomVisit ? (
+            <RoomVisitWorkspaceName
+              organizationId={room.organizationId}
+              organizationName={room.organizationName}
+            />
+          ) : null}
           {subtitle}
         </p>
       </div>

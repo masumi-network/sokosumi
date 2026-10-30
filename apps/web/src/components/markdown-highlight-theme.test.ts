@@ -9,7 +9,7 @@ describe("markdownHighlightThemeCss", () => {
     expect(markdownHighlightThemeCss).toContain("--th-keyword: #cf222e");
     expect(markdownHighlightThemeCss).toContain("--th-keyword: #ff7b72");
     expect(markdownHighlightThemeCss).toContain("--th-background: transparent");
-    expect(markdownHighlightThemeCss).not.toContain("var(--primary-iris)");
     expect(markdownHighlightThemeCss).not.toContain("var(--primary)");
+    expect(markdownHighlightThemeCss).not.toContain("var(--primary-");
   });
 });

@@ -21,7 +21,7 @@ function SignInLink() {
   return (
     <Link
       href={href}
-      className="text-primary text-sm font-medium hover:underline"
+      className="text-foreground text-sm font-medium underline underline-offset-4"
     >
       {t("Login.link")}
     </Link>
@@ -42,7 +42,7 @@ export default function SignInRow() {
       </span>
       <Suspense
         fallback={
-          <span className="text-primary text-sm font-medium">
+          <span className="text-foreground text-sm font-medium">
             {t("Login.link")}
           </span>
         }

@@ -412,7 +412,7 @@ function CalendarEvent({
           source: sourceName,
           task: item.taskName,
         })}
-        className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
         onClick={(event) => event.stopPropagation()}
@@ -505,7 +505,7 @@ function CalendarEvent({
         })}
         className={cn(
           cardClassName,
-          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
+          "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
         )}
         data-testid="calendar-event"
         onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
