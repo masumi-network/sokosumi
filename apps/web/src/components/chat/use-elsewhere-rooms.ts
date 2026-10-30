@@ -2,7 +2,13 @@
 
 import type { ChatRoom } from "@sokosumi/core-client";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
 
@@ -105,6 +111,9 @@ function keepOpenRoomRow(
  * A room the reader has read or muted stays held until the next read, but only
  * the open room is answered: that is what takes a read row away once the reader
  * moves on.
+ *
+ * `answered` turns true once the first read has come back, listed or failed, so
+ * a caller can tell "nothing unread" from "not asked yet".
  */
 export function useElsewhereRooms({
   paintOnly,
@@ -115,11 +124,11 @@ export function useElsewhereRooms({
   activeRoomId: string | null;
   paintOnly: boolean;
 }) {
-  const { rooms, replaceRoom } = useHeldElsewhereRooms({
+  const { rooms, replaceRoom, answered } = useHeldElsewhereRooms({
     ...reader,
     reads: !paintOnly,
   });
-  return { rooms: paintOnly ? NO_ROOMS : rooms, replaceRoom };
+  return { rooms: paintOnly ? NO_ROOMS : rooms, replaceRoom, answered };
 }
 
 /**
@@ -162,6 +171,13 @@ function useHeldElsewhereRooms({
   // A room of the workspace just left is not "elsewhere" any more, and one of
   // the workspace just entered must not show twice.
   const heldRooms = snapshot?.scope === scope ? snapshot.rooms : NO_ROOMS;
+  const [answered, setAnswered] = useState(false);
+  const readKey = reads ? scope : null;
+  const [prevReadKey, setPrevReadKey] = useState(readKey);
+  if (readKey !== prevReadKey) {
+    setPrevReadKey(readKey);
+    setAnswered(false);
+  }
   const activeRoomIdRef = useRef(activeRoomId);
   activeRoomIdRef.current = activeRoomId;
 
@@ -169,7 +185,9 @@ function useHeldElsewhereRooms({
     async (isCurrent: () => boolean) => {
       const requestRevision = beginRoomAttentionRefresh();
       const rooms = await fetchSidebarRoomCollection("elsewhere");
-      if (!isCurrent() || !rooms) return;
+      if (!isCurrent()) return;
+      setAnswered(true);
+      if (!rooms) return;
       const listed = reconcileRoomAttention(rooms, requestRevision);
       updateHeldRooms(scope, (current) =>
         keepOpenRoomRow(current, listed, activeRoomIdRef.current),
@@ -179,7 +197,7 @@ function useHeldElsewhereRooms({
   );
   const healthy = useAblyConnectionHealthy();
   const requestRead = useChatRefreshScheduler({
-    key: reads ? scope : null,
+    key: readKey,
     refresh,
     healthy,
     refreshOnMount: true,
@@ -295,7 +313,7 @@ function useHeldElsewhereRooms({
     return readRoom || lookThreads || room.id === activeRoomId;
   });
 
-  return { rooms, replaceRoom };
+  return { rooms, replaceRoom, answered };
 }
 
 /** A room action's answer does not load the Organization's name the row shows. */
