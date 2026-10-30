@@ -1,10 +1,10 @@
 /**
  * Opening a docked side panel (thread, threads, pinned, members) moves the
- * room's 56rem content column as little as it can: it keeps its left edge
- * while it fits beside the panel, moves left only as far as it must, narrows
- * only at the pane edge, and slides there instead of jumping. Needs real
- * layout. Run with `pnpm --filter web test:webkit` (Chromium + WebKit
- * installed).
+ * room's 56rem content column (header row, transcript, composer) as little as
+ * it can: it keeps its left edge while it fits beside the panel, moves left
+ * only as far as it must, narrows only at the pane edge, and slides there
+ * instead of jumping. Needs real layout. Run with `pnpm --filter web
+ * test:webkit` (Chromium + WebKit installed).
  */
 import { type Browser, chromium, webkit } from "playwright";
 import type { ViteDevServer } from "vite";
@@ -47,7 +47,11 @@ describe.each([
     await browser?.close();
   });
 
-  async function openRoom(paneWidth: number, reducedMotion = false) {
+  async function openRoom(
+    paneWidth: number,
+    reducedMotion = false,
+    headerAtMount = true,
+  ) {
     const address = server.httpServer?.address();
     if (!address || typeof address === "string")
       throw new Error("Missing fixture port");
@@ -64,7 +68,7 @@ describe.each([
     await page.addScriptTag({
       type: "module",
       content: `const { renderRoomColumnSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
-        renderRoomColumnSlidePage();`,
+        renderRoomColumnSlidePage({ headerAtMount: ${headerAtMount} });`,
     });
     await page.waitForFunction(() => document.querySelector("main") !== null);
     return { page, errors };
@@ -94,22 +98,24 @@ describe.each([
       const { page, errors } = await openRoom(pane);
       const closed = await page.evaluate(() => window.columns());
       const want = expected(pane, panel, closed.maxWidth);
-      for (const column of [closed.list, closed.composer]) {
+      for (const column of [closed.header, closed.list, closed.composer]) {
         expectPx(column.left, want.centred);
         expectPx(column.width, closed.maxWidth);
       }
 
       await page.evaluate((width) => window.setPanel(width), panel);
       const open = await page.evaluate(() => window.columns());
-      for (const column of [open.list, open.composer]) {
+      for (const column of [open.header, open.list, open.composer]) {
         expectPx(column.left, want.left);
         expectPx(column.width, want.width);
       }
-      // Transcript and composer slide together, from where they were.
+      // Header row, transcript and composer slide together, from where they
+      // were.
       const moved = closed.composer.left - open.composer.left;
       const slide = moved === 0 ? null : `translateX(${moved}px)`;
       expect(open.composer.slideFrom).toBe(slide);
       expect(open.list.slideFrom).toBe(slide);
+      expect(open.header.slideFrom).toBe(slide);
 
       await page.evaluate(() => window.setPanel(null));
       const reopened = await page.evaluate(() => window.columns());
@@ -142,6 +148,25 @@ describe.each([
     const resized = await page.evaluate(() => window.columns());
     expectPx(resized.composer.left, expected(1400, 420, resized.maxWidth).left);
     expect(resized.composer.slideFrom).toBeNull();
+    await page.close();
+  }, 60_000);
+
+  it("slides a header row that mounted after the room", async () => {
+    const { page, errors } = await openRoom(1504, false, false);
+    // Past the observer's first callback: nothing resizes as the header mounts.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    await page.evaluate(() => window.setHeader(true));
+
+    await page.evaluate(() => window.setPanel(420));
+    const open = await page.evaluate(() => window.columns());
+    expect(open.header.slideFrom).not.toBeNull();
+    expect(open.header.slideFrom).toBe(open.list.slideFrom);
+    expect(errors).toEqual([]);
     await page.close();
   }, 60_000);
 

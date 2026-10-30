@@ -7670,6 +7670,8 @@
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Mensaje directo",
+      "headerSelfDirect": "Solo tú",
       "participantOverflowCount": "{count} participantes más",
       "chats": "Chats",
       "directMessages": "Mensajes directos",

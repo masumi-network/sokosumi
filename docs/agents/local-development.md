@@ -11,7 +11,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ### Prerequisites
 
-- Node.js 24.x
+- Node.js 26.x
 - pnpm package manager
 
 ### Setup

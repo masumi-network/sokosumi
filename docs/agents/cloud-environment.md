@@ -7,11 +7,11 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`) then provisions an ephemeral Neon agent database when secrets are present. Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
 
-Neon provision, teardown, `with-db.mjs`, and auth fixtures live in [`cloud-agent-database.md`](./cloud-agent-database.md). This page covers Node 24 on `PATH` and the local Postgres fallback.
+Neon provision, teardown, `with-db.mjs`, and auth fixtures live in [`cloud-agent-database.md`](./cloud-agent-database.md). This page covers Node 26 on `PATH` and the local Postgres fallback.
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (root `.nvmrc` = `lts/krypton`; apps and packages pin `"engines": { "node": "24.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` report Node 24 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 26 is the required runtime** (root `.nvmrc` = `26`; apps and packages pin `"engines": { "node": "26.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 26 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` report Node 26 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v26*/bin`.
 - **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `packageManager` for the version — do not remember a `pnpm -v` number here. Do **not** re-add a `devEngines.packageManager` block: npm reads it on every `npm`/`npx` invocation in the tree and emits `EBADDEVENGINES` warnings (with `onFail: "error"` it refuses to run at all, breaking `npx` at the repo root and from `apps/apple`). `packageManager` alone is what Corepack — locally and on Vercel — actually uses.
 
 ### Database (local PostgreSQL fallback)
@@ -30,13 +30,13 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `ensure-pnpm.sh prisma:generate`, then deepens a shallow clone by 500 commits of `main`, only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it. Both commands write to `/tmp/sokosumi-claude-session-install.log`; `SessionStart` stdout is session context, so the log stays off the prompt.
 
-Node 24 and a prewarmed pnpm store come from the environment's setup script (claude.ai → environment settings), which is not in the repo. Keep **Trusted** network access, set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`, and use:
+Node 26 and a prewarmed pnpm store come from the environment's setup script (claude.ai → environment settings), which is not in the repo. Keep **Trusted** network access, set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`, and use:
 
 ```bash
 #!/bin/bash
 set -euo pipefail
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-V=$(curl -fsSL https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(r=>r.version.startsWith("v24.")).version))')
+V=$(curl -fsSL https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(r=>r.version.startsWith("v26.")).version))')
 curl -fsSL "https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz" | tar -xJ -C /opt
 [ -L /opt/node22 ] || mv /opt/node22 /opt/node22-orig
 ln -sfn "/opt/node-$V-linux-x64" /opt/node22
