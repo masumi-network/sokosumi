@@ -173,7 +173,7 @@ export async function loadChatComposeRosterAction(): Promise<
       coworkerService.listCoworkers("chat"),
       sokoBotService.getMine().catch(() => null),
       chatRoomService.listPeople().catch(() => null),
-      getTranslations("App.Chat"),
+      getTranslations("App.Channels"),
     ]);
     const peopleFields = { people: people ?? [], peopleLoadFailed: !people };
     const sokoBots: ChatComposeSokoBot[] = bot

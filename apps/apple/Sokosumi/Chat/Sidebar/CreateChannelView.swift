@@ -50,7 +50,7 @@ struct CreateChannelView: View {
         Spacer()
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
         if model.step == .details {
-          Button("Next") { model.advance() }.keyboardShortcut(.defaultAction).disabled(!model.canAdvance)
+          Button("Next") { model.advance() }.buttonStyle(.brandPrimary).keyboardShortcut(.defaultAction).disabled(!model.canAdvance)
         } else {
           Button(model.creating ? "Creating…" : "Create channel") {
             Task {
@@ -59,6 +59,7 @@ struct CreateChannelView: View {
               }
             }
           }
+          .buttonStyle(.brandPrimary)
           .keyboardShortcut(.defaultAction)
           .disabled(model.loading || model.roster == nil || model.participantsUnavailable)
         }

@@ -143,7 +143,7 @@ function ActiveOrganizationHeader({
             <DropdownMenuItem
               className={cn(
                 buttonVariants({ variant: "primary", size: "sm" }),
-                "focus:bg-primary-solid-hover focus:text-primary-solid-foreground flex-1",
+                "focus:bg-primary-hover focus:text-primary-foreground flex-1",
               )}
               disabled={disabled}
               onSelect={onInvite}
@@ -303,8 +303,8 @@ export default function WorkspaceSwitcherMenu({
             disabled={isBusy}
             onClick={openCreateWorkspace}
           >
-            <Avatar className="bg-primary-quinary flex size-6 items-center justify-center gap-2">
-              <Plus className="text-primary size-4" />
+            <Avatar className="bg-muted flex size-6 items-center justify-center gap-2">
+              <Plus className="text-foreground size-4" />
             </Avatar>
             <span>{tOrganizationSwitcher("createWorkspace")}</span>
           </DropdownMenuItem>

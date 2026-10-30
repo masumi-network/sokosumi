@@ -17,6 +17,8 @@ struct MessageMarkdownView: View {
   var body: some View {
     MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
       .textSelection(.enabled)
+      // Web's links: the text colour, underlined. Iris is a fill, and the system blue is not ours.
+      .tint(.primary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .environment(\.openURL, OpenURLAction { url in
         if url.scheme == "sokosumi-channel" {
@@ -206,7 +208,10 @@ private struct MarkdownBlockView: View {
         result[run.range].underlineStyle = .single
       }
       if run[MessageMentionAttribute.self] == true {
-        result[run.range].foregroundColor = .accentColor
+        result[run.range].inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(.stronglyEmphasized)
+      }
+      if run.link != nil {
+        result[run.range].underlineStyle = .single
       }
     }
     return result

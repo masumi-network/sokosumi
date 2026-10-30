@@ -11,8 +11,12 @@ import {
   getCreditExpiryDate,
   grantSignupBonusCredits,
   hasConsumableEnterpriseContract,
+  resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
-import { memberRepository } from "@sokosumi/database/repositories";
+import {
+  memberRepository,
+  subscriptionRepository,
+} from "@sokosumi/database/repositories";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthUserAdditionalFields,
@@ -102,6 +106,8 @@ import { anchorVerificationCallbackToWebApp } from "./verification-email-callbac
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
+const ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED =
+  "ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED";
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
@@ -705,7 +711,7 @@ export const auth = betterAuth({
             },
           },
         }),
-        authorizeReference: async ({ referenceId, user, action }) => {
+        authorizeReference: async ({ referenceId, user, action }, ctx) => {
           const member =
             await memberRepository.getMemberByUserIdAndOrganizationId(
               user.id,
@@ -729,6 +735,29 @@ export const auth = betterAuth({
               code: ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE,
               message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
             });
+          }
+
+          // A running plan changes seats through the seats route only. This
+          // route would take a lower count to Stripe's portal with immediate
+          // proration, past reductions at renewal (ADR 0060). `|| 1` is how
+          // the plugin reads a missing count.
+          if (action === "upgrade-subscription") {
+            const subscription =
+              await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+                referenceId,
+                prisma,
+              );
+            if (
+              subscription?.stripeSubscriptionId &&
+              (ctx?.body?.seats || 1) !==
+                resolvePurchasedSeats(subscription.seats)
+            ) {
+              throw new APIError("BAD_REQUEST", {
+                code: ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED,
+                message:
+                  "Change seats from the Seats card. A plan switch keeps the purchased seats.",
+              });
+            }
           }
 
           return true;

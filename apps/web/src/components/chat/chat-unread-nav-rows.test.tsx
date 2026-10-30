@@ -229,7 +229,7 @@ describe("ChatUnreadNavRows", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     // A mode, not the page the reader is on: tinted, never the grey fill.
     expect(toggle).toHaveAttribute("data-filter-on", "true");
-    expect(toggle.className).toContain("bg-primary-quaternary");
+    expect(toggle.className).toContain("bg-quinary");
     await userEvent.click(
       screen.getByRole("button", { name: "Mark all as read" }),
     );

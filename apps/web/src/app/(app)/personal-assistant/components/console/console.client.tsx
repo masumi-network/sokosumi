@@ -252,7 +252,7 @@ export function SokoBotConsole({
         <AssistantImageContext.Provider value={bot.avatarImageUrl}>
           <div className="w-full space-y-6 py-2">
             <header className="flex flex-wrap items-center gap-5 py-2">
-              <AssistantAvatar size="lg" className="ring-ring-halo ring-4" />
+              <AssistantAvatar size="lg" />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-foreground truncate text-2xl font-light md:text-3xl tracking-tight">
@@ -272,7 +272,7 @@ export function SokoBotConsole({
                         {version.model.replace(/^[a-z]+\//, "")}
                       </span>
                       {version.inferenceRegion ? (
-                        <span className="bg-primary-quinary text-primary rounded px-1">
+                        <span className="bg-muted text-foreground rounded px-1">
                           {version.inferenceRegion}
                         </span>
                       ) : null}

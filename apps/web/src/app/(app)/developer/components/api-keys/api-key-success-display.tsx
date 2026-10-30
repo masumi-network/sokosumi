@@ -46,7 +46,7 @@ export function ApiKeySuccessDisplay({
             <div className="flex items-center justify-between">
               <code className="pr-2 font-mono text-sm break-all">{apiKey}</code>
               {copied ? (
-                <Check className="check-pop text-semantic-success size-4 flex-shrink-0" />
+                <Check className="check-pop text-foreground size-4 flex-shrink-0" />
               ) : (
                 <Copy className="text-muted-foreground group-hover:text-foreground size-4 flex-shrink-0 transition-colors" />
               )}

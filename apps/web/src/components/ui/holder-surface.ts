@@ -12,4 +12,4 @@ export const HOLDER_CLASS = "bg-card-background rounded-xl p-2";
 export const HOLDER_ITEM_CLASS = "bg-background rounded-lg border border-border";
 
 /** An item that responds to the pointer. */
-export const HOLDER_ITEM_HOVER_CLASS = "hover:bg-card-background-hover";
+export const HOLDER_ITEM_HOVER_CLASS = "hover:bg-accent transition-colors";

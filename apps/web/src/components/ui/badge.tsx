@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils"
 // A badge labels a state. It is never a link and never a button, so no
 // variant carries a hover step: nothing here answers the pointer.
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit tabular-nums whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring-halo focus-visible:ring-[3px] aria-invalid:ring-destructive-halo dark:aria-invalid:ring-destructive-halo aria-invalid:border-destructive transition-[color] overflow-hidden",
+  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit tabular-nums whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring aria-invalid:border-destructive transition-[color] overflow-hidden",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary-solid text-primary-solid-foreground",
+          "border-transparent bg-primary text-primary-foreground",
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         destructive:
-          "border-transparent bg-semantic-destructive-solid text-destructive-foreground focus-visible:ring-destructive-halo",
+          "border-transparent bg-semantic-destructive-solid text-semantic-destructive-foreground",
         outline: "text-foreground",
       },
     },

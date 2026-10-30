@@ -66,7 +66,7 @@ export function SocialPostMetrics({
       {statistics?.error ? (
         <p
           role="status"
-          className="text-semantic-warning flex items-center gap-1.5 text-xs"
+          className="text-foreground flex items-center gap-1.5 text-xs"
         >
           <CircleAlert aria-hidden className="size-3.5 shrink-0" />
           {t("loadFailed")}

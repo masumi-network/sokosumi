@@ -314,6 +314,86 @@ export const stripeClient = {
     );
   },
 
+  /** Stripe's invoice for `updateSubscriptionItemQuantity`, without applying it. */
+  async previewSubscriptionItemQuantity(
+    subscriptionId: string,
+    itemId: string,
+    quantity: number,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Invoice> {
+    return await stripe.invoices.createPreview(
+      {
+        automatic_tax: { enabled: true },
+        subscription: subscriptionId,
+        subscription_details: {
+          items: [
+            {
+              id: itemId,
+              quantity,
+            },
+          ],
+          proration_behavior: "always_invoice",
+        },
+      },
+      requestOptions,
+    );
+  },
+
+  /**
+   * Stripe's next regular invoice at `quantity`, with tax and discounts. A
+   * scheduled cancellation leaves no next invoice (Stripe answers 404), so this
+   * preview clears it. Stripe rejects that on a subscription a schedule
+   * manages and ignores `quantity` there: use
+   * `previewSubscriptionScheduleRenewal` for those. Nothing is applied.
+   */
+  async previewSubscriptionRenewalAtQuantity(
+    subscriptionId: string,
+    itemId: string,
+    quantity: number,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Invoice> {
+    return await stripe.invoices.createPreview(
+      {
+        automatic_tax: { enabled: true },
+        subscription: subscriptionId,
+        subscription_details: {
+          cancel_at: "",
+          items: [
+            {
+              id: itemId,
+              quantity,
+            },
+          ],
+          proration_behavior: "none",
+        },
+      },
+      requestOptions,
+    );
+  },
+
+  /**
+   * Stripe's next regular invoice if a schedule had these phases, with tax and
+   * discounts. Nothing is applied. Automatic tax comes from the phases: Stripe
+   * refuses it beside `schedule_details`.
+   */
+  async previewSubscriptionScheduleRenewal(
+    scheduleId: string,
+    phases: Stripe.InvoiceCreatePreviewParams.ScheduleDetails.Phase[],
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Invoice> {
+    return await stripe.invoices.createPreview(
+      {
+        schedule: scheduleId,
+        schedule_details: {
+          end_behavior: "release",
+          phases,
+          proration_behavior: "none",
+        },
+      },
+      requestOptions,
+    );
+  },
+
   async updateSubscriptionItemQuantity(
     subscriptionId: string,
     itemId: string,
@@ -333,6 +413,50 @@ export const stripeClient = {
         payment_behavior: "error_if_incomplete",
         proration_behavior: "always_invoice",
       },
+      requestOptions,
+    );
+  },
+
+  async createSubscriptionScheduleFromSubscription(
+    subscriptionId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.create(
+      { from_subscription: subscriptionId },
+      requestOptions,
+    );
+  },
+
+  async retrieveSubscriptionSchedule(
+    scheduleId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.retrieve(
+      scheduleId,
+      undefined,
+      requestOptions,
+    );
+  },
+
+  async updateSubscriptionSchedule(
+    scheduleId: string,
+    params: Stripe.SubscriptionScheduleUpdateParams,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.update(
+      scheduleId,
+      params,
+      requestOptions,
+    );
+  },
+
+  async releaseSubscriptionSchedule(
+    scheduleId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.SubscriptionSchedule> {
+    return await stripe.subscriptionSchedules.release(
+      scheduleId,
+      undefined,
       requestOptions,
     );
   },

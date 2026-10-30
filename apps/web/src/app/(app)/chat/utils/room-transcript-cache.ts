@@ -8,7 +8,7 @@ import {
 } from "@/components/chat/fetch-room-messages";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
-import { isShownInEveryWorkspace } from "@/lib/chat/room-workspace-scope";
+import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { isOutboundLocalMessage } from "./outbound-room-message";
 import {
   emptyRoomTranscript,
@@ -113,13 +113,15 @@ export class RoomTranscriptCache {
 
   /**
    * The cache of the workspace switched to. It keeps the open room when that
-   * room shows in every workspace (ADR-0059), so the room stays painted.
+   * room shows in every workspace (ADR-0059), so the room stays painted. A
+   * Room visit is kept the same way on a switch to the room's own workspace
+   * (ADR-0061).
    */
   forWorkspace(workspaceId: string | null, openRoomId: string | undefined) {
     const next = new RoomTranscriptCache(this.client, this.userId, workspaceId);
     const entry = openRoomId ? this.get(openRoomId) : undefined;
     const room = entry?.bootstrap.rooms.find(({ id }) => id === openRoomId);
-    if (openRoomId && entry && room && isShownInEveryWorkspace(room)) {
+    if (openRoomId && entry && room && isRoomOfWorkspace(room, workspaceId)) {
       this.client.setQueryData(next.key(openRoomId), entry);
       const position = this.positions.get(entry.lifetime);
       if (position) next.positions.set(entry.lifetime, position);

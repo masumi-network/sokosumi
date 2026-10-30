@@ -32,7 +32,10 @@ import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dial
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
-import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
+import {
+  useRoomDisplayName,
+  useRoomWorkspaceName,
+} from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   AlertDialog,
@@ -72,6 +75,7 @@ import {
   getActiveRoomIdFromSelection,
 } from "./active-room-id";
 import { ChannelKindGlyph } from "./channel-discoverability-icon";
+import { ChatElsewhereOverflowRow } from "./chat-elsewhere-overflow-row";
 import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
@@ -96,15 +100,17 @@ import {
 import {
   resolveChatsAttention,
   resolveSectionAttention,
-  roomUnreadReads,
+  roomHasUnread,
 } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
+import { selectElsewhereRows } from "./select-elsewhere-rows";
 import { SidebarSectionShowMoreRow } from "./sidebar-section-show-more-row";
 import {
   advanceUnreadFilterPass,
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
 import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
+import { useElsewhereRooms } from "./use-elsewhere-rooms";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
 
@@ -217,6 +223,7 @@ export function OrganizationChatList({
   const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
+  const roomWorkspaceName = useRoomWorkspaceName();
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
   const router = useRouter();
@@ -371,16 +378,23 @@ export function OrganizationChatList({
   const activeRoomId = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath)
     : getActiveRoomIdFromPathname(pathname);
+  const { rooms: heldElsewhereRooms, replaceRoom: replaceElsewhereRoom } =
+    useElsewhereRooms({
+      currentUserId,
+      organizationId,
+      activeRoomId,
+      enabled: !paintOnly,
+    });
+  const elsewhereRooms = paintOnly ? [] : heldElsewhereRooms;
+  const { rows: elsewhereRows, overflowCount: elsewhereOverflowCount } =
+    selectElsewhereRows(elsewhereRooms, activeRoomId);
   // All unreads (SOK-1159): the rooms a read would still change, newest
   // activity first. One answer for what the filter lists and whether the
   // reader is caught up, so the two cannot disagree.
   const unreadRooms = useMemo(
     () =>
       roomRows
-        .filter((room) => {
-          const { readRoom, lookThreads } = roomUnreadReads(room);
-          return readRoom || lookThreads;
-        })
+        .filter(roomHasUnread)
         .sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime() ||
@@ -468,9 +482,13 @@ export function OrganizationChatList({
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
   // (`resolveSectionAttention`). Caught up is about what is unread, not what
-  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed.
+  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed. An
+  // Elsewhere room counts, or this would stand under its unread row.
   const caughtUp =
-    unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
+    unreadOnly &&
+    unreadRooms.length === 0 &&
+    pendingRows.length === 0 &&
+    !elsewhereRooms.some(roomHasUnread);
   const showsReadLabel = caughtUp && inboxRooms.length > 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
@@ -558,6 +576,34 @@ export function OrganizationChatList({
           withChatsHeading ? undefined : handleUnreadOnlyChange
         }
       />
+      {/* Outside the keyed list below: the Unreads filter does not touch them,
+          because hiding what is unread is the last thing it should do. */}
+      {elsewhereRows.length > 0 ? (
+        <SidebarMenu
+          data-slot="elsewhere-rows"
+          aria-label={t("UnreadNav.elsewhereLabel")}
+          className="gap-0"
+        >
+          {elsewhereRows.map((room) => (
+            <ChatRoomSidebarRow
+              key={room.id}
+              {...roomRowProps(room)}
+              subtitle={roomWorkspaceName(room) ?? undefined}
+              onRoomUpdated={replaceElsewhereRoom}
+              // The active workspace's role says nothing about this room. The
+              // room works out its own once it opens (ADR-0061).
+              canManageSettings={false}
+              elsewhere
+            />
+          ))}
+          {elsewhereOverflowCount > 0 ? (
+            <ChatElsewhereOverflowRow
+              count={elsewhereOverflowCount}
+              dismissSheetOnNavigate={dismissSheetOnNavigate}
+            />
+          ) : null}
+        </SidebarMenu>
+      ) : null}
       {/* One list per mode, so switching fades the new one in instead of
         swapping rows under the pointer. Not on first render: the sidebar
         does not fade in on every load. A reader who left the filter on
@@ -1116,9 +1162,10 @@ export function OrganizationChatList({
                 folded section's does. */}
             <ChatSidebarSectionHeader
               isOpen={chatsOpen}
-              closedAttention={resolveChatsAttention(roomRows, {
-                hasPendingInvitation: pendingRows.length > 0,
-              })}
+              closedAttention={resolveChatsAttention(
+                [...roomRows, ...elsewhereRooms],
+                { hasPendingInvitation: pendingRows.length > 0 },
+              )}
               inlineAction={
                 <>
                   <ChatMarkAllReadButton

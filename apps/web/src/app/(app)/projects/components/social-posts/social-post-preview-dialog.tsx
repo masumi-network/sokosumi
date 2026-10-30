@@ -107,7 +107,7 @@ export function SocialPostPreviewDialog({
         ) : null}
         {post?.connectionNeedsReconnect ? (
           <p
-            className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+            className="text-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
             data-testid="social-post-needs-reconnect"
             role="status"
           >
@@ -159,7 +159,7 @@ export function SocialPostPreviewDialog({
               {t("statistics.refresh")}
             </Button>
             {statisticsErrorPostId === post.id ? (
-              <p role="alert" className="text-semantic-warning text-sm">
+              <p role="alert" className="text-foreground text-sm">
                 {t("statistics.refreshFailed")}
               </p>
             ) : null}

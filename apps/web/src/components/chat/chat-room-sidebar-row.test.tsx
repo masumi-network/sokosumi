@@ -1593,6 +1593,116 @@ describe("ChatRoomSidebarRow unread message count", () => {
   });
 });
 
+describe("ChatRoomSidebarRow as an Elsewhere row", () => {
+  function renderElsewhereRow(room = makeRoom()) {
+    render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label="general"
+        subtitle="Other Org"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        elsewhere
+      />,
+    );
+  }
+
+  it("offers the normal room actions without Pin", async () => {
+    renderElsewhereRow();
+
+    await openRoomMenu();
+
+    expect(
+      screen.getByRole("menuitem", { name: "Mark as unread" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Mute" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Unpin" })).toBeNull();
+  });
+
+  // A pinned room cannot be muted until it is unpinned, so hiding this too would
+  // leave the row's reader with neither.
+  it("offers Unpin on a room already pinned, and still no Pin", async () => {
+    renderElsewhereRow(
+      makeRoom({ starredAt: new Date("2026-01-03T00:00:00.000Z") }),
+    );
+
+    await openRoomMenu();
+
+    expect(screen.getByRole("menuitem", { name: "Unpin" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+  });
+
+  describe("for a room whose only unread is a Thread reply", () => {
+    const threadOnly = {
+      unreadCount: 2,
+      channelUnreadCount: 0,
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [
+        {
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+        },
+      ],
+    };
+
+    // The preference is off here: it hides a Room unread, and this is not one.
+    it("draws its plain number and no inset Thread rows", () => {
+      renderElsewhereRow(makeRoom(threadOnly));
+
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]')?.textContent,
+      ).toBe("2");
+      expect(
+        document.querySelector('[data-slot="room-thread-rows"]'),
+      ).toBeNull();
+      expect(screen.queryByText("Vendor-wide rollout")).toBeNull();
+      expect(screen.getByText("general").className).not.toContain(
+        "font-semibold",
+      );
+      expect(
+        screen.getByRole("link", { name: /general/ }).textContent,
+      ).toContain("2 unread messages");
+    });
+
+    it("draws the pill instead where a Thread names the reader", () => {
+      renderElsewhereRow(makeRoom({ ...threadOnly, unreadMentionCount: 1 }));
+
+      expect(
+        document.querySelector('[data-slot="room-mention-badge"]'),
+      ).not.toBeNull();
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]'),
+      ).toBeNull();
+    });
+
+    it("draws no number while the channel holds something too", () => {
+      renderElsewhereRow(
+        makeRoom({ ...threadOnly, unreadCount: 5, channelUnreadCount: 3 }),
+      );
+
+      expect(
+        document.querySelector('[data-slot="room-unread-count"]'),
+      ).toBeNull();
+      expect(screen.getByText("general").className).toContain("font-semibold");
+    });
+  });
+
+  it("announces the room, its workspace and its mentions in one link", () => {
+    renderElsewhereRow(makeRoom({ unreadMentionCount: 2 }));
+
+    const link = screen.getByRole("link", { name: /general/ });
+
+    expect(link.textContent).toContain("Other Org");
+    expect(link.textContent).toContain("2 mentions");
+  });
+});
+
 describe("ChatRoomSidebarRow Mark unread", () => {
   beforeEach(() => {
     clearRoomReadOverlays();

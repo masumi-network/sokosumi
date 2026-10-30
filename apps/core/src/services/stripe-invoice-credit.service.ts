@@ -187,7 +187,7 @@ function calculateProratedSubscriptionCredits(params: {
 
 function shouldGrantSubscriptionCreditsForLine(params: {
   billingReason: Stripe.Invoice.BillingReason | null;
-  invoiceAmountPaid: number;
+  invoiceTotal: number;
   lineAmount: number;
 }): boolean {
   const { billingReason } = params;
@@ -203,7 +203,9 @@ function shouldGrantSubscriptionCreditsForLine(params: {
     return false;
   }
 
-  return params.invoiceAmountPaid > 0 && params.lineAmount !== 0;
+  // The total and not amount_paid: seats paid from the customer balance were
+  // still paid for, and amount_paid only counts what the card covered.
+  return params.invoiceTotal > 0 && params.lineAmount !== 0;
 }
 
 async function calculateSubscriptionCreditTotals(params: {
@@ -691,7 +693,7 @@ export async function handleInvoicePaidEvent(
       if (
         !shouldGrantSubscriptionCreditsForLine({
           billingReason,
-          invoiceAmountPaid: invoice.amount_paid,
+          invoiceTotal: invoice.total,
           lineAmount,
         })
       ) {

@@ -12,9 +12,11 @@ import { useGlobalModalsContext } from "@/components/modals/global-modals-contex
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useSelfPresence } from "@/hooks/use-self-presence";
+import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
 import { AccountPopoverDrill } from "./account-popover-drill.client";
+import { ACCOUNT_MENU_ROW_CLASS } from "./account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
   AccountPopoverPanel,
@@ -26,6 +28,7 @@ import { CreditsCycleOverview } from "./credits-cycle-overview.client";
 const GRAVATAR_SIZE = 80;
 const ADMIN_HREF = "/admin";
 const HISTORY_HREF = "/history";
+const ROW_CLASS = cn(ACCOUNT_MENU_ROW_CLASS, "h-10");
 
 export interface AccountSummaryMenuProps
   extends AccountSummaryCreditProps,
@@ -180,13 +183,13 @@ export function AccountSummaryMenu({
               <Coins className="size-4 shrink-0" aria-hidden />
               {buyCreditsLabel}
             </Button>
-            <div className="divide-border divide-y">
+            <div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleHistory}
-                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                className={ROW_CLASS}
               >
                 <History className="size-4 shrink-0" aria-hidden />
                 {tMenu("history")}
@@ -197,7 +200,7 @@ export function AccountSummaryMenu({
                   variant="ghost"
                   size="sm"
                   onClick={handleAdmin}
-                  className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                  className={ROW_CLASS}
                 >
                   <ShieldCheck className="size-4 shrink-0" aria-hidden />
                   {tMenu("admin")}
@@ -208,7 +211,7 @@ export function AccountSummaryMenu({
                 variant="ghost"
                 size="sm"
                 onClick={() => handleNavigatePanel({ kind: "settings" })}
-                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                className={ROW_CLASS}
               >
                 <Settings className="size-4 shrink-0" aria-hidden />
                 {tMenu("settings")}
@@ -218,7 +221,7 @@ export function AccountSummaryMenu({
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                className={ROW_CLASS}
               >
                 <LogOut className="size-4 shrink-0" aria-hidden />
                 {tCredit("logout")}

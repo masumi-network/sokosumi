@@ -1559,7 +1559,7 @@ describe("ChatMessageRow", () => {
     });
     // Markdown mock renders children as text, so the mention HTML string is visible.
     const formatted = quoteButton.textContent ?? "";
-    expect(formatted).toContain("text-primary");
+    expect(formatted).toContain("text-foreground");
     expect(formatted).toContain(">@Everyone</span>");
     expect(formatted).not.toContain("@all");
   });
