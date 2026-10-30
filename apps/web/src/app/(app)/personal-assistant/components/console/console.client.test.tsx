@@ -49,7 +49,6 @@ vi.mock("../chat/assistant-avatar", async (importOriginal) => ({
   AssistantAvatar: () => <span />,
 }));
 
-/** Reports the bot id the panels would act on. */
 function TargetProbe({ name }: { name: string }) {
   const target = useContext(SokoBotTargetContext);
   return <span data-testid={name}>{target ?? "own"}</span>;
@@ -302,12 +301,10 @@ function reducedMotion(matches: boolean) {
   reduceMotion.current = matches;
 }
 
-/** The portrait still: the one image named after the bot and its state. */
 function portrait() {
   return screen.getByRole("img", { name: /^alt\(/ });
 }
 
-/** The loop, while it plays. */
 function loop() {
   return document.querySelector("video");
 }

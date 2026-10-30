@@ -26,11 +26,6 @@ interface BotProfileAvatarProps {
   editHref: string | null;
 }
 
-/**
- * The bot's round portrait at the top of its console. It plays the current
- * state once when the page opens and once on every change, then rests on that
- * state's still. A legacy avatar or a state with no loop yet never moves.
- */
 export function BotProfileAvatar({
   name,
   seed,

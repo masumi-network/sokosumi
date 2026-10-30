@@ -28,7 +28,7 @@ export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
   const [live, setLive] = useState<LiveFields | null>(null);
   const [prevBot, setPrevBot] = useState(bot);
 
-  // A fresh server render is at least as new as the last answer.
+  // Discard the poll overlay when the server-rendered bot identity changes.
   if (bot !== prevBot) {
     setPrevBot(bot);
     setLive(null);
