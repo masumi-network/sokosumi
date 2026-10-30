@@ -137,7 +137,8 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({ newsletter }),
       );
-      // The workspace's sending domain card rides along on every project.
+      // The selected project's sending domain card rides along with its settings.
+      expect(mocks.getSendingDomain).toHaveBeenCalledWith(PROJECT_ID);
       const { sendingDomain } = mocks.form.mock.calls[0]![0];
       expect(sendingDomain.props).toEqual({
         state: SENDING_DOMAIN_STATE,
