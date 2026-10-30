@@ -2476,10 +2476,102 @@ model SokoBotAvatar {
   /// Every read filters on it; the pool cron sweeps stale ones.
   reservedAt DateTime?
 
+  /// The style that drew it (an id in Core's style registry). `mascot` is the
+  /// legacy recipe: read, never drawn again.
+  styleId        String  @default("mascot")
+  styleVersion   Int     @default(1)
+  /// What the look is made of: `{ creature, accessories[], typed[] }`. Null for
+  /// legacy rows.
+  look           Json?
+  /// The avatar this look was edited from, if any. Not a relation: the parent
+  /// may be swept first.
+  parentAvatarId String? @db.Uuid
+
+  /// Set while the look is private to one bot: a draft, or the tombstone of a
+  /// kept look the bot has replaced. Such a row is never part of the pool, and
+  /// it is swept once `draftExpiresAt` passes unless a bot has claimed it.
+  /// Plain columns, not a relation: the sweep owns their lifetime.
+  draftForSokoBotId String?   @db.Uuid
+  draftExpiresAt    DateTime?
+
+  /// The combination of creature, coat, scene details and accessory this look
+  /// is, so no two bots share a face. Set for pool and claimed looks only
+  /// (a draft gets it when a bot keeps it, a replaced look loses it), so the
+  /// unique below covers exactly what a bot can hold or be offered. Null for
+  /// legacy rows.
+  traitKey String?
+
+  /// Drawn by the pool, not for one bot. A pool look taken as a draft goes back
+  /// to the pool when the draft expires; a look drawn for a bot is deleted.
+  fromPool Boolean @default(false)
+
+  /// When and by whom the look was kept. Read by the per-user daily keep cap,
+  /// so the row stays (as a tombstone, without renders) for the cap window
+  /// after the bot replaces the look.
+  keptAt       DateTime?
+  keptByUserId String?
+
+  renders SokoBotAvatarRender[]
+
   @@unique([subject, background, seed])
+  @@unique([styleId, styleVersion, traitKey])
   @@index([claimedAt])
   @@index([requestedByUserId, createdAt])
+  @@index([keptByUserId, keptAt])
+  @@index([draftForSokoBotId])
   @@map("soko_bot_avatar")
+}
+
+enum SokoBotAvatarState {
+  IDLE
+  THINKING
+  WORKING
+  DONE
+  NEEDS_YOU
+  OFFLINE
+}
+
+enum SokoBotAvatarRenderStatus {
+  PENDING
+  STILL_READY
+  /// Claimed for the paid video call; no provider operation stored yet.
+  VIDEO_SUBMITTING
+  VIDEO_SUBMITTED
+  READY
+  /// The submit call may have been billed and its outcome is unknown. Never
+  /// resubmitted: the still stays.
+  SUBMISSION_UNCERTAIN
+  FAILED
+}
+
+/// One state of a kept avatar: a still and a looping animation. The cron walks
+/// each row PENDING → STILL_READY → VIDEO_SUBMITTED → READY (ADR 0039: no queue).
+model SokoBotAvatarRender {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  avatarId String             @db.Uuid
+  avatar   SokoBotAvatar      @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+  state    SokoBotAvatarState
+
+  status       SokoBotAvatarRenderStatus @default(PENDING)
+  stillUrl     String?
+  loopUrl      String?
+  loopLargeUrl String?
+
+  /// Paid attempts at the current step, counted when the lease is taken.
+  attempts          Int       @default(0)
+  /// Whoever holds this is the only worker allowed to spend on the row.
+  leaseUntil        DateTime?
+  /// The Gateway's opaque video operation, stored as soon as the submit returns.
+  providerOperation Json?
+  submittedAt       DateTime?
+  lastError         String?
+
+  @@unique([avatarId, state])
+  @@index([status, leaseUntil])
+  @@map("soko_bot_avatar_render")
 }
 
 model SokoBotLegacyMessage {

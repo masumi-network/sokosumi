@@ -13,7 +13,7 @@
   "functions": {
     "dist/index.js": {
       "maxDuration": 300,
-      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**}"
+      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**,assets/soko-bot-avatar/*}"
     }
   },
   "relatedProjects": [
@@ -136,6 +136,10 @@
     {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-avatar-renders",
+      "schedule": "* * * * *"
     },
     {
       "path": "/sync/task-tags",

@@ -153,6 +153,53 @@ describe("DirectRoomAvatarStack", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("crops a crafted Soko Bot's avatar to its face", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [makeUser("me", "Me")],
+          sokoBotMembers: [
+            {
+              ...makeSokoBot("bot-1", "Zero"),
+              image: "https://blob/idle.png",
+              avatarStyleId: "crafted-desk",
+            },
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+
+    const face = screen
+      .getByTestId("dm-sidebar-avatar-bot-1")
+      .querySelector("img");
+    expect(face).toHaveAttribute("src", "https://blob/idle.png");
+    expect(face?.className).toContain("size-[240%]");
+  });
+
+  it("leaves a mascot avatar uncropped", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [makeUser("me", "Me")],
+          sokoBotMembers: [
+            {
+              ...makeSokoBot("bot-1", "Zero"),
+              image: "https://blob/m.png",
+              avatarStyleId: "mascot",
+            },
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+
+    expect(
+      screen.getByTestId("dm-sidebar-avatar-bot-1").querySelector("img")
+        ?.className ?? "",
+    ).not.toContain("size-[240%]");
+  });
+
   it("reports a soko bot as online whatever its own presence says", () => {
     render(
       <DirectRoomAvatarStack

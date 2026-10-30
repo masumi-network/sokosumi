@@ -32,6 +32,8 @@ const actorSchema = z.object({
   kind: z.enum(["user", "coworker", "sokoBot"]),
   slug: z.string().max(200).optional(),
   avatarSeed: z.string().max(200).nullable().default(null),
+  /** Soko Bots only: the style of the claimed avatar. */
+  avatarStyleId: z.string().max(200).nullable().default(null),
 });
 const projectSchema = z.object({
   id: z.string().max(200),

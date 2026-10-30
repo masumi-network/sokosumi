@@ -1,13 +1,14 @@
 "use client";
 
-import type {
-  SokoBotAvatar,
-  SokoBotDailyStats,
-  SokoBotInstalledSkill,
-  SokoBotIntegrationCatalogEntry,
-  SokoBotIntegrations,
-  SokoBotUsage,
-  SokoBotVersion,
+import {
+  type SokoBotAvatar,
+  type SokoBotDailyStats,
+  type SokoBotInstalledSkill,
+  type SokoBotIntegrationCatalogEntry,
+  type SokoBotIntegrations,
+  SokoBotStatus,
+  type SokoBotUsage,
+  type SokoBotVersion,
 } from "@sokosumi/core-client";
 import { MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +27,11 @@ import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import Markdown from "@/components/markdown";
+import {
+  AvatarStateLine,
+  AvatarStatePill,
+  useAvatarStateCopy,
+} from "@/components/soko-bot/avatar-state";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,15 +41,18 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
+import { avatarSources } from "@/lib/soko-bot/avatar";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
-import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
+import {
+  sokoBotAvatarStudioRoute,
+  sokoBotConsoleRoute,
+} from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { AvatarPicker } from "../avatar-picker.client";
 import {
-  AssistantAvatar,
   AssistantImageContext,
   AssistantSeedContext,
 } from "../chat/assistant-avatar";
@@ -63,6 +72,7 @@ import { SokoBotTargetContext } from "../soko-bot-target";
 
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
+import { BotProfileAvatar } from "./bot-profile-avatar.client";
 import { DailyStats } from "./daily-stats";
 import { ToolConnectors } from "./tool-connectors.client";
 import { UsageSummary } from "./usage-summary";
@@ -184,6 +194,7 @@ export function SokoBotConsole({
 }: SokoBotConsoleProps) {
   const consoleRoute = sokoBotConsoleRoute(botId);
   const t = useTranslations("App.SokoBot");
+  const { alt: stateAlt } = useAvatarStateCopy();
   const adsBlock = ads ? (
     <AdAccountsSection accounts={ads.accounts} botProjectId={ads.projectId} />
   ) : null;
@@ -246,19 +257,47 @@ export function SokoBotConsole({
     });
   }
 
+  const stateSources = avatarSources(
+    bot.avatar,
+    bot.avatarState,
+    bot.avatarImageUrl,
+  );
+
   return (
     <SokoBotTargetContext.Provider value={botId}>
       <AssistantSeedContext.Provider value={seed}>
-        <AssistantImageContext.Provider value={bot.avatarImageUrl}>
+        <AssistantImageContext.Provider
+          value={
+            bot.avatarImageUrl
+              ? {
+                  url: bot.avatarImageUrl,
+                  crafted: stateSources.crafted,
+                  alt: stateAlt(botName, bot.avatarState),
+                  stateStill: stateSources.still ?? bot.avatarImageUrl,
+                  stateLoop: stateSources.loop,
+                }
+              : null
+          }
+        >
           <div className="w-full space-y-6 py-2">
-            <header className="flex flex-wrap items-center gap-5 py-2">
-              <AssistantAvatar size="lg" />
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-foreground truncate text-2xl font-light md:text-3xl tracking-tight">
+            <header className="flex flex-col items-center gap-4 py-6 text-center">
+              <BotProfileAvatar
+                name={botName}
+                seed={seed}
+                imageUrl={bot.avatarImageUrl}
+                avatar={bot.avatar}
+                state={bot.avatarState}
+                editHref={canManage ? sokoBotAvatarStudioRoute(botId) : null}
+              />
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-2.5">
+                  <h1 className="text-foreground truncate text-3xl font-light tracking-tight">
                     {botName}
                   </h1>
-                  <SokoBotStatusBadge status={bot.status} />
+                  <AvatarStatePill state={bot.avatarState} />
+                  {bot.status === SokoBotStatus.ERROR ? (
+                    <SokoBotStatusBadge status={bot.status} />
+                  ) : null}
                   {version ? (
                     <span
                       className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
@@ -279,26 +318,21 @@ export function SokoBotConsole({
                     </span>
                   ) : null}
                 </div>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground max-w-xl text-sm text-pretty">
                   {t("Console.tagline")}
-                  {bot.lastActivityAt ? (
-                    <span
-                      className="ml-2 tabular-nums"
-                      suppressHydrationWarning
-                    >
-                      ·{" "}
-                      {t("Console.lastActivity", {
-                        time: format.relativeTime(
-                          new Date(bot.lastActivityAt),
-                          new Date(),
-                        ),
-                      })}
-                    </span>
-                  ) : null}
+                </p>
+                <p
+                  className="text-muted-foreground text-xs"
+                  suppressHydrationWarning
+                >
+                  <AvatarStateLine
+                    state={bot.avatarState}
+                    lastActivityAt={bot.lastActivityAt}
+                  />
                 </p>
               </div>
-              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-                <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+              <div className="flex w-full flex-wrap items-center justify-center gap-2">
+                <div className="flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 sm:flex-none">
                   <Switch
                     id="soko-bot-advanced"
                     checked={isAdvanced}

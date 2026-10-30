@@ -344,7 +344,7 @@ main().then(
  * pnpm symlink matches zero files and raises nothing. A hoisted install, a
  * `--filter` change or a pdfjs release that renames `legacy/build/` would
  * produce a green build, green CI, and `parser-unavailable` on every
- * document forever. `scripts/check-pdfjs-bundle.mjs` runs in
+ * document forever. `scripts/check-bundle-includes.mjs` runs in
  * `vercel-build` and fails the build instead.
  *
  * On the function key itself: `maxDuration: 300` is indistinguishable from

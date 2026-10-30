@@ -37,6 +37,20 @@ describe("mentionLookupMapsFromCatalog", () => {
     expect(maps.usersBySlug.get("ada")).toEqual({ id: "user-1", name: "Ada" });
   });
 
+  it("keeps a Soko Bot's avatar style from the catalog", () => {
+    const maps = mentionLookupMapsFromCatalog({
+      "sokoBot:bot-1": {
+        ...catalog["sokoBot:bot-1"],
+        data: {
+          ...catalog["sokoBot:bot-1"].data,
+          avatarStyleId: "crafted-desk",
+        },
+      },
+    });
+
+    expect(maps.sokoBotsById.get("bot-1")?.avatarStyleId).toBe("crafted-desk");
+  });
+
   it("prefers the room roster over the catalog stub", () => {
     const rostered: ChatRoomSokoBotParticipant = {
       id: "bot-1",

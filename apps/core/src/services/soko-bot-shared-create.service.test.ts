@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { calls, transactionMock, workspaceFindUniqueMock } = vi.hoisted(() => ({
-  calls: [] as string[],
-  transactionMock: vi.fn(),
-  workspaceFindUniqueMock: vi.fn(),
+const { calls, claimAvatarMock, transactionMock, workspaceFindUniqueMock } =
+  vi.hoisted(() => ({
+    calls: [] as string[],
+    claimAvatarMock: vi.fn(),
+    transactionMock: vi.fn(),
+    workspaceFindUniqueMock: vi.fn(),
+  }));
+
+vi.mock("@/services/soko-bot-avatar.service", () => ({
+  claimAvatar: claimAvatarMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -88,6 +94,24 @@ describe("createSharedSokoBot", () => {
       "chatRoom.create",
       "sokoBot.update",
     ]);
+  });
+
+  it("records who kept the avatar it creates the bot with, without enforcing the keep cap", async () => {
+    const tx = recordingTx(["caller"]);
+    transactionMock.mockImplementation(async (run) => await run(tx));
+
+    await createSharedSokoBot({
+      callerUserId: "caller",
+      workspaceId: "workspace_1",
+      projectId: null,
+      name: "Team",
+      avatarId: "avatar-1",
+    });
+
+    expect(claimAvatarMock).toHaveBeenCalledWith(BOT_ID, "avatar-1", {
+      tx,
+      keptBy: "caller",
+    });
   });
 
   it("refuses a workspace without an organization before any transaction", async () => {

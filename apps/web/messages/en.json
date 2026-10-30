@@ -954,6 +954,26 @@
         "ACCEPTED": "Approved and carried out.",
         "REJECTED": "Rejected. Nothing was created.",
         "EXPIRED": "Expired without a decision. Ask your Soko Bot again if still needed."
+      },
+      "AvatarState": {
+        "alt": "{name}, {state}",
+        "label": {
+          "idle": "Idle",
+          "thinking": "Thinking",
+          "working": "Working",
+          "done": "Done",
+          "needs_you": "Needs you",
+          "offline": "Offline"
+        },
+        "line": {
+          "idle": "Ready when you are",
+          "thinking": "Working out its next step",
+          "working": "Working on a request",
+          "done": "Finished its last request",
+          "needs_you": "A decision is waiting for you",
+          "offline": "Not taking requests right now"
+        },
+        "lastActive": "Last active {time}"
       }
     },
     "Mermaid": {
@@ -4597,7 +4617,6 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
-          "workingNow": "Working now",
           "needsAttention": "Needs attention",
           "activeAgo": "Active {time}",
           "ready": "Ready",
@@ -9100,7 +9119,6 @@
       },
       "Console": {
         "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
-        "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
         "openChatError": "Could not open the chat with your Soko Bot.",
@@ -9163,7 +9181,65 @@
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
         "loadError": "Could not load pictures.",
-        "rateLimited": "Too many new pictures requested. Try again later."
+        "rateLimited": "Too many new pictures requested. Try again later.",
+        "edit": "Edit avatar",
+        "Studio": {
+          "metadata": "Avatar studio",
+          "back": "Back to {name}",
+          "title": "Choose how {name} looks",
+          "description": "Change the creature or add an accessory. The desk stays: it is where your bot works.",
+          "draftAlt": "New look for {name}, not saved yet",
+          "making": "Making your new look · about 10 s",
+          "sizes": "Profile above · avatar in chat and tasks",
+          "states": "States",
+          "statesPlay": "Pick a state to play it once",
+          "statesDraft": "Animates once you keep it",
+          "statesProgress": "Making its animations · {ready} of {total} ready",
+          "creature": "Creature",
+          "accessory": "Accessory",
+          "creatures": {
+            "owl": "Owl",
+            "frog": "Frog",
+            "hedgehog": "Hedgehog",
+            "otter": "Otter",
+            "penguin": "Penguin"
+          },
+          "accessories": {
+            "beanie": "Beanie",
+            "glasses": "Glasses",
+            "scarf": "Scarf",
+            "headphones": "Headphones",
+            "magnifier": "Magnifier"
+          },
+          "describe": "Or describe a change",
+          "placeholder": "Give it a tiny wizard hat",
+          "apply": "Apply",
+          "ideas": {
+            "wizard": "A tiny wizard hat",
+            "coffee": "Coffee on the desk",
+            "snow": "Let it snow",
+            "sleepy": "Make it sleepy",
+            "beach": "Take it to the beach"
+          },
+          "keep": "Keep this look",
+          "shuffle": "Shuffle",
+          "cancel": "Cancel",
+          "saved": "Saved.",
+          "error": "Could not change the look. Try again.",
+          "keepError": "Could not keep this look. Try again.",
+          "cancelError": "Could not go back to your current look. Try again.",
+          "redo": "Redo animation",
+          "retry": "Try again",
+          "redoing": "Making…",
+          "drawing": "Drawing…",
+          "animating": "Animating…",
+          "redoError": "Could not redo this animation. Try again.",
+          "redoLimit": "You have redone a lot of animations today. Try again tomorrow.",
+          "redoBusy": "That animation is still being made.",
+          "empty": "No look yet. Pick a creature or press Shuffle to start.",
+          "rateLimited": "You have made a lot of new looks. Try again later.",
+          "unavailable": "Changing the look is not available right now."
+        }
       },
       "Skills": {
         "builtIn": "Included",

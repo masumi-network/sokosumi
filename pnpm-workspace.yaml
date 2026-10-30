@@ -67,6 +67,8 @@ allowBuilds:
   "@vercel/speed-insights": false
   better-sqlite3: false
   esbuild: false
+  # Core renders avatar loops with it; the install script downloads the binary.
+  ffmpeg-static: true
   puppeteer: false
   puppeteer-core: false
   sharp: false

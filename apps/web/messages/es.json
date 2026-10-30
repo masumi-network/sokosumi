@@ -954,6 +954,26 @@
         "ACCEPTED": "Aprobado y ejecutado.",
         "REJECTED": "Rechazado. No se creó nada.",
         "EXPIRED": "Caducó sin decisión. Pídeselo de nuevo a tu Soko Bot si sigue siendo necesario."
+      },
+      "AvatarState": {
+        "alt": "{name}, {state}",
+        "label": {
+          "idle": "Inactivo",
+          "thinking": "Pensando",
+          "working": "Trabajando",
+          "done": "Listo",
+          "needs_you": "Te necesita",
+          "offline": "Sin conexión"
+        },
+        "line": {
+          "idle": "Listo cuando tú lo estés",
+          "thinking": "Pensando su próximo paso",
+          "working": "Trabajando en una solicitud",
+          "done": "Terminó su última solicitud",
+          "needs_you": "Una decisión te está esperando",
+          "offline": "No acepta solicitudes ahora mismo"
+        },
+        "lastActive": "Última actividad {time}"
       }
     },
     "Mermaid": {
@@ -4597,7 +4617,6 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
-          "workingNow": "Trabajando ahora",
           "needsAttention": "Requiere atención",
           "activeAgo": "Activo {time}",
           "ready": "Listo",
@@ -9100,7 +9119,6 @@
       },
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
-        "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
         "openChatError": "No se pudo abrir el chat con tu Soko Bot.",
@@ -9163,7 +9181,65 @@
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
         "loadError": "No se pudieron cargar las imágenes.",
-        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
+        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde.",
+        "edit": "Editar imagen",
+        "Studio": {
+          "metadata": "Estudio de imagen",
+          "back": "Volver a {name}",
+          "title": "Elige el aspecto de {name}",
+          "description": "Cambia la criatura o añade un accesorio. El escritorio se queda: es donde trabaja tu bot.",
+          "draftAlt": "Nuevo aspecto de {name}, aún sin guardar",
+          "making": "Creando tu nuevo aspecto · unos 10 s",
+          "sizes": "Perfil arriba · imagen en el chat y las tareas",
+          "states": "Estados",
+          "statesPlay": "Elige un estado para verlo una vez",
+          "statesDraft": "Se anima cuando lo conserves",
+          "statesProgress": "Creando sus animaciones · {ready} de {total} listas",
+          "creature": "Criatura",
+          "accessory": "Accesorio",
+          "creatures": {
+            "owl": "Búho",
+            "frog": "Rana",
+            "hedgehog": "Erizo",
+            "otter": "Nutria",
+            "penguin": "Pingüino"
+          },
+          "accessories": {
+            "beanie": "Gorro",
+            "glasses": "Gafas",
+            "scarf": "Bufanda",
+            "headphones": "Auriculares",
+            "magnifier": "Lupa"
+          },
+          "describe": "O describe un cambio",
+          "placeholder": "Ponle un pequeño sombrero de mago",
+          "apply": "Aplicar",
+          "ideas": {
+            "wizard": "Un pequeño sombrero de mago",
+            "coffee": "Café en el escritorio",
+            "snow": "Que nieve",
+            "sleepy": "Que parezca soñoliento",
+            "beach": "Llévalo a la playa"
+          },
+          "keep": "Conservar este aspecto",
+          "shuffle": "Al azar",
+          "cancel": "Cancelar",
+          "saved": "Guardado.",
+          "error": "No se pudo cambiar el aspecto. Inténtalo de nuevo.",
+          "keepError": "No se pudo conservar este aspecto. Inténtalo de nuevo.",
+          "cancelError": "No se pudo volver a tu aspecto actual. Inténtalo de nuevo.",
+          "redo": "Rehacer animación",
+          "retry": "Intentar de nuevo",
+          "redoing": "Creándola…",
+          "drawing": "Dibujando…",
+          "animating": "Animando…",
+          "redoError": "No se pudo rehacer esta animación. Inténtalo de nuevo.",
+          "redoLimit": "Hoy has rehecho muchas animaciones. Inténtalo de nuevo mañana.",
+          "redoBusy": "Esa animación aún se está creando.",
+          "empty": "Todavía no hay aspecto. Elige una criatura o pulsa «Al azar» para empezar.",
+          "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde.",
+          "unavailable": "Ahora mismo no se puede cambiar el aspecto."
+        }
       },
       "Skills": {
         "builtIn": "Incluidos",
